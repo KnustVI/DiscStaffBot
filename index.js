@@ -13,6 +13,7 @@ const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
     client.commands.set(command.data.name, command);
+    console.log(`Comandos carregados: ${client.commands.size}`)
 }
 
 // Evento READY correto
