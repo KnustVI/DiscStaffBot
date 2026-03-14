@@ -9,12 +9,27 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.commands = new Collection();
 
-const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
-for (const file of commandFiles) {
-    const command = require(`./commands/${file}`);
-    client.commands.set(command.data.name, command);
-    console.log(`Comandos carregados: ${client.commands.size}`)
+const commandFolders = fs.readdirSync('./commands');
+
+for (const folder of commandFolders) {
+
+    const commandFiles = fs
+        .readdirSync(`./commands/${folder}`)
+        .filter(file => file.endsWith('.js'));
+
+    for (const file of commandFiles) {
+
+        const command = require(`./commands/${folder}/${file}`);
+
+        if (command.data && command.execute) {
+            client.commands.set(command.data.name, command);
+        }
+
+    }
 }
+
+console.log(`Comandos carregados: ${client.commands.size}`);
+
 
 // Evento READY correto
 client.once('clientReady', () => {
