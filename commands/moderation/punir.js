@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../../database/database');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js')
+const db = require('../../database/database')
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,9 +20,9 @@ module.exports = {
         .addChoices(
           { name: '1 - Aviso', value: 1 },
           { name: '2 - Advertência', value: 2 },
-          { name: '3 - Timeout', value: 3 },
-          { name: '4 - Kick', value: 4 },
-          { name: '5 - Ban', value: 5 }
+          { name: '3 - Timeout leve', value: 3 },
+          { name: '4 - Timeout médio', value: 4 },
+          { name: '5 - Timeout severo', value: 5 }
         )
     )
 
@@ -33,57 +33,86 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
 
-    const user = interaction.options.getUser('usuario');
-    const severity = interaction.options.getInteger('gravidade');
-    const reason = interaction.options.getString('motivo');
-    const guildId = interaction.guild.id;
-    const moderatorId = interaction.user.id;
+    await interaction.deferReply({ ephemeral: true })
 
-    const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+    const user = interaction.options.getUser('usuario')
+    const severity = interaction.options.getInteger('gravidade')
+    const reason = interaction.options.getString('motivo')
+
+    const guildId = interaction.guild.id
+    const moderatorId = interaction.user.id
+
+    const member = await interaction.guild.members.fetch(user.id).catch(() => null)
 
     if (!member) {
-      return interaction.editReply({ content: "❌ Usuário não encontrado no servidor." });
+      return interaction.editReply({ content: "❌ Usuário não encontrado no servidor." })
     }
 
-    let action = severity === 1 ? 'Aviso' :
-                 severity === 2 ? 'Advertência' : 'Nenhuma';
+    let timeoutDuration = 0
+    let action = "Aviso"
+
+    switch (severity) {
+
+      case 2:
+        timeoutDuration = 5 * 60 * 1000
+        action = "Timeout (5 min)"
+        break
+
+      case 3:
+        timeoutDuration = 30 * 60 * 1000
+        action = "Timeout (30 min)"
+        break
+
+      case 4:
+        timeoutDuration = 2 * 60 * 60 * 1000
+        action = "Timeout (2 horas)"
+        break
+
+      case 5:
+        timeoutDuration = 24 * 60 * 60 * 1000
+        action = "Timeout (24 horas)"
+        break
+
+    }
 
     try {
-      if (severity === 3) {
-        await member.timeout(10 * 60 * 1000, reason);
-        action = "Timeout (10 min)";
+
+      if (timeoutDuration > 0) {
+        await member.timeout(timeoutDuration, reason)
       }
-      if (severity === 4) {
-        await member.kick(reason);
-        action = "Kick";
-      }
-      if (severity === 5) {
-        await member.ban({ reason });
-        action = "Ban";
-      }
+
     } catch (err) {
-      console.error(err);
-      return interaction.editReply({ content: "❌ Não foi possível aplicar a punição. Verifique minhas permissões." });
+
+      console.error(err)
+
+      return interaction.editReply({
+        content: "❌ Não foi possível aplicar a punição. Verifique minhas permissões."
+      })
+
     }
 
-    // Registrar no banco de dados
+    // salvar no banco
+
     db.prepare(`
-      INSERT INTO punishments 
+      INSERT INTO punishments
       (guild_id, user_id, moderator_id, reason, severity, created_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).run(guildId, user.id, moderatorId, reason, severity);
+    `).run(guildId, user.id, moderatorId, reason, severity)
 
-    // Buscar canal de logs
+    // buscar canal de logs
+
     const logSetting = db.prepare(`
       SELECT value FROM settings
       WHERE guild_id = ? AND key = 'logs_channel'
-    `).get(guildId);
+    `).get(guildId)
 
     if (logSetting) {
-      const logChannel = interaction.guild.channels.cache.get(logSetting.value);
+
+      const logChannel = interaction.guild.channels.cache.get(logSetting.value)
+
       if (logChannel) {
+
         const logEmbed = new EmbedBuilder()
           .setTitle("📜 Nova punição registrada")
           .addFields(
@@ -94,13 +123,12 @@ module.exports = {
             { name: "Motivo", value: reason }
           )
           .setColor(0xff0000)
-          .setTimestamp();
+          .setTimestamp()
 
-        logChannel.send({ embeds: [logEmbed] });
+        logChannel.send({ embeds: [logEmbed] })
       }
     }
 
-    // Resposta ao moderador
     const replyEmbed = new EmbedBuilder()
       .setTitle("✅ Punição registrada")
       .addFields(
@@ -111,8 +139,8 @@ module.exports = {
         { name: "Motivo", value: reason }
       )
       .setColor(0x00ff00)
-      .setTimestamp();
+      .setTimestamp()
 
-    await interaction.editReply({ embeds: [replyEmbed] });
+    await interaction.editReply({ embeds: [replyEmbed] })
   }
-};
+}
