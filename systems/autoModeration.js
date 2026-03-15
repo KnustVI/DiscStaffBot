@@ -5,50 +5,109 @@ module.exports = (client) => {
 
 cron.schedule('0 3 * * *', async () => {
 
-console.log("Verificação diária iniciada")
+console.log("🛡 Automod: verificação diária iniciada")
 
 const now = Date.now()
-const THIRTY_DAYS = 1000 * 60 * 60 * 24 * 30
-const FIFTEEN_DAYS = 1000 * 60 * 60 * 24 * 15
+
+const ONE_DAY = 1000 * 60 * 60 * 24
+const THIRTY_DAYS = ONE_DAY * 30
+const FIFTEEN_DAYS = ONE_DAY * 15
 
 const users = db.prepare(`SELECT * FROM users`).all()
 
 for (const user of users) {
 
-const member = await client.guilds.cache.first().members.fetch(user.user_id).catch(() => null)
+const guild = client.guilds.cache.get(user.guild_id)
+if (!guild) continue
 
+const member = await guild.members.fetch(user.user_id).catch(() => null)
 if (!member) continue
 
-const daysWithoutPenalty = now - user.last_penalty
+const lastPenalty = user.last_penalty || now
+const timeWithoutPenalty = now - lastPenalty
 
-// Jogador exemplar
-if (daysWithoutPenalty >= THIRTY_DAYS) {
+/* ---------------------------
+REPUTAÇÃO PASSIVA (RECUPERAÇÃO)
+--------------------------- */
 
-console.log(`${member.user.tag} elegível para exemplar`)
+const days = Math.floor(timeWithoutPenalty / ONE_DAY)
 
-// Aqui futuramente adicionaremos o cargo
+if (days > 0) {
+
+db.prepare(`
+UPDATE users
+SET reputation = MIN(reputation + ?, 100)
+WHERE user_id = ?
+`).run(days, user.user_id)
+
+console.log(`⭐ ${member.user.tag} recuperou ${days} reputação`)
 
 }
 
-// verificar penalidades recentes
+/* ---------------------------
+JOGADOR EXEMPLAR
+--------------------------- */
+
+if (timeWithoutPenalty >= THIRTY_DAYS) {
+
+const settings = db.prepare(`
+SELECT key, value FROM settings
+WHERE guild_id = ?
+`).all(guild.id)
+
+const config = Object.fromEntries(settings.map(s => [s.key, s.value]))
+
+if (config.exemplar_role) {
+
+if (!member.roles.cache.has(config.exemplar_role)) {
+
+await member.roles.add(config.exemplar_role).catch(() => null)
+
+console.log(`🏅 ${member.user.tag} recebeu cargo exemplar`)
+
+}
+
+}
+
+}
+
+/* ---------------------------
+USUÁRIO PROBLEMÁTICO
+--------------------------- */
 
 const penalties = db.prepare(`
-SELECT COUNT(*) as total FROM penalties
+SELECT COUNT(*) as total
+FROM penalties
 WHERE user_id = ?
 AND date > ?
 `).get(user.user_id, now - FIFTEEN_DAYS)
 
 if (penalties.total >= 5) {
 
-console.log(`${member.user.tag} atingiu limite de penalidades`)
+const settings = db.prepare(`
+SELECT key, value FROM settings
+WHERE guild_id = ?
+`).all(guild.id)
 
-// Aqui futuramente adicionaremos cargo problemático
+const config = Object.fromEntries(settings.map(s => [s.key, s.value]))
+
+if (config.problem_role) {
+
+if (!member.roles.cache.has(config.problem_role)) {
+
+await member.roles.add(config.problem_role).catch(() => null)
+
+console.log(`⚠ ${member.user.tag} recebeu cargo problemático`)
 
 }
 
 }
 
-console.log("Verificação concluída")
+}
+
+}
+
+console.log("✅ Automod: verificação concluída")
 
 })
 
