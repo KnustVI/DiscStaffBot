@@ -144,3 +144,22 @@ module.exports = {
     await interaction.editReply({ embeds: [replyEmbed] })
   }
 }
+
+const penaltyMap = {
+  1: 2,
+  2: 5,
+  3: 10,
+  4: 20,
+  5: 35
+}
+
+const penalty = penaltyMap[severity]
+
+db.prepare(`
+INSERT INTO users (user_id, reputation, penalties, last_infraction)
+VALUES (?, 100 - ?, 1, strftime('%s','now'))
+ON CONFLICT(user_id) DO UPDATE SET
+reputation = reputation - ?,
+penalties = penalties + 1,
+last_infraction = strftime('%s','now')
+`).run(user.id, penalty, penalty)
