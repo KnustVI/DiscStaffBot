@@ -1,13 +1,28 @@
-const Database = require('better-sqlite3')
+const Database = require('better-sqlite3');
 
-const db = new Database('database.sqlite')
+// Cria ou abre o banco
+const db = new Database('database.sqlite');
+
+
+/* =========================================
+   CONFIGURAÇÕES DO SERVIDOR
+   Armazena configurações como canais e cargos
+========================================= */
 
 db.prepare(`
-CREATE TABLE IF NOT EXISTS guild_config (
-guild_id TEXT PRIMARY KEY,
-logs_channel TEXT
+CREATE TABLE IF NOT EXISTS settings (
+    guild_id TEXT,
+    key TEXT,
+    value TEXT,
+    PRIMARY KEY (guild_id, key)
 )
-`).run()
+`).run();
+
+
+/* =========================================
+   CONTROLE DE USUÁRIOS
+   Armazena reincidência de punições
+========================================= */
 
 db.prepare(`
 CREATE TABLE IF NOT EXISTS users (
@@ -15,7 +30,13 @@ CREATE TABLE IF NOT EXISTS users (
     last_penalty INTEGER,
     penalties INTEGER DEFAULT 0
 )
-`).run()
+`).run();
+
+
+/* =========================================
+   HISTÓRICO DE PENALIDADES
+   Registro simples de punições aplicadas
+========================================= */
 
 db.prepare(`
 CREATE TABLE IF NOT EXISTS penalties (
@@ -25,27 +46,25 @@ CREATE TABLE IF NOT EXISTS penalties (
     reason TEXT,
     date INTEGER
 )
-`).run()
+`).run();
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS settings (
-guild_id TEXT,
-key TEXT,
-value TEXT,
-PRIMARY KEY (guild_id, key)
-)
-`).run()
+
+/* =========================================
+   SISTEMA COMPLETO DE PUNIÇÕES
+   Estrutura preparada para moderação avançada
+========================================= */
 
 db.prepare(`
 CREATE TABLE IF NOT EXISTS punishments (
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-guild_id TEXT,
-user_id TEXT,
-moderator_id TEXT,
-reason TEXT,
-severity INTEGER,
-created_at TEXT
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT,
+    user_id TEXT,
+    moderator_id TEXT,
+    reason TEXT,
+    severity INTEGER,
+    created_at TEXT
 )
-`).run()
+`).run();
 
-module.exports = db
+
+module.exports = db;
