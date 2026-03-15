@@ -118,4 +118,33 @@ module.exports = {
         const role = interaction.options.getRole('role');
 
         db.prepare(`
-          INSERT OR
+          INSERT OR REPLACE INTO settings (guild_id, key, value)
+          VALUES (?, 'problem_role', ?)
+        `).run(guildId, role.id);
+
+        return interaction.editReply(`⚠ Cargo problemático definido: ${role}`);
+
+      }
+
+      if (sub === 'exemplar-role') {
+
+        const role = interaction.options.getRole('role');
+
+        db.prepare(`
+          INSERT OR REPLACE INTO settings (guild_id, key, value)
+          VALUES (?, 'exemplar_role', ?)
+        `).run(guildId, role.id);
+
+        return interaction.editReply(`🏅 Cargo exemplar definido: ${role}`);
+
+      }
+
+    } catch (err) {
+
+      console.error(err);
+      return interaction.editReply("❌ Ocorreu um erro ao executar o comando.");
+
+    }
+
+  }
+};
