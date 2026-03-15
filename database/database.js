@@ -26,9 +26,10 @@ CREATE TABLE IF NOT EXISTS settings (
 
 db.prepare(`
 CREATE TABLE IF NOT EXISTS users (
-    user_id TEXT PRIMARY KEY,
-    last_penalty INTEGER,
-    penalties INTEGER DEFAULT 0
+     user_id TEXT PRIMARY KEY,
+     reputation INTEGER DEFAULT 100,
+     penalties INTEGER DEFAULT 0,
+     last_infraction INTEGER
 )
 `).run();
 
