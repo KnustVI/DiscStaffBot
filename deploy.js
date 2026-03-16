@@ -9,31 +9,39 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 async function refreshCommands() {
     try {
         console.log("🧹 1. Limpando comandos antigos...");
-        // Enviando um array vazio para a guilda, limpamos tudo o que existe lá
         await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: [] });
         console.log("✅ Limpeza concluída.");
 
         console.log("🚀 2. Preparando novos comandos...");
         const commands = [];
-        
-        // --- ABAIXO: Lógica para ler seus arquivos de comando ---
-        // Ajuste o caminho 'commands' para a pasta onde seus comandos estão
         const commandsPath = path.join(__dirname, 'commands'); 
         
         if (fs.existsSync(commandsPath)) {
-            const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-            
-            for (const file of commandFiles) {
-                const command = require(path.join(commandsPath, file));
-                if ('data' in command) {
-                    commands.push(command.data.toJSON());
+            // LER AS SUBPASTAS (config, moderation, profile)
+            const commandFolders = fs.readdirSync(commandsPath);
+
+            for (const folder of commandFolders) {
+                const folderPath = path.join(commandsPath, folder);
+                
+                // Verifica se é uma pasta (ex: moderation)
+                if (fs.lstatSync(folderPath).isDirectory()) {
+                    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+                    
+                    for (const file of commandFiles) {
+                        const filePath = path.join(folderPath, file);
+                        const command = require(filePath);
+                        
+                        if ('data' in command && 'execute' in command) {
+                            commands.push(command.data.toJSON());
+                            console.log(`- Comando encontrado: ${command.data.name}`);
+                        }
+                    }
                 }
             }
         }
-        // -------------------------------------------------------
 
         if (commands.length === 0) {
-            console.log("⚠️ Nenhum comando encontrado para registrar. O bot ficou limpo.");
+            console.log("⚠️ Nenhum comando encontrado nas subpastas de /commands.");
             return;
         }
 
@@ -43,7 +51,7 @@ async function refreshCommands() {
             { body: commands }
         );
 
-        console.log("✅ Sucesso! Comandos limpos e recolocados.");
+        console.log("✅ Sucesso! Comandos registrados.");
 
     } catch (error) {
         console.error("❌ Erro durante o processo:");
