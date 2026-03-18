@@ -130,7 +130,7 @@ module.exports = {
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .setColor(reputation >= 90 ? 0x10b981 : (reputation >= 50 ? 0xf59e0b : 0xef4444))
                 .setDescription(
-                    `# 👤 Perfil: ${targetUser.displayName}\n` +
+                    `# 👤 ${targetUser.displayName}\n` +
                     `Estatísticas de comportamento em **${interaction.guild.name}**.\n` +
                     `📍 Estes dados são restritos a este servidor.` 
                 )
