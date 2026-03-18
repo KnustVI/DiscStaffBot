@@ -99,6 +99,27 @@ module.exports = {
                 last_penalty = ?
             `).run(user.id, guildId, 100 - repLoss, timestamp, repLoss, timestamp);
 
+            // --- NOVO: ENVIO DE DM PARA O JOGADOR ---
+            const dmEmbed = new EmbedBuilder()
+                .setTitle(`⚖️ Você recebeu uma punição em ${interaction.guild.name}`)
+                .setColor(0xff0000)
+                .setThumbnail(interaction.guild.iconURL())
+                .setDescription(`Olá ${user.username}, uma ação administrativa foi aplicada à sua conta.`)
+                .addFields(
+                    { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
+                    { name: "📊 Gravidade", value: `Nível ${severity}`, inline: true },
+                    { name: "📉 Reputação Perdida", value: `-${repLoss} pontos`, inline: true },
+                    { name: "⏳ Medida Aplicada", value: selected.action, inline: true }
+                )
+                .setFooter({ text: "Siga as regras para evitar punições severas e perda de reputação." })
+                .setTimestamp();
+            try {
+                await user.send({ embeds: [dmEmbed] });
+            } catch (err) {
+                console.log(`Não foi possível enviar DM para ${user.tag}. (DMs fechadas)`);
+                // Não travamos o comando aqui, apenas avisamos no log interno que a DM falhou.
+            }
+
             // 6. Envio de Logs (Já validado que o canal existe no passo 1)
             const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
             if (logChannel) {
