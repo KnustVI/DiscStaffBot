@@ -3,7 +3,7 @@ const db = require('../../database/database');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('logs_staff')
+        .setName('stafflog')
         .setDescription('Consulta o histórico de ações aplicadas por um membro da Staff.')
         .addUserOption(opt => opt.setName('staff').setDescription('Selecione o moderador').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
