@@ -9,43 +9,43 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('O usuário que será punido').setRequired(true))
         .addIntegerOption(opt => opt.setName('gravidade').setDescription('Nível da infração (1 a 5)').setRequired(true)
             .addChoices(
-                { name: 'Nível 1', value: 1 },
-                { name: 'Nível 2', value: 2 },
-                { name: 'Nível 3', value: 3 },
-                { name: 'Nível 4', value: 4 },
-                { name: 'Nível 5', value: 5 }
+                { name: 'Nível 1 (Leve)', value: 1 },
+                { name: 'Nível 2 (Média)', value: 2 },
+                { name: 'Nível 3 (Grave)', value: 3 },
+                { name: 'Nível 4 (Gravíssima)', value: 4 },
+                { name: 'Nível 5 (Banimento)', value: 5 }
             ))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
         .addStringOption(opt => opt.setName('ticket').setDescription('Número do ticket (Opcional)').setRequired(false)),
 
     async execute(interaction) {
         const guildId = interaction.guild.id;
-        const ticketId = interaction.options.getString('ticket'); // Sem o "|| N/A" para podermos testar se existe
+        const ticketId = interaction.options.getString('ticket') || 'N/A';
         const user = interaction.options.getUser('usuario');
         const severity = interaction.options.getInteger('gravidade');
         const reason = interaction.options.getString('motivo');
         const timestamp = Date.now();
 
-        // --- 1. VERIFICAÇÕES ---
+        // --- 1. VERIFICAÇÕES DE CONFIGURAÇÃO ---
         const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
         const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
-        const alertChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'alert_channel'`).get(guildId);
 
         if (!staffRoleSetting || !logChannelSetting) {
-            return interaction.reply({ content: "⚠️ **O sistema não está configurado.**", ephemeral: true });
+            return interaction.reply({ content: "⚠️ **O sistema não está configurado.** Use os comandos de setup primeiro.", ephemeral: true });
         }
 
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
         const hasRole = interaction.member.roles.cache.has(staffRoleSetting.value);
-        if (!hasRole && !isAdmin) return interaction.reply({ content: "❌ Sem permissão.", ephemeral: true });
+        if (!hasRole && !isAdmin) return interaction.reply({ content: "❌ Você não tem permissão de Staff para usar este comando.", ephemeral: true });
 
         await interaction.deferReply({ ephemeral: true });
 
         const member = await interaction.guild.members.fetch(user.id).catch(() => null);
-        if (!member) return interaction.editReply("❌ Usuário não encontrado.");
+        if (!member) return interaction.editReply("❌ Usuário não encontrado no servidor.");
 
-        // --- 2. MÉTRICAS ---
+        // --- 2. DEFINIÇÃO DE MÉTRICAS (BANCO OU DEFAULT) ---
         const getMetric = (type) => db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${severity}_${type}`)?.value;
+        
         const defaultMetrics = {
             1: { action: "aviso", time: 0, rep: 2 },
             2: { action: "timeout", time: 5, rep: 5 },
@@ -59,69 +59,73 @@ module.exports = {
         const repLoss = parseInt(getMetric('rep') || defaultMetrics[severity].rep);
 
         try {
-            // --- 3. EXECUÇÃO ---
-            let executionDetail = "Aviso (ADV)";
+            // --- 3. EXECUÇÃO DA AÇÃO DISCORD ---
+            let executionDetail = "Aviso (Advertência)";
             if (selectedAction === 'timeout' && selectedTimeMinutes > 0) {
                 await member.timeout(selectedTimeMinutes * 60 * 1000, reason);
-                executionDetail = `Timeout (${selectedTimeMinutes}m)`;
+                executionDetail = `Timeout (${selectedTimeMinutes}min)`;
             } else if (selectedAction === 'ban') {
                 await member.ban({ reason });
                 executionDetail = "Banimento Permanente";
             }
 
-            // --- 4. BANCO DE DADOS ---
+            // --- 4. PERSISTÊNCIA NO BANCO DE DADOS ---
+            // Salva a punição com o ticket_id
             const insertPunishment = db.prepare(`
                 INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, ticket_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).run(guildId, user.id, interaction.user.id, reason, severity, ticketId || 'N/A', timestamp);
+            `).run(guildId, user.id, interaction.user.id, reason, severity, ticketId, timestamp);
 
             const punishmentId = insertPunishment.lastInsertRowid;
 
+            // Atualiza reputação do usuário
             db.prepare(`
                 INSERT INTO users (user_id, guild_id, reputation, penalties, last_penalty)
                 VALUES (?, ?, ?, 1, ?)
                 ON CONFLICT(user_id, guild_id) DO UPDATE SET
-                reputation = MAX(0, reputation - ?), penalties = penalties + 1, last_penalty = ?
+                reputation = MAX(0, reputation - ?), 
+                penalties = penalties + 1, 
+                last_penalty = ?
             `).run(user.id, guildId, 100 - repLoss, timestamp, repLoss, timestamp);
 
             const userData = db.prepare(`SELECT reputation FROM users WHERE user_id = ? AND guild_id = ?`).get(user.id, guildId);
 
-            // --- 5. EMBED DINÂMICA (TICKET SÓ APARECE SE EXISTIR) ---
-            const fields = [
-                { name: "👤 Usuário", value: `${user} (\`${user.id}\`)`, inline: true },
-                { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
-                { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
-                { name: "📉 Reputação Atual", value: `\`${userData.reputation} pts\``, inline: true }
-            ];
-
-            // Se o ticketId existir, adicionamos ele à lista de campos
-            if (ticketId) {
-                fields.push({ name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true });
-            }
-
-            // O motivo sempre por último ocupando a linha toda
-            fields.push({ name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` });
-
+            // --- 5. CONSTRUÇÃO DA EMBED (ORGANIZADA) ---
             const finalEmbed = new EmbedBuilder()
                 .setDescription(`# ⚖️ Nova Punição | ID #${punishmentId}`)
+                .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
                 .setColor(0xFF0000)
-                .addFields(fields)
+                .addFields(
+                    { name: "👤 Usuário", value: `${user}\n\`${member.displayName}\``, inline: true },
+                    { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
+                    { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true },
+                    { name: "🛠️ Ação Aplicada", value: `\`${executionDetail}\``, inline: true },
+                    { name: "📉 Reputação", value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
+                    { name: "📝 Motivo Detalhado", value: `\`\`\`${reason}\`\`\`` }
+                )
                 .setFooter({ 
                     text: interaction.guild.name, 
-                    iconURL: interaction.guild.iconURL({ dynamic: true })
+                    iconURL: interaction.guild.iconURL({ forceStatic: false }) || null
                 })
                 .setTimestamp();
 
-            // Envio Logs e DM
+            // Envio para Logs da Staff
             const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
-            if (logChannel) await logChannel.send({ embeds: [finalEmbed] }).catch(() => null);
-            await user.send({ embeds: [finalEmbed] }).catch(() => null);
+            if (logChannel) {
+                await logChannel.send({ embeds: [finalEmbed] }).catch(() => null);
+            }
 
-            await interaction.editReply({ content: `✅ Punição **#${punishmentId}** aplicada.` });
+            // Envio para o Usuário (DM)
+            await user.send({ 
+                content: `⚠️ Você recebeu uma nova punição em **${interaction.guild.name}**.`, 
+                embeds: [finalEmbed] 
+            }).catch(() => null);
+
+            await interaction.editReply({ content: `✅ Punição **#${punishmentId}** aplicada e registrada com sucesso.` });
 
         } catch (err) {
-            console.error(err);
-            return interaction.editReply(`❌ Erro ao aplicar punição.`);
+            console.error("Erro no comando punir:", err);
+            return interaction.editReply(`❌ Erro ao aplicar punição. Verifique se o cargo do bot está acima do usuário e se as permissões estão corretas.`);
         }
     }
 };

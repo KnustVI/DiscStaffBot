@@ -36,8 +36,8 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0xf2b705) // Cor dourada para o ranking
                 .setDescription(
-                    `# 🏆 Melhores do Servidor | ${interaction.guild.name}`+
-                    `Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}`+
+                    `# 🏆 Melhores do Servidor | ${interaction.guild.name}\n`+
+                    `Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}\n---\n` +
                     "📍 O ranking é atualizado em tempo real e é local.",
                 )
                 .setFooter({ 

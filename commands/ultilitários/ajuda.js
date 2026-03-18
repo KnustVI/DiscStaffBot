@@ -23,8 +23,8 @@ module.exports = {
                 `- \`/punir\`: Aplica sanções e desconta reputação.\n` +
                 `- \`/revogar\`: Anula uma punição e devolve os pontos.\n` +
                 `# 🔍 3. Consultas\n` +
-                `- \`/reputacao\`: Explica o sistema aos jogadores.\n` +
-                `- \`/perfil\`: Mostra o status de um usuário.`
+                `- \`/conferir\`: Explica o sistema aos jogadores.\n` +
+                `- \`/reputacao\`: Mostra o status de um usuário.`
             )
             .setFooter({ 
                 text: interaction.guild.name, 
@@ -48,13 +48,5 @@ module.exports = {
 
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
-        collector.on('collect', async i => {
-            if (i.customId === 'ver_reputacao_btn') {
-                await i.reply({ 
-                    content: '📌 Use o comando `/reputacao` para ver a tabela detalhada de punições deste servidor!', 
-                    ephemeral: true 
-                });
-            }
-        });
     }
 };

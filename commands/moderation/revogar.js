@@ -7,20 +7,20 @@ module.exports = {
         .setDescription('Anula uma punição específica, devolve reputação e limpa o histórico do usuário.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addIntegerOption(opt => opt.setName('id').setDescription('O ID da punição (ex: 150)').setRequired(true))
-        .addStringOption(opt => opt.setName('motivo').setDescription('Breve motivo da anulação').setRequired(true))
-        .addStringOption(opt => opt.setName('ticket').setDescription('Número do ticket (Opcional)').setRequired(false)), // Agora opcional
+        .addStringOption(opt => opt.setName('motivo').setDescription('Breve motivo da anulação').setRequired(true)),
+        // Removido o argumento de ticket para não pedir ao usuário
 
     async execute(interaction) {
         const guildId = interaction.guild.id;
         const punishmentId = interaction.options.getInteger('id');
         const revogReason = interaction.options.getString('motivo');
-        const ticketId = interaction.options.getString('ticket') || 'N/A'; // Define N/A se estiver vazio
 
         const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
         
         await interaction.deferReply({ ephemeral: true });
 
         try {
+            // 1. BUSCA A PUNIÇÃO ORIGINAL PARA PEGAR OS DADOS E O TICKET ANTIGO
             const punishment = db.prepare(`SELECT * FROM punishments WHERE id = ? AND guild_id = ?`).get(punishmentId, guildId);
 
             if (!punishment) {
@@ -31,20 +31,24 @@ module.exports = {
                 return interaction.editReply(`⚠️ Esta punição (ID **#${punishmentId}**) já foi revogada anteriormente.`);
             }
 
+            // Pega o ticket da punição original (se existir no banco)
+            const originalTicket = punishment.ticket_id || 'N/A';
+
+            // 2. CÁLCULO DE REPUTAÇÃO
             const metricKey = `punish_${punishment.severity}_rep`;
             const customRep = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, metricKey);
             
             const defaultRep = { 1: 2, 2: 5, 3: 10, 4: 20, 5: 35 };
             const repToRestore = customRep ? parseInt(customRep.value) : (defaultRep[punishment.severity] || 0);
 
-            // Atualiza o histórico
+            // 3. ATUALIZA O BANCO (Mantendo o ticket original no registro de revogação)
             db.prepare(`
                 UPDATE punishments 
-                SET reason = ?, severity = 0, ticket_id = ? 
+                SET reason = ?, severity = 0 
                 WHERE id = ?
-            `).run(`REVOGADA: ${revogReason}`, ticketId, punishmentId);
+            `).run(`REVOGADA: ${revogReason}`, punishmentId);
 
-            // Devolve reputação
+            // 4. DEVOLVE OS PONTOS
             db.prepare(`
                 UPDATE users 
                 SET reputation = MIN(100, reputation + ?),
@@ -54,14 +58,14 @@ module.exports = {
 
             const userData = db.prepare(`SELECT reputation FROM users WHERE user_id = ? AND guild_id = ?`).get(punishment.user_id, guildId);
 
-            // --- CONSTRUÇÃO DA EMBED ---
+            // --- 5. EMBED DE LOG PADRONIZADA ---
             const finalEmbed = new EmbedBuilder()
                 .setDescription(`# 🔓 Punição Revogada | ID #${punishmentId}`)
                 .setColor(0x00FF00)
                 .addFields(
                     { name: "👤 Usuário Beneficiado", value: `<@${punishment.user_id}> (\`${punishment.user_id}\`)`, inline: true },
                     { name: "👮 Revogado por", value: `${interaction.user}`, inline: true },
-                    { name: "🎫 Ticket Ref.", value: `\`#${ticketId}\``, inline: true },
+                    { name: "🎫 Ticket Originário", value: `\`#${originalTicket}\``, inline: true }, // Puxado do banco
                     { name: "📈 Reputação Atual", value: `\`${userData.reputation} pts (+${repToRestore})\``, inline: true },
                     { name: "📝 Motivo da Revogação", value: `\`\`\`${revogReason}\`\`\`` }
                 )
@@ -71,6 +75,7 @@ module.exports = {
                 })
                 .setTimestamp();
 
+            // Logs Staff
             if (logChannelSetting) {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
@@ -78,6 +83,7 @@ module.exports = {
                 }
             }
 
+            // DM Usuário
             const targetUser = await interaction.client.users.fetch(punishment.user_id).catch(() => null);
             if (targetUser) {
                 await targetUser.send({ embeds: [finalEmbed] }).catch(() => null);
