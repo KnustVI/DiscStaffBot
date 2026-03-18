@@ -6,25 +6,28 @@ const {
     StringSelectMenuBuilder, 
     ModalBuilder, 
     TextInputBuilder, 
-    TextInputStyle 
+    TextInputStyle,
+    ButtonBuilder,
+    ButtonStyle
 } = require('discord.js');
 const db = require('../../database/database');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('configplus')
+        .setName('config')
         .setDescription('Painel central de configuração do DiscStaffBot')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(sub => sub.setName('show').setDescription('Exibe o resumo das configurações atuais'))
+        .addSubcommand(sub => sub.setName('show').setDescription('Exibe TODAS as configurações atuais do bot'))
         .addSubcommand(sub => sub.setName('canais-e-cargos').setDescription('Configura canais e cargos (Menu + Chat)'))
-        .addSubcommand(sub => sub.setName('metricas').setDescription('Ajusta os valores de punição (Menu + Modal)')),
+        .addSubcommand(sub => sub.setName('metricas').setDescription('Ajusta os valores de punição (Menu + Modal)'))
+        .addSubcommand(sub => sub.setName('configreset').setDescription('RESETA as configurações (Canais, Cargos e Métricas)')),
 
     async execute(interaction) {
         const sub = interaction.options.getSubcommand();
         const guildId = interaction.guild.id;
 
         // ==========================================
-        // LÓGICA: SHOW (RESUMO RÁPIDO)
+        // LÓGICA: SHOW (EXIBE TUDO EM UM EMBED)
         // ==========================================
         if (sub === 'show') {
             await interaction.deferReply({ ephemeral: true });
@@ -32,12 +35,36 @@ module.exports = {
             const cfg = Object.fromEntries(rows.map(r => [r.key, r.value]));
 
             const embed = new EmbedBuilder()
-                .setTitle(`⚙️ Status: ${interaction.guild.name}`)
+                .setTitle(`⚙️ Painel de Controle: ${interaction.guild.name}`)
                 .setColor(0xff2e6c)
+                .setThumbnail(interaction.guild.iconURL())
+                .setDescription('Aqui estão todas as definições salvas no banco de dados.')
                 .addFields(
-                    { name: "🛡️ Moderação", value: `Staff: ${cfg.staff_role ? `<@&${cfg.staff_role}>` : '❌'}\nLogs: ${cfg.logs_channel ? `<#${cfg.logs_channel}>` : '❌'}`, inline: true },
-                    { name: "🎖️ Automod", value: `Exemplar: ${cfg.exemplar_role ? `<@&${cfg.exemplar_role}>` : '❌'}\nProblema: ${cfg.problem_role ? `<@&${cfg.problem_role}>` : '❌'}`, inline: true }
+                    { 
+                        name: "🛡️ Sistema & Canais", 
+                        value: `**Cargo Staff:** ${cfg.staff_role ? `<@&${cfg.staff_role}>` : '❌'}\n` +
+                               `**Canal de Logs:** ${cfg.logs_channel ? `<#${cfg.logs_channel}>` : '❌'}\n` +
+                               `**Canal Alertas:** ${cfg.alert_channel ? `<#${cfg.alert_channel}>` : '❌'}`, 
+                        inline: true 
+                    },
+                    { 
+                        name: "🎖️ Cargos Automáticos", 
+                        value: `**Exemplar:** ${cfg.exemplar_role ? `<@&${cfg.exemplar_role}>` : '❌'}\n` +
+                               `**Problema:** ${cfg.problem_role ? `<@&${cfg.problem_role}>` : '❌'}`, 
+                        inline: true 
+                    }
                 );
+
+            let metricsText = "";
+            for (let i = 1; i <= 5; i++) {
+                const action = cfg[`punish_${i}_action`] || "Aviso";
+                const time = cfg[`punish_${i}_time`] || "0";
+                const rep = cfg[`punish_${i}_rep`] || "0";
+                metricsText += `**Nível ${i}:** \`${action}\` | \`${time}m\` | \`-${rep} pts\`\n`;
+            }
+
+            embed.addFields({ name: "📊 Métricas de Punição", value: metricsText, inline: false });
+            embed.setFooter({ text: "Use /config [subcomando] para alterar algo." }).setTimestamp();
 
             return interaction.editReply({ embeds: [embed] });
         }
@@ -48,8 +75,7 @@ module.exports = {
         if (sub === 'canais-e-cargos') {
             const getSettingsEmbed = () => {
                 const rows = db.prepare(`SELECT key, value FROM settings WHERE guild_id = ?`).all(guildId);
-                const settings = {};
-                rows.forEach(row => settings[row.key] = row.value);
+                const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
 
                 return new EmbedBuilder()
                     .setTitle(`⚙️ Configurações: ${interaction.guild.name}`)
@@ -58,25 +84,21 @@ module.exports = {
                     .addFields(
                         { 
                             name: "🛡️ Sistema de Moderação", 
-                            value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : '❌ *Não definido*'}\n` +
-                                   `> *Necessário para usar comandos como /punir e /delpunir.*`, 
+                            value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : '❌ *Não definido*'}\n> *Necessário para usar comandos como /punir e /delpunir.*`, 
                             inline: false 
                         },
                         { 
                             name: "📜 Registro de Auditoria", 
-                            value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : '❌ *Não definido*'}\n` +
-                                   `> *Onde todas as punições e anulações serão registradas.*`, 
+                            value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : '❌ *Não definido*'}\n> *Onde todas as punições e anulações serão registradas.*`, 
                             inline: false 
                         },
                         { 
                             name: "🎖️ Cargos de Comportamento (Automod)", 
-                            value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : '❌ *Não definido*'}\n` +
-                                   `**Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : '❌ *Não definido*'}`, 
+                            value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : '❌ *Não definido*'}\n**Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : '❌ *Não definido*'}`, 
                             inline: false 
                         }
                     )
-                    .setFooter({ text: "Apenas Administradores podem alterar estas definições." })
-                    .setTimestamp();
+                    .setFooter({ text: "Apenas Administradores podem alterar estas definições." }).setTimestamp();
             };
 
             const row = new ActionRowBuilder().addComponents(
@@ -116,13 +138,10 @@ module.exports = {
                 });
 
                 messageCollector.on('collect', async m => {
-                    let value = selection.includes('channel') ? m.mentions.channels.first()?.id : m.mentions.roles.first()?.id;
-
+                    const value = selection.includes('channel') ? m.mentions.channels.first()?.id : m.mentions.roles.first()?.id;
                     if (!value) return m.reply({ content: "❌ Menção inválida. Tente novamente o comando.", ephemeral: true });
 
-                    db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`)
-                      .run(guildId, selection, value);
-
+                    db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, selection, value);
                     await m.delete().catch(() => null);
                     await i.editReply({ content: `✅ **Sucesso!** O valor de \`${selection}\` foi atualizado.`, ephemeral: true });
                     await interaction.editReply({ embeds: [getSettingsEmbed()] });
@@ -135,12 +154,12 @@ module.exports = {
         // ==========================================
         if (sub === 'metricas') {
             const parseTimeToMinutes = (input) => {
-                const lower = input.toLowerCase().trim();
-                const number = parseFloat(lower.replace(/[^\d.]/g, ''));
+                const lowerInput = input.toLowerCase().trim();
+                const number = parseFloat(lowerInput.replace(/[^\d.]/g, ''));
                 if (isNaN(number)) return null;
-                if (lower.endsWith('h')) return Math.round(number * 60);
-                if (lower.endsWith('d')) return Math.round(number * 1440);
-                if (lower.endsWith('m') || !/[a-z]/.test(lower)) return Math.round(number);
+                if (lowerInput.endsWith('h')) return Math.round(number * 60);
+                if (lowerInput.endsWith('d')) return Math.round(number * 1440);
+                if (lowerInput.endsWith('m') || !/[a-z]/.test(lowerInput)) return Math.round(number);
                 return null;
             };
 
@@ -148,7 +167,7 @@ module.exports = {
                 const embed = new EmbedBuilder()
                     .setTitle(`📊 Ajuste de Métricas: ${interaction.guild.name}`)
                     .setColor(0xff2e6c)
-                    .setDescription('Selecione um nível abaixo para editar. Formatos: `30`, `2h`, `1d`.');
+                    .setDescription('Selecione um nível abaixo para editar via Modal. (30, 2h, 1d)');
 
                 for (let i = 1; i <= 5; i++) {
                     const action = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${i}_action`)?.value || "Padrão";
@@ -160,44 +179,62 @@ module.exports = {
             };
 
             const row = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId('select_level')
-                    .setPlaceholder('Escolha o nível para editar...')
-                    .addOptions([1,2,3,4,5].map(n => ({ label: `Nível ${n}`, value: `${n}`, emoji: '⚙️' })))
+                new StringSelectMenuBuilder().setCustomId('select_level').setPlaceholder('Escolha o nível para editar...')
+                    .addOptions([1, 2, 3, 4, 5].map(n => ({ label: `Nível ${n}`, value: `${n}`, emoji: '⚙️' })))
             );
 
-            const resp = await interaction.reply({ embeds: [getMetricsEmbed()], components: [row], ephemeral: true });
-            const col = resp.createMessageComponentCollector({ time: 300000 });
+            const response = await interaction.reply({ embeds: [getMetricsEmbed()], components: [row], ephemeral: true });
+            const collector = response.createMessageComponentCollector({ time: 300000 });
 
-            col.on('collect', async i => {
-                if (i.customId === 'select_level') {
-                    const level = i.values[0];
-                    const modal = new ModalBuilder().setCustomId(`modal_${level}_${Date.now()}`).setTitle(`Configurar Nível ${level}`);
+            collector.on('collect', async i => {
+                const level = i.values[0];
+                const modal = new ModalBuilder().setCustomId(`modal_${level}_${Date.now()}`).setTitle(`Configurar Nível ${level}`);
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('action_name').setLabel("NOME DA AÇÃO").setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('time_value').setLabel("TEMPO (Ex: 30, 2h, 1d)").setStyle(TextInputStyle.Short).setRequired(true)),
+                    new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('rep_value').setLabel("PERDA DE REPUTAÇÃO").setStyle(TextInputStyle.Short).setRequired(true))
+                );
+                await i.showModal(modal);
 
-                    modal.addComponents(
-                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('action_name').setLabel("NOME DA AÇÃO").setStyle(TextInputStyle.Short).setRequired(true)),
-                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('time_value').setLabel("TEMPO (Ex: 30, 2h, 1d)").setStyle(TextInputStyle.Short).setRequired(true)),
-                        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('rep_value').setLabel("PERDA DE REPUTAÇÃO").setStyle(TextInputStyle.Short).setRequired(true))
-                    );
+                try {
+                    const submitted = await i.awaitModalSubmit({ time: 60000, filter: m => m.user.id === interaction.user.id });
+                    if (submitted) {
+                        const mins = parseTimeToMinutes(submitted.fields.getTextInputValue('time_value'));
+                        if (mins === null) return submitted.reply({ content: "❌ Tempo inválido!", ephemeral: true });
 
-                    await i.showModal(modal);
+                        db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_action`, submitted.fields.getTextInputValue('action_name'));
+                        db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_time`, mins.toString());
+                        db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_rep`, submitted.fields.getTextInputValue('rep_value').replace(/[^\d]/g, ''));
 
-                    try {
-                        const submitted = await i.awaitModalSubmit({ time: 60000, filter: m => m.user.id === interaction.user.id });
-                        if (submitted) {
-                            const rawTime = submitted.fields.getTextInputValue('time_value');
-                            const convertedTime = parseTimeToMinutes(rawTime);
+                        await submitted.reply({ content: `✅ Nível ${level} atualizado!`, ephemeral: true });
+                        await interaction.editReply({ embeds: [getMetricsEmbed()] });
+                    }
+                } catch (e) { /* timeout */ }
+            });
+        }
 
-                            if (convertedTime === null) return submitted.reply({ content: "❌ Formato de tempo inválido!", ephemeral: true });
+        // ==========================================
+        // LÓGICA: CONFIGRESET (LIMPEZA COM CONFIRMAÇÃO)
+        // ==========================================
+        if (sub === 'configreset') {
+            const confirm = new ButtonBuilder().setCustomId('confirm_reset').setLabel('Sim, resetar tudo').setStyle(ButtonStyle.Danger);
+            const cancel = new ButtonBuilder().setCustomId('cancel_reset').setLabel('Cancelar').setStyle(ButtonStyle.Secondary);
+            const row = new ActionRowBuilder().addComponents(confirm, cancel);
 
-                            db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_action`, submitted.fields.getTextInputValue('action_name'));
-                            db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_time`, convertedTime.toString());
-                            db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_rep`, submitted.fields.getTextInputValue('rep_value').replace(/[^\d]/g, ''));
+            const response = await interaction.reply({
+                content: '⚠️ **ATENÇÃO:** Você está prestes a apagar todas as configurações (canais, cargos e métricas) deste servidor. As punições existentes não serão afetadas. Deseja continuar?',
+                components: [row],
+                ephemeral: true
+            });
 
-                            await submitted.reply({ content: `✅ Nível ${level} atualizado!`, ephemeral: true });
-                            await interaction.editReply({ embeds: [getMetricsEmbed()] });
-                        }
-                    } catch (e) { /* timeout */ }
+            const collector = response.createMessageComponentCollector({ filter: i => i.user.id === interaction.user.id, time: 30000 });
+
+            collector.on('collect', async i => {
+                if (i.customId === 'confirm_reset') {
+                    db.prepare(`DELETE FROM settings WHERE guild_id = ?`).run(guildId);
+                    await i.update({ content: '✅ **Configurações resetadas!** O servidor voltou ao estado inicial.', components: [] });
+                } else {
+                    await i.update({ content: '❌ Reset cancelado.', components: [] });
                 }
             });
         }
