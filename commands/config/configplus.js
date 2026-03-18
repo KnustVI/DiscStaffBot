@@ -13,7 +13,7 @@ const db = require('../../database/database');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('config')
+        .setName('configplus')
         .setDescription('Painel central de configurações do bot.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         
