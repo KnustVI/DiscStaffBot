@@ -104,7 +104,7 @@ module.exports = {
                 .setTitle(`⚖️ Você recebeu uma punição em ${interaction.guild.name}`)
                 .setColor(0xff0000)
                 .setThumbnail(interaction.guild.iconURL())
-                .setDescription(`Olá ${user.username}, uma ação administrativa foi aplicada à sua conta.`)
+                .setDescription(`Olá ${user.username}, uma ação administrativa foi aplicada à sua conta. Entre em contato com os administradores do servidor da forma correta caso isso seja um erro, a punição é aplicada sempre por um staff do servidor.`)
                 .addFields(
                     { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
                     { name: "📊 Gravidade", value: `Nível ${severity}`, inline: true },
