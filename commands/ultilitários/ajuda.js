@@ -29,9 +29,8 @@ module.exports = {
             .setFooter({ 
                 text: interaction.guild.name, 
                 iconURL: interaction.guild
-                .iconURL({ dynamic: true }) 
-                .setTimestamp()
-            })
+                .iconURL({ dynamic: true })})
+                .setTimestamp();
 
         // Adicionando um botão para o comando de reputação para facilitar a vida do usuário
         const row = new ActionRowBuilder().addComponents(
