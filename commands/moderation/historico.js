@@ -83,7 +83,7 @@ module.exports = {
                     value: `Total: **${total}** | Página: **${page}/${totalPages}**`,
                     inline: true
                 })
-                .setColor(0x2b2d31)
+                .setColor(0xff2e6c)
                 .setFooter({ text: `Requisitado por ${interaction.user.username}` })
                 .setTimestamp();
 

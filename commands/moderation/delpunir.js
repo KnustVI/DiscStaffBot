@@ -69,7 +69,7 @@ module.exports = {
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
                         .setTitle("♻️ Punição Anulada (Sistema de Reputação)")
-                        .setColor(0x34d399) // Verde Água/Turquesa
+                        .setColor(0xff2e6c)
                         .setThumbnail(interaction.guild.iconURL())
                         .addFields(
                             { name: "🆔 ID Anulado", value: `\`#${punishmentId}\``, inline: true },

@@ -43,7 +43,7 @@ module.exports = {
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
                         .setTitle("🧹 Reputação Resetada")
-                        .setColor(0x00FF00) // Verde
+                        .setColor(0xff2e6c)
                         .addFields(
                             { name: "👤 Usuário Resetado", value: `${target} (\`${target.id}\`)`, inline: true },
                             { name: "👮 Responsável", value: `${interaction.user}`, inline: true },

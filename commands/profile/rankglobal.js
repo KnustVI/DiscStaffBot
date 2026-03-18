@@ -31,7 +31,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setTitle(`🌍 Ranking Global de Reputação`)
                 .setDescription(description)
-                .setColor(0x5865F2) // Cor Blurple do Discord
+                .setColor(0xff2e6c)
                 .setFooter({ text: "Os melhores usuários de toda a rede!" })
                 .setTimestamp();
 

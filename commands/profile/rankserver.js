@@ -33,7 +33,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setTitle(`🏆 Ranking Local: ${interaction.guild.name}`)
                 .setDescription(description)
-                .setColor(0xf2b705)
+                .setColor(0xff2e6c)
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });

@@ -8,7 +8,7 @@ module.exports = {
     async execute(interaction) {
         const embed = new EmbedBuilder()
             .setTitle('⚖️ Como funciona nossa Reputação?')
-            .setColor(0x34d399) // Verde suave
+            .setColor(0xff2e6c)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
                 `Olá **${interaction.user.username}**! Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda a diferença entre os dados:`

@@ -32,7 +32,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setTitle(`👮 Relatório de Staff: ${staff.username}`)
                 .setThumbnail(staff.displayAvatarURL({ dynamic: true }))
-                .setColor(0x5865f2)
+                .setColor(0xff2e6c)
                 .setFooter({ text: `Página ${page + 1} de ${Math.max(1, maxPages)} • Total de ações: ${total}` });
 
             if (actions.length === 0) {

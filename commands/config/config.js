@@ -30,7 +30,7 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setTitle(`⚙️ Configurações | ${interaction.guild.name}`)
-                    .setColor(0x5865F2)
+                    .setColor(0xff2e6c)
                     .addFields(
                         { 
                             name: "👮 Permissões",

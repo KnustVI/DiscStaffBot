@@ -32,7 +32,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setTitle('💣 Database Resetada')
                 .setDescription('Todos os dados de **reputação** e **histórico de punições** foram apagados com sucesso.')
-                .setColor(0xFF0000)
+                .setColor(0xff2e6c)
                 .setTimestamp();
 
             return interaction.reply({ embeds: [embed] });
