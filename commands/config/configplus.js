@@ -13,7 +13,7 @@ const db = require('../../database/database');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('config')
+        .setName('configplus')
         .setDescription('Painel central de configuração do DiscStaffBot')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(sub => sub.setName('show').setDescription('Exibe as configurações atuais'))
