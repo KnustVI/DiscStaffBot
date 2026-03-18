@@ -11,23 +11,33 @@ module.exports = {
             .addChoices(
                 { name: '1 - Aviso (-2 Rep)', value: 1 },
                 { name: '2 - Advertência (-5 Rep)', value: 2 },
-                { name: '3 - Timeout leve (-10 Rep)', value: 3 },
-                { name: '4 - Timeout médio (-20 Rep)', value: 4 },
-                { name: '5 - Timeout severo (-35 Rep)', value: 5 }
+                { name: '3 - Castigo leve (-10 Rep)', value: 3 },
+                { name: '4 - Castigo médio (-20 Rep)', value: 4 },
+                { name: '5 - Castigo severo (-35 Rep)', value: 5 }
             ))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true)),
 
     async execute(interaction) {
         const guildId = interaction.guild.id;
 
-        // --- VERIFICAÇÃO DE STAFF ---
+        // --- 1. VERIFICAÇÃO DE CONFIGURAÇÃO DO SERVIDOR ---
         const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
-        const hasRole = staffRoleSetting ? interaction.member.roles.cache.has(staffRoleSetting.value) : false;
+        const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
+
+        if (!staffRoleSetting || !logChannelSetting) {
+            return interaction.reply({
+                content: "⚠️ **O sistema ainda não foi configurado por um Administrador.**\nPara usar este comando, o canal de logs e o cargo de Staff precisam ser definidos via `/config`.",
+                ephemeral: true
+            });
+        }
+
+        // --- 2. VERIFICAÇÃO DE PERMISSÃO DO USUÁRIO ---
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        const hasRole = interaction.member.roles.cache.has(staffRoleSetting.value);
 
         if (!hasRole && !isAdmin) {
             return interaction.reply({ 
-                content: "❌ Este comando é restrito ao cargo de **Staff** configurado.", 
+                content: "❌ Este comando é restrito à **Staff** configurada ou **Administradores**.", 
                 ephemeral: true 
             });
         }
@@ -42,7 +52,10 @@ module.exports = {
         const member = await interaction.guild.members.fetch(user.id).catch(() => null);
         if (!member) return interaction.editReply("❌ Usuário não encontrado no servidor.");
 
-        // Hierarquia
+        // Impedir que o bot tente punir a si mesmo
+        if (user.id === interaction.client.user.id) return interaction.editReply("❌ Eu não posso punir a mim mesmo.");
+        
+        // Verificação de Hierarquia
         if (member.roles.highest.position >= interaction.member.roles.highest.position && !isAdmin) {
             return interaction.editReply("❌ Você não pode punir alguém com um cargo superior ou igual ao seu.");
         }
@@ -60,20 +73,23 @@ module.exports = {
         const repLoss = penaltyValues[severity];
 
         try {
-            // 1. Aplicação física
+            // 3. Aplicação do Timeout no Discord
             if (selected.time > 0) {
-                await member.timeout(selected.time, reason).catch(() => {
-                    throw new Error("O bot não tem permissão para dar timeout neste usuário.");
+                await member.timeout(selected.time, reason).catch((err) => {
+                    console.error(err);
+                    throw new Error("Permissão insuficiente para dar timeout neste membro.");
                 });
             }
 
-            // 2. Registro no Histórico
-            db.prepare(`
+            // 4. Registro no Histórico de Punições
+            const insertPunishment = db.prepare(`
                 INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
             `).run(guildId, user.id, interaction.user.id, reason, severity, timestamp);
 
-            // 3. Atualização da Reputação (CORRIGIDO PARA O NOVO DB)
+            const punishmentId = insertPunishment.lastInsertRowid;
+
+            // 5. Atualização da Reputação (Lógica UPSERT por Guilda)
             db.prepare(`
                 INSERT INTO users (user_id, guild_id, reputation, penalties, last_penalty)
                 VALUES (?, ?, ?, 1, ?)
@@ -83,36 +99,34 @@ module.exports = {
                 last_penalty = ?
             `).run(user.id, guildId, 100 - repLoss, timestamp, repLoss, timestamp);
 
-            // 4. Logs
-            const logSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
-            
-            if (logSetting) {
-                const logChannel = interaction.guild.channels.cache.get(logSetting.value);
-                if (logChannel) {
-                    const logEmbed = new EmbedBuilder()
-                        .setTitle("⚖️ Sistema de Moderação | Nova Punição")
-                        .setColor(0xFF0000)
-                        .setThumbnail(user.displayAvatarURL())
-                        .addFields(
-                            { name: "👤 Usuário", value: `${user} (\`${user.id}\`)`, inline: true },
-                            { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
-                            { name: "📉 Reputação", value: `\`-${repLoss} pontos\``, inline: true },
-                            { name: "🛠️ Ação", value: `\`${selected.action}\``, inline: true },
-                            { name: "📝 Motivo", value: reason }
-                        )
-                        .setTimestamp();
+            // 6. Envio de Logs (Já validado que o canal existe no passo 1)
+            const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                    .setTitle(`⚖️ Punição Aplicada | ID: #${punishmentId}`)
+                    .setColor(0xFF0000)
+                    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+                    .addFields(
+                        { name: "🆔 Protocolo (ID)", value: `\`#${punishmentId}\``, inline: true },
+                        { name: "👤 Usuário", value: `${user}\n(\`${user.id}\`)`, inline: true },
+                        { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
+                        { name: "📉 Reputação", value: `\`-${repLoss} pontos\``, inline: true },
+                        { name: "🛠️ Ação", value: `\`${selected.action}\``, inline: true },
+                        { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` }
+                    )
+                    .setFooter({ text: `Use /historico para ver o passado deste usuário.` })
+                    .setTimestamp();
 
-                    logChannel.send({ embeds: [logEmbed] }).catch(() => null);
-                }
+                logChannel.send({ embeds: [logEmbed] }).catch(() => null);
             }
 
             await interaction.editReply({ 
-                content: `✅ **Sucesso!** Punição registrada para ${user.username}.` 
+                content: `✅ Punição **#${punishmentId}** aplicada a **${user.username}**. Reputação descontada conforme a gravidade nível ${severity}.` 
             });
 
         } catch (err) {
             console.error(err);
-            return interaction.editReply(`❌ **Erro:** ${err.message}`);
+            return interaction.editReply(`❌ **Erro ao punir:** ${err.message}`);
         }
     }
 };

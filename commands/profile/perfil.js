@@ -32,62 +32,77 @@ module.exports = {
             await interaction.deferReply();
 
             const targetUser = interaction.options.getUser('usuario') || interaction.user;
+            const guildId = interaction.guild.id;
             
-            // CORREÇÃO: Removido guild_id pois a tabela 'users' não possui essa coluna
-            const userData = db.prepare('SELECT * FROM users WHERE user_id = ?').get(targetUser.id);
+            // 1. Busca os dados específicos
+            const userData = db.prepare('SELECT * FROM users WHERE user_id = ? AND guild_id = ?').get(targetUser.id, guildId);
 
+            // --- CASO O USUÁRIO NÃO TENHA REGISTRO ---
             if (!userData) {
-                return interaction.editReply({
-                    content: `❌ **${targetUser.username}** ainda não possui registros no sistema.`
-                });
+                const visitorEmbed = new EmbedBuilder()
+                    .setTitle(`👤 Perfil: ${targetUser.username}`)
+                    .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+                    .setColor(0x2b2d31) // Cor neutra
+                    .setDescription(`\n> ✨ **Este usuário ainda não passou pelo nosso BOT.**\n\nA reputação inicial de todo jogador é **100**. Registros de punições e estatísticas aparecerão aqui assim que a primeira ação for registrada.`)
+                    .addFields(
+                        { name: "🏅 Reputação Base", value: `**100**/100`, inline: true },
+                        { name: "🛡️ Status Inicial", value: "👍 Bom", inline: true }
+                    )
+                    .setFooter({ text: `Consultado em: ${interaction.guild.name}` })
+                    .setTimestamp();
+
+                return interaction.editReply({ embeds: [visitorEmbed] });
             }
 
+            // --- CASO O USUÁRIO TENHA REGISTRO (Lógica normal) ---
             const reputation = userData.reputation ?? 100;
             const penalties = userData.penalties ?? 0;
             const lastPenalty = userData.last_penalty;
 
-            // CÁLCULO DE DIAS
             const daysWithoutPenalty = lastPenalty
                 ? Math.floor((Date.now() - lastPenalty) / (1000 * 60 * 60 * 24))
                 : "∞";
 
-            // RANKING: Global do bot (já que reputação é por usuário)
-            const ranking = db.prepare('SELECT user_id FROM users ORDER BY reputation DESC').all();
-            const position = ranking.findIndex(u => u.user_id === targetUser.id) + 1;
+            // Rankings
+            const localRanking = db.prepare('SELECT user_id FROM users WHERE guild_id = ? ORDER BY reputation DESC').all(guildId);
+            const localPos = localRanking.findIndex(u => u.user_id === targetUser.id) + 1;
+
+            const globalRanking = db.prepare('SELECT user_id, guild_id FROM users ORDER BY reputation DESC').all();
+            const globalPos = globalRanking.findIndex(u => u.user_id === targetUser.id && u.guild_id === guildId) + 1;
 
             const targetGoal = 90;
             const currentProgress = Math.min(reputation, targetGoal);
 
             const embed = new EmbedBuilder()
-                .setTitle(`🏆 Perfil de Reputação: ${targetUser.username}`)
+                .setTitle(`👤 Perfil: ${targetUser.username}`)
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .setColor(reputation > 50 ? 0xf2b705 : 0xff0000)
                 .addFields(
                     { name: "🏅 Reputação", value: `**${reputation}**/100`, inline: true },
                     { name: "⚖️ Punições", value: `\`${penalties}\``, inline: true },
-                    { name: "⏳ Limpo há", value: `\`${daysWithoutPenalty === "∞" ? "Sempre limpo" : daysWithoutPenalty + " dias"}\``, inline: true },
-                    { name: "📊 Ranking Global", value: `**#${position}** de ${ranking.length}`, inline: true },
+                    { name: "⏳ Limpo há", value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
+                    { name: "🏠 Rank Local", value: `**#${localPos}** / ${localRanking.length}`, inline: true },
+                    { name: "🌍 Rank Global", value: `**#${globalPos}** / ${globalRanking.length}`, inline: true },
                     { name: "🛡️ Status", value: getStatus(reputation), inline: true },
-                    { name: '\u200B', value: '\u200B', inline: true },
                     { 
                         name: "📈 Barra de Reputação", 
                         value: progressBar(reputation, 100), 
                         inline: false 
                     },
                     { 
-                        name: `🎯 Próximo Objetivo: ${getStatus(targetGoal)}`, 
+                        name: `🎯 Próximo Nível: ${getStatus(targetGoal)}`, 
                         value: progressBar(currentProgress, targetGoal), 
                         inline: false 
                     }
                 )
-                .setFooter({ text: `ID: ${targetUser.id}` })
+                .setFooter({ text: `Consultado em: ${interaction.guild.name}` })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error(`Erro no comando perfil:`, error);
-            await interaction.editReply("❌ Ocorreu um erro interno ao processar o perfil.");
+            await interaction.editReply("❌ Erro interno ao processar o perfil.");
         }
     }
 };

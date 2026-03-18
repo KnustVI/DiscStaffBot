@@ -4,47 +4,50 @@ const db = require('../database/database');
 module.exports = (client) => {
     // Executa todo dia às 03:00 da manhã
     cron.schedule('0 3 * * *', async () => {
-        console.log("🛡️ [Automod] Verificação de Cargos de Fidelidade/Risco iniciada...");
+        console.log("🛡️ [Automod] Verificação de Cargos por Guilda iniciada...");
 
         const now = Date.now();
         const THIRTY_DAYS = 1000 * 60 * 60 * 24 * 30;
         const FIFTEEN_DAYS = 1000 * 60 * 60 * 24 * 15;
 
-        // Buscamos apenas quem precisa de verificação de cargo (rep alta ou rep muito baixa)
+        // 1. Buscamos usuários que atingiram os limites de reputação em suas respectivas guildas
         const users = db.prepare(`SELECT * FROM users WHERE reputation >= 90 OR reputation <= 50`).all();
 
         for (const userData of users) {
             try {
-                // Tenta encontrar o membro no servidor principal (definido no .env ou settings)
-                // Se o seu bot for para um servidor só, use o ID direto para poupar processamento
-                const guild = client.guilds.cache.first(); // Pega o primeiro servidor que o bot está
-                if (!guild) continue;
+                // 2. Localiza a guilda específica onde esse registro de reputação pertence
+                const guild = client.guilds.cache.get(userData.guild_id);
+                if (!guild) continue; // Bot saiu do servidor ou ID inválido
 
+                // 3. Busca o membro dentro dessa guilda específica
                 const member = await guild.members.fetch(userData.user_id).catch(() => null);
-                if (!member) continue;
+                if (!member) continue; // Membro saiu do servidor
 
                 const lastPenalty = userData.last_penalty || 0;
                 const timeWithoutPenalty = now - lastPenalty;
+                
+                // Pega as configurações desta guilda
                 const settings = getSettings(guild.id);
 
                 /* -----------------------------------------------------------
-                   1. CARGO: JOGADOR EXEMPLAR (30 DIAS LIMPO + REPUTAÇÃO ALTA)
+                   1. CARGO: JOGADOR EXEMPLAR (Baseado na rep desta guilda)
                 ----------------------------------------------------------- */
                 if (settings.exemplar_role && timeWithoutPenalty >= THIRTY_DAYS && userData.reputation >= 95) {
                     if (!member.roles.cache.has(settings.exemplar_role)) {
                         await member.roles.add(settings.exemplar_role).catch(() => null);
-                        console.log(`🏅 ${member.user.tag} recebeu cargo Exemplar.`);
+                        console.log(`🏅 [${guild.name}] ${member.user.tag} agora é Exemplar.`);
                     }
                 }
 
                 /* -----------------------------------------------------------
-                   2. CARGO: USUÁRIO PROBLEMÁTICO
+                   2. CARGO: USUÁRIO PROBLEMÁTICO (Baseado na rep desta guilda)
                 ----------------------------------------------------------- */
+                // Conta punições recentes NESTA guilda
                 const recentPenalties = db.prepare(`
                     SELECT COUNT(*) as total 
                     FROM punishments 
-                    WHERE user_id = ? AND created_at > ?
-                `).get(userData.user_id, now - FIFTEEN_DAYS);
+                    WHERE user_id = ? AND guild_id = ? AND created_at > ?
+                `).get(userData.user_id, guild.id, now - FIFTEEN_DAYS);
 
                 if (settings.problem_role) {
                     if (recentPenalties.total >= 5 || userData.reputation <= 30) {
@@ -55,20 +58,20 @@ module.exports = (client) => {
                             if (settings.exemplar_role && member.roles.cache.has(settings.exemplar_role)) {
                                 await member.roles.remove(settings.exemplar_role).catch(() => null);
                             }
-                            console.log(`⚠️ ${member.user.tag} marcado como Problemático.`);
+                            console.log(`⚠️ [${guild.name}] ${member.user.tag} marcado como Problemático.`);
                         }
                     } else if (userData.reputation > 50 && member.roles.cache.has(settings.problem_role)) {
-                        // Remove o cargo se ele melhorou
+                        // Remove o cargo se ele melhorou a reputação nesta guilda
                         await member.roles.remove(settings.problem_role).catch(() => null);
-                        console.log(`✅ ${member.user.tag} não é mais Problemático.`);
+                        console.log(`✅ [${guild.name}] ${member.user.tag} limpou o histórico.`);
                     }
                 }
 
             } catch (err) {
-                console.error(`Erro no automod: ${userData.user_id}`, err);
+                console.error(`Erro no automod para o usuário ${userData.user_id} na guilda ${userData.guild_id}:`, err);
             }
         }
-        console.log("✅ [Automod] Verificação de cargos concluída!");
+        console.log("✅ [Automod] Verificação concluída!");
     });
 };
 
