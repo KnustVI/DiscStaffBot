@@ -37,15 +37,19 @@ module.exports = {
 
             const user = interaction.options.getUser('usuario');
             const page = interaction.options.getInteger('pagina') || 1;
-            const limit = 5; // Quantidade de punições por página
+            const limit = 5; 
             const offset = (page - 1) * limit;
+
+            // BUSCA O MEMBER PARA PEGAR O NICKNAME (APELIDO NO SERVIDOR)
+            const targetMember = await interaction.guild.members.fetch(user.id).catch(() => null);
+            const displayName = targetMember ? targetMember.displayName : user.username;
 
             // --- 2. BUSCA O TOTAL DE REGISTROS ---
             const totalData = db.prepare(`SELECT COUNT(*) as total FROM punishments WHERE user_id = ? AND guild_id = ?`).get(user.id, guildId);
             const total = totalData ? totalData.total : 0;
 
             if (total === 0) {
-                return interaction.editReply({ content: `✅ O usuário **${user.displayName}** não possui nenhum registro no histórico deste servidor.` });
+                return interaction.editReply({ content: `✅ O usuário **${displayName}** não possui nenhum registro no histórico deste servidor.` });
             }
 
             const totalPages = Math.ceil(total / limit);
@@ -53,7 +57,7 @@ module.exports = {
                 return interaction.editReply({ content: `❌ Página inválida. O histórico possui apenas **${totalPages}** página(s).` });
             }
 
-            // --- 3. BUSCA OS DADOS (ORDEM DO MAIS RECENTE PARA O MAIS ANTIGO) ---
+            // --- 3. BUSCA OS DADOS NO BANCO ---
             const punishments = db.prepare(`
                 SELECT * FROM punishments 
                 WHERE user_id = ? AND guild_id = ?
@@ -67,7 +71,6 @@ module.exports = {
                 const unixTimestamp = Math.floor(p.created_at / 1000);
                 const ticketDisplay = p.ticket_id || 'N/A';
                 
-                // Identificação visual de Punição Revogada (Severity 0)
                 const isRevoked = p.severity === 0;
                 const statusEmoji = isRevoked ? "🟢" : "🔴";
                 const severityDisplay = isRevoked 
@@ -85,20 +88,20 @@ module.exports = {
 
             // --- 4. CONSTRUÇÃO DO EMBED ---
             const embed = new EmbedBuilder()
-                .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-                .setDescription(`# 📜 Histórico de Punições | ${member.displayName}`
+                .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
+                .setDescription(`# 📜 Histórico: ${displayName}\n\n` + 
                     `${description}\n` +
-                    `📍 Dados restritos ao servidor: ${interaction.guild.name}`,
+                    `📍 Servidor: ${interaction.guild.name}`
                 )
                 .addFields({
                     name: "📊 Resumo da Ficha",
                     value: `Total de registros: **${total}**\nExibindo página **${page}** de **${totalPages}**`,
                     inline: true
                 })
-                .setColor(0xff2e6c) // Cor padrão do sistema
+                .setColor(0xff2e6c)
                 .setFooter({ 
                     text: interaction.guild.name, 
-                    iconURL: interaction.guild.iconURL({ dynamic: true }) 
+                    iconURL: interaction.guild.iconURL({ forceStatic: false }) || null
                 })
                 .setTimestamp();
 
