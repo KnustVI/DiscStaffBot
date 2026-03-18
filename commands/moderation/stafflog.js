@@ -14,11 +14,11 @@ module.exports = {
         const itemsPerPage = 5;
         let currentPage = 0;
 
-        // Função para gerar o Embed de Auditoria
+        // Função para gerar o Embed e calcular páginas
         const generateLogEmbed = (page) => {
             const offset = page * itemsPerPage;
             
-            // Busca ações desse staff específico (Inclui ticket_id que adicionamos no DB)
+            // Busca ações desse staff
             const actions = db.prepare(`
                 SELECT * FROM punishments 
                 WHERE moderator_id = ? AND guild_id = ? 
@@ -26,28 +26,37 @@ module.exports = {
                 LIMIT ? OFFSET ?
             `).all(staff.id, guildId, itemsPerPage, offset);
 
-            const totalCount = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
-            const total = totalCount ? totalCount.count : 0;
+            const totalData = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
+            const total = totalData ? totalData.count : 0;
             const maxPages = Math.ceil(total / itemsPerPage);
 
             const embed = new EmbedBuilder()
-                .setTitle(`👮 Relatório de Staff: ${staff.username}`)
+                .setTitle(`👮 Relatório de Auditoria: ${staff.username}`)
                 .setThumbnail(staff.displayAvatarURL({ dynamic: true }))
-                .setColor(0xff2e6c)
-                .setFooter({ text: `Página ${page + 1} de ${Math.max(1, maxPages)} • Total de ações: ${total}` });
+                .setColor(0x5865F2) // Cor Blurple (foco administrativo)
+                .setFooter({ text: `Página ${page + 1} de ${Math.max(1, maxPages)} • Total de ações: ${total}` })
+                .setTimestamp();
 
             if (actions.length === 0) {
-                embed.setDescription(`> ℹ️ **${staff.username}** ainda não aplicou nenhuma punição neste servidor.`);
+                embed.setDescription(`> ℹ️ **${staff.username}** ainda não possui ações registradas neste servidor.`);
                 return { embed, maxPages };
             }
             
-            // Montagem do conteúdo com o Ticket incluso
+            // Montagem do conteúdo
             const content = actions.map(a => {
-                const date = new Date(a.created_at).toLocaleDateString('pt-BR');
-                const ticket = a.ticket_id || 'N/A'; // Fallback caso o registro seja antigo
+                const unixTimestamp = Math.floor(a.created_at / 1000);
+                const ticket = a.ticket_id || 'N/A';
                 
-                return `**ID: #${a.id}** | 🗓️ \`${date}\`\n**Alvo:** <@${a.user_id}>\n**Gravidade:** Nível ${a.severity}\n**Motivo:** \`${a.reason}\`\n**Ticket:** \`#${ticket}\`\n`;
-            }).join('\n───────────────────\n'); // Linha separadora para facilitar a leitura
+                // Verifica se a ação foi uma revogação (severity 0)
+                const isRevoked = a.severity === 0;
+                const statusEmoji = isRevoked ? "🟢" : "⚖️";
+                const severityText = isRevoked ? "**ANULADA**" : `Nível ${a.severity}`;
+
+                return `${statusEmoji} **ID: #${a.id}** | <t:${unixTimestamp}:d>\n` +
+                       `**Alvo:** <@${a.user_id}>\n` +
+                       `**Gravidade:** ${severityText}\n` +
+                       `**Ticket:** \`#${ticket}\` | **Motivo:** \`${a.reason}\``;
+            }).join('\n\n───────────────────\n\n');
 
             embed.setDescription(content);
             return { embed, maxPages };
@@ -56,18 +65,24 @@ module.exports = {
         const { embed, maxPages } = generateLogEmbed(currentPage);
 
         const getButtons = (page) => {
-            return new ActionRowBuilder().addComponents(
+            const row = new ActionRowBuilder();
+            
+            row.addComponents(
                 new ButtonBuilder()
                     .setCustomId('prev_staff')
-                    .setLabel('◀️ Anterior')
-                    .setStyle(ButtonStyle.Primary)
+                    .setLabel('Anterior')
+                    .setEmoji('◀️')
+                    .setStyle(ButtonStyle.Secondary)
                     .setDisabled(page === 0),
                 new ButtonBuilder()
                     .setCustomId('next_staff')
-                    .setLabel('Próxima ▶️')
-                    .setStyle(ButtonStyle.Primary)
+                    .setLabel('Próxima')
+                    .setEmoji('▶️')
+                    .setStyle(ButtonStyle.Secondary)
                     .setDisabled(page >= maxPages - 1)
             );
+
+            return row;
         };
 
         const response = await interaction.reply({
@@ -76,10 +91,11 @@ module.exports = {
             ephemeral: true 
         });
 
+        // Coletor de componentes (botões) - Dura 5 minutos
         const collector = response.createMessageComponentCollector({ time: 300000 });
 
         collector.on('collect', async i => {
-            if (i.user.id !== interaction.user.id) return i.reply({ content: "Apenas quem usou o comando pode navegar.", ephemeral: true });
+            if (i.user.id !== interaction.user.id) return i.reply({ content: "Você não pode controlar este menu.", ephemeral: true });
 
             if (i.customId === 'prev_staff') currentPage--;
             if (i.customId === 'next_staff') currentPage++;
@@ -88,6 +104,7 @@ module.exports = {
             await i.update({ embeds: [newEmbed], components: [getButtons(currentPage)] });
         });
 
+        // Remove os botões quando o coletor expira
         collector.on('end', () => {
             interaction.editReply({ components: [] }).catch(() => null);
         });

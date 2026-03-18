@@ -1,81 +1,138 @@
 const { 
     SlashCommandBuilder, 
+    PermissionFlagsBits, 
     EmbedBuilder, 
     ActionRowBuilder, 
-    ChannelSelectMenuBuilder, 
-    RoleSelectMenuBuilder, 
-    ChannelType, 
-    PermissionFlagsBits 
+    StringSelectMenuBuilder 
 } = require('discord.js');
-const db = require('../../database/database'); // Verifique se o caminho do seu DB está correto
+const db = require('../../database/database');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('configtest')
-        .setDescription('Painel de Configuração com salvamento no Banco de Dados.')
+        .setName('config-canais-e-cargos')
+        .setDescription('Painel de configuração do DiscStaffBot')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         const guildId = interaction.guild.id;
 
-        // Função para carregar os dados atuais do banco
-        const getConfig = () => {
-            const logs = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
-            const staff = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
-            return { logs: logs?.value, staff: staff?.value };
+        // Função para buscar as configurações atuais e montar o Embed
+        const getSettingsEmbed = () => {
+            const rows = db.prepare(`SELECT key, value FROM settings WHERE guild_id = ?`).all(guildId);
+            const settings = {};
+            rows.forEach(row => settings[row.key] = row.value);
+
+            return new EmbedBuilder()
+                .setTitle(`⚙️ Configurações: ${interaction.guild.name}`)
+                .setColor(0xff2e6c)
+                .setDescription('Selecione uma opção no menu abaixo para configurar as funções do bot.')
+                .addFields(
+                    { 
+                        name: "🛡️ Sistema de Moderação", 
+                        value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : '❌ *Não definido*'}\n` +
+                               `> *Necessário para usar comandos como /punir e /delpunir.*`, 
+                        inline: false 
+                    },
+                    { 
+                        name: "📜 Registro de Auditoria", 
+                        value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : '❌ *Não definido*'}\n` +
+                               `> *Onde todas as punições e anulações serão registradas.*`, 
+                        inline: false 
+                    },
+                    { 
+                        name: "🎖️ Cargos de Comportamento (Automod)", 
+                        value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : '❌ *Não definido*'}\n` +
+                               `**Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : '❌ *Não definido*'}`, 
+                        inline: false 
+                    }
+                )
+                .setFooter({ text: "Apenas Administradores podem alterar estas definições." })
+                .setTimestamp();
         };
 
-        const config = getConfig();
-
-        const embed = new EmbedBuilder()
-            .setTitle('⚙️ Configurações do DiscStaffBot')
-            .setColor('#ff2e6c')
-            .setDescription('Selecione os canais e cargos abaixo. O salvamento é automático no Banco de Dados.')
-            .addFields(
-                { name: '📁 Canal de Logs', value: config.logs ? `<#${config.logs}>` : '`Não definido`', inline: true },
-                { name: '👮 Cargo de Staff', value: config.staff ? `<@&${config.staff}>` : '`Não definido`', inline: true }
+        // Criando o Menu de Seleção
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('config_menu')
+                    .setPlaceholder('Escolha o que deseja configurar...')
+                    .addOptions([
+                        {
+                            label: 'Cargo Staff',
+                            description: 'Define quem pode usar comandos de moderação.',
+                            value: 'staff_role',
+                            emoji: '🛡️',
+                        },
+                        {
+                            label: 'Canal de Logs',
+                            description: 'Define onde as punições serão registradas.',
+                            value: 'logs_channel',
+                            emoji: '📜',
+                        },
+                        {
+                            label: 'Cargo Exemplar',
+                            description: 'Cargo para jogadores com conduta excelente.',
+                            value: 'exemplar_role',
+                            emoji: '🎖️',
+                        },
+                        {
+                            label: 'Cargo Problema',
+                            description: 'Cargo para jogadores com muitas punições.',
+                            value: 'problem_role',
+                            emoji: '⚠️',
+                        },
+                    ]),
             );
 
-        const logRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config_logs')
-                .setPlaceholder('Selecionar canal de LOGS')
-                .addChannelTypes(ChannelType.GuildText)
-        );
+        await interaction.reply({ embeds: [getSettingsEmbed()], components: [row], ephemeral: true });
 
-        const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config_staff')
-                .setPlaceholder('Selecionar cargo de STAFF')
-        );
-
-        const response = await interaction.reply({ 
-            embeds: [embed], 
-            components: [logRow, staffRow], 
-            ephemeral: true 
+        // Coletor para processar a escolha do menu
+        const collector = interaction.channel.createMessageComponentCollector({
+            filter: i => i.customId === 'config_menu' && i.user.id === interaction.user.id,
+            time: 60000
         });
 
-        // --- COLETOR DE TESTE (Isolado do index.js) ---
-        const collector = response.createMessageComponentCollector({ time: 60000 }); // Ativo por 1 minuto
-
         collector.on('collect', async i => {
-            if (i.customId === 'config_logs') {
-                const channelId = i.values[0];
-                // Salva no banco
-                db.prepare(`INSERT OR REPLACE INTO settings (guild_id, key, value) VALUES (?, 'logs_channel', ?)`)
-                  .run(guildId, channelId);
-                
-                await i.update({ content: `✅ Canal de logs atualizado para <#${channelId}>!`, components: [logRow, staffRow] });
-            }
+            const selection = i.values[0];
+            
+            // Texto de instrução baseado na escolha
+            const instructions = {
+                staff_role: "Mencione o **Cargo** que terá permissão de moderador (ex: @Staff).",
+                logs_channel: "Mencione o **Canal** onde as punições serão logadas (ex: #logs-punicoes).",
+                exemplar_role: "Mencione o **Cargo** que os jogadores exemplares ganharão.",
+                problem_role: "Mencione o **Cargo** que os jogadores problemáticos receberão."
+            };
 
-            if (i.customId === 'config_staff') {
-                const roleId = i.values[0];
-                // Salva no banco
-                db.prepare(`INSERT OR REPLACE INTO settings (guild_id, key, value) VALUES (?, 'staff_role', ?)`)
-                  .run(guildId, roleId);
+            await i.reply({ content: `👉 **Configurando ${selection}:** ${instructions[selection]}`, ephemeral: true });
+
+            const filter = m => m.author.id === interaction.user.id;
+            const messageCollector = interaction.channel.createMessageCollector({ filter, time: 30000, max: 1 });
+
+            messageCollector.on('collect', async m => {
+                let value;
+                if (selection.includes('channel')) {
+                    value = m.mentions.channels.first()?.id;
+                } else {
+                    value = m.mentions.roles.first()?.id;
+                }
+
+                if (!value) {
+                    return m.reply({ content: "❌ Menção inválida. Tente novamente o comando `/config`.", ephemeral: true });
+                }
+
+                // Salva no banco de dados
+                db.prepare(`
+                    INSERT INTO settings (guild_id, key, value) 
+                    VALUES (?, ?, ?) 
+                    ON CONFLICT(guild_id, key) DO UPDATE SET value = ?
+                `).run(guildId, selection, value, value);
+
+                await m.delete().catch(() => null); // Limpa a mensagem do chat para manter organizado
+                await i.editReply({ content: `✅ **Sucesso!** O valor de \`${selection}\` foi atualizado.`, ephemeral: true });
                 
-                await i.update({ content: `✅ Cargo de Staff atualizado para <@&${roleId}>!`, components: [logRow, staffRow] });
-            }
+                // Atualiza o painel principal
+                await interaction.editReply({ embeds: [getSettingsEmbed()] });
+            });
         });
     }
 };

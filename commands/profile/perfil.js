@@ -2,7 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discor
 const db = require('../../database/database');
 const { createCanvas } = require('canvas');
 
-// --- Funções Utilitárias (Barra de Imagem) ---
+// --- Funções Utilitárias ---
 function createProgressBarImage(value, max) {
     const width = 400;
     const height = 40;
@@ -74,7 +74,6 @@ module.exports = {
             
             const userData = db.prepare('SELECT * FROM users WHERE user_id = ? AND guild_id = ?').get(targetUser.id, guildId);
 
-            // Perfil de Visitante (Sem registro ainda)
             if (!userData) {
                 const visitorEmbed = new EmbedBuilder()
                     .setTitle(`👤 Perfil: ${targetUser.username}`)
@@ -95,11 +94,28 @@ module.exports = {
             const penalties = userData.penalties ?? 0;
             const lastPenalty = userData.last_penalty;
 
-            const daysWithoutPenalty = lastPenalty
-                ? Math.floor((Date.now() - lastPenalty) / (1000 * 60 * 60 * 24))
-                : "∞";
+            // Cálculo de tempo sem punição
+            const diffMs = lastPenalty ? Date.now() - lastPenalty : null;
+            const daysWithoutPenalty = diffMs ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : "∞";
 
-            // Ranking Local Apenas
+            // Lógica de Recuperação Diária
+            let recoveryStatus = "✅ Reputação Máxima";
+            if (reputation < 100) {
+                // Se o bot roda todo dia às 00:00, mostramos quanto falta para o próximo dia
+                const now = new Date();
+                const tomorrow = new Date(now);
+                tomorrow.setDate(now.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+                const hoursLeft = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+                
+                recoveryStatus = `📈 +1 pt em ~${hoursLeft}h`;
+                
+                // Se foi punido nas últimas 24h, ele não recupera hoje
+                if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
+                    recoveryStatus = "⏳ Pausada (Punido recentemente)";
+                }
+            }
+
             const localRanking = db.prepare('SELECT user_id FROM users WHERE guild_id = ? ORDER BY reputation DESC').all(guildId);
             const localPos = localRanking.findIndex(u => u.user_id === targetUser.id) + 1;
 
@@ -117,6 +133,7 @@ module.exports = {
                     { name: "⏳ Limpo há", value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
                     { name: "🏠 Rank Local", value: `**#${localPos}** de ${localRanking.length}`, inline: true },
                     { name: "🛡️ Status", value: getStatus(reputation), inline: true },
+                    { name: "🔄 Recuperação", value: `\`${recoveryStatus}\``, inline: true },
                     { 
                         name: "📈 Barra de Integridade", 
                         value: '\u200B', 

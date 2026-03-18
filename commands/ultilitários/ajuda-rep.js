@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const db = require('../../database/database');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -6,49 +7,67 @@ module.exports = {
         .setDescription('Explica como funciona o sistema de reputação Local e Global.'),
 
     async execute(interaction) {
+        const guildId = interaction.guild.id;
+
+        // --- BUSCA AS MÉTRICAS CONFIGURADAS NO BANCO ---
+        const getMetric = (level, type, fallback) => {
+            const res = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`)
+                          .get(guildId, `punish_${level}_${type}`);
+            return res ? res.value : fallback;
+        };
+
+        // Fallbacks caso o ADM ainda não tenha configurado nada
+        const defaultMetrics = {
+            1: { action: "Aviso", time: 0, rep: 2 },
+            2: { action: "Advertência", time: 5, rep: 5 },
+            3: { action: "Castigo leve", time: 30, rep: 10 },
+            4: { action: "Castigo médio", time: 120, rep: 20 },
+            5: { action: "Castigo severo", time: 1440, rep: 35 }
+        };
+
+        // Montando a lista de punições dinamicamente
+        let punicoesTexto = "";
+        for (let i = 1; i <= 5; i++) {
+            const action = getMetric(i, 'action', defaultMetrics[i].action);
+            const rep = getMetric(i, 'rep', defaultMetrics[i].rep);
+            const time = getMetric(i, 'time', defaultMetrics[i].time);
+            
+            const timeDesc = time > 0 ? `${time} min` : "Aviso";
+            punicoesTexto += `**${i}** - ${action} (\`-${rep} Rep\`) — *${timeDesc}*\n`;
+        }
+
         const embed = new EmbedBuilder()
             .setTitle('⚖️ Como funciona nossa Reputação?')
             .setColor(0xff2e6c)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
-                `# Olá **${interaction.user.username}**! 
-                Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda a diferença entre os dados:
-                ## 📊 A Escala de Status
-                - O valor numérico define em qual "faixa" de comportamento o jogador se encontra:
-                ✨ 90 - 100 (Exemplar): Jogador padrão ou que nunca causou problemas.
-                ✅ 70 - 89 (Bom): Cometeu erros leves, mas ainda é considerado confiável.
-                ⚠️ 50 - 69 (Atenção): Jogador problemático. A Staff deve ficar de olho em reincidências.
-                🚨 Abaixo de 50 (Crítico): Jogador altamente tóxico ou reincidente grave. Geralmente, nesta fase, qualquer erro novo resulta em Banimento Permanente.
-                ## Nível,Gravidade, Pontos Retirados, Tipo de Punição Comum.
-                1 - Aviso (-2 Rep) Aviso verbal.
-                2 - Advertência (-5 Rep) 5 minutos de castigo.
-                3 - Castigo leve (-10 Rep) 30 minutos de castigo.
-                4 - Castigo médio (-20 Rep) 2 horas de castigo.
-                5 - Castigo severo (-35 Rep) 24 horas de castigo.
-                `
+                `# Olá **${interaction.user.username}**!\n` +
+                `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:\n\n` +
+                `## 📊 A Escala de Status\n` +
+                `✨ **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
+                `✅ **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
+                `⚠️ **50 - 69 (Atenção):** Jogador problemático. Requer atenção da Staff.\n` +
+                `🚨 **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n\n` +
+                `## 🛠️ Tabela de Punições Atualizada\n` +
+                punicoesTexto
             )
             .addFields(
                 { 
                     name: '🏠 Reputação Local (Neste Servidor)', 
-                    value: 'Sua pontuação começa em **100**. Cada infração cometida aqui reduz essa nota. Ela define seu **Status** (Exemplar, Bom, Crítico) exclusivamente dentro deste servidor.' 
+                    value: 'Sua pontuação começa em **100**. Cada infração reduz essa nota. Ela define seu **Status** exclusivamente aqui.' 
                 },
                 { 
-                    name: '🌍 Histórico Global (Toda a Rede)', 
-                    value: 'O BOT registra punições em todos os servidores da nossa rede. A Staff pode consultar seu histórico completo para identificar comportamentos repetitivos em outras comunidades.' 
+                    name: '📈 Recuperação Diária', 
+                    value: 'A cada **24 horas** sem cometer infrações, você recupera automaticamente **1 ponto** de reputação, até atingir o limite de 100.' 
                 },
                 { 
-                    name: '📈 Como recuperar pontos?', 
-                    value: 'A melhor forma de manter uma boa reputação é seguir as regras! Jogadores com comportamento exemplar podem ter seus pontos revistos pela Staff ou recuperados através de sistemas de tempo limpo.' 
-                },
-                {
-                    name: '👮 Para que serve?',
-                    value: 'Sistemas de reputação ajudam a identificar jogadores tóxicos ou "raiders" antes que eles causem problemas, protegendo você e seus amigos.'
+                    name: '🌍 Histórico de Rede', 
+                    value: 'O BOT registra punições em toda a nossa rede. A Staff pode consultar seu histórico para identificar comportamentos repetitivos.' 
                 }
             )
-            .setFooter({ text: 'Dúvidas? Entre em contato com um Administrador.' })
+            .setFooter({ text: '📍 Os valores acima são definidos pela Administração deste servidor.' })
             .setTimestamp();
 
-        // Respondemos de forma pública para que outros também possam ler
         await interaction.reply({ embeds: [embed] });
     }
 };
