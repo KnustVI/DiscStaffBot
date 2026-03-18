@@ -13,13 +13,20 @@ for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
     
     for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
-        const command = require(filePath);
-        if ('data' in command && 'execute' in command) {
-            commands.push(command.data.toJSON());
-        } else {
-            console.log(`⚠️ [AVISO] O comando em ${filePath} está faltando "data" ou "execute".`);
-        }
+    const filePath = path.join(commandsPath, file);
+    const command = require(filePath);
+    
+    console.log(`----------------------------------------`);
+    console.log(`📁 Arquivo: ${file}`);
+    console.log(`📦 Conteúdo exportado:`, Object.keys(command)); 
+    // Se aparecer [] (vazio), o seu module.exports no arquivo de comando está errado.
+
+    if ('data' in command && 'execute' in command) {
+        commands.push(command.data.toJSON());
+        console.log(`✅ Identificado com sucesso!`);
+    } else {
+        console.log(`❌ Falha: Data? ${'data' in command} | Execute? ${'execute' in command}`);
+    }
     }
 }
 
