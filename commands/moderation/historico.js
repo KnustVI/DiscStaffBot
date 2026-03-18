@@ -54,7 +54,7 @@ module.exports = {
                 return interaction.editReply({ content: `❌ Página inválida. Existem apenas ${totalPages} página(s).` });
             }
 
-            // 3. Busca punições
+            // 3. Busca punições (incluindo a nova coluna ticket_id)
             const punishments = db.prepare(`
                 SELECT * FROM punishments 
                 WHERE user_id = ? AND guild_id = ?
@@ -66,9 +66,12 @@ module.exports = {
 
             for (const p of punishments) {
                 const unixTimestamp = Math.floor(p.created_at / 1000);
+                const ticketDisplay = p.ticket_id || 'Não informado';
+
                 description += `🆔 **ID #${p.id}**\n` +
                                `📌 **Gravidade:** \`Nível ${p.severity}\`\n` +
                                `👮 **Moderador:** <@${p.moderator_id}>\n` +
+                               `🎫 **Ticket:** \`#${ticketDisplay}\`\n` + // <-- Ticket adicionado aqui
                                `📝 **Motivo:** ${p.reason}\n` +
                                `📅 **Data:** <t:${unixTimestamp}:f>\n` +
                                `──────────────────\n`;

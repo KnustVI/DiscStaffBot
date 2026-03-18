@@ -18,7 +18,7 @@ module.exports = {
         const generateLogEmbed = (page) => {
             const offset = page * itemsPerPage;
             
-            // Busca ações desse staff específico
+            // Busca ações desse staff específico (Inclui ticket_id que adicionamos no DB)
             const actions = db.prepare(`
                 SELECT * FROM punishments 
                 WHERE moderator_id = ? AND guild_id = ? 
@@ -26,7 +26,8 @@ module.exports = {
                 LIMIT ? OFFSET ?
             `).all(staff.id, guildId, itemsPerPage, offset);
 
-            const total = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId).count;
+            const totalCount = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
+            const total = totalCount ? totalCount.count : 0;
             const maxPages = Math.ceil(total / itemsPerPage);
 
             const embed = new EmbedBuilder()
@@ -39,11 +40,14 @@ module.exports = {
                 embed.setDescription(`> ℹ️ **${staff.username}** ainda não aplicou nenhuma punição neste servidor.`);
                 return { embed, maxPages };
             }
-
+            
+            // Montagem do conteúdo com o Ticket incluso
             const content = actions.map(a => {
                 const date = new Date(a.created_at).toLocaleDateString('pt-BR');
-                return `**ID: #${a.id}** | 🗓️ \`${date}\`\n**Alvo:** <@${a.user_id}>\n**Gravidade:** Nível ${a.severity}\n**Motivo:** \`${a.reason}\`\n`
-            }).join('\n');
+                const ticket = a.ticket_id || 'N/A'; // Fallback caso o registro seja antigo
+                
+                return `**ID: #${a.id}** | 🗓️ \`${date}\`\n**Alvo:** <@${a.user_id}>\n**Gravidade:** Nível ${a.severity}\n**Motivo:** \`${a.reason}\`\n**Ticket:** \`#${ticket}\`\n`;
+            }).join('\n───────────────────\n'); // Linha separadora para facilitar a leitura
 
             embed.setDescription(content);
             return { embed, maxPages };
@@ -69,12 +73,14 @@ module.exports = {
         const response = await interaction.reply({
             embeds: [embed],
             components: maxPages > 1 ? [getButtons(currentPage)] : [],
-            ephemeral: true // Recomendado ser privado para não expor auditoria
+            ephemeral: true 
         });
 
-        const collector = response.createMessageComponentCollector({ time: 300000 }); // 5 minutos
+        const collector = response.createMessageComponentCollector({ time: 300000 });
 
         collector.on('collect', async i => {
+            if (i.user.id !== interaction.user.id) return i.reply({ content: "Apenas quem usou o comando pode navegar.", ephemeral: true });
+
             if (i.customId === 'prev_staff') currentPage--;
             if (i.customId === 'next_staff') currentPage++;
 

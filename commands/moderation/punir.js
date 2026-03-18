@@ -15,10 +15,12 @@ module.exports = {
                 { name: '4 - Castigo médio (-20 Rep)', value: 4 },
                 { name: '5 - Castigo severo (-35 Rep)', value: 5 }
             ))
-        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true)),
+        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
+        .addStringOption(opt => opt.setName('ticket').setDescription('Número ou ID do ticket de atendimento (Opcional)').setRequired(false)),
 
     async execute(interaction) {
         const guildId = interaction.guild.id;
+        const ticketId = interaction.options.getString('ticket') || 'Não informado';
 
         // --- 1. VERIFICAÇÃO DE CONFIGURAÇÃO DO SERVIDOR ---
         const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
@@ -52,10 +54,8 @@ module.exports = {
         const member = await interaction.guild.members.fetch(user.id).catch(() => null);
         if (!member) return interaction.editReply("❌ Usuário não encontrado no servidor.");
 
-        // Impedir que o bot tente punir a si mesmo
         if (user.id === interaction.client.user.id) return interaction.editReply("❌ Eu não posso punir a mim mesmo.");
         
-        // Verificação de Hierarquia
         if (member.roles.highest.position >= interaction.member.roles.highest.position && !isAdmin) {
             return interaction.editReply("❌ Você não pode punir alguém com um cargo superior ou igual ao seu.");
         }
@@ -81,15 +81,15 @@ module.exports = {
                 });
             }
 
-            // 4. Registro no Histórico de Punições
+            // 4. Registro no Histórico de Punições (INCLUINDO TICKET_ID)
             const insertPunishment = db.prepare(`
-                INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            `).run(guildId, user.id, interaction.user.id, reason, severity, timestamp);
+                INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, ticket_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).run(guildId, user.id, interaction.user.id, reason, severity, ticketId, timestamp);
 
             const punishmentId = insertPunishment.lastInsertRowid;
 
-            // 5. Atualização da Reputação (Lógica UPSERT por Guilda)
+            // 5. Atualização da Reputação
             db.prepare(`
                 INSERT INTO users (user_id, guild_id, reputation, penalties, last_penalty)
                 VALUES (?, ?, ?, 1, ?)
@@ -98,29 +98,26 @@ module.exports = {
                 penalties = penalties + 1,
                 last_penalty = ?
             `).run(user.id, guildId, 100 - repLoss, timestamp, repLoss, timestamp);
+            
 
-            // --- NOVO: ENVIO DE DM PARA O JOGADOR ---
+            // --- 6. ENVIO DE DM PARA O JOGADOR ---
             const dmEmbed = new EmbedBuilder()
                 .setTitle(`⚖️ Você recebeu uma punição em ${interaction.guild.name}`)
                 .setColor(0xff0000)
                 .setThumbnail(interaction.guild.iconURL())
-                .setDescription(`Olá ${user.username}, uma ação administrativa foi aplicada à sua conta. Entre em contato com os administradores do servidor da forma correta caso isso seja um erro, a punição é aplicada sempre por um staff do servidor.`)
+                .setDescription(`Olá ${user.username}, uma ação administrativa foi aplicada à sua conta.`)
                 .addFields(
                     { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
+                    { name: "🎫 Ticket Ref.", value: `\`#${ticketId}\``, inline: true },
                     { name: "📊 Gravidade", value: `Nível ${severity}`, inline: true },
-                    { name: "📉 Reputação Perdida", value: `-${repLoss} pontos`, inline: true },
-                    { name: "⏳ Medida Aplicada", value: selected.action, inline: true }
+                    { name: "📉 Reputação", value: `-${repLoss} pts`, inline: true }
                 )
-                .setFooter({ text: "Siga as regras para evitar punições severas e perda de reputação." })
+                .setFooter({ text: "ID do Protocolo: #" + punishmentId })
                 .setTimestamp();
-            try {
-                await user.send({ embeds: [dmEmbed] });
-            } catch (err) {
-                console.log(`Não foi possível enviar DM para ${user.tag}. (DMs fechadas)`);
-                // Não travamos o comando aqui, apenas avisamos no log interno que a DM falhou.
-            }
 
-            // 6. Envio de Logs (Já validado que o canal existe no passo 1)
+            await user.send({ embeds: [dmEmbed] }).catch(() => null);
+
+            // 7. Envio de Logs para a Staff (COM TICKET)
             const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
@@ -128,21 +125,21 @@ module.exports = {
                     .setColor(0xFF0000)
                     .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                     .addFields(
-                        { name: "🆔 Protocolo (ID)", value: `\`#${punishmentId}\``, inline: true },
                         { name: "👤 Usuário", value: `${user}\n(\`${user.id}\`)`, inline: true },
                         { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
+                        { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true },
                         { name: "📉 Reputação", value: `\`-${repLoss} pontos\``, inline: true },
                         { name: "🛠️ Ação", value: `\`${selected.action}\``, inline: true },
                         { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` }
                     )
-                    .setFooter({ text: `Use /historico para ver o passado deste usuário.` })
+                    .setFooter({ text: `Protocolo #${punishmentId}` })
                     .setTimestamp();
 
                 logChannel.send({ embeds: [logEmbed] }).catch(() => null);
             }
 
             await interaction.editReply({ 
-                content: `✅ Punição **#${punishmentId}** aplicada a **${user.username}**. Reputação descontada conforme a gravidade nível ${severity}.` 
+                content: `✅ Punição **#${punishmentId}** aplicada a **${user.username}** (Ticket: #${ticketId}).` 
             });
 
         } catch (err) {

@@ -11,7 +11,7 @@ module.exports = {
             await interaction.deferReply();
             const guildId = interaction.guild.id;
 
-            // Busca apenas usuários DESTE servidor
+            // Busca os 10 melhores apenas DESTE servidor
             const topRanking = db.prepare(`
                 SELECT user_id, reputation 
                 FROM users 
@@ -21,24 +21,29 @@ module.exports = {
             `).all(guildId);
 
             if (topRanking.length === 0) {
-                return interaction.editReply("⚠️ Nenhum registro de reputação neste servidor.");
+                return interaction.editReply("⚠️ Nenhum registro de reputação encontrado neste servidor.");
             }
 
             const medalhas = { 0: "🥇", 1: "🥈", 2: "🥉" };
-            let description = topRanking.map((user, index) => {
-                const medal = medalhas[index] || `**${index + 1}.**`;
-                return `${medal} <@${user.user_id}> — **${user.reputation} Rep**`;
+            
+            const list = topRanking.map((user, index) => {
+                const position = medalhas[index] || `**${index + 1}º**`;
+                // Menção simples para evitar carregar membros desnecessários, 
+                // o Discord resolve o nome automaticamente no client.
+                return `${position} <@${user.user_id}> — \`${user.reputation} pts\``;
             }).join('\n');
 
             const embed = new EmbedBuilder()
-                .setTitle(`🏆 Ranking Local: ${interaction.guild.name}`)
-                .setDescription(description)
-                .setColor(0xff2e6c)
+                .setTitle(`🏆 Melhores do Servidor | ${interaction.guild.name}`)
+                .setColor(0xf2b705) // Cor dourada para o ranking
+                .setDescription(`Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}`)
+                .setFooter({ text: "📍 O ranking é atualizado em tempo real e é local." })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
+
         } catch (error) {
-            console.error(error);
+            console.error("Erro no comando rank:", error);
             await interaction.editReply("❌ Erro ao processar o ranking local.");
         }
     }

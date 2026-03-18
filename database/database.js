@@ -25,7 +25,7 @@ db.prepare(`
     )
 `).run();
 
-// 3. PUNIÇÕES (Adicionado índices)
+// 3. PUNIÇÕES (Com a nova coluna ticket_id)
 db.prepare(`
     CREATE TABLE IF NOT EXISTS punishments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,11 +34,24 @@ db.prepare(`
         moderator_id TEXT NOT NULL,
         reason TEXT DEFAULT 'Motivo não informado',
         severity INTEGER NOT NULL,
+        ticket_id TEXT DEFAULT 'N/A',
         created_at INTEGER NOT NULL
     )
 `).run();
 
-// Criar índices para buscas rápidas no Automod e comandos de perfil
+/** * Lógica de segurança: 
+ * Se a tabela já existia antes dessa atualização, a coluna ticket_id pode estar faltando.
+ * O código abaixo garante que ela seja adicionada sem você precisar deletar o banco.
+ */
+const tableInfo = db.prepare("PRAGMA table_info(punishments)").all();
+const hasTicketColumn = tableInfo.some(col => col.name === 'ticket_id');
+
+if (!hasTicketColumn) {
+    db.prepare("ALTER TABLE punishments ADD COLUMN ticket_id TEXT DEFAULT 'N/A'").run();
+    console.log("✅ Coluna 'ticket_id' adicionada com sucesso à tabela de punições.");
+}
+
+// Criar índices para buscas rápidas
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_punishments_user ON punishments (user_id, guild_id)`).run();
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_reputation ON users (reputation)`).run();
 

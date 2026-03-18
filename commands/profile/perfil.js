@@ -27,7 +27,6 @@ function createProgressBarImage(value, max) {
     if (progressWidth > 0) {
         ctx.beginPath();
         const gradient = ctx.createLinearGradient(0, 0, width, 0);
-        // Cores baseadas na saúde da reputação
         const colorMain = value >= 70 ? '#10b981' : (value >= 40 ? '#f59e0b' : '#ef4444');
         const colorSub = value >= 70 ? '#34d399' : (value >= 40 ? '#fbbf24' : '#f87171');
         
@@ -60,7 +59,7 @@ function getStatus(rep) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil')
-        .setDescription('Exibe sua reputação local e estatísticas neste servidor.')
+        .setDescription('Exibe sua reputação e estatísticas neste servidor.')
         .addUserOption(option =>
             option.setName('usuario')
                 .setDescription('Selecione o usuário para ver o perfil')
@@ -81,12 +80,12 @@ module.exports = {
                     .setTitle(`👤 Perfil: ${targetUser.username}`)
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setColor(0x2b2d31) 
-                    .setDescription(`\n> ✨ **Este usuário é novo por aqui.**\n\nA reputação neste servidor começa em **100**. Conforme o jogador interage e segue as regras, sua pontuação local é mantida.`)
+                    .setDescription(`\n> ✨ **Este usuário ainda não possui registros.**\n\nA reputação neste servidor começa em **100**.`)
                     .addFields(
-                        { name: "🏅 Reputação Local", value: `**100**/100`, inline: true },
-                        { name: "🛡️ Status Atual", value: "👍 Bom", inline: true }
+                        { name: "🏅 Reputação", value: `**100**/100`, inline: true },
+                        { name: "🛡️ Status", value: "👍 Bom", inline: true }
                     )
-                    .setFooter({ text: `📍 Dados exclusivos deste servidor.` })
+                    .setFooter({ text: `📍 Dados exclusivos de ${interaction.guild.name}` })
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [visitorEmbed] });
@@ -100,28 +99,24 @@ module.exports = {
                 ? Math.floor((Date.now() - lastPenalty) / (1000 * 60 * 60 * 24))
                 : "∞";
 
-            // Rankings
+            // Ranking Local Apenas
             const localRanking = db.prepare('SELECT user_id FROM users WHERE guild_id = ? ORDER BY reputation DESC').all(guildId);
             const localPos = localRanking.findIndex(u => u.user_id === targetUser.id) + 1;
-
-            const globalRanking = db.prepare('SELECT user_id FROM users ORDER BY reputation DESC').all();
-            const globalPos = globalRanking.findIndex(u => u.user_id === targetUser.id && u.guild_id === guildId) + 1;
 
             const progressBarBuffer = createProgressBarImage(reputation, 100);
             const attachment = new AttachmentBuilder(progressBarBuffer, { name: 'progress.png' });
 
             const embed = new EmbedBuilder()
-                .setTitle(`👤 Perfil Local: ${targetUser.username}`)
+                .setTitle(`👤 Perfil: ${targetUser.username}`)
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .setColor(reputation >= 90 ? 0xf2b705 : (reputation >= 50 ? 0x10b981 : 0xff0000))
-                .setDescription(`Abaixo estão suas estatísticas de comportamento dentro do servidor **${interaction.guild.name}**.`)
+                .setDescription(`Estatísticas de comportamento em **${interaction.guild.name}**.`)
                 .addFields(
-                    { name: "🏅 Reputação Local", value: `**${reputation}**/100`, inline: true },
+                    { name: "🏅 Reputação", value: `**${reputation}**/100`, inline: true },
                     { name: "⚖️ Punições", value: `\`${penalties}\``, inline: true },
                     { name: "⏳ Limpo há", value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
-                    { name: "🏠 Rank no Servidor", value: `**#${localPos}** / ${localRanking.length}`, inline: true },
-                    { name: "🌍 Rank na Rede", value: `**#${globalPos}** / ${globalRanking.length}`, inline: true },
-                    { name: "🛡️ Status Local", value: getStatus(reputation), inline: true },
+                    { name: "🏠 Rank Local", value: `**#${localPos}** de ${localRanking.length}`, inline: true },
+                    { name: "🛡️ Status", value: getStatus(reputation), inline: true },
                     { 
                         name: "📈 Barra de Integridade", 
                         value: '\u200B', 
@@ -129,7 +124,7 @@ module.exports = {
                     }
                 )
                 .setImage('attachment://progress.png')
-                .setFooter({ text: `📍 Estes pontos pertencem apenas a este servidor.` })
+                .setFooter({ text: `📍 Estes dados são restritos a este servidor.` })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed], files: [attachment] });

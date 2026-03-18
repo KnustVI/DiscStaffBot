@@ -11,7 +11,21 @@ module.exports = {
             .setColor(0xff2e6c)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
-                `Olá **${interaction.user.username}**! Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda a diferença entre os dados:`
+                `# Olá **${interaction.user.username}**! 
+                Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda a diferença entre os dados:
+                ## 📊 A Escala de Status
+                - O valor numérico define em qual "faixa" de comportamento o jogador se encontra:
+                ✨ 90 - 100 (Exemplar): Jogador padrão ou que nunca causou problemas.
+                ✅ 70 - 89 (Bom): Cometeu erros leves, mas ainda é considerado confiável.
+                ⚠️ 50 - 69 (Atenção): Jogador problemático. A Staff deve ficar de olho em reincidências.
+                🚨 Abaixo de 50 (Crítico): Jogador altamente tóxico ou reincidente grave. Geralmente, nesta fase, qualquer erro novo resulta em Banimento Permanente.
+                ## Nível,Gravidade, Pontos Retirados, Tipo de Punição Comum.
+                1 - Aviso (-2 Rep) Aviso verbal.
+                2 - Advertência (-5 Rep) 5 minutos de castigo.
+                3 - Castigo leve (-10 Rep) 30 minutos de castigo.
+                4 - Castigo médio (-20 Rep) 2 horas de castigo.
+                5 - Castigo severo (-35 Rep) 24 horas de castigo.
+                `
             )
             .addFields(
                 { 
