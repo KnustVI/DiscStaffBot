@@ -35,7 +35,6 @@ module.exports = {
 
         let punicoesTexto = "";
         for (let i = 1; i <= 5; i++) {
-            // Capitaliza a primeira letra da ação (ex: ban -> Ban)
             let actionRaw = getMetric(i, 'action', defaultMetrics[i].action);
             let action = actionRaw.charAt(0).toUpperCase() + actionRaw.slice(1);
             
@@ -51,16 +50,16 @@ module.exports = {
             .setColor(0xff2e6c)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
-                `# Olá **${interaction.user.username}**!` +
-                `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:` +
-                `## 📊 A Escala de Status` +
+                `# Olá **${interaction.user.username}**!\n` + // Adicionado \n
+                `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:\n\n` + // Adicionado \n\n
+                `## 📊 A Escala de Status\n` + // Adicionado \n
                 `✨ **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
                 `✅ **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
                 `⚠️ **50 - 69 (Atenção):** Jogador problemático. Requer atenção da Staff.\n` +
-                `🚨 **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n` +
-                `## 🛠️ Tabela de Punições Atualizada` +
+                `🚨 **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n\n` + // Adicionado \n\n
+                `## 🛠️ Tabela de Punições Atualizada\n` + // Adicionado \n
                 punicoesTexto +
-                '📍 Os valores acima são definidos pela Administração deste servidor.'
+                `\n📍 Os valores acima são definidos pela Administração deste servidor.`
             )
             .addFields(
                 { 
@@ -78,10 +77,9 @@ module.exports = {
             )
             .setFooter({ 
                 text: interaction.guild.name, 
-                iconURL: interaction.guild
-                .iconURL({ dynamic: true }) 
-                .setTimestamp()
-            })
+                iconURL: interaction.guild.iconURL({ dynamic: true }) 
+            }) // Corrigido o fechamento do Footer
+            .setTimestamp(); // Corrigido o Timestamp para fora do Footer
 
         await interaction.reply({ embeds: [embed] });
     }
