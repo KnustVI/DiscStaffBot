@@ -35,10 +35,12 @@ module.exports = {
             const cfg = Object.fromEntries(rows.map(r => [r.key, r.value]));
 
             const embed = new EmbedBuilder()
-                .setTitle(`⚙️ Painel de Controle: ${interaction.guild.name}`)
                 .setColor(0xff2e6c)
                 .setThumbnail(interaction.guild.iconURL())
-                .setDescription('Aqui estão todas as definições salvas no banco de dados.')
+                .setDescription(`# ⚙️ Painel de Controle: ${interaction.guild.name}\n` +
+                    'Aqui estão todas as definições salvas no banco de dados.\n'+
+                    `Use /config [subcomando] para alterar algo.`
+                )
                 .addFields(
                     { 
                         name: "🛡️ Sistema & Canais", 
@@ -53,7 +55,12 @@ module.exports = {
                                `**Problema:** ${cfg.problem_role ? `<@&${cfg.problem_role}>` : '❌'}`, 
                         inline: true 
                     }
-                );
+                )
+                .setFooter({ 
+                text: interaction.guild.name, 
+                iconURL: interaction.guild
+                .iconURL({ dynamic: true })})
+                .setTimestamp()
 
             let metricsText = "";
             for (let i = 1; i <= 5; i++) {
@@ -64,7 +71,12 @@ module.exports = {
             }
 
             embed.addFields({ name: "📊 Métricas de Punição", value: metricsText, inline: false });
-            embed.setFooter({ text: "Use /config [subcomando] para alterar algo." }).setTimestamp();
+            embed.setFooter({ 
+                text: interaction.guild.name, 
+                iconURL: interaction.guild
+                .iconURL({ dynamic: true })})
+                .setTimestamp()
+                
 
             return interaction.editReply({ embeds: [embed] });
         }
@@ -78,9 +90,9 @@ module.exports = {
                 const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
 
                 return new EmbedBuilder()
-                    .setTitle(`⚙️ Configurações: ${interaction.guild.name}`)
                     .setColor(0xff2e6c)
-                    .setDescription('Selecione uma opção no menu abaixo para configurar as funções do bot.')
+                    .setDescription(`# ⚙️ Configurações: ${interaction.guild.name}\n` +
+                        'Selecione uma opção no menu abaixo para configurar as funções do bot.')
                     .addFields(
                         { 
                             name: "🛡️ Sistema de Moderação", 
@@ -169,9 +181,14 @@ module.exports = {
 
             const getMetricsEmbed = () => {
                 const embed = new EmbedBuilder()
-                    .setTitle(`📊 Ajuste de Métricas: ${interaction.guild.name}`)
                     .setColor(0xff2e6c)
-                    .setDescription('Selecione um nível abaixo para editar via Modal.');
+                    .setDescription(`# 📊 Ajuste de Métricas: ${interaction.guild.name}\n` +
+                        'Selecione um nível abaixo para editar via Modal.')
+                    .setFooter({ 
+                        text: interaction.guild.name, 
+                        iconURL: interaction.guild
+                        .iconURL({ dynamic: true })}) 
+                        .setTimestamp()
 
                 for (let i = 1; i <= 5; i++) {
                     const action = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${i}_action`)?.value || "Aviso";
@@ -253,7 +270,7 @@ module.exports = {
         // ==========================================
         // LÓGICA: CONFIGRESET
         // ==========================================
-        if (sub === 'configreset') {
+        if (sub === 'reset') {
             const confirm = new ButtonBuilder().setCustomId('confirm_reset').setLabel('Sim, resetar tudo').setStyle(ButtonStyle.Danger);
             const cancel = new ButtonBuilder().setCustomId('cancel_reset').setLabel('Cancelar').setStyle(ButtonStyle.Secondary);
             const row = new ActionRowBuilder().addComponents(confirm, cancel);

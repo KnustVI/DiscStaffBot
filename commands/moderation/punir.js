@@ -119,7 +119,7 @@ module.exports = {
             // Envio para o Canal de Logs (Padrão)
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
-                    .setTitle(`⚖️ Nova Punição | ID #${punishmentId}`)
+                    .setDescription(`# ⚖️ Nova Punição | ID #${punishmentId}`)
                     .setColor(0xFF0000)
                     .addFields(
                         { name: "👤 Usuário", value: `${user} (\`${user.id}\`)`, inline: true },
@@ -127,7 +127,12 @@ module.exports = {
                         { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
                         { name: "📉 Reputação Atual", value: `\`${userData.reputation} pts\``, inline: true },
                         { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` }
-                    ).setTimestamp();
+                    )
+                    .setFooter({ 
+                    text: interaction.guild.name, 
+                    iconURL: interaction.guild
+                    .iconURL({ dynamic: true })})
+                    .setTimestamp();
                 logChannel.send({ embeds: [logEmbed] }).catch(() => null);
             }
 
@@ -136,41 +141,58 @@ module.exports = {
                 // Alerta 1: Usuário em Estado Crítico (Reputação < 30)
                 if (userData.reputation <= 30) {
                     const userAlert = new EmbedBuilder()
-                        .setTitle("⚠️ ALERTA: Usuário em Estado Crítico")
                         .setColor(0xFFFF00) // Amarelo
-                        .setDescription(`O usuário ${user} atingiu um nível de reputação perigoso.`)
+                        .setDescription("# ⚠️ ALERTA: Usuário em Estado Crítico" +
+                            `O usuário ${user} atingiu um nível de reputação perigoso.`)
                         .addFields(
                             { name: "📉 Reputação Restante", value: `**${userData.reputation} pontos**`, inline: true },
                             { name: "🎫 Último Protocolo", value: `#${punishmentId}`, inline: true }
-                        );
+                        )
+                        .setFooter({ 
+                        text: interaction.guild.name, 
+                        iconURL: interaction.guild
+                        .iconURL({ dynamic: true })})
+                        .setTimestamp();
+
                     alertChannel.send({ embeds: [userAlert] });
                 }
 
                 // Alerta 2: Monitoramento de Staff (Punições Graves Nível 4 e 5)
                 if (severity >= 4) {
                     const staffAlert = new EmbedBuilder()
-                        .setTitle("🚨 MONITORAMENTO: Punição de Alta Gravidade")
                         .setColor(0xFF4500) // Laranja/Vermelho forte
-                        .setDescription(`O moderador ${interaction.user} aplicou uma punição de **Nível ${severity}**.`)
+                        .setDescription(`# 🚨 MONITORAMENTO: Punição de Alta Gravidade`+
+                            `O moderador ${interaction.user} aplicou uma punição de **Nível ${severity}**.`)
                         .addFields(
                             { name: "👤 Alvo", value: `${user}`, inline: true },
                             { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
                             { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` }
-                        );
+                        )
+                        .setFooter({ 
+                        text: interaction.guild.name, 
+                        iconURL: interaction.guild
+                        .iconURL({ dynamic: true })})
+                        .setTimestamp();
+
                     alertChannel.send({ embeds: [staffAlert] });
                 }
             }
 
             // --- 7. NOTIFICAÇÃO DM E RESPOSTA FINAL ---
             const dmEmbed = new EmbedBuilder()
-                .setTitle(`⚖️ Punição Recebida: ${interaction.guild.name}`)
+                .setDescription(`# ⚖️ Punição Recebida: ${interaction.guild.name}`)
                 .setColor(0xff0000)
                 .addFields(
                     { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
                     { name: "📉 Reputação", value: `\`-${repLoss} pts\``, inline: true },
                     { name: "🎫 Protocolo", value: `#${punishmentId}`, inline: true }
-                ).setTimestamp();
-
+                )
+                .setFooter({ 
+                    text: interaction.guild.name, 
+                    iconURL: interaction.guild
+                    .iconURL({ dynamic: true })})
+                    .setTimestamp();
+                
             await user.send({ embeds: [dmEmbed] }).catch(() => null);
 
             await interaction.editReply({ 

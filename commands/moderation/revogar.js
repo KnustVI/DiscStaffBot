@@ -62,7 +62,7 @@ module.exports = {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setTitle(`🔓 Punição Revogada | ID #${punishmentId}`)
+                        .setDescription(`# 🔓 Punição Revogada | ID #${punishmentId}`)
                         .setColor(0x00FF00) // Verde para indicar sucesso
                         .addFields(
                             { name: "👤 Usuário Beneficiado", value: `<@${punishment.user_id}>`, inline: true },
@@ -71,7 +71,12 @@ module.exports = {
                             { name: "📈 Reputação Devolvida", value: `\`+${repToRestore} pts\``, inline: true },
                             { name: "📝 Motivo da Revogação", value: `\`\`\`${revogReason}\`\`\`` }
                         )
-                        .setTimestamp();
+                        .setFooter({ 
+                            text: interaction.guild.name, 
+                            iconURL: interaction.guild
+                            .iconURL({ dynamic: true })})
+                            .setTimestamp();
+                        
 
                     logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                 }
@@ -81,16 +86,20 @@ module.exports = {
             const targetUser = await interaction.client.users.fetch(punishment.user_id).catch(() => null);
             if (targetUser) {
                 const dmEmbed = new EmbedBuilder()
-                    .setTitle(`⚖️ Punição Revogada: ${interaction.guild.name}`)
                     .setColor(0x00FF00)
-                    .setDescription(`Olá! Uma punição anterior aplicada à sua conta foi anulada após revisão.`)
+                    .setDescription(`# ⚖️ Punição Revogada: ${interaction.guild.name}` +
+                        `Olá! Uma punição anterior aplicada à sua conta foi anulada após revisão.`)
                     .addFields(
                         { name: "🆔 Protocolo Original", value: `#${punishmentId}`, inline: true },
                         { name: "📈 Reputação Restaurada", value: `+${repToRestore} pontos`, inline: true },
                         { name: "🎫 Referência", value: `Ticket #${ticketId}`, inline: true }
                     )
-                    .setFooter({ text: "Sua ficha foi limpa em relação a este incidente." })
-                    .setTimestamp();
+                    .setFooter({ 
+                        text: interaction.guild.name, 
+                        iconURL: interaction.guild
+                        .iconURL({ dynamic: true }) })
+                        .setTimestamp();
+                    
                 
                 await targetUser.send({ embeds: [dmEmbed] }).catch(() => null);
             }

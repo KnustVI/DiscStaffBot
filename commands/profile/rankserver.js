@@ -34,12 +34,18 @@ module.exports = {
             }).join('\n');
 
             const embed = new EmbedBuilder()
-                .setTitle(`🏆 Melhores do Servidor | ${interaction.guild.name}`)
                 .setColor(0xf2b705) // Cor dourada para o ranking
-                .setDescription(`Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}`)
-                .setFooter({ text: "📍 O ranking é atualizado em tempo real e é local." })
+                .setDescription(
+                    `# 🏆 Melhores do Servidor | ${interaction.guild.name}`+
+                    `Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}`+
+                    "📍 O ranking é atualizado em tempo real e é local."
+                )
+                .setFooter({ 
+                text: interaction.guild.name, 
+                iconURL: interaction.guild
+                .iconURL({ dynamic: true })})
                 .setTimestamp();
-
+                
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {

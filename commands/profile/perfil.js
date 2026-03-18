@@ -76,15 +76,19 @@ module.exports = {
 
             if (!userData) {
                 const visitorEmbed = new EmbedBuilder()
-                    .setTitle(`👤 Perfil: ${targetUser.username}`)
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setColor(0x2b2d31) 
-                    .setDescription(`\n> ✨ **Este usuário ainda não possui registros.**\n\nA reputação neste servidor começa em **100**.`)
+                    .setDescription(`# 👤 Perfil: ${targetUser.username}\n`+
+                        `✨ **Este usuário ainda não possui registros.**\n`
+                        `- A reputação neste servidor começa em **100**.`)
                     .addFields(
                         { name: "🏅 Reputação", value: `**100**/100`, inline: true },
                         { name: "🛡️ Status", value: "👍 Bom", inline: true }
                     )
-                    .setFooter({ text: `📍 Dados exclusivos de ${interaction.guild.name}` })
+                    .setFooter({ 
+                    text: interaction.guild.name, 
+                    iconURL: interaction.guild
+                    .iconURL({ dynamic: true }) })
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [visitorEmbed] });
@@ -123,10 +127,13 @@ module.exports = {
             const attachment = new AttachmentBuilder(progressBarBuffer, { name: 'progress.png' });
 
             const embed = new EmbedBuilder()
-                .setTitle(`👤 Perfil: ${targetUser.username}`)
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .setColor(reputation >= 90 ? 0xf2b705 : (reputation >= 50 ? 0x10b981 : 0xff0000))
-                .setDescription(`Estatísticas de comportamento em **${interaction.guild.name}**.`)
+                .setDescription(
+                    `# 👤 Perfil: ${targetUser.username}`+
+                    `Estatísticas de comportamento em **${interaction.guild.name}**.\n`+
+                    `📍 Estes dados são restritos a este servidor.` ,
+                )
                 .addFields(
                     { name: "🏅 Reputação", value: `**${reputation}**/100`, inline: true },
                     { name: "⚖️ Punições", value: `\`${penalties}\``, inline: true },
@@ -141,8 +148,12 @@ module.exports = {
                     }
                 )
                 .setImage('attachment://progress.png')
-                .setFooter({ text: `📍 Estes dados são restritos a este servidor.` })
+                .setFooter({ 
+                text: interaction.guild.name, 
+                iconURL: interaction.guild
+                .iconURL({ dynamic: true })})
                 .setTimestamp();
+                
 
             await interaction.editReply({ embeds: [embed], files: [attachment] });
 

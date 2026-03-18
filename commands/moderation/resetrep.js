@@ -42,14 +42,19 @@ module.exports = {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setTitle("🧹 Reputação Resetada")
+                        .setDescription("# 🧹 Reputação Resetada")
                         .setColor(0xff2e6c)
                         .addFields(
                             { name: "👤 Usuário Resetado", value: `${target} (\`${target.id}\`)`, inline: true },
                             { name: "👮 Responsável", value: `${interaction.user}`, inline: true },
                             { name: "📝 Motivo do Reset", value: `\`\`\`${reason}\`\`\`` }
                         )
-                        .setTimestamp();
+                        .setFooter({ 
+                            text: interaction.guild.name, 
+                            iconURL: interaction.guild
+                            .iconURL({ dynamic: true })})
+                            .setTimestamp();
+                        
 
                     logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                 }

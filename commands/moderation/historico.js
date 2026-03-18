@@ -85,16 +85,21 @@ module.exports = {
 
             // --- 4. CONSTRUÇÃO DO EMBED ---
             const embed = new EmbedBuilder()
-                .setTitle(`📜 Histórico de Punições | ${user.username}`)
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-                .setDescription(description)
+                .setDescription(`# 📜 Histórico de Punições | ${user.username}`
+                    `${description}\n` +
+                    `📍 Dados restritos ao servidor: ${interaction.guild.name}`,
+                )
                 .addFields({
                     name: "📊 Resumo da Ficha",
                     value: `Total de registros: **${total}**\nExibindo página **${page}** de **${totalPages}**`,
                     inline: true
                 })
                 .setColor(0xff2e6c) // Cor padrão do sistema
-                .setFooter({ text: `📍 Dados restritos ao servidor: ${interaction.guild.name}` })
+                .setFooter({ 
+                text: interaction.guild.name, 
+                iconURL: interaction.guild
+                .iconURL({ dynamic: true })})
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
