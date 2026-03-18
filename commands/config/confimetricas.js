@@ -13,18 +13,34 @@ const db = require('../../database/database');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('config-metricas')
-        .setDescription('Ajusta os valores de punição, tempos e perda de reputação.')
+        .setDescription('Ajusta os valores de punição e converte horas/dias automaticamente.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         const guildId = interaction.guild.id;
+
+        // --- FUNÇÃO DE CONVERSÃO INTELIGENTE ---
+        // Transforma "2h" em 120, "1d" em 1440, etc.
+        const parseTimeToMinutes = (input) => {
+            const lowerInput = input.toLowerCase().trim();
+            const number = parseFloat(lowerInput.replace(/[^\d.]/g, ''));
+            
+            if (isNaN(number)) return null;
+
+            if (lowerInput.endsWith('h')) return Math.round(number * 60);
+            if (lowerInput.endsWith('d')) return Math.round(number * 1440);
+            // Se terminar com 'm' ou for apenas o número puro, considera minutos
+            if (lowerInput.endsWith('m') || !/[a-z]/.test(lowerInput)) return Math.round(number);
+            
+            return null; // Formato não identificado
+        };
 
         // Função para gerar o Embed com os dados atuais
         const getMetricsEmbed = () => {
             const embed = new EmbedBuilder()
                 .setTitle(`📊 Ajuste de Métricas: ${interaction.guild.name}`)
                 .setColor(0xff2e6c)
-                .setDescription('Selecione um nível no menu abaixo para editar. Você pode editar vários níveis seguidos.')
+                .setDescription('Selecione um nível abaixo para editar. Você pode usar: `30` (min), `2h` (horas) ou `1d` (dias).')
                 .setFooter({ text: 'O menu expira após 5 minutos de inatividade.' });
 
             for (let i = 1; i <= 5; i++) {
@@ -69,24 +85,27 @@ module.exports = {
 
                 // Criar o Modal
                 const modal = new ModalBuilder()
-                    .setCustomId(`modal_metrics_${level}_${Date.now()}`) // ID único para evitar conflitos
+                    .setCustomId(`modal_metrics_${level}_${Date.now()}`)
                     .setTitle(`Configurar Nível ${level}`);
 
                 const actionInput = new TextInputBuilder()
                     .setCustomId('action_name')
                     .setLabel("NOME DA AÇÃO (Ex: Aviso, Timeout)")
+                    .setPlaceholder("Ex: Banimento Temporário")
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
                 const timeInput = new TextInputBuilder()
                     .setCustomId('time_value')
-                    .setLabel("TEMPO EM MINUTOS (0 para avisos)")
+                    .setLabel("TEMPO (Ex: 30, 2h, 1d)")
+                    .setPlaceholder("Ex: 2h será convertido para 120 minutos")
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
                 const repInput = new TextInputBuilder()
                     .setCustomId('rep_value')
                     .setLabel("PERDA DE REPUTAÇÃO (Apenas números)")
+                    .setPlaceholder("Ex: 15")
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true);
 
@@ -106,25 +125,43 @@ module.exports = {
                     });
 
                     if (submitted) {
+                        const rawTime = submitted.fields.getTextInputValue('time_value');
+                        const convertedTime = parseTimeToMinutes(rawTime);
+
+                        // --- VALIDAÇÃO DE TEMPO ---
+                        if (convertedTime === null) {
+                            return await submitted.reply({ 
+                                content: `❌ **Erro de Formato:** Não consegui entender o tempo \`${rawTime}\`.\n\n**Como usar:**\n• Apenas números: \`60\` (60 minutos)\n• Com **h**: \`2h\` (120 minutos)\n• Com **d**: \`1d\` (1440 minutos)`, 
+                                ephemeral: true 
+                            });
+                        }
+
                         const actionName = submitted.fields.getTextInputValue('action_name');
-                        const timeValue = submitted.fields.getTextInputValue('time_value');
-                        const repValue = submitted.fields.getTextInputValue('rep_value');
+                        const repValue = submitted.fields.getTextInputValue('rep_value').replace(/[^\d]/g, '');
 
-                        // Salvar no Banco
-                        const stmt = db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = ?`);
-                        stmt.run(guildId, `punish_${level}_action`, actionName, actionName);
-                        stmt.run(guildId, `punish_${level}_time`, timeValue, timeValue);
-                        stmt.run(guildId, `punish_${level}_rep`, repValue, repValue);
+                        // Salvar no Banco (Usando excluded para garantir o valor correto no conflito)
+                        const stmt = db.prepare(`
+                            INSERT INTO settings (guild_id, key, value) 
+                            VALUES (?, ?, ?) 
+                            ON CONFLICT(guild_id, key) 
+                            DO UPDATE SET value = excluded.value
+                        `);
 
-                        // Confirmar submissão com resposta silenciosa
-                        await submitted.reply({ content: `✅ Nível **${level}** configurado!`, ephemeral: true });
+                        stmt.run(guildId, `punish_${level}_action`, actionName);
+                        stmt.run(guildId, `punish_${level}_time`, convertedTime.toString());
+                        stmt.run(guildId, `punish_${level}_rep`, repValue);
 
-                        // Atualiza o menu principal sem fechar o comando
+                        // Confirmar submissão
+                        await submitted.reply({ 
+                            content: `✅ **Nível ${level}** atualizado!\n⏱️ Tempo definido: \`${rawTime}\` → **${convertedTime} minutos.**`, 
+                            ephemeral: true 
+                        });
+
+                        // Atualiza o menu principal
                         await interaction.editReply({ embeds: [getMetricsEmbed()], components: [row] });
                     }
                 } catch (err) {
-                    // O erro geralmente é o timeout do modal (usuário demorou > 1min)
-                    console.log("Tempo esgotado para preencher o modal.");
+                    console.log(`Tempo esgotado ou erro no modal do nível ${level}`);
                 }
             }
         });
