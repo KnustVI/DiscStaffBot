@@ -32,7 +32,7 @@ module.exports = {
 
         if (!staffRoleSetting || !logChannelSetting) {
             return interaction.reply({
-                content: "⚠️ **O sistema não está configurado.** Use `/config-metricas` primeiro.",
+                content: "⚠️ **O sistema não está configurado.** Use `/config canais-e-cargos` primeiro.",
                 ephemeral: true
             });
         }
@@ -59,25 +59,38 @@ module.exports = {
         /* --- 3. BUSCA DINÂMICA DE MÉTRICAS --- */
         const getMetric = (type) => db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${severity}_${type}`)?.value;
 
+        // Fallbacks caso o banco esteja vazio
         const defaultMetrics = {
-            1: { action: "Aviso", time: 0, rep: 2 },
-            2: { action: "Timeout", time: 5, rep: 5 },
-            3: { action: "Timeout", time: 30, rep: 10 },
-            4: { action: "Timeout", time: 120, rep: 20 },
-            5: { action: "Timeout", time: 1440, rep: 35 }
+            1: { action: "aviso", time: 0, rep: 2 },
+            2: { action: "timeout", time: 5, rep: 5 },
+            3: { action: "timeout", time: 30, rep: 10 },
+            4: { action: "timeout", time: 120, rep: 20 },
+            5: { action: "ban", time: 0, rep: 35 }
         };
 
-        const selectedAction = getMetric('action') || defaultMetrics[severity].action;
+        const selectedAction = (getMetric('action') || defaultMetrics[severity].action).toLowerCase();
         const selectedTimeMinutes = parseInt(getMetric('time')) ?? defaultMetrics[severity].time;
         const repLoss = parseInt(getMetric('rep')) ?? defaultMetrics[severity].rep;
 
         try {
-            // --- 4. APLICAÇÃO DO TIMEOUT ---
-            if (selectedTimeMinutes > 0) {
+            // --- 4. APLICAÇÃO DA PUNIÇÃO NO DISCORD ---
+            let executionDetail = "Ação registrada";
+
+            if (selectedAction === 'timeout' && selectedTimeMinutes > 0) {
                 const timeInMs = selectedTimeMinutes * 60 * 1000;
-                await member.timeout(timeInMs, reason).catch(() => {
-                    console.error("Erro ao aplicar timeout (Permissões de cargo?)");
-                });
+                await member.timeout(timeInMs, reason);
+                executionDetail = `Timeout (${selectedTimeMinutes}m)`;
+            } 
+            else if (selectedAction === 'ban') {
+                await member.ban({ reason: `Punição Nível ${severity}: ${reason}` });
+                executionDetail = "Banimento Permanente";
+            } 
+            else if (selectedAction === 'kick') {
+                await member.kick(reason);
+                executionDetail = "Expulsão";
+            } 
+            else {
+                executionDetail = "Aviso (ADV)";
             }
 
             // --- 5. REGISTRO NO BANCO (HISTÓRICO + REPUTAÇÃO) ---
@@ -104,11 +117,11 @@ module.exports = {
                 .setDescription(`Uma ação administrativa foi registrada em seu perfil.`)
                 .addFields(
                     { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
-                    { name: "🛠️ Ação", value: `\`${selectedAction} (${selectedTimeMinutes}m)\``, inline: true },
+                    { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
                     { name: "📉 Reputação", value: `\`-${repLoss} pts\``, inline: true },
                     { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true }
                 )
-                .setFooter({ text: `Protocolo de Registro: #${punishmentId}` })
+                .setFooter({ text: `Protocolo: #${punishmentId}` })
                 .setTimestamp();
 
             await user.send({ embeds: [dmEmbed] }).catch(() => null);
@@ -124,7 +137,7 @@ module.exports = {
                         { name: "👤 Usuário", value: `${user}\n(\`${user.id}\`)`, inline: true },
                         { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
                         { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true },
-                        { name: "🛠️ Ação Aplicada", value: `\`${selectedAction} (${selectedTimeMinutes}m)\``, inline: true },
+                        { name: "🛠️ Ação Aplicada", value: `\`${executionDetail}\``, inline: true },
                         { name: "📉 Perda de Rep", value: `\`-${repLoss} pontos\``, inline: true },
                         { name: "📝 Motivo Oficial", value: `\`\`\`${reason}\`\`\`` }
                     )
@@ -134,12 +147,13 @@ module.exports = {
             }
 
             await interaction.editReply({ 
-                content: `✅ Punição **#${punishmentId}** aplicada com sucesso.\n📉 **-${repLoss}** pontos de reputação para ${user.username}.` 
+                content: `✅ Punição **#${punishmentId}** aplicada: **${executionDetail}**.\n📉 **-${repLoss}** pontos de reputação para ${user.username}.` 
             });
 
         } catch (err) {
             console.error(err);
-            return interaction.editReply(`❌ **Erro interno:** ${err.message}`);
+            // Mensagem de erro amigável se o bot não tiver permissão de banir/timeout
+            return interaction.editReply(`❌ **Erro ao aplicar punição:** Verifique se meu cargo está acima do usuário e se tenho permissões de 'Castigar' ou 'Banir'.`);
         }
     }
 };
