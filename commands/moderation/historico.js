@@ -45,7 +45,7 @@ module.exports = {
             const total = totalData ? totalData.total : 0;
 
             if (total === 0) {
-                return interaction.editReply({ content: `✅ O usuário **${user.username}** não possui nenhum registro no histórico deste servidor.` });
+                return interaction.editReply({ content: `✅ O usuário **${user.displayName}** não possui nenhum registro no histórico deste servidor.` });
             }
 
             const totalPages = Math.ceil(total / limit);
@@ -86,7 +86,7 @@ module.exports = {
             // --- 4. CONSTRUÇÃO DO EMBED ---
             const embed = new EmbedBuilder()
                 .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-                .setDescription(`# 📜 Histórico de Punições | ${user.username}`
+                .setDescription(`# 📜 Histórico de Punições | ${member.displayName}`
                     `${description}\n` +
                     `📍 Dados restritos ao servidor: ${interaction.guild.name}`,
                 )
@@ -97,9 +97,9 @@ module.exports = {
                 })
                 .setColor(0xff2e6c) // Cor padrão do sistema
                 .setFooter({ 
-                text: interaction.guild.name, 
-                iconURL: interaction.guild
-                .iconURL({ dynamic: true })})
+                    text: interaction.guild.name, 
+                    iconURL: interaction.guild.iconURL({ dynamic: true }) 
+                })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });

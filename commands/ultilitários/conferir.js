@@ -50,14 +50,14 @@ module.exports = {
             .setColor(0xff2e6c)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
-                `# Olá **${interaction.user.username}**!\n` + // Adicionado \n
-                `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:\n\n` + // Adicionado \n\n
-                `## 📊 A Escala de Status\n` + // Adicionado \n
+                `# Olá **${interaction.member.displayName}**!\n` +
+                `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:\n\n` +
+                `## 📊 A Escala de Status\n` +
                 `✨ **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
                 `✅ **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
                 `⚠️ **50 - 69 (Atenção):** Jogador problemático. Requer atenção da Staff.\n` +
-                `🚨 **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n\n` + // Adicionado \n\n
-                `## 🛠️ Tabela de Punições Atualizada\n` + // Adicionado \n
+                `🚨 **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n` + 
+                `## 🛠️ Tabela de Punições Atualizada\n` + 
                 punicoesTexto +
                 `\n📍 Os valores acima são definidos pela Administração deste servidor.`
             )
@@ -78,8 +78,8 @@ module.exports = {
             .setFooter({ 
                 text: interaction.guild.name, 
                 iconURL: interaction.guild.iconURL({ dynamic: true }) 
-            }) // Corrigido o fechamento do Footer
-            .setTimestamp(); // Corrigido o Timestamp para fora do Footer
+            })
+            .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
     }

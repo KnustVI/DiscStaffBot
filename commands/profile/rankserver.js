@@ -38,7 +38,7 @@ module.exports = {
                 .setDescription(
                     `# 🏆 Melhores do Servidor | ${interaction.guild.name}`+
                     `Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}`+
-                    "📍 O ranking é atualizado em tempo real e é local."
+                    "📍 O ranking é atualizado em tempo real e é local.",
                 )
                 .setFooter({ 
                 text: interaction.guild.name, 

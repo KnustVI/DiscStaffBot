@@ -26,40 +26,44 @@ module.exports = {
                 LIMIT ? OFFSET ?
             `).all(staff.id, guildId, itemsPerPage, offset);
 
-            const total = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId).count;
+            const countResult = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
+            const total = countResult ? countResult.count : 0;
             const maxPages = Math.ceil(total / itemsPerPage);
 
             const embed = new EmbedBuilder()
-                .setThumbnail(staff.displayAvatarURL({ dynamic: true }))
+                .setThumbnail(staff.displayAvatarURL({ forceStatic: false }))
                 .setColor(0xff2e6c)
                 .setFooter({ 
-                text: interaction.guild.name, 
-                iconURL: interaction.guild
-                .iconURL({ dynamic: true }) })
+                    text: interaction.guild.name, 
+                    iconURL: interaction.guild.iconURL({ forceStatic: false }) || null 
+                })
                 .setTimestamp();
             
             if (actions.length === 0) {
-                embed.setDescription(`> ℹ️ **${staff.username}** ainda não aplicou nenhuma punição neste servidor.`);
+                embed.setDescription(`> ℹ️ **${staff.displayName}** ainda não aplicou nenhuma punição neste servidor.`);
                 return { embed, maxPages };
             }
 
+            // Formatação do conteúdo com limite de segurança para não quebrar a Embed
             const content = actions.map(a => {
                 const date = new Date(a.created_at).toLocaleDateString('pt-BR');
-                return `**ID: #${a.id}** | 🗓️ \`${date}\`\n**Alvo:** <@${a.user_id}>\n**Gravidade:** Nível ${a.severity}\n**Motivo:** \`${a.reason}\`\n`
+                // Se for nível 0, indica que foi revogada
+                const status = a.severity === 0 ? "🔓 [REVOGADA]" : `⚖️ Nível ${a.severity}`;
+                
+                return `**ID: #${a.id}** | 🗓️ \`${date}\`\n**Status:** ${status}\n**Alvo:** <@${a.user_id}>\n**Motivo:** \`${a.reason.substring(0, 100)}${a.reason.length > 100 ? '...' : ''}\`\n`;
             }).join('\n');
 
             embed.setDescription(
-                `# 👮 Relatório de Staff: ${staff.username}\n`+
-                `${content}\n`
-                `---\n` +        // Uma linha divisória para estética
-                `*Página ${page + 1} de ${Math.max(1, maxPages)} • Total de ações: ${total}*`
+                `# 👮 Relatório: ${staff.displayName}\n` +
+                `${content}\n` +
+                `---\n` +
+                `*Página ${page + 1} de ${Math.max(1, maxPages)} • Total: ${total} ações*`
             );
             return { embed, maxPages };
         };
 
-        const { embed, maxPages } = generateLogEmbed(currentPage);
-
-        const getButtons = (page) => {
+        const getButtons = (page, maxPages) => {
+            if (maxPages <= 1) return null; // Não retorna botões se houver apenas uma página
             return new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('prev_staff')
@@ -74,20 +78,32 @@ module.exports = {
             );
         };
 
+        const { embed, maxPages } = generateLogEmbed(currentPage);
+        const row = getButtons(currentPage, maxPages);
+
         const response = await interaction.reply({
             embeds: [embed],
-            components: maxPages > 1 ? [getButtons(currentPage)] : [],
-            ephemeral: true // Recomendado ser privado para não expor auditoria
+            components: row ? [row] : [],
+            ephemeral: true 
         });
 
-        const collector = response.createMessageComponentCollector({ time: 300000 }); // 5 minutos
+        // Filtro para garantir que apenas quem usou o comando pode interagir
+        const collector = response.createMessageComponentCollector({ 
+            filter: i => i.user.id === interaction.user.id,
+            time: 300000 
+        });
 
         collector.on('collect', async i => {
             if (i.customId === 'prev_staff') currentPage--;
             if (i.customId === 'next_staff') currentPage++;
 
             const { embed: newEmbed } = generateLogEmbed(currentPage);
-            await i.update({ embeds: [newEmbed], components: [getButtons(currentPage)] });
+            const newRow = getButtons(currentPage, maxPages);
+            
+            await i.update({ 
+                embeds: [newEmbed], 
+                components: newRow ? [newRow] : [] 
+            });
         });
 
         collector.on('end', () => {

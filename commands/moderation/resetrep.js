@@ -14,59 +14,56 @@ module.exports = {
         const target = interaction.options.getUser('usuario');
         const reason = interaction.options.getString('motivo');
 
-        // 1. Verificação de Configuração (Mesma trava do /punir)
-        const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
+        // 1. Verificação de Configuração
         const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
-
-        const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-        const hasRole = staffRoleSetting ? interaction.member.roles.cache.has(staffRoleSetting.value) : false;
-
-        if (!isAdmin && !hasRole) {
-            return interaction.reply({ content: "❌ Você não tem permissão para resetar reputações.", ephemeral: true });
-        }
+        
+        // Apenas Admins podem resetar (conforme definido no Data)
+        await interaction.deferReply({ ephemeral: true });
 
         try {
-            await interaction.deferReply({ ephemeral: true });
+            // 2. Executa o Reset no Banco de Dados (Transação)
+            // É recomendável usar uma transação para garantir que ambos os deletes ocorram
+            const deleteUser = db.prepare('DELETE FROM users WHERE user_id = ? AND guild_id = ?');
+            const deleteHistory = db.prepare('DELETE FROM punishments WHERE user_id = ? AND guild_id = ?');
 
-            // 2. Executa o Reset no Banco de Dados
-            // Deletamos o registro do usuário na tabela 'users' para aquele servidor.
-            // Quando ele usar /perfil novamente, o bot o verá como um "visitante" (100 rep).
-            const result = db.prepare('DELETE FROM users WHERE user_id = ? AND guild_id = ?').run(target.id, guildId);
+            // Iniciando a limpeza
+            const userReset = deleteUser.run(target.id, guildId);
+            deleteHistory.run(target.id, guildId); // Limpa o histórico de punições também
 
-            if (result.changes === 0) {
-                return interaction.editReply(`⚠️ O usuário **${target.username}** já possui uma ficha limpa (sem registros no banco).`);
+            if (userReset.changes === 0) {
+                return interaction.editReply(`⚠️ O usuário **${target.displayName}** já possui uma ficha limpa (sem registros ativos no banco).`);
             }
 
-            // 3. Envio de Log para a Staff
+            // 3. Envio de Log para a Staff (Padronizado)
             if (logChannelSetting) {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setDescription("# 🧹 Reputação Resetada")
-                        .setColor(0xff2e6c)
+                        .setDescription("# 🧹 Ficha Limpa: Reset de Reputação")
+                        .setColor(0x3498db) // Azul claro para diferenciar de punição/revogação
                         .addFields(
                             { name: "👤 Usuário Resetado", value: `${target} (\`${target.id}\`)`, inline: true },
                             { name: "👮 Responsável", value: `${interaction.user}`, inline: true },
+                            { name: "📉 Status Anterior", value: `\`Ficha Deletada\``, inline: true },
                             { name: "📝 Motivo do Reset", value: `\`\`\`${reason}\`\`\`` }
                         )
                         .setFooter({ 
                             text: interaction.guild.name, 
-                            iconURL: interaction.guild
-                            .iconURL({ dynamic: true })})
-                            .setTimestamp();
-                        
+                            iconURL: interaction.guild.iconURL({ forceStatic: false }) 
+                        })
+                        .setTimestamp();
 
-                    logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                    await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                 }
             }
 
             await interaction.editReply({ 
-                content: `✅ A reputação e estatísticas de **${target.username}** foram resetadas com sucesso neste servidor.` 
+                content: `✅ O histórico e a reputação de **${target.displayName}** foram completamente apagados.` 
             });
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply("❌ Erro ao tentar resetar a reputação no banco de dados.");
+            await interaction.editReply("❌ Erro técnico ao tentar resetar os dados no SQLite.");
         }
     }
 };

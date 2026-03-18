@@ -12,6 +12,7 @@ function createProgressBarImage(value, max) {
     const progressWidth = Math.max(10, width * progress);
     const cornerRadius = height / 2;
 
+    // Fundo da barra
     ctx.beginPath();
     ctx.moveTo(cornerRadius, 0);
     ctx.lineTo(width - cornerRadius, 0);
@@ -27,6 +28,7 @@ function createProgressBarImage(value, max) {
     if (progressWidth > 0) {
         ctx.beginPath();
         const gradient = ctx.createLinearGradient(0, 0, width, 0);
+        // Cores baseadas na pontuação
         const colorMain = value >= 70 ? '#10b981' : (value >= 40 ? '#f59e0b' : '#ef4444');
         const colorSub = value >= 70 ? '#34d399' : (value >= 40 ? '#fbbf24' : '#f87171');
         
@@ -74,38 +76,37 @@ module.exports = {
             
             const userData = db.prepare('SELECT * FROM users WHERE user_id = ? AND guild_id = ?').get(targetUser.id, guildId);
 
+            // --- CASO: USUÁRIO SEM REGISTRO NO BANCO ---
             if (!userData) {
                 const visitorEmbed = new EmbedBuilder()
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setColor(0x2b2d31) 
-                    .setDescription(`# 👤 Perfil: ${targetUser.username}\n`+
-                        `✨ **Este usuário ainda não possui registros.**\n`
+                    .setDescription(`# 👤 Perfil: ${targetUser.displayName}\n` +
+                        `✨ **Este usuário ainda não possui registros.**\n` +
                         `- A reputação neste servidor começa em **100**.`)
                     .addFields(
                         { name: "🏅 Reputação", value: `**100**/100`, inline: true },
-                        { name: "🛡️ Status", value: "👍 Bom", inline: true }
+                        { name: "🛡️ Status", value: "🏆 Exemplar", inline: true }
                     )
                     .setFooter({ 
-                    text: interaction.guild.name, 
-                    iconURL: interaction.guild
-                    .iconURL({ dynamic: true }) })
+                        text: interaction.guild.name, 
+                        iconURL: interaction.guild.iconURL({ dynamic: true }) 
+                    })
                     .setTimestamp();
 
                 return interaction.editReply({ embeds: [visitorEmbed] });
             }
 
+            // --- CASO: USUÁRIO COM REGISTRO ---
             const reputation = userData.reputation ?? 100;
             const penalties = userData.penalties ?? 0;
             const lastPenalty = userData.last_penalty;
 
-            // Cálculo de tempo sem punição
             const diffMs = lastPenalty ? Date.now() - lastPenalty : null;
             const daysWithoutPenalty = diffMs ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : "∞";
 
-            // Lógica de Recuperação Diária
             let recoveryStatus = "✅ Reputação Máxima";
             if (reputation < 100) {
-                // Se o bot roda todo dia às 00:00, mostramos quanto falta para o próximo dia
                 const now = new Date();
                 const tomorrow = new Date(now);
                 tomorrow.setDate(now.getDate() + 1);
@@ -114,7 +115,6 @@ module.exports = {
                 
                 recoveryStatus = `📈 +1 pt em ~${hoursLeft}h`;
                 
-                // Se foi punido nas últimas 24h, ele não recupera hoje
                 if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
                     recoveryStatus = "⏳ Pausada (Punido recentemente)";
                 }
@@ -128,11 +128,11 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-                .setColor(reputation >= 90 ? 0xf2b705 : (reputation >= 50 ? 0x10b981 : 0xff0000))
+                .setColor(reputation >= 90 ? 0x10b981 : (reputation >= 50 ? 0xf59e0b : 0xef4444))
                 .setDescription(
-                    `# 👤 Perfil: ${targetUser.username}`+
-                    `Estatísticas de comportamento em **${interaction.guild.name}**.\n`+
-                    `📍 Estes dados são restritos a este servidor.` ,
+                    `# 👤 Perfil: ${targetUser.displayName}\n` +
+                    `Estatísticas de comportamento em **${interaction.guild.name}**.\n` +
+                    `📍 Estes dados são restritos a este servidor.` 
                 )
                 .addFields(
                     { name: "🏅 Reputação", value: `**${reputation}**/100`, inline: true },
@@ -149,16 +149,16 @@ module.exports = {
                 )
                 .setImage('attachment://progress.png')
                 .setFooter({ 
-                text: interaction.guild.name, 
-                iconURL: interaction.guild
-                .iconURL({ dynamic: true })})
+                    text: interaction.guild.name, 
+                    iconURL: interaction.guild.iconURL({ dynamic: true })
+                })
                 .setTimestamp();
                 
 
             await interaction.editReply({ embeds: [embed], files: [attachment] });
 
         } catch (error) {
-            console.error(error);
+            console.error("Erro no comando perfil:", error);
             await interaction.editReply("❌ Erro ao carregar perfil.");
         }
     }
