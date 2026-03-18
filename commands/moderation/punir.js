@@ -29,6 +29,7 @@ module.exports = {
         // --- 1. VERIFICAÇÃO DE CONFIGURAÇÃO ---
         const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
         const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
+        const alertChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'alert_channel'`).get(guildId);
 
         if (!staffRoleSetting || !logChannelSetting) {
             return interaction.reply({
@@ -51,15 +52,13 @@ module.exports = {
         if (!member) return interaction.editReply("❌ Usuário não encontrado no servidor.");
         if (user.id === interaction.client.user.id) return interaction.editReply("❌ Eu não posso me punir.");
 
-        // Impedir punir cargos superiores
         if (member.roles.highest.position >= interaction.member.roles.highest.position && !isAdmin) {
             return interaction.editReply("❌ Você não pode punir alguém com cargo superior ou igual ao seu.");
         }
 
-        /* --- 3. BUSCA DINÂMICA DE MÉTRICAS --- */
+        // --- 3. BUSCA DINÂMICA DE MÉTRICAS ---
         const getMetric = (type) => db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${severity}_${type}`)?.value;
 
-        // Fallbacks caso o banco esteja vazio
         const defaultMetrics = {
             1: { action: "aviso", time: 0, rep: 2 },
             2: { action: "timeout", time: 5, rep: 5 },
@@ -69,8 +68,8 @@ module.exports = {
         };
 
         const selectedAction = (getMetric('action') || defaultMetrics[severity].action).toLowerCase();
-        const selectedTimeMinutes = parseInt(getMetric('time')) ?? defaultMetrics[severity].time;
-        const repLoss = parseInt(getMetric('rep')) ?? defaultMetrics[severity].rep;
+        const selectedTimeMinutes = parseInt(getMetric('time') || defaultMetrics[severity].time);
+        const repLoss = parseInt(getMetric('rep') || defaultMetrics[severity].rep);
 
         try {
             // --- 4. APLICAÇÃO DA PUNIÇÃO NO DISCORD ---
@@ -93,7 +92,7 @@ module.exports = {
                 executionDetail = "Aviso (ADV)";
             }
 
-            // --- 5. REGISTRO NO BANCO (HISTÓRICO + REPUTAÇÃO) ---
+            // --- 5. REGISTRO NO BANCO ---
             const insertPunishment = db.prepare(`
                 INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, ticket_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -101,6 +100,7 @@ module.exports = {
 
             const punishmentId = insertPunishment.lastInsertRowid;
 
+            // Atualiza reputação e pega o novo valor para o alerta
             db.prepare(`
                 INSERT INTO users (user_id, guild_id, reputation, penalties, last_penalty)
                 VALUES (?, ?, ?, 1, ?)
@@ -110,50 +110,76 @@ module.exports = {
                 last_penalty = ?
             `).run(user.id, guildId, 100 - repLoss, timestamp, repLoss, timestamp);
 
-            // --- 6. NOTIFICAÇÃO DM ---
-            const dmEmbed = new EmbedBuilder()
-                .setTitle(`⚖️ Notificação de Punição: ${interaction.guild.name}`)
-                .setColor(0xff0000)
-                .setDescription(`Uma ação administrativa foi registrada em seu perfil.`)
-                .addFields(
-                    { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
-                    { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
-                    { name: "📉 Reputação", value: `\`-${repLoss} pts\``, inline: true },
-                    { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true }
-                )
-                .setFooter({ text: `Protocolo: #${punishmentId}` })
-                .setTimestamp();
+            const userData = db.prepare(`SELECT reputation FROM users WHERE user_id = ? AND guild_id = ?`).get(user.id, guildId);
 
-            await user.send({ embeds: [dmEmbed] }).catch(() => null);
-
-            // --- 7. LOG STAFF ---
+            // --- 6. LOGS E ALERTAS (SISTEMA DE MONITORAMENTO) ---
             const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
+            const alertChannel = alertChannelSetting ? interaction.guild.channels.cache.get(alertChannelSetting.value) : null;
+
+            // Envio para o Canal de Logs (Padrão)
             if (logChannel) {
                 const logEmbed = new EmbedBuilder()
                     .setTitle(`⚖️ Nova Punição | ID #${punishmentId}`)
                     .setColor(0xFF0000)
-                    .setThumbnail(user.displayAvatarURL({ dynamic: true }))
                     .addFields(
-                        { name: "👤 Usuário", value: `${user}\n(\`${user.id}\`)`, inline: true },
+                        { name: "👤 Usuário", value: `${user} (\`${user.id}\`)`, inline: true },
                         { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
-                        { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true },
-                        { name: "🛠️ Ação Aplicada", value: `\`${executionDetail}\``, inline: true },
-                        { name: "📉 Perda de Rep", value: `\`-${repLoss} pontos\``, inline: true },
-                        { name: "📝 Motivo Oficial", value: `\`\`\`${reason}\`\`\`` }
-                    )
-                    .setTimestamp();
-
+                        { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
+                        { name: "📉 Reputação Atual", value: `\`${userData.reputation} pts\``, inline: true },
+                        { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` }
+                    ).setTimestamp();
                 logChannel.send({ embeds: [logEmbed] }).catch(() => null);
             }
 
+            // --- LÓGICA DE ALERTAS CRÍTICOS ---
+            if (alertChannel) {
+                // Alerta 1: Usuário em Estado Crítico (Reputação < 30)
+                if (userData.reputation <= 30) {
+                    const userAlert = new EmbedBuilder()
+                        .setTitle("⚠️ ALERTA: Usuário em Estado Crítico")
+                        .setColor(0xFFFF00) // Amarelo
+                        .setDescription(`O usuário ${user} atingiu um nível de reputação perigoso.`)
+                        .addFields(
+                            { name: "📉 Reputação Restante", value: `**${userData.reputation} pontos**`, inline: true },
+                            { name: "🎫 Último Protocolo", value: `#${punishmentId}`, inline: true }
+                        );
+                    alertChannel.send({ embeds: [userAlert] });
+                }
+
+                // Alerta 2: Monitoramento de Staff (Punições Graves Nível 4 e 5)
+                if (severity >= 4) {
+                    const staffAlert = new EmbedBuilder()
+                        .setTitle("🚨 MONITORAMENTO: Punição de Alta Gravidade")
+                        .setColor(0xFF4500) // Laranja/Vermelho forte
+                        .setDescription(`O moderador ${interaction.user} aplicou uma punição de **Nível ${severity}**.`)
+                        .addFields(
+                            { name: "👤 Alvo", value: `${user}`, inline: true },
+                            { name: "🛠️ Ação", value: `\`${executionDetail}\``, inline: true },
+                            { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` }
+                        );
+                    alertChannel.send({ embeds: [staffAlert] });
+                }
+            }
+
+            // --- 7. NOTIFICAÇÃO DM E RESPOSTA FINAL ---
+            const dmEmbed = new EmbedBuilder()
+                .setTitle(`⚖️ Punição Recebida: ${interaction.guild.name}`)
+                .setColor(0xff0000)
+                .addFields(
+                    { name: "📝 Motivo", value: `\`\`\`${reason}\`\`\`` },
+                    { name: "📉 Reputação", value: `\`-${repLoss} pts\``, inline: true },
+                    { name: "🎫 Protocolo", value: `#${punishmentId}`, inline: true }
+                ).setTimestamp();
+
+            await user.send({ embeds: [dmEmbed] }).catch(() => null);
+
             await interaction.editReply({ 
-                content: `✅ Punição **#${punishmentId}** aplicada: **${executionDetail}**.\n📉 **-${repLoss}** pontos de reputação para ${user.username}.` 
+                content: `✅ Punição **#${punishmentId}** aplicada com sucesso.\n${userData.reputation <= 30 ? "⚠️ **Aviso:** Este usuário entrou em estado crítico de reputação." : ""}` 
             });
 
         } catch (err) {
             console.error(err);
-            // Mensagem de erro amigável se o bot não tiver permissão de banir/timeout
-            return interaction.editReply(`❌ **Erro ao aplicar punição:** Verifique se meu cargo está acima do usuário e se tenho permissões de 'Castigar' ou 'Banir'.`);
+            return interaction.editReply(`❌ **Erro ao aplicar punição:** Verifique minhas permissões e posição de cargo.`);
         }
     }
 };

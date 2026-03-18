@@ -84,16 +84,18 @@ module.exports = {
                     .addFields(
                         { 
                             name: "🛡️ Sistema de Moderação", 
-                            value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : '❌ *Não definido*'}\n> *Necessário para usar comandos como /punir e /delpunir.*`, 
+                            value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : '❌ *Não definido*'}\n> *Necessário para usar comandos como /punir.*`, 
                             inline: false 
                         },
                         { 
-                            name: "📜 Registro de Auditoria", 
-                            value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : '❌ *Não definido*'}\n> *Onde todas as punições e anulações serão registradas.*`, 
+                            name: "📜 Registros e Alertas", 
+                            value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : '❌ *Não definido*'}\n` +
+                                   `**Canal de Alertas:** ${settings.alert_channel ? `<#${settings.alert_channel}>` : '❌ *Não definido*'}\n` +
+                                   `> *Canais onde punições, auditoria de staff e alertas críticos serão enviados.*`, 
                             inline: false 
                         },
                         { 
-                            name: "🎖️ Cargos de Comportamento (Automod)", 
+                            name: "🎖️ Cargos de Comportamento", 
                             value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : '❌ *Não definido*'}\n**Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : '❌ *Não definido*'}`, 
                             inline: false 
                         }
@@ -107,9 +109,10 @@ module.exports = {
                     .setPlaceholder('Escolha o que deseja configurar...')
                     .addOptions([
                         { label: 'Cargo Staff', description: 'Define quem pode usar comandos de moderação.', value: 'staff_role', emoji: '🛡️' },
-                        { label: 'Canal de Logs', description: 'Define onde as punições serão registradas.', value: 'logs_channel', emoji: '📜' },
+                        { label: 'Canal de Logs', description: 'Onde todas as punições serão registradas.', value: 'logs_channel', emoji: '📜' },
+                        { label: 'Canal de Alertas', description: 'Para monitoramento de usuários críticos e staff.', value: 'alert_channel', emoji: '⚠️' },
                         { label: 'Cargo Exemplar', description: 'Cargo para jogadores com conduta excelente.', value: 'exemplar_role', emoji: '🎖️' },
-                        { label: 'Cargo Problema', description: 'Cargo para jogadores com muitas punições.', value: 'problem_role', emoji: '⚠️' },
+                        { label: 'Cargo Problema', description: 'Cargo para jogadores com muitas punições.', value: 'problem_role', emoji: '🚨' },
                     ])
             );
 
@@ -125,11 +128,12 @@ module.exports = {
                 const instructions = {
                     staff_role: "Mencione o **Cargo** que terá permissão de moderador (ex: @Staff).",
                     logs_channel: "Mencione o **Canal** onde as punições serão logadas (ex: #logs-punicoes).",
+                    alert_channel: "Mencione o **Canal** onde o bot enviará alertas críticos (ex: #alertas-staff).",
                     exemplar_role: "Mencione o **Cargo** que os jogadores exemplares ganharão.",
                     problem_role: "Mencione o **Cargo** que os jogadores problemáticos receberão."
                 };
 
-                await i.reply({ content: `👉 **Configurando ${selection}:** ${instructions[selection]}`, ephemeral: true });
+                await i.reply({ content: `👉 **Configurando ${selection.replace('_', ' ')}:** ${instructions[selection]}`, ephemeral: true });
 
                 const messageCollector = interaction.channel.createMessageCollector({ 
                     filter: m => m.author.id === interaction.user.id, 
@@ -143,7 +147,7 @@ module.exports = {
 
                     db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, selection, value);
                     await m.delete().catch(() => null);
-                    await i.editReply({ content: `✅ **Sucesso!** O valor de \`${selection}\` foi atualizado.`, ephemeral: true });
+                    await i.editReply({ content: `✅ **Sucesso!** O canal/cargo de \`${selection}\` foi atualizado.`, ephemeral: true });
                     await interaction.editReply({ embeds: [getSettingsEmbed()] });
                 });
             });
