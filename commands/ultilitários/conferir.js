@@ -71,9 +71,9 @@ module.exports = {
                     value: 'A cada **24 horas** sem cometer infrações, você recupera automaticamente **1 ponto** de reputação, até atingir o limite de 100.' 
                 },
                 { 
-                    name: '🌍 Histórico de Rede', 
-                    value: 'O BOT registra punições em toda a nossa rede. A Staff pode consultar seu histórico para identificar comportamentos repetitivos.' 
-                }
+                    name: '⏸️ Pause de recuperação', 
+                    value: 'Sempre que receber uma punição, não poderá recuper **1 ponto** até que se passe 24 horas sem novas infrações.'
+                },
             )
             .setFooter({ 
                 text: interaction.guild.name, 
