@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,7 +25,7 @@ module.exports = {
                 return interaction.editReply("⚠️ Nenhum registro de reputação encontrado neste servidor.");
             }
 
-            const medalhas = { 0: "🥇", 1: "🥈", 2: "🥉" };
+            const medalhas = { 0: `${EMOJIS.PRIMEIRO}`, 1: `${EMOJIS.SEGUNDO}`, 2: `${EMOJIS.TERCEIRO}` };
             
             const list = topRanking.map((user, index) => {
                 const position = medalhas[index] || `**${index + 1}º**`;
@@ -34,11 +35,11 @@ module.exports = {
             }).join('\n');
 
             const embed = new EmbedBuilder()
-                .setColor(0xf2b705) // Cor dourada para o ranking
+                .setColor(0xFF3C72) // Cor dourada para o ranking
                 .setDescription(
-                    `# 🏆 Melhores do Servidor | ${interaction.guild.name}\n`+
+                    `# ${EMOJIS.TROFEU_TOPO} Melhores do Servidor | ${interaction.guild.name}\n`+
                     `Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}\n---\n` +
-                    "📍 O ranking é atualizado em tempo real e é local.",
+                    `${EMOJIS.EU} O ranking é atualizado em tempo real e é local.`,
                 )
                 .setFooter({ 
                 text: interaction.guild.name, 
@@ -50,7 +51,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro no comando rank:", error);
-            await interaction.editReply("❌ Erro ao processar o ranking local.");
+            await interaction.editReply(`${EMOJIS.AVISO} Erro ao processar o ranking local.`);
         }
     }
 };

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -27,7 +28,7 @@ module.exports = {
 
         if (!isAdmin && !hasStaffRole) {
             return interaction.reply({ 
-                content: "❌ Você não tem permissão para acessar o histórico de punições.", 
+                content: "${EMOJIS.AVISO} Você não tem permissão para acessar o histórico de punições.", 
                 ephemeral: true 
             });
         }
@@ -49,12 +50,12 @@ module.exports = {
             const total = totalData ? totalData.total : 0;
 
             if (total === 0) {
-                return interaction.editReply({ content: `✅ O usuário **${displayName}** não possui nenhum registro no histórico deste servidor.` });
+                return interaction.editReply({ content: `${EMOJIS.SIM} O usuário **${displayName}** não possui nenhum registro no histórico deste servidor.` });
             }
 
             const totalPages = Math.ceil(total / limit);
             if (page > totalPages) {
-                return interaction.editReply({ content: `❌ Página inválida. O histórico possui apenas **${totalPages}** página(s).` });
+                return interaction.editReply({ content: `${EMOJIS.AVISO} Página inválida. O histórico possui apenas **${totalPages}** página(s).` });
             }
 
             // --- 3. BUSCA OS DADOS NO BANCO ---
@@ -72,17 +73,17 @@ module.exports = {
                 const ticketDisplay = p.ticket_id || 'N/A';
                 
                 const isRevoked = p.severity === 0;
-                const statusEmoji = isRevoked ? "🟢" : "🔴";
+                const statusEmoji = isRevoked ? "${EMOJIS.RELOAD_SUCCESS} " : "${EMOJIS.RELOAD_ERROR} ";
                 const severityDisplay = isRevoked 
                     ? `**REVOGADA / ANULADA**` 
                     : `\`Nível ${p.severity}\``;
 
                 description += `${statusEmoji} **ID #${p.id}**\n` +
-                               `⚖️ **Gravidade:** ${severityDisplay}\n` +
-                               `👮 **Moderador:** <@${p.moderator_id}>\n` +
-                               `🎫 **Ticket:** \`#${ticketDisplay}\`\n` +
-                               `📝 **Motivo:** ${p.reason}\n` +
-                               `📅 **Data:** <t:${unixTimestamp}:f>\n` +
+                               `${EMOJIS.STATUS_SISTEMA}  **Gravidade:** ${severityDisplay}\n` +
+                               `${EMOJIS.DISTINTIVO}  **Moderador:** <@${p.moderator_id}>\n` +
+                               `${EMOJIS.LIVRO} **Ticket:** \`#${ticketDisplay}\`\n` +
+                               `${EMOJIS.NOTA} **Motivo:** ${p.reason}\n` +
+                               `${EMOJIS.PAINEL} **Data:** <t:${unixTimestamp}:f>\n` +
                                `──────────────────\n`;
             }
 
@@ -94,11 +95,11 @@ module.exports = {
                     `📍 Servidor: ${interaction.guild.name}`
                 )
                 .addFields({
-                    name: "📊 Resumo da Ficha",
+                    name: `${EMOJIS.STATS} Resumo da Ficha`,
                     value: `Total de registros: **${total}**\nExibindo página **${page}** de **${totalPages}**`,
                     inline: true
                 })
-                .setColor(0xff2e6c)
+                .setColor(0xFF3C72)
                 .setFooter({ 
                     text: interaction.guild.name, 
                     iconURL: interaction.guild.iconURL({ forceStatic: false }) || null
@@ -109,7 +110,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro crítico no comando histórico:", error);
-            await interaction.editReply({ content: "❌ Ocorreu um erro ao consultar o banco de dados. Verifique os logs do console." });
+            await interaction.editReply({ content: `${EMOJIS.AVISO} Ocorreu um erro ao consultar o banco de dados. Verifique os logs do console.` });
         }
     }
 };

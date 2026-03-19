@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -36,12 +37,12 @@ module.exports = {
 
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
         const hasRole = interaction.member.roles.cache.has(staffRoleSetting.value);
-        if (!hasRole && !isAdmin) return interaction.reply({ content: "❌ Você não tem permissão de Staff para usar este comando.", ephemeral: true });
+        if (!hasRole && !isAdmin) return interaction.reply({ content: `${EMOJIS.AVISO} Você não tem permissão de Staff para usar este comando.`, ephemeral: true });
 
         await interaction.deferReply({ ephemeral: true });
 
         const member = await interaction.guild.members.fetch(user.id).catch(() => null);
-        if (!member) return interaction.editReply("❌ Usuário não encontrado no servidor.");
+        if (!member) return interaction.editReply(`${EMOJIS.AVISO} Usuário não encontrado no servidor.`);
 
         // --- 2. DEFINIÇÃO DE MÉTRICAS (BANCO OU DEFAULT) ---
         const getMetric = (type) => db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${severity}_${type}`)?.value;
@@ -96,12 +97,12 @@ module.exports = {
                 .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
                 .setColor(0xFF0000)
                 .addFields(
-                    { name: "👤 Usuário", value: `${user}\n\`${member.displayName}\``, inline: true },
-                    { name: "👮 Moderador", value: `${interaction.user}`, inline: true },
-                    { name: "🎫 Ticket", value: `\`#${ticketId}\``, inline: true },
-                    { name: "🛠️ Ação Aplicada", value: `\`${executionDetail}\``, inline: true },
-                    { name: "📉 Reputação", value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
-                    { name: "📝 Motivo Detalhado", value: `\`\`\`${reason}\`\`\`` }
+                    { name: `${EMOJIS.USUARIO} Usuário`, value: `${user}\n\`${member.displayName}\``, inline: true },
+                    { name: `${EMOJIS.DISTINTIVO} Moderador`, value: `${interaction.user}`, inline: true },
+                    { name: `${EMOJIS.LIVRO} Ticket`, value: `\`#${ticketId}\``, inline: true },
+                    { name: `${EMOJIS.ALARME} Ação Aplicada`, value: `\`${executionDetail}\``, inline: true },
+                    { name: `${EMOJIS.STATUS_SISTEMA} Reputação`, value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
+                    { name: `${EMOJIS.NOTA} Motivo Detalhado`, value: `\`\`\`${reason}\`\`\`` }
                 )
                 .setFooter({ 
                     text: interaction.guild.name, 
@@ -117,15 +118,15 @@ module.exports = {
 
             // Envio para o Usuário (DM)
             await user.send({ 
-                content: `⚠️ Você recebeu uma nova punição em **${interaction.guild.name}**.`, 
+                content: `${EMOJIS.ALERTA} Você recebeu uma nova punição em **${interaction.guild.name}**.`, 
                 embeds: [finalEmbed] 
             }).catch(() => null);
 
-            await interaction.editReply({ content: `✅ Punição **#${punishmentId}** aplicada e registrada com sucesso.` });
+            await interaction.editReply({ content: `${EMOJIS.SIM} Punição **#${punishmentId}** aplicada e registrada com sucesso.` });
 
         } catch (err) {
             console.error("Erro no comando punir:", err);
-            return interaction.editReply(`❌ Erro ao aplicar punição. Verifique se o cargo do bot está acima do usuário e se as permissões estão corretas.`);
+            return interaction.editReply(`${EMOJIS.AVISO} Erro ao aplicar punição. Verifique se o cargo do bot está acima do usuário e se as permissões estão corretas.`);
         }
     }
 };

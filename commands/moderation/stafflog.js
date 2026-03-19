@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -32,7 +33,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setThumbnail(staff.displayAvatarURL({ forceStatic: false }))
-                .setColor(0xff2e6c)
+                .setColor(0xFF3C72)
                 .setFooter({ 
                     text: interaction.guild.name, 
                     iconURL: interaction.guild.iconURL({ forceStatic: false }) || null 
@@ -40,7 +41,7 @@ module.exports = {
                 .setTimestamp();
             
             if (actions.length === 0) {
-                embed.setDescription(`> ℹ️ **${staff.displayName}** ainda não aplicou nenhuma punição neste servidor.`);
+                embed.setDescription(`> ${EMOJIS.DISTINTIVO} **${staff.displayName}** ainda não aplicou nenhuma punição neste servidor.`);
                 return { embed, maxPages };
             }
 
@@ -48,9 +49,9 @@ module.exports = {
             const content = actions.map(a => {
                 const date = new Date(a.created_at).toLocaleDateString('pt-BR');
                 // Se for nível 0, indica que foi revogada
-                const status = a.severity === 0 ? "🔓 [REVOGADA]" : `⚖️ Nível ${a.severity}`;
+                const status = a.severity === 0 ? `${EMOJIS.REFAZER} [REVOGADA]` : `${EMOJIS.STATS} Nível ${a.severity}`;
                 
-                return `**ID: #${a.id}** | 🗓️ \`${date}\`\n**Status:** ${status}\n**Alvo:** <@${a.user_id}>\n**Motivo:** \`${a.reason.substring(0, 100)}${a.reason.length > 100 ? '...' : ''}\`\n`;
+                return `**ID: #${a.id}** | ${EMOJIS.PAINEL} \`${date}\`\n**Status:** ${status}\n**Alvo:** <@${a.user_id}>\n**Motivo:** \`${a.reason.substring(0, 100)}${a.reason.length > 100 ? '...' : ''}\`\n`;
             }).join('\n');
 
             embed.setDescription(

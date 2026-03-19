@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,7 +18,7 @@ module.exports = {
 
         if (confirmacao !== 'LIMPAR TUDO') {
             return interaction.reply({ 
-                content: '❌ Ação cancelada. Você precisa digitar exatamente "LIMPAR TUDO" para confirmar.', 
+                content: '${EMOJIS.AVISO} Ação cancelada. Você precisa digitar exatamente "LIMPAR TUDO" para confirmar.', 
                 ephemeral: true 
             });
         }
@@ -32,9 +33,9 @@ module.exports = {
             db.pragma('vacuum');
 
             const embed = new EmbedBuilder()
-                .setTitle('💣 Database Resetada')
+                .setTitle('${EMOJIS.LIMPEZA}  Database Resetada')
                 .setDescription('Todos os dados de **reputação** e **histórico de punições** deste servidor foram apagados.')
-                .setColor(0xff2e6c)
+                .setColor(0xFF3C72)
                 .setFooter({ text: `Executado por: ${interaction.user.tag}` })
                 .setTimestamp();
 
@@ -44,9 +45,9 @@ module.exports = {
                 const alertChannel = interaction.guild.channels.cache.get(alertChannelSetting.value);
                 if (alertChannel) {
                     const alertEmbed = new EmbedBuilder()
-                        .setTitle('🚨 ALERTA: BANCO DE DADOS LIMPO')
+                        .setTitle('${EMOJIS.AVISO} ALERTA: BANCO DE DADOS LIMPO')
                         .setDescription(`O administrador ${interaction.user} acabou de resetar todo o histórico de punições e reputação do servidor.`)
-                        .setColor(0xFF0000)
+                        .setColor(0xFF3C72)
                         .setTimestamp();
                     alertChannel.send({ embeds: [alertEmbed] }).catch(() => null);
                 }
@@ -56,7 +57,7 @@ module.exports = {
 
         } catch (err) {
             console.error(err);
-            return interaction.reply({ content: '❌ Erro ao tentar resetar o banco de dados.', ephemeral: true });
+            return interaction.reply({ content: '${EMOJIS.AVISO} Erro ao tentar resetar o banco de dados.', ephemeral: true });
         }
     }
 };

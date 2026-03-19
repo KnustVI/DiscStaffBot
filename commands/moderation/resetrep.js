@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -42,10 +43,10 @@ module.exports = {
                         .setDescription("# 🧹 Ficha Limpa: Reset de Reputação")
                         .setColor(0x3498db) // Azul claro para diferenciar de punição/revogação
                         .addFields(
-                            { name: "👤 Usuário Resetado", value: `${target} (\`${target.id}\`)`, inline: true },
-                            { name: "👮 Responsável", value: `${interaction.user}`, inline: true },
-                            { name: "📉 Status Anterior", value: `\`Ficha Deletada\``, inline: true },
-                            { name: "📝 Motivo do Reset", value: `\`\`\`${reason}\`\`\`` }
+                            { name: `${EMOJIS.USUARIO} Usuário Resetado`, value: `${target} (\`${target.id}\`)`, inline: true },
+                            { name: `${EMOJIS.DISTINTIVO} Responsável`, value: `${interaction.user}`, inline: true },
+                            { name: `${EMOJIS.STATUS_SISTEMA} Status Anterior`, value: `\`Ficha Deletada\``, inline: true },
+                            { name: `${EMOJIS.NOTA} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
                         )
                         .setFooter({ 
                             text: interaction.guild.name, 
@@ -58,12 +59,12 @@ module.exports = {
             }
 
             await interaction.editReply({ 
-                content: `✅ O histórico e a reputação de **${target.displayName}** foram completamente apagados.` 
+                content: `${EMOJIS.SIM} O histórico e a reputação de **${target.displayName}** foram completamente apagados.` 
             });
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply("❌ Erro técnico ao tentar resetar os dados no SQLite.");
+            await interaction.editReply(`${EMOJIS.AVISO} Erro técnico ao tentar resetar os dados no SQLite.`);
         }
     }
 };

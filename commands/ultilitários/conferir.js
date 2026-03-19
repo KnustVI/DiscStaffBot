@@ -47,7 +47,7 @@ module.exports = {
         }
 
         const embed = new EmbedBuilder()
-            .setColor(0xff2e6c)
+            .setColor(0xFF3C72)
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
                 `# Olá **${interaction.member.displayName}**!\n` +

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,11 +25,11 @@ module.exports = {
             const punishment = db.prepare(`SELECT * FROM punishments WHERE id = ? AND guild_id = ?`).get(punishmentId, guildId);
 
             if (!punishment) {
-                return interaction.editReply(`❌ Não encontrei nenhuma punição com o ID **#${punishmentId}** neste servidor.`);
+                return interaction.editReply(`${EMOJIS.AVISO} Não encontrei nenhuma punição com o ID **#${punishmentId}** neste servidor.`);
             }
 
             if (punishment.severity === 0) {
-                return interaction.editReply(`⚠️ Esta punição (ID **#${punishmentId}**) já foi revogada anteriormente.`);
+                return interaction.editReply(`${EMOJIS.AVISO} Esta punição (ID **#${punishmentId}**) já foi revogada anteriormente.`);
             }
 
             // Pega o ticket da punição original (se existir no banco)
@@ -60,14 +61,14 @@ module.exports = {
 
             // --- 5. EMBED DE LOG PADRONIZADA ---
             const finalEmbed = new EmbedBuilder()
-                .setDescription(`# 🔓 Punição Revogada | ID #${punishmentId}`)
+                .setDescription(`# ${EMOJIS.REFAZER} Punição Revogada | ID #${punishmentId}`)
                 .setColor(0x00FF00)
                 .addFields(
-                    { name: "👤 Usuário Beneficiado", value: `<@${punishment.user_id}> (\`${punishment.user_id}\`)`, inline: true },
-                    { name: "👮 Revogado por", value: `${interaction.user}`, inline: true },
-                    { name: "🎫 Ticket Originário", value: `\`#${originalTicket}\``, inline: true }, // Puxado do banco
-                    { name: "📈 Reputação Atual", value: `\`${userData.reputation} pts (+${repToRestore})\``, inline: true },
-                    { name: "📝 Motivo da Revogação", value: `\`\`\`${revogReason}\`\`\`` }
+                    { name: `${EMOJIS.USUARIO} Usuário Beneficiado`, value: `<@${punishment.user_id}> (\`${punishment.user_id}\`)`, inline: true },
+                    { name: `${EMOJIS.DISTINTIVO} Revogado por`, value: `${interaction.user}`, inline: true },
+                    { name: `${EMOJIS.LIVRO} Ticket Originário`, value: `\`#${originalTicket}\``, inline: true }, // Puxado do banco
+                    { name: `${EMOJIS.STATUS_SISTEMA} Reputação Atual`, value: `\`${userData.reputation} pts (+${repToRestore})\``, inline: true },
+                    { name: `${EMOJIS.NOTA} Motivo da Revogação`, value: `\`\`\`${revogReason}\`\`\`` }
                 )
                 .setFooter({ 
                     text: interaction.guild.name, 
@@ -89,11 +90,11 @@ module.exports = {
                 await targetUser.send({ embeds: [finalEmbed] }).catch(() => null);
             }
 
-            await interaction.editReply(`✅ Punição **#${punishmentId}** revogada com sucesso.`);
+            await interaction.editReply(`${EMOJIS.SIM} Punição **#${punishmentId}** revogada com sucesso.`);
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply("❌ Erro técnico ao tentar revogar a punição.");
+            await interaction.editReply(`${EMOJIS.AVISO} Erro técnico ao tentar revogar a punição.`);
         }
     }
 };
