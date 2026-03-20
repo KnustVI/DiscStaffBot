@@ -53,11 +53,14 @@ module.exports = {
             .setDescription(
                 `# Olá **${interaction.member.displayName}**!\n` +
                 `Nosso sistema consiste em ajudar a staff com atividades diárias de monitoramento de usuários. Abaixo segue como funciona o sistema.:\n` +
+                `Nosso sistema consiste em ajudar a staff com atividades diárias de monitoramento de usuários. Abaixo segue como funciona o sistema.:\n` +
                 `## ${EMOJIS.STATUS} A Escala de Status\n` +
                 `${EMOJIS.EXCELLENT} **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
                 `${EMOJIS.GOOD} **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
                 `${EMOJIS.OBSERVATION} **50 - 69 (Atenção):** Jogador problemático.\n` +
+                `${EMOJIS.OBSERVATION} **50 - 69 (Atenção):** Jogador problemático.\n` +
                 `${EMOJIS.CRITIC} **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n` + 
+                `## ${EMOJIS.CONFIG} Niveis de Punições\n` + 
                 `## ${EMOJIS.CONFIG} Niveis de Punições\n` + 
                 punicoesTexto +
                 `\n${EMOJIS.SERVER } Os valores acima são definidos pela Administração deste servidor.\n`+

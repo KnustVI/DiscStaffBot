@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis'); 
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { EMOJIS } = require('../../database/emojis'); 
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -34,6 +36,15 @@ module.exports = {
                     })
             .setTimestamp();
 
+        try {
+            // Removido o campo 'components', agora apenas a Embed será enviada
+            await interaction.reply({ 
+                embeds: [embed], 
+                ephemeral: true 
+            });
+        } catch (error) {
+            console.error("Erro ao enviar comando de ajuda:", error);
+        }
         try {
             // Removido o campo 'components', agora apenas a Embed será enviada
             await interaction.reply({ 

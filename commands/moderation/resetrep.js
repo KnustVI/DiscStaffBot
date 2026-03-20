@@ -53,6 +53,7 @@ module.exports = {
                             { name: `${EMOJIS.USUARIO} Usuário Resetado`, value: `${target} (\`${target.id}\`)`, inline: true },
                             { name: `${EMOJIS.STAFF} Responsável`, value: `${interaction.user}`, inline: true },
                             { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: false },
+                            { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: false },
                             { name: `${EMOJIS.NOTE} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
                         )
                         .setFooter({ 

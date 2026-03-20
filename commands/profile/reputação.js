@@ -132,6 +132,7 @@ module.exports = {
                 
                 if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
                     recoveryStatus = `${EMOJIS.PAUSE} Pausada`;
+                    recoveryStatus = `${EMOJIS.PAUSE} Pausada`;
                 }
             }
 
@@ -151,6 +152,8 @@ module.exports = {
                 )
                 .addFields(
                     { name: `${EMOJIS.REPUTATION} Reputação`, value: `**${reputation}**/100`, inline: true },
+                    { name: `${EMOJIS.DOWN} Punições`, value: `**${penalties}**`, inline: true },
+                    { name: `${EMOJIS.DATE} Limpo há`, value: `**${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}**`, inline: true },
                     { name: `${EMOJIS.DOWN} Punições`, value: `**${penalties}**`, inline: true },
                     { name: `${EMOJIS.DATE} Limpo há`, value: `**${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}**`, inline: true },
                     { name: `${EMOJIS.RANK} Rank Local`, value: `**#${localPos}** de ${localRanking.length}`, inline: true },

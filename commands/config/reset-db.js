@@ -19,6 +19,7 @@ module.exports = {
         if (confirmacao !== 'LIMPAR TUDO') {
             return interaction.reply({ 
                 content: `${EMOJIS.ERRO} Ação cancelada. Você precisa digitar "LIMPAR TUDO".`,
+                content: `${EMOJIS.ERRO} Ação cancelada. Você precisa digitar "LIMPAR TUDO".`,
                 ephemeral: true 
             });
         }
@@ -36,6 +37,9 @@ module.exports = {
                 .setDescription(
                     `${EMOJIS.CLEAN} **Database Resetada**\n` +
                     'Todos os dados de **reputação** e **histórico de punições** deste servidor foram apagados.')
+                .setDescription(
+                    `${EMOJIS.CLEAN} **Database Resetada**\n` +
+                    'Todos os dados de **reputação** e **histórico de punições** deste servidor foram apagados.')
                 .setColor(0xFF3C72)
                 .setFooter({ 
                     text: `✧ BOT by: KnustVI`, 
@@ -49,6 +53,9 @@ module.exports = {
                 const alertChannel = interaction.guild.channels.cache.get(alertChannelSetting.value);
                 if (alertChannel) {
                     const alertEmbed = new EmbedBuilder()
+                        .setDescription(
+                            `# ${EMOJIS.WARNING} ALERTA: BANCO DE DADOS LIMPO\n` +
+                            `O administrador ${interaction.user} acabou de resetar todo o histórico de punições e reputação do servidor.`)
                         .setDescription(
                             `# ${EMOJIS.WARNING} ALERTA: BANCO DE DADOS LIMPO\n` +
                             `O administrador ${interaction.user} acabou de resetar todo o histórico de punições e reputação do servidor.`)

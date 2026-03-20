@@ -40,6 +40,9 @@ module.exports = {
                     `# ${EMOJIS.RANK} Melhores usuários | ${interaction.guild.name}\n`+
                     `Confira os jogadores que mais melhoraram seu comportamento após uma punição:\n\n${list}\n---\n` +
                     `${EMOJIS.SERVER} O ranking é atualizado em tempo real.`,
+                    `# ${EMOJIS.RANK} Melhores usuários | ${interaction.guild.name}\n`+
+                    `Confira os jogadores que mais melhoraram seu comportamento após uma punição:\n\n${list}\n---\n` +
+                    `${EMOJIS.SERVER} O ranking é atualizado em tempo real.`,
                 )
                 .setFooter({ 
                     text: `✧ BOT by: KnustVI`, 
