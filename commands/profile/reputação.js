@@ -1,9 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/database');
 const { createCanvas } = require('canvas');
-const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
+const { EMOJIS } = require('../../database/emojis');
 
-// --- Funções Utilitárias ---
+// --- Funções Utilitárias (Mantidas) ---
 function createProgressBarImage(value, max) {
     const width = 400;
     const height = 40;
@@ -13,7 +13,6 @@ function createProgressBarImage(value, max) {
     const progressWidth = Math.max(10, width * progress);
     const cornerRadius = height / 2;
 
-    // Fundo da barra
     ctx.beginPath();
     ctx.moveTo(cornerRadius, 0);
     ctx.lineTo(width - cornerRadius, 0);
@@ -29,7 +28,6 @@ function createProgressBarImage(value, max) {
     if (progressWidth > 0) {
         ctx.beginPath();
         const gradient = ctx.createLinearGradient(0, 0, width, 0);
-        // Cores baseadas na pontuação
         const colorMain = value >= 70 ? '#10b981' : (value >= 40 ? '#f59e0b' : '#ef4444');
         const colorSub = value >= 70 ? '#34d399' : (value >= 40 ? '#fbbf24' : '#f87171');
         
@@ -62,19 +60,35 @@ function getStatus(rep) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reputação')
-        .setDescription('Exibe sua reputação e estatísticas neste servidor.')
+        .setDescription('Exibe a reputação e estatísticas.')
         .addUserOption(option =>
             option.setName('usuario')
-                .setDescription('Selecione o usuário para ver o perfil')
+                .setDescription('Selecione o usuário para ver o perfil (Apenas Staff)')
         ),
 
     async execute(interaction) {
+        const targetUser = interaction.options.getUser('usuario') || interaction.user;
+        const guildId = interaction.guild.id;
+
+        // --- 1. VERIFICAÇÃO DE PRIVACIDADE ---
+        // Se o alvo não for o próprio usuário que digitou o comando
+        if (targetUser.id !== interaction.user.id) {
+            const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
+            const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+            const hasStaffRole = staffRoleSetting ? interaction.member.roles.cache.has(staffRoleSetting.value) : false;
+
+            // Se não for Admin nem tiver o cargo de Staff, bloqueia
+            if (!isAdmin && !hasStaffRole) {
+                return interaction.reply({ 
+                    content: `${EMOJIS.AVISO} Você só pode ver a sua própria reputação. A consulta de outros membros é restrita à Staff.`, 
+                    ephemeral: true 
+                });
+            }
+        }
+
         try {
             await interaction.deferReply();
 
-            const targetUser = interaction.options.getUser('usuario') || interaction.user;
-            const guildId = interaction.guild.id;
-            
             const userData = db.prepare('SELECT * FROM users WHERE user_id = ? AND guild_id = ?').get(targetUser.id, guildId);
 
             // --- CASO: USUÁRIO SEM REGISTRO NO BANCO ---
@@ -90,8 +104,8 @@ module.exports = {
                         { name: `${EMOJIS.STATUS} Status`, value: `${EMOJIS.EXCELLENT} Exemplar`, inline: true }
                     )
                     .setFooter({ 
-                        text: interaction.guild.name, 
-                        iconURL: interaction.guild.iconURL({ dynamic: true }) 
+                        text: `✧ BOT by: KnustVI`, 
+                        iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
                     })
                     .setTimestamp();
 
@@ -106,7 +120,7 @@ module.exports = {
             const diffMs = lastPenalty ? Date.now() - lastPenalty : null;
             const daysWithoutPenalty = diffMs ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : "∞";
 
-            let recoveryStatus = `${EMOJIS.EXCELLENT} Reputação Máxima`;
+            let recoveryStatus = `${EMOJIS.EXCELLENT} Máxima`;
             if (reputation < 100) {
                 const now = new Date();
                 const tomorrow = new Date(now);
@@ -117,7 +131,7 @@ module.exports = {
                 recoveryStatus = `${EMOJIS.UP} +1 pt em ~${hoursLeft}h`;
                 
                 if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
-                    recoveryStatus = `${EMOJIS.PAUSE} Pausada (Punido recentemente)`;
+                    recoveryStatus = `${EMOJIS.PAUSE} Pausada`;
                 }
             }
 
@@ -137,24 +151,23 @@ module.exports = {
                 )
                 .addFields(
                     { name: `${EMOJIS.REPUTATION} Reputação`, value: `**${reputation}**/100`, inline: true },
-                    { name: `${EMOJIS.DOWN} Punições`, value: `\`${penalties}\``, inline: true },
-                    { name: `${EMOJIS.DATE} Limpo há`, value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
+                    { name: `${EMOJIS.DOWN} Punições`, value: `**${penalties}**`, inline: true },
+                    { name: `${EMOJIS.DATE} Limpo há`, value: `**${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}**`, inline: true },
                     { name: `${EMOJIS.RANK} Rank Local`, value: `**#${localPos}** de ${localRanking.length}`, inline: true },
                     { name: `${EMOJIS.STATUS} Status`, value: getStatus(reputation), inline: true },
-                    { name: `${EMOJIS.UP} Recuperação`, value: `\`${recoveryStatus}\``, inline: true },
+                    { name: `${EMOJIS.UP} Recuperação`, value: recoveryStatus, inline: true },
                     { 
-                        name: `${EMOJIS.ESCALAR} Barra de Integridade`, 
+                        name: `${EMOJIS.REPUTATION} Barra de Integridade`, 
                         value: '\u200B', 
                         inline: false 
                     }
                 )
                 .setImage('attachment://progress.png')
                 .setFooter({ 
-                    text: interaction.guild.name, 
-                    iconURL: interaction.guild.iconURL({ dynamic: true })
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
                 })
                 .setTimestamp();
-                
 
             await interaction.editReply({ embeds: [embed], files: [attachment] });
 

@@ -103,21 +103,21 @@ module.exports = (client) => {
 
             const settings = getSettings(guildId);
             const alertChannelId = settings.alert_channel || settings.logs_channel;
-            const channel = guild.channels.cache.get(alertChannelId);
+            const channel = await guild.channels.fetch(alertChannelId).catch(() => null);
 
             if (channel) {
                 const hasErrors = s.errors.length > 0;
                 const embed = new EmbedBuilder()
-                    .setTitle(hasErrors ? "⚠️ Relatório Automod (Com Avisos)" : "✅ Relatório Automod Concluído")
+                    .setTitle(hasErrors ? `${EMOJIS.WARNING} Relatório Automod (Com Avisos)` : `${EMOJIS.CHECK} Relatório Automod Concluído`)
                     .setColor(hasErrors ? 0xFFAA00 : 0x2ECC71)
                     .addFields(
-                        { name: "📈 Reputação", value: `\`+1 pt\` para **${s.repUp}** usuários.`, inline: true },
-                        { name: "🎭 Cargos", value: `**${s.rolesAdded}** atribuídos\n**${s.rolesRemoved}** removidos.`, inline: true }
+                        { name: `${EMOJIS.REPUTATION} Reputação`, value: `\`+1 pt\` para **${s.repUp}** usuários.`, inline: true },
+                        { name: `${EMOJIS.STATUS} Cargos`, value: `**${s.rolesAdded}** atribuídos\n**${s.rolesRemoved}** removidos.`, inline: true }
                     )
                     .setTimestamp();
 
                 if (hasErrors) {
-                    embed.addFields({ name: "❌ Erros Detectados", value: `\`\`\`${s.errors.slice(0, 3).join('\n')}\`\`\`` });
+                    embed.addFields({ name: `${EMOJIS.ERRO} Erros Detectados`, value: `\`\`\`${s.errors.slice(0, 3).join('\n')}\`\`\`` });
                 }
 
                 await channel.send({ embeds: [embed] }).catch(() => null);

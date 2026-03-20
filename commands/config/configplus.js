@@ -39,18 +39,18 @@ module.exports = {
                 .setColor(0xFF3C72)
                 .setThumbnail(interaction.guild.iconURL())
                 .setDescription(`# ${EMOJIS.PAINEL} Painel de Controle\n` +
-                    'Aqui estão todas as definições salvas no banco de dados do servidor ${interaction.guild.name}.\n'+
+                    'Aqui estão todas as definições salvas no banco de dados do servidor ' + interaction.guild.name + '.\n'+
                     `Use /config para alterar algo.`
                 )
                 .addFields(
                     { 
-                        name: "${EMOJIS.STATS} Cargos & Canais", 
+                        name: `${EMOJIS.TICKET} Canais de registro`, 
                         value: `**Canal de Logs:** ${cfg.logs_channel ? `<#${cfg.logs_channel}>` : EMOJIS.ERRO}\n` +
                                `**Canal Alertas:** ${cfg.alert_channel ? `<#${cfg.alert_channel}>` : EMOJIS.ERRO}`, 
                         inline: true 
                     },
                     { 
-                        name: "${EMOJIS.TITULO} Cargos Automáticos", 
+                        name: `${EMOJIS.STATUS} Cargos Automáticos`, 
                         value: `**Cargo Staff:** ${cfg.staff_role ? `<@&${cfg.staff_role}>` : EMOJIS.ERRO}\n` +
                                `**Exemplar:** ${cfg.exemplar_role ? `<@&${cfg.exemplar_role}>` : EMOJIS.ERRO}\n` +
                                `**Problema:** ${cfg.problem_role ? `<@&${cfg.problem_role}>` : EMOJIS.ERRO}`, 
@@ -58,9 +58,9 @@ module.exports = {
                     }
                 )
                 .setFooter({ 
-                text: interaction.guild.name, 
-                iconURL: interaction.guild
-                .iconURL({ dynamic: true })})
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                })
                 .setTimestamp()
 
             let metricsText = "";
@@ -71,11 +71,11 @@ module.exports = {
                 metricsText += `**Nível ${i}:** \`${action}\` | \`${time}m\` | \`-${rep} pts\`\n`;
             }
 
-            embed.addFields({ name: "📊 Métricas de Punição", value: metricsText, inline: false });
+            embed.addFields({ name: `${EMOJIS.PAINEL} Métricas de Punição`, value: metricsText, inline: false });
             embed.setFooter({ 
-                text: interaction.guild.name, 
-                iconURL: interaction.guild
-                .iconURL({ dynamic: true })})
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                })
                 .setTimestamp()
                 
 
@@ -109,12 +109,16 @@ module.exports = {
                         },
                         { 
                             name: `${EMOJIS.STATUS} Cargos de Comportamento`, 
-                            value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : `${EMOJIS.AVISO} *Não definido*`}\n
-                                    **Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : `${EMOJIS.AVISO} *Não definido*`}`, 
+                            value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : `${EMOJIS.AVISO} *Não definido*`}\n`+
+                                    `**Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : `${EMOJIS.AVISO} *Não definido*`}`, 
                             inline: false 
-                        }
+                        },
                     )
-                    .setFooter({ text: "Apenas Administradores podem alterar estas definições." }).setTimestamp();
+                    .setFooter({ 
+                        text: `✧ BOT by: KnustVI`, 
+                        iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                    })
+                    .setTimestamp();
             };
 
             const row = new ActionRowBuilder().addComponents(
@@ -124,7 +128,7 @@ module.exports = {
                     .addOptions([
                         { label: 'Cargo Staff', description: 'Define quem pode usar comandos de moderação.', value: 'staff_role', emoji: EMOJIS.STAFF},
                         { label: 'Canal de Logs', description: 'Onde todas as punições serão registradas.', value: 'logs_channel', emoji: EMOJIS.TICKET},
-                        { label: 'Canal de Alertas', description: 'Para monitoramento de usuários críticos e staff.', value: 'alert_channel', emoji: EMOJIS.AVISO},
+                        { label: 'Canal de Alertas', description: 'Para monitoramento de usuários críticos e staff.', value: 'alert_channel', emoji: EMOJIS.WARNING},
                         { label: 'Cargo Exemplar', description: 'Cargo para jogadores com conduta excelente.', value: 'exemplar_role', emoji: EMOJIS.EXCELLENT },
                         { label: 'Cargo Problema', description: 'Cargo para jogadores com muitas punições.', value: 'problem_role', emoji: EMOJIS.PROBLEMATIC },
                     ])
@@ -187,16 +191,16 @@ module.exports = {
                     .setDescription(`# ${EMOJIS.CONFIG} Ajuste de Métricas\n` +
                         'Selecione um nível abaixo para editar seu sistema de punição no servidor ${interaction.guild.name} via Modal.')
                     .setFooter({ 
-                        text: interaction.guild.name, 
-                        iconURL: interaction.guild
-                        .iconURL({ dynamic: true })}) 
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                }) 
                         .setTimestamp()
 
                 for (let i = 1; i <= 5; i++) {
                     const action = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${i}_action`)?.value || "Aviso";
                     const time = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${i}_time`)?.value || "0";
                     const rep = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${i}_rep`)?.value || "0";
-                    embed.addFields({ name: `Nível ${i}`, value: `**Ação:** \`${action}\` | **Tempo:** \`${time}m\` | **Rep:** \`-${rep} pts\`` });
+                    embed.addFields({ name: `Nível ${i}`, value: `**Ação:** \`${action}\` | **Tempo:** \`${time}m\` | ${EMOJIS.DOWN}**Rep:** \`-${rep} pts\`` });
                 }
                 return embed;
             };

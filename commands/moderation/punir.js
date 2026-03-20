@@ -1,12 +1,12 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
-const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
+const { EMOJIS } = require('../../database/emojis');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('punir')
         .setDescription('Aplica uma punição e desconta pontos de reputação.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        // Removida a trava rígida para permitir que o cargo Staff execute
         .addUserOption(opt => opt.setName('usuario').setDescription('O usuário que será punido').setRequired(true))
         .addIntegerOption(opt => opt.setName('gravidade').setDescription('Nível da infração (1 a 5)').setRequired(true)
             .addChoices(
@@ -27,24 +27,39 @@ module.exports = {
         const reason = interaction.options.getString('motivo');
         const timestamp = Date.now();
 
-        // --- 1. VERIFICAÇÕES DE CONFIGURAÇÃO ---
+        // 1. Verificações de Configuração e Permissão de Cargo
         const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
         const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
 
         if (!staffRoleSetting || !logChannelSetting) {
-            return interaction.reply({ content: `${EMOJIS.ERRO} **O sistema não está configurado.** Use os comandos de setup primeiro.`, ephemeral: true });
+            return interaction.reply({ content: `${EMOJIS.ERRO} **O sistema não está configurado.** Use o comando de configuração primeiro.`, ephemeral: true });
         }
 
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-        const hasRole = interaction.member.roles.cache.has(staffRoleSetting.value);
-        if (!hasRole && !isAdmin) return interaction.reply({ content: `${EMOJIS.ERRO} Você não tem permissão de Staff para usar este comando.`, ephemeral: true });
+        const hasStaffRole = interaction.member.roles.cache.has(staffRoleSetting.value);
+
+        // Bloqueia se não for Admin E não tiver o cargo Staff
+        if (!hasStaffRole && !isAdmin) {
+            return interaction.reply({ 
+                content: `${EMOJIS.ERRO} Você precisa ter o cargo de **Staff** para utilizar este comando.`, 
+                ephemeral: true 
+            });
+        }
 
         await interaction.deferReply({ ephemeral: true });
 
         const member = await interaction.guild.members.fetch(user.id).catch(() => null);
         if (!member) return interaction.editReply(`${EMOJIS.ERRO} Usuário não encontrado no servidor.`);
 
-        // --- 2. DEFINIÇÃO DE MÉTRICAS (BANCO OU DEFAULT) ---
+        // Impedir punição em si mesmo ou em cargos superiores
+        if (member.id === interaction.user.id) return interaction.editReply(`${EMOJIS.ERRO} Você não pode punir a si mesmo.`);
+        
+        // Verifica se o bot tem hierarquia para punir o alvo
+        if (!member.manageable && severity > 1) {
+            return interaction.editReply(`${EMOJIS.ERRO} Eu não consigo punir este usuário. O cargo dele é superior ao meu.`);
+        }
+
+        // 2. Métricas (Configuradas ou Padrão)
         const getMetric = (type) => db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${severity}_${type}`)?.value;
         
         const defaultMetrics = {
@@ -60,7 +75,7 @@ module.exports = {
         const repLoss = parseInt(getMetric('rep') || defaultMetrics[severity].rep);
 
         try {
-            // --- 3. EXECUÇÃO DA AÇÃO DISCORD ---
+            // 3. Execução no Discord
             let executionDetail = "Aviso (Advertência)";
             if (selectedAction === 'timeout' && selectedTimeMinutes > 0) {
                 await member.timeout(selectedTimeMinutes * 60 * 1000, reason);
@@ -70,8 +85,7 @@ module.exports = {
                 executionDetail = "Banimento Permanente";
             }
 
-            // --- 4. PERSISTÊNCIA NO BANCO DE DADOS ---
-            // Salva a punição com o ticket_id
+            // 4. Persistência no Banco de Dados
             const insertPunishment = db.prepare(`
                 INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, ticket_id, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -79,54 +93,49 @@ module.exports = {
 
             const punishmentId = insertPunishment.lastInsertRowid;
 
-            // Atualiza reputação do usuário
             db.prepare(`
                 INSERT INTO users (user_id, guild_id, reputation, penalties, last_penalty)
-                VALUES (?, ?, ?, 1, ?)
+                VALUES (?, ?, 100 - ?, 1, ?)
                 ON CONFLICT(user_id, guild_id) DO UPDATE SET
                 reputation = MAX(0, reputation - ?), 
                 penalties = penalties + 1, 
                 last_penalty = ?
-            `).run(user.id, guildId, 100 - repLoss, timestamp, repLoss, timestamp);
+            `).run(user.id, guildId, repLoss, timestamp, repLoss, timestamp);
 
             const userData = db.prepare(`SELECT reputation FROM users WHERE user_id = ? AND guild_id = ?`).get(user.id, guildId);
 
-            // --- 5. CONSTRUÇÃO DA EMBED (ORGANIZADA) ---
+            // 5. Embed de Log e DM
             const finalEmbed = new EmbedBuilder()
-                .setDescription(`# ${EMOJIS.ACTION} Nova Punição | ID #${punishmentId}`)
+                .setTitle(`${EMOJIS.ACTION} Nova Punição | ID #${punishmentId}`)
                 .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
                 .setColor(0xFF0000)
                 .addFields(
-                    { name: `${EMOJIS.USUARIO} Usuário`, value: `${user}\n\`${member.displayName}\``, inline: true },
+                    { name: `${EMOJIS.USUARIO} Usuário`, value: `${user} (\`${user.id}\`)`, inline: true },
                     { name: `${EMOJIS.STAFF} Moderador`, value: `${interaction.user}`, inline: true },
-                    { name: `${EMOJIS.TICKET} Ticket`, value: `\`#${ticketId}\``, inline: true },
-                    { name: `${EMOJIS.ACTION} Ação Aplicada`, value: `\`${executionDetail}\``, inline: true },
+                    { name: `${EMOJIS.ACTION} Ação`, value: `\`${executionDetail}\``, inline: true },
                     { name: `${EMOJIS.DOWN} Reputação`, value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
-                    { name: `${EMOJIS.NOTA} Motivo Detalhado`, value: `\`\`\`${reason}\`\`\`` }
+                    { name: `${EMOJIS.TICKET} Ticket`, value: `\`#${ticketId}\``, inline: true },
+                    { name: `${EMOJIS.NOTE} Motivo`, value: `\`\`\`${reason}\`\`\`` }
                 )
                 .setFooter({ 
-                    text: interaction.guild.name, 
-                    iconURL: interaction.guild.iconURL({ forceStatic: false }) || null
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
                 })
                 .setTimestamp();
 
-            // Envio para Logs da Staff
             const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
-            if (logChannel) {
-                await logChannel.send({ embeds: [finalEmbed] }).catch(() => null);
-            }
+            if (logChannel) await logChannel.send({ embeds: [finalEmbed] }).catch(() => null);
 
-            // Envio para o Usuário (DM)
             await user.send({ 
-                content: `${EMOJIS.DM} Você recebeu uma nova punição em **${interaction.guild.name}**.`, 
+                content: `${EMOJIS.DM} Você recebeu uma punição em **${interaction.guild.name}**.`, 
                 embeds: [finalEmbed] 
             }).catch(() => null);
 
-            await interaction.editReply({ content: `${EMOJIS.CHECK} Punição **#${punishmentId}** aplicada e registrada com sucesso.` });
+            await interaction.editReply({ content: `${EMOJIS.CHECK} Punição **#${punishmentId}** aplicada com sucesso.` });
 
         } catch (err) {
-            console.error("Erro no comando punir:", err);
-            return interaction.editReply(`${EMOJIS.ERRO} Erro ao aplicar punição. Verifique se o cargo do bot está acima do usuário e se as permissões estão corretas.`);
+            console.error(err);
+            return interaction.editReply(`${EMOJIS.ERRO} Falha ao executar a punição. Verifique se o cargo do Bot está acima do cargo do usuário.`);
         }
     }
 };

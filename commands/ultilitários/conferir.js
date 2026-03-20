@@ -52,34 +52,24 @@ module.exports = {
             .setThumbnail(interaction.client.user.displayAvatarURL())
             .setDescription(
                 `# Olá **${interaction.member.displayName}**!\n` +
-                `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:\n\n` +
+                `Nosso sistema consiste em ajudar a staff com atividades diárias de monitoramento de usuários. Abaixo segue como funciona o sistema.:\n` +
                 `## ${EMOJIS.STATUS} A Escala de Status\n` +
                 `${EMOJIS.EXCELLENT} **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
                 `${EMOJIS.GOOD} **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
-                `${EMOJIS.OBSERVATION} **50 - 69 (Atenção):** Jogador problemático. Requer atenção da Staff.\n` +
+                `${EMOJIS.OBSERVATION} **50 - 69 (Atenção):** Jogador problemático.\n` +
                 `${EMOJIS.CRITIC} **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n` + 
-                `## ${EMOJIS.CONFIG} Tabela de Punições Atualizada\n` + 
+                `## ${EMOJIS.CONFIG} Niveis de Punições\n` + 
                 punicoesTexto +
-                `\n${EMOJIS.SERVER } Os valores acima são definidos pela Administração deste servidor.`
-            )
-            .addFields(
-                { 
-                    name: `${EMOJIS.SERVER} Reputação Local (Neste Servidor)`, 
-                    value: 'Sua pontuação começa em **100**. Cada infração reduz essa nota. Ela define seu **Status** exclusivamente aqui.' 
-                },
-                { 
-                    name: `${EMOJIS.UP} Recuperação Diária`, 
-                    value: 'A cada **24 horas** sem cometer infrações, você recupera automaticamente **1 ponto** de reputação, até atingir o limite de 100.' 
-                },
-                { 
-                    name: `${EMOJIS.PAUSE} Pause de recuperação`, 
-                    value: 'Sempre que receber uma punição, não poderá recuper **1 ponto** até que se passe 24 horas sem novas infrações.'
-                },
+                `\n${EMOJIS.SERVER } Os valores acima são definidos pela Administração deste servidor.\n`+
+                `## ${EMOJIS.REPUTATION} Reputação \n` +
+                '- Sua pontuação começa em **100**. Cada infração reduz essa nota. Ela define seu **Status** exclusivamente aqui.\n'+
+                '- A cada **24 horas** sem cometer infrações, você recupera automaticamente ${EMOJIS.UP} **1 ponto** de reputação, até atingir o limite de 100.\n' +
+                '- Sempre que receber uma punição, perderá pontos de acordo com a gravidade e não poderá recuperar **1 ponto** até que se passe 24 horas sem novas infrações.'
             )
             .setFooter({ 
-                text: interaction.guild.name, 
-                iconURL: interaction.guild.iconURL({ dynamic: true }) 
-            })
+                        text: `✧ BOT by: KnustVI | ${interaction.guild.name}`, 
+                        iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                    })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
