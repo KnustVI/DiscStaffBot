@@ -61,14 +61,14 @@ module.exports = {
 
             // --- 5. EMBED DE LOG PADRONIZADA ---
             const finalEmbed = new EmbedBuilder()
-                .setDescription(`# ${EMOJIS.REFAZER} Punição Revogada | ID #${punishmentId}`)
+                .setDescription(`# ${EMOJIS.UP} Punição Revogada | ID #${punishmentId}`)
                 .setColor(0x00FF00)
                 .addFields(
                     { name: `${EMOJIS.USUARIO} Usuário Beneficiado`, value: `<@${punishment.user_id}> (\`${punishment.user_id}\`)`, inline: true },
-                    { name: `${EMOJIS.DISTINTIVO} Revogado por`, value: `${interaction.user}`, inline: true },
-                    { name: `${EMOJIS.LIVRO} Ticket Originário`, value: `\`#${originalTicket}\``, inline: true }, // Puxado do banco
-                    { name: `${EMOJIS.STATUS_SISTEMA} Reputação Atual`, value: `\`${userData.reputation} pts (+${repToRestore})\``, inline: true },
-                    { name: `${EMOJIS.NOTA} Motivo da Revogação`, value: `\`\`\`${revogReason}\`\`\`` }
+                    { name: `${EMOJIS.STAFF} Revogado por`, value: `${interaction.user}`, inline: true },
+                    { name: `${EMOJIS.TICKET} Ticket Originário`, value: `\`#${originalTicket}\``, inline: true }, // Puxado do banco
+                    { name: `${EMOJIS.STATUS} Reputação Atual`, value: `\`${userData.reputation} pts (+${repToRestore})\``, inline: true },
+                    { name: `${EMOJIS.NOTE} Motivo da Revogação`, value: `\`\`\`${revogReason}\`\`\`` }
                 )
                 .setFooter({ 
                     text: interaction.guild.name, 
@@ -90,11 +90,11 @@ module.exports = {
                 await targetUser.send({ embeds: [finalEmbed] }).catch(() => null);
             }
 
-            await interaction.editReply(`${EMOJIS.SIM} Punição **#${punishmentId}** revogada com sucesso.`);
+            await interaction.editReply(`${EMOJIS.CHECK} Punição **#${punishmentId}** revogada com sucesso.`);
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply(`${EMOJIS.AVISO} Erro técnico ao tentar revogar a punição.`);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro técnico ao tentar revogar a punição.`);
         }
     }
 };

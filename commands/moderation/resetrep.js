@@ -40,13 +40,13 @@ module.exports = {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setDescription("# 🧹 Ficha Limpa: Reset de Reputação")
+                        .setDescription(`# ${EMOJIS.CLEAN} Ficha Limpa: Reset de Reputação`)
                         .setColor(0x3498db) // Azul claro para diferenciar de punição/revogação
                         .addFields(
                             { name: `${EMOJIS.USUARIO} Usuário Resetado`, value: `${target} (\`${target.id}\`)`, inline: true },
-                            { name: `${EMOJIS.DISTINTIVO} Responsável`, value: `${interaction.user}`, inline: true },
-                            { name: `${EMOJIS.STATUS_SISTEMA} Status Anterior`, value: `\`Ficha Deletada\``, inline: true },
-                            { name: `${EMOJIS.NOTA} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
+                            { name: `${EMOJIS.STAFF} Responsável`, value: `${interaction.user}`, inline: true },
+                            { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: true },
+                            { name: `${EMOJIS.NOTE} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
                         )
                         .setFooter({ 
                             text: interaction.guild.name, 
@@ -59,12 +59,12 @@ module.exports = {
             }
 
             await interaction.editReply({ 
-                content: `${EMOJIS.SIM} O histórico e a reputação de **${target.displayName}** foram completamente apagados.` 
+                content: `${EMOJIS.CHECK} O histórico e a reputação de **${target.displayName}** foram completamente apagados.` 
             });
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply(`${EMOJIS.AVISO} Erro técnico ao tentar resetar os dados no SQLite.`);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro técnico ao tentar resetar os dados no SQLite.`);
         }
     }
 };

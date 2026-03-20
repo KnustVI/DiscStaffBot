@@ -45,15 +45,15 @@ module.exports = {
                 .addFields(
                     { 
                         name: "${EMOJIS.STATS} Cargos & Canais", 
-                        value: `**Cargo Staff:** ${cfg.staff_role ? `<@&${cfg.staff_role}>` : '${EMOJIS.AVISO}'}\n` +
-                               `**Canal de Logs:** ${cfg.logs_channel ? `<#${cfg.logs_channel}>` : '${EMOJIS.AVISO}'}\n` +
-                               `**Canal Alertas:** ${cfg.alert_channel ? `<#${cfg.alert_channel}>` : '${EMOJIS.AVISO}'}`, 
+                        value: `**Canal de Logs:** ${cfg.logs_channel ? `<#${cfg.logs_channel}>` : EMOJIS.ERRO}\n` +
+                               `**Canal Alertas:** ${cfg.alert_channel ? `<#${cfg.alert_channel}>` : EMOJIS.ERRO}`, 
                         inline: true 
                     },
                     { 
                         name: "${EMOJIS.TITULO} Cargos Automáticos", 
-                        value: `**Exemplar:** ${cfg.exemplar_role ? `<@&${cfg.exemplar_role}>` : '${EMOJIS.AVISO}'}\n` +
-                               `**Problema:** ${cfg.problem_role ? `<@&${cfg.problem_role}>` : '${EMOJIS.AVISO}'}`, 
+                        value: `**Cargo Staff:** ${cfg.staff_role ? `<@&${cfg.staff_role}>` : EMOJIS.ERRO}\n` +
+                               `**Exemplar:** ${cfg.exemplar_role ? `<@&${cfg.exemplar_role}>` : EMOJIS.ERRO}\n` +
+                               `**Problema:** ${cfg.problem_role ? `<@&${cfg.problem_role}>` : EMOJIS.ERRO}`, 
                         inline: true 
                     }
                 )
@@ -92,24 +92,25 @@ module.exports = {
 
                 return new EmbedBuilder()
                     .setColor(0xFF3C72)
-                    .setDescription(`# ${EMOJIS.STATS} Configurações: CANAIS E CARGOS\n` +
+                    .setDescription(`# ${EMOJIS.CONFIG} Configurações: CANAIS E CARGOS\n` +
                         'Selecione uma opção no menu abaixo para configurar os cargos e canais essenciais para a moderação do servidor. As mudanças são refletidas imediatamente após a configuração.')
                     .addFields(
                         { 
-                            name: "${EMOJIS.TITULO} Sistema de Moderação", 
-                            value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : '${EMOJIS.AVISO} *Não definido*'}\n> *Necessário para usar comandos como /punir.*`, 
+                            name: `${EMOJIS.STAFF} Sistema de Moderação`, 
+                            value: `**Cargo Staff:** ${settings.staff_role ? `<@&${settings.staff_role}>` : `${EMOJIS.AVISO} *Não definido*`}\n> *Necessário para usar comandos como /punir.*`, 
                             inline: false 
                         },
                         { 
-                            name: "${EMOJIS.CHAT} Registros e Alertas", 
-                            value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : '${EMOJIS.AVISO} *Não definido*'}\n` +
-                                   `**Canal de Alertas:** ${settings.alert_channel ? `<#${settings.alert_channel}>` : '${EMOJIS.AVISO} *Não definido*'}\n` +
-                                   `> *Canais onde punições, auditoria de staff e alertas críticos serão enviados.*`, 
+                            name: `${EMOJIS.STATUS} Registros e Alertas`, 
+                            value: `**Canal de Logs:** ${settings.logs_channel ? `<#${settings.logs_channel}>` : `${EMOJIS.AVISO} *Não definido*`}\n` +
+                                   `**Canal de Alertas:** ${settings.alert_channel ? `<#${settings.alert_channel}>` : `${EMOJIS.AVISO} *Não definido*`}\n` +
+                                   `*Canais onde punições, auditoria de staff e alertas críticos serão enviados.*`, 
                             inline: false 
                         },
                         { 
-                            name: "${EMOJIS.TITULO} Cargos de Comportamento", 
-                            value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : '${EMOJIS.AVISO} *Não definido*'}\n**Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : '${EMOJIS.AVISO} *Não definido*'}`, 
+                            name: `${EMOJIS.STATUS} Cargos de Comportamento`, 
+                            value: `**Cargo Exemplar:** ${settings.exemplar_role ? `<@&${settings.exemplar_role}>` : `${EMOJIS.AVISO} *Não definido*`}\n
+                                    **Cargo Problema:** ${settings.problem_role ? `<@&${settings.problem_role}>` : `${EMOJIS.AVISO} *Não definido*`}`, 
                             inline: false 
                         }
                     )
@@ -121,11 +122,11 @@ module.exports = {
                     .setCustomId('config_menu_cc')
                     .setPlaceholder('Escolha o que deseja configurar...')
                     .addOptions([
-                        { label: 'Cargo Staff', description: 'Define quem pode usar comandos de moderação.', value: 'staff_role', emoji: '${EMOJIS.DISTINTIVO}' },
-                        { label: 'Canal de Logs', description: 'Onde todas as punições serão registradas.', value: 'logs_channel', emoji: '${EMOJIS.CHAT}' },
-                        { label: 'Canal de Alertas', description: 'Para monitoramento de usuários críticos e staff.', value: 'alert_channel', emoji: '${EMOJIS.AVISO}' },
-                        { label: 'Cargo Exemplar', description: 'Cargo para jogadores com conduta excelente.', value: 'exemplar_role', emoji: '${EMOJIS.MEDALHA}' },
-                        { label: 'Cargo Problema', description: 'Cargo para jogadores com muitas punições.', value: 'problem_role', emoji: '${EMOJIS.TROFEU_ALARME}' },
+                        { label: 'Cargo Staff', description: 'Define quem pode usar comandos de moderação.', value: 'staff_role', emoji: EMOJIS.STAFF},
+                        { label: 'Canal de Logs', description: 'Onde todas as punições serão registradas.', value: 'logs_channel', emoji: EMOJIS.TICKET},
+                        { label: 'Canal de Alertas', description: 'Para monitoramento de usuários críticos e staff.', value: 'alert_channel', emoji: EMOJIS.AVISO},
+                        { label: 'Cargo Exemplar', description: 'Cargo para jogadores com conduta excelente.', value: 'exemplar_role', emoji: EMOJIS.EXCELLENT },
+                        { label: 'Cargo Problema', description: 'Cargo para jogadores com muitas punições.', value: 'problem_role', emoji: EMOJIS.PROBLEMATIC },
                     ])
             );
 
@@ -156,11 +157,11 @@ module.exports = {
 
                 messageCollector.on('collect', async m => {
                     const value = selection.includes('channel') ? m.mentions.channels.first()?.id : m.mentions.roles.first()?.id;
-                    if (!value) return m.reply({ content: "❌ Menção inválida. Tente novamente o comando.", ephemeral: true });
+                    if (!value) return m.reply({ content: `${EMOJIS.ERRO} Menção inválida. Tente novamente o comando.`, ephemeral: true });
 
                     db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, selection, value);
                     await m.delete().catch(() => null);
-                    await i.editReply({ content: `${EMOJIS.SIM} **Sucesso!** O canal/cargo de \`${selection}\` foi atualizado.`, ephemeral: true });
+                    await i.editReply({ content: `${EMOJIS.CHECK} **Sucesso!** O canal/cargo de \`${selection}\` foi atualizado.`, ephemeral: true });
                     await interaction.editReply({ embeds: [getSettingsEmbed()] });
                 });
             });
@@ -183,7 +184,7 @@ module.exports = {
             const getMetricsEmbed = () => {
                 const embed = new EmbedBuilder()
                     .setColor(0xFF3C72)
-                    .setDescription(`# ${EMOJIS.STATUS_SISTEMA} Ajuste de Métricas\n` +
+                    .setDescription(`# ${EMOJIS.CONFIG} Ajuste de Métricas\n` +
                         'Selecione um nível abaixo para editar seu sistema de punição no servidor ${interaction.guild.name} via Modal.')
                     .setFooter({ 
                         text: interaction.guild.name, 
@@ -202,7 +203,7 @@ module.exports = {
 
             const row = new ActionRowBuilder().addComponents(
                 new StringSelectMenuBuilder().setCustomId('select_level').setPlaceholder('Escolha o nível para editar...')
-                    .addOptions([1, 2, 3, 4, 5].map(n => ({ label: `Nível ${n}`, value: `${n}`, emoji: '⚙️' })))
+                    .addOptions([1, 2, 3, 4, 5].map(n => ({ label: `Nível ${n}`, value: `${n}`, emoji: EMOJIS.CONFIG })))
             );
 
             const response = await interaction.reply({ embeds: [getMetricsEmbed()], components: [row], ephemeral: true });
@@ -261,7 +262,7 @@ module.exports = {
                         db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_time`, mins.toString());
                         db.prepare(`INSERT INTO settings (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value`).run(guildId, `punish_${level}_rep`, submitted.fields.getTextInputValue('rep_value').replace(/[^\d]/g, ''));
 
-                        await submitted.reply({ content: `${EMOJIS.SIM} Nível ${level} atualizado para a ação: **${actionFinal}**!`, ephemeral: true });
+                        await submitted.reply({ content: `${EMOJIS.CHECK} Nível ${level} atualizado para a ação: **${actionFinal}**!`, ephemeral: true });
                         await interaction.editReply({ embeds: [getMetricsEmbed()] });
                     }
                 } catch (e) { /* timeout */ }
@@ -277,7 +278,7 @@ module.exports = {
             const row = new ActionRowBuilder().addComponents(confirm, cancel);
 
             const response = await interaction.reply({
-                content: '⚠️ **ATENÇÃO:** Você está prestes a apagar todas as configurações (canais, cargos e métricas) deste servidor. As punições existentes não serão afetadas. Deseja continuar?',
+                content: `${EMOJIS.WARNING} **ATENÇÃO:** Você está prestes a apagar todas as configurações (canais, cargos e métricas) deste servidor. As punições existentes não serão afetadas. Deseja continuar?`,
                 components: [row],
                 ephemeral: true
             });
@@ -287,9 +288,9 @@ module.exports = {
             collector.on('collect', async i => {
                 if (i.customId === 'confirm_reset') {
                     db.prepare(`DELETE FROM settings WHERE guild_id = ?`).run(guildId);
-                    await i.update({ content: `${EMOJIS.SIM} **Configurações resetadas!** O servidor voltou ao estado inicial.`, components: [] });
+                    await i.update({ content: `${EMOJIS.CHECK} **Configurações resetadas!** O servidor voltou ao estado inicial.`, components: [] });
                 } else {
-                    await i.update({ content: `${EMOJIS.NO} Reset cancelado.`, components: [] });
+                    await i.update({ content: `${EMOJIS.ERRO} Reset cancelado.`, components: [] });
                 }
             });
         }

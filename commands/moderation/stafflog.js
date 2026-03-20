@@ -41,7 +41,7 @@ module.exports = {
                 .setTimestamp();
             
             if (actions.length === 0) {
-                embed.setDescription(`> ${EMOJIS.DISTINTIVO} **${staff.displayName}** ainda não aplicou nenhuma punição neste servidor.`);
+                embed.setDescription(`> ${EMOJIS.STAFF} **${staff.displayName}** ainda não aplicou nenhuma punição neste servidor.`);
                 return { embed, maxPages };
             }
 
@@ -49,7 +49,7 @@ module.exports = {
             const content = actions.map(a => {
                 const date = new Date(a.created_at).toLocaleDateString('pt-BR');
                 // Se for nível 0, indica que foi revogada
-                const status = a.severity === 0 ? `${EMOJIS.REFAZER} [REVOGADA]` : `${EMOJIS.STATS} Nível ${a.severity}`;
+                const status = a.severity === 0 ? `${EMOJIS.UP} [REVOGADA]` : `${EMOJIS.STATUS} Nível ${a.severity}`;
                 
                 return `**ID: #${a.id}** | ${EMOJIS.PAINEL} \`${date}\`\n**Status:** ${status}\n**Alvo:** <@${a.user_id}>\n**Motivo:** \`${a.reason.substring(0, 100)}${a.reason.length > 100 ? '...' : ''}\`\n`;
             }).join('\n');
@@ -68,12 +68,12 @@ module.exports = {
             return new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('prev_staff')
-                    .setLabel('◀️ Anterior')
+                    .setLabel(`${EMOJIS.LEFT} Anterior`)
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(page === 0),
                 new ButtonBuilder()
                     .setCustomId('next_staff')
-                    .setLabel('Próxima ▶️')
+                    .setLabel(`Próxima ${EMOJIS.RIGTH}`)
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(page >= maxPages - 1)
             );

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const db = require('../../database/database');
 const { createCanvas } = require('canvas');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 // --- Funções Utilitárias ---
 function createProgressBarImage(value, max) {
@@ -51,11 +52,11 @@ function createProgressBarImage(value, max) {
 }
 
 function getStatus(rep) {
-    if (rep >= 90) return `${EMOJIS.COROA} Exemplar`;
-    if (rep >= 70) return `${EMOJIS.MEDALHA} Bom`;
-    if (rep >= 50) return `${EMOJIS.NO} Observação`;
-    if (rep >= 30) return `${EMOJIS.ALARME} Problemático`;
-    return `${EMOJIS.CRITICO} Crítico`;
+    if (rep >= 90) return `${EMOJIS.EXCELLENT} Exemplar`;
+    if (rep >= 70) return `${EMOJIS.GOOD} Bom`;
+    if (rep >= 50) return `${EMOJIS.OBSERVATION} Observação`;
+    if (rep >= 30) return `${EMOJIS.PROBLEMATIC} Problemático`;
+    return `${EMOJIS.CRITIC} Crítico`;
 }
 
 module.exports = {
@@ -85,8 +86,8 @@ module.exports = {
                         `✨ **Este usuário ainda não possui registros.**\n` +
                         `- A reputação neste servidor começa em **100**.`)
                     .addFields(
-                        { name: `${EMOJIS.STATUS_SISTEMA} Reputação`, value: `**100**/100`, inline: true },
-                        { name: `${EMOJIS.STATS} Status`, value: `${EMOJIS.COROA} Exemplar`, inline: true }
+                        { name: `${EMOJIS.REPUTATION} Reputação`, value: `**100**/100`, inline: true },
+                        { name: `${EMOJIS.STATUS} Status`, value: `${EMOJIS.EXCELLENT} Exemplar`, inline: true }
                     )
                     .setFooter({ 
                         text: interaction.guild.name, 
@@ -105,7 +106,7 @@ module.exports = {
             const diffMs = lastPenalty ? Date.now() - lastPenalty : null;
             const daysWithoutPenalty = diffMs ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : "∞";
 
-            let recoveryStatus = `${EMOJIS.COROA} Reputação Máxima`;
+            let recoveryStatus = `${EMOJIS.EXCELLENT} Reputação Máxima`;
             if (reputation < 100) {
                 const now = new Date();
                 const tomorrow = new Date(now);
@@ -113,10 +114,10 @@ module.exports = {
                 tomorrow.setHours(0, 0, 0, 0);
                 const hoursLeft = Math.floor((tomorrow - now) / (1000 * 60 * 60));
                 
-                recoveryStatus = `${EMOJIS.ESCALAR} +1 pt em ~${hoursLeft}h`;
+                recoveryStatus = `${EMOJIS.UP} +1 pt em ~${hoursLeft}h`;
                 
                 if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
-                    recoveryStatus = `${EMOJIS.RELOAD_ERROR} Pausada (Punido recentemente)`;
+                    recoveryStatus = `${EMOJIS.PAUSE} Pausada (Punido recentemente)`;
                 }
             }
 
@@ -132,15 +133,15 @@ module.exports = {
                 .setDescription(
                     `# ${EMOJIS.USUARIO} ${targetUser.displayName}\n` +
                     `Estatísticas de comportamento em **${interaction.guild.name}**.\n` +
-                    `📍 Estes dados são restritos a este servidor.` 
+                    `${EMOJIS.SERVER} Estes dados são restritos a este servidor.` 
                 )
                 .addFields(
-                    { name: `${EMOJIS.STATUS_SISTEMA} Reputação`, value: `**${reputation}**/100`, inline: true },
-                    { name: `${EMOJIS.NO} Punições`, value: `\`${penalties}\``, inline: true },
-                    { name: `${EMOJIS.LIMPEZA} Limpo há`, value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
-                    { name: `${EMOJIS.ESCALAR_V2} Rank Local`, value: `**#${localPos}** de ${localRanking.length}`, inline: true },
-                    { name: `${EMOJIS.STATS} Status`, value: getStatus(reputation), inline: true },
-                    { name: `${EMOJIS.REFAZER} Recuperação`, value: `\`${recoveryStatus}\``, inline: true },
+                    { name: `${EMOJIS.REPUTATION} Reputação`, value: `**${reputation}**/100`, inline: true },
+                    { name: `${EMOJIS.DOWN} Punições`, value: `\`${penalties}\``, inline: true },
+                    { name: `${EMOJIS.DATE} Limpo há`, value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
+                    { name: `${EMOJIS.RANK} Rank Local`, value: `**#${localPos}** de ${localRanking.length}`, inline: true },
+                    { name: `${EMOJIS.STATUS} Status`, value: getStatus(reputation), inline: true },
+                    { name: `${EMOJIS.UP} Recuperação`, value: `\`${recoveryStatus}\``, inline: true },
                     { 
                         name: `${EMOJIS.ESCALAR} Barra de Integridade`, 
                         value: '\u200B', 
@@ -159,7 +160,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro no comando perfil:", error);
-            await interaction.editReply(`${EMOJIS.AVISO} Erro ao carregar perfil.`);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro ao carregar perfil.`);
         }
     }
 };

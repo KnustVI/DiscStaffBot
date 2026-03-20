@@ -32,17 +32,17 @@ module.exports = {
         const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
 
         if (!staffRoleSetting || !logChannelSetting) {
-            return interaction.reply({ content: "⚠️ **O sistema não está configurado.** Use os comandos de setup primeiro.", ephemeral: true });
+            return interaction.reply({ content: `${EMOJIS.ERRO} **O sistema não está configurado.** Use os comandos de setup primeiro.`, ephemeral: true });
         }
 
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
         const hasRole = interaction.member.roles.cache.has(staffRoleSetting.value);
-        if (!hasRole && !isAdmin) return interaction.reply({ content: `${EMOJIS.AVISO} Você não tem permissão de Staff para usar este comando.`, ephemeral: true });
+        if (!hasRole && !isAdmin) return interaction.reply({ content: `${EMOJIS.ERRO} Você não tem permissão de Staff para usar este comando.`, ephemeral: true });
 
         await interaction.deferReply({ ephemeral: true });
 
         const member = await interaction.guild.members.fetch(user.id).catch(() => null);
-        if (!member) return interaction.editReply(`${EMOJIS.AVISO} Usuário não encontrado no servidor.`);
+        if (!member) return interaction.editReply(`${EMOJIS.ERRO} Usuário não encontrado no servidor.`);
 
         // --- 2. DEFINIÇÃO DE MÉTRICAS (BANCO OU DEFAULT) ---
         const getMetric = (type) => db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, `punish_${severity}_${type}`)?.value;
@@ -93,15 +93,15 @@ module.exports = {
 
             // --- 5. CONSTRUÇÃO DA EMBED (ORGANIZADA) ---
             const finalEmbed = new EmbedBuilder()
-                .setDescription(`# ⚖️ Nova Punição | ID #${punishmentId}`)
+                .setDescription(`# ${EMOJIS.ACTION} Nova Punição | ID #${punishmentId}`)
                 .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
                 .setColor(0xFF0000)
                 .addFields(
                     { name: `${EMOJIS.USUARIO} Usuário`, value: `${user}\n\`${member.displayName}\``, inline: true },
-                    { name: `${EMOJIS.DISTINTIVO} Moderador`, value: `${interaction.user}`, inline: true },
-                    { name: `${EMOJIS.LIVRO} Ticket`, value: `\`#${ticketId}\``, inline: true },
-                    { name: `${EMOJIS.ALARME} Ação Aplicada`, value: `\`${executionDetail}\``, inline: true },
-                    { name: `${EMOJIS.STATUS_SISTEMA} Reputação`, value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
+                    { name: `${EMOJIS.STAFF} Moderador`, value: `${interaction.user}`, inline: true },
+                    { name: `${EMOJIS.TICKET} Ticket`, value: `\`#${ticketId}\``, inline: true },
+                    { name: `${EMOJIS.ACTION} Ação Aplicada`, value: `\`${executionDetail}\``, inline: true },
+                    { name: `${EMOJIS.DOWN} Reputação`, value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
                     { name: `${EMOJIS.NOTA} Motivo Detalhado`, value: `\`\`\`${reason}\`\`\`` }
                 )
                 .setFooter({ 
@@ -118,15 +118,15 @@ module.exports = {
 
             // Envio para o Usuário (DM)
             await user.send({ 
-                content: `${EMOJIS.ALERTA} Você recebeu uma nova punição em **${interaction.guild.name}**.`, 
+                content: `${EMOJIS.DM} Você recebeu uma nova punição em **${interaction.guild.name}**.`, 
                 embeds: [finalEmbed] 
             }).catch(() => null);
 
-            await interaction.editReply({ content: `${EMOJIS.SIM} Punição **#${punishmentId}** aplicada e registrada com sucesso.` });
+            await interaction.editReply({ content: `${EMOJIS.CHECK} Punição **#${punishmentId}** aplicada e registrada com sucesso.` });
 
         } catch (err) {
             console.error("Erro no comando punir:", err);
-            return interaction.editReply(`${EMOJIS.AVISO} Erro ao aplicar punição. Verifique se o cargo do bot está acima do usuário e se as permissões estão corretas.`);
+            return interaction.editReply(`${EMOJIS.ERRO} Erro ao aplicar punição. Verifique se o cargo do bot está acima do usuário e se as permissões estão corretas.`);
         }
     }
 };

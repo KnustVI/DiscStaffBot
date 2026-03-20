@@ -28,7 +28,7 @@ module.exports = {
 
         if (!isAdmin && !hasStaffRole) {
             return interaction.reply({ 
-                content: "${EMOJIS.AVISO} Você não tem permissão para acessar o histórico de punições.", 
+                content: `${EMOJIS.AVISO} Você não tem permissão para acessar o histórico de punições.`, 
                 ephemeral: true 
             });
         }
@@ -50,12 +50,12 @@ module.exports = {
             const total = totalData ? totalData.total : 0;
 
             if (total === 0) {
-                return interaction.editReply({ content: `${EMOJIS.SIM} O usuário **${displayName}** não possui nenhum registro no histórico deste servidor.` });
+                return interaction.editReply({ content: `${EMOJIS.CHECK} O usuário **${displayName}** não possui nenhum registro no histórico deste servidor.` });
             }
 
             const totalPages = Math.ceil(total / limit);
             if (page > totalPages) {
-                return interaction.editReply({ content: `${EMOJIS.AVISO} Página inválida. O histórico possui apenas **${totalPages}** página(s).` });
+                return interaction.editReply({ content: `${EMOJIS.ERRO} Página inválida. O histórico possui apenas **${totalPages}** página(s).` });
             }
 
             // --- 3. BUSCA OS DADOS NO BANCO ---
@@ -73,26 +73,26 @@ module.exports = {
                 const ticketDisplay = p.ticket_id || 'N/A';
                 
                 const isRevoked = p.severity === 0;
-                const statusEmoji = isRevoked ? "${EMOJIS.RELOAD_SUCCESS} " : "${EMOJIS.RELOAD_ERROR} ";
+                const statusEmoji = isRevoked ? `${EMOJIS.UP} ` : `${EMOJIS.DOWN} `;
                 const severityDisplay = isRevoked 
                     ? `**REVOGADA / ANULADA**` 
                     : `\`Nível ${p.severity}\``;
 
                 description += `${statusEmoji} **ID #${p.id}**\n` +
-                               `${EMOJIS.STATUS_SISTEMA}  **Gravidade:** ${severityDisplay}\n` +
-                               `${EMOJIS.DISTINTIVO}  **Moderador:** <@${p.moderator_id}>\n` +
-                               `${EMOJIS.LIVRO} **Ticket:** \`#${ticketDisplay}\`\n` +
-                               `${EMOJIS.NOTA} **Motivo:** ${p.reason}\n` +
-                               `${EMOJIS.PAINEL} **Data:** <t:${unixTimestamp}:f>\n` +
+                               `${EMOJIS.REPUTATION}  **Gravidade:** ${severityDisplay}\n` +
+                               `${EMOJIS.STAFF}  **Moderador:** <@${p.moderator_id}>\n` +
+                               `${EMOJIS.TICKET} **Ticket:** \`#${ticketDisplay}\`\n` +
+                               `${EMOJIS.NOTE} **Motivo:** ${p.reason}\n` +
+                               `${EMOJIS.HISTORY} **Data:** <t:${unixTimestamp}:f>\n` +
                                `──────────────────\n`;
             }
 
             // --- 4. CONSTRUÇÃO DO EMBED ---
             const embed = new EmbedBuilder()
                 .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
-                .setDescription(`# 📜 Histórico: ${displayName}\n\n` + 
+                .setDescription(`# ${EMOJIS.HISTORY} Histórico: ${displayName}\n\n` + 
                     `${description}\n` +
-                    `📍 Servidor: ${interaction.guild.name}`
+                    `${EMOJIS.SERVER} Servidor: ${interaction.guild.name}`
                 )
                 .addFields({
                     name: `${EMOJIS.STATS} Resumo da Ficha`,
@@ -110,7 +110,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro crítico no comando histórico:", error);
-            await interaction.editReply({ content: `${EMOJIS.AVISO} Ocorreu um erro ao consultar o banco de dados. Verifique os logs do console.` });
+            await interaction.editReply({ content: `${EMOJIS.ERRO} Ocorreu um erro ao consultar o banco de dados. Verifique os logs do console.` });
         }
     }
 };

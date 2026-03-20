@@ -25,7 +25,7 @@ module.exports = {
                 return interaction.editReply("⚠️ Nenhum registro de reputação encontrado neste servidor.");
             }
 
-            const medalhas = { 0: `${EMOJIS.PRIMEIRO}`, 1: `${EMOJIS.SEGUNDO}`, 2: `${EMOJIS.TERCEIRO}` };
+            const medalhas = { 0: `${EMOJIS.FIRST}`, 1: `${EMOJIS.SECOND}`, 2: `${EMOJIS.THIRD}` };
             
             const list = topRanking.map((user, index) => {
                 const position = medalhas[index] || `**${index + 1}º**`;
@@ -37,9 +37,9 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(0xFF3C72) // Cor dourada para o ranking
                 .setDescription(
-                    `# ${EMOJIS.TROFEU_TOPO} Melhores do Servidor | ${interaction.guild.name}\n`+
+                    `# ${EMOJIS.RANK} Melhores do Servidor | ${interaction.guild.name}\n`+
                     `Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}\n---\n` +
-                    `${EMOJIS.EU} O ranking é atualizado em tempo real e é local.`,
+                    `${EMOJIS.SERVER} O ranking é atualizado em tempo real e é local.`,
                 )
                 .setFooter({ 
                 text: interaction.guild.name, 
@@ -51,7 +51,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro no comando rank:", error);
-            await interaction.editReply(`${EMOJIS.AVISO} Erro ao processar o ranking local.`);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro ao processar o ranking local.`);
         }
     }
 };

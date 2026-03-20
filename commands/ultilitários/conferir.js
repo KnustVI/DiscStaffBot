@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -52,26 +53,26 @@ module.exports = {
             .setDescription(
                 `# Olá **${interaction.member.displayName}**!\n` +
                 `Nosso sistema de monitoramento ajuda a manter a comunidade segura e justa. Entenda como funcionam as punições e o status:\n\n` +
-                `## 📊 A Escala de Status\n` +
-                `✨ **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
-                `✅ **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
-                `⚠️ **50 - 69 (Atenção):** Jogador problemático. Requer atenção da Staff.\n` +
-                `🚨 **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n` + 
-                `## 🛠️ Tabela de Punições Atualizada\n` + 
+                `## ${EMOJIS.STATUS} A Escala de Status\n` +
+                `${EMOJIS.EXCELLENT} **90 - 100 (Exemplar):** Jogador padrão ou exemplar.\n` +
+                `${EMOJIS.GOOD} **70 - 89 (Bom):** Cometeu erros leves, mas é confiável.\n` +
+                `${EMOJIS.OBSERVATION} **50 - 69 (Atenção):** Jogador problemático. Requer atenção da Staff.\n` +
+                `${EMOJIS.CRITIC} **Abaixo de 50 (Crítico):** Jogador reincidente ou tóxico.\n` + 
+                `## ${EMOJIS.CONFIG} Tabela de Punições Atualizada\n` + 
                 punicoesTexto +
-                `\n📍 Os valores acima são definidos pela Administração deste servidor.`
+                `\n${EMOJIS.SERVER } Os valores acima são definidos pela Administração deste servidor.`
             )
             .addFields(
                 { 
-                    name: '🏠 Reputação Local (Neste Servidor)', 
+                    name: `${EMOJIS.SERVER} Reputação Local (Neste Servidor)`, 
                     value: 'Sua pontuação começa em **100**. Cada infração reduz essa nota. Ela define seu **Status** exclusivamente aqui.' 
                 },
                 { 
-                    name: '📈 Recuperação Diária', 
+                    name: `${EMOJIS.UP} Recuperação Diária`, 
                     value: 'A cada **24 horas** sem cometer infrações, você recupera automaticamente **1 ponto** de reputação, até atingir o limite de 100.' 
                 },
                 { 
-                    name: '⏸️ Pause de recuperação', 
+                    name: `${EMOJIS.PAUSE} Pause de recuperação`, 
                     value: 'Sempre que receber uma punição, não poderá recuper **1 ponto** até que se passe 24 horas sem novas infrações.'
                 },
             )
