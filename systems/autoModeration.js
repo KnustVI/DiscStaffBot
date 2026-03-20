@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const db = require('../database/database');
+const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
     // Executa todo dia às 03:00 da manhã
@@ -9,15 +10,27 @@ module.exports = (client) => {
         const now = Date.now();
         const THIRTY_DAYS = 1000 * 60 * 60 * 24 * 30;
         const FIFTEEN_DAYS = 1000 * 60 * 60 * 24 * 15;
-        const ONE_DAY = 1000 * 60 * 60 * 24; // 24 horas em milisegundos
+        const ONE_DAY = 1000 * 60 * 60 * 24;
+
+        // Agrupamos os resultados por servidor para enviar um log único por guilda
+        const stats = {}; 
+
+        const initStats = (id) => {
+            if (!stats[id]) stats[id] = { repUp: 0, rolesAdded: 0, rolesRemoved: 0, errors: [] };
+        };
 
         /* -----------------------------------------------------------
-           3. RECUPERAÇÃO DIÁRIA (NOVO)
-           Dá +1 de reputação para quem não teve punição nas últimas 24h
+           1. RECUPERAÇÃO DIÁRIA DE REPUTAÇÃO
         ----------------------------------------------------------- */
         try {
-            // Atualiza todos os usuários que têm menos de 100 de rep
-            // e cuja última punição foi há mais de 24 horas (ou nunca tiveram)
+            // Buscamos quem será afetado antes para fins de log
+            const affected = db.prepare(`SELECT guild_id FROM users WHERE reputation < 100 AND (last_penalty IS NULL OR ? - last_penalty >= ?)`).all(now, ONE_DAY);
+            
+            affected.forEach(u => {
+                initStats(u.guild_id);
+                stats[u.guild_id].repUp++;
+            });
+
             db.prepare(`
                 UPDATE users 
                 SET reputation = MIN(100, reputation + 1)
@@ -25,61 +38,93 @@ module.exports = (client) => {
                 AND (last_penalty IS NULL OR ? - last_penalty >= ?)
             `).run(now, ONE_DAY);
             
-            console.log("📈 [Automod] Reputação diária processada para usuários ativos.");
         } catch (err) {
-            console.error("Erro ao processar recuperação diária:", err);
+            console.error("Erro na recuperação diária:", err);
         }
 
-        // 1. Buscamos usuários para verificação de cargos (Exemplar/Problemático)
+        /* -----------------------------------------------------------
+           2. VERIFICAÇÃO DE CARGOS (EXEMPLAR / PROBLEMÁTICO)
+        ----------------------------------------------------------- */
         const users = db.prepare(`SELECT * FROM users WHERE reputation >= 90 OR reputation <= 50`).all();
 
         for (const userData of users) {
+            const guildId = userData.guild_id;
+            initStats(guildId);
+
             try {
-                const guild = client.guilds.cache.get(userData.guild_id);
+                const guild = client.guilds.cache.get(guildId);
                 if (!guild) continue;
 
                 const member = await guild.members.fetch(userData.user_id).catch(() => null);
                 if (!member) continue;
 
+                const settings = getSettings(guildId);
                 const lastPenalty = userData.last_penalty || 0;
                 const timeWithoutPenalty = now - lastPenalty;
-                const settings = getSettings(guild.id);
 
-                /* 1. CARGO: JOGADOR EXEMPLAR */
+                // --- CARGO: EXEMPLAR ---
                 if (settings.exemplar_role && timeWithoutPenalty >= THIRTY_DAYS && userData.reputation >= 95) {
                     if (!member.roles.cache.has(settings.exemplar_role)) {
-                        await member.roles.add(settings.exemplar_role).catch(() => null);
-                        console.log(`🏅 [${guild.name}] ${member.user.tag} agora é Exemplar.`);
+                        await member.roles.add(settings.exemplar_role);
+                        stats[guildId].rolesAdded++;
                     }
                 }
 
-                /* 2. CARGO: USUÁRIO PROBLEMÁTICO */
-                const recentPenalties = db.prepare(`
-                    SELECT COUNT(*) as total 
-                    FROM punishments 
-                    WHERE user_id = ? AND guild_id = ? AND created_at > ?
-                `).get(userData.user_id, guild.id, now - FIFTEEN_DAYS);
+                // --- CARGO: PROBLEMÁTICO ---
+                const recent = db.prepare(`SELECT COUNT(*) as total FROM punishments WHERE user_id = ? AND guild_id = ? AND created_at > ?`)
+                                  .get(userData.user_id, guildId, now - FIFTEEN_DAYS);
 
                 if (settings.problem_role) {
-                    if (recentPenalties.total >= 5 || userData.reputation <= 30) {
+                    if (recent.total >= 5 || userData.reputation <= 30) {
                         if (!member.roles.cache.has(settings.problem_role)) {
-                            await member.roles.add(settings.problem_role).catch(() => null);
+                            await member.roles.add(settings.problem_role);
+                            stats[guildId].rolesAdded++;
                             if (settings.exemplar_role && member.roles.cache.has(settings.exemplar_role)) {
-                                await member.roles.remove(settings.exemplar_role).catch(() => null);
+                                await member.roles.remove(settings.exemplar_role);
                             }
-                            console.log(`⚠️ [${guild.name}] ${member.user.tag} marcado como Problemático.`);
                         }
                     } else if (userData.reputation > 50 && member.roles.cache.has(settings.problem_role)) {
-                        await member.roles.remove(settings.problem_role).catch(() => null);
-                        console.log(`✅ [${guild.name}] ${member.user.tag} limpou o histórico.`);
+                        await member.roles.remove(settings.problem_role);
+                        stats[guildId].rolesRemoved++;
                     }
                 }
-
             } catch (err) {
-                console.error(`Erro no automod:`, err);
+                stats[guildId].errors.push(err.message);
             }
         }
-        console.log("✅ [Automod] Verificação concluída!");
+
+        /* -----------------------------------------------------------
+           3. ENVIO DOS LOGS DE AUDITORIA
+        ----------------------------------------------------------- */
+        for (const guildId in stats) {
+            const s = stats[guildId];
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) continue;
+
+            const settings = getSettings(guildId);
+            const alertChannelId = settings.alert_channel || settings.logs_channel;
+            const channel = await guild.channels.fetch(alertChannelId).catch(() => null);
+
+            if (channel) {
+                const hasErrors = s.errors.length > 0;
+                const embed = new EmbedBuilder()
+                    .setTitle(hasErrors ? `${EMOJIS.WARNING} Relatório Automod (Com Avisos)` : `${EMOJIS.CHECK} Relatório Automod Concluído`)
+                    .setColor(hasErrors ? 0xFFAA00 : 0x2ECC71)
+                    .addFields(
+                        { name: `${EMOJIS.REPUTATION} Reputação`, value: `\`+1 pt\` para **${s.repUp}** usuários.`, inline: true },
+                        { name: `${EMOJIS.STATUS} Cargos`, value: `**${s.rolesAdded}** atribuídos\n**${s.rolesRemoved}** removidos.`, inline: true }
+                    )
+                    .setTimestamp();
+
+                if (hasErrors) {
+                    embed.addFields({ name: `${EMOJIS.ERRO} Erros Detectados`, value: `\`\`\`${s.errors.slice(0, 3).join('\n')}\`\`\`` });
+                }
+
+                await channel.send({ embeds: [embed] }).catch(() => null);
+            }
+        }
+
+        console.log("✅ [Automod] Ciclo de manutenção finalizado.");
     });
 };
 

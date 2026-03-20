@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis'); // Importe os emojis
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,7 +25,7 @@ module.exports = {
                 return interaction.editReply("⚠️ Nenhum registro de reputação encontrado neste servidor.");
             }
 
-            const medalhas = { 0: "🥇", 1: "🥈", 2: "🥉" };
+            const medalhas = { 0: `${EMOJIS.FIRST}`, 1: `${EMOJIS.SECOND}`, 2: `${EMOJIS.THIRD}` };
             
             const list = topRanking.map((user, index) => {
                 const position = medalhas[index] || `**${index + 1}º**`;
@@ -34,17 +35,26 @@ module.exports = {
             }).join('\n');
 
             const embed = new EmbedBuilder()
-                .setTitle(`🏆 Melhores do Servidor | ${interaction.guild.name}`)
-                .setColor(0xf2b705) // Cor dourada para o ranking
-                .setDescription(`Confira os jogadores com melhor conduta na nossa comunidade:\n\n${list}`)
-                .setFooter({ text: "📍 O ranking é atualizado em tempo real e é local." })
+                .setColor(0xFF3C72) // Cor dourada para o ranking
+                .setDescription(
+                    `# ${EMOJIS.RANK} Melhores usuários | ${interaction.guild.name}\n`+
+                    `Confira os jogadores que mais melhoraram seu comportamento após uma punição:\n\n${list}\n---\n` +
+                    `${EMOJIS.SERVER} O ranking é atualizado em tempo real.`,
+                    `# ${EMOJIS.RANK} Melhores usuários | ${interaction.guild.name}\n`+
+                    `Confira os jogadores que mais melhoraram seu comportamento após uma punição:\n\n${list}\n---\n` +
+                    `${EMOJIS.SERVER} O ranking é atualizado em tempo real.`,
+                )
+                .setFooter({ 
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                })
                 .setTimestamp();
-
+                
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error("Erro no comando rank:", error);
-            await interaction.editReply("❌ Erro ao processar o ranking local.");
+            await interaction.editReply(`${EMOJIS.ERRO} Erro ao processar o ranking local.`);
         }
     }
 };

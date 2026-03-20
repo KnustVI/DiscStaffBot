@@ -1,12 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('stafflog')
         .setDescription('Consulta o histórico de ações aplicadas por um membro da Staff.')
         .addUserOption(opt => opt.setName('staff').setDescription('Selecione o moderador').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
     async execute(interaction) {
         const staff = interaction.options.getUser('staff');
@@ -14,11 +15,14 @@ module.exports = {
         const itemsPerPage = 5;
         let currentPage = 0;
 
-        // Função para gerar o Embed e calcular páginas
+        // 1. BUSCA INICIAL DE DADOS
+        const countResult = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
+        const total = countResult ? countResult.count : 0;
+        const maxPages = Math.ceil(total / itemsPerPage);
+
+        // 2. FUNÇÃO GERADORA DE EMBED
         const generateLogEmbed = (page) => {
             const offset = page * itemsPerPage;
-            
-            // Busca ações desse staff
             const actions = db.prepare(`
                 SELECT * FROM punishments 
                 WHERE moderator_id = ? AND guild_id = ? 
@@ -26,87 +30,92 @@ module.exports = {
                 LIMIT ? OFFSET ?
             `).all(staff.id, guildId, itemsPerPage, offset);
 
-            const totalData = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
-            const total = totalData ? totalData.count : 0;
-            const maxPages = Math.ceil(total / itemsPerPage);
-
             const embed = new EmbedBuilder()
-                .setTitle(`👮 Relatório de Auditoria: ${staff.username}`)
-                .setThumbnail(staff.displayAvatarURL({ dynamic: true }))
-                .setColor(0x5865F2) // Cor Blurple (foco administrativo)
-                .setFooter({ text: `Página ${page + 1} de ${Math.max(1, maxPages)} • Total de ações: ${total}` })
+                .setThumbnail(staff.displayAvatarURL({ forceStatic: false }))
+                .setColor(0xFF3C72)
+                .setFooter({ 
+                    text: `✧ BOT by: KnustVI`, 
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                })
                 .setTimestamp();
-
-            if (actions.length === 0) {
-                embed.setDescription(`> ℹ️ **${staff.username}** ainda não possui ações registradas neste servidor.`);
-                return { embed, maxPages };
-            }
             
-            // Montagem do conteúdo
+            if (!actions || actions.length === 0) {
+                embed.setDescription(`> ${EMOJIS.STAFF} **${staff.username}** ainda não aplicou nenhuma punição registrada.`);
+                return embed;
+            }
+
             const content = actions.map(a => {
                 const unixTimestamp = Math.floor(a.created_at / 1000);
-                const ticket = a.ticket_id || 'N/A';
+                const status = a.severity === 0 ? `${EMOJIS.UP} [REVOGADA]` : `${EMOJIS.STATUS} Nível ${a.severity}`;
                 
-                // Verifica se a ação foi uma revogação (severity 0)
-                const isRevoked = a.severity === 0;
-                const statusEmoji = isRevoked ? "🟢" : "⚖️";
-                const severityText = isRevoked ? "**ANULADA**" : `Nível ${a.severity}`;
+                return `**ID: #${a.id}** | <t:${unixTimestamp}:d>\n` +
+                       `**Status:** ${status} | **Alvo:** <@${a.user_id}>\n` +
+                       `**Motivo:** \`${a.reason.substring(0, 80)}${a.reason.length > 80 ? '...' : ''}\`\n` +
+                       `──────────────────`;
+            }).join('\n');
 
-                return `${statusEmoji} **ID: #${a.id}** | <t:${unixTimestamp}:d>\n` +
-                       `**Alvo:** <@${a.user_id}>\n` +
-                       `**Gravidade:** ${severityText}\n` +
-                       `**Ticket:** \`#${ticket}\` | **Motivo:** \`${a.reason}\``;
-            }).join('\n\n───────────────────\n\n');
-
-            embed.setDescription(content);
-            return { embed, maxPages };
+            embed.setDescription(
+                `# ${EMOJIS.STAFF} Relatório: ${staff.username}\n` +
+                `${content}\n\n` +
+                `*Página ${page + 1} de ${Math.max(1, maxPages)} • Total: ${total} ações*`
+            );
+            return embed;
         };
 
-        const { embed, maxPages } = generateLogEmbed(currentPage);
-
+        // 3. FUNÇÃO DOS BOTÕES
         const getButtons = (page) => {
-            const row = new ActionRowBuilder();
-            
-            row.addComponents(
+            if (maxPages <= 1) return null;
+            return new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('prev_staff')
-                    .setLabel('Anterior')
-                    .setEmoji('◀️')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setLabel(`Anterior`)
+                    .setEmoji(EMOJIS.LEFT)
+                    .setStyle(ButtonStyle.Primary)
                     .setDisabled(page === 0),
                 new ButtonBuilder()
                     .setCustomId('next_staff')
-                    .setLabel('Próxima')
-                    .setEmoji('▶️')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setLabel(`Próxima`)
+                    .setEmoji(EMOJIS.RIGHT)
+                    .setStyle(ButtonStyle.Primary)
                     .setDisabled(page >= maxPages - 1)
             );
-
-            return row;
         };
 
-        const response = await interaction.reply({
-            embeds: [embed],
-            components: maxPages > 1 ? [getButtons(currentPage)] : [],
-            ephemeral: true 
-        });
+        // 4. RESPOSTA E COLETOR
+        try {
+            const response = await interaction.reply({
+                embeds: [generateLogEmbed(currentPage)],
+                components: getButtons(currentPage) ? [getButtons(currentPage)] : [],
+                ephemeral: true 
+            });
 
-        // Coletor de componentes (botões) - Dura 5 minutos
-        const collector = response.createMessageComponentCollector({ time: 300000 });
+            const collector = response.createMessageComponentCollector({ 
+                filter: i => i.user.id === interaction.user.id,
+                time: 300000 
+            });
 
-        collector.on('collect', async i => {
-            if (i.user.id !== interaction.user.id) return i.reply({ content: "Você não pode controlar este menu.", ephemeral: true });
+            collector.on('collect', async i => {
+                if (i.customId === 'prev_staff') currentPage--;
+                if (i.customId === 'next_staff') currentPage++;
 
-            if (i.customId === 'prev_staff') currentPage--;
-            if (i.customId === 'next_staff') currentPage++;
+                await i.update({ 
+                    embeds: [generateLogEmbed(currentPage)], 
+                    components: [getButtons(currentPage)] 
+                }).catch(() => null);
+            });
 
-            const { embed: newEmbed } = generateLogEmbed(currentPage);
-            await i.update({ embeds: [newEmbed], components: [getButtons(currentPage)] });
-        });
+            collector.on('end', () => {
+                interaction.editReply({ components: [] }).catch(() => null);
+            });
 
-        // Remove os botões quando o coletor expira
-        collector.on('end', () => {
-            interaction.editReply({ components: [] }).catch(() => null);
-        });
+        } catch (error) {
+            console.error("Erro ao executar stafflog:", error);
+            const errorMsg = { content: `${EMOJIS.ERRO} Erro ao carregar o log.`, ephemeral: true };
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply(errorMsg).catch(() => null);
+            } else {
+                await interaction.reply(errorMsg).catch(() => null);
+            }
+        }
     }
 };

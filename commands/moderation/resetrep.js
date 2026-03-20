@@ -1,11 +1,12 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resetrep')
         .setDescription('Reseta completamente a reputação e histórico local de um usuário.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // Trava visual (esconde o comando)
         .addUserOption(opt => opt.setName('usuario').setDescription('O usuário que terá a ficha limpa').setRequired(true))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo do reset (para os logs)').setRequired(true)),
 
@@ -14,54 +15,64 @@ module.exports = {
         const target = interaction.options.getUser('usuario');
         const reason = interaction.options.getString('motivo');
 
-        // 1. Verificação de Configuração (Mesma trava do /punir)
-        const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
-        const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
-
-        const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-        const hasRole = staffRoleSetting ? interaction.member.roles.cache.has(staffRoleSetting.value) : false;
-
-        if (!isAdmin && !hasRole) {
-            return interaction.reply({ content: "❌ Você não tem permissão para resetar reputações.", ephemeral: true });
+        // --- 1. VERIFICAÇÃO DE SEGURANÇA MANUAL ---
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ 
+                content: `${EMOJIS.ERRO} Apenas administradores do servidor podem utilizar este comando.`, 
+                ephemeral: true 
+            });
         }
 
+        const logChannelSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guildId);
+        
+        await interaction.deferReply({ ephemeral: true });
+
         try {
-            await interaction.deferReply({ ephemeral: true });
+            // --- 2. EXECUÇÃO EM TRANSAÇÃO (SQLite) ---
+            // Usamos transaction para garantir integridade: ou apaga tudo, ou nada.
+            const performReset = db.transaction((userId, gId) => {
+                const userDeleted = db.prepare('DELETE FROM users WHERE user_id = ? AND guild_id = ?').run(userId, gId);
+                db.prepare('DELETE FROM punishments WHERE user_id = ? AND guild_id = ?').run(userId, gId);
+                return userDeleted.changes;
+            });
 
-            // 2. Executa o Reset no Banco de Dados
-            // Deletamos o registro do usuário na tabela 'users' para aquele servidor.
-            // Quando ele usar /perfil novamente, o bot o verá como um "visitante" (100 rep).
-            const result = db.prepare('DELETE FROM users WHERE user_id = ? AND guild_id = ?').run(target.id, guildId);
+            const resultChanges = performReset(target.id, guildId);
 
-            if (result.changes === 0) {
-                return interaction.editReply(`⚠️ O usuário **${target.username}** já possui uma ficha limpa (sem registros no banco).`);
+            if (resultChanges === 0) {
+                return interaction.editReply(`${EMOJIS.AVISO} O usuário **${target.displayName}** não possui registros ativos no banco de dados.`);
             }
 
-            // 3. Envio de Log para a Staff
+            // --- 3. ENVIO DE LOG PARA A STAFF ---
             if (logChannelSetting) {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setTitle("🧹 Reputação Resetada")
-                        .setColor(0xff2e6c)
+                        .setDescription(`# ${EMOJIS.CLEAN} Reset de Reputação`)
+                        .setColor(0x3498db) 
                         .addFields(
-                            { name: "👤 Usuário Resetado", value: `${target} (\`${target.id}\`)`, inline: true },
-                            { name: "👮 Responsável", value: `${interaction.user}`, inline: true },
-                            { name: "📝 Motivo do Reset", value: `\`\`\`${reason}\`\`\`` }
+                            { name: `${EMOJIS.USUARIO} Usuário Resetado`, value: `${target} (\`${target.id}\`)`, inline: true },
+                            { name: `${EMOJIS.STAFF} Responsável`, value: `${interaction.user}`, inline: true },
+                            { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: false },
+                            { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: false },
+                            { name: `${EMOJIS.NOTE} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
                         )
+                        .setFooter({ 
+                            text: `✧ BOT by: KnustVI`, 
+                            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                        })
                         .setTimestamp();
 
-                    logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                    await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                 }
             }
 
             await interaction.editReply({ 
-                content: `✅ A reputação e estatísticas de **${target.username}** foram resetadas com sucesso neste servidor.` 
+                content: `${EMOJIS.CHECK} O histórico e a reputação de **${target.displayName}** foram completamente apagados com sucesso.` 
             });
 
         } catch (error) {
-            console.error(error);
-            await interaction.editReply("❌ Erro ao tentar resetar a reputação no banco de dados.");
+            console.error("Erro no comando resetrep:", error);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro técnico ao tentar resetar os dados no SQLite.`);
         }
     }
 };

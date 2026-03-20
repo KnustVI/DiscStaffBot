@@ -4,6 +4,7 @@ const fs = require('fs');
 const db = require('./database/database'); 
 const autoModeration = require('./systems/autoModeration');
 
+
 const client = new Client({ 
     intents: [
         GatewayIntentBits.Guilds, 
@@ -57,6 +58,12 @@ client.once('ready', () => {
             console.error("❌ Erro na recuperação passiva:", err);
         }
     }, 24 * 60 * 60 * 1000); 
+});
+
+// Agendamento: Roda às 00:00 dos dias 1 e 15 de cada mês
+cron.schedule('0 0 1,15 * *', () => {
+    console.log('Iniciando backup quinzenal para o Google Sheets...');
+    exportToSheets();
 });
 
 // --- INTERACTION CREATE ---
