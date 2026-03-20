@@ -61,13 +61,15 @@ module.exports = {
 
             // --- 5. EMBED DE LOG PADRONIZADA ---
             const finalEmbed = new EmbedBuilder()
-                .setDescription(`# ${EMOJIS.UP} Punição Revogada | ID #${punishmentId}`)
+                .setDescription(`# ${EMOJIS.UP} Punição Revogada | ID #${punishmentId}\n`+
+                    `-Punições revogadas devolvem a reputação perdida.\n`
+                )
                 .setColor(0x00FF00)
                 .addFields(
                     { name: `${EMOJIS.USUARIO} Usuário Beneficiado`, value: `<@${punishment.user_id}> (\`${punishment.user_id}\`)`, inline: true },
                     { name: `${EMOJIS.STAFF} Revogado por`, value: `${interaction.user}`, inline: true },
-                    { name: `${EMOJIS.TICKET} Ticket Originário`, value: `\`#${originalTicket}\``, inline: true }, // Puxado do banco
                     { name: `${EMOJIS.STATUS} Reputação Atual`, value: `\`${userData.reputation} pts (+${repToRestore})\``, inline: true },
+                    { name: `${EMOJIS.TICKET} Ticket Originário`, value: `\`\`\`#${originalTicket}\`\`\``, inline: true }, // Puxado do banco
                     { name: `${EMOJIS.NOTE} Motivo da Revogação`, value: `\`\`\`${revogReason}\`\`\`` }
                 )
                 .setFooter({ 

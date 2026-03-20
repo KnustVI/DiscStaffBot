@@ -40,12 +40,12 @@ module.exports = {
                 const logChannel = interaction.guild.channels.cache.get(logChannelSetting.value);
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
-                        .setDescription(`# ${EMOJIS.CLEAN} Ficha Limpa: Reset de Reputação`)
+                        .setDescription(`# ${EMOJIS.CLEAN} Reset de Reputação`)
                         .setColor(0x3498db) // Azul claro para diferenciar de punição/revogação
                         .addFields(
                             { name: `${EMOJIS.USUARIO} Usuário Resetado`, value: `${target} (\`${target.id}\`)`, inline: true },
                             { name: `${EMOJIS.STAFF} Responsável`, value: `${interaction.user}`, inline: true },
-                            { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: true },
+                            { name: `${EMOJIS.STATUS} Status Anterior`, value: `\`Ficha Deletada\``, inline: false },
                             { name: `${EMOJIS.NOTE} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
                         )
                         .setFooter({ 

@@ -97,12 +97,12 @@ module.exports = {
                 .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
                 .setColor(0xFF0000)
                 .addFields(
-                    { name: `${EMOJIS.USUARIO} Usuário`, value: `${user}\n\`${member.displayName}\``, inline: true },
-                    { name: `${EMOJIS.STAFF} Moderador`, value: `${interaction.user}`, inline: true },
-                    { name: `${EMOJIS.TICKET} Ticket`, value: `\`#${ticketId}\``, inline: true },
+                    { name: `${EMOJIS.USUARIO} Usuário`, value: `<@${punishment.user_id}> (\`${punishment.user_id}\`)`, inline: true },
+                    { name: `${EMOJIS.STAFF} STAFF`, value: `${interaction.user}`, inline: true },
                     { name: `${EMOJIS.ACTION} Ação Aplicada`, value: `\`${executionDetail}\``, inline: true },
                     { name: `${EMOJIS.DOWN} Reputação`, value: `\`${userData.reputation} pts (-${repLoss})\``, inline: true },
-                    { name: `${EMOJIS.NOTA} Motivo Detalhado`, value: `\`\`\`${reason}\`\`\`` }
+                    { name: `${EMOJIS.TICKET} Ticket`, value: `\`\`\`#${ticketId}\`\`\``, inline: true },
+                    { name: `${EMOJIS.NOTE} Motivo Detalhado`, value: `\`\`\`${reason}\`\`\`` }
                 )
                 .setFooter({ 
                     text: interaction.guild.name, 

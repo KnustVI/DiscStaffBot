@@ -80,7 +80,7 @@ module.exports = {
 
                 description += `${statusEmoji} **ID #${p.id}**\n` +
                                `${EMOJIS.REPUTATION}  **Gravidade:** ${severityDisplay}\n` +
-                               `${EMOJIS.STAFF}  **Moderador:** <@${p.moderator_id}>\n` +
+                               `${EMOJIS.STAFF}  **Staff:** <@${p.moderator_id}>\n` +
                                `${EMOJIS.TICKET} **Ticket:** \`#${ticketDisplay}\`\n` +
                                `${EMOJIS.NOTE} **Motivo:** ${p.reason}\n` +
                                `${EMOJIS.HISTORY} **Data:** <t:${unixTimestamp}:f>\n` +
@@ -90,15 +90,13 @@ module.exports = {
             // --- 4. CONSTRUÇÃO DO EMBED ---
             const embed = new EmbedBuilder()
                 .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
-                .setDescription(`# ${EMOJIS.HISTORY} Histórico: ${displayName}\n\n` + 
+                .setDescription(`# ${EMOJIS.HISTORY} Histórico\n`
+                    `## ${EMOJIS.USUARIO} ${displayName} | Reputação: **${reputation}**/100\n` + 
                     `${description}\n` +
-                    `${EMOJIS.SERVER} Servidor: ${interaction.guild.name}`
+                    `## ${EMOJIS.STATS} Resumo da Ficha\n`+
+                    `Total de registros: **${total}**\n`
+                    `Exibindo página **${page}** de **${totalPages}**`,
                 )
-                .addFields({
-                    name: `${EMOJIS.STATS} Resumo da Ficha`,
-                    value: `Total de registros: **${total}**\nExibindo página **${page}** de **${totalPages}**`,
-                    inline: true
-                })
                 .setColor(0xFF3C72)
                 .setFooter({ 
                     text: interaction.guild.name, 

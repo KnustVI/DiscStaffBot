@@ -117,7 +117,7 @@ module.exports = {
                 recoveryStatus = `${EMOJIS.UP} +1 pt em ~${hoursLeft}h`;
                 
                 if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
-                    recoveryStatus = `${EMOJIS.PAUSE} Pausada (Punido recentemente)`;
+                    recoveryStatus = `${EMOJIS.PAUSE} Pausada`;
                 }
             }
 
@@ -137,13 +137,13 @@ module.exports = {
                 )
                 .addFields(
                     { name: `${EMOJIS.REPUTATION} Reputação`, value: `**${reputation}**/100`, inline: true },
-                    { name: `${EMOJIS.DOWN} Punições`, value: `\`${penalties}\``, inline: true },
-                    { name: `${EMOJIS.DATE} Limpo há`, value: `\`${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}\``, inline: true },
+                    { name: `${EMOJIS.DOWN} Punições`, value: `**${penalties}**`, inline: true },
+                    { name: `${EMOJIS.DATE} Limpo há`, value: `**${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}**`, inline: true },
                     { name: `${EMOJIS.RANK} Rank Local`, value: `**#${localPos}** de ${localRanking.length}`, inline: true },
                     { name: `${EMOJIS.STATUS} Status`, value: getStatus(reputation), inline: true },
-                    { name: `${EMOJIS.UP} Recuperação`, value: `\`${recoveryStatus}\``, inline: true },
+                    { name: `${EMOJIS.UP} Recuperação`, value: recoveryStatus, inline: true }, // SEM CRASE NO VALUE
                     { 
-                        name: `${EMOJIS.ESCALAR} Barra de Integridade`, 
+                        name: `${EMOJIS.REPUTATION || EMOJIS.STATUS} Barra de Integridade`, // Fallback para não dar undefined
                         value: '\u200B', 
                         inline: false 
                     }

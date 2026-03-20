@@ -51,13 +51,16 @@ module.exports = {
                 // Se for nível 0, indica que foi revogada
                 const status = a.severity === 0 ? `${EMOJIS.UP} [REVOGADA]` : `${EMOJIS.STATUS} Nível ${a.severity}`;
                 
-                return `**ID: #${a.id}** | ${EMOJIS.PAINEL} \`${date}\`\n**Status:** ${status}\n**Alvo:** <@${a.user_id}>\n**Motivo:** \`${a.reason.substring(0, 100)}${a.reason.length > 100 ? '...' : ''}\`\n`;
+                return `**ID: #${a.id}** | ${EMOJIS.DATE} \`${date}\`\n
+                **Status:** ${status}\n
+                **Alvo:** <@${a.user_id}>\n
+                **Motivo:** \`${a.reason.substring(0, 100)}${a.reason.length > 100 ? '...' : ''}\`\n`
+                `──────────────────`;
             }).join('\n');
 
             embed.setDescription(
-                `# 👮 Relatório: ${staff.displayName}\n` +
+                `# ${EMOJIS.STAFF} Relatório: ${staff.displayName}\n` +
                 `${content}\n` +
-                `---\n` +
                 `*Página ${page + 1} de ${Math.max(1, maxPages)} • Total: ${total} ações*`
             );
             return { embed, maxPages };
