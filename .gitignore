@@ -1,4 +1,5 @@
 credentials.json
 node_modules/
 .env
-database.js
+database.db
+database.sqlite
