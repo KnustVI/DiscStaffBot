@@ -1,121 +1,70 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
+const PunishmentSystem = require('../../systems/punishmentSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('stafflog')
-        .setDescription('Consulta o histórico de ações aplicadas por um membro da Staff.')
-        .addUserOption(opt => opt.setName('staff').setDescription('Selecione o moderador').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setName('resetrep')
+        .setDescription('Reseta completamente a reputação e histórico de um usuário.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addUserOption(opt => opt.setName('usuario').setDescription('Usuário que terá a ficha limpa').setRequired(true))
+        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo do reset').setRequired(true)),
 
     async execute(interaction) {
-        const staff = interaction.options.getUser('staff');
-        const guildId = interaction.guild.id;
-        const itemsPerPage = 5;
-        let currentPage = 0;
+        const { guild, options, user: staff } = interaction;
+        const target = options.getUser('usuario');
+        const reason = options.getString('motivo');
 
-        // 1. BUSCA INICIAL DE DADOS
-        const countResult = db.prepare('SELECT COUNT(*) as count FROM punishments WHERE moderator_id = ? AND guild_id = ?').get(staff.id, guildId);
-        const total = countResult ? countResult.count : 0;
-        const maxPages = Math.ceil(total / itemsPerPage);
+        await interaction.deferReply({ ephemeral: true });
 
-        // 2. FUNÇÃO GERADORA DE EMBED
-        const generateLogEmbed = (page) => {
-            const offset = page * itemsPerPage;
-            const actions = db.prepare(`
-                SELECT * FROM punishments 
-                WHERE moderator_id = ? AND guild_id = ? 
-                ORDER BY created_at DESC 
-                LIMIT ? OFFSET ?
-            `).all(staff.id, guildId, itemsPerPage, offset);
+        try {
+            const hasData = await PunishmentSystem.resetUserFicha(guild.id, target.id);
 
-            const embed = new EmbedBuilder()
-                .setThumbnail(staff.displayAvatarURL({ forceStatic: false }))
-                .setColor(0xFF3C72)
-                .setFooter({ 
-                    text: `✧ BOT by: KnustVI`, 
-                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                })
-                .setTimestamp();
-            
-            if (!actions || actions.length === 0) {
-                embed.setDescription(`> ${EMOJIS.STAFF} **${staff.username}** ainda não aplicou nenhuma punição registrada.`);
-                return embed;
+            if (!hasData) {
+                return interaction.editReply(`${EMOJIS.AVISO} O usuário **${target.username}** não possui registros ativos.`);
             }
 
-            const content = actions.map(a => {
-                const unixTimestamp = Math.floor(a.created_at / 1000);
-                const status = a.severity === 0 ? `${EMOJIS.UP} [REVOGADA]` : `${EMOJIS.STATUS} Nível ${a.severity}`;
-                
-                return `**ID: #${a.id}** | <t:${unixTimestamp}:d>\n` +
-                       `**Status:** ${status} | **Alvo:** <@${a.user_id}>\n` +
-                       `**Motivo:** \`${a.reason.substring(0, 80)}${a.reason.length > 80 ? '...' : ''}\`\n` +
-                       `──────────────────`;
-            }).join('\n');
+            // --- BUSCA DE CANAIS (LOGS E STAFFLOG/ALERTAS) ---
+            const settings = db.prepare(`SELECT key, value FROM settings WHERE guild_id = ? AND key IN ('logs_channel', 'alert_channel')`).all(guild.id);
+            const cfg = Object.fromEntries(settings.map(s => [s.key, s.value]));
 
-            embed.setDescription(
-                `# ${EMOJIS.STAFF} Relatório: ${staff.username}\n` +
-                `${content}\n\n` +
-                `*Página ${page + 1} de ${Math.max(1, maxPages)} • Total: ${total} ações*`
-            );
-            return embed;
-        };
+            const logEmbed = new EmbedBuilder()
+                .setTitle(`${EMOJIS.CLEAN} Reset de Ficha Técnica`)
+                .setColor(0x3498db)
+                .setThumbnail(target.displayAvatarURL())
+                .addFields(
+                    { name: `${EMOJIS.USUARIO} Usuário`, value: `${target} (\`${target.id}\`)`, inline: true },
+                    { name: `${EMOJIS.STAFF} Responsável`, value: `${staff}`, inline: true },
+                    { name: `${EMOJIS.NOTE} Motivo do Reset`, value: `\`\`\`${reason}\`\`\`` }
+                )
+                .setFooter({ text: `✧ BOT by: KnustVI`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
+                .setTimestamp();
 
-        // 3. FUNÇÃO DOS BOTÕES
-        const getButtons = (page) => {
-            if (maxPages <= 1) return null;
-            return new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('prev_staff')
-                    .setLabel(`Anterior`)
-                    .setEmoji(EMOJIS.LEFT)
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page === 0),
-                new ButtonBuilder()
-                    .setCustomId('next_staff')
-                    .setLabel(`Próxima`)
-                    .setEmoji(EMOJIS.RIGHT)
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page >= maxPages - 1)
-            );
-        };
+            // 1. Enviar para Logs Gerais (Auditoria Pública/Padrão)
+            if (cfg.logs_channel) {
+                const channel = guild.channels.cache.get(cfg.logs_channel);
+                if (channel) await channel.send({ embeds: [logEmbed] }).catch(() => null);
+            }
 
-        // 4. RESPOSTA E COLETOR
-        try {
-            const response = await interaction.reply({
-                embeds: [generateLogEmbed(currentPage)],
-                components: getButtons(currentPage) ? [getButtons(currentPage)] : [],
-                ephemeral: true 
-            });
+            // 2. Enviar para Staff Log (Alertas Críticos)
+            if (cfg.alert_channel && cfg.alert_channel !== cfg.logs_channel) {
+                const staffLog = guild.channels.cache.get(cfg.alert_channel);
+                if (staffLog) {
+                    // Mudamos a cor para amarelo para destacar que é um alerta de ação da Staff
+                    const alertEmbed = EmbedBuilder.from(logEmbed)
+                        .setTitle(`${EMOJIS.ALERT} ALERTA DE STAFF: Ficha Resetada`)
+                        .setColor(0xFFAA00); 
+                    
+                    await staffLog.send({ embeds: [alertEmbed] }).catch(() => null);
+                }
+            }
 
-            const collector = response.createMessageComponentCollector({ 
-                filter: i => i.user.id === interaction.user.id,
-                time: 300000 
-            });
-
-            collector.on('collect', async i => {
-                if (i.customId === 'prev_staff') currentPage--;
-                if (i.customId === 'next_staff') currentPage++;
-
-                await i.update({ 
-                    embeds: [generateLogEmbed(currentPage)], 
-                    components: [getButtons(currentPage)] 
-                }).catch(() => null);
-            });
-
-            collector.on('end', () => {
-                interaction.editReply({ components: [] }).catch(() => null);
-            });
+            await interaction.editReply(`${EMOJIS.CHECK} Ficha de **${target.username}** foi completamente resetada.`);
 
         } catch (error) {
-            console.error("Erro ao executar stafflog:", error);
-            const errorMsg = { content: `${EMOJIS.ERRO} Erro ao carregar o log.`, ephemeral: true };
-            if (interaction.replied || interaction.deferred) {
-                await interaction.editReply(errorMsg).catch(() => null);
-            } else {
-                await interaction.reply(errorMsg).catch(() => null);
-            }
+            console.error("Erro no resetrep:", error);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro ao processar o reset no banco de dados.`);
         }
     }
 };

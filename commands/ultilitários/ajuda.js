@@ -1,7 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis'); 
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { EMOJIS } = require('../../database/emojis'); 
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,41 +10,47 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor(0xFF3C72)
             .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setImage('https://i.ibb.co/wFj3SL9v/Chat-GPT-Image-18-de-mar-de-2026-23-24-35.png') // Imagem de introdução
+            .setImage('https://i.ibb.co/wFj3SL9v/Chat-GPT-Image-18-de-mar-de-2026-23-24-35.png')
+            .setAuthor({ 
+                name: 'Central de Ajuda DiscStaff', 
+                iconURL: interaction.client.user.displayAvatarURL() 
+            })
             .setDescription(
                 `# ${EMOJIS.ROBIN} Assistente Robin\n` +
-                `Olá **${interaction.member.displayName}**! Sou o sistema de Gestão de Staff.\n` +
+                `Olá **${interaction.member.displayName}**! Sou o braço direito da sua Staff. Abaixo estão as instruções para gerenciar este servidor.\n\n` +
+                
                 `### ${EMOJIS.CONFIG} 1. Configuração Inicial\n` +
-                `- \`/config canais-e-cargos\`: Define cargos e canais.\n` +
-                `- \`/config metricas\`: Ajusta valores de reputação.\n` +
-                `- \`/config show\`: Mostra as configurações atuais.\n` +
-                `### ${EMOJIS.ACTION} 2. Moderação\n` +
-                `- \`/punir\`: Aplica sanções.\n` +
-                `- \`/revogar\`: Anula punições.\n` +
-                `- \`/resetrep\`: Limpa a ficha de punições de um usuário.\n` +
-                `- \`/historico\`: Ver histórico detalhado de punições de um usuário.\n` +
-                `- \`/stafflog\`: Consulta o histórico de ações aplicadas por um membro da Staff.\n` +
-                `### ${EMOJIS.CONSULT} 3. Consultas\n` +
-                `- \`/conferir\`: Explica o sistema para qualquer usuário do servidor.\n` +
-                `- \`/reputacao\`: Status de um usuário.`
+                `*Estes comandos preparam o terreno para o bot funcionar:* \n` +
+                `- \`/config canais-e-cargos\`: Define onde os logs vão e quem é Staff.\n` +
+                `- \`/config metricas\`: Ajusta o rigor da reputação.\n` +
+                `- \`/config show\`: Revisa o que foi configurado.\n\n` +
+                
+                `### ${EMOJIS.ACTION} 2. Moderação & Gestão\n` +
+                `*Para manter a ordem e gerenciar comportamentos:* \n` +
+                `- \`/punir\`: Aplica sanções (perda de rep/timeout).\n` +
+                `- \`/revogar\`: Cancela uma punição indevida.\n` +
+                `- \`/resetrep\`: Limpa a ficha de um usuário.\n` +
+                `- \`/historico\`: Histórico completo de um membro.\n` +
+                `- \`/stafflog\`: Audita as ações feitas por um Staff.\n\n` +
+                
+                `### ${EMOJIS.CONSULT} 3. Consultas & Status\n` +
+                `*Disponível para usuários e administradores:* \n` +
+                `- \`/conferir\`: Explica como a reputação funciona.\n` +
+                `- \`/reputacao\`: Mostra o perfil e a barra de integridade.\n\n` +
+                `---`
             )
+            .addFields({ 
+                name: `📡 Status do Sistema`, 
+                value: `🟢 Online e Monitorando \`${interaction.guild.name}\``, 
+                inline: false 
+            })
             .setFooter({ 
-                        text: `✧ BOT by: KnustVI | ${interaction.guild.name}`, 
-                        iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                    })
+                text: `✧ BOT by: KnustVI | v2.0`, 
+                iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+            })
             .setTimestamp();
 
         try {
-            // Removido o campo 'components', agora apenas a Embed será enviada
-            await interaction.reply({ 
-                embeds: [embed], 
-                ephemeral: true 
-            });
-        } catch (error) {
-            console.error("Erro ao enviar comando de ajuda:", error);
-        }
-        try {
-            // Removido o campo 'components', agora apenas a Embed será enviada
             await interaction.reply({ 
                 embeds: [embed], 
                 ephemeral: true 

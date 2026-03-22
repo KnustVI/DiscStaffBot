@@ -3,7 +3,7 @@ const db = require('../../database/database');
 const { createCanvas } = require('canvas');
 const { EMOJIS } = require('../../database/emojis');
 
-// --- Funções Utilitárias (Mantidas) ---
+// --- Funções Utilitárias de Design (Mantidas) ---
 function createProgressBarImage(value, max) {
     const width = 400;
     const height = 40;
@@ -60,10 +60,10 @@ function getStatus(rep) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reputação')
-        .setDescription('Exibe a reputação e estatísticas.')
+        .setDescription('Exibe a reputação e estatísticas detalhadas.')
         .addUserOption(option =>
             option.setName('usuario')
-                .setDescription('Selecione o usuário para ver o perfil (Apenas Staff)')
+                .setDescription('Selecione o usuário para ver o perfil (Restrito à Staff)')
         ),
 
     async execute(interaction) {
@@ -71,16 +71,14 @@ module.exports = {
         const guildId = interaction.guild.id;
 
         // --- 1. VERIFICAÇÃO DE PRIVACIDADE ---
-        // Se o alvo não for o próprio usuário que digitou o comando
         if (targetUser.id !== interaction.user.id) {
             const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
             const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
             const hasStaffRole = staffRoleSetting ? interaction.member.roles.cache.has(staffRoleSetting.value) : false;
 
-            // Se não for Admin nem tiver o cargo de Staff, bloqueia
             if (!isAdmin && !hasStaffRole) {
                 return interaction.reply({ 
-                    content: `${EMOJIS.AVISO} Você só pode ver a sua própria reputação. A consulta de outros membros é restrita à Staff.`, 
+                    content: `${EMOJIS.AVISO} Você só pode ver a sua própria reputação. A consulta de terceiros é restrita à Staff.`, 
                     ephemeral: true 
                 });
             }
@@ -91,53 +89,36 @@ module.exports = {
 
             const userData = db.prepare('SELECT * FROM users WHERE user_id = ? AND guild_id = ?').get(targetUser.id, guildId);
 
-            // --- CASO: USUÁRIO SEM REGISTRO NO BANCO ---
-            if (!userData) {
-                const visitorEmbed = new EmbedBuilder()
-                    .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-                    .setColor(0x2b2d31) 
-                    .setDescription(`# ${EMOJIS.USUARIO} ${targetUser.displayName}\n` +
-                        `✨ **Este usuário ainda não possui registros.**\n` +
-                        `- A reputação neste servidor começa em **100**.`)
-                    .addFields(
-                        { name: `${EMOJIS.REPUTATION} Reputação`, value: `**100**/100`, inline: true },
-                        { name: `${EMOJIS.STATUS} Status`, value: `${EMOJIS.EXCELLENT} Exemplar`, inline: true }
-                    )
-                    .setFooter({ 
-                        text: `✧ BOT by: KnustVI`, 
-                        iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                    })
-                    .setTimestamp();
-
-                return interaction.editReply({ embeds: [visitorEmbed] });
-            }
-
-            // --- CASO: USUÁRIO COM REGISTRO ---
-            const reputation = userData.reputation ?? 100;
-            const penalties = userData.penalties ?? 0;
-            const lastPenalty = userData.last_penalty;
+            // --- CÁLCULOS DE REPUTAÇÃO ---
+            const reputation = userData?.reputation ?? 100;
+            const penalties = userData?.penalties ?? 0;
+            const lastPenalty = userData?.last_penalty;
 
             const diffMs = lastPenalty ? Date.now() - lastPenalty : null;
             const daysWithoutPenalty = diffMs ? Math.floor(diffMs / (1000 * 60 * 60 * 24)) : "∞";
 
+            // Lógica de Recuperação alinhada ao Automod (03:00h)
             let recoveryStatus = `${EMOJIS.EXCELLENT} Máxima`;
             if (reputation < 100) {
                 const now = new Date();
-                const tomorrow = new Date(now);
-                tomorrow.setDate(now.getDate() + 1);
-                tomorrow.setHours(0, 0, 0, 0);
-                const hoursLeft = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+                const nextRun = new Date();
+                nextRun.setHours(3, 0, 0, 0);
+                if (now.getHours() >= 3) nextRun.setDate(now.getDate() + 1);
+                
+                const timeLeft = nextRun - now;
+                const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
                 
                 recoveryStatus = `${EMOJIS.UP} +1 pt em ~${hoursLeft}h`;
                 
+                // Se foi punido há menos de 24h, a recuperação fica pausada
                 if (diffMs && diffMs < (24 * 60 * 60 * 1000)) {
-                    recoveryStatus = `${EMOJIS.PAUSE} Pausada`;
                     recoveryStatus = `${EMOJIS.PAUSE} Pausada`;
                 }
             }
 
+            // --- RANKING E CANVAS ---
             const localRanking = db.prepare('SELECT user_id FROM users WHERE guild_id = ? ORDER BY reputation DESC').all(guildId);
-            const localPos = localRanking.findIndex(u => u.user_id === targetUser.id) + 1;
+            const localPos = localRanking.findIndex(u => u.user_id === targetUser.id) + 1 || localRanking.length + 1;
 
             const progressBarBuffer = createProgressBarImage(reputation, 100);
             const attachment = new AttachmentBuilder(progressBarBuffer, { name: 'progress.png' });
@@ -148,22 +129,16 @@ module.exports = {
                 .setDescription(
                     `# ${EMOJIS.USUARIO} ${targetUser.displayName}\n` +
                     `Estatísticas de comportamento em **${interaction.guild.name}**.\n` +
-                    `${EMOJIS.SERVER} Estes dados são restritos a este servidor.` 
+                    `${EMOJIS.SERVER} Registros locais protegidos.` 
                 )
                 .addFields(
                     { name: `${EMOJIS.REPUTATION} Reputação`, value: `**${reputation}**/100`, inline: true },
                     { name: `${EMOJIS.DOWN} Punições`, value: `**${penalties}**`, inline: true },
                     { name: `${EMOJIS.DATE} Limpo há`, value: `**${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}**`, inline: true },
-                    { name: `${EMOJIS.DOWN} Punições`, value: `**${penalties}**`, inline: true },
-                    { name: `${EMOJIS.DATE} Limpo há`, value: `**${daysWithoutPenalty === "∞" ? "Sempre" : daysWithoutPenalty + " dias"}**`, inline: true },
-                    { name: `${EMOJIS.RANK} Rank Local`, value: `**#${localPos}** de ${localRanking.length}`, inline: true },
+                    { name: `${EMOJIS.RANK} Rank Local`, value: `**#${localPos}** de ${localRanking.length || 1}`, inline: true },
                     { name: `${EMOJIS.STATUS} Status`, value: getStatus(reputation), inline: true },
                     { name: `${EMOJIS.UP} Recuperação`, value: recoveryStatus, inline: true },
-                    { 
-                        name: `${EMOJIS.REPUTATION} Barra de Integridade`, 
-                        value: '\u200B', 
-                        inline: false 
-                    }
+                    { name: `${EMOJIS.REPUTATION} Barra de Integridade`, value: '\u200B', inline: false }
                 )
                 .setImage('attachment://progress.png')
                 .setFooter({ 
@@ -176,7 +151,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro no comando perfil:", error);
-            await interaction.editReply(`${EMOJIS.ERRO} Erro ao carregar perfil.`);
+            if (interaction.deferred) await interaction.editReply(`${EMOJIS.ERRO} Erro ao carregar perfil.`);
         }
     }
 };

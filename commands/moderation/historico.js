@@ -1,118 +1,70 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
+const PunishmentSystem = require('../../systems/punishmentSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('historico')
-        .setDescription('Ver histórico detalhado de punições de um usuário neste servidor.')
-        // Removida a trava rígida de permissão do Discord para controle interno por cargo
-        .addUserOption(option =>
-            option.setName('usuario')
-                .setDescription('Usuário que deseja verificar')
-                .setRequired(true)
-        )
-        .addIntegerOption(option =>
-            option.setName('pagina')
-                .setDescription('Página do histórico')
-                .setRequired(false)
-                .setMinValue(1)
-        ),
+        .setDescription('Ver histórico detalhado de punições de um usuário.')
+        .addUserOption(opt => opt.setName('usuario').setDescription('Usuário a verificar').setRequired(true))
+        .addIntegerOption(opt => opt.setName('pagina').setDescription('Página do histórico').setMinValue(1)),
 
     async execute(interaction) {
-        const guildId = interaction.guild.id;
+        const { guild, options, member: mod } = interaction;
+        const targetUser = options.getUser('usuario');
+        const page = options.getInteger('pagina') || 1;
 
-        // 1. VERIFICAÇÃO DE PERMISSÃO (STAFF OU ADMIN)
-        const staffRoleSetting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId);
-        const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
-        const hasStaffRole = staffRoleSetting ? interaction.member.roles.cache.has(staffRoleSetting.value) : false;
-
-        if (!isAdmin && !hasStaffRole) {
-            return interaction.reply({ 
-                content: `${EMOJIS.AVISO} Você não tem permissão de **Staff** para acessar o histórico de outros membros.`, 
-                ephemeral: true 
-            });
+        // Validação de Permissão
+        const staffRole = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guild.id);
+        if (!mod.roles.cache.has(staffRole?.value) && !mod.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ content: `${EMOJIS.AVISO} Acesso restrito à Staff.`, ephemeral: true });
         }
 
+        await interaction.deferReply({ ephemeral: true });
+
         try {
-            await interaction.deferReply({ ephemeral: true });
+            const history = await PunishmentSystem.getUserHistory(guild.id, targetUser.id, page);
 
-            const user = interaction.options.getUser('usuario');
-            const page = interaction.options.getInteger('pagina') || 1;
-            const limit = 5; 
-            const offset = (page - 1) * limit;
-
-            // BUSCA DADOS DO USUÁRIO
-            const userData = db.prepare(`SELECT reputation FROM users WHERE user_id = ? AND guild_id = ?`).get(user.id, guildId);
-            const userRep = userData ? userData.reputation : 100;
-
-            const targetMember = await interaction.guild.members.fetch(user.id).catch(() => null);
-            const displayName = targetMember ? targetMember.displayName : user.username;
-
-            // 2. BUSCA O TOTAL DE REGISTROS
-            const totalData = db.prepare(`SELECT COUNT(*) as total FROM punishments WHERE user_id = ? AND guild_id = ?`).get(user.id, guildId);
-            const total = totalData ? totalData.total : 0;
-
-            if (total === 0) {
-                return interaction.editReply({ content: `${EMOJIS.CHECK} O usuário **${displayName}** não possui registros de punição neste servidor.` });
+            if (history.total === 0) {
+                return interaction.editReply(`${EMOJIS.CHECK} **${targetUser.username}** não possui registros.`);
             }
 
-            const totalPages = Math.ceil(total / limit);
-            if (page > totalPages) {
-                return interaction.editReply({ content: `${EMOJIS.ERRO} Página inválida. O histórico possui apenas **${totalPages}** página(s).` });
+            if (page > history.totalPages) {
+                return interaction.editReply(`${EMOJIS.ERRO} Página inválida. O histórico tem apenas **${history.totalPages}** página(s).`);
             }
 
-            // 3. BUSCA OS DADOS PAGINADOS
-            const punishments = db.prepare(`
-                SELECT * FROM punishments 
-                WHERE user_id = ? AND guild_id = ?
-                ORDER BY created_at DESC 
-                LIMIT ? OFFSET ?
-            `).all(user.id, guildId, limit, offset);
-
-            let historyEntries = ""; 
-
-            for (const p of punishments) {
-                const unixTimestamp = Math.floor(p.created_at / 1000);
-                const ticketDisplay = p.ticket_id || 'N/A';
-                
+            let entries = "";
+            for (const p of history.punishments) {
                 const isRevoked = p.severity === 0;
-                const statusEmoji = isRevoked ? `${EMOJIS.UP}` : `${EMOJIS.DOWN}`;
-                const severityDisplay = isRevoked 
-                    ? `**ANULADA**` 
-                    : `\`Nível ${p.severity}\``;
+                const time = `<t:${Math.floor(p.created_at / 1000)}:f>`;
+                
+                // Futura integração: Se ticketId for um ID de canal/thread, podemos linkar
+                const ticketLink = p.ticket_id && p.ticket_id !== 'N/A' ? `[#${p.ticket_id}](https://discord.com/channels/${guild.id}/${p.ticket_id})` : `\`#${p.ticket_id || 'N/A'}\``;
 
-                historyEntries += `${statusEmoji} **ID #${p.id}** | ${severityDisplay}\n` +
-                                  `${EMOJIS.STAFF} **Staff:** <@${p.moderator_id}>\n` +
-                                  `${EMOJIS.TICKET} **Ticket:** \`#${ticketDisplay}\` | ${EMOJIS.NOTE} **Motivo:** ${p.reason}\n` +
-                                  `${EMOJIS.HISTORY} **Data:** <t:${unixTimestamp}:f>\n` +
-                                  `──────────────────\n`;
+                entries += `${isRevoked ? EMOJIS.UP : EMOJIS.DOWN} **ID #${p.id}** | ${isRevoked ? '~~ANULADA~~' : `\`Nível ${p.severity}\``}\n` +
+                           `└ ${EMOJIS.STAFF} <@${p.moderator_id}> | ${EMOJIS.TICKET} ${ticketLink}\n` +
+                           `└ ${EMOJIS.NOTE} *${p.reason}*\n` +
+                           `└ ${EMOJIS.HISTORY} ${time}\n` +
+                           `──────────────────\n`;
             }
 
-            // 4. CONSTRUÇÃO DO EMBED
             const embed = new EmbedBuilder()
-                .setThumbnail(user.displayAvatarURL({ forceStatic: false }))
+                .setAuthor({ name: `Histórico de ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() })
                 .setColor(0xFF3C72)
                 .setDescription(
-                    `# ${EMOJIS.HISTORY} Histórico de Punições\n` +
-                    `## ${EMOJIS.USUARIO} ${displayName}\n` +
-                    `${EMOJIS.REPUTATION} Reputação Atual: **${userRep}**/100\n\n` + 
-                    `${historyEntries}\n` +
-                    `### ${EMOJIS.STATS} Resumo da Ficha\n` +
-                    `Total de registros: **${total}**\n` +
-                    `Página **${page}** de **${totalPages}**`
+                    `${EMOJIS.REPUTATION} Reputação Atual: **${history.reputation}**/100\n\n` + 
+                    entries +
+                    `\nTotal: **${history.total}** registros | Página **${page}** de **${history.totalPages}**`
                 )
-                .setFooter({ 
-                    text: `✧ BOT by: KnustVI`, 
-                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                })
+                .setFooter({ text: `✧ BOT by: KnustVI`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
                 .setTimestamp();
 
             await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
-            console.error("Erro no comando historico:", error);
-            await interaction.editReply({ content: `${EMOJIS.ERRO} Ocorreu um erro técnico ao consultar o histórico.` });
+            console.error(error);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro ao consultar banco de dados.`);
         }
     }
 };
