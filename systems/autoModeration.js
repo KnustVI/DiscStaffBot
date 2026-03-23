@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const db = require('../../database/database');
 const { EmbedBuilder } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis');
-const ConfigSystem = require('../config/configSystem');
+const ConfigSystem = require('../configSystem');
 
 module.exports = (client) => {
     cron.schedule('0 3 * * *', async () => {
