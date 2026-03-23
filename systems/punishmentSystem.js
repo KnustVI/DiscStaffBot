@@ -1,5 +1,5 @@
 const db = require('../database/database');
-const ConfigSystem = require('.configSystem');
+const ConfigSystem = require('./configSystem');
 
 const PunishmentSystem = {
     async executePunishment(guild, targetMember, moderatorId, severity, reason, ticketId) {
