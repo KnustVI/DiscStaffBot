@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('disc
 const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
 const ErrorLogger = require('../../systems/errorLogger');
+const ConfigSystem = require('../../systems/configSystem'); // <--- CORREÇÃO: Faltava importar
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,55 +16,55 @@ module.exports = {
         await interaction.deferReply({ ephemeral: true });
 
         const target = interaction.options.getUser('usuario');
-        const guildId = interaction.guild.id;
+        const { guild, guildId } = interaction;
 
         try {
-            // 2. Consulta de Reputação
-            const repData = db.prepare(`SELECT points FROM reputation WHERE user_id = ? AND guild_id = ?`).get(target.id, guildId);
+            // 2. Consulta de Dados (Otimizada: Buscamos apenas o necessário)
+            const repData = db.prepare(`SELECT points FROM reputation WHERE user_id = ? AND guild_id = ?`).get(target.id, guild.id);
             
-            // 3. Consulta de Histórico (Limite de 3 para o Dossiê)
             const lastPunishments = db.prepare(`
                 SELECT id, reason, created_at FROM punishments 
                 WHERE user_id = ? AND guild_id = ? 
                 ORDER BY created_at DESC LIMIT 3
-            `).all(target.id, guildId);
+            `).all(target.id, guild.id);
 
-            // 4. Montagem da Descrição
+            // 3. Montagem da Descrição (Seguindo o seu padrão visual)
             const description = [
-                `# ${EMOJIS.USUARIO} Dossiê: ${target.username}`,
-                `Consultando registros para o servidor **${interaction.guild.name}**.`,
-                '',
-                `### 📊 Status de Integridade`,
+                `# ${EMOJIS.USUARIO || '👤'} Dossiê: ${target.username}`,
+                `Consultando registros para o servidor **${guild.name}**.`,
+                `### ${EMOJIS.REPUTATION || '📊'} Status de Integridade`,
                 `- **Reputação Atual:** \`${repData?.points ?? 100}/100 pts\``,
-                `- **ID:** \`${target.id}\``,
+                `- **ID do Usuário:** \`${target.id}\``,
                 '',
             ];
 
             if (lastPunishments.length > 0) {
-                description.push(`### ${EMOJIS.NOTE} Últimos Registros`);
+                description.push(`### ${EMOJIS.TICKET || '📝'} Últimos 3 Registros`);
                 lastPunishments.forEach(p => {
                     const date = p.created_at ? `<t:${Math.floor(p.created_at / 1000)}:d>` : 'N/A';
-                    description.push(`- [${date}] **ID #${p.id}**: \`${p.reason.substring(0, 35)}...\``);
+                    // Limitamos a razão para não quebrar a Embed se for muito longa
+                    const shortReason = p.reason.length > 40 ? p.reason.substring(0, 37) + '...' : p.reason;
+                    description.push(`- [${date}] **ID #${p.id}**: \`${shortReason}\``);
                 });
             } else {
                 description.push(`- *Este usuário não possui registros de punição.*`);
             }
 
             const embed = new EmbedBuilder()
-                .setColor(0x2B2D31)
-                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setColor(0xba0054)
+                .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setDescription(description.join('\n'))
+                .setFooter(ConfigSystem.getFooter(guild.name))
                 .setTimestamp();
 
-            // 5. Respondemos usando editReply
+            // 4. Respondemos usando editReply
             await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            // Isso vai gravar o erro exato no seu arquivo logs_erro_system.log
             ErrorLogger.log('Command_Info_Fatal', err);
             
             await interaction.editReply({ 
-                content: `${EMOJIS.ERRO} Erro técnico ao processar o dossiê. Verifique os logs do sistema.` 
+                content: `${EMOJIS.ERRO || '❌'} Erro técnico ao processar o dossiê. Verifique os logs do sistema.` 
             });
         }
     }

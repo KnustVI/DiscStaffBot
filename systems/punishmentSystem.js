@@ -173,10 +173,10 @@ const PunishmentSystem = {
 
     generateUnstrikeEmbed(data) {
         return new EmbedBuilder()
-            .setColor(0x00FF7F)
+            .setColor(0xba0054)
             .setThumbnail(data.targetUser.displayAvatarURL ? data.targetUser.displayAvatarURL({ dynamic: true }) : null)
             .setDescription([
-                `# ${EMOJIS.UP || '🛡️'} Punição Anulada`,
+                `# ${EMOJIS.UP || '🛡️'} STRIKE Anulado`,
                 `Um registro de infração foi removido do sistema por um moderador.`,
                 `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
                 `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
@@ -199,15 +199,15 @@ const PunishmentSystem = {
             : `\`Permanente\``;
 
         const actionDesc = [
-            data.actions.discord !== 'none' ? `🔹 **Discord:** \`${discordLabels[data.actions.discord] || data.actions.discord}\`` : null,
-            data.actions.jogo !== 'none' ? `🦖 **Jogo:** \`${jogoLabels[data.actions.jogo] || data.actions.jogo}\`` : null
+            data.actions.discord !== 'none' ? `🔹 Discord: \`${discordLabels[data.actions.discord] || data.actions.discord}\`` : null,
+            data.actions.jogo !== 'none' ? `🦖 Jogo: \`${jogoLabels[data.actions.jogo] || data.actions.jogo}\`` : null
         ].filter(Boolean).join('\n') || '`Apenas Registro`';
 
         return new EmbedBuilder()
             .setColor(0xba0054)
             .setThumbnail(data.targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
             .setDescription([
-                `# ${EMOJIS.DOWN || '⚖️'} Strike!`,
+                `# ${EMOJIS.DOWN || '⚖️'} STRIKE!`,
                 `Um novo registro de infração foi adicionado ao sistema.`,
                 `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
                 `- **Duração:** ${timeDisplay}`,
@@ -218,7 +218,8 @@ const PunishmentSystem = {
                 `- **Gravidade:** \`Nível ${data.severity}\``,
                 `- **Punição:** \`${actionDesc}\``,
                 `- **Ticket:** \`${data.ticketId}\``,
-                `- **Motivo:** \`${data.reason}\``,
+                `- ### ${EMOJIS.NOTE || '📝'} **Motivo:** 
+                \`${data.reason}\``,
                 '',
                 `> O histórico completo pode ser visto com \`/historico\`.`
             ].join('\n'))
@@ -245,7 +246,7 @@ const PunishmentSystem = {
             .setAuthor({ name: `Histórico: ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() })
             .setColor(0xba0054)
             .setDescription([
-                `# ${EMOJIS.REPUTATION || '📊'} Ficha de Cadastro`,
+                `# ${EMOJIS.REPUTATION || '📊'} HISTÓRICO`,
                 `- **Reputação:** \`${history.reputation}/100 pts\``,
                 `- **Total de Registros:** \`${history.total}\``,
                 `### ${EMOJIS.TICKET || '📝'} Registros Recentes (Página ${page}/${history.totalPages})`,
