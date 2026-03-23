@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis'); 
+const ErrorLogger = require('../../systems/errorLogger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -7,41 +8,37 @@ module.exports = {
         .setDescription('Guia de introdução e lista de comandos do DiscStaffBot.'),
 
     async execute(interaction) {
+        const { client, member, guild } = interaction;
+
+        const description = [
+            `# ${EMOJIS.ROBIN || '🤖'} Assistente Robin`,
+            `Olá **${member.displayName}**! Sou o braço direito da sua Staff. Fui projetado para gerenciar a ordem e a integridade do **${guild.name}** através de um sistema inteligente de reputação e mais.`,
+            '',
+            `### ${EMOJIS.CONFIG} 1. Configuração Inicial`,
+            `- \`/config\`: Abre o painel interativo para definir cargos de Staff e canais de Log/Alertas.`,
+            '',
+            `### ${EMOJIS.ACTION} 2. Moderação & Gestão`,
+            `- \`/punir\`: Aplica sanções que removem reputação e aplicam timeout automático.`,
+            `- \`/rep-set\`: Ajuste manual de pontos (exclusivo para cargos de confiança).`,
+            `- \`/historico\`: Consulta a ficha completa de um membro de forma paginada e leve.`,
+            `- \`/info\`: Consulta o status de um usuário e sua reputação atual.`,
+            '',
+            `### ${EMOJIS.REPUTATION} 3. Como funciona a Reputação?`,
+            `- **Base:** Todos iniciam com \`100\` pontos.`,
+            `- **Manutenção Diária:** Às 03:00 AM, usuários ativos recuperam \`+1\` ponto.`,
+            `- **Cargos Automáticos:** Membros com \`95+\` pontos ganham o cargo **Exemplar**, enquanto membros abaixo de \`30\` recebem o cargo **Problemático**.`,
+            '',
+            `---`,
+            `> Utilize os comandos acima para manter o servidor seguro e organizado.`
+        ].join('\n');
+
         const embed = new EmbedBuilder()
             .setColor(0xFF3C72)
-            .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setImage('https://i.ibb.co/wFj3SL9v/Chat-GPT-Image-18-de-mar-de-2026-23-24-35.png')
-            .setAuthor({ 
-                name: 'Central de Ajuda DiscStaff', 
-                iconURL: interaction.client.user.displayAvatarURL() 
-            })
-            .setDescription(
-                `# ${EMOJIS.ROBIN} Assistente Robin\n` +
-                `Olá **${interaction.member.displayName}**! Sou o braço direito da sua Staff. Abaixo estão as instruções para gerenciar este servidor.\n\n` +
-                
-                `### ${EMOJIS.CONFIG} 1. Configuração Inicial\n` +
-                `*Estes comandos preparam o terreno para o bot funcionar:* \n` +
-                `- \`/config canais-e-cargos\`: Define onde os logs vão e quem é Staff.\n` +
-                `- \`/config metricas\`: Ajusta o rigor da reputação.\n` +
-                `- \`/config show\`: Revisa o que foi configurado.\n\n` +
-                
-                `### ${EMOJIS.ACTION} 2. Moderação & Gestão\n` +
-                `*Para manter a ordem e gerenciar comportamentos:* \n` +
-                `- \`/punir\`: Aplica sanções (perda de rep/timeout).\n` +
-                `- \`/revogar\`: Cancela uma punição indevida.\n` +
-                `- \`/resetrep\`: Limpa a ficha de um usuário.\n` +
-                `- \`/historico\`: Histórico completo de um membro.\n` +
-                `- \`/stafflog\`: Audita as ações feitas por um Staff.\n\n` +
-                
-                `### ${EMOJIS.CONSULT} 3. Consultas & Status\n` +
-                `*Disponível para usuários e administradores:* \n` +
-                `- \`/conferir\`: Explica como a reputação funciona.\n` +
-                `- \`/reputacao\`: Mostra o perfil e a barra de integridade.\n\n` +
-                `---`
-            )
+            .setThumbnail(client.user.displayAvatarURL())
+            .setDescription(description)
             .addFields({ 
                 name: `📡 Status do Sistema`, 
-                value: `🟢 Online e Monitorando \`${interaction.guild.name}\``, 
+                value: `🟢 Online e Monitorando via Oracle Cloud`, 
                 inline: false 
             })
             .setFooter({ 
@@ -56,6 +53,8 @@ module.exports = {
                 ephemeral: true 
             });
         } catch (error) {
+            ErrorLogger.log('Command_Ajuda', error);
+            // Se falhar o ephemeral reply, tentamos avisar no console
             console.error("Erro ao enviar comando de ajuda:", error);
         }
     }

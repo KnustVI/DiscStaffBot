@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const ConfigSystem = require('./configSystem');
 const { EMOJIS } = require('../database/emojis');
+const ErrorLogger = require('./errorLogger');
 
 const ConfigHandler = {
     async handle(interaction, args) {
@@ -34,8 +35,7 @@ const ConfigHandler = {
             await interaction.update({ embeds: [updatedEmbed] });
 
         } catch (err) {
-            console.error(`[ConfigHandler Error]`, err.message);
-            const errorMsg = { content: `❌ Erro ao salvar: ${err.message}`, ephemeral: true };
+            ErrorLogger.log('ConfigHandler', err);
             
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp(errorMsg);

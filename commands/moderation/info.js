@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
+const ErrorLogger = require('../../systems/errorLogger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,34 +14,60 @@ module.exports = {
         const target = interaction.options.getUser('usuario');
         const guildId = interaction.guild.id;
 
-        // Consultas de dados do usuário (Isso continua no DB pois muda sempre)
-        const userData = db.prepare(`SELECT * FROM users WHERE user_id = ? AND guild_id = ?`).get(target.id, guildId);
-        const lastPunishments = db.prepare(`
-            SELECT * FROM punishments 
-            WHERE user_id = ? AND guild_id = ? 
-            ORDER BY created_at DESC LIMIT 3
-        `).all(target.id, guildId);
+        try {
+            // 1. Consulta de Reputação (Tabela: reputation)
+            const repData = db.prepare(`SELECT * FROM reputation WHERE user_id = ? AND guild_id = ?`).get(target.id, guildId);
+            
+            // 2. Consulta de Histórico (Tabela: punishments)
+            const lastPunishments = db.prepare(`
+                SELECT * FROM punishments 
+                WHERE user_id = ? AND guild_id = ? 
+                ORDER BY created_at DESC LIMIT 3
+            `).all(target.id, guildId);
 
-        if (!userData && lastPunishments.length === 0) {
-            return interaction.reply({ content: `${EMOJIS.AVISO} Este usuário não possui nenhum registro.`, ephemeral: true });
+            if (!repData && lastPunishments.length === 0) {
+                return interaction.reply({ content: `${EMOJIS.ERRO} Este usuário não possui nenhum registro no banco de dados.`, ephemeral: true });
+            }
+
+            // 3. Formatação da Descrição com Headings
+            const description = [
+                `# ${EMOJIS.USUARIO} Dossiê: ${target.username}`,
+                `Consultando registros de integridade para o servidor **${interaction.guild.name}**.`,
+                '',
+                `### 📊 Status de Integridade`,
+                `- **Reputação Atual:** \`${repData?.points ?? 100}/100 pts\``,
+                `- **Total de Ocorrências:** \`${lastPunishments.length}\` (últimas registradas)`,
+                `- **ID do Usuário:** \`${target.id}\``,
+                '',
+            ];
+
+            if (lastPunishments.length > 0) {
+                description.push(`### ${EMOJIS.NOTE} Últimos Registros`);
+                lastPunishments.forEach(p => {
+                    // Formatação de data simples para o Discord
+                    const date = p.created_at ? `<t:${Math.floor(p.created_at / 1000)}:d>` : 'Data N/A';
+                    description.push(`- [${date}] **ID #${p.id}**: \`${p.reason.substring(0, 40)}${p.reason.length > 40 ? '...' : ''}\``);
+                });
+            } else {
+                description.push(`- *Nenhum histórico de punição encontrado.*`);
+            }
+
+            const embed = new EmbedBuilder()
+                .setColor(0x2B2D31) // Cor Dark para parecer terminal técnico
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setDescription(description.join('\n'))
+                .setFooter({ text: `Consulta realizada por ${interaction.user.tag}` })
+                .setTimestamp();
+
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+
+        } catch (err) {
+            // Registro de erro técnico
+            ErrorLogger.log('Command_Info_Execute', err);
+            await interaction.reply({ 
+                content: `${EMOJIS.ERRO} Erro técnico ao processar o dossiê. Verifique os logs do sistema.`, 
+                ephemeral: true 
+            });
         }
-
-        const embed = new EmbedBuilder()
-            .setAuthor({ name: `Dossiê: ${target.username}`, iconURL: target.displayAvatarURL() })
-            .setColor(0x2B2D31)
-            .addFields(
-                { name: `${EMOJIS.REPUTATION} Reputação`, value: `\`${userData?.reputation ?? 100}/100\``, inline: true },
-                { name: `${EMOJIS.STATUS} Punições`, value: `\`${userData?.penalties ?? 0}\``, inline: true },
-                { name: `${EMOJIS.STAFF} Última Atividade`, value: userData?.last_penalty ? `<t:${Math.floor(userData.last_penalty / 1000)}:R>` : '\`Nunca\`', inline: true }
-            );
-
-        if (lastPunishments.length > 0) {
-            const historyText = lastPunishments.map(p => 
-                `${p.severity === 0 ? EMOJIS.UP : EMOJIS.DOWN} **ID #${p.id}**: ${p.reason.substring(0, 30)}...`
-            ).join('\n');
-            embed.addFields({ name: `${EMOJIS.NOTE} Últimos Registros`, value: historyText });
-        }
-
-        await interaction.reply({ embeds: [embed], ephemeral: true });
     }
 };
