@@ -1,47 +1,70 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
-const db = require('../database/database'); // Um ponto a menos (correto)
-const emojis = require('../database/emojis'); // Um ponto a menos (correto)
+const db = require('../database/database');
+const ConfigCache = require('./configCache');
 
-module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('config')
-        .setDescription('Configura os canais e cargos do sistema de punição.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+/**
+ * Sistema de Configuração Centralizado
+ * Responsável pela persistência (SQLite) e performance (Cache)
+ */
+const ConfigSystem = {
+    
+    /**
+     * Busca uma configuração.
+     * @param {string} guildId - ID do servidor.
+     * @param {string} key - Chave da config (ex: 'staff_role', 'logs_channel').
+     * @returns {string|null} - O valor salvo ou null se não existir.
+     */
+    getSetting(guildId, key) {
+        // 1. Tenta buscar na RAM primeiro (Velocidade máxima)
+        let value = ConfigCache.get(guildId, key);
+        
+        // 2. Se não estiver no Cache (undefined), busca no Banco de Dados
+        if (value === undefined) { 
+            const row = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, key);
+            
+            // Se existir no banco, pega o valor. Se não, define como null.
+            value = row ? row.value : null;
+            
+            // 3. Alimenta o Cache para que a próxima consulta não precise ir ao disco
+            ConfigCache.set(guildId, key, value);
+        }
+        
+        return value;
+    },
 
-    async execute(interaction) {
-        const guildId = interaction.guild.id;
+    /**
+     * Salva ou Atualiza uma configuração.
+     * @param {string} guildId - ID do servidor.
+     * @param {string} key - Nome da configuração.
+     * @param {string} value - Valor a ser salvo (ID de cargo/canal).
+     */
+    updateSetting(guildId, key, value) {
+        // Executa o UPSERT (Insert or Update) com exatamente 3 parâmetros.
+        // O excluded.value refere-se ao terceiro '?' fornecido.
+        db.prepare(`
+            INSERT INTO settings (guild_id, key, value) 
+            VALUES (?, ?, ?) 
+            ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
+        `).run(guildId, key, value);
+        
+        // Atualiza a RAM imediatamente para o bot refletir a mudança sem reiniciar
+        ConfigCache.set(guildId, key, value);
+        
+        return true;
+    },
 
-        // Busca as configurações atuais
-        const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
-        const logsChannelId = ConfigSystem.getSetting(guildId, 'logs_channel');
-
-        // Formata a visualização (Menção ou Aviso)
-        const staffDisplay = staffRoleId ? `<@&${staffRoleId}>` : '❌ `Não configurado`';
-        const logsDisplay = logsChannelId ? `<#${logsChannelId}>` : '❌ `Não configurado`';
-
-        const embed = new EmbedBuilder()
-            .setTitle(`${EMOJIS.STAFF} Painel de Configuração`)
-            .setDescription('Gerencie as definições do bot para este servidor.')
-            .setColor(staffRoleId && logsChannelId ? 0x00FF00 : 0x5865F2) // Fica verde se tudo estiver OK
-            .addFields(
-                { name: '🛡️ Cargo Staff', value: staffDisplay, inline: true },
-                { name: '📜 Canal de Logs', value: logsDisplay, inline: true }
-            )
-            .setFooter({ text: 'Selecione nos menus abaixo para alterar.' });
-
-        const rowRole = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config_staff_role')
-                .setPlaceholder('Alterar Cargo de Staff')
-        );
-
-        const rowChannel = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config_logs_channel')
-                .addChannelTypes(ChannelType.GuildText)
-                .setPlaceholder('Alterar Canal de Logs')
-        );
-
-        await interaction.reply({ embeds: [embed], components: [rowRole, rowChannel], ephemeral: true });
+    /**
+     * Remove todas as configurações de um servidor.
+     */
+    resetSettings(guildId) {
+        db.prepare(`DELETE FROM settings WHERE guild_id = ?`).run(guildId);
+        
+        // Limpa o Cache da guilda específica
+        if (ConfigCache.deleteGuild) {
+            ConfigCache.deleteGuild(guildId); 
+        }
+        
+        return true;
     }
 };
+
+module.exports = ConfigSystem;
