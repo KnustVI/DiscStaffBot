@@ -68,7 +68,7 @@ cron.schedule('0 0 1,15 * *', () => {
     exportToSheets();
 });
 
-const ConfigCache = require('./systems/config/configCache');
+const ConfigCache = require('./systems/configCache');
 
 // Carrega as configurações na RAM para acesso rápido
 client.once('ready', async () => {

@@ -1,4 +1,4 @@
-const db = require('../../database/database'); // Verifique se são dois ou um (..) dependendo da sua pasta
+const db = require('../database/database'); // Verifique se são dois ou um (..) dependendo da sua pasta
 const ConfigCache = require('./configCache');
 
 const ConfigSystem = {
