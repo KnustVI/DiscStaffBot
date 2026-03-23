@@ -7,34 +7,24 @@ const ConfigHandler = {
         const settingKey = `${args[1]}_${args[2]}`; 
 
         try {
-            // 1. Captura o valor independente do tipo de menu
-            let selectedValue;
-            
-            if (interaction.isRoleSelectMenu()) {
-                selectedValue = interaction.values[0]; // ID do Cargo
-            } else if (interaction.isChannelSelectMenu()) {
-                selectedValue = interaction.values[0]; // ID do Canal
-            } else {
-                selectedValue = interaction.values[0]; // Fallback para StringSelect
-            }
+            // 1. Gera a nova visualização (mesma lógica do comando /config)
+            const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
+            const logsChannelId = ConfigSystem.getSetting(guildId, 'logs_channel');
 
-            if (!selectedValue) {
-                return await interaction.reply({ content: ':x: Nenhum valor selecionado.', ephemeral: true });
-            }
+            const staffDisplay = staffRoleId ? `<@&${staffRoleId}>` : '❌ `Não configurado`';
+            const logsDisplay = logsChannelId ? `<#${logsChannelId}>` : '❌ `Não configurado`';
 
-            // 2. Salva no Banco e RAM
-            ConfigSystem.updateSetting(guildId, settingKey, selectedValue);
+            const newEmbed = new EmbedBuilder()
+                .setTitle(`${EMOJIS.STAFF} Painel de Configuração`)
+                .setDescription('✅ **Configuração atualizada com sucesso!**')
+                .setColor(0x00FF00)
+                .addFields(
+                    { name: '🛡️ Cargo Staff', value: staffDisplay, inline: true },
+                    { name: '📜 Canal de Logs', value: logsDisplay, inline: true }
+                );
 
-            // 3. Feedback visual
-            const traducao = {
-                'staff_role': 'Cargo de Staff',
-                'logs_channel': 'Canal de Logs'
-            };
-
-            return await interaction.reply({ 
-                content: `✅ **Configuração Salva:** \`${traducao[settingKey] || settingKey}\` atualizado com sucesso!`, 
-                ephemeral: true 
-            });
+            // 2. Edita a mensagem original para mostrar o novo valor selecionado
+            return await interaction.update({ embeds: [newEmbed] });
 
         } catch (err) {
             console.error(`[Erro ConfigHandler]`, err);
