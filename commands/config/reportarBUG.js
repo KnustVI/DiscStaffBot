@@ -6,7 +6,7 @@ const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717';
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('reportarBUG')
+        .setName('reportarbug')
         .setDescription('Envia uma sugestão ou reporta um bug diretamente para o desenvolvedor.')
         .addStringOption(opt => 
             opt.setName('tipo')
