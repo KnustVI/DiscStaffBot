@@ -1,11 +1,12 @@
 const Database = require('better-sqlite3');
+// DICA: No Ubuntu, garanta que o caminho aqui seja o mesmo que o código espera
 const db = new Database('database.sqlite');
 
 // Ativa o modo de alto desempenho (Write-Ahead Logging)
 db.pragma('journal_mode = WAL');
 
 // ==========================================
-// 1. CONFIGURAÇÕES (Métricas, Canais, Cargos e Alertas)
+// 1. CONFIGURAÇÕES
 // ==========================================
 db.prepare(`
     CREATE TABLE IF NOT EXISTS settings (
@@ -17,7 +18,7 @@ db.prepare(`
 `).run();
 
 // ==========================================
-// 2. USUÁRIOS (Reputação e Penalidades Locais)
+// 2. USUÁRIOS
 // ==========================================
 db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
@@ -31,7 +32,7 @@ db.prepare(`
 `).run();
 
 // ==========================================
-// 3. PUNIÇÕES (Histórico com Suporte a Revogação)
+// 3. PUNIÇÕES
 // ==========================================
 db.prepare(`
     CREATE TABLE IF NOT EXISTS punishments (
@@ -40,17 +41,27 @@ db.prepare(`
         user_id TEXT NOT NULL,
         moderator_id TEXT NOT NULL,
         reason TEXT DEFAULT 'Motivo não informado',
-        severity INTEGER NOT NULL, -- 0 será usado para Punições Revogadas
+        severity INTEGER NOT NULL,
         ticket_id TEXT DEFAULT 'N/A',
         created_at INTEGER NOT NULL
     )
 `).run();
 
 /** * LÓGICA DE MANUTENÇÃO (MIGRAÇÕES)
- * Garante que o banco se adapte sem precisar deletar o arquivo .sqlite
+ * Isso evita que você precise deletar o banco toda vez que mudar algo
  */
 const punishmentsInfo = db.prepare("PRAGMA table_info(punishments)").all();
 const usersInfo = db.prepare("PRAGMA table_info(users)").all();
+
+// [CORREÇÃO] Verifica se a guild_id existe em punishments
+if (!punishmentsInfo.some(col => col.name === 'guild_id')) {
+    try {
+        db.prepare("ALTER TABLE punishments ADD COLUMN guild_id TEXT NOT NULL DEFAULT '0'").run();
+        console.log("✅ Coluna 'guild_id' injetada em 'punishments'.");
+    } catch (e) {
+        console.log("⚠️ Aviso: Não foi possível adicionar 'guild_id' (talvez já exista).");
+    }
+}
 
 // Verifica ticket_id na tabela punishments
 if (!punishmentsInfo.some(col => col.name === 'ticket_id')) {
@@ -58,26 +69,18 @@ if (!punishmentsInfo.some(col => col.name === 'ticket_id')) {
     console.log("✅ Coluna 'ticket_id' injetada em 'punishments'.");
 }
 
-// Verifica se a coluna reputation existe (prevenção de erros em DBs antigos)
+// Verifica se a coluna reputation existe em users
 if (!usersInfo.some(col => col.name === 'reputation')) {
     db.prepare("ALTER TABLE users ADD COLUMN reputation INTEGER DEFAULT 100").run();
     console.log("✅ Coluna 'reputation' injetada em 'users'.");
 }
 
 /**
- * ÍNDICES DE PERFORMANCE (Otimização de Consultas)
+ * ÍNDICES DE PERFORMANCE
  */
-
-// Acelera a busca por ID de punição (Essencial para o delpunir/revogar)
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_punishments_id ON punishments (id)`).run();
-
-// Acelera a busca de configurações (Canais, Cargos e alert_channel)
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_settings_guild ON settings (guild_id, key)`).run();
-
-// Acelera o Ranking Local e verificação de estado crítico
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_reputation_local ON users (guild_id, reputation DESC)`).run();
-
-// Acelera buscas de histórico (/check)
 db.prepare(`CREATE INDEX IF NOT EXISTS idx_punishments_lookup ON punishments (guild_id, user_id)`).run();
 
 console.log("🗄️ Banco de Dados pronto: Sistema de Alertas e Auditoria Habilitado.");
