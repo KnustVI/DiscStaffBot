@@ -23,7 +23,7 @@ module.exports = {
                 const page = parseInt(args[2]);
                 
                 // Importa apenas quando necessário (ajuda na RAM)
-                const PunishmentSystem = require('../systems/punishment/punishmentSystem');
+                const PunishmentSystem = require('../systems/punishmentSystem');
                 const histCommand = interaction.client.commands.get('historico');
 
                 try {

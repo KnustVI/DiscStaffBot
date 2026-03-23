@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis');
-const PunishmentSystem = require('../../systems/punishment/punishmentSystem');
+const PunishmentSystem = require('../../systems/punishmentSystem');
 const ConfigSystem = require('../../systems/configSystem');
 
 module.exports = {
