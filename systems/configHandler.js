@@ -2,27 +2,50 @@ const ConfigSystem = require('./configSystem');
 
 const ConfigHandler = {
     async handle(interaction, args) {
+        const guildId = interaction.guild.id;
+        // O customId é 'config_staff_role' -> args[1] = 'staff', args[2] = 'role'
+        const settingKey = `${args[1]}_${args[2]}`; 
+
         try {
-            const guildId = interaction.guild.id;
-            const settingKey = `${args[1]}_${args[2]}`;
-            const selectedValue = interaction.values[0];
+            // 1. Captura o valor independente do tipo de menu
+            let selectedValue;
+            
+            if (interaction.isRoleSelectMenu()) {
+                selectedValue = interaction.values[0]; // ID do Cargo
+            } else if (interaction.isChannelSelectMenu()) {
+                selectedValue = interaction.values[0]; // ID do Canal
+            } else {
+                selectedValue = interaction.values[0]; // Fallback para StringSelect
+            }
 
-            console.log(`[DEBUG] Tentando salvar: Guild: ${guildId}, Key: ${settingKey}, Val: ${selectedValue}`);
+            if (!selectedValue) {
+                return await interaction.reply({ content: ':x: Nenhum valor selecionado.', ephemeral: true });
+            }
 
-            // Executa a gravação
+            // 2. Salva no Banco e RAM
             ConfigSystem.updateSetting(guildId, settingKey, selectedValue);
 
+            // 3. Feedback visual
+            const traducao = {
+                'staff_role': 'Cargo de Staff',
+                'logs_channel': 'Canal de Logs'
+            };
+
             return await interaction.reply({ 
-                content: `✅ **Configuração Salva:** \`${settingKey}\` atualizado!`, 
+                content: `✅ **Configuração Salva:** \`${traducao[settingKey] || settingKey}\` atualizado com sucesso!`, 
                 ephemeral: true 
             });
 
         } catch (err) {
-            // ISSO AQUI vai te dizer exatamente o que o SQLite respondeu no terminal:
-            console.error(`🔴 ERRO CRÍTICO NO CONFIG_HANDLER:`, err.message);
+            console.error(`[Erro ConfigHandler]`, err);
             
-            const msg = { content: `❌ Erro: ${err.message}`, ephemeral: true };
-            interaction.replied || interaction.deferred ? await interaction.followUp(msg) : await interaction.reply(msg);
+            // Verifica se já respondeu para não dar erro de "Interaction already replenished"
+            const errorMsg = { content: `❌ Ocorreu um erro ao salvar a configuração.`, ephemeral: true };
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp(errorMsg);
+            } else {
+                await interaction.reply(errorMsg);
+            }
         }
     }
 };
