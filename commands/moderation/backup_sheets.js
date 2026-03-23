@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { exportToSheets } = require('../../services/sheetsService');
+const { exportToSheets } = require('../../systems/sheetsService');
 const { EMOJIS } = require('../../database/emojis');
 
 module.exports = {
