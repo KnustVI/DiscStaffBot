@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
-const { EMOJIS } = require('../../database/emojis');
-const ConfigSystem = require('../../systems/configSystem');
+const db = require('../database/database'); // Um ponto a menos (correto)
+const emojis = require('../database/emojis'); // Um ponto a menos (correto)
 
 module.exports = {
     data: new SlashCommandBuilder()
