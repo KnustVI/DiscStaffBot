@@ -1,8 +1,9 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
+const ConfigSystem = require('../../systems/configSystem');
+const ErrorLogger = require('../../systems/errorLogger');
 
-// Substitua pelo seu ID real do Discord
 const DEVELOPER_ID = '203676076189286412'; 
 
 module.exports = {
@@ -16,60 +17,65 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        const guildId = interaction.guild.id;
-        const confirmacao = interaction.options.getString('confirmar');
+        const { guild, user, options } = interaction;
+        const confirmacao = options.getString('confirmar');
 
-        // --- TRAVA DE DESENVOLVEDOR (KNUSTVI ONLY) ---
-        if (interaction.user.id !== DEVELOPER_ID) {
+        // 1. Trava de Segurança e Defer (Anti-Lag)
+        if (user.id !== DEVELOPER_ID) {
             return interaction.reply({ 
-                content: `${EMOJIS.ERRO} **Acesso Negado.** Apenas o desenvolvedor principal pode executar este comando de destruição.`, 
+                content: `${EMOJIS.ERRO} **Acesso Negado.** Comando restrito ao desenvolvedor.`, 
                 ephemeral: true 
             });
         }
 
+        await interaction.deferReply(); // Reset pode ser lento, evitamos o erro de resposta
+
         if (confirmacao !== 'LIMPAR TUDO') {
-            return interaction.reply({ 
-                content: `${EMOJIS.ERRO} Ação cancelada. Você precisa digitar corretamente "LIMPAR TUDO".`,
-                ephemeral: true 
+            return interaction.editReply({ 
+                content: `${EMOJIS.ERRO} Ação cancelada. Digite exatamente "LIMPAR TUDO".`
             });
         }
 
         try {
-            // --- 1. FILTRO POR GUILD_ID (SEGURANÇA) ---
-            db.prepare('DELETE FROM users WHERE guild_id = ?').run(guildId);
-            db.prepare('DELETE FROM punishments WHERE guild_id = ?').run(guildId);
+            // 2. Execução da Limpeza (Usando os nomes novos das tabelas)
+            // Usamos uma transação para garantir que apague tudo ou nada
+            const clearDB = db.transaction(() => {
+                db.prepare('DELETE FROM reputation WHERE guild_id = ?').run(guild.id);
+                db.prepare('DELETE FROM punishments WHERE guild_id = ?').run(guild.id);
+            });
             
+            clearDB();
+
+            // Opcional: Otimiza o arquivo .db no disco da Oracle Cloud
             db.pragma('vacuum');
 
-            const embed = new EmbedBuilder()
-                .setTitle(`${EMOJIS.CLEAN} Database Resetada`)
-                .setDescription('Todos os dados de **reputação** e **histórico de punições** deste servidor foram apagados permanentemente.')
-                .setColor(0xFF3C72)
-                .setFooter({ 
-                    text: `✧ Executado por Desenvolvedor: KnustVI`, 
-                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                })
-                .setTimestamp();
-
-            // --- 2. NOTIFICAR NO CANAL DE ALERTAS ---
-            const settings = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'alert_channel'`).get(guildId);
-            if (settings) {
-                const alertChannel = interaction.guild.channels.cache.get(settings.value);
+            // 3. Notificação no Canal de Alertas (Usando seu ConfigSystem/Cache)
+            const alertChanId = ConfigSystem.getSetting(guild.id, 'alert_channel');
+            if (alertChanId) {
+                const alertChannel = guild.channels.cache.get(alertChanId);
                 if (alertChannel) {
                     const alertEmbed = new EmbedBuilder()
                         .setTitle(`${EMOJIS.WARNING} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`)
-                        .setDescription(`O desenvolvedor ${interaction.user} resetou todo o histórico do servidor.\n\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+                        .setDescription(`# LIMPEZA TOTAL\nO desenvolvedor ${user} resetou todo o histórico do servidor.\n\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
                         .setColor(0xFF3C72)
                         .setTimestamp();
-                    alertChannel.send({ embeds: [alertEmbed] }).catch(() => null);
+                    
+                    await alertChannel.send({ embeds: [alertEmbed] }).catch(() => null);
                 }
             }
 
-            return interaction.reply({ embeds: [embed] });
+            const embed = new EmbedBuilder()
+                .setTitle(`${EMOJIS.CLEAN} Database Resetada`)
+                .setDescription(`# Operação Concluída\nTodos os dados de **reputação** e **punições** de **${guild.name}** foram apagados permanentemente.`)
+                .setColor(0xFF3C72)
+                .setFooter({ text: `✧ Executado por: KnustVI`, iconURL: user.displayAvatarURL() })
+                .setTimestamp();
+
+            return interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            console.error(err);
-            return interaction.reply({ content: `${EMOJIS.AVISO} Erro ao tentar resetar o banco de dados.`, ephemeral: true });
+            ErrorLogger.log('Command_ResetDB_Fatal', err);
+            return interaction.editReply({ content: `${EMOJIS.AVISO} Erro crítico ao resetar o banco. Verifique o ErrorLogger.` });
         }
     }
 };
