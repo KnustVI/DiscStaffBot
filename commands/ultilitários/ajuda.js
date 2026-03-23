@@ -16,24 +16,21 @@ module.exports = {
             '',
             `### ${EMOJIS.CONFIG} 1. Configuração Inicial`,
             `- \`/config\`: Abre o painel interativo para definir cargos de Staff e canais de Log/Alertas.`,
-            '',
             `### ${EMOJIS.ACTION} 2. Moderação & Gestão`,
             `- \`/punir\`: Aplica sanções que removem reputação e aplicam timeout automático.`,
             `- \`/rep-set\`: Ajuste manual de pontos (exclusivo para cargos de confiança).`,
             `- \`/historico\`: Consulta a ficha completa de um membro de forma paginada e leve.`,
             `- \`/info\`: Consulta o status de um usuário e sua reputação atual.`,
-            '',
             `### ${EMOJIS.REPUTATION} 3. Como funciona a Reputação?`,
             `- **Base:** Todos iniciam com \`100\` pontos.`,
             `- **Manutenção Diária:** Às 03:00 AM, usuários ativos recuperam \`+1\` ponto.`,
             `- **Cargos Automáticos:** Membros com \`95+\` pontos ganham o cargo **Exemplar**, enquanto membros abaixo de \`30\` recebem o cargo **Problemático**.`,
-            '',
             `---`,
             `> Utilize os comandos acima para manter o servidor seguro e organizado.`
         ].join('\n');
 
         const embed = new EmbedBuilder()
-            .setColor(0xFF3C72)
+            .setColor(0xba0054)
             .setThumbnail(client.user.displayAvatarURL())
             .setDescription(description)
             .addFields({ 
@@ -42,7 +39,7 @@ module.exports = {
                 inline: false 
             })
             .setFooter({ 
-                text: `✧ BOT by: KnustVI | v2.0`, 
+                text: `✧ BOT by: KnustVI | Em: ${guild.name}`, 
                 iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
             })
             .setTimestamp();

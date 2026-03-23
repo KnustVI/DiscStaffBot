@@ -10,10 +10,9 @@ module.exports = (client) => {
     cron.schedule('0 3 * * *', async () => {
         console.log("🛡️ [Automod] Manutenção iniciada...");
         
-        const now = Date.now();
         const stats = {};
 
-        // --- 1. RECUPERAÇÃO DE REPUTAÇÃO (BANCO DE DADOS) ---
+        // --- 1. RECUPERAÇÃO DE REPUTAÇÃO ---
         try {
             db.prepare(`
                 UPDATE reputation 
@@ -21,21 +20,20 @@ module.exports = (client) => {
                 WHERE points < 100
             `).run();
         } catch (err) {
-            // Log de Sistema (Arquivo)
             ErrorLogger.log('AutoMod_DB_Update', err);
         }
 
-        // --- 2. VERIFICAÇÃO E ATUALIZAÇÃO DE CARGOS ---
+        // --- 2. VERIFICAÇÃO DE CARGOS ---
         try {
             const users = db.prepare(`SELECT * FROM reputation WHERE points >= 90 OR points <= 50`).all();
 
             for (const userData of users) {
                 const { guild_id: gId, user_id: uId, points: rep } = userData;
                 
-                if (!stats[gId]) stats[gId] = { added: 0, removed: 0 };
-
                 const guild = client.guilds.cache.get(gId);
                 if (!guild) continue;
+
+                if (!stats[gId]) stats[gId] = { added: 0, removed: 0, guildName: guild.name };
 
                 try {
                     const member = await guild.members.fetch(uId).catch(() => null);
@@ -68,7 +66,6 @@ module.exports = (client) => {
                         }
                     }
                 } catch (memberErr) {
-                    // Log de Sistema se falhar processamento de um membro específico
                     ErrorLogger.log(`AutoMod_Member_${uId}`, memberErr);
                 }
             }
@@ -76,32 +73,32 @@ module.exports = (client) => {
             ErrorLogger.log('AutoMod_MainLoop', dbErr);
         }
 
-        // --- 3. ENVIO DO RELATÓRIO DE AUDITORIA (DISCORD) ---
+        // --- 3. ENVIO DO RELATÓRIO ---
         for (const gId in stats) {
             try {
-                // Tenta o canal de alertas primeiro, se não tiver, usa o de logs geral
                 const logChanId = ConfigSystem.getSetting(gId, 'alert_channel') || ConfigSystem.getSetting(gId, 'logs_channel');
                 if (!logChanId) continue;
 
                 const channel = await client.channels.fetch(logChanId).catch(() => null);
                 
-                // Só envia se houver mudanças para não floodar o canal todo dia
                 if (channel && (stats[gId].added > 0 || stats[gId].removed > 0)) {
                     const embed = new EmbedBuilder()
-                        .setTitle(`✅ Relatório de Manutenção Diária`)
-                        .setColor(0x2ECC71)
+                        .setTitle(`${EMOJIS.PAINEL || '✅'} Relatório de Manutenção Diária`)
+                        .setColor(0xba0054)
                         .setThumbnail(client.user.displayAvatarURL())
                         .addFields(
-                            { name: '📈 Recuperação', value: 'Todos os usuários ativos receberam `+1` ponto.', inline: false },
-                            { name: '🎭 Cargos Atualizados', value: `\`${stats[gId].added}\` Adicionados\n\`${stats[gId].removed}\` Removidos`, inline: true }
+                            { name: `${EMOJIS.UP || '📈'} Recuperação`, value: 'Todos os usuários ativos receberam `+1` ponto.', inline: false },
+                            { name: `${EMOJIS.STATUS || '🎭'} Cargos Atualizados`, value: `\`${stats[gId].added}\` Adicionados\n\`${stats[gId].removed}\` Removidos`, inline: true }
                         )
-                        .setFooter({ text: 'Sistema de Auto-Moderação Ativo' })
+                        .setFooter({ 
+                            text: `✧ BOT by: KnustVI | Em: ${stats[gId].guildName}`,
+                            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                        })
                         .setTimestamp();
 
                     await channel.send({ embeds: [embed] });
                 }
             } catch (logErr) {
-                // Se o bot não conseguir enviar a mensagem no Discord, ele avisa no Log de Sistema
                 ErrorLogger.log(`AutoMod_Discord_Report_${gId}`, logErr);
             }
         }

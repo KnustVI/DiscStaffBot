@@ -1,11 +1,13 @@
 const { EmbedBuilder } = require('discord.js');
-const ConfigSystem = require('./configSystem');
+const ConfigSystem = require('../systems/configSystem'); // Verifique se o caminho está correto
 const { EMOJIS } = require('../database/emojis');
-const ErrorLogger = require('./errorLogger');
+const ErrorLogger = require('../systems/errorLogger');
 
 const ConfigHandler = {
     async handle(interaction, args) {
         const guildId = interaction.guild.id;
+        const guildName = interaction.guild.name; // <--- Definimos aqui para facilitar
+        
         // Monta a chave (Ex: staff_role) baseada no customID do menu
         const settingKey = `${args[1]}_${args[2]}`;
         const selectedValue = interaction.values[0];
@@ -18,24 +20,30 @@ const ConfigHandler = {
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
             const logsChannelId = ConfigSystem.getSetting(guildId, 'logs_channel');
 
-            const staffDisplay = staffRoleId ? `<@&${staffRoleId}>` : '❌ `Não configurado`';
-            const logsDisplay = logsChannelId ? `<#${logsChannelId}>` : '❌ `Não configurado`';
+            const staffDisplay = staffRoleId ? `<@&${staffRoleId}>` : `${EMOJIS.ERRO || '❌'} \`Não configurado\``;
+            const logsDisplay = logsChannelId ? `<#${logsChannelId}>` : `${EMOJIS.ERRO || '❌'} \`Não configurado\``;
 
             const updatedEmbed = new EmbedBuilder()
-                .setTitle(`${EMOJIS.STAFF} Painel de Configuração`)
-                .setDescription('✅ **Configuração atualizada com sucesso!**')
-                .setColor(0x00FF00)
+                .setDescription(`# ${EMOJIS.CONFIG || '⚙️'} Painel de Configuração`+
+                    `> **Configuração atualizada com sucesso!**\n\n${EMOJIS.REPUTATION || '📊'} Verifique os novos valores abaixo:`)
+                .setColor(0xba0054)
                 .addFields(
-                    { name: `${EMOJIS.STAFF} Cargo Staff`, value: staffDisplay, inline: true },
-                    { name: `${EMOJIS.TICKET} Canal de Logs`, value: logsDisplay, inline: true }
+                    { name: `${EMOJIS.STAFF || '👤'} Cargo Staff`, value: staffDisplay, inline: true },
+                    { name: `${EMOJIS.TICKET || '📁'} Canal de Logs`, value: logsDisplay, inline: true }
                 )
-                .setFooter({ text: 'Você pode continuar alterando se desejar.' });
+                .setFooter({ 
+                    text: `✧ BOT by: KnustVI | Em: ${guildName}`, // <--- Agora usando a variável correta
+                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
+                })
+                .setTimestamp();
 
-            // 3. Atualiza a mensagem original (remove o delay visual)
-            await interaction.update({ embeds: [updatedEmbed] });
+            // 3. Atualiza a mensagem original
+            await interaction.update({ embeds: [updatedEmbed], components: interaction.message.components });
 
         } catch (err) {
             ErrorLogger.log('ConfigHandler', err);
+            
+            const errorMsg = { content: `${EMOJIS.ERRO || '❌'} Ocorreu um erro ao salvar a configuração no banco.`, ephemeral: true };
             
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp(errorMsg);

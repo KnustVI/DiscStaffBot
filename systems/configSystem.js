@@ -1,6 +1,7 @@
 const db = require('../database/database');
 const ConfigCache = require('./configCache');
 const ErrorLogger = require('./errorLogger');
+const { EMOJIS } = require('../database/emojis');
 
 /**
  * Sistema de Configuração Centralizado
@@ -32,7 +33,6 @@ const ConfigSystem = {
             
             return value;
         } catch (err) {
-            // Se o banco falhar na leitura (ex: tabela corrompida)
             ErrorLogger.log('ConfigSystem_Get', err);
             return null;
         }
@@ -40,28 +40,57 @@ const ConfigSystem = {
 
     /**
      * Salva ou Atualiza uma configuração.
-     * @param {string} guildId - ID do servidor.
-     * @param {string} key - Nome da configuração.
-     * @param {string} value - Valor a ser salvo (ID de cargo/canal).
      */
     updateSetting(guildId, key, value) {
         try {
-            // Executa o UPSERT (Insert or Update) com exatamente 3 parâmetros.
             db.prepare(`
                 INSERT INTO settings (guild_id, key, value) 
                 VALUES (?, ?, ?) 
                 ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
             `).run(guildId, key, value);
             
-            // Atualiza a RAM imediatamente
             ConfigCache.set(guildId, key, value);
-            
             return true;
         } catch (err) {
-            // Se o banco falhar na escrita
             ErrorLogger.log('ConfigSystem_Update', err);
-            throw err; // Lançamos o erro para o comando avisar o usuário
+            throw err;
         }
+    },
+
+    /**
+     * TRAVA DE SEGURANÇA: Valida Staff e Configurações Essenciais
+     * @param {object} interaction - A interação do Discord.
+     * @returns {boolean} - True se autorizado, False se bloqueado.
+     */
+    async checkAuth(interaction) {
+        const guildId = interaction.guild.id;
+
+        // 1. Busca configurações usando o getSetting (que já usa o Cache)
+        const staffRoleId = this.getSetting(guildId, 'staff_role');
+        const logsChannelId = this.getSetting(guildId, 'logs_channel');
+
+        // 2. Validação de Configuração Completa
+        if (!staffRoleId || !logsChannelId) {
+            await interaction.reply({
+                content: `${EMOJIS.ERRO} **Configuração Incompleta!**\nEste comando exige que o cargo de Staff e o canal de Logs estejam configurados.\nUse \`/config-set\` para finalizar a instalação do bot.`,
+                ephemeral: true
+            });
+            return false;
+        }
+
+        // 3. Validação de Permissão (Cargo de Staff OU Admin do Servidor)
+        const isStaff = interaction.member.roles.cache.has(staffRoleId);
+        const isAdmin = interaction.member.permissions.has('Administrator');
+
+        if (!isStaff && !isAdmin) {
+            await interaction.reply({
+                content: `${EMOJIS.ERRO} **Acesso Negado!**\nApenas membros com o cargo de Staff configurado podem usar este comando.`,
+                ephemeral: true
+            });
+            return false;
+        }
+
+        return true; // Tudo limpo, pode prosseguir
     },
 
     /**
@@ -71,7 +100,6 @@ const ConfigSystem = {
         try {
             db.prepare(`DELETE FROM settings WHERE guild_id = ?`).run(guildId);
             
-            // Limpa o Cache da guilda específica
             if (ConfigCache.deleteGuild) {
                 ConfigCache.deleteGuild(guildId); 
             }
