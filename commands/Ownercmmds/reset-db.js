@@ -3,7 +3,7 @@ const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
 
 // Substitua pelo seu ID real do Discord
-const DEVELOPER_ID = 'SEU_ID_AQUI'; 
+const DEVELOPER_ID = '203676076189286412'; 
 
 module.exports = {
     data: new SlashCommandBuilder()
