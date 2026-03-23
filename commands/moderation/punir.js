@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../../database/database');
 const { EMOJIS } = require('../../database/emojis');
-const PunishmentSystem = require('../../systems/punishmentSystem');
+const PunishmentSystem = require('../../systems/punishment/punishmentSystem');
+const ConfigSystem = require('../../systems/config/configSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -25,44 +25,49 @@ module.exports = {
         const reason = options.getString('motivo');
         const ticketId = options.getString('ticket') || 'N/A';
 
-        // Validações rápidas de Config (Pode mover para um 'ConfigSystem' depois)
-        const staffRole = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guild.id);
-        const logChanId = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'logs_channel'`).get(guild.id);
+        // 1. Busca Configurações via System (Com Cache)
+        const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+        const logChanId = ConfigSystem.getSetting(guild.id, 'logs_channel');
 
-        if (!staffRole || !logChanId) return interaction.reply({ content: `${EMOJIS.ERRO} Sistema não configurado.`, ephemeral: true });
-        if (!mod.roles.cache.has(staffRole.value) && !mod.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!staffRoleId || !logChanId) {
+            return interaction.reply({ content: `${EMOJIS.ERRO} Sistema não configurado. Use \`/config\`.`, ephemeral: true });
+        }
+
+        // 2. Permissão
+        if (!mod.roles.cache.has(staffRoleId) && !mod.permissions.has(PermissionFlagsBits.Administrator)) {
             return interaction.reply({ content: `${EMOJIS.ERRO} Sem permissão.`, ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
         const targetMember = await guild.members.fetch(targetUser.id).catch(() => null);
-        if (!targetMember) return interaction.editReply(`${EMOJIS.ERRO} Usuário não encontrado.`);
+
+        if (targetMember) {
+            if (targetMember.id === interaction.user.id) return interaction.editReply(`${EMOJIS.ERRO} Você não pode se punir.`);
+            if (!targetMember.manageable && severity > 1) return interaction.editReply(`${EMOJIS.ERRO} Não posso punir este usuário.`);
+        }
 
         try {
             const result = await PunishmentSystem.executePunishment(guild, targetMember, interaction.user.id, severity, reason, ticketId);
 
-            // Montagem do Embed (Reaproveitando sua lógica visual)
             const logEmbed = new EmbedBuilder()
-                .setTitle(`${EMOJIS.ACTION} Nova Punição | ID #${result.punishmentId}`)
-                .setColor(0xFF0000)
+                .setAuthor({ name: `Punição | ID #${result.punishmentId}`, iconURL: targetUser.displayAvatarURL() })
+                .setColor(0xFF3C72)
                 .addFields(
-                    { name: `${EMOJIS.USUARIO} Usuário`, value: `${targetUser}`, inline: true },
+                    { name: `${EMOJIS.USUARIO} Infrator`, value: `${targetUser}`, inline: true },
                     { name: `${EMOJIS.ACTION} Ação`, value: `\`${result.detail}\``, inline: true },
-                    { name: `${EMOJIS.DOWN} Reputação`, value: `\`${result.currentRep} pts (-${result.repLoss})\``, inline: true },
+                    { name: `${EMOJIS.DOWN} Reputação`, value: `\`${result.currentRep} pts\``, inline: true },
                     { name: `${EMOJIS.TICKET} Ticket`, value: `\`#${ticketId}\``, inline: true },
                     { name: `${EMOJIS.NOTE} Motivo`, value: `\`\`\`${reason}\`\`\`` }
                 )
                 .setTimestamp();
 
-            const logChannel = guild.channels.cache.get(logChanId.value);
-            if (logChannel) logChannel.send({ embeds: [logEmbed] });
-            
-            await targetUser.send({ content: `Você foi punido em **${guild.name}**`, embeds: [logEmbed] }).catch(() => null);
+            const logChannel = await guild.channels.fetch(logChanId).catch(() => null);
+            if (logChannel) await logChannel.send({ embeds: [logEmbed] });
 
             await interaction.editReply(`${EMOJIS.CHECK} Punição **#${result.punishmentId}** aplicada.`);
         } catch (err) {
             console.error(err);
-            interaction.editReply(`${EMOJIS.ERRO} Erro ao aplicar punição. Verifique a hierarquia de cargos.`);
+            return interaction.editReply(`${EMOJIS.ERRO} Erro no banco de dados.`);
         }
     }
 };

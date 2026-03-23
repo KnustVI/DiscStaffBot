@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../../database/database');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis');
-const PunishmentSystem = require('../../systems/punishmentSystem');
+const PunishmentSystem = require('../../systems/punishment/punishmentSystem');
+const ConfigSystem = require('../../systems/config/configSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,9 +15,10 @@ module.exports = {
         const targetUser = options.getUser('usuario');
         const page = options.getInteger('pagina') || 1;
 
-        // Validação de Permissão
-        const staffRole = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guild.id);
-        if (!mod.roles.cache.has(staffRole?.value) && !mod.permissions.has(PermissionFlagsBits.Administrator)) {
+        // BUSCA NO CACHE
+        const staffRole = ConfigSystem.getSetting(guild.id, 'staff_role');
+        
+        if (!mod.roles.cache.has(staffRole) && !mod.permissions.has(PermissionFlagsBits.Administrator)) {
             return interaction.reply({ content: `${EMOJIS.AVISO} Acesso restrito à Staff.`, ephemeral: true });
         }
 
@@ -26,45 +27,41 @@ module.exports = {
         try {
             const history = await PunishmentSystem.getUserHistory(guild.id, targetUser.id, page);
 
-            if (history.total === 0) {
-                return interaction.editReply(`${EMOJIS.CHECK} **${targetUser.username}** não possui registros.`);
-            }
+            if (history.total === 0) return interaction.editReply(`${EMOJIS.CHECK} **${targetUser.username}** não possui registros.`);
+            if (page > history.totalPages) return interaction.editReply(`${EMOJIS.ERRO} Página inválida.`);
 
-            if (page > history.totalPages) {
-                return interaction.editReply(`${EMOJIS.ERRO} Página inválida. O histórico tem apenas **${history.totalPages}** página(s).`);
-            }
+            const embed = this.generateHistoryEmbed(guild.id, targetUser, history, page);
+            const buttons = this.generateHistoryButtons(targetUser.id, page, history.totalPages);
 
-            let entries = "";
-            for (const p of history.punishments) {
-                const isRevoked = p.severity === 0;
-                const time = `<t:${Math.floor(p.created_at / 1000)}:f>`;
-                
-                // Futura integração: Se ticketId for um ID de canal/thread, podemos linkar
-                const ticketLink = p.ticket_id && p.ticket_id !== 'N/A' ? `[#${p.ticket_id}](https://discord.com/channels/${guild.id}/${p.ticket_id})` : `\`#${p.ticket_id || 'N/A'}\``;
-
-                entries += `${isRevoked ? EMOJIS.UP : EMOJIS.DOWN} **ID #${p.id}** | ${isRevoked ? '~~ANULADA~~' : `\`Nível ${p.severity}\``}\n` +
-                           `└ ${EMOJIS.STAFF} <@${p.moderator_id}> | ${EMOJIS.TICKET} ${ticketLink}\n` +
-                           `└ ${EMOJIS.NOTE} *${p.reason}*\n` +
-                           `└ ${EMOJIS.HISTORY} ${time}\n` +
-                           `──────────────────\n`;
-            }
-
-            const embed = new EmbedBuilder()
-                .setAuthor({ name: `Histórico de ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() })
-                .setColor(0xFF3C72)
-                .setDescription(
-                    `${EMOJIS.REPUTATION} Reputação Atual: **${history.reputation}**/100\n\n` + 
-                    entries +
-                    `\nTotal: **${history.total}** registros | Página **${page}** de **${history.totalPages}**`
-                )
-                .setFooter({ text: `✧ BOT by: KnustVI`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
-                .setTimestamp();
-
-            await interaction.editReply({ embeds: [embed] });
-
+            await interaction.editReply({ 
+                embeds: [embed], 
+                components: history.totalPages > 1 ? [buttons] : [] 
+            });
         } catch (error) {
             console.error(error);
-            await interaction.editReply(`${EMOJIS.ERRO} Erro ao consultar banco de dados.`);
+            await interaction.editReply(`${EMOJIS.ERRO} Erro ao consultar histórico.`);
         }
+    },
+
+    generateHistoryEmbed(guildId, targetUser, history, page) {
+        let entries = history.punishments.map(p => {
+            const isRevoked = p.severity === 0;
+            return `${isRevoked ? EMOJIS.UP : EMOJIS.DOWN} **ID #${p.id}** | ${isRevoked ? '~~ANULADA~~' : `\`Nível ${p.severity}\``}\n` +
+                   `└ ${EMOJIS.STAFF} <@${p.moderator_id}> | ${EMOJIS.NOTE} *${p.reason}*`;
+        }).join('\n\n');
+
+        return new EmbedBuilder()
+            .setAuthor({ name: `Histórico: ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() })
+            .setColor(0xFF3C72)
+            .setDescription(`${EMOJIS.REPUTATION} Reputação: **${history.reputation}**/100\n\n${entries}`)
+            .setFooter({ text: `Página ${page} de ${history.totalPages}` })
+            .setTimestamp();
+    },
+
+    generateHistoryButtons(targetUserId, currentPage, totalPages) {
+        return new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`hist_${targetUserId}_${currentPage - 1}`).setLabel('⬅️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage <= 1),
+            new ButtonBuilder().setCustomId(`hist_${targetUserId}_${currentPage + 1}`).setLabel('➡️').setStyle(ButtonStyle.Primary).setDisabled(currentPage >= totalPages)
+        );
     }
 };

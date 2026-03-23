@@ -2,8 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const db = require('./database/database'); 
-const autoModeration = require('./systems/autoModeration');
-
+const cron = require('node-cron'); // Certifique-se de ter instalado: npm install node-cron
 
 const client = new Client({ 
     intents: [
@@ -16,7 +15,7 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// --- CARREGAMENTO DE COMANDOS ---
+// --- HANDLER DE COMANDOS (Otimizado) ---
 const commandFolders = fs.readdirSync('./commands');
 for (const folder of commandFolders) {
     const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
@@ -27,64 +26,54 @@ for (const folder of commandFolders) {
         }
     }
 }
-console.log(`✅ Comandos carregados: ${client.commands.size}`);
 
-// --- EVENTO READY ---
-client.once('ready', () => {
-    console.log(`🚀 Bot online: ${client.user.tag}`);
-    
-    // Inicia o sistema de automoderação
-    if (typeof autoModeration === 'function') {
-        autoModeration(client);
+// --- HANDLER DE EVENTOS (Otimização Real) ---
+// Isso remove a lógica do interactionCreate do index, deixando-o limpo.
+const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
+for (const file of eventFiles) {
+    const event = require(`./events/${file}`);
+    if (event.once) {
+        client.once(event.name, (...args) => event.execute(...args));
+    } else {
+        client.on(event.name, (...args) => event.execute(...args));
     }
+}
 
-    // --- SISTEMA DE REPUTAÇÃO PASSIVA ---
-    // Roda a cada 24 horas para dar +1 de reputação
-    setInterval(() => {
-        console.log("🔄 Processando recuperação de reputação diária...");
-        const umDiaEmMs = 24 * 60 * 60 * 1000;
-        const agora = Date.now();
+// --- TAREFAS AGENDADAS (CRON) ---
+// Em vez de setInterval, o cron é muito mais estável para VPS.
+// Recuperação de Reputação: Todo dia às 03:00 da manhã (horário de baixo tráfego)
+cron.schedule('0 3 * * *', () => {
+    console.log("🔄 [Cron] Iniciando recuperação de reputação diária...");
+    const umDiaEmMs = 24 * 60 * 60 * 1000;
+    const agora = Date.now();
 
-        try {
-            const info = db.prepare(`
-                UPDATE users 
-                SET reputation = MIN(100, reputation + 1)
-                WHERE (last_penalty IS NULL OR (? - last_penalty) > ?)
-                AND reputation < 100
-            `).run(agora, umDiaEmMs);
-            
-            console.log(`📈 Recuperação concluída. ${info.changes} usuários recuperaram pontos.`);
-        } catch (err) {
-            console.error("❌ Erro na recuperação passiva:", err);
-        }
-    }, 24 * 60 * 60 * 1000); 
+    try {
+        const info = db.prepare(`
+            UPDATE users 
+            SET reputation = MIN(100, reputation + 1)
+            WHERE (last_penalty IS NULL OR (? - last_penalty) > ?)
+            AND reputation < 100
+        `).run(agora, umDiaEmMs);
+        
+        console.log(`📈 [Cron] Recuperação concluída. ${info.changes} usuários afetados.`);
+    } catch (err) {
+        console.error("❌ [Cron] Erro na recuperação passiva:", err);
+    }
 });
 
-// Agendamento: Roda às 00:00 dos dias 1 e 15 de cada mês
+// Backup quinzenal (Google Sheets)
 cron.schedule('0 0 1,15 * *', () => {
-    console.log('Iniciando backup quinzenal para o Google Sheets...');
+    console.log('📦 [Cron] Iniciando backup para Google Sheets...');
+    const { exportToSheets } = require('./utils/googleSheets'); // Lazy Load: só carrega o script na hora de usar
     exportToSheets();
 });
 
-// --- INTERACTION CREATE ---
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+const ConfigCache = require('./systems/config/configCache');
 
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error("Erro na execução do comando:", error);
-        const errorMsg = { content: '❌ Ocorreu um erro interno ao executar este comando.', ephemeral: true };
-        
-        if (interaction.deferred || interaction.replied) {
-            await interaction.editReply(errorMsg);
-        } else {
-            await interaction.reply(errorMsg);
-        }
-    }
+// Carrega as configurações na RAM para acesso rápido
+client.once('ready', async () => {
+    await ConfigCache.loadAll(); // Carrega tudo na RAM assim que o bot liga
+    console.log(`🚀 Bot online: ${client.user.tag}`);
 });
 
 client.login(process.env.TOKEN);
