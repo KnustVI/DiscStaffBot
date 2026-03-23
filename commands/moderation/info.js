@@ -11,62 +11,59 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Usuário para consulta').setRequired(true)),
 
     async execute(interaction) {
+        // 1. Damos o sinal de espera para evitar o timeout do Discord
+        await interaction.deferReply({ ephemeral: true });
+
         const target = interaction.options.getUser('usuario');
         const guildId = interaction.guild.id;
 
         try {
-            // 1. Consulta de Reputação (Tabela: reputation)
-            const repData = db.prepare(`SELECT * FROM reputation WHERE user_id = ? AND guild_id = ?`).get(target.id, guildId);
+            // 2. Consulta de Reputação
+            const repData = db.prepare(`SELECT points FROM reputation WHERE user_id = ? AND guild_id = ?`).get(target.id, guildId);
             
-            // 2. Consulta de Histórico (Tabela: punishments)
+            // 3. Consulta de Histórico (Limite de 3 para o Dossiê)
             const lastPunishments = db.prepare(`
-                SELECT * FROM punishments 
+                SELECT id, reason, created_at FROM punishments 
                 WHERE user_id = ? AND guild_id = ? 
                 ORDER BY created_at DESC LIMIT 3
             `).all(target.id, guildId);
 
-            if (!repData && lastPunishments.length === 0) {
-                return interaction.reply({ content: `${EMOJIS.ERRO} Este usuário não possui nenhum registro no banco de dados.`, ephemeral: true });
-            }
-
-            // 3. Formatação da Descrição com Headings
+            // 4. Montagem da Descrição
             const description = [
                 `# ${EMOJIS.USUARIO} Dossiê: ${target.username}`,
-                `Consultando registros de integridade para o servidor **${interaction.guild.name}**.`,
+                `Consultando registros para o servidor **${interaction.guild.name}**.`,
                 '',
                 `### 📊 Status de Integridade`,
                 `- **Reputação Atual:** \`${repData?.points ?? 100}/100 pts\``,
-                `- **Total de Ocorrências:** \`${lastPunishments.length}\` (últimas registradas)`,
-                `- **ID do Usuário:** \`${target.id}\``,
+                `- **ID:** \`${target.id}\``,
                 '',
             ];
 
             if (lastPunishments.length > 0) {
                 description.push(`### ${EMOJIS.NOTE} Últimos Registros`);
                 lastPunishments.forEach(p => {
-                    // Formatação de data simples para o Discord
-                    const date = p.created_at ? `<t:${Math.floor(p.created_at / 1000)}:d>` : 'Data N/A';
-                    description.push(`- [${date}] **ID #${p.id}**: \`${p.reason.substring(0, 40)}${p.reason.length > 40 ? '...' : ''}\``);
+                    const date = p.created_at ? `<t:${Math.floor(p.created_at / 1000)}:d>` : 'N/A';
+                    description.push(`- [${date}] **ID #${p.id}**: \`${p.reason.substring(0, 35)}...\``);
                 });
             } else {
-                description.push(`- *Nenhum histórico de punição encontrado.*`);
+                description.push(`- *Este usuário não possui registros de punição.*`);
             }
 
             const embed = new EmbedBuilder()
-                .setColor(0x2B2D31) // Cor Dark para parecer terminal técnico
+                .setColor(0x2B2D31)
                 .setThumbnail(target.displayAvatarURL({ dynamic: true }))
                 .setDescription(description.join('\n'))
-                .setFooter({ text: `Consulta realizada por ${interaction.user.tag}` })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            // 5. Respondemos usando editReply
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            // Registro de erro técnico
-            ErrorLogger.log('Command_Info_Execute', err);
-            await interaction.reply({ 
-                content: `${EMOJIS.ERRO} Erro técnico ao processar o dossiê. Verifique os logs do sistema.`, 
-                ephemeral: true 
+            // Isso vai gravar o erro exato no seu arquivo logs_erro_system.log
+            ErrorLogger.log('Command_Info_Fatal', err);
+            
+            await interaction.editReply({ 
+                content: `${EMOJIS.ERRO} Erro técnico ao processar o dossiê. Verifique os logs do sistema.` 
             });
         }
     }
