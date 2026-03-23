@@ -26,7 +26,7 @@ const ConfigHandler = {
                 .setColor(0x00FF00)
                 .addFields(
                     { name: `${EMOJIS.STAFF} Cargo Staff`, value: staffDisplay, inline: true },
-                    { name: `${EMOJIS.LOGS} Canal de Logs`, value: logsDisplay, inline: true }
+                    { name: `${EMOJIS.TICKET} Canal de Logs`, value: logsDisplay, inline: true }
                 )
                 .setFooter({ text: 'Você pode continuar alterando se desejar.' });
 
