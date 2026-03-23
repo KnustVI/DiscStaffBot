@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../database/database');
-const { EMOJIS } = require('../database/emojis');
+const db = require('../../database/database');
+const { EMOJIS } = require('../../database/emojis');
 
 // Substitua pelo seu ID real do Discord
 const DEVELOPER_ID = 'SEU_ID_AQUI'; 
