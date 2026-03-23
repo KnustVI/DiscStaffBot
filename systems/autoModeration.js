@@ -90,10 +90,7 @@ module.exports = (client) => {
                             { name: `${EMOJIS.UP || '📈'} Recuperação`, value: 'Todos os usuários ativos receberam `+1` ponto.', inline: false },
                             { name: `${EMOJIS.STATUS || '🎭'} Cargos Atualizados`, value: `\`${stats[gId].added}\` Adicionados\n\`${stats[gId].removed}\` Removidos`, inline: true }
                         )
-                        .setFooter({ 
-                            text: `✧ BOT by: KnustVI | Em: ${stats[gId].guildName}`,
-                            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                        })
+                        .setFooter(ConfigSystem.getFooter(stats[gId].guildName))
                         .setTimestamp();
 
                     await channel.send({ embeds: [embed] });

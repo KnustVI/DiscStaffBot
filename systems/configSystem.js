@@ -109,6 +109,17 @@ const ConfigSystem = {
             ErrorLogger.log('ConfigSystem_Reset', err);
             return false;
         }
+    },
+    /**
+     * Gera a assinatura padrão para todas as embeds do bot.
+     * @param {string} guildName - Nome do servidor atual.
+     * @returns {object} - Objeto formatado para o .setFooter()
+     */
+    getFooter(guildName) {
+        return {
+            text: `✧ Made By: KnustVI | ${guildName || 'Servidor'}`,
+            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
+        };
     }
 };
 

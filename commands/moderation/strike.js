@@ -5,7 +5,7 @@ const { EMOJIS } = require('../../database/emojis');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('punir')
+        .setName('strike')
         .setDescription('Aplica uma punição rápida.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addUserOption(opt => opt.setName('usuario').setDescription('Infrator').setRequired(true))
@@ -18,7 +18,25 @@ module.exports = {
                 { name: 'Nível 5 (-100 pts)', value: 5 }
             ))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
-        .addStringOption(opt => opt.setName('ticket').setDescription('ID do Ticket (Opcional)').setRequired(false)),
+        .addStringOption(opt => opt.setName('ticket').setDescription('ID do Ticket (Opcional)').setRequired(false)
+        .addStringOption(opt => opt.setName('discord_act').setDescription('Punição no DISCORD')
+        .addChoices(
+            { name: 'Nenhuma', value: 'none' },
+            { name: 'Mute (1h)', value: 'timeout_1h' },
+            { name: 'Mute (1d)', value: 'timeout_1d' },
+            { name: 'Expulsar (Kick)', value: 'kick' },
+            { name: 'Banir (Ban)', value: 'ban' }
+        ))
+    //.   addStringOption(opt => opt.setName('jogo_act').setDescription('Punição IN-GAME (RCON)')
+    //    .addChoices(
+    //        { name: 'Nenhuma', value: 'none' },
+    //        { name: 'Aviso na Tela', value: 'rcon_warn' },
+    //        { name: 'Kick do Jogo', value: 'rcon_kick' },
+    //        { name: 'Slay (Matar Dino)', value: 'rcon_slay' },
+    //        { name: 'Ban do Jogo', value: 'rcon_ban' }
+    //    ))
+    .addStringOption(opt => opt.setName('duracao').setDescription('Tempo da punição (Ex: 1h, 3d, 7d). Use "0" para Permanente.').setRequired(true))
+    ),
 
     async execute(interaction) {
         // 1. O "Seguro Anti-Lag" da Oracle

@@ -24,17 +24,15 @@ const ConfigHandler = {
             const logsDisplay = logsChannelId ? `<#${logsChannelId}>` : `${EMOJIS.ERRO || '❌'} \`Não configurado\``;
 
             const updatedEmbed = new EmbedBuilder()
-                .setDescription(`# ${EMOJIS.CONFIG || '⚙️'} Painel de Configuração`+
-                    `> **Configuração atualizada com sucesso!**\n\n${EMOJIS.REPUTATION || '📊'} Verifique os novos valores abaixo:`)
+                .setDescription(`# ${EMOJIS.CONFIG || '⚙️'} Painel de Configuração \n`+
+                    `> **Configuração atualizada com sucesso!**\n\n
+                    ${EMOJIS.REPUTATION || '📊'} Verifique os novos valores abaixo:`)
                 .setColor(0xba0054)
                 .addFields(
                     { name: `${EMOJIS.STAFF || '👤'} Cargo Staff`, value: staffDisplay, inline: true },
                     { name: `${EMOJIS.TICKET || '📁'} Canal de Logs`, value: logsDisplay, inline: true }
                 )
-                .setFooter({ 
-                    text: `✧ BOT by: KnustVI | Em: ${guildName}`, // <--- Agora usando a variável correta
-                    iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' 
-                })
+                .setFooter(ConfigSystem.getFooter(interaction.guild.name))
                 .setTimestamp();
 
             // 3. Atualiza a mensagem original
