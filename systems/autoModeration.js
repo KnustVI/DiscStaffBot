@@ -9,9 +9,10 @@ module.exports = (client) => {
     // ALTERADO: Agora roda todos os dias às 12:00 (meio-dia)
     cron.schedule('0 12 * * *', async () => {
         console.log("🛡️ [Automod] Manutenção de Meio-dia iniciada...");
-        
+        const now = new Date();
+            ConfigSystem.setSetting(gId, 'last_automod_run', now.toISOString());
+            ConfigSystem.setSetting(gId, 'last_automod_channel', logChanId);
         const stats = {};
-
         // --- 1. RECUPERAÇÃO DE REPUTAÇÃO ---
         let usersRecovered = 0;
         try {
@@ -51,7 +52,7 @@ module.exports = (client) => {
                             await member.roles.add(exemplarRole).catch(() => null);
                             stats[gId].added++;
                             // Notifica o Usuário
-                            await member.send(`✨ Parabéns! Sua conduta em **${guild.name}** é exemplar. Você recebeu o cargo <@&${exemplarRole}>!`).catch(() => null);
+                            await member.send(`${EMOJIS.EXEMPLAR || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar. Você recebeu o cargo <@&${exemplarRole}>!`).catch(() => null);
                         } else if (rep < 90 && hasEx) {
                             await member.roles.remove(exemplarRole).catch(() => null);
                             stats[gId].removed++;
@@ -65,7 +66,7 @@ module.exports = (client) => {
                             await member.roles.add(problemRole).catch(() => null);
                             stats[gId].added++;
                             // Notifica o Usuário
-                            await member.send(`⚠️ Atenção: Sua reputação em **${guild.name}** caiu drasticamente. Você recebeu o cargo <@&${problemRole}>. Melhore sua conduta!`).catch(() => null);
+                            await member.send(`${EMOJIS.WARNING || '⚠️'} Atenção: Sua reputação em **${guild.name}** caiu drasticamente. Você recebeu o cargo <@&${problemRole}>. Melhore sua conduta!`).catch(() => null);
                         } else if (rep > 50 && hasProb) {
                             await member.roles.remove(problemRole).catch(() => null);
                             stats[gId].removed++;
