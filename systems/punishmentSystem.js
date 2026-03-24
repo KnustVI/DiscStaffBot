@@ -225,8 +225,8 @@ const PunishmentSystem = {
                 `### ${EMOJIS.TICKET || '📝'} Detalhes`,
                 `- **Gravidade:** Nível ${data.severity}`,
                 `- **Ticket:** ${data.ticketId}`,
-                `### ${EMOJIS.WARNING || '⚠️'} Punições Aplicadas`, // Novo cabeçalho de punições
-                `${actionDesc}`, // Lista formatada com hífens
+                `### ${EMOJIS.WARNING || '⚠️'} Punições Aplicadas`, 
+                `${actionDesc}`,
                 `### ${EMOJIS.NOTE || '📝'} Motivo`,
                 `\`\`\`\n${data.reason}\n\`\`\``,
             ].join('\n'))

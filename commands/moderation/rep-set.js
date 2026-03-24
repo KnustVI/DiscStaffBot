@@ -41,10 +41,10 @@ module.exports = {
                         `Uma alteração manual foi registada no sistema.`,
                         '',
                         `- **Usuário Alvo:** <@${target.id}> (\`${target.id}\`)`,
-                        `- **Responsável:** <@${staff.id}> (\`${staff.id}\`)`, // <--- ADICIONADO AQUI
+                        `- **Responsável:** <@${staff.id}> (\`${staff.id}\`)`,
                         `- **Mudança:** ${diffText}`,
                         `- **Saldo Final:** ${result.newPoints}/100 pts`,
-                        `- **Motivo:** `,
+                        `### ${EMOJIS.NOTE || '📝'} Motivo`,
                         `\`\`\`\n${reason}\n\`\`\``
                     ].join('\n');
 
@@ -52,30 +52,31 @@ module.exports = {
                         embeds: [new EmbedBuilder()
                             .setColor(embedColor)
                             .setDescription(logDesc)
-                            .setFooter(ConfigSystem.getFooter(data.guildName))
+                            .setFooter(ConfigSystem.getFooter(guild.name)) // CORRIGIDO: guild.name em vez de data.guildName
                             .setTimestamp()] 
                     });
                 }
             }
 
-            // 2. NOTIFICAÇÃO VIA DM (Visual Limpo)
+            // 2. NOTIFICAÇÃO VIA DM
             const dmDesc = [
                 `# ${statusEmoji} Atualização de Reputação`,
                 `A tua reputação em **${guild.name}** foi editada pela Staff.`,
                 '',
-                `- **Responsável:** <@${staff.id}>\n (\`${staff.id}\`)`,
+                `- **Responsável:** <@${staff.id}>`,
                 `- **Alteração:** ${diffText}`,
                 `- **Novo Saldo:** ${result.newPoints}/100 pts`,
-                `- **Motivo:** `,
+                `### ${EMOJIS.NOTE || '📝'} Motivo`,
                 `\`\`\`\n${reason}\n\`\`\``, 
                 '',
                 `> Esta é uma alteração direta no teu histórico de integridade.`
             ].join('\n');
 
             await target.send({ 
-                embeds: [new EmbedBuilder().setColor(embedColor)
+                embeds: [new EmbedBuilder()
+                    .setColor(embedColor)
                     .setDescription(dmDesc)
-                    .setFooter(ConfigSystem.getFooter(data.guildName))
+                    .setFooter(ConfigSystem.getFooter(guild.name)) // CORRIGIDO: guild.name
                     .setTimestamp()] 
             }).catch(() => {});
 
@@ -83,6 +84,7 @@ module.exports = {
             await interaction.editReply(`${EMOJIS.CHECK || '✅'} **Sucesso!** Saldo de <@${target.id}> atualizado para \`${result.newPoints} pts\` (\`${diffText}\`).`);
 
         } catch (err) {
+            ErrorLogger.log('RepSet_Command', err); // Logando o erro real para você ver no console
             await interaction.editReply(`${EMOJIS.ERRO || '❌'} Falha ao ajustar pontos. Verifica os logs.`);
         }
     }
