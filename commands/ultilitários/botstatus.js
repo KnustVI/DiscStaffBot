@@ -23,7 +23,7 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle(`${EMOJIS.PAINEL || '🖥️'} Status do Sistema`)
-                .setColor(0xc1ff72)
+                .setColor(0xba0054)
                 .setThumbnail(client.user.displayAvatarURL())
                 .addFields(
                     { 
