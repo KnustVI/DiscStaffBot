@@ -14,11 +14,12 @@ module.exports = {
         const { guild, client } = interaction;
 
         try {
-            const status = SystemStatus.getBotStatus(client, guild.id);
+            const status = ystemStatus.getBotStatus(client, guild.id);
             if (!status) throw new Error("Falha ao recuperar dados.");
 
-            const lastRunText = status.lastRun 
-                ? `<t:${Math.floor(new Date(status.lastRun).getTime() / 1000)}:f>` 
+            const lastRunDate = status.lastRun ? new Date(status.lastRun) : null;
+            const lastRunText = (lastRunDate && !isNaN(lastRunDate)) 
+                ? `<t:${Math.floor(lastRunDate.getTime() / 1000)}:f>` 
                 : 'Nenhum registro recente';
 
             const embed = new EmbedBuilder()
