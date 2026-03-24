@@ -9,6 +9,9 @@ const PunishmentSystem = {
     /**
      * FUNÇÃO MESTRE: Orquestra todo o processo de punição.
      */
+    /**
+     * FUNÇÃO MESTRE: Orquestra todo o processo de punição.
+     */
     async executeFullProcess({ guild, target, moderator, severity, reason, ticketId, discordAct, jogoAct, durationStr }) { 
         try {
             const pointsToSubtract = severity === 1 ? 10 : severity === 2 ? 25 : severity === 3 ? 40 : severity === 4 ? 60 : 100;
@@ -16,7 +19,8 @@ const PunishmentSystem = {
             const durationMs = this.parseDuration(durationStr);
             const endsAt = durationMs > 0 ? Math.floor((Date.now() + durationMs) / 1000) : null; 
 
-            await this.applyPunishment(guild.id, target.id, moderator.id, reason, severity, ticketId, pointsToSubtract);
+            // CAPTURA O ID GERADO:
+            const punishmentId = await this.applyPunishment(guild.id, target.id, moderator.id, reason, severity, ticketId, pointsToSubtract);
 
             const member = await guild.members.fetch(target.id).catch(() => null);
             if (member && discordAct && discordAct !== 'none') {
@@ -30,6 +34,7 @@ const PunishmentSystem = {
             const history = await this.getUserHistory(guild.id, target.id);
             
             const embed = this.generatePunishmentEmbed({
+                punishmentId: punishmentId, // Passando o ID correto para a embed
                 endsAt: endsAt,
                 durationStr: durationStr, 
                 targetUser: target,
@@ -47,29 +52,6 @@ const PunishmentSystem = {
             return { newPoints: history.reputation };
         } catch (err) {
             ErrorLogger.log('PunishmentSystem_FullProcess', err);
-            throw err;
-        }
-    },
-
-    async applyPunishment(guildId, targetId, moderatorId, reason, severity, ticketId = 'N/A', pointsToSubtract) {
-        const timestamp = Date.now();
-        try {
-            const transaction = db.transaction(() => {
-                db.prepare(`
-                    INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, ticket_id, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                `).run(guildId, targetId, moderatorId, reason, severity, ticketId, timestamp);
-
-                db.prepare(`
-                    INSERT INTO reputation (guild_id, user_id, points)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
-                `).run(guildId, targetId, 100 - pointsToSubtract, pointsToSubtract);
-            });
-            transaction();
-            return true;
-        } catch (err) {
-            ErrorLogger.log('PunishmentSystem_Apply', err);
             throw err;
         }
     },
@@ -131,6 +113,33 @@ const PunishmentSystem = {
         }
     },
 
+    async applyPunishment(guildId, targetId, moderatorId, reason, severity, ticketId = 'N/A', pointsToSubtract) {
+        const timestamp = Date.now();
+        try {
+            let lastId;
+            const transaction = db.transaction(() => {
+                // Capturamos o lastInsertRowid da inserção
+                const info = db.prepare(`
+                    INSERT INTO punishments (guild_id, user_id, moderator_id, reason, severity, ticket_id, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `).run(guildId, targetId, moderatorId, reason, severity, ticketId, timestamp);
+                
+                lastId = info.lastInsertRowid;
+
+                db.prepare(`
+                    INSERT INTO reputation (guild_id, user_id, points)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
+                `).run(guildId, targetId, 100 - pointsToSubtract, pointsToSubtract);
+            });
+            transaction();
+            return lastId; // Retorna o ID para ser usado na embed
+        } catch (err) {
+            ErrorLogger.log('PunishmentSystem_Apply', err);
+            throw err;
+        }
+    },
+
     parseDuration(durationStr) {
         if (!durationStr || durationStr === '0' || durationStr.toLowerCase() === 'perm') return 0;
         
@@ -180,7 +189,7 @@ const PunishmentSystem = {
             `### ${EMOJIS.TICKET || '📝'} Detalhes`,
             `- **ID da Punição Removida:** #${data.punishmentId}`,
             `### ${EMOJIS.NOTE || '📝'} Motivo da Anulação`,
-            `\`\`\`\n${data.reason}\n\`\`\``, // Motivo em campo de cópia e por último
+            `\`\`\`\n${data.reason}\n\`\`\``,
             '',
             `> O histórico foi limpo e os pontos restaurados.`
         ].join('\n'))
@@ -201,7 +210,7 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setThumbnail(data.targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
             .setDescription([
-                `# ${EMOJIS.DOWN || '⚖️'} STRIKE! | ${data.punishmentId}`,
+                `# ${EMOJIS.DOWN || '⚖️'} STRIKE! | #${data.punishmentId}`,
                 `Um novo registro de infração foi adicionado ao sistema.`,
                 `- **Moderador:** <@${data.moderatorId}> (${data.moderatorId})`,
                 `### ${EMOJIS.USER || '👤'} ${data.targetUser} (${data.targetUser.id})`,
@@ -212,8 +221,7 @@ const PunishmentSystem = {
                 `- **Punição:** ${actionDesc}`,
                 `- **Ticket:** ${data.ticketId}`,
                 `### ${EMOJIS.NOTE || '📝'} Motivo`,
-                `\`\`\`\n${data.reason}\n\`\`\``, // Campo de cópia por último
-                `> O histórico completo pode ser visto com /historico.`
+                `\`\`\`\n${data.reason}\n\`\`\``,
             ].join('\n'))
             .setFooter(ConfigSystem.getFooter(data.guildName))
             .setTimestamp();

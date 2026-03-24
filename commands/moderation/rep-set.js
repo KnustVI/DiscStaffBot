@@ -42,9 +42,10 @@ module.exports = {
                         '',
                         `- **Usuário Alvo:** <@${target.id}> (\`${target.id}\`)`,
                         `- **Responsável:** <@${staff.id}> (\`${staff.id}\`)`, // <--- ADICIONADO AQUI
-                        `- **Mudança:** \`${diffText}\``,
-                        `- **Saldo Final:** \`${result.newPoints}/100 pts\``,
-                        `- **Motivo:** \`${reason}\``
+                        `- **Mudança:** ${diffText}`,
+                        `- **Saldo Final:** ${result.newPoints}/100 pts`,
+                        `- **Motivo:** `,
+                        `\`\`\`\n${reason}\n\`\`\``
                     ].join('\n');
 
                     await logChannel.send({ 
@@ -58,9 +59,11 @@ module.exports = {
                 `# ${EMOJIS.REPUTATION || '📊'} Atualização de Reputação`,
                 `A tua reputação em **${guild.name}** foi editada pela Staff.`,
                 '',
-                `- **Alteração:** \`${diffText}\``,
-                `- **Novo Saldo:** \`${result.newPoints}/100 pts\``,
-                `- **Motivo:** \`${reason}\``,
+                `- **Responsável:** <@${staff.id}> (\`${staff.id}\`)`,
+                `- **Alteração:** ${diffText}`,
+                `- **Novo Saldo:** ${result.newPoints}/100 pts`,
+                `- **Motivo:** `,
+                `\`\`\`\n${reason}\n\`\`\``, 
                 '',
                 `> Esta é uma alteração direta no teu histórico de integridade.`
             ].join('\n');
