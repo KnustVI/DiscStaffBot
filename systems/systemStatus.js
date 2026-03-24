@@ -8,33 +8,33 @@ class SystemStatus {
      * @param {Client} client - O cliente do Discord
      * @param {string} guildId - ID da guilda para buscar configurações locais
      */
-    static getBotStatus(client, guildId) {
+        static getBotStatus(client, guildId) {
         try {
-            // 1. Cálculo de Uptime (Tempo Online)
             const uptime = process.uptime();
             const days = Math.floor(uptime / 86400);
             const hours = Math.floor((uptime % 86400) / 3600);
             const minutes = Math.floor((uptime % 3600) / 60);
 
-            // 2. Cálculo do próximo ciclo do AutoMod (Fixado para Meio-dia)
             const now = new Date();
             let nextRun = new Date();
             nextRun.setHours(12, 0, 0, 0);
-            
-            // Se já passou das 12h hoje, o próximo é amanhã
-            if (now > nextRun) {
-                nextRun.setDate(nextRun.getDate() + 1);
-            }
+            if (now > nextRun) nextRun.setDate(nextRun.getDate() + 1);
 
-            // 3. Retorno dos dados processados
+            // --- AQUI ESTÁ A LÓGICA DE CORREÇÃO ---
+            // 1. Tenta pegar o canal da última vez que o automod rodou
+            const lastAutoModChan = ConfigSystem.getSetting(guildId, 'last_automod_run_channel');
+            
+            // 2. Pega o canal que você configurou no /config
+            const configLogChan = ConfigSystem.getSetting(guildId, 'logs_channel');
+
             return {
                 uptime: `${days}d ${hours}h ${minutes}m`,
                 ping: client.ws.ping,
                 memory: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2),
-                nextAutoMod: Math.floor(nextRun.getTime() / 1000), // Timestamp para o Discord
-                // Buscamos as configurações que salvamos no AutoMod
+                nextAutoMod: Math.floor(nextRun.getTime() / 1000),
                 lastRun: ConfigSystem.getSetting(guildId, 'last_automod_run'),
-                lastChannel: ConfigSystem.getSetting(guildId, 'last_automod_channel')
+                // PRIORIDADE: Mostra o canal que rodou por último. Se nunca rodou, mostra o do /config.
+                lastChannel: lastAutoModChan || configLogChan 
             };
         } catch (err) {
             ErrorLogger.log('SystemStatus_GetBotStatus', err);

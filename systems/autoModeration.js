@@ -81,11 +81,15 @@ module.exports = (client) => {
         }
 
         // --- 3. ENVIO DO RELATÓRIO PARA O LOGS_CHANNEL ---
-        for (const gId in stats) {
+                for (const gId in stats) {
             try {
-                // PRIORIDADE: Sempre enviar para o logs_channel como você pediu
                 const logChanId = ConfigSystem.getSetting(gId, 'logs_channel');
                 if (!logChanId) continue;
+
+                // SALVA AQUI: Agora que temos o gId e o logChanId corretos do loop
+                const now = new Date();
+                ConfigSystem.setSetting(gId, 'last_automod_run', now.toISOString());
+                ConfigSystem.setSetting(gId, 'last_automod_run_channel', logChanId); // Nome da chave corrigido
 
                 const channel = await client.channels.fetch(logChanId).catch(() => null);
                 

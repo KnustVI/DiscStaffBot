@@ -5,7 +5,7 @@ const ConfigSystem = require('../../systems/configSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('status')
+        .setName('bot.status')
         .setDescription('Verifica o estado de saúde do bot e do AutoMod.'),
 
     async execute(interaction) {
