@@ -9,35 +9,29 @@ const PunishmentSystem = {
     /**
      * FUNÇÃO MESTRE: Orquestra todo o processo de punição.
      */
-    async executeFullProcess({ guild, target, moderator, severity, reason, ticketId, discordAct, jogoAct, durationStr }) { // <--- CORREÇÃO: Adicionado durationStr
+    async executeFullProcess({ guild, target, moderator, severity, reason, ticketId, discordAct, jogoAct, durationStr }) { 
         try {
             const pointsToSubtract = severity === 1 ? 10 : severity === 2 ? 25 : severity === 3 ? 40 : severity === 4 ? 60 : 100;
             
-            // Calculamos quando a punição termina
             const durationMs = this.parseDuration(durationStr);
-            const endsAt = durationMs > 0 ? Math.floor((Date.now() + durationMs) / 1000) : null; // <--- CORREÇÃO: Removido ;;
+            const endsAt = durationMs > 0 ? Math.floor((Date.now() + durationMs) / 1000) : null; 
 
-            // 1. Aplica no Banco
             await this.applyPunishment(guild.id, target.id, moderator.id, reason, severity, ticketId, pointsToSubtract);
 
-            // 2. Executa Punição no Discord (se houver)
             const member = await guild.members.fetch(target.id).catch(() => null);
             if (member && discordAct && discordAct !== 'none') {
-                await this.applyDiscordAction(member, discordAct, durationStr, reason); // <--- CORREÇÃO: Passando durationStr
+                await this.applyDiscordAction(member, discordAct, durationStr, reason); 
             }
 
-            // 3. Executa Punição no Jogo (RCON - Gancho preparado)
             if (jogoAct && jogoAct !== 'none') {
-                // Aqui você conectará seu RCON futuramente
                 console.log(`[RCON] Aplicando ${jogoAct} em ${target.id}`);
             }
 
             const history = await this.getUserHistory(guild.id, target.id);
             
-            // 4. Gera Embed com as punições aplicadas descritas
             const embed = this.generatePunishmentEmbed({
                 endsAt: endsAt,
-                durationStr: durationStr, // <--- CORREÇÃO: Adicionado vírgula
+                durationStr: durationStr, 
                 targetUser: target,
                 moderatorId: moderator.id,
                 pointsToSubtract,
@@ -102,7 +96,7 @@ const PunishmentSystem = {
         }
     },
 
-    async executeUnstrike({ guild, punishmentId, moderator }) {
+    async executeUnstrike({ guild, punishmentId, moderator, reason }) { // Adicionado reason aqui
         try {
             const punishment = db.prepare(`SELECT user_id, severity FROM punishments WHERE id = ? AND guild_id = ?`).get(punishmentId, guild.id);
             if (!punishment) return null;
@@ -125,7 +119,8 @@ const PunishmentSystem = {
                 pointsReturned: pointsToReturn,
                 reputation: history.reputation,
                 punishmentId: punishmentId,
-                guildName: guild.name
+                guildName: guild.name,
+                reason: reason // Passando o motivo para a embed
             });
 
             await this.dispatch(guild, embed, targetUser || { id: punishment.user_id }, logChannelId);
@@ -178,12 +173,14 @@ const PunishmentSystem = {
             .setDescription([
             `# ${EMOJIS.UP || '🛡️'} STRIKE Anulado | ${data.punishmentId}`,
             `Um registro de infração foi removido do sistema por um moderador.`,
-            `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
-            `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
-            `- **Pontos Devolvidos:** \`+${data.pointsReturned} pts\``,
-            `- **Reputação Atual:** \`${data.reputation}/100 pts\``,
+            `- **Moderador:** <@${data.moderatorId}> (${data.moderatorId})`,
+            `### ${EMOJIS.USER || '👤'} ${data.targetUser} (${data.targetUser.id})`,
+            `- **Pontos Devolvidos:** +${data.pointsReturned} pts`,
+            `- **Reputação Atual:** ${data.reputation}/100 pts`,
             `### ${EMOJIS.TICKET || '📝'} Detalhes`,
-            `- **ID da Punição Removida:** \`#${data.punishmentId}\``,
+            `- **ID da Punição Removida:** #${data.punishmentId}`,
+            `### ${EMOJIS.NOTE || '📝'} Motivo da Anulação`,
+            `\`\`\`\n${data.reason}\n\`\`\``, // Motivo em campo de cópia e por último
             '',
             `> O histórico foi limpo e os pontos restaurados.`
         ].join('\n'))
@@ -194,14 +191,11 @@ const PunishmentSystem = {
     generatePunishmentEmbed(data) {
         const discordLabels = { 'timeout_1h': 'Mute (1h)', 'timeout_1d': 'Mute (24h)', 'kick': 'Expulsão', 'ban': 'Banimento' };
         const jogoLabels = { 'rcon_warn': 'Aviso In-game', 'rcon_kick': 'Kick do Servidor', 'rcon_slay': 'Morte (Slay)', 'rcon_ban': 'Ban do Jogo' };
-        const timeDisplay = data.endsAt
-            ? `<t:${data.endsAt}:R> (Expira em: <t:${data.endsAt}:f>)` 
-            : `\`Permanente\``;
-
+        
         const actionDesc = [
-            data.actions.discord !== 'none' ? `🔹 Discord: \`${discordLabels[data.actions.discord] || data.actions.discord}\`` : null,
-            data.actions.jogo !== 'none' ? `🦖 Jogo: \`${jogoLabels[data.actions.jogo] || data.actions.jogo}\`` : null
-        ].filter(Boolean).join('\n') || '`Apenas Registro`';
+            data.actions.discord !== 'none' ? `🔹 Discord: ${discordLabels[data.actions.discord] || data.actions.discord}` : null,
+            data.actions.jogo !== 'none' ? `🦖 Jogo: ${jogoLabels[data.actions.jogo] || data.actions.jogo}` : null
+        ].filter(Boolean).join('\n') || 'Apenas Registro';
 
         return new EmbedBuilder()
             .setColor(0xba0054)
@@ -209,18 +203,17 @@ const PunishmentSystem = {
             .setDescription([
                 `# ${EMOJIS.DOWN || '⚖️'} STRIKE! | ${data.punishmentId}`,
                 `Um novo registro de infração foi adicionado ao sistema.`,
-                `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
-                `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
-                `- **Pontos Subtraídos:** \`-${data.pointsToSubtract} pts\``,
-                `- **Reputação Final:** \`${data.reputation}/100 pts\``,
+                `- **Moderador:** <@${data.moderatorId}> (${data.moderatorId})`,
+                `### ${EMOJIS.USER || '👤'} ${data.targetUser} (${data.targetUser.id})`,
+                `- **Pontos Subtraídos:** -${data.pointsToSubtract} pts`,
+                `- **Reputação Final:** ${data.reputation}/100 pts`,
                 `### ${EMOJIS.TICKET || '📝'} Detalhes`,
-                `- **Gravidade:** \`Nível ${data.severity}\``,
-                `- **Punição:** ${actionDesc}`, // <--- Removidas as crases externas para não bugar o visual
-                `- **Ticket:** \`${data.ticketId}\``,
-                `### ${EMOJIS.NOTE || '📝'} Motivo`, // <--- Ajustado para seguir o padrão de títulos
-                `\`${data.reason}\``,
-                '',
-                `> O histórico completo pode ser visto com \`/historico\`.`
+                `- **Gravidade:** Nível ${data.severity}`,
+                `- **Punição:** ${actionDesc}`,
+                `- **Ticket:** ${data.ticketId}`,
+                `### ${EMOJIS.NOTE || '📝'} Motivo`,
+                `\`\`\`\n${data.reason}\n\`\`\``, // Campo de cópia por último
+                `> O histórico completo pode ser visto com /historico.`
             ].join('\n'))
             .setFooter(ConfigSystem.getFooter(data.guildName))
             .setTimestamp();
@@ -246,24 +239,25 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setDescription([
                 `# ${EMOJIS.REPUTATION || '📊'} HISTÓRICO | ${targetUser.tag}`,
-                `Exibindo a ficha técnica de <@${targetUser.id}>`, // Adicionei uma menção limpa aqui
-                `- **Reputação:** \`${history.reputation}/100 pts\``,
-                `- **Total de Registros:** \`${history.total}\``,
+                `Exibindo a ficha técnica de <@${targetUser.id}>`,
+                `- **Reputação:** ${history.reputation}/100 pts`,
+                `- **Total de Registros:** ${history.total}`,
                 `### ${EMOJIS.TICKET || '📝'} Registros Recentes`,
                 `*Página ${page} de ${history.totalPages}*`,
                 `> Use os botões abaixo para navegar pelo histórico completo.`,
                 '' 
             ].join('\n'))
-            .setFooter(ConfigSystem.getFooter(guildName)); // <--- CORREÇÃO: guildName
+            .setFooter(ConfigSystem.getFooter(guildName));
 
         if (history.punishments.length === 0) {
             embed.addFields({ name: 'Limpo', value: 'Nenhum registro encontrado.' });
         } else {
             history.punishments.forEach(p => {
                 const date = p.created_at ? `<t:${Math.floor(p.created_at / 1000)}:d>` : 'N/A';
+                // No histórico, movi o motivo para ser o último dado do campo
                 embed.addFields({
                     name: `ID: #${p.id} | ${date}`,
-                    value: `> **Motivo:** ${p.reason.substring(0, 60)}${p.reason.length > 60 ? '...' : ''}\n> **Ticket:** \`${p.ticket_id || 'N/A'}\``
+                    value: `> **Ticket:** ${p.ticket_id || 'N/A'}\n`
                 });
             });
         }
@@ -282,19 +276,13 @@ const PunishmentSystem = {
         );
     },
 
-    /**
-     * Ajusta manualmente a reputação e retorna os detalhes para a Embed
-     */
     async setManualReputation(guildId, targetId, newPoints) {
         try {
-            // 1. Busca saldo antigo
             const currentData = db.prepare(`SELECT points FROM reputation WHERE user_id = ? AND guild_id = ?`).get(targetId, guildId);
             const oldPoints = currentData ? currentData.points : 100;
             
-            // 2. Calcula diferença
             const diff = newPoints - oldPoints;
 
-            // 3. Atualiza banco
             db.prepare(`
                 INSERT INTO reputation (guild_id, user_id, points)
                 VALUES (?, ?, ?)
