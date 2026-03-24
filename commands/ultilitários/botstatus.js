@@ -25,7 +25,7 @@ module.exports = {
                 .setTitle(`${EMOJIS.PAINEL || '🖥️'} Status do Sistema`)
                 .setColor(0xba0054)
                 .setThumbnail(client.user.displayAvatarURL())
-                .addFields(te
+                .addFields(
                     { 
                         name: `${EMOJIS.BOT || '🤖'} Bot Info`, 
                         // Removidas as crases para tirar o fundo cinza/preto

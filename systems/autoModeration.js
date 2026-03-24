@@ -6,13 +6,11 @@ const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
 
 module.exports = (client) => {
-    // ALTERADO: Agora roda todos os dias às 12:00 (meio-dia)
+    // Roda todos os dias às 12:00 (meio-dia de Brasília se a VPS estiver certa)
     cron.schedule('0 12 * * *', async () => {
         console.log("🛡️ [Automod] Manutenção de Meio-dia iniciada...");
-        const now = new Date();
-            ConfigSystem.setSetting(gId, 'last_automod_run', now.toISOString());
-            ConfigSystem.setSetting(gId, 'last_automod_channel', logChanId);
         const stats = {};
+
         // --- 1. RECUPERAÇÃO DE REPUTAÇÃO ---
         let usersRecovered = 0;
         try {
@@ -21,14 +19,13 @@ module.exports = (client) => {
                 SET points = MIN(100, points + 1)
                 WHERE points < 100
             `).run();
-            usersRecovered = result.changes; // Quantas pessoas ganharam +1 ponto
+            usersRecovered = result.changes;
         } catch (err) {
             ErrorLogger.log('AutoMod_DB_Update', err);
         }
 
         // --- 2. VERIFICAÇÃO DE CARGOS ---
         try {
-            // Pegamos quem está nas faixas de transição de cargo
             const users = db.prepare(`SELECT * FROM reputation WHERE points >= 90 OR points <= 50`).all();
 
             for (const userData of users) {
@@ -45,28 +42,24 @@ module.exports = (client) => {
                     const exemplarRole = ConfigSystem.getSetting(gId, 'exemplar_role');
                     const problemRole = ConfigSystem.getSetting(gId, 'problem_role');
 
-                    // Lógica Exemplar + Notificação DM
                     if (exemplarRole) {
                         const hasEx = member.roles.cache.has(exemplarRole);
                         if (rep >= 95 && !hasEx) {
                             await member.roles.add(exemplarRole).catch(() => null);
                             stats[gId].added++;
-                            // Notifica o Usuário
-                            await member.send(`${EMOJIS.EXEMPLAR || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar. Você recebeu o cargo <@&${exemplarRole}>!`).catch(() => null);
+                            await member.send(`${EMOJIS.EXEMPLAR || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar!`).catch(() => null);
                         } else if (rep < 90 && hasEx) {
                             await member.roles.remove(exemplarRole).catch(() => null);
                             stats[gId].removed++;
                         }
                     }
                     
-                    // Lógica Problemático + Notificação DM
                     if (problemRole) {
                         const hasProb = member.roles.cache.has(problemRole);
                         if (rep <= 30 && !hasProb) {
                             await member.roles.add(problemRole).catch(() => null);
                             stats[gId].added++;
-                            // Notifica o Usuário
-                            await member.send(`${EMOJIS.WARNING || '⚠️'} Atenção: Sua reputação em **${guild.name}** caiu drasticamente. Você recebeu o cargo <@&${problemRole}>. Melhore sua conduta!`).catch(() => null);
+                            await member.send(`${EMOJIS.WARNING || '⚠️'} Sua reputação em **${guild.name}** caiu. Melhore sua conduta!`).catch(() => null);
                         } else if (rep > 50 && hasProb) {
                             await member.roles.remove(problemRole).catch(() => null);
                             stats[gId].removed++;
@@ -80,36 +73,28 @@ module.exports = (client) => {
             ErrorLogger.log('AutoMod_MainLoop', dbErr);
         }
 
-        // --- 3. ENVIO DO RELATÓRIO PARA O LOGS_CHANNEL ---
-                for (const gId in stats) {
+        // --- 3. ENVIO DO RELATÓRIO E SALVAMENTO DE STATUS ---
+        for (const gId in stats) {
             try {
                 const logChanId = ConfigSystem.getSetting(gId, 'logs_channel');
                 if (!logChanId) continue;
 
-                // SALVA AQUI: Agora que temos o gId e o logChanId corretos do loop
+                // SALVA O STATUS: Aqui gId e logChanId estão definidos e seguros!
                 const now = new Date();
                 ConfigSystem.setSetting(gId, 'last_automod_run', now.toISOString());
-                ConfigSystem.setSetting(gId, 'last_automod_run_channel', logChanId); // Nome da chave corrigido
+                ConfigSystem.setSetting(gId, 'last_automod_run_channel', logChanId); 
 
                 const channel = await client.channels.fetch(logChanId).catch(() => null);
                 
                 if (channel) {
                     const embed = new EmbedBuilder()
-                        .setTitle(`${EMOJIS.CHECK || '✅'} Manutenção de Cadastro Concluída`)
-                        .setColor(0xc1ff72) // Verde que você gosta
+                        .setTitle(`${EMOJIS.CHECK || '✅'} Manutenção Concluída`)
+                        .setColor(0xc1ff72)
                         .setThumbnail(client.user.displayAvatarURL())
                         .setDescription(`Relatório diário de integridade do servidor.`)
                         .addFields(
-                            { 
-                                name: `${EMOJIS.UP || '📈'} Recuperação de Pontos`, 
-                                value: `\`${stats[gId].recoveredCount}\` usuários receberam \`+1\` ponto de reputação hoje.`, 
-                                inline: false 
-                            },
-                            { 
-                                name: `${EMOJIS.STATUS || '🎭'} Atualização de Cargos`, 
-                                value: `\`${stats[gId].added}\` Membros promovidos/alertados\n\`${stats[gId].removed}\` Cargos removidos`, 
-                                inline: true 
-                            }
+                            { name: `${EMOJIS.UP || '📈'} Recuperação de Pontos`, value: `\`${stats[gId].recoveredCount}\` usuários ganharam \`+1\` ponto.`, inline: false },
+                            { name: `${EMOJIS.STATUS || '🎭'} Atualização de Cargos`, value: `\`${stats[gId].added}\` Atribuídos / \`${stats[gId].removed}\` Removidos`, inline: true }
                         )
                         .setFooter({ text: `Sistema de Integridade • ${stats[gId].guildName}` })
                         .setTimestamp();
