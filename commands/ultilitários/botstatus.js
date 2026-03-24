@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, version } = require('discord.js');
 const { EMOJIS } = require('../../database/emojis');
-const ConfigSystem = require('../../systems/configSystem');
+const ConfigSystem = require('../../systems/systemStatus');
 
 module.exports = {
     data: new SlashCommandBuilder()
