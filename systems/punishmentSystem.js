@@ -212,8 +212,8 @@ const PunishmentSystem = {
             .setDescription([
                 `# ${EMOJIS.DOWN || '⚖️'} STRIKE! | #${data.punishmentId}`,
                 `Um novo registro de infração foi adicionado ao sistema.`,
-                `- **Moderador:** <@${data.moderatorId}> (${data.moderatorId})`,
-                `### ${EMOJIS.USER || '👤'} ${data.targetUser} (${data.targetUser.id})`,
+                `- **Moderador:** <@${data.moderatorId}>\n(${data.moderatorId})`,
+                `### ${EMOJIS.USER || '👤'} ${data.targetUser}\n (${data.targetUser.id})`,
                 `- **Pontos Subtraídos:** -${data.pointsToSubtract} pts`,
                 `- **Reputação Final:** ${data.reputation}/100 pts`,
                 `### ${EMOJIS.TICKET || '📝'} Detalhes`,

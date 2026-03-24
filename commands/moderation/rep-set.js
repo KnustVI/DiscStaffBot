@@ -49,17 +49,21 @@ module.exports = {
                     ].join('\n');
 
                     await logChannel.send({ 
-                        embeds: [new EmbedBuilder().setColor(embedColor).setDescription(logDesc).setTimestamp()] 
+                        embeds: [new EmbedBuilder()
+                            .setColor(embedColor)
+                            .setDescription(logDesc)
+                            .setFooter(ConfigSystem.getFooter(data.guildName))
+                            .setTimestamp()] 
                     });
                 }
             }
 
             // 2. NOTIFICAÇÃO VIA DM (Visual Limpo)
             const dmDesc = [
-                `# ${EMOJIS.REPUTATION || '📊'} Atualização de Reputação`,
+                `# ${statusEmoji} Atualização de Reputação`,
                 `A tua reputação em **${guild.name}** foi editada pela Staff.`,
                 '',
-                `- **Responsável:** <@${staff.id}> (\`${staff.id}\`)`,
+                `- **Responsável:** <@${staff.id}>\n (\`${staff.id}\`)`,
                 `- **Alteração:** ${diffText}`,
                 `- **Novo Saldo:** ${result.newPoints}/100 pts`,
                 `- **Motivo:** `,
@@ -69,7 +73,10 @@ module.exports = {
             ].join('\n');
 
             await target.send({ 
-                embeds: [new EmbedBuilder().setColor(embedColor).setDescription(dmDesc).setTimestamp()] 
+                embeds: [new EmbedBuilder().setColor(embedColor)
+                    .setDescription(dmDesc)
+                    .setFooter(ConfigSystem.getFooter(data.guildName))
+                    .setTimestamp()] 
             }).catch(() => {});
 
             // 3. RESPOSTA AO MODERADOR
