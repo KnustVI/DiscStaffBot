@@ -9,11 +9,11 @@ module.exports = {
 
     async execute(interaction) {
         const embed = new EmbedBuilder()
-            .setTitle(`${EMOJIS.STAFF} Painel de Configuração`)
+            .setTitle(`${EMOJIS.CONFIG || '⚙️'} Painel de Configuração`)
             .setDescription('Selecione abaixo o que deseja configurar no servidor.')
-            .setColor(0x5865F2)
+            .setColor(0xba0054)
             .addFields(
-                { name: '1. Cargo Staff', value: 'Quem poderá usar o comando `/punir`.' },
+                { name: '1. Cargo Staff', value: 'Quem poderá usar oscomandos de moderação.' },
                 { name: '2. Canal de Logs', value: 'Onde as punições serão enviadas.' }
             );
 

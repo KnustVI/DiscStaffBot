@@ -251,7 +251,6 @@ const PunishmentSystem = {
                 `- **Total de Registros:** \`${history.total}\``,
                 `### ${EMOJIS.TICKET || '📝'} Registros Recentes`,
                 `*Página ${page} de ${history.totalPages}*`,
-                '',
                 `> Use os botões abaixo para navegar pelo histórico completo.`,
                 '' 
             ].join('\n'))
@@ -281,6 +280,32 @@ const PunishmentSystem = {
                 .setCustomId(`hist_${targetId}_${currentPage + 1}`)
                 .setLabel('➡️ Próxima').setStyle(ButtonStyle.Secondary).setDisabled(currentPage >= totalPages)
         );
+    },
+
+    /**
+     * Ajusta manualmente a reputação e retorna os detalhes para a Embed
+     */
+    async setManualReputation(guildId, targetId, newPoints) {
+        try {
+            // 1. Busca saldo antigo
+            const currentData = db.prepare(`SELECT points FROM reputation WHERE user_id = ? AND guild_id = ?`).get(targetId, guildId);
+            const oldPoints = currentData ? currentData.points : 100;
+            
+            // 2. Calcula diferença
+            const diff = newPoints - oldPoints;
+
+            // 3. Atualiza banco
+            db.prepare(`
+                INSERT INTO reputation (guild_id, user_id, points)
+                VALUES (?, ?, ?)
+                ON CONFLICT(guild_id, user_id) DO UPDATE SET points = ?
+            `).run(guildId, targetId, newPoints, newPoints);
+
+            return { oldPoints, newPoints, diff };
+        } catch (err) {
+            ErrorLogger.log('PunishmentSystem_SetManual', err);
+            throw err;
+        }
     }
 };
 
