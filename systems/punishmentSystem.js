@@ -254,7 +254,8 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setDescription([
                 `# ${EMOJIS.REPUTATION || '📊'} HISTÓRICO | ${targetUser.tag}`,
-                `Exibindo a ficha técnica de <@${targetUser.id}>`,
+                `- Exibindo a ficha técnica de`,
+                `${targetUser.username} (${targetUser.id})`,
                 `- **Reputação:** ${history.reputation}/100 pts`,
                 `- **Total de Registros:** ${history.total}`,
                 `### ${EMOJIS.TICKET || '📝'} Registros Recentes`,

@@ -40,8 +40,12 @@ module.exports = {
                         `# ${statusEmoji} Ajuste de Reputação Manual`,
                         `Uma alteração manual foi registada no sistema.`,
                         '',
-                        `- **Usuário Alvo:** <@${target.id}> (\`${target.id}\`)`,
-                        `- **Responsável:** <@${staff.id}> (\`${staff.id}\`)`,
+                        `- **Usuário Alvo:**`,
+                        `<@${target.id}>`,
+                        `${target.username} (\`${target.id}\`)`,
+                        `- **Responsável:**`,
+                        `<@${staff.id}>`,
+                        `${interaction.member.displayName} (${staff.id})`,
                         `- **Mudança:** ${diffText}`,
                         `- **Saldo Final:** ${result.newPoints}/100 pts`,
                         `### ${EMOJIS.NOTE || '📝'} Motivo`,
@@ -52,7 +56,7 @@ module.exports = {
                         embeds: [new EmbedBuilder()
                             .setColor(embedColor)
                             .setDescription(logDesc)
-                            .setFooter(ConfigSystem.getFooter(guild.name)) // CORRIGIDO: guild.name em vez de data.guildName
+                            .setFooter(ConfigSystem.getFooter(guild.name))
                             .setTimestamp()] 
                     });
                 }
@@ -63,7 +67,7 @@ module.exports = {
                 `# ${statusEmoji} Atualização de Reputação`,
                 `A tua reputação em **${guild.name}** foi editada pela Staff.`,
                 '',
-                `- **Responsável:** ${staff.tag}\n(<@${staff.id}>)`,
+                `- **Responsável:** ${interaction.member.displayName} (${staff.tag})`,
                 `- **Alteração:** ${diffText}`,
                 `- **Novo Saldo:** ${result.newPoints}/100 pts`,
                 `### ${EMOJIS.NOTE || '📝'} Motivo`,
