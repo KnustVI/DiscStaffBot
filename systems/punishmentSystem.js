@@ -176,17 +176,17 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setThumbnail(data.targetUser.displayAvatarURL ? data.targetUser.displayAvatarURL({ dynamic: true }) : null)
             .setDescription([
-                `# ${EMOJIS.UP || '🛡️'} STRIKE Anulado`,
-                `Um registro de infração foi removido do sistema por um moderador.`,
-                `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
-                `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
-                `- **Pontos Devolvidos:** \`+${data.pointsReturned} pts\``,
-                `- **Reputação Atual:** \`${data.reputation}/100 pts\``,
-                `### ${EMOJIS.TICKET || '📝'} Detalhes`,
-                `- **ID da Punição Removida:** \`#${data.punishmentId}\``,
-                '',
-                `> O histórico foi limpo e os pontos restaurados.`
-            ].join('\n'))
+            `# ${EMOJIS.UP || '🛡️'} STRIKE Anulado`,
+            `Um registro de infração foi removido do sistema por um moderador.`,
+            `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
+            `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
+            `- **Pontos Devolvidos:** \`+${data.pointsReturned} pts\``,
+            `- **Reputação Atual:** \`${data.reputation}/100 pts\``,
+            `### ${EMOJIS.TICKET || '📝'} Detalhes`,
+            `- **ID da Punição Removida:** \`#${data.punishmentId}\``,
+            '',
+            `> O histórico foi limpo e os pontos restaurados.`
+        ].join('\n'))
             .setFooter(ConfigSystem.getFooter(data.guildName))
             .setTimestamp();
     },
@@ -210,16 +210,15 @@ const PunishmentSystem = {
                 `# ${EMOJIS.DOWN || '⚖️'} STRIKE!`,
                 `Um novo registro de infração foi adicionado ao sistema.`,
                 `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
-                `- **Duração:** ${timeDisplay}`,
                 `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
                 `- **Pontos Subtraídos:** \`-${data.pointsToSubtract} pts\``,
                 `- **Reputação Final:** \`${data.reputation}/100 pts\``,
                 `### ${EMOJIS.TICKET || '📝'} Detalhes`,
                 `- **Gravidade:** \`Nível ${data.severity}\``,
-                `- **Punição:** \`${actionDesc}\``,
+                `- **Punição:** ${actionDesc}`, // <--- Removidas as crases externas para não bugar o visual
                 `- **Ticket:** \`${data.ticketId}\``,
-                `- ### ${EMOJIS.NOTE || '📝'} **Motivo:** 
-                \`${data.reason}\``,
+                `### ${EMOJIS.NOTE || '📝'} Motivo`, // <--- Ajustado para seguir o padrão de títulos
+                `\`${data.reason}\``,
                 '',
                 `> O histórico completo pode ser visto com \`/historico\`.`
             ].join('\n'))
@@ -247,10 +246,14 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setDescription([
                 `# ${EMOJIS.REPUTATION || '📊'} HISTÓRICO`,
+                `Exibindo a ficha técnica de <@${targetUser.id}>`, // Adicionei uma menção limpa aqui
                 `- **Reputação:** \`${history.reputation}/100 pts\``,
                 `- **Total de Registros:** \`${history.total}\``,
-                `### ${EMOJIS.TICKET || '📝'} Registros Recentes (Página ${page}/${history.totalPages})`,
+                `### ${EMOJIS.TICKET || '📝'} Registros Recentes`,
+                `*Página ${page} de ${history.totalPages}*`,
+                '',
                 `> Use os botões abaixo para navegar pelo histórico completo.`,
+                '' 
             ].join('\n'))
             .setFooter(ConfigSystem.getFooter(guildName)); // <--- CORREÇÃO: guildName
 
