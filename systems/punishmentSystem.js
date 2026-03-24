@@ -197,14 +197,20 @@ const PunishmentSystem = {
             .setTimestamp();
     },
 
-    generatePunishmentEmbed(data) {
+        generatePunishmentEmbed(data) {
         const discordLabels = { 'timeout_1h': 'Mute (1h)', 'timeout_1d': 'Mute (24h)', 'kick': 'Expulsão', 'ban': 'Banimento' };
         const jogoLabels = { 'rcon_warn': 'Aviso In-game', 'rcon_kick': 'Kick do Servidor', 'rcon_slay': 'Morte (Slay)', 'rcon_ban': 'Ban do Jogo' };
         
-        const actionDesc = [
-            data.actions.discord !== 'none' ? `🔹 Discord: ${discordLabels[data.actions.discord] || data.actions.discord}` : null,
-            data.actions.jogo !== 'none' ? `🦖 Jogo: ${jogoLabels[data.actions.jogo] || data.actions.jogo}` : null
-        ].filter(Boolean).join('\n') || 'Apenas Registro';
+        // Agora geramos apenas os textos das ações sem prefixos fixos aqui
+        const actions = [
+            data.actions.discord !== 'none' ? `${discordLabels[data.actions.discord] || data.actions.discord}` : null,
+            data.actions.jogo !== 'none' ? `${jogoLabels[data.actions.jogo] || data.actions.jogo}` : null
+        ].filter(Boolean);
+
+        // Se houver ações, formatamos como lista com hífen. Se não, mostramos "Apenas Registro".
+        const actionDesc = actions.length > 0 
+            ? actions.map(a => `- ${a}`).join('\n') 
+            : '- Apenas Registro';
 
         return new EmbedBuilder()
             .setColor(0xba0054)
@@ -218,14 +224,15 @@ const PunishmentSystem = {
                 `- **Reputação Final:** ${data.reputation}/100 pts`,
                 `### ${EMOJIS.TICKET || '📝'} Detalhes`,
                 `- **Gravidade:** Nível ${data.severity}`,
-                `- **Punição:** ${actionDesc}`,
                 `- **Ticket:** ${data.ticketId}`,
+                `### ${EMOJIS.WARNING || '⚠️'} Punições Aplicadas`, // Novo cabeçalho de punições
+                `${actionDesc}`, // Lista formatada com hífens
                 `### ${EMOJIS.NOTE || '📝'} Motivo`,
                 `\`\`\`\n${data.reason}\n\`\`\``,
             ].join('\n'))
             .setFooter(ConfigSystem.getFooter(data.guildName))
             .setTimestamp();
-    },
+        },
 
     async dispatch(guild, embed, targetUser, logChannelId) {
         if (logChannelId) {
