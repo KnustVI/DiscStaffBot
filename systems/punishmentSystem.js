@@ -176,7 +176,7 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setThumbnail(data.targetUser.displayAvatarURL ? data.targetUser.displayAvatarURL({ dynamic: true }) : null)
             .setDescription([
-            `# ${EMOJIS.UP || '🛡️'} STRIKE Anulado`,
+            `# ${EMOJIS.UP || '🛡️'} STRIKE Anulado | ${data.punishmentId}`,
             `Um registro de infração foi removido do sistema por um moderador.`,
             `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
             `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
@@ -207,7 +207,7 @@ const PunishmentSystem = {
             .setColor(0xba0054)
             .setThumbnail(data.targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
             .setDescription([
-                `# ${EMOJIS.DOWN || '⚖️'} STRIKE!`,
+                `# ${EMOJIS.DOWN || '⚖️'} STRIKE! | ${data.punishmentId}`,
                 `Um novo registro de infração foi adicionado ao sistema.`,
                 `- **Moderador:** <@${data.moderatorId}> (\`${data.moderatorId}\`)`,
                 `### ${EMOJIS.USER || '👤'} ${data.targetUser} (\`${data.targetUser.id}\`)`,
@@ -242,10 +242,10 @@ const PunishmentSystem = {
 
     generateHistoryEmbed(targetUser, history, page, guildName) {
         const embed = new EmbedBuilder()
-            .setAuthor({ name: `Histórico: ${targetUser.tag}`, iconURL: targetUser.displayAvatarURL() })
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
             .setColor(0xba0054)
             .setDescription([
-                `# ${EMOJIS.REPUTATION || '📊'} HISTÓRICO`,
+                `# ${EMOJIS.REPUTATION || '📊'} HISTÓRICO | ${targetUser.tag}`,
                 `Exibindo a ficha técnica de <@${targetUser.id}>`, // Adicionei uma menção limpa aqui
                 `- **Reputação:** \`${history.reputation}/100 pts\``,
                 `- **Total de Registros:** \`${history.total}\``,
