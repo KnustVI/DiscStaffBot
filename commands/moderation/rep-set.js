@@ -63,7 +63,7 @@ module.exports = {
                 `# ${statusEmoji} Atualização de Reputação`,
                 `A tua reputação em **${guild.name}** foi editada pela Staff.`,
                 '',
-                `- **Responsável:** <@${staff.id}>`,
+                `- **Responsável:** ${staff.tag}\n(<@${staff.id}>)`,
                 `- **Alteração:** ${diffText}`,
                 `- **Novo Saldo:** ${result.newPoints}/100 pts`,
                 `### ${EMOJIS.NOTE || '📝'} Motivo`,
