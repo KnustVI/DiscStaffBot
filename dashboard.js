@@ -35,12 +35,31 @@ function loadDashboard(client) {
     // 3. ROTAS (As páginas do site)
     
     // Página Inicial
-    app.get('/', (req, res) => {
-        res.render('index', { 
-            user: req.user, // Se estiver logado, passa os dados do usuário
-            bot: client
-        });
+    app.get('/', async (req, res) => {
+    let isAdmin = false;
+
+    if (req.user) {
+        // ID do seu servidor principal (onde a staff está)
+        const guildId = "ID_DO_SEU_SERVIDOR_AQUI"; 
+        const guild = client.guilds.cache.get(guildId);
+
+        if (guild) {
+            // Tenta buscar o membro no servidor
+            const member = await guild.members.fetch(req.user.id).catch(() => null);
+            
+            // Verifica se o membro existe e se tem a permissão de Administrador (ou Gerenciar Servidor)
+            if (member && member.permissions.has('Administrator')) {
+                isAdmin = true;
+            }
+        }
+    }
+
+    res.render('index', { 
+        user: req.user,
+        bot: client,
+        isAdmin: isAdmin // Passamos essa informação para o HTML
     });
+});
 
     // Rota de Login (Redireciona para o Discord)
     app.get('/login', passport.authenticate('discord'));

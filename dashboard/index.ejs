@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | <%= bot.user.username %></title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #2c2f33; color: white; text-align: center; padding: 50px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .btn { background: #5865F2; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-top: 15px; transition: 0.3s; }
+        .btn:hover { background: #4752c4; }
+        .btn-admin { background: #ba0054; }
+        .user-card { background: #23272a; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: inline-block; width: 100%; }
+        img { border-radius: 50%; border: 3px solid #5865F2; margin-bottom: 15px; }
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8em; margin-top: 10px; display: inline-block; }
+        .success { background: #43b581; color: white; }
+        .danger { background: #f04747; color: white; }
+        hr { border: 0; border-top: 1px solid #4f545c; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Painel de Controle</h1>
+        
+        <% if (user) { %>
+            <div class="user-card">
+                <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" width="100" onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'">
+                <h2>Olá, <%= user.username %>!</h2>
+                
+                <% if (isAdmin) { %>
+                    <div class="status-badge success">✅ Administrador</div>
+                    <p>Você tem acesso total às ferramentas do bot.</p>
+                    <hr>
+                    <a href="/punicoes" class="btn btn-admin">Visualizar Histórico de Punições</a>
+                <% } else { %>
+                    <div class="status-badge danger">⚠️ Acesso Restrito</div>
+                    <p>Você está logado, mas não possui permissões de Administrador neste servidor.</p>
+                <% } %>
+
+                <br><br>
+                <a href="/logout" style="color: #99aab5; text-decoration: none; font-size: 0.9em;">Sair da conta</a>
+            </div>
+        <% } else { %>
+            <div class="user-card">
+                <p>Para gerenciar as punições e configurações, você precisa se identificar.</p>
+                <a href="/login" class="btn">Login com Discord</a>
+            </div>
+        <% } %>
+    </div>
+</body>
+</html>
