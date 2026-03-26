@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Painel do Bot</title>
+    <style>
+        body { font-family: sans-serif; background: #2c2f33; color: white; text-align: center; }
+        .card { background: #23272a; padding: 20px; border-radius: 10px; display: inline-block; margin: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Painel do <%= botName %></h1>
+    <div class="card">
+        <h3>Servidores</h3>
+        <p><%= serverCount %></p>
+    </div>
+    <div class="card">
+        <h3>Usuários Totais</h3>
+        <p><%= userCount %></p>
+    </div>
+</body>
+</html>

@@ -76,4 +76,12 @@ client.once('ready', async () => {
     console.log(`🚀 Bot online: ${client.user.tag}`);
 });
 
+// Dashoard
+const loadDashboard = require('./dashboard.js');
+
+client.once('ready', () => {
+    console.log(`Bot logado como ${client.user.tag}`);
+    loadDashboard(client); // Isso liga o site junto com o bot
+});
+
 client.login(process.env.TOKEN);
