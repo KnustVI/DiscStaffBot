@@ -3,6 +3,17 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+
+// Conecta ao seu banco de dados atual
+const db = new sqlite3.Database(path.join(__dirname, 'database.sqlite'));
+
+// Cria a tabela de configurações se ela não existir
+db.run(`CREATE TABLE IF NOT EXISTS guild_settings (
+    guild_id TEXT PRIMARY KEY,
+    log_channel_id TEXT,
+    staff_role_id TEXT
+)`);
 
 const app = express();
 
@@ -109,6 +120,31 @@ function loadDashboard(client) {
         });
     });
 
+
+        // Rota para salvar as configurações
+    app.post('/manage/:guildID/save', async (req, res) => {
+        const { logChannel, staffRole } = req.body;
+        const guildID = req.params.guildID;
+
+        // Verifica permissão novamente por segurança
+        const guild = client.guilds.cache.get(guildID);
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        
+        if (!member || !member.permissions.has('Administrator')) {
+            return res.status(403).send("Sem permissão.");
+        }
+
+        const sql = `INSERT INTO guild_settings (guild_id, log_channel_id, staff_role_id) 
+                    VALUES (?, ?, ?) 
+                    ON CONFLICT(guild_id) DO UPDATE SET 
+                    log_channel_id = excluded.log_channel_id, 
+                    staff_role_id = excluded.staff_role_id`;
+
+        db.run(sql, [guildID, logChannel, staffRole], (err) => {
+            if (err) return res.status(500).send("Erro ao salvar no banco.");
+            res.redirect(`/manage/${guildID}?success=true`);
+        });
+    });
 
 }
 
