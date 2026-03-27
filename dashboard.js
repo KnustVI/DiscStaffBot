@@ -40,7 +40,7 @@ function loadDashboard(client) {
 
     if (req.user) {
         // ID do seu servidor principal (onde a staff está)
-        const guildId = "ID_DO_SEU_SERVIDOR_AQUI"; 
+        const guildId = "430534418818400266"; 
         const guild = client.guilds.cache.get(guildId);
 
         if (guild) {
