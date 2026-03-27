@@ -213,23 +213,15 @@
         </nav>
 
         <div class="staff-profile">
-    <!-- Avatar do Usuário -->
-    <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
-         onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'" 
-         class="staff-avatar">
-         
+    <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" class="staff-avatar">
     <div class="staff-info">
-        <!-- Nickname (Nome no servidor) -->
         <div class="name"><%= nickname %></div>
-        
-        <!-- Maior cargo no Discord -->
         <div class="role"><%= role %></div>
-        
         <div class="staff-stats">
-            <!-- Nível vindo do DB -->
+            <!-- Exibe o Nível baseado em punições aplicadas -->
             <div class="stat-tag">NV. <%= level %></div>
             
-            <!-- Reputação vinda do DB -->
+            <!-- Exibe os pontos da tabela reputation -->
             <div class="stat-tag" style="background: var(--text-primary); color: var(--bg-main);">
                 REP: <%= reputation %>
             </div>

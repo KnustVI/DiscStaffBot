@@ -3,7 +3,21 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
-const db = require('./database/database'); // Usando o seu banco better-sqlite3 do bot
+const db = require('./database/database');
+
+const Database = require('better-sqlite3');
+const db = new Database('database.db')
+
+// IMPORTANTE: Rode isso ANTES das rotas (app.get)
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, 
+        reputation INTEGER DEFAULT 100, 
+        level INTEGER DEFAULT 1
+    )
+`).run();
+
+// ... resto do código (rotas, etc)
 
 const app = express();
 
@@ -68,31 +82,43 @@ function loadDashboard(client) {
     });
 
     // HOME (GRÁFICOS)
-    app.get('/home/:guildID', checkAuth, async (req, res) => {
-        const guild = client.guilds.cache.get(req.params.guildID);
-        if (!guild) return res.redirect('/');
+            app.get('/home/:guildID', checkAuth, async (req, res) => {
+            const guildID = req.params.guildID;
+            const guild = client.guilds.cache.get(guildID);
+            if (!guild) return res.redirect('/');
 
-        // Verifica se o user é admin no servidor
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+            // 1. Verifica se o user é admin
+            const member = await guild.members.fetch(req.user.id).catch(() => null);
+            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
 
-        const highestRole = member ? member.roles.highest.name : "Sem Cargo";
-        const nickname = member ? member.displayName : req.user.username;
+            // 2. Busca a Reputação (tabela 'reputation')
+            // Nota: Seu banco usa 'points' em vez de 'reputation'
+            let repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?")
+                            .get(guildID, req.user.id);
+            
+            // 3. Busca o total de punições (tabela 'punishments')
+            const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?")
+                            .get(guildID, req.user.id);
 
-        // 2. Buscar Reputation e Level no seu Banco de Dados (Tabela users)
-        // Ajuste o nome das colunas conforme sua tabela
-        const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
+            // Valores padrão caso não existam no banco
+            const points = repData ? repData.points : 100;
+            const totalPunishments = punCount ? punCount.total : 0;
+            
+            // O seu banco não parece ter uma coluna 'level' global, 
+            // então vamos usar o total de punições ou um valor estático por enquanto
+            const level = Math.floor(totalPunishments / 5) + 1; 
 
             res.render('home', {
-            guild: guild,
-            user: req.user,
-            bot: client,
-            nickname: nickname,
-            role: highestRole,
-            reputation: reputation,
-            level: level
+                guild: guild,
+                user: req.user,
+                bot: client,
+                nickname: member.displayName,
+                role: member.roles.highest.name,
+                reputation: points,
+                level: level,
+                totalPunishments: totalPunishments
+            });
         });
-    });
 
     // MANAGE (CONFIGURAÇÕES - EXATAMENTE COMO A FOTO)
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
