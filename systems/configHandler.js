@@ -1,3 +1,4 @@
+console.log('CONFIG HANDLER DISPAROU');
 const { EmbedBuilder } = require('discord.js');
 const ConfigSystem = require('../systems/configSystem');
 const { EMOJIS } = require('../database/emojis');
