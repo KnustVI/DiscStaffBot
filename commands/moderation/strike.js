@@ -39,12 +39,14 @@ module.exports = {
     async execute(interaction) {
         // 1. O "Seguro Anti-Lag" da Oracle
         await interaction.deferReply({ ephemeral: true });
+        if (!(await ConfigSystem.checkAuth(interaction))) return;
 
         const { guild, options, channel, member } = interaction;
         const target = options.getUser('usuario');
         
         // Tática de Leveza: Se não informou ticket, tenta pegar o nome do canal atual (ex: ticket-vick)
-        const ticketId = options.getString('ticket') || (channel.name.includes('ticket') ? channel.name : 'N/A');
+        const ticketId = options.getString('ticket') || 
+    (   channel?.name?.includes('ticket') ? channel.name : 'N/A');
 
         try {
             // 2. Enviando TODOS os parâmetros para o PunishmentSystem que revisamos
