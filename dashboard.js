@@ -46,13 +46,13 @@ function loadDashboard(client) {
         );
     }
 
-    res.render('index', { 
-        user: req.user,
-        bot: client,
-        isAdmin: userGuilds.length > 0, // Se ele for admin em pelo menos 1, ele entra
-        guilds: userGuilds // Passamos a lista de servidores dele para o HTML
+        res.render('index', { 
+            user: req.user,
+            bot: client,
+            isAdmin: userGuilds.length > 0, // Se ele for admin em pelo menos 1, ele entra
+            guilds: userGuilds // Passamos a lista de servidores dele para o HTML
+        });
     });
-});
 
     // Rota de Login (Redireciona para o Discord)
     app.get('/login', passport.authenticate('discord'));
@@ -72,6 +72,44 @@ function loadDashboard(client) {
     app.listen(process.env.DASHBOARD_PORT || 3000, () => {
         console.log(`✅ Dashboard rodando em: ${process.env.DASHBOARD_CALLBACK_URL.replace('/auth/discord/callback', '')}`);
     });
+
+    // Rota para a página de configurações de um servidor específico
+    app.get('/manage/:guildID', async (req, res) => {
+        const guild = client.guilds.cache.get(req.params.guildID);
+        
+        // Segurança: Verifica se o bot está no servidor e se o usuário logado é Admin lá
+        if (!guild) return res.status(404).send("Bot não encontrado neste servidor.");
+        
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) {
+            return res.status(403).send("Você não tem permissão para gerenciar este servidor.");
+        }
+
+        // Aqui pegamos a lista de canais de texto para o usuário escolher o de LOGS
+        const channels = guild.channels.cache
+            .filter(c => c.type === 0) // 0 = Texto
+            .map(c => ({ id: c.id, name: c.name }));
+
+        // Aqui pegamos a lista de cargos para o usuário escolher o de STAFF
+        const roles = guild.roles.cache
+            .filter(r => r.name !== '@everyone')
+            .map(r => ({ id: r.id, name: r.name }));
+
+        res.render('manage', {
+            bot: client,
+            user: req.user,
+            guild: guild,
+            channels: channels,
+            roles: roles,
+            // Simulando dados salvos (depois conectamos ao DB)
+            settings: { 
+                logChannel: "Ainda não definido", 
+                staffRole: "Ainda não definido" 
+            }
+        });
+    });
+
+
 }
 
 module.exports = loadDashboard;

@@ -5,48 +5,184 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | <%= bot.user.username %></title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #2c2f33; color: white; text-align: center; padding: 50px 20px; }
-        .container { max-width: 800px; margin: 0 auto; }
+        /* Cores da Paleta */
+        :root {
+            --roxo-escuro: #432a58;    /* Quadrado 3 */
+            --roxo-medio: #6e4686;     /* Quadrado 1 (Tom Principal) */
+            --rosa-intenso: #bd3164;   /* Quadrado 5 */
+            --rosa-claro: #c299c5;     /* Quadrado 6 */
+            --creme-suave: #f1dfc3;     /* Quadrado 8 */
+            
+            /* Cores Auxiliares */
+            --fundo-escuro: #1a1a1c;
+            --fundo-card: #222224;
+            --texto-claro: #e0e0e0;
+            --texto-escuro: #b0b0b0;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--fundo-escuro); 
+            color: var(--texto-claro); 
+            text-align: center; 
+            padding: 50px 20px; 
+            margin: 0;
+        }
         
-        .user-card { background: #23272a; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: inline-block; width: 100%; box-sizing: border-box; }
-        .avatar { border-radius: 50%; border: 3px solid #5865F2; margin-bottom: 15px; }
+        .container { max-width: 850px; margin: 0 auto; }
         
-        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; margin-bottom: 15px; display: inline-block; }
-        .success { background: #43b581; color: white; }
-        .danger { background: #f04747; color: white; }
+        h1 { 
+            color: var(--creme-suave); 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5); 
+            margin-bottom: 30px;
+        }
+
+        /* Card do Usuário */
+        .user-card { 
+            background: var(--fundo-card); 
+            padding: 35px; 
+            border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4); 
+            display: inline-block; 
+            width: 100%; 
+            box-sizing: border-box; 
+            border: 2px solid var(--roxo-escuro);
+        }
         
-        hr { border: 0; border-top: 1px solid #4f545c; margin: 25px 0; }
+        .avatar { 
+            border-radius: 50%; 
+            border: 4px solid var(--rosa-claro); 
+            margin-bottom: 20px; 
+            box-shadow: 0 0 15px rgba(194, 153, 197, 0.4);
+        }
+        
+        h2 { color: var(--rosa-claro); }
+
+        .status-badge { 
+            padding: 6px 15px; 
+            border-radius: 25px; 
+            font-size: 0.85em; 
+            margin-bottom: 20px; 
+            display: inline-block; 
+            font-weight: bold;
+        }
+        .success { background: var(--roxo-medio); color: white; }
+        .danger { background: var(--rosa-intenso); color: white; }
+        
+        p { color: var(--texto-escuro); font-size: 1.05em; }
+        b { color: var(--creme-suave); }
+
+        hr { border: 0; border-top: 1px solid var(--roxo-escuro); margin: 30px 0; }
         
         /* Grid de Servidores */
-        .guilds-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; }
-        .guild-item { background: #2f3136; padding: 15px; border-radius: 10px; width: 150px; transition: transform 0.2s; }
-        .guild-item:hover { transform: translateY(-5px); background: #34373c; }
-        .guild-icon { border-radius: 50%; width: 60px; height: 60px; margin-bottom: 10px; background: #36393f; }
-        .guild-name { font-size: 0.9em; margin-bottom: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .guilds-grid { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 20px; 
+            margin-top: 25px; 
+        }
+        
+        .guild-item { 
+            background: rgba(67, 42, 88, 0.3); /* Base do roxo-escuro com transparência */
+            padding: 20px; 
+            border-radius: 12px; 
+            width: 160px; 
+            transition: all 0.3s ease; 
+            border: 1px solid var(--roxo-escuro);
+        }
+        
+        .guild-item:hover { 
+            transform: translateY(-8px); 
+            background: rgba(110, 70, 134, 0.2); /* Base do roxo-medio */
+            box-shadow: 0 8px 20px rgba(110, 70, 134, 0.3);
+            border-color: var(--rosa-claro);
+        }
+        
+        .guild-icon { 
+            border-radius: 50%; 
+            width: 65px; 
+            height: 65px; 
+            margin-bottom: 12px; 
+            background: var(--roxo-escuro); 
+            border: 2px solid transparent;
+            transition: border-color 0.3s ease;
+        }
+        
+        .guild-item:hover .guild-icon {
+            border-color: var(--creme-suave);
+        }
+
+        .guild-name { 
+            font-size: 0.95em; 
+            margin-bottom: 15px; 
+            color: var(--texto-claro);
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis; 
+            font-weight: 500;
+        }
 
         /* Botões */
-        .btn { background: #5865F2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; transition: 0.3s; border: none; cursor: pointer; }
-        .btn:hover { background: #4752c4; }
-        .btn-manage { background: #ba0054; font-size: 0.8em; padding: 6px 12px; }
-        .btn-manage:hover { background: #a10049; }
-        .logout-link { color: #99aab5; text-decoration: none; font-size: 0.85em; margin-top: 20px; display: inline-block; }
-        .logout-link:hover { color: #ffffff; text-decoration: underline; }
+        .btn { 
+            background: var(--roxo-medio); 
+            color: white; 
+            padding: 12px 28px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            display: inline-block; 
+            transition: background 0.3s ease, box-shadow 0.3s ease; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 1em;
+        }
+        
+        .btn:hover { 
+            background: var(--rosa-intenso); 
+            box-shadow: 0 4px 12px rgba(189, 49, 100, 0.5);
+        }
+        
+        .btn-manage { 
+            background: transparent; 
+            border: 2px solid var(--rosa-claro);
+            color: var(--rosa-claro);
+            font-size: 0.8em; 
+            padding: 7px 14px; 
+        }
+        
+        .btn-manage:hover { 
+            background: var(--rosa-claro); 
+            color: var(--roxo-escuro);
+            box-shadow: none;
+        }
+        
+        .logout-link { 
+            color: var(--texto-escuro); 
+            text-decoration: none; 
+            font-size: 0.9em; 
+            margin-top: 25px; 
+            display: inline-block; 
+            transition: color 0.3s ease;
+        }
+        .logout-link:hover { 
+            color: var(--creme-suave); 
+            text-decoration: underline; 
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Painel de Controle</h1>
+        <h1>Painel Staff Bot</h1>
         
         <% if (user) { %>
             <div class="user-card">
-                <!-- Avatar do Usuário -->
-                <img class="avatar" src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" width="100" onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'">
                 
-                <h2>Olá, <%= user.username %>!</h2>
+<img class="avatar" src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" width="100" onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'">
+                
+                <h2>Bem-vindo, <%= user.username %>!</h2>
                 
                 <% if (isAdmin) { %>
-                    <div class="status-badge success">✅ Administrador Identificado</div>
-                    <p>Você pode gerenciar os servidores abaixo:</p>
+                    <div class="status-badge success">Administrador</div>
+                    <p>Selecione um servidor abaixo para gerenciar as configurações:</p>
                     
                     <div class="guilds-grid">
                         <% guilds.forEach(guild => { %>
@@ -54,8 +190,8 @@
                                 <% if (guild.icon) { %>
                                     <img class="guild-icon" src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png">
                                 <% } else { %>
-                                    <!-- Abreviação do nome caso não tenha ícone -->
-                                    <div class="guild-icon" style="display:flex; align-items:center; justify-content:center; background:#4f545c; font-weight:bold;">
+                                    
+<div class="guild-icon" style="display:flex; align-items:center; justify-content:center; background: var(--roxo-escuro); color: var(--creme-suave); font-weight:bold;">
                                         <%= guild.name.split(' ').map(i => i[0]).join('') %>
                                     </div>
                                 <% } %>
@@ -66,20 +202,20 @@
                     </div>
 
                     <hr>
-                    <a href="/punicoes" class="btn">Ver Histórico Geral</a>
+                    <a href="/punicoes" class="btn">Histórico de Punições</a>
 
                 <% } else { %>
-                    <div class="status-badge danger">⚠️ Acesso Restrito</div>
-                    <p>Você está logado, mas não detectamos permissões de <b>Administrador</b> em servidores que utilizam o bot.</p>
+                    <div class="status-badge danger">Acesso Restrito</div>
+                    <p>Parece que você não tem permissão de <b>Administrador</b> em servidores que usam o bot.</p>
                 <% } %>
 
                 <br>
                 <a href="/logout" class="logout-link">Sair da conta</a>
             </div>
         <% } else { %>
-            <!-- Tela Deslogado -->
-            <div class="user-card">
-                <p>Bem-vindo! Para acessar as configurações e o log de punições, entre com sua conta do Discord.</p>
+            
+<div class="user-card">
+                <p>Bem-vindo! Para acessar o painel de configurações e o log de punições, faça login com sua conta do Discord.</p>
                 <a href="/login" class="btn">Login com Discord</a>
             </div>
         <% } %>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Configurar | <%= guild.name %></title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #2c2f33; color: white; padding: 40px; }
+        .card { background: #23272a; padding: 30px; border-radius: 15px; max-width: 600px; margin: 0 auto; text-align: left; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #99aab5; }
+        select, input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #4f545c; background: #36393f; color: white; }
+        .btn-save { background: #43b581; color: white; padding: 12px; border: none; width: 100%; border-radius: 5px; font-weight: bold; cursor: pointer; cursor: pointer; transition: 0.3s; }
+        .btn-save:hover { background: #3ca374; }
+        .back-link { display: block; margin-top: 20px; color: #7289da; text-decoration: none; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Configurações: <%= guild.name %></h2>
+        <p style="font-size: 0.9em; color: #b9bbbe;">Configure abaixo como o bot deve se comportar neste servidor.</p>
+        <hr style="border: 0; border-top: 1px solid #4f545c; margin: 20px 0;">
+
+        <form action="/manage/<%= guild.id %>/save" method="POST">
+            <!-- Configuração de Canal de Logs -->
+            <div class="form-group">
+                <label>Canal de Logs das Punições</label>
+                <select name="logChannel">
+                    <option value="">Selecione um canal...</option>
+                    <% channels.forEach(ch => { %>
+                        <option value="<%= ch.id %>"># <%= ch.name %></option>
+                    <% }); %>
+                </select>
+            </div>
+
+            <!-- Configuração de Cargo de Staff -->
+            <div class="form-group">
+                <label>Cargo que pode usar Comandos de Staff</label>
+                <select name="staffRole">
+                    <option value="">Selecione um cargo...</option>
+                    <% roles.forEach(role => { %>
+                        <option value="<%= role.id %>">@ <%= role.name %></option>
+                    <% }); %>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-save">Salvar Configurações</button>
+        </form>
+
+        <a href="/" class="back-link">← Voltar para a lista</a>
+    </div>
+</body>
+</html>
