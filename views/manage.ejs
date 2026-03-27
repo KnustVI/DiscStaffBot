@@ -2,51 +2,112 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Configurar | <%= guild.name %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #2c2f33; color: white; padding: 40px; }
-        .card { background: #23272a; padding: 30px; border-radius: 15px; max-width: 600px; margin: 0 auto; text-align: left; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #99aab5; }
-        select, input { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #4f545c; background: #36393f; color: white; }
-        .btn-save { background: #43b581; color: white; padding: 12px; border: none; width: 100%; border-radius: 5px; font-weight: bold; cursor: pointer; cursor: pointer; transition: 0.3s; }
-        .btn-save:hover { background: #3ca374; }
-        .back-link { display: block; margin-top: 20px; color: #7289da; text-decoration: none; text-align: center; }
+        :root {
+            --roxo-escuro: #432a58;
+            --roxo-medio: #6e4686;
+            --rosa-intenso: #bd3164;
+            --rosa-claro: #c299c5;
+            --creme-suave: #f1dfc3;
+            --fundo-escuro: #1a1a1c;
+            --fundo-card: #222224;
+            --texto-claro: #e0e0e0;
+            --texto-escuro: #b0b0b0;
+        }
+
+        body { background: var(--fundo-escuro); color: var(--texto-claro); font-family: 'Segoe UI', sans-serif; }
+        
+        .sidebar-robin { background-color: var(--roxo-escuro); }
+        .card-config { 
+            background: var(--fundo-card); 
+            border: 1px solid var(--roxo-escuro); 
+            border-radius: 20px;
+        }
+
+        /* Estilização de Formuários */
+        label { color: var(--rosa-claro); font-weight: bold; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        select, input { 
+            width: 100%; 
+            padding: 12px; 
+            border-radius: 10px; 
+            border: 2px solid var(--roxo-escuro); 
+            background: #1a1a1c; 
+            color: var(--creme-suave);
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--rosa-intenso);
+        }
+
+        .btn-save { 
+            background: var(--rosa-intenso); 
+            color: white; 
+            padding: 15px; 
+            border: none; 
+            width: 100%; 
+            border-radius: 10px; 
+            font-weight: 800; 
+            text-transform: uppercase;
+            cursor: pointer; 
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(189, 49, 100, 0.3);
+        }
+
+        .btn-save:hover { 
+            background: #a32a56; 
+            transform: scale(1.02);
+        }
+
+        .back-link { color: var(--texto-escuro); transition: 0.3s; }
+        .back-link:hover { color: var(--creme-suave); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Configurações: <%= guild.name %></h2>
-        <p style="font-size: 0.9em; color: #b9bbbe;">Configure abaixo como o bot deve se comportar neste servidor.</p>
-        <hr style="border: 0; border-top: 1px solid #4f545c; margin: 20px 0;">
-
-        <form action="/manage/<%= guild.id %>/save" method="POST">
-            <!-- Configuração de Canal de Logs -->
-            <div class="form-group">
-                <label>Canal de Logs das Punições</label>
-                <select name="logChannel">
-                    <option value="">Selecione um canal...</option>
-                    <% channels.forEach(ch => { %>
-                        <option value="<%= ch.id %>"># <%= ch.name %></option>
-                    <% }); %>
-                </select>
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 sidebar-robin p-6 shadow-2xl flex flex-col">
+            <div class="flex items-center gap-3 mb-12">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg" style="background-color: var(--rosa-intenso);">
+                    🦅
+                </div>
+                <h1 class="text-2xl font-black tracking-tighter" style="color: var(--creme-suave);">ROBIN</h1>
             </div>
+            
+            <nav class="space-y-2 flex-1">
+                <a href="/" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition" style="color: var(--rosa-claro);">
+                    📊 Painel Geral
+                </a>
+                <a href="/punicoes" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition" style="color: var(--rosa-claro);">
+                    🛡️ Punições
+                </a>
+            </nav>
 
-            <!-- Configuração de Cargo de Staff -->
-            <div class="form-group">
-                <label>Cargo que pode usar Comandos de Staff</label>
-                <select name="staffRole">
-                    <option value="">Selecione um cargo...</option>
-                    <% roles.forEach(role => { %>
-                        <option value="<%= role.id %>">@ <%= role.name %></option>
-                    <% }); %>
-                </select>
+            <div class="p-4 rounded-xl bg-black/20">
+                <p class="text-[10px] uppercase font-bold text-center" style="color: var(--roxo-medio);">Servidor Atual</p>
+                <p class="text-xs text-center font-bold truncate" style="color: var(--creme-suave);"><%= guild.name %></p>
             </div>
+        </aside>
 
-            <button type="submit" class="btn-save">Salvar Configurações</button>
-        </form>
+        <!-- Main -->
+        <main class="flex-1 p-10 overflow-y-auto">
+            <header class="mb-10">
+                <h2 class="text-3xl font-bold" style="color: var(--creme-suave);">Configurações</h2>
+                <div class="h-1 w-20 bg-[#bd3164] mt-2 rounded-full"></div>
+            </header>
 
-        <a href="/" class="back-link">← Voltar para a lista</a>
-    </div>
-</body>
-</html>
+            <div class="card-config p-8 max-w-2xl mx-auto shadow-2xl">
+                <form action="/manage/<%= guild.id %>" method="POST" class="space-y-6">
+                    
+                    <div class="form-group">
+                        <label for="prefix">Prefixo do Bot</label>
+                        <input type="text" id="prefix" name="prefix" placeholder="Ex: !" value="!">
+                    </div>
+
+                    <div class="form-group">
+                        <

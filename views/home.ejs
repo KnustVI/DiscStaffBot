@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Robin | Dashboard</title>
+    <style>
+    :root {
+        --roxo-escuro: #432a58;
+        --roxo-medio: #6e4686;
+        --rosa-intenso: #bd3164;
+        --rosa-claro: #c299c5;
+        --creme-suave: #f1dfc3;
+        --fundo-escuro: #1a1a1c;
+        --fundo-card: #222224;
+        --texto-claro: #e0e0e0;
+        --texto-escuro: #b0b0b0;
+    }
+
+    body { background-color: var(--fundo-escuro); color: var(--texto-claro); }
+    
+    .sidebar-robin { background-color: var(--roxo-escuro); }
+    .card-robin { 
+        background-color: var(--fundo-card); 
+        border: 1px solid var(--roxo-escuro);
+        transition: transform 0.2s;
+    }
+    .card-robin:hover { transform: translateY(-5px); border-color: var(--roxo-medio); }
+    
+    .text-accent { color: var(--rosa-intenso); }
+    .text-highlight { color: var(--creme-suave); }
+    .btn-primary { background-color: var(--rosa-intenso); color: white; }
+    
+    /* Scrollbar personalizada nas cores da paleta */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--fundo-escuro); }
+    ::-webkit-scrollbar-thumb { background: var(--roxo-escuro); border-radius: 10px; }
+</style>
+</head>
+<body class="font-sans">
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar com degradê da paleta -->
+        <aside class="w-72 sidebar border-r border-[#3f3f5a] p-8">
+            <div class="flex flex-col items-center mb-12">
+                <div class="w-16 h-16 bg-magenta rounded-2xl shadow-[0_0_20px_rgba(196,69,105,0.4)] mb-4 flex items-center justify-center text-3xl">
+                    🦅
+                </div>
+                <h1 class="text-2xl font-black tracking-widest text-white">ROBIN</h1>
+                <span class="text-[10px] text-magenta font-bold tracking-[0.3em]">ADMIN PANEL</span>
+            </div>
+            
+            <nav class="space-y-4">
+                <a href="#" class="flex items-center gap-4 p-4 bg-[#3f3f5a] rounded-xl text-white font-bold">
+                    <span class="opacity-80">📊</span> Dashboard
+                </a>
+                <a href="#" class="flex items-center gap-4 p-4 text-[#b8b8d1] hover:text-white hover:bg-[#3f3f5a]/30 rounded-xl transition">
+                    <span class="opacity-80">🛡️</span> Punições
+                </a>
+                <a href="#" class="flex items-center gap-4 p-4 text-[#b8b8d1] hover:text-white hover:bg-[#3f3f5a]/30 rounded-xl transition">
+                    <span class="opacity-80">👥</span> Usuários
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-12">
+            <header class="mb-12">
+                <h2 class="text-4xl font-extrabold mb-2">Bem-vindo, Comandante.</h2>
+                <div class="h-1 w-20 bg-magenta rounded-full"></div>
+            </header>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <!-- Card Total -->
+                <div class="card-robin p-8 rounded-3xl relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-magenta/10 rounded-full blur-2xl"></div>
+                    <p class="text-sm font-bold text-[#b8b8d1] uppercase tracking-wider mb-4">Strikes Globais</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-5xl font-black"><%= stats.total %></span>
+                        <span class="text-magenta text-sm font-bold">↑ Ativos</span>
+                    </div>
+                </div>
+
+                <!-- Card Reputação -->
+                <div class="card-robin p-8 rounded-3xl border-b-4 border-b-[#54669c]">
+                    <p class="text-sm font-bold text-[#b8b8d1] uppercase tracking-wider mb-4">Saúde do Servidor</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-5xl font-black text-[#8a99c7]"><%= stats.average %>%</span>
+                    </div>
+                </div>
+
+                <!-- Card Hoje -->
+                <div class="card-robin p-8 rounded-3xl bg-gradient-to-br from-[#2d2d44] to-[#4b3061]">
+                    <p class="text-sm font-bold text-[#d1d1e0] uppercase tracking-wider mb-4">Ocorrências Hoje</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-5xl font-black text-white"><%= stats.today %></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela Estilizada -->
+            <div class="card-robin rounded-3xl overflow-hidden shadow-2xl">
+                <div class="p-6 border-b border-[#3f3f5a] flex justify-between items-center bg-[#34344e]">
+                    <h3 class="font-black text-sm tracking-widest uppercase">Atividade Recente</h3>
+                    <span class="text-xs bg-magenta/20 text-magenta px-3 py-1 rounded-full font-bold">Live Feed</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] text-[#b8b8d1] uppercase tracking-widest">
+                                <th class="p-6">Usuário</th>
+                                <th class="p-6 text-center">Nível</th>
+                                <th class="p-6">Motivo</th>
+                                <th class="p-6 text-right">Data</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#3f3f5a]">
+                            <% recent.forEach(p => { %>
+                            <tr class="hover:bg-white/5 transition">
+                                <td class="p-6 font-mono text-xs text-magenta font-bold"><%= p.user_id %></td>
+                                <td class="p-6 text-center">
+                                    <span class="bg-[#4b3061] text-[#d1d1e0] text-[10px] px-3 py-1 rounded-lg font-black">
+                                        LVL <%= p.severity %>
+                                    </span>
+                                </td>
+                                <td class="p-6 text-sm text-[#d1d1e0]"><%= p.reason %></td>
+                                <td class="p-6 text-right text-xs text-[#54669c]"><%= new Date(p.created_at).toLocaleDateString() %></td>
+                            </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+</html>
