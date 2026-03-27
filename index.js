@@ -1,49 +1,82 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
-const db = require('./database/database'); 
-const cron = require('node-cron'); // Certifique-se de ter instalado: npm install node-cron
+const path = require('path');
+const db = require('./database/database');
+const cron = require('node-cron');
 
-const client = new Client({ 
+const session = require('./utils/sessionManager');
+const ConfigCache = require('./systems/configCache');
+const loadDashboard = require('./dashboard.js');
+
+// ==========================
+// LIMPEZA DE SESSÕES
+// ==========================
+setInterval(() => {
+    session.clearExpired();
+}, 60000);
+
+// ==========================
+// CLIENT
+// ==========================
+const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers 
-    ] 
+        GatewayIntentBits.GuildMembers
+    ]
 });
 
 client.commands = new Collection();
 
-// --- HANDLER DE COMANDOS (Otimizado) ---
-const commandFolders = fs.readdirSync('./commands');
+// ==========================
+// HANDLER DE COMANDOS
+// ==========================
+const commandsPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(commandsPath);
+
 for (const folder of commandFolders) {
-    const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+    const folderPath = path.join(commandsPath, folder);
+    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+
     for (const file of commandFiles) {
-        const command = require(`./commands/${folder}/${file}`);
+        const filePath = path.join(folderPath, file);
+        const command = require(filePath);
+
         if (command.data && command.execute) {
             client.commands.set(command.data.name, command);
+        } else {
+            console.warn(`[AVISO] Comando inválido em ${file}`);
         }
     }
 }
 
-// --- HANDLER DE EVENTOS (Otimização Real) ---
-// Isso remove a lógica do interactionCreate do index, deixando-o limpo.
-const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
+// ==========================
+// HANDLER DE EVENTOS
+// ==========================
+const eventsPath = path.join(__dirname, 'events');
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
 for (const file of eventFiles) {
-    const event = require(`./events/${file}`);
+    const filePath = path.join(eventsPath, file);
+    const event = require(filePath);
+
     if (event.once) {
-        client.once(event.name, (...args) => event.execute(...args));
+        client.once(event.name, (...args) => event.execute(...args, client));
     } else {
-        client.on(event.name, (...args) => event.execute(...args));
+        client.on(event.name, (...args) => event.execute(...args, client));
     }
 }
 
-// --- TAREFAS AGENDADAS (CRON) ---
-// Em vez de setInterval, o cron é muito mais estável para VPS.
-// Recuperação de Reputação: Todo dia às 03:00 da manhã (horário de baixo tráfego)
+// ==========================
+// CRON JOBS
+// ==========================
+
+// Recuperação de reputação diária
 cron.schedule('0 3 * * *', () => {
     console.log("🔄 [Cron] Iniciando recuperação de reputação diária...");
+
     const umDiaEmMs = 24 * 60 * 60 * 1000;
     const agora = Date.now();
 
@@ -54,34 +87,47 @@ cron.schedule('0 3 * * *', () => {
             WHERE (last_penalty IS NULL OR (? - last_penalty) > ?)
             AND reputation < 100
         `).run(agora, umDiaEmMs);
-        
+
         console.log(`📈 [Cron] Recuperação concluída. ${info.changes} usuários afetados.`);
     } catch (err) {
         console.error("❌ [Cron] Erro na recuperação passiva:", err);
     }
 });
 
-// Backup quinzenal (Google Sheets)
+// Backup quinzenal
 cron.schedule('0 0 1,15 * *', () => {
     console.log('📦 [Cron] Iniciando backup para Google Sheets...');
-    const { exportToSheets } = require('./utils/googleSheets'); // Lazy Load: só carrega o script na hora de usar
+    const { exportToSheets } = require('./utils/googleSheets');
     exportToSheets();
 });
 
-const ConfigCache = require('./systems/configCache');
-
-// Carrega as configurações na RAM para acesso rápido
+// ==========================
+// READY (UNIFICADO)
+// ==========================
 client.once('ready', async () => {
-    await ConfigCache.loadAll(); // Carrega tudo na RAM assim que o bot liga
-    console.log(`🚀 Bot online: ${client.user.tag}`);
+    try {
+        await ConfigCache.loadAll();
+        console.log(`🚀 Bot online: ${client.user.tag}`);
+
+        loadDashboard(client);
+
+    } catch (err) {
+        console.error("❌ Erro no ready:", err);
+    }
 });
 
-// Dashoard
-const loadDashboard = require('./dashboard.js');
-
-client.once('ready', () => {
-    console.log(`Bot logado como ${client.user.tag}`);
-    loadDashboard(client); // Isso liga o site junto com o bot
+// ==========================
+// TRATAMENTO GLOBAL DE ERROS
+// ==========================
+process.on('unhandledRejection', (err) => {
+    console.error('❌ Unhandled Rejection:', err);
 });
 
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err);
+});
+
+// ==========================
+// LOGIN
+// ==========================
 client.login(process.env.TOKEN);

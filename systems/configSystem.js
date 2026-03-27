@@ -2,119 +2,152 @@ const db = require('../database/database');
 const ConfigCache = require('./configCache');
 const ErrorLogger = require('./errorLogger');
 const { EMOJIS } = require('../database/emojis');
+const { PermissionFlagsBits } = require('discord.js');
 
-/**
- * Sistema de Configuração Centralizado
- * Responsável pela persistência (SQLite) e performance (Cache)
- */
+// ==========================
+// PREPARED STATEMENTS (PERFORMANCE)
+// ==========================
+const getStmt = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`);
+
+const upsertStmt = db.prepare(`
+    INSERT INTO settings (guild_id, key, value) 
+    VALUES (?, ?, ?) 
+    ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
+`);
+
+const deleteStmt = db.prepare(`DELETE FROM settings WHERE guild_id = ?`);
+
 const ConfigSystem = {
-    
-    /**
-     * Busca uma configuração.
-     * @param {string} guildId - ID do servidor.
-     * @param {string} key - Chave da config (ex: 'staff_role', 'logs_channel').
-     * @returns {string|null} - O valor salvo ou null se não existir.
-     */
+
+    // =========================
+    // GET SETTING (CACHE FIRST)
+    // =========================
     getSetting(guildId, key) {
         try {
-            // 1. Tenta buscar na RAM primeiro (Velocidade máxima)
+
             let value = ConfigCache.get(guildId, key);
-            
-            // 2. Se não estiver no Cache (undefined), busca no Banco de Dados
-            if (value === undefined) { 
-                const row = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, key);
-                
-                // Se existir no banco, pega o valor. Se não, define como null.
+
+            if (value === undefined) {
+                const row = getStmt.get(guildId, key);
                 value = row ? row.value : null;
-                
-                // 3. Alimenta o Cache para que a próxima consulta não precise ir ao disco
+
                 ConfigCache.set(guildId, key, value);
             }
-            
+
             return value;
+
         } catch (err) {
             ErrorLogger.log('ConfigSystem_Get', err);
             return null;
         }
     },
 
-    /**
-     * Salva ou Atualiza uma configuração.
-     */
+    // =========================
+    // UPDATE SETTING
+    // =========================
     updateSetting(guildId, key, value) {
         try {
-            db.prepare(`
-                INSERT INTO settings (guild_id, key, value) 
-                VALUES (?, ?, ?) 
-                ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
-            `).run(guildId, key, value);
-            
+
+            upsertStmt.run(guildId, key, value);
+
+            // 🔥 garante consistência no cache
             ConfigCache.set(guildId, key, value);
+
             return true;
+
         } catch (err) {
             ErrorLogger.log('ConfigSystem_Update', err);
             throw err;
         }
     },
 
-    /**
-     * TRAVA DE SEGURANÇA: Valida Staff e Configurações Essenciais
-     * @param {object} interaction - A interação do Discord.
-     * @returns {boolean} - True se autorizado, False se bloqueado.
-     */
+    // =========================
+    // AUTH CHECK (CRÍTICO)
+    // =========================
     async checkAuth(interaction) {
-        const guildId = interaction.guild.id;
 
-        // 1. Busca configurações usando o getSetting (que já usa o Cache)
-        const staffRoleId = this.getSetting(guildId, 'staff_role');
-        const logsChannelId = this.getSetting(guildId, 'logs_channel');
+        try {
 
-        // 2. Validação de Configuração Completa
-        if (!staffRoleId || !logsChannelId) {
+            const guildId = interaction.guild.id;
+
+            const staffRoleId = this.getSetting(guildId, 'staff_role');
+            const logsChannelId = this.getSetting(guildId, 'logs_channel');
+
+            // =========================
+            // CONFIG VALIDATION
+            // =========================
+            if (!staffRoleId || !logsChannelId) {
+                await interaction.reply({
+                    content: `${EMOJIS.ERRO} **Configuração Incompleta!**\nEste comando exige que o cargo de Staff e o canal de Logs estejam configurados.\nUse \`/config-set\` para finalizar a instalação do bot.`,
+                    ephemeral: true
+                });
+                return false;
+            }
+
+            // =========================
+            // MEMBER SAFETY
+            // =========================
+            const member = interaction.member;
+
+            if (!member || !member.roles) {
+                await interaction.reply({
+                    content: `${EMOJIS.ERRO} Não foi possível validar suas permissões.`,
+                    ephemeral: true
+                });
+                return false;
+            }
+
+            // =========================
+            // PERMISSION CHECK
+            // =========================
+            const isStaff = member.roles.cache.has(staffRoleId);
+            const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
+
+            if (!isStaff && !isAdmin) {
+                await interaction.reply({
+                    content: `${EMOJIS.ERRO} **Acesso Negado!**\nApenas membros com o cargo de Staff configurado podem usar este comando.`,
+                    ephemeral: true
+                });
+                return false;
+            }
+
+            return true;
+
+        } catch (err) {
+            ErrorLogger.log('ConfigSystem_Auth', err);
+
             await interaction.reply({
-                content: `${EMOJIS.ERRO} **Configuração Incompleta!**\nEste comando exige que o cargo de Staff e o canal de Logs estejam configurados.\nUse \`/config-set\` para finalizar a instalação do bot.`,
+                content: `${EMOJIS.ERRO} Erro ao validar permissões.`,
                 ephemeral: true
             });
+
             return false;
         }
-
-        // 3. Validação de Permissão (Cargo de Staff OU Admin do Servidor)
-        const isStaff = interaction.member.roles.cache.has(staffRoleId);
-        const isAdmin = interaction.member.permissions.has('Administrator');
-
-        if (!isStaff && !isAdmin) {
-            await interaction.reply({
-                content: `${EMOJIS.ERRO} **Acesso Negado!**\nApenas membros com o cargo de Staff configurado podem usar este comando.`,
-                ephemeral: true
-            });
-            return false;
-        }
-
-        return true; // Tudo limpo, pode prosseguir
     },
 
-    /**
-     * Remove todas as configurações de um servidor.
-     */
+    // =========================
+    // RESET
+    // =========================
     resetSettings(guildId) {
         try {
-            db.prepare(`DELETE FROM settings WHERE guild_id = ?`).run(guildId);
-            
+
+            deleteStmt.run(guildId);
+
             if (ConfigCache.deleteGuild) {
-                ConfigCache.deleteGuild(guildId); 
+                ConfigCache.deleteGuild(guildId);
             }
-            
+
             return true;
+
         } catch (err) {
             ErrorLogger.log('ConfigSystem_Reset', err);
             return false;
         }
     },
-    /**
-     * Gera a assinatura padrão para todas as embeds do bot.
-     * @param {string} guildName - Nome do servidor atual.
-     * @returns {object} - Objeto formatado para o .setFooter()
-     */
+
+    // =========================
+    // FOOTER
+    // =========================
     getFooter(guildName) {
         return {
             text: `✧ Made By: KnustVI | ${guildName || 'Servidor'}`,

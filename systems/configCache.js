@@ -1,56 +1,72 @@
 const db = require('../database/database');
-const ErrorLogger = require('./errorLogger'); // <--- Importado para segurança
+const ErrorLogger = require('./errorLogger');
+
+// Estrutura:
+// Map<guildId, Map<key, value>>
 const cache = new Map();
 
-/**
- * Sistema de Cache na RAM
- * Evita consultas excessivas ao disco (SQLite) na Oracle Cloud
- */
 const ConfigCache = {
-    /**
-     * Carrega todas as configurações do banco para a RAM ao iniciar
-     */
+
+    // =========================
+    // LOAD ALL (BOOT)
+    // =========================
     async loadAll() {
         try {
             const rows = db.prepare(`SELECT guild_id, key, value FROM settings`).all();
+
             cache.clear();
-            
+
             for (const row of rows) {
-                cache.set(`${row.guild_id}_${row.key}`, row.value);
+
+                if (!cache.has(row.guild_id)) {
+                    cache.set(row.guild_id, new Map());
+                }
+
+                cache.get(row.guild_id).set(row.key, row.value);
             }
-            
-            console.log(`🧠 [Cache] ${cache.size} configurações carregadas na RAM.`);
+
+            console.log(`🧠 [Cache] ${rows.length} configurações carregadas na RAM.`);
+
         } catch (err) {
-            // Se o banco falhar no boot, o ErrorLogger registra o motivo exato
             ErrorLogger.log('ConfigCache_LoadAll', err);
-            console.error("❌ Falha crítica ao carregar cache. Verifique os logs.");
+            console.error("❌ Falha crítica ao carregar cache.");
         }
     },
 
-    /**
-     * Retorna um valor da RAM
-     */
+    // =========================
+    // GET
+    // =========================
     get(guildId, key) {
-        return cache.get(`${guildId}_${key}`);
+        const guildCache = cache.get(guildId);
+        if (!guildCache) return undefined;
+
+        return guildCache.get(key);
     },
 
-    /**
-     * Atualiza um valor na RAM
-     */
+    // =========================
+    // SET
+    // =========================
     set(guildId, key, value) {
-        cache.set(`${guildId}_${key}`, value);
+        if (!cache.has(guildId)) {
+            cache.set(guildId, new Map());
+        }
+
+        cache.get(guildId).set(key, value);
     },
 
-    /**
-     * Limpa todas as chaves de uma guilda específica (Útil para o resetSettings)
-     */
+    // =========================
+    // HAS (debug / controle)
+    // =========================
+    has(guildId, key) {
+        return cache.get(guildId)?.has(key) || false;
+    },
+
+    // =========================
+    // DELETE GUILD (OTIMIZADO)
+    // =========================
     deleteGuild(guildId) {
         try {
-            for (const key of cache.keys()) {
-                if (key.startsWith(`${guildId}_`)) {
-                    cache.delete(key);
-                }
-            }
+            cache.delete(guildId);
         } catch (err) {
             ErrorLogger.log('ConfigCache_DeleteGuild', err);
         }
