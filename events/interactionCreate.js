@@ -1,4 +1,4 @@
-const session = require('../../utils/sessionManager');
+const session = require('../utils/sessionManager');
 
 module.exports = {
     name: 'interactionCreate',
