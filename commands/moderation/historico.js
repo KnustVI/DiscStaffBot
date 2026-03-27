@@ -2,6 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const ErrorLogger = require('../../systems/errorLogger');
 const { EMOJIS } = require('../../database/emojis');
+const session = require('../../utils/sessionManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,7 +13,7 @@ module.exports = {
     async execute(interaction) {
         const target = interaction.options.getUser('usuario');
         const guildId = interaction.guild.id;
-
+        session.create(interaction.user.id, { type: 'history', targetId: target.id });
         // 1. Sinaliza ao Discord que estamos processando (Evita o erro de 3s)
         await interaction.deferReply({ ephemeral: true });
 

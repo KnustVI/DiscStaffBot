@@ -281,14 +281,19 @@ const PunishmentSystem = {
     },
 
     generateHistoryButtons(targetId, currentPage, totalPages) {
-        if (totalPages <= 1) return null;
-        return new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`hist_${targetId}_${currentPage - 1}`)
-                .setLabel('⬅️ Anterior').setStyle(ButtonStyle.Secondary).setDisabled(currentPage <= 1),
-            new ButtonBuilder()
-                .setCustomId(`hist_${targetId}_${currentPage + 1}`)
-                .setLabel('➡️ Próxima').setStyle(ButtonStyle.Secondary).setDisabled(currentPage >= totalPages)
+    if (totalPages <= 1) return null;
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            // Mudamos de hist_ para hist:set: (para manter o padrão do seu Handler)
+            .setCustomId(`hist:set:${targetId}:${currentPage - 1}`)
+            .setLabel('⬅️ Anterior')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currentPage <= 1),
+        new ButtonBuilder()
+            .setCustomId(`hist:set:${targetId}:${currentPage + 1}`)
+            .setLabel('➡️ Próxima')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(currentPage >= totalPages)
         );
     },
 
