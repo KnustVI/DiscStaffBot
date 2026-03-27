@@ -17,7 +17,7 @@ module.exports = {
             } catch (error) {
                 console.error(`[Slash Error] ${interaction.commandName}:`, error);
 
-                if (!interaction.replied) {
+                if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         content: '❌ Erro ao executar comando.',
                         ephemeral: true
@@ -31,18 +31,21 @@ module.exports = {
         // =========================
         // COMPONENTES (BOTÕES / MENUS)
         // =========================
-        if (interaction.isButton() || interaction.isStringSelectMenu()) {
+        if (
+            interaction.isButton() ||
+            interaction.isStringSelectMenu() ||
+            interaction.isRoleSelectMenu() ||
+            interaction.isChannelSelectMenu()
+        ) {
 
             const customId = interaction.customId;
-
-            // 🔥 Novo padrão (suporta futuro)
             const parts = customId.split(':');
-            const prefix = parts[0]; // config, hist, ticket...
+            const prefix = parts[0];
 
             try {
 
                 // =========================
-                // SESSION CHECK (IMPORTANTE)
+                // SESSION CHECK
                 // =========================
                 const userSession = session.get(interaction.user.id);
 
@@ -51,6 +54,13 @@ module.exports = {
                         content: '⏳ Sessão expirada. Use o comando novamente.',
                         ephemeral: true
                     });
+                }
+
+                // =========================
+                // ANTI-TIMEOUT (CRÍTICO)
+                // =========================
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferUpdate().catch(() => null);
                 }
 
                 // =========================
@@ -70,7 +80,6 @@ module.exports = {
                         break;
                     }
 
-                    // 🔥 FUTURO (ticket já preparado)
                     case 'ticket': {
                         const TicketHandler = require('../systems/ticketHandler');
                         await TicketHandler.handle(interaction, parts);
@@ -82,7 +91,7 @@ module.exports = {
             } catch (error) {
                 console.error(`[Component Error] ID: ${customId}`, error);
 
-                if (!interaction.replied) {
+                if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         content: '❌ Erro ao processar interação.',
                         ephemeral: true
@@ -111,17 +120,26 @@ module.exports = {
                     });
                 }
 
+                // 🔥 evita timeout também em modal
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferReply({ ephemeral: true }).catch(() => null);
+                }
+
                 switch (prefix) {
 
                     case 'config': {
                         const ConfigHandler = require('../systems/configHandler');
-                        await ConfigHandler.handleModal(interaction, parts);
+                        if (ConfigHandler.handleModal) {
+                            await ConfigHandler.handleModal(interaction, parts);
+                        }
                         break;
                     }
 
                     case 'ticket': {
                         const TicketHandler = require('../systems/ticketHandler');
-                        await TicketHandler.handleModal(interaction, parts);
+                        if (TicketHandler.handleModal) {
+                            await TicketHandler.handleModal(interaction, parts);
+                        }
                         break;
                     }
 
@@ -130,7 +148,7 @@ module.exports = {
             } catch (error) {
                 console.error(`[Modal Error] ID: ${customId}`, error);
 
-                if (!interaction.replied) {
+                if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         content: '❌ Erro ao processar formulário.',
                         ephemeral: true
