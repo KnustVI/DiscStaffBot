@@ -3,7 +3,7 @@ const { EmbedBuilder } = require('discord.js');
 const ConfigSystem = require('../systems/configSystem');
 const { EMOJIS } = require('../database/emojis');
 const ErrorLogger = require('../systems/errorLogger');
-const session = require('../utils/sessionManager');
+const session = require('../../utils/sessionManager');
 
 const ConfigHandler = {
 
