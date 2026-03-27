@@ -1,0 +1,26 @@
+<aside class="sidebar">
+    <img src="https://i.ibb.co/whjd7DYJ/Titans-pass-logo.png" alt="Titan's Pass" class="logo-titans">
+
+    <nav class="nav-menu">
+        <a href="/home/<%= guild.id %>" class="nav-item">Início</a>
+        <a href="/manage/<%= guild.id %>" class="nav-item">Configurações</a>
+        <a href="#" class="nav-item">Tickets</a>
+        <a href="#" class="nav-item">Staffs</a>
+        <a href="#" class="nav-item">Strikes</a>
+        <a href="#" class="nav-item">Perfil</a>
+    </nav>
+
+    <div class="staff-profile">
+        <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" class="staff-avatar">
+        <div class="staff-info">
+            <div class="name text-truncate" style="max-width: 150px;"><%= nickname %></div>
+            <div class="role"><%= role %></div>
+            <div class="staff-stats">
+                <div class="stat-tag">NV. <%= level %></div>
+                <div class="stat-tag" style="background: var(--text-primary); color: var(--bg-main);">
+                    REP: <%= reputation %>
+                </div>
+            </div>
+        </div>
+    </div>
+</aside>

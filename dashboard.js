@@ -10,6 +10,14 @@ const Database = require('better-sqlite3');
 const app = express();
 
 function loadDashboard(client) {
+
+        // Esta linha é mágica: ela diz que tudo na pasta 'public' pode ser acessado pelo navegador
+    app.use(express.static(path.join(__dirname, 'public')));
+
+    // Configura o EJS
+    app.set('views', path.join(__dirname, 'views'));
+    app.set('view engine', 'ejs');
+    
     // 1. Configuração do Passport
     passport.serializeUser((user, done) => done(null, user));
     passport.deserializeUser((obj, done) => done(null, obj));
