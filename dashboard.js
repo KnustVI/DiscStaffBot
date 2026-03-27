@@ -3,20 +3,26 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
-const db = require('./database/database'); // Certifique-se que este arquivo exporta o 'better-sqlite3' instanciado
+const db = require('./database/database'); // Certifique-se que o db exporta o better-sqlite3 instanciado
 
 const app = express();
 
 function loadDashboard(client) {
 
-    // --- CONFIGURAÇÕES DO EXPRESS ---
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true }));
-    app.use(express.static(path.join(__dirname, 'public')));
+    // 1. Configurações e Middlewares Globais
     app.set('views', path.join(__dirname, 'views'));
     app.set('view engine', 'ejs');
-    
-    // --- CONFIGURAÇÃO DO PASSPORT ---
+    app.use(express.static(path.join(__dirname, 'public')));
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+
+    // 2. Configuração de Sessão e Passport
+    app.use(session({
+        secret: process.env.SESSION_SECRET || 'titans_pass_secret',
+        resave: false,
+        saveUninitialized: false
+    }));
+
     passport.serializeUser((user, done) => done(null, user));
     passport.deserializeUser((obj, done) => done(null, obj));
 
@@ -29,23 +35,18 @@ function loadDashboard(client) {
         process.nextTick(() => done(null, profile));
     }));
 
-    // --- MIDDLEWARES ---
-    app.use(session({
-        secret: process.env.SESSION_SECRET || 'titans_pass_secret',
-        resave: false,
-        saveUninitialized: false
-    }));
-
     app.use(passport.initialize());
     app.use(passport.session());
 
-    // Middleware de Proteção
+    // Middleware para proteger rotas
     const checkAuth = (req, res, next) => {
         if (req.isAuthenticated()) return next();
         res.redirect('/login');
     };
 
-    // --- ROTAS DE AUTENTICAÇÃO (Faltavam estas!) ---
+    // ==========================
+    // ROTAS DE AUTENTICAÇÃO
+    // ==========================
     app.get('/login', passport.authenticate('discord'));
     app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => {
         res.redirect('/');
@@ -54,14 +55,16 @@ function loadDashboard(client) {
         req.logout(() => res.redirect('/'));
     });
 
-    // --- ROTAS PRINCIPAIS ---
+    // ==========================
+    // ROTAS PRINCIPAIS
+    // ==========================
 
-    // INDEX (Seleção de Servidores)
+    // INDEX (LOGIN/SELEÇÃO)
     app.get('/', (req, res) => {
         let userGuilds = [];
         if (req.user && req.user.guilds) {
             userGuilds = req.user.guilds.filter(g => 
-                (parseInt(g.permissions) & 0x8) === 0x8
+                (parseInt(g.permissions) & 0x8) === 0x8 
             ).map(g => {
                 const botIn = client.guilds.cache.has(g.id);
                 return { ...g, botIn };
@@ -75,25 +78,57 @@ function loadDashboard(client) {
         });
     });
 
-    // MANAGE (Apenas uma rota agora)
-    app.get('/manage/:guildID', checkAuth, async (req, res) => {
-        console.log(`--> Acessando Manage: ${req.params.guildID}`);
+    // HOME (GRÁFICOS E ESTATÍSTICAS)
+    app.get('/home/:guildID', checkAuth, async (req, res) => {
         try {
-            const { guildID } = req.params;
+            const guildID = req.params.guildID;
             const guild = client.guilds.cache.get(guildID);
-            
+            if (!guild) return res.redirect('/');
+
+            const member = await guild.members.fetch(req.user.id).catch(() => null);
+            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+
+            // Buscar Reputation e Level (Tabelas: reputation e punishments)
+            let reputation = 100;
+            let level = 1;
+            const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+            if (repData) reputation = repData.points;
+
+            const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+            if (punCount) level = Math.floor(punCount.total / 5) + 1;
+
+            res.render('home', {
+                guild,
+                user: req.user,
+                bot: client,
+                nickname: member.displayName || req.user.username,
+                role: member.roles.highest.name || "Membro",
+                reputation,
+                level
+            });
+        } catch (err) {
+            console.error("Erro na Home:", err);
+            res.redirect('/');
+        }
+    });
+
+    // MANAGE (CONFIGURAÇÕES DO BOT)
+    app.get('/manage/:guildID', checkAuth, async (req, res) => {
+        try {
+            const guildID = req.params.guildID;
+            const guild = client.guilds.cache.get(guildID);
             if (!guild) return res.redirect('/');
 
             const member = await guild.members.fetch(req.user.id).catch(() => null);
             if (!member) return res.redirect('/');
 
-            // Busca Configurações
+            // Busca Configurações (Tabela settings)
             const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID) || [];
             const config = {};
             rows.forEach(row => { config[row.key] = row.value; });
 
-            // Busca Dados do Usuário
-            const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id) || { reputation: 0, level: 1 };
+            // Busca Dados do Usuário (Tabela users)
+            const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id) || { reputation: 100, level: 1 };
 
             res.render('manage', { 
                 guild,
@@ -103,16 +138,16 @@ function loadDashboard(client) {
                 role: member.roles.highest.name || "Sem Cargo",
                 reputation: userData.reputation,
                 level: userData.level,
-                config: config,
+                config,
                 query: req.query
             });
         } catch (error) {
-            console.error("Erro na rota Manage:", error);
-            res.status(500).send("Erro ao carregar painel.");
+            console.error("Erro no Manage:", error);
+            res.redirect('/');
         }
     });
 
-    // SALVAR
+    // SALVAR CONFIGURAÇÕES
     app.post('/manage/:guildID/save', checkAuth, async (req, res) => {
         try {
             const { guildID } = req.params;
@@ -137,14 +172,14 @@ function loadDashboard(client) {
             res.redirect(`/manage/${guildID}?success=true`);
         } catch (error) {
             console.error("Erro ao salvar:", error);
-            res.status(500).send("Erro ao salvar.");
+            res.status(500).send("Erro ao salvar dados.");
         }
     });
 
-    // --- LIGA O SERVIDOR (Faltava isso!) ---
+    // Ligar o Servidor
     const PORT = process.env.DASHBOARD_PORT || 3000;
     app.listen(PORT, () => {
-        console.log(`🚀 Dashboard online na porta ${PORT}`);
+        console.log(`✅ Dashboard Online na porta ${PORT}!`);
     });
 }
 
