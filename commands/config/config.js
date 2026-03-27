@@ -9,7 +9,7 @@ const {
 } = require('discord.js');
 
 const { EMOJIS } = require('../../database/emojis');
-const session = require('../../utils/sessionManager');
+const session = require('../../ultilitários/sessionManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
