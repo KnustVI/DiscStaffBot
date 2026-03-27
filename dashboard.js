@@ -35,29 +35,22 @@ function loadDashboard(client) {
     // 3. ROTAS (As páginas do site)
     
     // Página Inicial
-    app.get('/', async (req, res) => {
-    let isAdmin = false;
+    app.get('/', (req, res) => {
+    let userGuilds = [];
 
-    if (req.user) {
-        // ID do seu servidor principal (onde a staff está)
-        const guildId = "430534418818400266"; 
-        const guild = client.guilds.cache.get(guildId);
-
-        if (guild) {
-            // Tenta buscar o membro no servidor
-            const member = await guild.members.fetch(req.user.id).catch(() => null);
-            
-            // Verifica se o membro existe e se tem a permissão de Administrador (ou Gerenciar Servidor)
-            if (member && member.permissions.has('Administrator')) {
-                isAdmin = true;
-            }
-        }
+    if (req.user && req.user.guilds) {
+        // Filtra apenas servidores onde o usuário é DONO ou tem permissão de ADMINISTRADOR
+        // O bit 0x8 é o código do Discord para 'Administrator'
+        userGuilds = req.user.guilds.filter(g => 
+            g.owner === true || (parseInt(g.permissions) & 0x8) === 0x8
+        );
     }
 
     res.render('index', { 
         user: req.user,
         bot: client,
-        isAdmin: isAdmin // Passamos essa informação para o HTML
+        isAdmin: userGuilds.length > 0, // Se ele for admin em pelo menos 1, ele entra
+        guilds: userGuilds // Passamos a lista de servidores dele para o HTML
     });
 });
 

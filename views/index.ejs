@@ -2,19 +2,35 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | <%= bot.user.username %></title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #2c2f33; color: white; text-align: center; padding: 50px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .btn { background: #5865F2; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-top: 15px; transition: 0.3s; }
-        .btn:hover { background: #4752c4; }
-        .btn-admin { background: #ba0054; }
-        .user-card { background: #23272a; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: inline-block; width: 100%; }
-        img { border-radius: 50%; border: 3px solid #5865F2; margin-bottom: 15px; }
-        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8em; margin-top: 10px; display: inline-block; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #2c2f33; color: white; text-align: center; padding: 50px 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        
+        .user-card { background: #23272a; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: inline-block; width: 100%; box-sizing: border-box; }
+        .avatar { border-radius: 50%; border: 3px solid #5865F2; margin-bottom: 15px; }
+        
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; margin-bottom: 15px; display: inline-block; }
         .success { background: #43b581; color: white; }
         .danger { background: #f04747; color: white; }
-        hr { border: 0; border-top: 1px solid #4f545c; margin: 20px 0; }
+        
+        hr { border: 0; border-top: 1px solid #4f545c; margin: 25px 0; }
+        
+        /* Grid de Servidores */
+        .guilds-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; }
+        .guild-item { background: #2f3136; padding: 15px; border-radius: 10px; width: 150px; transition: transform 0.2s; }
+        .guild-item:hover { transform: translateY(-5px); background: #34373c; }
+        .guild-icon { border-radius: 50%; width: 60px; height: 60px; margin-bottom: 10px; background: #36393f; }
+        .guild-name { font-size: 0.9em; margin-bottom: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+        /* Botões */
+        .btn { background: #5865F2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; transition: 0.3s; border: none; cursor: pointer; }
+        .btn:hover { background: #4752c4; }
+        .btn-manage { background: #ba0054; font-size: 0.8em; padding: 6px 12px; }
+        .btn-manage:hover { background: #a10049; }
+        .logout-link { color: #99aab5; text-decoration: none; font-size: 0.85em; margin-top: 20px; display: inline-block; }
+        .logout-link:hover { color: #ffffff; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -23,25 +39,47 @@
         
         <% if (user) { %>
             <div class="user-card">
-                <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" width="100" onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'">
+                <!-- Avatar do Usuário -->
+                <img class="avatar" src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" width="100" onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'">
+                
                 <h2>Olá, <%= user.username %>!</h2>
                 
                 <% if (isAdmin) { %>
-                    <div class="status-badge success">✅ Administrador</div>
-                    <p>Você tem acesso total às ferramentas do bot.</p>
+                    <div class="status-badge success">✅ Administrador Identificado</div>
+                    <p>Você pode gerenciar os servidores abaixo:</p>
+                    
+                    <div class="guilds-grid">
+                        <% guilds.forEach(guild => { %>
+                            <div class="guild-item">
+                                <% if (guild.icon) { %>
+                                    <img class="guild-icon" src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png">
+                                <% } else { %>
+                                    <!-- Abreviação do nome caso não tenha ícone -->
+                                    <div class="guild-icon" style="display:flex; align-items:center; justify-content:center; background:#4f545c; font-weight:bold;">
+                                        <%= guild.name.split(' ').map(i => i[0]).join('') %>
+                                    </div>
+                                <% } %>
+                                <div class="guild-name"><%= guild.name %></div>
+                                <a href="/manage/<%= guild.id %>" class="btn btn-manage">Gerenciar</a>
+                            </div>
+                        <% }); %>
+                    </div>
+
                     <hr>
-                    <a href="/punicoes" class="btn btn-admin">Visualizar Histórico de Punições</a>
+                    <a href="/punicoes" class="btn">Ver Histórico Geral</a>
+
                 <% } else { %>
                     <div class="status-badge danger">⚠️ Acesso Restrito</div>
-                    <p>Você está logado, mas não possui permissões de Administrador neste servidor.</p>
+                    <p>Você está logado, mas não detectamos permissões de <b>Administrador</b> em servidores que utilizam o bot.</p>
                 <% } %>
 
-                <br><br>
-                <a href="/logout" style="color: #99aab5; text-decoration: none; font-size: 0.9em;">Sair da conta</a>
+                <br>
+                <a href="/logout" class="logout-link">Sair da conta</a>
             </div>
         <% } else { %>
+            <!-- Tela Deslogado -->
             <div class="user-card">
-                <p>Para gerenciar as punições e configurações, você precisa se identificar.</p>
+                <p>Bem-vindo! Para acessar as configurações e o log de punições, entre com sua conta do Discord.</p>
                 <a href="/login" class="btn">Login com Discord</a>
             </div>
         <% } %>
