@@ -76,10 +76,21 @@ function loadDashboard(client) {
         const member = await guild.members.fetch(req.user.id).catch(() => null);
         if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
 
-        res.render('home', {
+        const highestRole = member ? member.roles.highest.name : "Sem Cargo";
+        const nickname = member ? member.displayName : req.user.username;
+
+        // 2. Buscar Reputation e Level no seu Banco de Dados (Tabela users)
+        // Ajuste o nome das colunas conforme sua tabela
+        const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
+
+            res.render('home', {
             guild: guild,
             user: req.user,
-            bot: client
+            bot: client,
+            nickname: nickname,
+            role: highestRole,
+            reputation: reputation,
+            level: level
         });
     });
 
@@ -94,11 +105,21 @@ function loadDashboard(client) {
         const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
         const config = {};
         rows.forEach(row => { config[row.key] = row.value; });
+        
+        const highestRole = member ? member.roles.highest.name : "Sem Cargo";
+        const nickname = member ? member.displayName : req.user.username;
+        // 2. Buscar Reputation e Level no seu Banco de Dados (Tabela users)
+        // Ajuste o nome das colunas conforme sua tabela
+        const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
 
-        res.render('manage', {
-            bot: client,
-            user: req.user,
+        res.render('home', {
             guild: guild,
+            user: req.user,
+            bot: client,
+            nickname: nickname,
+            role: highestRole,
+            reputation: reputation,
+            level: level,
             config: config // Passa os valores salvos para os inputs
         });
     });

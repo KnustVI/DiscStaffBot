@@ -213,31 +213,43 @@
         </nav>
 
         <div class="staff-profile">
-            <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" class="staff-avatar">
-            <div class="staff-info">
-                <div class="name"><%= user.username %></div>
-                <div class="role">CARGO NO DISCORD</div>
-                <div class="staff-stats">
-                    <div class="stat-tag">NÍVEL</div>
-                    <div class="stat-tag" style="background: var(--text-primary);">REPUTATION</div>
-                </div>
+    <!-- Avatar do Usuário -->
+    <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
+         onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'" 
+         class="staff-avatar">
+         
+    <div class="staff-info">
+        <!-- Nickname (Nome no servidor) -->
+        <div class="name"><%= nickname %></div>
+        
+        <!-- Maior cargo no Discord -->
+        <div class="role"><%= role %></div>
+        
+        <div class="staff-stats">
+            <!-- Nível vindo do DB -->
+            <div class="stat-tag">NV. <%= level %></div>
+            
+            <!-- Reputação vinda do DB -->
+            <div class="stat-tag" style="background: var(--text-primary); color: var(--bg-main);">
+                REP: <%= reputation %>
             </div>
         </div>
-    </aside>
+    </div>
+</div>
 
     <!-- MAIN CONTENT -->
     <main class="main-content">
         
         <!-- FEED + ALERTAS -->
         <div class="feed-alerts">
-            <h4>FEED<br>+<br>ALERTAS</h4>
+            <h4>FEED</h4>
         </div>
 
         <!-- GRÁFICOS 1 -->
         <div class="chart-card">
             <div class="chart-header">Estatísticas de Mensagens</div>
             <div class="canvas-container">
-                <canvas id="chart1"></canvas>
+                <canvas id="chartLineArea"></canvas>
             </div>
         </div>
 
@@ -245,7 +257,7 @@
         <div class="chart-card">
             <div class="chart-header">Novos Membros</div>
             <div class="canvas-container">
-                <canvas id="chart2"></canvas>
+                <canvas id="chartRadar"></canvas>
             </div>
         </div>
 
@@ -256,54 +268,91 @@
 
     <script>
         // Configuração do Gráfico 1 (Linha)
-        const ctx1 = document.getElementById('chart1').getContext('2d');
-        new Chart(ctx1, {
-            type: 'line',
-            data: {
-                labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
-                datasets: [{
-                    label: 'Mensagens',
-                    data: [120, 190, 300, 250, 400, 550, 480],
-                    borderColor: '#DCA15E',
-                    backgroundColor: 'rgba(220, 161, 94, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    y: { grid: { color: '#3E3D38' }, ticks: { color: '#A89986' } },
-                    x: { grid: { display: false }, ticks: { color: '#A89986' } }
+        const ctxLine = document.getElementById('chartLineArea').getContext('2d');
+
+            // 1. Criar degradês para a Linha e o Preenchimento
+            const gradientLine = ctxLine.createLinearGradient(0, 0, 0, 400);
+            gradientLine.addColorStop(0, '#FFC0CB'); // Rosa Claro (Topo)
+            gradientLine.addColorStop(1, '#800080'); // Roxo (Base)
+
+            const gradientFill = ctxLine.createLinearGradient(0, 0, 0, 400);
+            gradientFill.addColorStop(0, 'rgba(255, 192, 203, 0.4)'); // Rosa Semi-transparente
+            gradientFill.addColorStop(1, 'rgba(128, 0, 128, 0.0)');  // Roxo Totalmente Transparente
+
+            new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Atividade',
+                        data: [15, 30, 25, 60, 45, 80, 70], // Dados de exemplo
+                        borderColor: gradientLine, // Aplica o degradê na linha
+                        backgroundColor: gradientFill, // Aplica o degradê no preenchimento
+                        fill: true, // Preenche a área sob a linha
+                        tension: 0.4, // Suaviza as curvas (crucial para o visual)
+                        borderWidth: 3,
+                        pointRadius: 0, // Remove os pontos para um visual mais limpo
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }, // Esconde a legenda
+                    scales: {
+                        // Estilização dos eixos para combinar com o tema escuro
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }, // Linhas de grade sutis
+                            ticks: { color: '#A89986' } // Cor do texto dos ticks
+                        },
+                        x: {
+                            grid: { display: false }, // Esconde a grade vertical
+                            ticks: { color: '#A89986' }
+                        }
+                    }
                 }
-            }
-        });
+            });
 
         // Configuração do Gráfico 2 (Barras)
-        const ctx2 = document.getElementById('chart2').getContext('2d');
-        new Chart(ctx2, {
-            type: 'bar',
-            data: {
-                labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
-                datasets: [{
-                    label: 'Entradas',
-                    data: [45, 62, 85, 40, 110],
-                    backgroundColor: '#803E30',
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    y: { grid: { color: '#3E3D38' }, ticks: { color: '#A89986' } },
-                    x: { grid: { display: false }, ticks: { color: '#A89986' } }
+            const ctxRadar = document.getElementById('chartRadar').getContext('2d');
+
+            new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['Força', 'Agilidade', 'Inteligência', 'Magia', 'Defesa', 'Sorte'],
+                    datasets: [{
+                        label: 'Estatísticas Atuais',
+                        data: [85, 70, 90, 60, 75, 50], // Dados de exemplo
+                        borderColor: '#00FFFF', // Ciano Neon
+                        backgroundColor: 'rgba(0, 255, 255, 0.15)', // Ciano Semi-transparente
+                        borderWidth: 2,
+                        pointBackgroundColor: '#FFFFFF',
+                        pointBorderColor: '#00FFFF',
+                        pointRadius: 4,
+                    },
+                    {
+                        label: 'Média do Servidor',
+                        data: [65, 75, 60, 80, 60, 70],
+                        borderColor: '#FF00FF', // Magenta Neon
+                        backgroundColor: 'rgba(255, 0, 255, 0.1)', // Magenta Semi-transparente
+                        borderWidth: 1,
+                        pointRadius: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        r: {
+                            // Estilização específica para o gráfico de radar
+                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, // Linhas diagonais
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }, // Círculos concêntricos
+                            pointLabels: { color: '#A89986', font: { size: 12 } }, // Rótulos dos cantos
+                            ticks: { display: false } // Esconde os números do eixo central
+                        }
+                    }
                 }
-            }
-        });
+            });
     </script>
 </body>
 </html>
