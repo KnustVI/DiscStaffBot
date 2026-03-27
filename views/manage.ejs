@@ -3,111 +3,268 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configurar | <%= guild.name %></title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Configurações | Titan's Pass</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
+    <!-- Font Awesome para os ícones nos inputs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <style>
         :root {
-            --roxo-escuro: #432a58;
-            --roxo-medio: #6e4686;
-            --rosa-intenso: #bd3164;
-            --rosa-claro: #c299c5;
-            --creme-suave: #f1dfc3;
-            --fundo-escuro: #1a1a1c;
-            --fundo-card: #222224;
-            --texto-claro: #e0e0e0;
-            --texto-escuro: #b0b0b0;
+            --bg-main: #1F1D20;
+            --bg-sidebar: #252326;
+            --bg-card: #2A2A2A;
+            --text-primary: #F8DCC0;
+            --text-secondary: #A89986;
+            --accent: #DCA15E;
+            --surface: #803E30;
+            --surface-hover: #4B2427;
+            --stroke: #5A1811;
+            --font-head: 'Tilt Warp', cursive;
+            --font-body: 'Poppins', sans-serif;
         }
 
-        body { background: var(--fundo-escuro); color: var(--texto-claro); font-family: 'Segoe UI', sans-serif; }
-        
-        .sidebar-robin { background-color: var(--roxo-escuro); }
-        .card-config { 
-            background: var(--fundo-card); 
-            border: 1px solid var(--roxo-escuro); 
-            border-radius: 20px;
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* Estilização de Formuários */
-        label { color: var(--rosa-claro); font-weight: bold; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-        
-        select, input { 
-            width: 100%; 
-            padding: 12px; 
-            border-radius: 10px; 
-            border: 2px solid var(--roxo-escuro); 
-            background: #1a1a1c; 
-            color: var(--creme-suave);
-            transition: border-color 0.3s;
+        /* SIDEBAR */
+        .sidebar {
+            width: 300px;
+            background-color: var(--bg-sidebar);
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--stroke);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.3);
         }
 
-        select:focus, input:focus {
-            outline: none;
-            border-color: var(--rosa-intenso);
+        .logo-titans {
+            width: 160px;
+            margin: 0 auto 30px;
         }
 
-        .btn-save { 
-            background: var(--rosa-intenso); 
-            color: white; 
-            padding: 15px; 
-            border: none; 
-            width: 100%; 
-            border-radius: 10px; 
-            font-weight: 800; 
-            text-transform: uppercase;
-            cursor: pointer; 
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .nav-item {
+            font-family: var(--font-head);
+            text-decoration: none;
+            color: var(--text-secondary);
+            padding: 14px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--stroke);
             transition: 0.3s;
-            box-shadow: 0 4px 15px rgba(189, 49, 100, 0.3);
+            text-transform: uppercase;
+            font-size: 0.85rem;
         }
 
-        .btn-save:hover { 
-            background: #a32a56; 
-            transform: scale(1.02);
+        .nav-item.active {
+            background: var(--surface-hover);
+            color: var(--text-primary);
+            border-color: var(--accent);
         }
 
-        .back-link { color: var(--texto-escuro); transition: 0.3s; }
-        .back-link:hover { color: var(--creme-suave); }
+        /* ÁREA DE CONTEÚDO */
+        .content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .header-meta {
+            text-align: right;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            letter-spacing: 2px;
+            margin-bottom: -15px;
+        }
+
+        /* SEÇÕES DE CONFIGURAÇÃO */
+        .config-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .config-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 15px 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .section-title {
+            font-family: var(--font-head);
+            text-align: center;
+            text-transform: uppercase;
+            color: var(--text-primary);
+            margin-bottom: 25px;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+        }
+
+        /* ESTILO DOS INPUTS (IGUAL À FOTO) */
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            border: 1px solid var(--stroke);
+            overflow: hidden;
+        }
+
+        .input-icon {
+            background: var(--accent);
+            color: var(--bg-main);
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 1.1rem;
+        }
+
+        .input-field {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 15px;
+            color: var(--text-secondary);
+            font-family: var(--font-body);
+            outline: none;
+        }
+
+        /* REGRAS DE PUNIÇÃO */
+        .punishment-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .punishment-item {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            align-items: center;
+        }
+
+        .level-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* BOTÃO SALVAR */
+        .save-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .btn-save {
+            font-family: var(--font-head);
+            background: var(--bg-sidebar);
+            color: var(--text-primary);
+            border: 1px solid var(--stroke);
+            padding: 12px 60px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-save:hover {
+            background: var(--surface);
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
-    <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <aside class="w-64 sidebar-robin p-6 shadow-2xl flex flex-col">
-            <div class="flex items-center gap-3 mb-12">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg" style="background-color: var(--rosa-intenso);">
-                    🦅
-                </div>
-                <h1 class="text-2xl font-black tracking-tighter" style="color: var(--creme-suave);">ROBIN</h1>
-            </div>
+
+    <aside class="sidebar">
+        <img src="SUA_LOGO_AQUI" class="logo-titans">
+        <nav class="nav-menu">
+            <a href="/manage/<%= guild.id %>" class="nav-item active">Configurações</a>
+            <a href="#" class="nav-item">Pot Server</a>
+            <a href="#" class="nav-item">Tickets</a>
+            <a href="#" class="nav-item">Staffs</a>
+            <a href="#" class="nav-item">Strikes</a>
+            <a href="#" class="nav-item">Perfil</a>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <div class="header-meta">BY: KNUST SEIER VI</div>
+
+        <form action="/manage/<%= guild.id %>/save" method="POST">
             
-            <nav class="space-y-2 flex-1">
-                <a href="/" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition" style="color: var(--rosa-claro);">
-                    📊 Painel Geral
-                </a>
-                <a href="/punicoes" class="flex items-center gap-3 p-3 rounded-lg hover:bg-white/10 transition" style="color: var(--rosa-claro);">
-                    🛡️ Punições
-                </a>
-            </nav>
-
-            <div class="p-4 rounded-xl bg-black/20">
-                <p class="text-[10px] uppercase font-bold text-center" style="color: var(--roxo-medio);">Servidor Atual</p>
-                <p class="text-xs text-center font-bold truncate" style="color: var(--creme-suave);"><%= guild.name %></p>
-            </div>
-        </aside>
-
-        <!-- Main -->
-        <main class="flex-1 p-10 overflow-y-auto">
-            <header class="mb-10">
-                <h2 class="text-3xl font-bold" style="color: var(--creme-suave);">Configurações</h2>
-                <div class="h-1 w-20 bg-[#bd3164] mt-2 rounded-full"></div>
-            </header>
-
-            <div class="card-config p-8 max-w-2xl mx-auto shadow-2xl">
-                <form action="/manage/<%= guild.id %>" method="POST" class="space-y-6">
+            <div class="config-row">
+                <!-- COLUNA 1: CONFIGS GERAIS -->
+                <div class="config-card">
+                    <h3 class="section-title">Configurações</h3>
                     
-                    <div class="form-group">
-                        <label for="prefix">Prefixo do Bot</label>
-                        <input type="text" id="prefix" name="prefix" placeholder="Ex: !" value="!">
+                    <div class="input-group">
+                        <div class="input-icon"><i class="fa-solid fa-user-shield"></i></div>
+                        <input type="text" class="input-field" placeholder="Cargo Staff" name="staffRole">
                     </div>
 
-                    <div class="form-group">
-                        <
+                    <div class="input-group">
+                        <div class="input-icon"><i class="fa-solid fa-terminal"></i></div>
+                        <input type="text" class="input-field" placeholder="Canal de Logs" name="logChannel">
+                    </div>
+                </div>
+
+                <!-- COLUNA 2: REPUTAÇÃO -->
+                <div class="config-card">
+                    <h3 class="section-title">Reputação por Dia</h3>
+                    <div class="input-group">
+                        <div class="input-icon"><i class="fa-solid fa-circle-user"></i></div>
+                        <input type="number" class="input-field" placeholder="Número" name="dailyRep">
+                    </div>
+                </div>
+            </div>
+
+            <!-- REGRAS DE PUNIÇÃO (CARD LARGO) -->
+            <div class="config-card" style="margin-top: 25px;">
+                <h3 class="section-title">Regras de Punição</h3>
+                
+                <div class="punishment-grid">
+                    <% [1, 2, 3, 4, 5].forEach(level => { %>
+                    <div class="punishment-item">
+                        <span class="level-label">Nível <%= level %></span>
+                        <div class="input-group" style="margin-bottom: 0;">
+                            <input type="text" class="input-field" placeholder="-<%= level * 20 %> pts" name="punish_level_<%= level %>">
+                        </div>
+                    </div>
+                    <% }) %>
+                </div>
+
+                <div class="save-container">
+                    <button type="submit" class="btn-save">Salvar</button>
+                </div>
+            </div>
+
+        </form>
+    </main>
+
+</body>
+</html>
