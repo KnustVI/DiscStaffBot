@@ -5,7 +5,7 @@ const path = require('path');
 const db = require('./database/database');
 const cron = require('node-cron');
 
-const session = require('./ultilitários/sessionManager');
+const session = require('./utils/sessionManager');
 const ConfigCache = require('./systems/configCache');
 const loadDashboard = require('./dashboard.js');
 
