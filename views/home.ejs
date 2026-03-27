@@ -213,21 +213,19 @@
         </nav>
 
         <div class="staff-profile">
-    <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" class="staff-avatar">
-    <div class="staff-info">
-        <div class="name"><%= nickname %></div>
-        <div class="role"><%= role %></div>
-        <div class="staff-stats">
-            <!-- Exibe o Nível baseado em punições aplicadas -->
-            <div class="stat-tag">NV. <%= level %></div>
-            
-            <!-- Exibe os pontos da tabela reputation -->
-            <div class="stat-tag" style="background: var(--text-primary); color: var(--bg-main);">
-                REP: <%= reputation %>
+            <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" class="staff-avatar">
+            <div class="staff-info">
+                <div class="name text-truncate" style="max-width: 150px;"><%= nickname %></div>
+                <div class="role"><%= role %></div>
+                <div class="staff-stats">
+                    <div class="stat-tag">NV. <%= level %></div>
+                    <div class="stat-tag" style="background: var(--text-primary); color: var(--bg-main);">
+                        REP: <%= reputation %>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
+        </div> <!-- FECHAMENTO QUE FALTAVA AQUI -->
+    </aside>
 
     <!-- MAIN CONTENT -->
     <main class="main-content">
