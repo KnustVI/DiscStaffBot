@@ -7,10 +7,12 @@ const db = require('./database/database');
 const Database = require('better-sqlite3');
 
 
+
 const app = express();
 
 function loadDashboard(client) {
 
+    app.use(express.urlencoded({ extended: true }));
         // Esta linha é mágica: ela diz que tudo na pasta 'public' pode ser acessado pelo navegador
     app.use(express.static(path.join(__dirname, 'public')));
 
@@ -130,67 +132,91 @@ function loadDashboard(client) {
         }
     });
 
-    // MANAGE (CONFIGURAÇÕES - EXATAMENTE COMO A FOTO)
-    app.get('/manage/:guildID', checkAuth, async (req, res) => {
-        const guildID = req.params.guildID;
-        const guild = client.guilds.cache.get(guildID);
-        
-        if (!guild) return res.redirect('/');
+    // MANAGE (CONFIGURAÇÕES)
+        app.get('/manage/:guildID', checkAuth, async (req, res) => {
+            try {
+                const guildID = req.params.guildID;
+                const guild = client.guilds.cache.get(guildID);
+                
+                if (!guild) return res.redirect('/');
 
-        // Busca configurações no seu SQLite (Tabela settings que você já tem)
-        const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
-        const config = {};
-        rows.forEach(row => { config[row.key] = row.value; });
-        
-        const highestRole = member ? member.roles.highest.name : "Sem Cargo";
-        const nickname = member ? member.displayName : req.user.username;
-        // 2. Buscar Reputation e Level no seu Banco de Dados (Tabela users)
-        // Ajuste o nome das colunas conforme sua tabela
-        const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
+                // 1. Busca o Membro
+                const member = await guild.members.fetch(req.user.id).catch(() => null);
+                if (!member) return res.redirect('/');
 
-        res.render('home', {
-            guild: guild,
-            user: req.user,
-            bot: client,
-            nickname: nickname,
-            role: highestRole,
-            reputation: reputation,
-            level: level,
-            config: config // Passa os valores salvos para os inputs
-        });
-    });
+                // 2. Busca Configurações do Servidor
+                const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
+                const config = {};
+                rows.forEach(row => { config[row.key] = row.value; });
 
-    // SALVAR CONFIGURAÇÕES (POST)
-    app.post('/manage/:guildID/save', checkAuth, async (req, res) => {
-        const { guildID } = req.params;
-        const settingsData = req.body;
+                // 3. Buscar Reputation e Level (com fallback para 0 caso não exista no DB)
+                const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
+                
+                // Criamos as constantes para o EJS não quebrar
+                const reputation = userData ? userData.reputation : 0;
+                const level = userData ? userData.level : 1;
+                const highestRole = member.roles.highest.name || "Sem Cargo";
+                const nickname = member.displayName || req.user.username;
 
-        // Upsert no seu SQLite (better-sqlite3 style)
-        const upsert = db.prepare(`
-            INSERT INTO settings (guild_id, key, value) 
-            VALUES (?, ?, ?) 
-            ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
-        `);
+                // 4. Renderiza a página 'manage' (ou 'home' se você ainda não criou o arquivo manage.ejs)
+                res.render('manage', { 
+                    guild: guild,
+                    user: req.user,
+                    bot: client,
+                    nickname: nickname,
+                    role: highestRole,
+                    reputation: reputation,
+                    level: level,
+                    config: config 
+                });
 
-        const transaction = db.transaction((data) => {
-            for (const [key, value] of Object.entries(data)) {
-                upsert.run(guildID, key, value);
+            } catch (error) {
+                console.error("Erro na rota Manage:", error);
+                res.status(500).send("Erro ao carregar as configurações.");
             }
         });
 
-        transaction(settingsData);
-        res.redirect(`/manage/${guildID}?success=true`);
-    });
+    // SALVAR CONFIGURAÇÕES (POST)
+        app.post('/manage/:guildID/save', checkAuth, async (req, res) => {
+        try {
+            const { guildID } = req.params;
+            const settingsData = req.body;
 
-    // AUTH ROUTES
-    app.get('/login', passport.authenticate('discord'));
-    app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => res.redirect('/'));
-    app.get('/logout', (req, res) => {
-        req.logout(() => res.redirect('/'));
-    });
+            // 1. Verificação de segurança: O usuário tem permissão nesse servidor?
+            const guild = client.guilds.cache.get(guildID);
+            if (!guild) return res.status(404).send("Servidor não encontrado.");
+            
+            const member = await guild.members.fetch(req.user.id);
+            if (!member.permissions.has("Administrator")) {
+                return res.status(403).send("Você não tem permissão de Administrador.");
+            }
 
-    app.listen(process.env.DASHBOARD_PORT || 3000, () => {
-        console.log(`✅ Dashboard Online!`);
+            // 2. Preparar o Upsert
+            const upsert = db.prepare(`
+                INSERT INTO settings (guild_id, key, value) 
+                VALUES (?, ?, ?) 
+                ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
+            `);
+
+            // 3. Executar a transação
+            const transaction = db.transaction((data) => {
+                for (const [key, value] of Object.entries(data)) {
+                    // Opcional: Ignorar valores vazios ou campos específicos
+                    if (value !== undefined && value !== null) {
+                        upsert.run(guildID, key, value.toString());
+                    }
+                }
+            });
+
+            transaction(settingsData);
+            
+            // Redireciona de volta com um aviso de sucesso
+            res.redirect(`/manage/${guildID}?success=true`);
+
+        } catch (error) {
+            console.error("Erro ao salvar configurações:", error);
+            res.status(500).send("Erro ao salvar os dados.");
+        }
     });
 }
 
