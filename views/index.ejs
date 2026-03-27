@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | <%= bot.user.username %></title>
     
-    <!-- Importação das Fontes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
@@ -22,14 +21,12 @@
             --surface-hover: #4B2427;
             --stroke: #5A1811;
             --shadow-black: rgba(0, 0, 0, 0.5);
-            
-            /* Definição das fontes nas variáveis */
             --font-head: 'Tilt Warp', cursive;
             --font-body: 'Poppins', sans-serif;
         }
 
         body {
-            font-family: var(--font-body); /* Poppins como padrão */
+            font-family: var(--font-body);
             background-color: var(--bg-main);
             color: var(--text-primary);
             margin: 0;
@@ -51,19 +48,18 @@
         }
 
         .avatar {
-            width: 150px;
-            height: 150px;
+            width: 130px;
+            height: 130px;
             border-radius: 50%;
             border: 3px solid var(--stroke);
             object-fit: cover;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 20px var(--shadow-black);
         }
 
-        /* Aplicação da Tilt Warp nos cabeçalhos */
         .nickname {
             font-family: var(--font-head);
-            font-size: 2.2rem;
+            font-size: 2rem;
             color: var(--text-primary);
             text-transform: uppercase;
             margin-bottom: 5px;
@@ -71,47 +67,56 @@
         }
 
         .role-badge {
-            font-family: var(--font-head); /* Badge também fica bem com a Tilt */
+            font-family: var(--font-head);
             background-color: var(--surface-hover);
             color: var(--text-primary);
             padding: 6px 20px;
             border-radius: 12px;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             display: inline-block;
             border: 2px solid var(--stroke);
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .guilds-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         .guild-square {
             aspect-ratio: 1 / 1;
             background-color: var(--bg-card);
-            border-radius: 18px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid transparent;
+            border: 1px solid rgba(255,255,255,0.03);
             text-decoration: none;
             overflow: hidden;
+            padding: 12px; /* Espaçamento interno para diminuir o ícone */
+            box-sizing: border-box;
         }
 
         .guild-square:hover {
-            transform: scale(1.05);
+            transform: scale(1.08);
             border-color: var(--accent);
             background-color: var(--surface-hover);
+        }
+
+        .guild-icon {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px; /* Arredondamento suave no ícone interno */
         }
 
         .guild-initials {
             font-family: var(--font-head);
             color: var(--text-secondary);
-            font-size: 1.4rem;
+            font-size: 1.2rem;
         }
 
         .btn-primary {
@@ -126,7 +131,7 @@
             border: 1px solid var(--stroke);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             text-transform: uppercase;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
 
         .btn-primary:hover {
@@ -135,21 +140,19 @@
         }
 
         .footer-text {
-            font-family: var(--font-body);
-            font-weight: 300;
             position: absolute;
             bottom: 20px;
             color: var(--text-secondary);
-            font-size: 0.75rem;
+            font-size: 0.65rem;
             letter-spacing: 2px;
+            opacity: 0.6;
         }
 
         .logout {
-            font-family: var(--font-body);
-            margin-top: 20px;
+            margin-top: 25px;
             display: block;
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             text-decoration: none;
             transition: 0.2s;
         }
@@ -173,22 +176,20 @@
                     <% guilds.slice(0, 6).forEach(guild => { %>
                         <a href="/home/<%= guild.id %>" class="guild-square">
                             <% if (guild.icon) { %>
-                                <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" style="width:100%; height:100%; object-fit:cover;">
+                                <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" class="guild-icon">
                             <% } else { %>
                                 <span class="guild-initials"><%= guild.name.split(' ').map(i => i[0]).join('') %></span>
                             <% } %>
                         </a>
                     <% }); %>
                 </div>
-                <br>
-                <a href="/punicoes" class="btn-primary" style="margin-top: 15px;">Histórico</a>
             <% } %>
 
             <a href="/logout" class="logout">Sair da conta</a>
 
         <% } else { %>
-            <div class="nickname" style="margin-bottom: 20px;">ROBIN V3</div>
-            <p style="color: var(--text-secondary); font-weight: 300;">Faça login para gerenciar seus servidores e punições.</p>
+            <div class="nickname" style="margin-bottom: 20px;">TITAN'S PASS</div>
+            <p style="color: var(--text-secondary); font-weight: 300; font-size: 0.9rem; margin-bottom: 30px;">Gerencie seus servidores e punições com precisão.</p>
             <a href="/login" class="btn-primary">Entrar com Discord</a>
         <% } %>
     </div>
