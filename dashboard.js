@@ -4,20 +4,8 @@ const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
 const db = require('./database/database');
-
 const Database = require('better-sqlite3');
-const db = new Database('database.db')
 
-// IMPORTANTE: Rode isso ANTES das rotas (app.get)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY, 
-        reputation INTEGER DEFAULT 100, 
-        level INTEGER DEFAULT 1
-    )
-`).run();
-
-// ... resto do código (rotas, etc)
 
 const app = express();
 
@@ -82,42 +70,57 @@ function loadDashboard(client) {
     });
 
     // HOME (GRÁFICOS)
-            app.get('/home/:guildID', checkAuth, async (req, res) => {
-    try {
-        const guildID = req.params.guildID;
-        const guild = client.guilds.cache.get(guildID);
-        if (!guild) return res.redirect('/');
+                app.get('/home/:guildID', checkAuth, async (req, res) => {
+        try {
+            const guildID = req.params.guildID;
+            const guild = client.guilds.cache.get(guildID);
+            
+            // Se o bot não estiver no servidor, volta pra inicial
+            if (!guild) return res.redirect('/');
 
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+            // 1. Tentar buscar o membro (com fallback caso falhe)
+            let member;
+            try {
+                member = await guild.members.fetch(req.user.id);
+            } catch (e) {
+                console.log("Membro não encontrado no cache/guild.");
+                return res.redirect('/');
+            }
 
-        // BUSCA REPUTAÇÃO (Tabela: reputation, Coluna: points)
-        let repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?")
-                        .get(guildID, req.user.id);
-        
-        // BUSCA PUNIÇÕES para calcular o Nível
-        const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?")
-                           .get(guildID, req.user.id);
+            // 2. Verificar Permissão
+            if (!member.permissions.has('Administrator')) return res.redirect('/');
 
-        const points = repData ? repData.points : 100;
-        const totalPunishments = punCount ? punCount.total : 0;
-        const calcLevel = Math.floor(totalPunishments / 5) + 1;
+            // 3. Buscar Dados no SQLite (Usando os nomes exatos das suas tabelas)
+            let reputation = 100;
+            let level = 1;
 
-        // RENDERIZAÇÃO
-        res.render('home', {
-            guild: guild,
-            user: req.user,
-            bot: client,
-            nickname: member.displayName,
-            role: member.roles.highest.name,
-            reputation: points,       // <--- Variável usada no seu HTML
-            level: calcLevel          // <--- Variável usada no seu HTML
-        });
-    } catch (err) {
-        console.error("Erro na Home:", err);
-        res.status(500).send("Erro interno ao carregar a Dashboard.");
-    }
-});
+            try {
+                const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+                if (repData) reputation = repData.points;
+
+                const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+                if (punCount) level = Math.floor(punCount.total / 5) + 1;
+            } catch (dbError) {
+                console.error("Erro ao ler banco de dados:", dbError.message);
+                // Mantém os valores padrão se o DB falhar
+            }
+
+            // 4. Renderizar com nomes de variáveis IGUAIS aos do seu EJS
+            res.render('home', {
+                guild: guild,
+                user: req.user,
+                bot: client,
+                nickname: member.displayName || req.user.username,
+                role: member.roles.highest.name || "Membro",
+                reputation: reputation,
+                level: level
+            });
+
+        } catch (globalError) {
+            console.error("ERRO CRÍTICO NA ROTA HOME:", globalError);
+            res.status(500).send("Erro ao carregar a página. Verifique o console do Bot.");
+        }
+    });
 
     // MANAGE (CONFIGURAÇÕES - EXATAMENTE COMO A FOTO)
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
