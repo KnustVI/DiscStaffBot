@@ -116,6 +116,7 @@ function loadDashboard(client) {
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
         try {
             const guildID = req.params.guildID;
+            console.log(client);
             const guild = client.guilds.cache.get(guildID);
             if (!guild) return res.redirect('/');
 
