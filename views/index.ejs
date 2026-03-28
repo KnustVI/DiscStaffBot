@@ -5,196 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | <%= bot.user.username %></title>
     
+    <!-- Fontes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN (Obrigatório para o visual do Builder funcionar) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-dark': '#1F1D20',
+                        'titan-cream': '#F8DCC0',
+                        'titan-accent': '#803E30',
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
-        :root {
-            --bg-main: #1F1D20;
-            --bg-card: #2A2A2A;
-            --bg-inner: #1F1D20;
-            --text-primary: #F8DCC0;
-            --text-secondary: #A89986;
-            --accent: #DCA15E;
-            --surface: #803E30;
-            --surface-hover: #4B2427;
-            --stroke: #5A1811;
-            --shadow-black: rgba(0, 0, 0, 0.5);
-            --font-head: 'Tilt Warp', cursive;
-            --font-body: 'Poppins', sans-serif;
-        }
-
-        body {
-            font-family: var(--font-body);
-            background-color: var(--bg-main);
-            color: var(--text-primary);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-
-        .login-card {
-            background-color: var(--bg-inner);
-            width: 100%;
-            max-width: 450px;
-            padding: 50px 30px;
-            border-radius: 40px;
-            box-shadow: 20px 20px 60px #131214, -20px -20px 60px #2b282c;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .avatar {
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            border: 3px solid var(--stroke);
-            object-fit: cover;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 20px var(--shadow-black);
-        }
-
-        .nickname {
-            font-family: var(--font-head);
-            font-size: 2rem;
-            color: var(--text-primary);
-            text-transform: uppercase;
-            margin-bottom: 5px;
-            letter-spacing: 1px;
-        }
-
-        .role-badge {
-            font-family: var(--font-head);
-            background-color: var(--surface-hover);
-            color: var(--text-primary);
-            padding: 6px 20px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            display: inline-block;
-            border: 2px solid var(--stroke);
-            margin-bottom: 25px;
-        }
-
-        .guilds-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .guild-square {
-            aspect-ratio: 1 / 1;
-            background-color: var(--bg-card);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid rgba(255,255,255,0.03);
-            text-decoration: none;
-            overflow: hidden;
-            padding: 12px; /* Espaçamento interno para diminuir o ícone */
-            box-sizing: border-box;
-        }
-
-        .guild-square:hover {
-            transform: scale(1.08);
-            border-color: var(--accent);
-            background-color: var(--surface-hover);
-        }
-
-        .guild-icon {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 12px; /* Arredondamento suave no ícone interno */
-        }
-
-        .guild-initials {
-            font-family: var(--font-head);
-            color: var(--text-secondary);
-            font-size: 1.2rem;
-        }
-
-        .btn-primary {
-            font-family: var(--font-head);
-            background-color: var(--surface);
-            color: var(--text-primary);
-            padding: 14px 35px;
-            border-radius: 14px;
-            text-decoration: none;
-            display: inline-block;
-            transition: 0.3s;
-            border: 1px solid var(--stroke);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-transform: uppercase;
-            font-size: 1rem;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--surface-hover);
-            box-shadow: 0 0 20px rgba(128, 62, 48, 0.4);
-        }
-
-        .footer-text {
-            position: absolute;
-            bottom: 20px;
-            color: var(--text-secondary);
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            opacity: 0.6;
-        }
-
-        .logout {
-            margin-top: 25px;
-            display: block;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            text-decoration: none;
-            transition: 0.2s;
-        }
-        .logout:hover { color: var(--accent); }
+        body { margin: 0; padding: 0; }
+        .guild-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: 28px; }
     </style>
 </head>
 <body>
 
-    <div class="login-card">
-        <% if (user) { %>
-            <img class="avatar" src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'">
-
-            <div class="nickname"><%= user.username %></div>
+    <div class="min-h-screen w-full flex flex-col items-stretch p-4 sm:p-6 md:p-8"
+         style="background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);">
+        
+        <div class="flex-1 flex flex-col items-center justify-center gap-5 py-4">
             
-            <div class="role-badge">
-                <%= isAdmin ? 'ADMINISTRADOR' : 'STAFF' %>
+            <!-- Seção Superior: Logo e Boas-vindas -->
+            <div class="flex flex-col items-center gap-6 sm:gap-8 md:gap-10 w-full">
+                <div class="flex items-center justify-center w-full max-w-xs sm:max-w-sm md:max-w-lg">
+                    <img src="https://api.builder.io/api/v1/image/assets/TEMP/0eca749ff83a05595d1c02408cadf2e5c3945776?width=1264"
+                         alt="Titan's Pass Logo" class="w-full h-auto object-contain" style="max-height: 340px;">
+                </div>
+
+                <div class="text-center px-4">
+                    <p class="text-titan-cream leading-tight mb-1"
+                       style="font-family: 'Tilt Warp', sans-serif; font-size: clamp(20px, 3vw, 36px);">
+                        BEM VINDO AO DASHBOARD DO TITAN'S PASS
+                    </p>
+                    <p class="text-titan-cream"
+                       style="font-family: 'Poppins', sans-serif; font-size: clamp(14px, 1.8vw, 24px);">
+                        <% if (user) { %> Escolha o servidor que vai manejar <% } else { %> Entre para gerenciar seus servidores <% } %>
+                    </p>
+                </div>
             </div>
 
-            <% if (isAdmin) { %>
-                <div class="guilds-grid">
-                    <% guilds.slice(0, 6).forEach(guild => { %>
-                        <a href="/home/<%= guild.id %>" class="guild-square">
-                            <% if (guild.icon) { %>
-                                <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" class="guild-icon">
-                            <% } else { %>
-                                <span class="guild-initials"><%= guild.name.split(' ').map(i => i[0]).join('') %></span>
-                            <% } %>
+            <!-- Seção Inferior: Usuário + Servidores -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-10 md:gap-16 lg:gap-24 w-full max-w-4xl px-4">
+                
+                <% if (user) { %>
+                    <!-- Perfil do Usuário Logado -->
+                    <div class="flex flex-col items-center gap-2 shrink-0">
+                        <div class="rounded-full bg-titan-dark flex items-center justify-center shrink-0 overflow-hidden"
+                             style="width: clamp(120px, 14vw, 202px); height: clamp(120px, 14vw, 202px); border: 4px solid #803E30; box-shadow: 0 12px 18px 11px rgba(1, 2, 10, 0.45);">
+                            <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
+                                 onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'"
+                                 class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex flex-col items-center justify-center w-full mt-1">
+                            <span class="text-titan-cream text-center" style="font-family: 'Tilt Warp', sans-serif; font-size: clamp(28px, 3.5vw, 48px);">
+                                <%= user.username %>
+                            </span>
+                            <a href="/logout" class="text-titan-cream opacity-50 hover:opacity-100 text-sm underline">Sair</a>
+                        </div>
+                    </div>
+
+                    <!-- Grid de Servidores -->
+                    <div class="grid gap-4 sm:gap-5 md:gap-6 shrink-0"
+                         style="grid-template-columns: repeat(3, 1fr); padding: clamp(12px, 2vw, 30px);">
+                        
+                        <% guilds.slice(0, 6).forEach(guild => { %>
+                            <a href="/home/<%= guild.id %>" 
+                               class="bg-titan-dark flex items-center justify-center cursor-pointer transition-all duration-200 hover:border-titan-accent hover:scale-105"
+                               style="width: clamp(80px, 9vw, 135px); height: clamp(80px, 9vw, 136px); border-radius: 30px; border: 2px solid #3E3D38; box-shadow: 0 12px 18px 6px rgba(1, 2, 10, 0.38); overflow: hidden;">
+                                <% if (guild.icon) { %>
+                                    <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" class="guild-icon-img">
+                                <% } else { %>
+                                    <span class="text-titan-cream font-bold"><%= guild.name.split(' ').map(i => i[0]).join('') %></span>
+                                <% } %>
+                            </a>
+                        <% }); %>
+
+                        <% /* Preenche slots vazios se tiver menos de 6 guilds */ %>
+                        <% for(let i = guilds.length; i < 6; i++) { %>
+                            <div class="bg-titan-dark opacity-20"
+                                 style="width: clamp(80px, 9vw, 135px); height: clamp(80px, 9vw, 136px); border-radius: 30px; border: 2px dashed #3E3D38;">
+                            </div>
+                        <% } %>
+                    </div>
+
+                <% } else { %>
+                    <!-- Caso não esteja logado -->
+                    <div class="flex flex-col items-center gap-6">
+                        <a href="/login" class="px-10 py-4 bg-titan-accent text-titan-cream rounded-xl hover:scale-105 transition-transform" 
+                           style="font-family: 'Tilt Warp', sans-serif; font-size: 24px; border: 2px solid #5A1811;">
+                            ENTRAR COM DISCORD
                         </a>
-                    <% }); %>
-                </div>
-            <% } %>
+                    </div>
+                <% } %>
 
-            <a href="/logout" class="logout">Sair da conta</a>
+            </div>
+        </div>
 
-        <% } else { %>
-            <div class="nickname" style="margin-bottom: 20px;">TITAN'S PASS</div>
-            <p style="color: var(--text-secondary); font-weight: 300; font-size: 0.9rem; margin-bottom: 30px;">Gerencie seus servidores e punições com precisão.</p>
-            <a href="/login" class="btn-primary">Entrar com Discord</a>
-        <% } %>
+        <!-- Footer -->
+        <div class="text-center py-2">
+            <span class="text-titan-cream opacity-60" style="font-family: 'Bebas Neue', sans-serif; font-size: clamp(16px, 1.5vw, 24px);">
+                by: KNUST SEIER VI
+            </span>
+        </div>
     </div>
-
-    <div class="footer-text">BY: KNUST SEIER VI</div>
 
 </body>
 </html>
