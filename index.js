@@ -2,8 +2,9 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const loadDashboard = require('./dashboard'); // Importação do seu arquivo dashboard.js
+const loadDashboard = require('./dashboard'); // ADICIONADO
 
+// ESTA DEVE SER A LINHA 6 OU 7 (NÃO PODE TER 'client.on' ANTES DISSO)
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -13,14 +14,15 @@ const client = new Client({
     ]
 });
 
+// Agora sim, tudo que usa 'client' vem DEPOIS
 client.commands = new Collection();
 
 // ==========================================
-// 2. DEBUG RAW (Opcional)
+// 2. AGORA SIM: USAR O CLIENT (DEBUG RAW)
 // ==========================================
 client.on('raw', packet => {
     if (packet.t === 'INTERACTION_CREATE') {
-        // console.log('--- [DEBUG RAW] SINAL RECEBIDO ---');
+        console.log('--- [DEBUG RAW] SINAL RECEBIDO DO DISCORD ---');
     }
 });
 
@@ -72,28 +74,26 @@ if (fs.existsSync(eventsPath)) {
 }
 
 // =========================
-// 6. INICIALIZAÇÃO DO BOT E DASHBOARD
+// 6. INICIALIZAÇÃO DO BOT
 // =========================
 async function bootstrap() {
     try {
         console.log('🚀 Iniciando sistemas...');
 
-        // 1. Login no Discord
+        // Login no Discord
         await client.login(process.env.TOKEN);
-        console.log(`✅ Bot conectado como: ${client.user.tag}`);
 
-        // 2. Iniciar o AutoMod
+        // Iniciar o AutoMod
         if (typeof autoModeration === 'function') {
             autoModeration(client);
         }
 
-        // 3. INICIAR O DASHBOARD (AQUI ESTÁ A CORREÇÃO)
+        // Iniciar Dashboard - ADICIONADO
         if (typeof loadDashboard === 'function') {
             loadDashboard(client);
-            console.log('🖥️  Sistema de Dashboard inicializado.');
-        } else {
-            console.warn('⚠️  Aviso: Função loadDashboard não encontrada ou não é uma função.');
         }
+
+        console.log(`✅ ${client.user.tag} está online!`);
 
     } catch (error) {
         if (ErrorLogger && ErrorLogger.log) {
