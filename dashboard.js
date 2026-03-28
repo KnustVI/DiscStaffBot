@@ -55,7 +55,7 @@ function loadDashboard(client) {
     });
 
     // ==========================
-    // INDEX
+    // INDEX (SELEÇÃO DE SERVIDORES)
     // ==========================
     app.get('/', (req, res) => {
         let userGuilds = [];
@@ -76,44 +76,63 @@ function loadDashboard(client) {
     });
 
     // ==========================
-    // MANAGE (AQUI ESTAVA O ERRO)
+    // HOME (ESTATÍSTICAS / GRÁFICOS)
+    // ==========================
+    app.get('/home/:guildID', checkAuth, async (req, res) => {
+        try {
+            const { guildID } = req.params;
+            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
+            
+            if (!guild) return res.redirect('/');
+
+            const member = await guild.members.fetch(req.user.id).catch(() => null);
+            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+
+            // Dados para os Gráficos (Exemplo baseados nas suas tabelas)
+            let reputation = 100;
+            let level = 1;
+            
+            const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+            if (repData) reputation = repData.points;
+
+            const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+            if (punCount) level = Math.floor(punCount.total / 5) + 1;
+
+            res.render('home', {
+                guild,
+                user: req.user,
+                bot: client,
+                nickname: member.displayName || req.user.username,
+                role: member.roles.highest.name || "Membro",
+                reputation,
+                level
+            });
+        } catch (err) {
+            console.error("Erro na Home:", err);
+            res.redirect('/');
+        }
+    });
+
+    // ==========================
+    // MANAGE (CONFIGURAÇÕES)
     // ==========================
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
         try {
             const { guildID } = req.params;
+            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
             
-            // Tenta cache, se não busca no Discord
-            let guild = client.guilds.cache.get(guildID);
-            if (!guild) {
-                guild = await client.guilds.fetch(guildID).catch(() => null);
-            }
-
-            if (!guild) {
-                console.log(`❌ Guild ${guildID} não encontrada!`);
-                return res.redirect('/');
-            }
+            if (!guild) return res.redirect('/');
 
             const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member) {
-                console.log("❌ Membro não encontrado!");
-                return res.redirect('/');
-            }
-
-            // SEGURANÇA: Verificação de Permissão Robusta
-            if (!member.permissions.has('Administrator')) {
-                console.log("❌ Sem permissão de Admin!");
-                return res.redirect('/');
-            }
+            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
             
-            // CONFIGURAÇÕES
+            // Busca Configurações Salvas
             const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID) || [];
             const config = {};
             rows.forEach(row => { config[row.key] = row.value; });
 
-            // REPUTAÇÃO/LEVEL (Garantindo que nunca seja undefined para a sidebar)
-            // IMPORTANTE: Verifique se sua tabela é 'users' ou 'reputation'
+            // Dados do Usuário para a Sidebar
             const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
-            
             const reputation = userData ? userData.reputation : 100;
             const level = userData ? userData.level : 1;
 
@@ -123,32 +142,27 @@ function loadDashboard(client) {
                 bot: client,
                 nickname: member.displayName || req.user.username,
                 role: member.roles.highest.name || "Sem Cargo",
-                reputation: reputation,
-                level: level,
+                reputation,
+                level,
                 config,
                 query: req.query
             });
-
         } catch (error) {
-            console.error("❌ Erro fatal no Manage:", error);
+            console.error("Erro no Manage:", error);
             res.redirect('/');
         }
     });
 
     // ==========================
-    // SALVAR (POST)
+    // SALVAR CONFIGURAÇÕES (POST)
     // ==========================
     app.post('/manage/:guildID/save', checkAuth, async (req, res) => {
         try {
             const { guildID } = req.params;
             const guild = client.guilds.cache.get(guildID);
-            
-            if (!guild) return res.redirect('/');
-
             const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member || !member.permissions.has("Administrator")) {
-                return res.status(403).send("Sem permissão.");
-            }
+
+            if (!member || !member.permissions.has("Administrator")) return res.status(403).send("Sem permissão.");
 
             const upsert = db.prepare(`
                 INSERT INTO settings (guild_id, key, value) 
@@ -158,18 +172,15 @@ function loadDashboard(client) {
 
             const transaction = db.transaction((data) => {
                 for (const [key, value] of Object.entries(data)) {
-                    // Prevenindo salvar valores vazios que quebram o HTML
-                    const val = (value !== undefined && value !== null) ? value.toString() : "";
-                    upsert.run(guildID, key, val);
+                    upsert.run(guildID, key, value ? value.toString() : "");
                 }
             });
 
             transaction(req.body);
             res.redirect(`/manage/${guildID}?success=true`);
-
         } catch (error) {
             console.error("Erro ao salvar:", error);
-            res.status(500).send("Erro interno ao salvar.");
+            res.status(500).send("Erro ao salvar dados.");
         }
     });
 
