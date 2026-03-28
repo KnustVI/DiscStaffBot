@@ -3,10 +3,7 @@ const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// ==========================================
-// 1. PRIMEIRO: CRIAR O CLIENT
-// Precisa ser antes de qualquer uso da variável 'client'
-// ==========================================
+// ESTA DEVE SER A LINHA 6 OU 7 (NÃO PODE TER 'client.on' ANTES DISSO)
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -15,6 +12,9 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
     ]
 });
+
+// Agora sim, tudo que usa 'client' vem DEPOIS
+client.commands = new Collection();
 
 // ==========================================
 // 2. AGORA SIM: USAR O CLIENT (DEBUG RAW)
