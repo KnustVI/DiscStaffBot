@@ -60,9 +60,6 @@ async function bootstrap() {
     try {
         console.log('🚀 Iniciando sistemas...');
 
-        // Passo A: Carregar Cache (Obrigatório ser antes do login)
-        await ConfigCache.loadAll();
-
         // Passo B: Login no Discord
         await client.login(process.env.TOKEN);
 
