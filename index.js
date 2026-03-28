@@ -1,5 +1,12 @@
 require('dotenv').config(); // Carrega o TOKEN do .env
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+
+client.on('raw', packet => {
+    if (packet.t === 'INTERACTION_CREATE') {
+        console.log('--- [DEBUG RAW] SINAL RECEBIDO DO DISCORD ---');
+    }
+});
+
 const fs = require('fs');
 const path = require('path');
 
