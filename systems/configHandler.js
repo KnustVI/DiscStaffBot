@@ -2,7 +2,6 @@ const { EmbedBuilder } = require('discord.js');
 const ConfigSystem = require('../systems/configSystem');
 const { EMOJIS } = require('../database/emojis');
 const ErrorLogger = require('../systems/errorLogger');
-const session = require('../utils/sessionManager');
 
 const ConfigHandler = {
 
@@ -12,52 +11,34 @@ const ConfigHandler = {
 
         try {
             // =========================
-            // VALIDAÇÃO DE SESSION
+            // 1. CAPTURA DE VALOR (MULTIMODAL)
             // =========================
-            const userSession = session.get(interaction.user.id);
+            // Pega o ID independente se for String, Role ou Channel Select Menu
+            let selectedValue = interaction.values?.[0] || 
+                                interaction.roles?.first()?.id || 
+                                interaction.channels?.first()?.id;
 
-            if (!userSession) {
-                // Como houve deferUpdate no interactionCreate, usamos followUp para mensagens novas
-                return interaction.followUp({
-                    content: `${EMOJIS.ERRO || '❌'} Sessão expirada. Use o comando novamente.`,
-                    ephemeral: true
-                });
+            // Se for um componente de seleção e não temos valor, algo deu errado
+            if ((interaction.isAnySelectMenu()) && !selectedValue) {
+                throw new Error("Nenhum valor válido foi detectado na seleção.");
             }
 
-            // =========================
-            // VALIDAÇÃO DE INPUT
-            // =========================
-            const selectedValue = interaction.values?.[0];
-
-            if (!selectedValue) {
-                return interaction.followUp({
-                    content: `${EMOJIS.ERRO || '❌'} Valor inválido selecionado.`,
-                    ephemeral: true
-                });
-            }
-
-            // =========================
-            // PROCESSAMENTO DE KEY
-            // =========================
-            // parts vem do split(':') -> [config, set, staff_role]
-            const action = parts[1]; // set
-            const key = parts.slice(2).join('_'); // staff_role ou logs_channel
+            // parts: [config, set, staff, role] -> key: staff_role
+            const action = parts[1]; 
+            const key = parts.slice(2).join('_'); 
 
             if (action !== 'set' || !key) {
-                return interaction.followUp({
-                    content: `${EMOJIS.ERRO || '❌'} Ação inválida.`,
-                    ephemeral: true
-                });
+                throw new Error(`Ação ou chave de configuração inválida: ${action}:${key}`);
             }
 
             // =========================
-            // SALVAR NO BANCO (Sincrono ou Assincrono)
+            // 2. PERSISTÊNCIA NO BANCO
             // =========================
-            // Se o seu updateSetting for async, adicione 'await'
+            // Atualizamos o banco de dados e limpamos o cache interno
             await ConfigSystem.updateSetting(guildId, key, selectedValue);
 
             // =========================
-            // BUSCAR CONFIG ATUALIZADA
+            // 3. BUSCA DE ESTADO ATUALIZADO
             // =========================
             const staffRoleId = await ConfigSystem.getSetting(guildId, 'staff_role');
             const logsChannelId = await ConfigSystem.getSetting(guildId, 'logs_channel');
@@ -71,50 +52,33 @@ const ConfigHandler = {
                 : `${EMOJIS.ERRO || '❌'} \`Não configurado\``;
 
             // =========================
-            // EMBED DE ATUALIZAÇÃO
+            // 4. ATUALIZAÇÃO DA INTERFACE
             // =========================
             const updatedEmbed = new EmbedBuilder()
+                .setTitle(`${EMOJIS.CONFIG || '⚙️'} Painel de Configuração`)
                 .setDescription(
-                    `# ${EMOJIS.CONFIG || '⚙️'} Painel de Configuração \n` +
-                    `> **Configuração atualizada com sucesso!**\n\n` +
-                    `${EMOJIS.REPUTATION || '📊'} Verifique os novos valores abaixo:`
+                    `### ${EMOJIS.CHECK || '✅'} Configuração Atualizada\n` +
+                    `O parâmetro **${key.replace(/_/g, ' ')}** foi definido com sucesso.`
                 )
                 .setColor(0xba0054)
                 .addFields(
                     { name: `${EMOJIS.STAFF || '👤'} Cargo Staff`, value: staffDisplay, inline: true },
                     { name: `${EMOJIS.TICKET || '📁'} Canal de Logs`, value: logsDisplay, inline: true }
                 )
-                .setFooter({ text: `Configuração de ${guildName}` }) // Simplificado se getFooter der erro
+                .setFooter({ text: `ID do Servidor: ${guildId}` })
                 .setTimestamp();
 
-            // =========================
-            // RESPOSTA (CRÍTICO: editReply)
-            // =========================
-            // Como o interactionCreate já deu deferUpdate(), usamos editReply
+            // Usamos editReply pois o interactionCreate já deu deferUpdate/Reply
             await interaction.editReply({
                 embeds: [updatedEmbed],
-                components: interaction.message.components
+                components: interaction.message.components 
             });
 
         } catch (err) {
             ErrorLogger.log('ConfigHandler', err);
-            console.error('[Handler Error]', err);
-
-            const errorMsg = {
-                content: `${EMOJIS.ERRO || '❌'} Ocorreu um erro ao salvar no banco. Verifique se a coluna \`${parts.slice(2).join('_')}\` existe na tabela.`,
-                ephemeral: true
-            };
-
-            // Tratamento seguro de erro para não crashar o bot
-            try {
-                if (interaction.deferred || interaction.replied) {
-                    await interaction.followUp(errorMsg);
-                } else {
-                    await interaction.reply(errorMsg);
-                }
-            } catch (innerErr) {
-                console.error('Falha ao enviar mensagem de erro:', innerErr);
-            }
+            
+            // Repassamos o erro para o interactionCreate lidar com a mensagem de erro ao user
+            throw err; 
         }
     }
 };

@@ -18,7 +18,7 @@ module.exports = {
                 { name: 'Nível 5 (-100 pts)', value: 5 }
             ))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
-        .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 1h, 3d, 0 para Perm)').setRequired(true)) // Subi para ser obrigatório
+        .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 1h, 3d, 0 para Perm)').setRequired(true))
         .addStringOption(opt => opt.setName('ticket').setDescription('ID do Ticket (Opcional)').setRequired(false))
         .addStringOption(opt => opt.setName('discord_act').setDescription('Punição no DISCORD')
             .addChoices(
@@ -37,23 +37,28 @@ module.exports = {
             )),
 
     async execute(interaction) {
-        // 1. O "Seguro Anti-Lag" da Oracle
+        // 1. Início do fluxo com defer (Essencial para processos longos como RCON/DB)
         await interaction.deferReply({ ephemeral: true });
-        if (!(await ConfigSystem.checkAuth(interaction))) return;
+
+        // 2. Verificação de Autorização (Padrão Novo)
+        const auth = await ConfigSystem.checkAuth(interaction);
+        if (!auth.authorized) {
+            return await interaction.editReply({ content: auth.message });
+        }
 
         const { guild, options, channel, member } = interaction;
         const target = options.getUser('usuario');
         
-        // Tática de Leveza: Se não informou ticket, tenta pegar o nome do canal atual (ex: ticket-vick)
+        // Tática de Leveza: Se não informou ticket, tenta pegar o nome do canal atual
         const ticketId = options.getString('ticket') || 
-    (   channel?.name?.includes('ticket') ? channel.name : 'N/A');
+            (channel?.name?.includes('ticket') ? channel.name : 'N/A');
 
         try {
-            // 2. Enviando TODOS os parâmetros para o PunishmentSystem que revisamos
+            // 3. Execução do Processo de Punição
             const result = await PunishmentSystem.executeFullProcess({
                 guild,
                 target,
-                moderator: member.user, // Passando o objeto User do moderador
+                moderator: member.user,
                 severity: options.getInteger('gravidade'),
                 reason: options.getString('motivo'),
                 ticketId: ticketId,
@@ -62,11 +67,18 @@ module.exports = {
                 durationStr: options.getString('duracao')
             });
 
-            await interaction.editReply(`${EMOJIS.CHECK || '✅'} Punição aplicada! Novo saldo de **${target.username}**: \`${result.newPoints}/100 pts\`.`);
+            // 4. Resposta de Sucesso
+            await interaction.editReply({
+                content: `${EMOJIS.CHECK || '✅'} Punição aplicada com sucesso!\n> O saldo de **${target.username}** agora é: \`${result.newPoints}/100 pts\`.`
+            });
             
         } catch (err) {
-            console.error(err);
-            await interaction.editReply(`${EMOJIS.ERRO || '❌'} Erro ao processar. Verifique os logs do sistema.`);
+            console.error(`[Strike Error]`, err);
+            
+            // 5. Resposta de Erro Amigável e Detalhada
+            await interaction.editReply({
+                content: `${EMOJIS.ERRO || '❌'} **Erro ao processar strike:**\n\`${err.message || 'Erro interno desconhecido.'}\``
+            });
         }
     }
 };

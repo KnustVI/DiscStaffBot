@@ -8,28 +8,46 @@ module.exports = {
         .setName('unstrike')
         .setDescription('Remove uma punição específica pelo ID.')
         .addIntegerOption(opt => opt.setName('id').setDescription('O ID que aparece no histórico (Ex: 12)').setRequired(true))
-        .addStringOption(opt => opt.setName('motivo').setDescription('O motivo da anulação').setRequired(true)), // Novo campo obrigatório
+        .addStringOption(opt => opt.setName('motivo').setDescription('O motivo da anulação').setRequired(true)),
 
     async execute(interaction) {
-        const authorized = await ConfigSystem.checkAuth(interaction);
-        if (!authorized) return;
-
-        const pId = interaction.options.getInteger('id');
-        const motivo = interaction.options.getString('motivo'); // Captura o motivo
-        
+        // 1. Sinaliza o processamento imediatamente (Seguro anti-timeout)
         await interaction.deferReply({ ephemeral: true });
 
-        const success = await PunishmentSystem.executeUnstrike({
-            guild: interaction.guild,
-            punishmentId: pId,
-            moderator: interaction.user,
-            reason: motivo // Enviando o motivo para o sistema
-        });
-
-        if (!success) {
-            return interaction.editReply(`${EMOJIS.ERRO || '❌'} **Erro:** Punição não encontrada ou ID inválido.`);
+        // 2. Verificação de Autorização (Padrão Novo)
+        const auth = await ConfigSystem.checkAuth(interaction);
+        if (!auth.authorized) {
+            return await interaction.editReply({ content: auth.message });
         }
 
-        await interaction.editReply(`${EMOJIS.UP || '✅'} **Sucesso!** A punição foi removida, o log enviado e o usuário notificado.`);
+        const pId = interaction.options.getInteger('id');
+        const motivo = interaction.options.getString('motivo');
+        
+        try {
+            // 3. Execução da Anulação no Motor (PunishmentSystem)
+            const success = await PunishmentSystem.executeUnstrike({
+                guild: interaction.guild,
+                punishmentId: pId,
+                moderator: interaction.user,
+                reason: motivo 
+            });
+
+            if (!success) {
+                return await interaction.editReply({
+                    content: `${EMOJIS.ERRO || '❌'} **Erro:** Punição não encontrada ou ID inválido para este servidor.`
+                });
+            }
+
+            // 4. Resposta de Sucesso
+            await interaction.editReply({
+                content: `${EMOJIS.CHECK || '✅'} **Sucesso!** A punição **#${pId}** foi anulada, os pontos foram devolvidos e o log foi gerado.`
+            });
+
+        } catch (err) {
+            console.error(`[Unstrike Error]`, err);
+            await interaction.editReply({
+                content: `${EMOJIS.ERRO || '❌'} **Falha crítica ao anular:**\n\`${err.message}\``
+            });
+        }
     }
 };

@@ -12,13 +12,20 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Usuário para consulta').setRequired(true)),
 
     async execute(interaction) {
+        // 1. Início do fluxo (Seguro anti-timeout)
         await interaction.deferReply({ ephemeral: true });
+
+        // 2. Verificação de Autorização (Garante que só a Staff configurada use)
+        const auth = await ConfigSystem.checkAuth(interaction);
+        if (!auth.authorized) {
+            return await interaction.editReply({ content: auth.message });
+        }
 
         const target = interaction.options.getUser('usuario');
         const { guild } = interaction;
 
         try {
-            // 1. Consulta de Dados
+            // 3. Consulta de Dados
             const repData = db.prepare(`SELECT points FROM reputation WHERE user_id = ? AND guild_id = ?`).get(target.id, guild.id);
             
             const lastPunishments = db.prepare(`
@@ -27,7 +34,7 @@ module.exports = {
                 ORDER BY created_at DESC LIMIT 3
             `).all(target.id, guild.id);
 
-            // 2. Montagem da Descrição (Array que será unida no final)
+            // 4. Montagem da Descrição (Mantendo sua formatação original)
             const descriptionArray = [
                 `# ${EMOJIS.USER || '👤'} ${target.username}`,
                 `Consultando registros de integridade no servidor **${guild.name}**.`,
@@ -35,7 +42,8 @@ module.exports = {
                 `- **Reputação Atual:** \`${repData?.points ?? 100}/100 pts\``,
                 `- **ID do Usuário:** \`${target.id}\``,
                 ''
-    ];
+            ];
+
             if (lastPunishments.length > 0) {
                 descriptionArray.push(`### ${EMOJIS.TICKET || '📝'} Últimos 3 Registros`);
                 lastPunishments.forEach(p => {
@@ -47,11 +55,10 @@ module.exports = {
                 descriptionArray.push(`- *Este usuário não possui registros de punição.*`);
             }
 
-            // 3. Criação da Embed
+            // 5. Criação da Embed
             const embed = new EmbedBuilder()
                 .setColor(0xba0054)
                 .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))
-                // O ERRO ESTAVA AQUI: Adicionado .join('\n') para transformar a Array em texto
                 .setDescription(descriptionArray.join('\n'))    
                 .setFooter(ConfigSystem.getFooter(guild.name))
                 .setTimestamp();
@@ -60,8 +67,10 @@ module.exports = {
 
         } catch (err) {
             ErrorLogger.log('Command_Info_Fatal', err);
+            console.error(`[Info Error]`, err);
+            
             await interaction.editReply({ 
-                content: `${EMOJIS.ERRO || '❌'} Erro técnico ao processar o Info. Verifique os logs do sistema.` 
+                content: `${EMOJIS.ERRO || '❌'} **Erro técnico ao processar o Info:**\n\`${err.message}\`` 
             });
         }
     }

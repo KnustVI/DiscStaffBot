@@ -1,133 +1,87 @@
-require('dotenv').config();
+require('dotenv').config(); // Carrega o TOKEN do .env
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const db = require('./database/database');
-const cron = require('node-cron');
 
-const session = require('./utils/sessionManager');
+// Importação dos Sistemas Centrais
 const ConfigCache = require('./systems/configCache');
-const loadDashboard = require('./dashboard.js');
+const autoModeration = require('./systems/autoModeration');
+const ErrorLogger = require('./systems/errorLogger');
 
-// ==========================
-// LIMPEZA DE SESSÕES
-// ==========================
-setInterval(() => {
-    session.clearExpired();
-}, 60000);
-
-// ==========================
-// CLIENT
-// ==========================
+// Configuração do Client
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers
     ]
 });
 
+// Coleções para comandos e handlers
 client.commands = new Collection();
 
-// ==========================
-// HANDLER DE COMANDOS
-// ==========================
+// =========================
+// 1. CARREGAMENTO DE COMANDOS
+// =========================
 const commandsPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(commandsPath);
-
-for (const folder of commandFolders) {
-    const folderPath = path.join(commandsPath, folder);
-    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
-
+if (fs.existsSync(commandsPath)) {
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
     for (const file of commandFiles) {
-        const filePath = path.join(folderPath, file);
+        const filePath = path.join(commandsPath, file);
         const command = require(filePath);
-
-        if (command.data && command.execute) {
+        if ('data' in command && 'execute' in command) {
             client.commands.set(command.data.name, command);
-        } else {
-            console.warn(`[AVISO] Comando inválido em ${file}`);
         }
     }
 }
 
-// ==========================
-// HANDLER DE EVENTOS
-// ==========================
+// =========================
+// 2. CARREGAMENTO DE EVENTOS
+// =========================
 const eventsPath = path.join(__dirname, 'events');
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-
-for (const file of eventFiles) {
-    const filePath = path.join(eventsPath, file);
-    const event = require(filePath);
-
-    if (event.once) {
-        client.once(event.name, (...args) => event.execute(...args, client));
-    } else {
-        client.on(event.name, (...args) => event.execute(...args, client));
+if (fs.existsSync(eventsPath)) {
+    const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+    for (const file of eventFiles) {
+        const filePath = path.join(eventsPath, file);
+        const event = require(filePath);
+        if (event.once) {
+            client.once(event.name, (...args) => event.execute(...args, client));
+        } else {
+            client.on(event.name, (...args) => event.execute(...args, client));
+        }
     }
 }
 
-// ==========================
-// CRON JOBS
-// ==========================
-
-// Recuperação de reputação diária
-cron.schedule('0 3 * * *', () => {
-    console.log("🔄 [Cron] Iniciando recuperação de reputação diária...");
-
-    const umDiaEmMs = 24 * 60 * 60 * 1000;
-    const agora = Date.now();
-
+// =========================
+// 3. INICIALIZAÇÃO DO BOT
+// =========================
+async function bootstrap() {
     try {
-        const info = db.prepare(`
-            UPDATE users 
-            SET reputation = MIN(100, reputation + 1)
-            WHERE (last_penalty IS NULL OR (? - last_penalty) > ?)
-            AND reputation < 100
-        `).run(agora, umDiaEmMs);
+        console.log('🚀 Iniciando sistemas...');
 
-        console.log(`📈 [Cron] Recuperação concluída. ${info.changes} usuários afetados.`);
-    } catch (err) {
-        console.error("❌ [Cron] Erro na recuperação passiva:", err);
-    }
-});
-
-// Backup quinzenal
-cron.schedule('0 0 1,15 * *', () => {
-    console.log('📦 [Cron] Iniciando backup para Google Sheets...');
-    const { exportToSheets } = require('./utils/googleSheets');
-    exportToSheets();
-});
-
-// ==========================
-// READY (UNIFICADO)
-// ==========================
-client.once('ready', async () => {
-    try {
+        // Passo A: Carregar Cache (Obrigatório ser antes do login)
         await ConfigCache.loadAll();
-        console.log(`🚀 Bot online: ${client.user.tag}`);
 
-        loadDashboard(client);
+        // Passo B: Login no Discord
+        await client.login(process.env.TOKEN);
 
-    } catch (err) {
-        console.error("❌ Erro no ready:", err);
+        // Passo C: Iniciar o Cron do AutoMod (Agora que o client está pronto)
+        autoModeration(client);
+
+        console.log(`✅ ${client.user.tag} está online e sistemas agendados!`);
+
+    } catch (error) {
+        ErrorLogger.log('Bootstrap_Error', error);
+        console.error('❌ Falha crítica ao iniciar o bot:', error);
+        process.exit(1);
     }
+}
+
+// Tratamento de erros globais para evitar crashes na VPS
+process.on('unhandledRejection', error => {
+    ErrorLogger.log('Unhandled_Rejection', error);
+    console.error(' [Unhandled Rejection]:', error);
 });
 
-// ==========================
-// TRATAMENTO GLOBAL DE ERROS
-// ==========================
-process.on('unhandledRejection', (err) => {
-    console.error('❌ Unhandled Rejection:', err);
-});
-
-process.on('uncaughtException', (err) => {
-    console.error('❌ Uncaught Exception:', err);
-});
-
-// ==========================
-// LOGIN
-// ==========================
-client.login(process.env.TOKEN);
+bootstrap();
