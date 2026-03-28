@@ -2,7 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const ErrorLogger = require('../../systems/errorLogger');
 const { EMOJIS } = require('../../database/emojis');
-const session = require('../../utils/sessionManager');
+const session = require('../../systems/sessionManager');
 
 module.exports = {
     data: new SlashCommandBuilder()

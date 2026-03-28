@@ -9,7 +9,7 @@ const {
 } = require('discord.js');
 
 const { EMOJIS } = require('../../database/emojis');
-const session = require('../../utils/sessionManager');
+const session = require('../../systems/sessionManager');
 const ConfigSystem = require('../../systems/configSystem');
 
 module.exports = {
