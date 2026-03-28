@@ -24,6 +24,7 @@ module.exports = {
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (!command) return;
+                await interaction.deferReply({ flags: [MessageFlags.Ephemeral] }).catch(() => null);
 
                 await command.execute(interaction);
                 return;
@@ -78,7 +79,7 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: errorMsg }).catch(() => null);
             } else {
-                await interaction.reply({ content: errorMsg, flags }).catch(() => null);
+                await interaction.reply({ content: errorMsg, flags: [MessageFlags.Ephemeral] }).catch(() => null);
             }
         }
     }

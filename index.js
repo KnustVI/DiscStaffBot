@@ -32,8 +32,6 @@ const ConfigCache = require('./systems/configCache');
 const autoModeration = require('./systems/autoModeration');
 const ErrorLogger = require('./systems/errorLogger');
 
-client.commands = new Collection();
-
 // =========================
 // 4. CARREGAMENTO DE COMANDOS
 // =========================
