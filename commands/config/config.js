@@ -23,8 +23,7 @@ module.exports = {
             // =========================
             // INICIALIZAÇÃO DE SESSÃO
             // =========================
-            // Usamos .set() conforme o sessionManager que criamos
-            session.set(interaction.user.id, {
+            session.create(interaction.user.id, {
                 guildId: interaction.guildId,
                 type: 'config_panel'
             });
