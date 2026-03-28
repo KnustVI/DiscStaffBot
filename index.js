@@ -2,8 +2,8 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const loadDashboard = require('./dashboard'); // Importação do seu arquivo dashboard.js
 
-// ESTA DEVE SER A LINHA 6 OU 7 (NÃO PODE TER 'client.on' ANTES DISSO)
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -13,15 +13,14 @@ const client = new Client({
     ]
 });
 
-// Agora sim, tudo que usa 'client' vem DEPOIS
 client.commands = new Collection();
 
 // ==========================================
-// 2. AGORA SIM: USAR O CLIENT (DEBUG RAW)
+// 2. DEBUG RAW (Opcional)
 // ==========================================
 client.on('raw', packet => {
     if (packet.t === 'INTERACTION_CREATE') {
-        console.log('--- [DEBUG RAW] SINAL RECEBIDO DO DISCORD ---');
+        // console.log('--- [DEBUG RAW] SINAL RECEBIDO ---');
     }
 });
 
@@ -73,21 +72,28 @@ if (fs.existsSync(eventsPath)) {
 }
 
 // =========================
-// 6. INICIALIZAÇÃO DO BOT
+// 6. INICIALIZAÇÃO DO BOT E DASHBOARD
 // =========================
 async function bootstrap() {
     try {
         console.log('🚀 Iniciando sistemas...');
 
-        // Login no Discord
+        // 1. Login no Discord
         await client.login(process.env.TOKEN);
+        console.log(`✅ Bot conectado como: ${client.user.tag}`);
 
-        // Iniciar o AutoMod
+        // 2. Iniciar o AutoMod
         if (typeof autoModeration === 'function') {
             autoModeration(client);
         }
 
-        console.log(`✅ ${client.user.tag} está online!`);
+        // 3. INICIAR O DASHBOARD (AQUI ESTÁ A CORREÇÃO)
+        if (typeof loadDashboard === 'function') {
+            loadDashboard(client);
+            console.log('🖥️  Sistema de Dashboard inicializado.');
+        } else {
+            console.warn('⚠️  Aviso: Função loadDashboard não encontrada ou não é uma função.');
+        }
 
     } catch (error) {
         if (ErrorLogger && ErrorLogger.log) {

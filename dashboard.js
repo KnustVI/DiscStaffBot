@@ -195,6 +195,16 @@ function loadDashboard(client) {
     app.listen(PORT, () => {
         console.log(`✅ Dashboard Online na porta ${PORT}!`);
     });
+    
+    app.get('/logout', (req, res, next) => {
+        req.logout((err) => {
+            if (err) return next(err);
+            req.session.destroy(() => {
+                res.redirect('/');
+            });
+        });
+    });
+    
 }
 
 module.exports = loadDashboard;
