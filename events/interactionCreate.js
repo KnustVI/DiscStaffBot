@@ -1,3 +1,4 @@
+const { MessageFlags } = require('discord.js'
 const session = require('../systems/sessionManager');
 const ErrorLogger = require('../systems/errorLogger');
 const ConfigSystem = require('../systems/configSystem');
@@ -87,7 +88,7 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: errorMsg }).catch(() => null);
             } else {
-                await interaction.reply({ content: errorMsg, ephemeral: true }).catch(() => null);
+                await interaction.reply({ content: errorMsg, flags }).catch(() => null);
             }
         }
     }
