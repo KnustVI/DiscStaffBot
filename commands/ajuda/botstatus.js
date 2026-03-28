@@ -9,9 +9,6 @@ module.exports = {
         .setDescription('Verifica o estado de saúde do bot e do AutoMod.'),
 
     async execute(interaction) {
-        // Ephemeral: true faz com que apenas quem usou o comando veja a resposta
-        await interaction.deferReply({ ephemeral: true });
-
         const { guild, client } = interaction;
 
         try {
