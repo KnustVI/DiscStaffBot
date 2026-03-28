@@ -2,8 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const ErrorLogger = require('../../systems/errorLogger');
 const { EMOJIS } = require('../../database/emojis');
-const session = require('../../systems/sessionManager'); // Ajuste o caminho se necessário (utils ou systems)
-
+const session = require('../../systems/sessionManager');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('historico')
