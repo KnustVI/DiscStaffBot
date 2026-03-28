@@ -113,45 +113,51 @@ function loadDashboard(client) {
         }
     });
 
-    // ==========================
-    // MANAGE (CONFIGURAÇÕES)
-    // ==========================
-    app.get('/manage/:guildID', checkAuth, async (req, res) => {
-        try {
-            const { guildID } = req.params;
-            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
-            
-            if (!guild) return res.redirect('/');
+        // ==========================
+        // MANAGE (CONFIGURAÇÕES) - VERSÃO CORRIGIDA
+        // ==========================
+        app.get('/manage/:guildID', checkAuth, async (req, res) => {
+            try {
+                const { guildID } = req.params;
+                
+                // 1. Busca Guild
+                const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
+                if (!guild) return res.redirect('/');
 
-            const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
-            
-            // Busca Configurações Salvas
-            const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID) || [];
-            const config = {};
-            rows.forEach(row => { config[row.key] = row.value; });
+                // 2. Busca Membro e Permissão
+                const member = await guild.members.fetch(req.user.id).catch(() => null);
+                if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+                
+                // 3. Busca Configurações Salvas (Tabela: settings)
+                const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID) || [];
+                const config = {};
+                rows.forEach(row => { config[row.key] = row.value; });
 
-            // Dados do Usuário para a Sidebar
-            const userData = db.prepare("SELECT reputation, level FROM users WHERE id = ?").get(req.user.id);
-            const reputation = userData ? userData.reputation : 100;
-            const level = userData ? userData.level : 1;
+                // 4. Busca Reputação (Tabela: reputation)
+                const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+                const reputation = repData ? repData.points : 100;
 
-            res.render('manage', { 
-                guild,
-                user: req.user,
-                bot: client,
-                nickname: member.displayName || req.user.username,
-                role: member.roles.highest.name || "Sem Cargo",
-                reputation,
-                level,
-                config,
-                query: req.query
-            });
-        } catch (error) {
-            console.error("Erro no Manage:", error);
-            res.redirect('/');
-        }
-    });
+                // 5. Busca Level (Baseado na tabela punishments, como você fez na Home)
+                const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+                const level = punCount ? Math.floor(punCount.total / 5) + 1 : 1;
+
+                // 6. Renderiza
+                res.render('manage', { 
+                    guild,
+                    user: req.user,
+                    bot: client,
+                    nickname: member.displayName || req.user.username,
+                    role: member.roles.highest.name || "Sem Cargo",
+                    reputation: reputation, // Agora vindo da tabela certa
+                    level: level,           // Agora calculado corretamente
+                    config,
+                    query: req.query
+                });
+            } catch (error) {
+                console.error("❌ Erro Crítico no Manage:", error);
+                res.redirect('/');
+            }
+        });
 
     // ==========================
     // SALVAR CONFIGURAÇÕES (POST)
