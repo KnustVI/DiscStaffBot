@@ -11,13 +11,9 @@ module.exports = {
 
         try {
             // ==========================================
-            // AÇÃO IMEDIATA: ACORDAR O DISCORD
+            // AÇÃO IMEDIATA: ACORDAR O DISCORD (APENAS COMPONENTES)
             // ==========================================
-            // Se for comando ou modal, avisamos que estamos "pensando" (3s -> 15min de tempo)
-            if (interaction.isChatInputCommand() || interaction.isModalSubmit()) {
-                await interaction.deferReply({ ephemeral: true }).catch(() => null);
-            } else if (interaction.isButton() || interaction.isAnySelectMenu()) {
-                // Para botões/menus, apenas confirmamos o recebimento sem mudar a mensagem
+            if (interaction.isButton() || interaction.isAnySelectMenu()) {
                 await interaction.deferUpdate().catch(() => null);
             }
 
@@ -27,12 +23,6 @@ module.exports = {
             if (interaction.isChatInputCommand()) {
                 const command = client.commands.get(interaction.commandName);
                 if (!command) return;
-
-                // Validação de Configuração (checkAuth)
-                const auth = await ConfigSystem.checkAuth(interaction);
-                if (!auth.authorized) {
-                    return interaction.editReply({ content: auth.message }).catch(() => null);
-                }
 
                 await command.execute(interaction);
                 return;
