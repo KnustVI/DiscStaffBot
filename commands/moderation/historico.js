@@ -2,7 +2,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const ErrorLogger = require('../../systems/errorLogger');
 const { EMOJIS } = require('../../database/emojis');
-const session = require('../../systems/sessionManager');
+const session = require('../../utils/sessionManager');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('historico')
