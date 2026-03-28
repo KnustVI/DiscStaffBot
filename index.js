@@ -1,9 +1,12 @@
-require('dotenv').config();
+require('dotenv').config(); 
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-// 1. CRIAR O CLIENT PRIMEIRO (Essencial para não dar o erro de initialization)
+// ==========================================
+// 1. PRIMEIRO: CRIAR O CLIENT
+// Precisa ser antes de qualquer uso da variável 'client'
+// ==========================================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -13,14 +16,18 @@ const client = new Client({
     ]
 });
 
-// 2. DEBUG RAW (Agora o client já existe, então funciona)
+// ==========================================
+// 2. AGORA SIM: USAR O CLIENT (DEBUG RAW)
+// ==========================================
 client.on('raw', packet => {
     if (packet.t === 'INTERACTION_CREATE') {
         console.log('--- [DEBUG RAW] SINAL RECEBIDO DO DISCORD ---');
     }
 });
 
-// 3. IMPORTAR SISTEMAS
+// ==========================================
+// 3. IMPORTAÇÃO DOS SISTEMAS
+// ==========================================
 const ConfigCache = require('./systems/configCache');
 const autoModeration = require('./systems/autoModeration');
 const ErrorLogger = require('./systems/errorLogger');
@@ -28,13 +35,11 @@ const ErrorLogger = require('./systems/errorLogger');
 client.commands = new Collection();
 
 // =========================
-// 1. CARREGAMENTO DE COMANDOS
+// 4. CARREGAMENTO DE COMANDOS
 // =========================
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-    
-    // Se seus comandos estiverem em subpastas, use este bloco:
     for (const file of commandFiles) {
         const filePath = path.join(commandsPath, file);
         const command = require(filePath);
@@ -42,12 +47,10 @@ if (fs.existsSync(commandsPath)) {
             client.commands.set(command.data.name, command);
         }
     }
-    
-    // Se estiverem em subpastas (Ex: commands/admin/config.js), descomente o código que enviamos antes.
 }
 
 // =========================
-// 2. CARREGAMENTO DE EVENTOS
+// 5. CARREGAMENTO DE EVENTOS
 // =========================
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
@@ -65,14 +68,16 @@ if (fs.existsSync(eventsPath)) {
 }
 
 // =========================
-// 3. INICIALIZAÇÃO DO BOT
+// 6. INICIALIZAÇÃO DO BOT
 // =========================
 async function bootstrap() {
     try {
         console.log('🚀 Iniciando sistemas...');
+
+        // Login no Discord
         await client.login(process.env.TOKEN);
-        
-        // Ativa o AutoMod passando o client já logado
+
+        // Iniciar o AutoMod
         if (typeof autoModeration === 'function') {
             autoModeration(client);
         }
@@ -88,6 +93,7 @@ async function bootstrap() {
     }
 }
 
+// Tratamento de erros globais
 process.on('unhandledRejection', error => {
     console.error(' [Unhandled Rejection]:', error);
 });
