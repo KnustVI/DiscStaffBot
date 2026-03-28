@@ -116,12 +116,24 @@ function loadDashboard(client) {
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
         try {
             const guildID = req.params.guildID;
-            const guild = client.guilds.cache.get(guildID);
-            if (!guild) return res.redirect('/');
+            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
+            if (!guild) {
+            console.log(`❌ Guild ${guildID} não encontrada! Redirecionando...`);
+            return res.redirect('/');
+            }
 
             const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member) return res.redirect('/');
+            if (!member) {
+            console.log("❌ Membro não encontrado no servidor!");
+            return res.redirect('/');
+            }
 
+            // Verifique se ele realmente tem permissão (Admin)
+            if (!member.permissions.has('Administrator')) {
+                console.log("❌ Usuário não é Administrador!");
+                return res.redirect('/');
+            }
+            
             // Busca Configurações (Tabela settings)
             const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID) || [];
             const config = {};
@@ -136,8 +148,8 @@ function loadDashboard(client) {
                 bot: client,
                 nickname: member.displayName || req.user.username,
                 role: member.roles.highest.name || "Sem Cargo",
-                reputation: userData.reputation,
-                level: userData.level,
+                reputation: userData.reputation || "N/A",
+                level: userData.level || "N/A",
                 config,
                 query: req.query
             });
