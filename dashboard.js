@@ -144,6 +144,7 @@ function loadDashboard(client) {
                 // 6. Renderiza
                 res.render('manage', { 
                     guild,
+                    guildID: guild.id,
                     user: req.user,
                     bot: client,
                     nickname: member.displayName || req.user.username,
