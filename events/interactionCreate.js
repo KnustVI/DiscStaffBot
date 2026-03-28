@@ -1,5 +1,5 @@
 const { MessageFlags } = require('discord.js');
-const session = require('../systems/sessionManager');
+const session = require('../utils/sessionManager');
 const ErrorLogger = require('../systems/errorLogger');
 const ConfigSystem = require('../systems/configSystem');
 
