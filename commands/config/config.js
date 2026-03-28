@@ -74,7 +74,7 @@ module.exports = {
             );
 
             // Resposta inicial sempre Efêmera para um painel de config
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [embed],
                 components: [rowRole, rowChannel],
                 ephemeral: true
@@ -90,7 +90,7 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: errorContent });
             } else {
-                await interaction.reply({ content: errorContent, ephemeral: true });
+                await interaction.editReply({ content: errorContent, ephemeral: true });
             }
         }
     }

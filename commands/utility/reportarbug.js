@@ -48,12 +48,12 @@ module.exports = {
                 await devChannel.send({ embeds: [devEmbed] });
                 
                 // Resposta para o usuário que enviou
-                await interaction.reply({ 
+                await interaction.editReply({ 
                     content: `${EMOJIS.EXCELLENT} **Obrigado!** Seu feedback foi enviado diretamente para o desenvolvedor (KnustVI).`, 
                     ephemeral: true 
                 });
             } else {
-                await interaction.reply({ 
+                await interaction.editReply({ 
                     content: `${EMOJIS.ERRO} Erro ao contatar a central de suporte. Tente novamente mais tarde.`, 
                     ephemeral: true 
                 });
@@ -61,7 +61,7 @@ module.exports = {
 
         } catch (error) {
             console.error("Erro ao enviar feedback:", error);
-            await interaction.reply({ content: 'Houve um erro interno ao processar seu envio.', ephemeral: true });
+            await interaction.editReply({ content: 'Houve um erro interno ao processar seu envio.', ephemeral: true });
         }
     }
 };

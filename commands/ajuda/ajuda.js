@@ -50,7 +50,7 @@ module.exports = {
             .setTimestamp();
 
         try {
-            await interaction.reply({ 
+            await interaction.editReply({ 
                 embeds: [embed], 
                 ephemeral: true 
             });
