@@ -1,31 +1,21 @@
 const db = require('../database/database');
 const ConfigCache = require('./configCache');
 const ErrorLogger = require('./errorLogger');
+const { getSettings } = require('./getSettings'); // Caminho corrigido conforme sua imagem
 const { EMOJIS } = require('../database/emojis');
 const { PermissionFlagsBits } = require('discord.js');
 
-// Prepared Statements fora do objeto para performance máxima
-const getStmt = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`);
-const upsertStmt = db.prepare(`
-    INSERT INTO settings (guild_id, key, value) 
-    VALUES (?, ?, ?) 
-    ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
-`);
-const deleteStmt = db.prepare(`DELETE FROM settings WHERE guild_id = ?`);
-
 const ConfigSystem = {
-
-    // =========================
-    // GET SETTING (CACHE FIRST)
-    // =========================
     getSetting(guildId, key) {
         try {
+            // 1. Tenta pegar no Cache (RAM)
             let value = ConfigCache.get(guildId, key);
 
+            // 2. Se não estiver no Cache, busca no Banco e salva no Cache
             if (value === undefined) {
-                const row = getStmt.get(guildId, key);
-                value = row ? row.value : null;
-                ConfigCache.set(guildId, key, value);
+                const settings = getSettings(guildId);
+                ConfigCache.setFull(guildId, settings);
+                value = settings[key] || null;
             }
             return value;
         } catch (err) {
@@ -34,77 +24,43 @@ const ConfigSystem = {
         }
     },
 
-    // =========================
-    // UPDATE SETTING
-    // =========================
     updateSetting(guildId, key, value) {
         try {
-            upsertStmt.run(guildId, key, value);
+            db.prepare(`
+                INSERT INTO settings (guild_id, key, value) 
+                VALUES (?, ?, ?) 
+                ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
+            `).run(guildId, key, String(value));
+
             ConfigCache.set(guildId, key, value);
             return true;
         } catch (err) {
             ErrorLogger.log('ConfigSystem_Update', err);
-            throw err; // Lançamos para o Handler capturar o erro exato
+            throw err;
         }
     },
 
-    // =========================
-    // AUTH CHECK (LÓGICA PURA)
-    // =========================
-    // Removi os .reply() daqui. Ele agora retorna um objeto com o status.
     async checkAuth(interaction) {
-        try {
-            const guildId = interaction.guildId;
-            const staffRoleId = this.getSetting(guildId, 'staff_role');
-            const logsChannelId = this.getSetting(guildId, 'logs_channel');
+        const staffRoleId = this.getSetting(interaction.guildId, 'staff_role');
+        const logsChannelId = this.getSetting(interaction.guildId, 'logs_channel');
 
-            // 1. Verificação de Configuração Básica
-            if (!staffRoleId || !logsChannelId) {
-                return { 
-                    authorized: false, 
-                    message: `${EMOJIS.ERRO} **Configuração Incompleta!**\nUse \`/config\` para definir o cargo Staff e o canal de Logs.` 
-                };
-            }
-
-            const member = interaction.member;
-            if (!member) return { authorized: false, message: 'Membro não encontrado.' };
-
-            // 2. Verificação de Permissões
-            const isStaff = member.roles.cache.has(staffRoleId);
-            const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
-
-            if (!isStaff && !isAdmin) {
-                return { 
-                    authorized: false, 
-                    message: `${EMOJIS.ERRO} **Acesso Negado!**\nVocê precisa do cargo <@&${staffRoleId}> para usar isso.` 
-                };
-            }
-
-            return { authorized: true };
-
-        } catch (err) {
-            ErrorLogger.log('ConfigSystem_Auth', err);
-            return { authorized: false, message: 'Erro interno ao validar permissões.' };
+        if (!staffRoleId || !logsChannelId) {
+            return { authorized: false, message: `${EMOJIS.ERRO || '❌'} **Configuração Incompleta!** Use \`/config\`.` };
         }
-    },
 
-    // =========================
-    // RESET & UTILS
-    // =========================
-    resetSettings(guildId) {
-        try {
-            deleteStmt.run(guildId);
-            if (ConfigCache.deleteGuild) ConfigCache.deleteGuild(guildId);
-            return true;
-        } catch (err) {
-            ErrorLogger.log('ConfigSystem_Reset', err);
-            return false;
+        const isStaff = interaction.member.roles.cache.has(staffRoleId);
+        const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+
+        if (!isStaff && !isAdmin) {
+            return { authorized: false, message: `${EMOJIS.ERRO || '❌'} **Acesso Negado!**` };
         }
+
+        return { authorized: true };
     },
 
     getFooter(guildName) {
         return {
-            text: `✧ Made By: KnustVI | ${guildName || 'Servidor'}`,
+            text: `✧ Made By: KnustVI | ${guildName}`,
             iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
         };
     }

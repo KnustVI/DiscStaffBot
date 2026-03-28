@@ -1,36 +1,12 @@
-const db = require('../database/database');
-const ErrorLogger = require('./errorLogger');
-
-// Estrutura: Map<guildId, Map<key, value>>
 const cache = new Map();
 
 const ConfigCache = {
-    /**
-     * Carrega todas as configurações do banco para a RAM no boot do bot
-     */
-    async loadAll() {
-        try {
-            const rows = db.prepare(`SELECT guild_id, key, value FROM settings`).all();
-            cache.clear();
-
-            for (const row of rows) {
-                if (!cache.has(row.guild_id)) {
-                    cache.set(row.guild_id, new Map());
-                }
-                cache.get(row.guild_id).set(row.key, row.value);
-            }
-
-            console.log(`🧠 [Cache] ${rows.length} configurações carregadas com sucesso.`);
-        } catch (err) {
-            ErrorLogger.log('ConfigCache_LoadAll', err);
-            console.error("❌ Falha crítica ao carregar cache de configurações.");
-        }
-    },
-
+    // Busca no mapa de memória
     get(guildId, key) {
         return cache.get(guildId)?.get(key);
     },
 
+    // Salva uma chave específica
     set(guildId, key, value) {
         if (!cache.has(guildId)) {
             cache.set(guildId, new Map());
@@ -38,6 +14,13 @@ const ConfigCache = {
         cache.get(guildId).set(key, value);
     },
 
+    // Salva um objeto inteiro de configurações (Usado pelo ConfigSystem)
+    setFull(guildId, settingsObj) {
+        const guildMap = new Map(Object.entries(settingsObj));
+        cache.set(guildId, guildMap);
+    },
+
+    // Limpa o cache de um servidor (Usado no Reset)
     deleteGuild(guildId) {
         cache.delete(guildId);
     }
