@@ -6,6 +6,7 @@ module.exports = {
     .setDescription('Testa se o bot está respondendo'),
     
   async execute(interaction) {
-    await interaction.editReply({ content: '🏓 Pong!', ephemeral: true });
+    // Apenas editamos a resposta que o interactionCreate iniciou
+    await interaction.editReply({ content: '🏓 Pong!' });
   }
 };
