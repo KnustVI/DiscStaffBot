@@ -1,88 +1,82 @@
-const session = require('../utils/sessionManager');
+const session = require('../systems/sessionManager');
 const ErrorLogger = require('../systems/errorLogger');
+const ConfigSystem = require('../systems/configSystem'); // Importação que faltava!
 
 module.exports = {
     name: 'interactionCreate',
 
     async execute(interaction, client) {
         // =========================
-        // SLASH COMMANDS
+        // 1. SLASH COMMANDS (Comandos /)
         // =========================
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
 
             try {
+                // [NOVO] Validação Automática de Permissão/Configuração
+                // Isso impede que o comando rode se o bot não estiver configurado
+                const auth = await ConfigSystem.checkAuth(interaction);
+                if (!auth.authorized) {
+                    return interaction.reply({
+                        content: auth.message || '❌ Você não tem permissão para usar este comando.',
+                        ephemeral: true
+                    }).catch(() => null);
+                }
+
+                console.log(`[EXEC] /${interaction.commandName} por ${interaction.user.tag}`);
                 await command.execute(interaction);
+
             } catch (error) {
                 ErrorLogger.log(`SlashError_${interaction.commandName}`, error);
                 console.error(`[Slash Error] ${interaction.commandName}:`, error);
 
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content: '❌ Erro interno ao executar este comando.',
-                        ephemeral: true
-                    });
+                const errorMsg = { content: '❌ Erro interno ao executar este comando.', ephemeral: true };
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp(errorMsg).catch(() => null);
+                } else {
+                    await interaction.reply(errorMsg).catch(() => null);
                 }
             }
             return;
         }
 
         // =========================
-        // COMPONENTES (BOTÕES / MENUS / MODAIS)
+        // 2. COMPONENTES (Botões, Menus, Modais)
         // =========================
-        if (
-            interaction.isButton() || 
-            interaction.isAnySelectMenu() || 
-            interaction.isModalSubmit()
-        ) {
+        if (interaction.isButton() || interaction.isAnySelectMenu() || interaction.isModalSubmit()) {
             const customId = interaction.customId;
             const parts = customId.split(':');
             const prefix = parts[0];
 
             try {
-                // =========================
-                // LÓGICA DE SESSÃO FILTRADA
-                // =========================
-                // Apenas prefixos de CONFIGURAÇÃO exigem sessão ativa.
-                // Tickets e Histórico devem funcionar sempre.
-                const needsSession = ['config'].includes(prefix);
-                
-                if (needsSession) {
+                // Lógica de Sessão para o prefixo 'config'
+                if (prefix === 'config') {
                     const userSession = session.get(interaction.user.id);
                     if (!userSession) {
                         return interaction.reply({
-                            content: '⏳ **Sessão expirada.** Por segurança, use o comando de configuração novamente.',
+                            content: '⏳ **Sessão expirada.** Use `/config` novamente.',
                             ephemeral: true
-                        });
+                        }).catch(() => null);
                     }
                 }
 
-                // =========================
-                // ANTI-TIMEOUT (DEFER)
-                // =========================
-                // Se for Modal, usamos deferReply. Se for Botão/Menu, deferUpdate.
+                // ANTI-TIMEOUT: Deferir antes de processar
                 if (!interaction.deferred && !interaction.replied) {
                     if (interaction.isModalSubmit()) {
                         await interaction.deferReply({ ephemeral: true }).catch(() => null);
                     } else {
-                        // Botões de ticket as vezes precisam de Reply, não Update. 
-                        // Mas o deferUpdate é mais seguro para menus.
                         await interaction.deferUpdate().catch(() => null);
                     }
                 }
 
-                // =========================
-                // DIRECIONAMENTO DE HANDLERS
-                // =========================
+                // Direcionamento para Handlers
                 switch (prefix) {
                     case 'config': {
                         const ConfigHandler = require('../systems/configHandler');
-                        if (interaction.isModalSubmit()) {
-                            await ConfigHandler.handleModal?.(interaction, parts);
-                        } else {
-                            await ConfigHandler.handle(interaction, parts);
-                        }
+                        interaction.isModalSubmit() 
+                            ? await ConfigHandler.handleModal?.(interaction, parts)
+                            : await ConfigHandler.handle(interaction, parts);
                         break;
                     }
 
@@ -94,11 +88,9 @@ module.exports = {
 
                     case 'ticket': {
                         const TicketHandler = require('../systems/ticketHandler');
-                        if (interaction.isModalSubmit()) {
-                            await TicketHandler.handleModal?.(interaction, parts);
-                        } else {
-                            await TicketHandler.handle(interaction, parts);
-                        }
+                        interaction.isModalSubmit()
+                            ? await TicketHandler.handleModal?.(interaction, parts)
+                            : await TicketHandler.handle(interaction, parts);
                         break;
                     }
                 }
@@ -107,11 +99,11 @@ module.exports = {
                 ErrorLogger.log(`InteractionError_${customId}`, error);
                 console.error(`[Interaction Error] ID: ${customId}`, error);
 
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content: '❌ Ocorreu um erro ao processar sua ação.',
-                        ephemeral: true
-                    });
+                const errorMsg = { content: '❌ Erro ao processar ação.', ephemeral: true };
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.followUp(errorMsg).catch(() => null);
+                } else {
+                    await interaction.reply(errorMsg).catch(() => null);
                 }
             }
         }
