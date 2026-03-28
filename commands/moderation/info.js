@@ -12,12 +12,15 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Usuário para consulta').setRequired(true)),
 
     async execute(interaction) {
-        // 1. Início do fluxo (Seguro anti-timeout)
-        await interaction.deferReply({ ephemeral: true });
+        // ==========================================================
+        // REMOVIDO: await interaction.deferReply({ ephemeral: true }); 
+        // (Já está sendo feito no seu interactionCreate.js)
+        // ==========================================================
 
-        // 2. Verificação de Autorização (Garante que só a Staff configurada use)
+        // 2. Verificação de Autorização
         const auth = await ConfigSystem.checkAuth(interaction);
         if (!auth.authorized) {
+            // Usamos editReply pois o defer global já foi enviado
             return await interaction.editReply({ content: auth.message });
         }
 
@@ -34,7 +37,7 @@ module.exports = {
                 ORDER BY created_at DESC LIMIT 3
             `).all(target.id, guild.id);
 
-            // 4. Montagem da Descrição (Mantendo sua formatação original)
+            // 4. Montagem da Descrição
             const descriptionArray = [
                 `# ${EMOJIS.USER || '👤'} ${target.username}`,
                 `Consultando registros de integridade no servidor **${guild.name}**.`,
@@ -63,6 +66,7 @@ module.exports = {
                 .setFooter(ConfigSystem.getFooter(guild.name))
                 .setTimestamp();
 
+            // 6. Resposta Final (Sempre editReply)
             await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {

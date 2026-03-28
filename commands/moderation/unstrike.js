@@ -11,12 +11,14 @@ module.exports = {
         .addStringOption(opt => opt.setName('motivo').setDescription('O motivo da anulação').setRequired(true)),
 
     async execute(interaction) {
-        // 1. Sinaliza o processamento imediatamente (Seguro anti-timeout)
-        await interaction.deferReply({ ephemeral: true });
+        // ==========================================================
+        // REMOVIDO: interaction.deferReply (Já feito no interactionCreate)
+        // ==========================================================
 
         // 2. Verificação de Autorização (Padrão Novo)
         const auth = await ConfigSystem.checkAuth(interaction);
         if (!auth.authorized) {
+            // Usamos editReply pois o defer global já foi enviado
             return await interaction.editReply({ content: auth.message });
         }
 
@@ -25,6 +27,7 @@ module.exports = {
         
         try {
             // 3. Execução da Anulação no Motor (PunishmentSystem)
+            // Este método deve cuidar da devolução de pontos e logs internos
             const success = await PunishmentSystem.executeUnstrike({
                 guild: interaction.guild,
                 punishmentId: pId,
@@ -45,6 +48,8 @@ module.exports = {
 
         } catch (err) {
             console.error(`[Unstrike Error]`, err);
+            
+            // Tratamento de erro consistente
             await interaction.editReply({
                 content: `${EMOJIS.ERRO || '❌'} **Falha crítica ao anular:**\n\`${err.message}\``
             });

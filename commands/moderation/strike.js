@@ -37,10 +37,11 @@ module.exports = {
             )),
 
     async execute(interaction) {
-        // 1. Início do fluxo com defer (Essencial para processos longos como RCON/DB)
-        await interaction.deferReply({ ephemeral: true });
+        // ==========================================================
+        // REMOVIDO: interaction.deferReply (Já feito no evento global)
+        // ==========================================================
 
-        // 2. Verificação de Autorização (Padrão Novo)
+        // 2. Verificação de Autorização
         const auth = await ConfigSystem.checkAuth(interaction);
         if (!auth.authorized) {
             return await interaction.editReply({ content: auth.message });
@@ -54,7 +55,7 @@ module.exports = {
             (channel?.name?.includes('ticket') ? channel.name : 'N/A');
 
         try {
-            // 3. Execução do Processo de Punição
+            // 3. Execução do Processo de Punição (Envolve Banco de Dados + RCON)
             const result = await PunishmentSystem.executeFullProcess({
                 guild,
                 target,
@@ -67,15 +68,15 @@ module.exports = {
                 durationStr: options.getString('duracao')
             });
 
-            // 4. Resposta de Sucesso
+            // 4. Resposta de Sucesso usando editReply
             await interaction.editReply({
-                content: `${EMOJIS.CHECK || '✅'} Punição aplicada com sucesso!\n> O saldo de **${target.username}** agora é: \`${result.newPoints}/100 pts\`.`
+                content: `${EMOJIS.CHECK || '✅'} **Punição aplicada com sucesso!**\n> O saldo de **${target.username}** agora é: \`${result.newPoints}/100 pts\`.`
             });
             
         } catch (err) {
             console.error(`[Strike Error]`, err);
             
-            // 5. Resposta de Erro Amigável e Detalhada
+            // 5. Resposta de Erro detalhada
             await interaction.editReply({
                 content: `${EMOJIS.ERRO || '❌'} **Erro ao processar strike:**\n\`${err.message || 'Erro interno desconhecido.'}\``
             });
