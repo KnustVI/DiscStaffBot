@@ -6,6 +6,8 @@ module.exports = {
     name: 'interactionCreate',
 
     async execute(interaction, client) {
+        // ADICIONE ESTA LINHA:
+        console.log(`[EVENTO] Interação detectada: ${interaction.commandName || 'Botão/Modal'}`);
         // =========================
         // 1. SLASH COMMANDS (Comandos /)
         // =========================
