@@ -50,8 +50,15 @@ function loadDashboard(client) {
     app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => {
         res.redirect('/');
     });
-    app.get('/logout', (req, res) => {
-        req.logout(() => res.redirect('/'));
+
+    app.get('/logout', (req, res, next) => {
+        req.logout((err) => {
+            if (err) return next(err);
+            req.session.destroy(() => {
+                res.clearCookie('connect.sid');
+                res.redirect('/');
+            });
+        });
     });
 
     // ==========================
@@ -69,9 +76,7 @@ function loadDashboard(client) {
         }
         res.render('index', { 
             user: req.user,
-            nickname: member ? member.nickname : req.user.username,
             bot: client,
-            isAdmin: userGuilds.length > 0,
             guilds: userGuilds
         });
     });
@@ -82,84 +87,38 @@ function loadDashboard(client) {
     app.get('/home/:guildID', checkAuth, async (req, res) => {
         try {
             const { guildID } = req.params;
+            // Corrigido: Usar 'client' em vez de 'bot'
             const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
             
             if (!guild) return res.redirect('/');
 
             const member = await guild.members.fetch(req.user.id).catch(() => null);
+            // Verifica se o membro existe e se é ADM
             if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
 
-            // Dados para os Gráficos (Exemplo baseados nas suas tabelas)
-            let reputation = 100;
-            let level = 1;
-            
+            // Busca Reputação
             const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
-            if (repData) reputation = repData.points;
+            const reputation = repData ? repData.points : 100;
 
+            // Busca Level baseado em punições
             const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
-            if (punCount) level = Math.floor(punCount.total / 5) + 1;
+            const level = punCount ? Math.floor(punCount.total / 5) + 1 : 1;
 
             res.render('home', {
                 guild,
                 user: req.user,
                 bot: client,
+                member: member, // Passando o objeto member completo
                 nickname: member.displayName || req.user.username,
-                role: member.roles.highest.name || "Membro",
-                reputation,
-                level
+                role: member.roles.highest.name !== '@everyone' ? member.roles.highest.name : "Membro",
+                reputation: reputation || 100,
+                level: level || 1
             });
         } catch (err) {
             console.error("Erro na Home:", err);
             res.redirect('/');
         }
     });
-
-        // ==========================
-        // MANAGE (CONFIGURAÇÕES) - VERSÃO CORRIGIDA
-        // ==========================
-        app.get('/manage/:guildID', checkAuth, async (req, res) => {
-            try {
-                const { guildID } = req.params;
-                
-                // 1. Busca Guild
-                const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
-                if (!guild) return res.redirect('/');
-
-                // 2. Busca Membro e Permissão
-                const member = await guild.members.fetch(req.user.id).catch(() => null);
-                if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
-                
-                // 3. Busca Configurações Salvas (Tabela: settings)
-                const rows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID) || [];
-                const config = {};
-                rows.forEach(row => { config[row.key] = row.value; });
-
-                // 4. Busca Reputação (Tabela: reputation)
-                const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
-                const reputation = repData ? repData.points : 100;
-
-                // 5. Busca Level (Baseado na tabela punishments, como você fez na Home)
-                const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
-                const level = punCount ? Math.floor(punCount.total / 5) + 1 : 1;
-
-                // 6. Renderiza
-                res.render('manage', { 
-                    guild,
-                    guildID: guild.id,
-                    user: req.user,
-                    bot: client,
-                    nickname: member.displayName || req.user.username,
-                    role: member.roles.highest.name || "Sem Cargo",
-                    reputation: reputation, // Agora vindo da tabela certa
-                    level: level,           // Agora calculado corretamente
-                    config,
-                    query: req.query
-                });
-            } catch (error) {
-                console.error("❌ Erro Crítico no Manage:", error);
-                res.redirect('/');
-            }
-        });
 
     // ==========================
     // SALVAR CONFIGURAÇÕES (POST)
@@ -168,8 +127,9 @@ function loadDashboard(client) {
         try {
             const { guildID } = req.params;
             const guild = client.guilds.cache.get(guildID);
-            const member = await guild.members.fetch(req.user.id).catch(() => null);
+            if (!guild) return res.status(404).send("Guild não encontrada.");
 
+            const member = await guild.members.fetch(req.user.id).catch(() => null);
             if (!member || !member.permissions.has("Administrator")) return res.status(403).send("Sem permissão.");
 
             const upsert = db.prepare(`
@@ -196,16 +156,6 @@ function loadDashboard(client) {
     app.listen(PORT, () => {
         console.log(`✅ Dashboard Online na porta ${PORT}!`);
     });
-    
-    app.get('/logout', (req, res, next) => {
-        req.logout((err) => {
-            if (err) return next(err);
-            req.session.destroy(() => {
-                res.redirect('/');
-            });
-        });
-    });
-    
 }
 
 module.exports = loadDashboard;

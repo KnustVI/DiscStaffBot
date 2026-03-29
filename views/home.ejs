@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home | Titan's Pass</title>
+    <title>Home | <%= bot.user.username %></title>
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,7 +32,7 @@
             overflow-x: hidden;
         }
 
-        /* Efeito de Profundidade dos Cards (Neomorfismo Dark) */
+        /* Efeito de Profundidade dos Cards */
         .premium-card {
             background: #1F1D20;
             border: 1px solid rgba(248, 220, 192, 0.05);
@@ -40,7 +40,7 @@
             box-shadow: 10px 10px 20px #0a0a0b, -5px -5px 15px rgba(255,255,255,0.02);
         }
 
-        /* Gráfico Circular Customizado via CSS */
+        /* Gráfico Circular */
         .progress-ring {
             position: relative;
             width: 140px;
@@ -62,7 +62,7 @@
 
         .circle-bg { stroke: #2a282b; }
         .circle-main { stroke: #D9A362; transition: stroke-dashoffset 1s ease-in-out; }
-        .circle-alt { stroke: #803E30; }
+        .circle-alt { stroke: #803E30; transition: stroke-dashoffset 1s ease-in-out; }
 
         .chart-label {
             position: absolute;
@@ -75,7 +75,7 @@
 </head>
 <body class="flex min-h-screen p-4 gap-6">
 
-    <!-- SIDEBAR (Injetada) -->
+    <!-- SIDEBAR -->
     <aside class="w-72 hidden lg:block">
         <%- include('partials/sidebar') %>
     </aside>
@@ -83,74 +83,87 @@
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="flex-1 flex flex-col gap-6">
         
-        <!-- SEÇÃO DE GRÁFICOS SUPERIORES (KPIs) -->
+        <!-- HEADER DINÂMICO -->
+        <header class="flex justify-between items-center px-4">
+            <div>
+                <h1 class="tilt-warp text-2xl uppercase tracking-tighter">Dashboard de <%= guild.name %></h1>
+                <p class="text-xs opacity-50">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] uppercase tracking-widest opacity-40">Cargo Atual</p>
+                <p class="text-sm font-bold text-titan-accent uppercase"><%= role %></p>
+            </div>
+        </header>
+
+        <!-- SEÇÃO DE GRÁFICOS (KPIs) -->
         <section class="premium-card p-8 flex flex-wrap justify-around items-center gap-8">
             
-            <!-- Retenção -->
+            <!-- Reputação (Dinâmico) -->
             <div class="flex flex-col items-center">
                 <div class="progress-ring">
                     <svg width="140" height="140">
                         <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 188;"></circle>
+                        <circle id="circle-rep" class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 377;"></circle>
                     </svg>
                     <div class="chart-label">
-                        <span class="block font-semibold">Retenção de<br>usuários</span>
-                        <span class="text-xs opacity-60">50/100</span>
+                        <span class="block font-semibold">Sua<br>Reputação</span>
+                        <span class="text-xs opacity-60"><%= reputation %>/100</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Staffs Ativos -->
+            <!-- Nível (Dinâmico) -->
             <div class="flex flex-col items-center">
                 <div class="progress-ring">
                     <svg width="140" height="140">
                         <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 150;"></circle>
+                        <circle id="circle-lvl" class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 377;"></circle>
                     </svg>
                     <div class="chart-label">
-                        <span class="block font-semibold">Staffs Ativos</span>
-                        <span class="text-xs opacity-60">60/100</span>
+                        <span class="block font-semibold">Nível de<br>Atividade</span>
+                        <span class="text-xs opacity-60">Lvl <%= level %></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Strikes -->
+            <!-- Membros Online (Guild Stats) -->
             <div class="flex flex-col items-center">
                 <div class="progress-ring">
                     <svg width="140" height="140">
                         <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 280;"></circle>
+                        <circle id="circle-online" class="circle-alt" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 377;"></circle>
                     </svg>
                     <div class="chart-label">
-                        <span class="block font-semibold">Strikes</span>
-                        <span class="text-xs opacity-60">25/100</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Players Online -->
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle class="circle-alt" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 100;"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="block font-semibold">Players Online</span>
-                        <span class="text-xs opacity-60">75/100</span>
+                        <span class="block font-semibold">Servidor<br>Online</span>
+                        <span class="text-xs opacity-60"><%= guild.memberCount %> Total</span>
                     </div>
                 </div>
             </div>
 
         </section>
 
-        <!-- SEÇÃO INFERIOR (CONTEÚDO DINÂMICO) -->
+        <!-- SEÇÃO INFERIOR -->
         <section class="premium-card flex-1 p-8">
-            <h2 class="tilt-warp text-xl uppercase tracking-widest opacity-20">Área de Dados Gerais</h2>
-            <!-- Espaço para seus gráficos de linha ou tabelas -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="tilt-warp text-xl uppercase tracking-widest opacity-30">Informações do Servidor</h2>
+                <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" 
+                     onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'"
+                     class="w-10 h-10 rounded-full border border-titan-accent shadow-lg">
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-titan-bg/50 p-4 rounded-xl border border-titan-accent/10">
+                    <p class="text-[10px] uppercase opacity-40">ID do Servidor</p>
+                    <p class="text-sm font-mono"><%= guild.id %></p>
+                </div>
+                <div class="bg-titan-bg/50 p-4 rounded-xl border border-titan-accent/10">
+                    <p class="text-[10px] uppercase opacity-40">Total de Membros</p>
+                    <p class="text-sm"><%= guild.memberCount %> usuários</p>
+                </div>
+            </div>
         </section>
 
-        <!-- FOOTER ASSINATURA -->
+        <!-- FOOTER -->
         <div class="text-right">
             <span class="text-[10px] uppercase tracking-[5px] text-titan-cream opacity-20 tilt-warp">
                 BY: KNUST SEIER VI
@@ -158,5 +171,37 @@
         </div>
     </main>
 
+    <!-- LOGICA DOS GRÁFICOS -->
+            <script>
+            function setProgress(elementId, value, max) {
+                const circle = document.getElementById(elementId);
+                if (!circle) return; // Evita erro se o elemento não existir
+
+                // Garantir que os valores são números
+                const val = parseFloat(value) || 0;
+                const maximum = parseFloat(max) || 100;
+
+                const radius = circle.r.baseVal.value;
+                const circumference = 2 * Math.PI * radius;
+                
+                // Cálculo do preenchimento
+                const offset = circumference - (val / maximum) * circumference;
+                
+                circle.style.strokeDasharray = `${circumference}`;
+                circle.style.strokeDashoffset = offset;
+            }
+
+            // Usamos aspas ao redor das tags EJS para evitar erro de sintaxe se o valor falhar
+            window.onload = () => {
+                const rep = Number("<%= reputation %>") || 0;
+                const lvl = Number("<%= level %>") || 1;
+
+                console.log("Dados carregados:", { rep, lvl }); // Debug no console do F12
+
+                setProgress('circle-rep', rep, 100);
+                setProgress('circle-lvl', lvl, 10); // Exemplo: progresso até lvl 10
+                setProgress('circle-online', 100, 100);
+            };
+        </script>
 </body>
 </html>
