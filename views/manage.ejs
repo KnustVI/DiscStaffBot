@@ -9,9 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Tilt+Warp&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
@@ -131,13 +129,9 @@
 
 <body>
 
-    <%- include('partials/sidebar') %>
-
     <main class="flex-1 flex flex-col p-[40px] gap-[30px] overflow-y-auto">
         
-        <div class="text-center opacity-30 text-[10px] tracking-[6px] uppercase font-bold">
-            BY: KNUST SEIER VI
-        </div>
+        <%- include('partials/sidebar') %>
 
         <form action="/manage/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
             
@@ -198,6 +192,11 @@
             </div>
 
         </form>
+
+        <div class="text-center opacity-30 text-[10px] tracking-[6px] uppercase font-bold">
+            BY: KNUST SEIER VI
+        </div>
+
     </main>
 
 </body>
