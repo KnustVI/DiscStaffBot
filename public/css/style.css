@@ -154,7 +154,7 @@ text-align: center;
 .premium-card-graph-container {
     position: relative;
     width: 200px; /* Largura do card */
-    height: 300x; /* Altura do card */
+    height: 200x; /* Altura do card */
     background: #131314; /* Cor de fundo idêntica à sidebar */
     border-radius: 30px; /* As bordas arredondadas que você pediu */
     box-shadow: 
