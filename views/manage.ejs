@@ -129,9 +129,11 @@
 
 <body>
 
-    <main class="flex-1 flex flex-col p-[40px] gap-[30px] overflow-y-auto">
-        
+    <aside class="w-[300px] hidden lg:block h-screen sticky top-0">
         <%- include('partials/sidebar') %>
+    </aside>
+
+    <main class="flex-1 flex flex-col p-[40px] gap-[30px] overflow-y-auto">
 
         <form action="/manage/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
             
