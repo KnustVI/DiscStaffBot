@@ -81,16 +81,15 @@
 
 /* GRÁFICOS: Ajuste de espessura e centralização */
 .circle-bg {
-    fill: none;
-    stroke: rgba(0, 0, 0, 0.5); /* Trilho mais visível */
-    stroke-width: 16; /* Um pouco mais grosso como no print */
+    fill: none !important;
+    stroke: rgba(255, 255, 255, 0.05); /* Um cinza bem clarinho para o trilho */
+    stroke-width: 14;
 }
 
 .circle-main {
-    fill: none;
-    stroke-width: 16;
-    stroke-linecap: butt; 
-    transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    fill: none !important;
+    stroke-width: 14;
+    stroke-linecap: butt;
 }
 
 .chart-label-container span:first-child {
