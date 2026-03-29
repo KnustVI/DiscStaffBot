@@ -14,13 +14,24 @@
 
 </head>
 
-<body>
+<body class="flex min-h-screen">
 
     <aside class="w-[300px] hidden lg:block h-screen sticky top-0">
         <%- include('partials/sidebar') %>
     </aside>
 
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+
+        <!-- HEADER -->
+        <header class="flex justify-between items-end px-2">
+            <div>
+                <h1 class="tilt-warp text-2xl uppercase tracking-[1px]">Configurações de <%= guild.name %></h1>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] uppercase tracking-widest opacity-30">Cargo Atual</p>
+                <p class="bebas text-xl text-titan-accent tracking-[1.5px] uppercase"><%= role %></p>
+            </div>
+        </header>      
 
         <form action="/manage/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
             
