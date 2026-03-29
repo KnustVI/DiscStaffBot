@@ -1,46 +1,69 @@
-<div class="flex flex-col h-full bg-titan-card rounded-[32px] p-6 border border-white/5 shadow-2xl">
+<!-- O Container Principal (Equivalente ao seu .v27_84) -->
+<div class="flex flex-col w-[320px] h-[calc(100vh-2rem)] bg-[#1F1D20] rounded-[20px] border border-white/5 shadow-[25px_47px_68px_rgba(0,0,0,0.74)] overflow-hidden">
     
-    <!-- LOGO -->
-    <div class="flex flex-col items-center mb-10">
-        <img src="https://i.ibb.co/whjd7DYJ/Titans-pass-logo.png" alt="Logo" class="w-24 mb-2 drop-shadow-[0_0_15px_rgba(217,163,98,0.3)]">
-        <h2 class="tilt-warp text-titan-gold text-xl tracking-tighter">TITAN'S PASS</h2>
+    <!-- ÁREA DO LOGO (Equivalente ao v27_119 / v27_85) -->
+    <div class="relative w-full h-[220px] flex items-center justify-center p-6">
+        <!-- Círculo de brilho atrás do logo para dar profundidade -->
+        <div class="absolute w-32 h-32 bg-[#803E30]/20 blur-[40px] rounded-full"></div>
+        <img src="/img/logo.png" class="relative z-10 w-48 drop-shadow-2xl" alt="Logo">
     </div>
 
-    <!-- NAVEGAÇÃO -->
-    <nav class="flex-1 space-y-4">
-        <p class="text-[10px] uppercase tracking-[3px] opacity-30 font-bold ml-2 mb-4">Menu Principal</p>
+    <!-- MENU DE NAVEGAÇÃO (Substituindo os nomes vazios do v27_118) -->
+    <nav class="flex-1 px-6 space-y-3">
+        <p class="text-[10px] uppercase tracking-[4px] text-[#F8DCC0]/30 font-bold mb-4">Navegação</p>
         
-        <a href="/home/<%= guild.id %>" class="flex items-center gap-4 px-4 py-3 rounded-xl bg-titan-accent/10 border border-titan-accent/20 text-titan-cream transition-all hover:bg-titan-accent/20">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-            <span class="text-sm font-medium uppercase tracking-wider">Início</span>
+        <a href="/home/<%= guild.id %>" class="flex items-center gap-3 p-3 rounded-xl bg-[#803E30]/10 border border-[#803E30]/30 text-[#F8DCC0] hover:bg-[#803E30]/20 transition-all group">
+            <div class="w-1.5 h-1.5 rounded-full bg-[#D9A362] shadow-[0_0_8px_#D9A362]"></div>
+            <span class="text-sm font-semibold uppercase tracking-wider">Início</span>
         </a>
 
-        <a href="/manage/<%= guild.id %>" class="flex items-center gap-4 px-4 py-3 rounded-xl text-titan-cream/60 transition-all hover:bg-white/5 hover:text-titan-cream">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            <span class="text-sm font-medium uppercase tracking-wider">Configurações</span>
+        <a href="/manage/<%= guild.id %>" class="flex items-center gap-3 p-3 rounded-xl text-[#F8DCC0]/60 hover:text-[#F8DCC0] hover:bg-white/5 transition-all">
+            <div class="w-1.5 h-1.5 rounded-full bg-white/10"></div>
+            <span class="text-sm font-semibold uppercase tracking-wider">Configurações</span>
         </a>
 
-        <a href="#" class="flex items-center gap-4 px-4 py-3 rounded-xl text-titan-cream/60 transition-all hover:bg-white/5">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"></path></svg>
-            <span class="text-sm font-medium uppercase tracking-wider">Tickets</span>
+        <a href="#" class="flex items-center gap-3 p-3 rounded-xl text-[#F8DCC0]/60 hover:text-[#F8DCC0] hover:bg-white/5 transition-all">
+            <div class="w-1.5 h-1.5 rounded-full bg-white/10"></div>
+            <span class="text-sm font-semibold uppercase tracking-wider">Tickets</span>
         </a>
     </nav>
 
-    <!-- CARD DO PERFIL (BOTTOM) -->
-    <div class="mt-auto pt-6 border-t border-white/5">
-        <div class="flex items-center gap-3 p-2 bg-black/20 rounded-2xl border border-white/5">
-            <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" class="w-12 h-12 rounded-xl border border-titan-gold/30 shadow-lg">
-            <div class="overflow-hidden">
-                <p class="text-xs font-bold text-titan-cream truncate"><%= nickname %></p>
-                <div class="flex items-center gap-2">
-                    <span class="text-[9px] bg-titan-accent/20 text-titan-accent px-1.5 py-0.5 rounded border border-titan-accent/30 font-bold uppercase">NV. <%= level %></span>
-                    <span class="text-[9px] text-titan-gold/70 font-bold uppercase">REP: <%= reputation %></span>
+    <!-- CARD DO PERFIL (Equivalente ao v27_104 / v27_122 / v27_123) -->
+    <div class="p-4 bg-[#131314]/80 border-t border-white/5">
+        <div class="flex items-center gap-4">
+            
+            <!-- AVATAR (v27_105) -->
+            <div class="relative w-16 h-16 shrink-0">
+                <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
+                     class="w-full h-full rounded-full border-2 border-[#803E30] shadow-[0_12px_18px_rgba(0,0,0,0.45)] object-cover">
+            </div>
+
+            <!-- INFOS (v27_123) -->
+            <div class="flex flex-col min-w-0">
+                <!-- NICKNAME (v27_106) -->
+                <span class="text-[#F8DCC0] font-['Tilt_Warp'] text-lg leading-tight truncate uppercase">
+                    <%= nickname %>
+                </span>
+                
+                <!-- CARGO (v27_107 / v27_109) -->
+                <div class="mt-1 px-3 py-1 bg-[#4B2427] rounded-full shadow-[0_12px_18px_rgba(0,0,0,0.44)] inline-block w-fit max-w-full">
+                    <span class="text-[#F8DCC0] font-['Bebas_Neue'] text-xs tracking-widest uppercase truncate block">
+                        <%= role %>
+                    </span>
                 </div>
             </div>
         </div>
-        
-        <a href="/logout" class="flex items-center justify-center gap-2 mt-4 text-[10px] text-red-500/50 hover:text-red-500 transition-colors uppercase font-bold tracking-[2px]">
-            Sair do Painel
-        </a>
+
+        <!-- STATS RÁPIDOS (NV e REP) -->
+        <div class="flex gap-2 mt-4">
+            <div class="flex-1 bg-white/5 rounded-lg py-1 text-center border border-white/5">
+                <p class="text-[8px] uppercase opacity-40">Nível</p>
+                <p class="text-xs font-bold text-[#D9A362]"><%= level %></p>
+            </div>
+            <div class="flex-1 bg-white/5 rounded-lg py-1 text-center border border-white/5">
+                <p class="text-[8px] uppercase opacity-40">Rep</p>
+                <p class="text-xs font-bold text-[#D9A362]"><%= reputation %></p>
+            </div>
+        </div>
     </div>
 </div>
