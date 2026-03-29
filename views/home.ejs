@@ -98,14 +98,25 @@
             
             <!-- Gráfico 1: Retenção -->
             <div class="relative flex-1 flex flex-col items-center">
-                <div class="progress-ring relative w-[160px] h-[160px]">
-                    <svg width="160" height="160">
-                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
-                        <circle id="circle-retencao" class="circle-main color-gold" cx="80" cy="80" r="70"></circle>
+                <div class="premium-chart-container">
+                    <svg class="premium-chart-svg" viewBox="0 0 100 100">
+                        <!-- Trilho escuro -->
+                        <circle class="premium-circle-bg" cx="50" cy="50" r="44"></circle>
+                        
+                        <!-- Progresso (Dourado) -->
+                        <!-- O dasharray 276.5 é o cálculo de 2 * PI * Raio(44) -->
+                        <!-- O dashoffset 138.25 representa 50% de preenchimento -->
+                        <circle class="premium-circle-progress" 
+                                cx="50" cy="50" r="44" 
+                                stroke-dasharray="276.5" 
+                                stroke-dashoffset="138.25">
+                        </circle>
                     </svg>
-                    <div class="chart-label-container">
-                        <span class="text-[10px] uppercase opacity-60 leading-tight">Retenção de<br>usuários</span>
-                        <span class="text-xs mt-1">50/100</span>
+
+                    <!-- O miolo com o texto e a sombra interna -->
+                    <div class="premium-chart-center">
+                        <span class="premium-chart-label">Staffs Ativos</span>
+                        <span class="premium-chart-value">50/100</span>
                     </div>
                 </div>
             </div>

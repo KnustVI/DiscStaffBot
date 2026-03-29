@@ -147,3 +147,78 @@ text-align: center;
 .logout-link:hover {
     opacity: 1;
 }
+
+/* --- NOVO GRÁFICO PREMIUM (ESTILO FIGMA) --- */
+
+/* Container Principal */
+.premium-chart-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ajustes do SVG para o arco */
+.premium-chart-svg {
+    transform: rotate(-90deg); /* Começa o progresso no topo */
+    width: 100%;
+    height: 100%;
+}
+
+/* Miolo com profundidade (Efeito de buraco escavado) */
+.premium-chart-center {
+    position: absolute;
+    width: 80%; /* Deixa o arco visível em volta */
+    height: 80%;
+    background-color: #131314; /* Cor mais profunda que o fundo */
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    
+    /* Sombra interna para dar profundidade e borda sutil */
+    box-shadow: 
+        inset 0px 8px 15px rgba(0, 0, 0, 0.9), 
+        0px 0px 0px 1px rgba(248, 220, 192, 0.05);
+    z-index: 2;
+}
+
+/* Textos dentro do gráfico */
+.premium-chart-label {
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-bottom: 2px;
+}
+
+.premium-chart-value {
+    font-family: var(--font-head);
+    color: var(--text-primary);
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+}
+
+/* Estilo dos Círculos SVG */
+.premium-circle-bg {
+    fill: none;
+    stroke: #1F1D20; /* Cor do trilho (quase o fundo) */
+    stroke-width: 12;
+}
+
+.premium-circle-progress {
+    fill: none;
+    stroke: var(--accent); /* Usa seu dourado --accent */
+    stroke-width: 12;
+    stroke-linecap: butt; /* Pontas retas conforme o print */
+    transition: stroke-dashoffset 0.8s ease-in-out;
+}
+
+/* Variação de cor se quiser usar o vermelho */
+.premium-circle-progress.red {
+    stroke: var(--surface);
+}
