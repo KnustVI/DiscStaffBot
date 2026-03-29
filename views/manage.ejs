@@ -12,119 +12,6 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <style>
-        :root {
-            --bg-color: #1A181B;
-            --card-bg: #232124;
-            --accent-color: #F8DCC0; /* Bege Ouro */
-            --input-bg: rgba(0, 0, 0, 0.25);
-            --font-main: 'Poppins', sans-serif;
-            --font-title: 'Tilt Warp', cursive;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--accent-color);
-            font-family: var(--font-main);
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Tipografia */
-        .section-title {
-            font-family: var(--font-title);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-size: 1.1rem;
-            color: var(--accent-color);
-            margin-bottom: 25px;
-        }
-
-        .label-text {
-            font-family: var(--font-main);
-            font-weight: 600;
-            font-size: 0.75rem;
-            letter-spacing: 1px;
-            opacity: 0.7;
-        }
-
-        /* Cards */
-        .titan-card-premium {
-            background: var(--card-bg);
-            border: 1px solid rgba(248, 220, 192, 0.08);
-            border-radius: 15px;
-            padding: 35px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            width: 100%;
-        }
-
-        /* Containers de Input */
-        .input-container-premium {
-            display: flex;
-            align-items: center;
-            background: var(--input-bg);
-            border: 1px solid rgba(248, 220, 192, 0.15);
-            border-radius: 8px;
-            margin-bottom: 18px;
-            overflow: hidden;
-            height: 48px;
-            transition: border 0.3s;
-        }
-
-        .input-container-premium:focus-within {
-            border-color: var(--accent-color);
-        }
-
-        .icon-box {
-            background: var(--accent-color);
-            color: #1A181B;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 1.2rem;
-        }
-
-        .input-premium-field {
-            background: transparent;
-            border: none;
-            color: var(--accent-color);
-            padding: 0 15px;
-            width: 100%;
-            height: 100%;
-            outline: none;
-            font-family: var(--font-main);
-            font-size: 0.9rem;
-        }
-
-        /* Botão */
-        .btn-salvar-final {
-            font-family: var(--font-title);
-            background: transparent;
-            border: 2px solid var(--accent-color);
-            color: var(--accent-color);
-            padding: 14px 50px;
-            border-radius: 10px;
-            text-transform: uppercase;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-salvar-final:hover {
-            background: var(--accent-color);
-            color: #1A181B;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(248, 220, 192, 0.2);
-        }
-
-        main::-webkit-scrollbar { width: 6px; }
-        main::-webkit-scrollbar-thumb { background: rgba(248, 220, 192, 0.1); border-radius: 10px; }
-    </style>
 </head>
 
 <body>
@@ -138,7 +25,7 @@
         <form action="/manage/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
             
             <!-- CARD SUPERIOR: CONFIGS E REPUTAÇÃO -->
-            <div class="titan-card-premium flex flex-row items-stretch gap-12">
+            <section class="titan-card-premium justify-evenly items-center flex">
                 
                 <!-- Coluna Esquerda -->
                 <div class="flex-1">
@@ -166,10 +53,10 @@
                         <input type="number" class="input-premium-field" placeholder="0" name="dailyRep" value="<%= settings.dailyRep || 0 %>">
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- CARD INFERIOR: PUNIÇÕES -->
-            <div class="titan-card-premium flex flex-col items-center">
+            <section class="titan-card-premium justify-evenly items-center flex">
                 <h3 class="section-title mb-10">Regras de Punição</h3>
                 
                 <div class="w-full max-w-[750px] flex flex-col gap-5">
@@ -191,13 +78,15 @@
                         Salvar Alterações
                     </button>
                 </div>
-            </div>
+            </section>
 
         </form>
 
-        <div class="text-center opacity-30 text-[10px] tracking-[6px] uppercase font-bold">
-            BY: KNUST SEIER VI
-        </div>
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
 
     </main>
 
