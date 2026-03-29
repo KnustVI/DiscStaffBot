@@ -1,40 +1,41 @@
 /* public/css/style.css */
 :root {
-            --bg-main: #1F1D20;
-            --bg-sidebar: #252326;
-            --bg-card: #2A2A2A;
-            --text-primary: #F8DCC0;
-            --text-secondary: #A89986;
-            --accent: #DCA15E;
-            --surface: #803E30;
-            --surface-hover: #4B2427;
-            --stroke: #5A1811;
-            --font-head: 'Tilt Warp', cursive;
-            --font-body: 'Poppins', sans-serif;
-        }
+    --bg-main: #1F1D20;
+    --bg-sidebar: #252326;
+    --bg-card: #2A2A2A;
+    --text-primary: #F8DCC0;
+    --text-secondary: #A89986;
+    --accent: #DCA15E;
+    --surface: #803E30;
+    --surface-hover: #4B2427;
+    --stroke: #5A1811;
+    --font-head: 'Tilt Warp', cursive;
+    --font-body: 'Poppins', sans-serif;
+}
 
-        body {
-            font-family: var(--font-body);
-            background-color: var(--bg-main);
-            color: var(--text-primary);
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 30px; /* Margem de 30px em toda a borda do site */
+    display: flex;
+    height: 100vh;
+    box-sizing: border-box; /* Garante que o padding não quebre o layout */
+    gap: 30px; /* Espaço entre sidebar e conteúdo principal */
+}
 
-        /* UNIFICAÇÃO PREMIUM: Sidebar e Cards compartilham o mesmo DNA */
+/* UNIFICAÇÃO PREMIUM: Sidebar e Cards compartilham o mesmo DNA */
 .titan-card-premium, .sidebar {
     background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
     border-radius: 24px; /* Aumentado levemente para suavidade do Figma */
-    
+
     /* Box Shadow "Deep": 
-       A primeira sombra é a oclusão (preto pesado), 
-       a segunda é o 'inner glow' de 0.5px que separa o card do fundo */
+    A primeira sombra é a oclusão (preto pesado), 
+    a segunda é o 'inner glow' de 0.5px que separa o card do fundo */
     box-shadow: 
         -15px 30px 50px rgba(0, 0, 0, 0.8), 
         inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12); 
-    
+
     border: 1px solid rgba(0, 0, 0, 0.4);
     overflow: hidden;
 }
@@ -42,13 +43,11 @@
 /* SIDEBAR: Ajustes de posicionamento */
 .sidebar {
     width: 320px;
-    height: calc(100vh - 40px); /* Dá um respiro nas bordas se quiser ela flutuante */
-    margin: 20px 0 20px 20px;   /* Margem para não colar no topo/fundo */
-    padding: 40px 30px;
+    height: 100%; /* Ocupa a altura disponível dentro do padding do body */
     display: flex;
     flex-direction: column;
-    align-items: center;
-    position: relative; /* Mudado de left:0 para fluir no flex do body */
+    padding: 40px 20px;
+    box-sizing: border-box;
 }
 
 .logo-titans {
@@ -107,4 +106,44 @@
 ::-webkit-scrollbar-thumb { 
     background: rgba(248, 220, 192, 0.1); 
     border-radius: 10px; 
+}
+
+.staff-info {
+text-align: center;
+}
+
+.staff-info .name {
+    font-family: var(--font-head);
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* Cargo: Fundo vermelho centralizado */
+.staff-info .role {
+    background: var(--surface); /* O seu vermelho/terracota */
+    color: #FFF;
+    font-size: 0.7rem;
+    padding: 4px 20px;
+    border-radius: 20px;
+    display: inline-block;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+/* Link Sair: Centralizado e com respiro */
+.logout-link {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    opacity: 0.3;
+    letter-spacing: 2px;
+    margin-top: 5px;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: 0.3s;
+}
+
+.logout-link:hover {
+    opacity: 1;
 }
