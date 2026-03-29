@@ -148,47 +148,65 @@ text-align: center;
     opacity: 1;
 }
 
-/* --- NOVO GRÁFICO PREMIUM (ESTILO FIGMA) --- */
+/* --- GRÁFICO PREMIM COM EFEITO DE CORTE (O VERDADEIRO FIGMA) --- */
 
-/* Container Principal */
-.premium-chart-container {
+/* 1. O CARD EXTERNO (O container que corta) */
+.premium-card-graph-container {
     position: relative;
-    width: 200px;
-    height: 200px;
+    width: 200px; /* Largura do card */
+    height: 200px; /* Altura do card */
+    background: #131314; /* Cor de fundo idêntica à sidebar */
+    border-radius: 30px; /* As bordas arredondadas que você pediu */
+    box-shadow: 
+        inset 0px 4px 15px rgba(0, 0, 0, 0.8), /* Sombra interna para profundidade */
+        0px 0px 0px 1px rgba(248, 220, 192, 0.05); /* Borda fantasma */
+    overflow: hidden; /* O SEGREDO: Corta tudo que sair daqui */
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-/* Ajustes do SVG para o arco */
-.premium-chart-svg {
-    transform: rotate(-90deg); /* Começa o progresso no topo */
-    width: 100%;
-    height: 100%;
+/* 2. O GRÁFICO (O elemento que vaza) */
+.premium-graph-inner {
+    position: absolute;
+    /* Fazemos o container ser maior do que o card para vazar */
+    width: 250px; 
+    height: 250px;
+    top: -25px; /* Centralizamos o container maior */
+    left: -25px;
+    transform: rotate(-90deg); /* Faz o progresso começar no topo */
 }
 
-/* Miolo com profundidade (Efeito de buraco escavado) */
-.premium-chart-center {
+/* Estilo dos Arcos */
+.premium-circle-bg {
+    fill: none;
+    stroke: #1f1d20; /* Trilho escuro */
+    stroke-width: 14; /* Mais grosso para bater com o Figma */
+}
+
+.premium-circle-progress {
+    fill: none;
+    stroke: var(--accent); /* Seu dourado --accent */
+    stroke-width: 14;
+    stroke-linecap: butt; /* Pontas retas */
+    transition: stroke-dashoffset 0.8s ease-in-out;
+}
+
+/* 3. O TEXTO CENTRAL (Sempre visível) */
+.premium-graph-label-container {
     position: absolute;
-    width: 80%; /* Deixa o arco visível em volta */
-    height: 80%;
-    background-color: #131314; /* Cor mais profunda que o fundo */
-    border-radius: 50%;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    
-    /* Sombra interna para dar profundidade e borda sutil */
-    box-shadow: 
-        inset 0px 8px 15px rgba(0, 0, 0, 0.9), 
-        0px 0px 0px 1px rgba(248, 220, 192, 0.05);
-    z-index: 2;
+    z-index: 10; /* Garante que fica em cima do arco */
+    padding: 20px;
+    pointer-events: none; /* Garante que cliques passam pro SVG */
 }
 
-/* Textos dentro do gráfico */
-.premium-chart-label {
+.premium-graph-title {
     font-family: var(--font-body);
     color: var(--text-primary);
     font-size: 0.85rem;
@@ -196,29 +214,9 @@ text-align: center;
     margin-bottom: 2px;
 }
 
-.premium-chart-value {
+.premium-graph-value {
     font-family: var(--font-head);
     color: var(--text-primary);
     font-size: 1.4rem;
     letter-spacing: 1px;
-}
-
-/* Estilo dos Círculos SVG */
-.premium-circle-bg {
-    fill: none;
-    stroke: #1F1D20; /* Cor do trilho (quase o fundo) */
-    stroke-width: 12;
-}
-
-.premium-circle-progress {
-    fill: none;
-    stroke: var(--accent); /* Usa seu dourado --accent */
-    stroke-width: 12;
-    stroke-linecap: butt; /* Pontas retas conforme o print */
-    transition: stroke-dashoffset 0.8s ease-in-out;
-}
-
-/* Variação de cor se quiser usar o vermelho */
-.premium-circle-progress.red {
-    stroke: var(--surface);
 }

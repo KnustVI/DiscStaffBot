@@ -98,26 +98,21 @@
             
             <!-- Gráfico 1: Retenção -->
             <div class="relative flex-1 flex flex-col items-center">
-                <div class="premium-chart-container">
-                    <svg class="premium-chart-svg" viewBox="0 0 100 100">
-                        <!-- Trilho escuro -->
-                        <circle class="premium-circle-bg" cx="50" cy="50" r="44"></circle>
-                        
-                        <!-- Progresso (Dourado) -->
-                        <!-- O dasharray 276.5 é o cálculo de 2 * PI * Raio(44) -->
-                        <!-- O dashoffset 138.25 representa 50% de preenchimento -->
-                        <circle class="premium-circle-progress" 
-                                cx="50" cy="50" r="44" 
-                                stroke-dasharray="276.5" 
-                                stroke-dashoffset="138.25">
-                        </circle>
-                    </svg>
+                <div class="premium-card-graph-container">
+                    <svg class="premium-graph-inner" viewBox="0 0 100 100">
+                            <circle class="premium-circle-bg" cx="50" cy="50" r="43"></circle>
+                            
+                            <circle class="premium-circle-progress" 
+                                    cx="50" cy="50" r="43" 
+                                    stroke-dasharray="270.2" 
+                                    stroke-dashoffset="135.1">
+                            </circle>
+                        </svg>
 
-                    <!-- O miolo com o texto e a sombra interna -->
-                    <div class="premium-chart-center">
-                        <span class="premium-chart-label">Staffs Ativos</span>
-                        <span class="premium-chart-value">50/100</span>
-                    </div>
+                        <div class="premium-graph-label-container">
+                            <span class="premium-graph-title">Staffs Ativos</span>
+                            <span class="premium-graph-value">50/100</span>
+                        </div>
                 </div>
             </div>
 
