@@ -24,44 +24,35 @@
     </script>
 
     <style>
-        body {
-            background-color: #131314;
-            color: #F8DCC0;
-            font-family: 'Poppins', sans-serif;
-            overflow-x: hidden;
-        }
+    /* Configurações Globais */
+    body {
+        background-color: #131314;
+        color: #F8DCC0;
+        font-family: 'Poppins', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
 
-        /* Aplicando seu Estilo Exato como Classe */
-        .titan-container-style {
-        border-radius: 20px;
-        box-shadow: -25px 47px 68.1px #000000bd, 0.5px -0.5px 0.5px #f8dcc0;
+    /* A CLASSE DO SEU GRADIENTE */
+    .titan-card-premium {
+        /* O Gradiente Linear que você pediu */
         background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
-        border: 1px solid rgba(248, 220, 192, 0.03);
-        }
         
-
-        .progress-ring {
-            position: relative;
-            width: 140px;
-            height: 140px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .progress-ring svg { transform: rotate(-90deg); }
-        .progress-ring circle { fill: none; stroke-width: 12; stroke-linecap: round; }
-        .circle-bg { stroke: #2a282b; }
-        .circle-main { stroke: #D9A362; transition: stroke-dashoffset 1s ease-in-out; }
-        .circle-alt { stroke: #803E30; transition: stroke-dashoffset 1s ease-in-out; }
-
-        .chart-label {
-            position: absolute;
-            text-align: center;
-            font-size: 0.7rem;
-            line-height: 1.2;
-            color: rgba(248, 220, 192, 0.8);
-        }
-    </style>
+        /* A Sombra Premium (Profundidade + Brilho na borda superior) */
+        box-shadow: -25px 47px 68.1px rgba(0, 0, 0, 0.74), 0.5px -0.5px 0.5px #F8DCC0;
+        
+        /* Borda e Arredondamento */
+        border-radius: 20px;
+        border: 1px solid rgba(248, 220, 192, 0.05);
+        
+        /* Garante que o conteúdo não saia das bordas arredondadas */
+        overflow: hidden;
+    }
+    
+    /* Ajuste para os anéis de progresso ficarem elegantes sobre o gradiente */
+    .circle-bg { stroke: rgba(255, 255, 255, 0.03); }
+    .circle-main { filter: drop-shadow(0 0 8px rgba(217, 163, 98, 0.2)); }
+</style>
 </head>
 <body class="flex min-h-screen p-4 gap-6">
 
@@ -83,7 +74,7 @@
         </header>
 
         <!-- SEÇÃO DE GRÁFICOS COM SEU ESTILO -->
-        <section class="titan-container-style p-8 flex flex-wrap justify-around items-center gap-8">
+        <section class="titan-card-premium p-8 flex flex-wrap justify-around items-center gap-8">
             <div class="flex flex-col items-center">
                 <div class="progress-ring">
                     <svg width="140" height="140">
