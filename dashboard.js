@@ -108,7 +108,7 @@ function loadDashboard(client) {
                 guild,
                 user: req.user,
                 bot: client,
-                member: member, // Passando o objeto member completo
+                member: member,
                 nickname: member.displayName || req.user.username,
                 role: member.roles.highest.name !== '@everyone' ? member.roles.highest.name : "Membro",
                 reputation: reputation || 100,
@@ -116,6 +116,44 @@ function loadDashboard(client) {
             });
         } catch (err) {
             console.error("Erro na Home:", err);
+            res.redirect('/');
+        }
+    });
+
+    // ==========================
+    // MANAGE (CONFIGURAÇÕES)
+    // ==========================
+    app.get('/manage/:guildID', checkAuth, async (req, res) => {
+        try {
+            const { guildID } = req.params;
+            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
+            
+            if (!guild) return res.redirect('/');
+
+            const member = await guild.members.fetch(req.user.id).catch(() => null);
+            // Trava de segurança: só entra se for ADM
+            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+
+            // Busca as configurações atuais do banco de dados para exibir nos inputs
+            const settingsRows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
+            const settings = {};
+            settingsRows.forEach(row => {
+                settings[row.key] = row.value;
+            });
+
+            res.render('manage', {
+                path: 'manage',
+                guild,
+                user: req.user,
+                bot: client,
+                member: member,
+                nickname: member.displayName || req.user.username,
+                role: member.roles.highest.name !== '@everyone' ? member.roles.highest.name : "Membro",
+                settings: settings, // Envia as configs para o formulário
+                success: req.query.success === 'true' // Para mostrar aviso de "Salvo com sucesso"
+            });
+        } catch (err) {
+            console.error("Erro na Manage:", err);
             res.redirect('/');
         }
     });
