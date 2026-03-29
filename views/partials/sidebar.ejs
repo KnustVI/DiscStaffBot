@@ -4,7 +4,7 @@
     <!-- TOP SECTION: Logo -->
     <div class="flex flex-col items-center w-full gap-2">
         <img 
-            class="w-32 h-auto object-contain transition-transform hover:scale-105 duration-500"
+            class="w-40 h-auto object-contain transition-transform hover:scale-105 duration-500"
             alt="Titans pass logo"
             src="https://c.animaapp.com/mnb8jqp9dw8rx4/img/titans-pass-logo-1.png"
         />
@@ -34,30 +34,32 @@
         <% }); %>
     </nav>
 
-            <!-- BOTTOM SECTION: User Profile (Composição Horizontal) -->
-        <div class="flex items-center w-full gap-4 pt-6 border-t border-white/5 px-2">
-            
-            <!-- Avatar (Lado Esquerdo) -->
-            <div class="relative w-14 h-14 shrink-0 rounded-full border-2 border-[#803e30] shadow-[0px_4px_10px_rgba(0,0,0,0.5)] overflow-hidden">
-                <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
-                    alt="Avatar" class="w-full h-full object-cover">
-            </div>
-
-            <!-- Info (Lado Direito: Nickname + Cargo) -->
-            <div class="flex flex-col items-start overflow-hidden">
-                <span class="[font-family:'Tilt_Warp'] text-[#f8dcc0] text-base uppercase leading-tight truncate w-full">
-                    <%= nickname %>
-                </span>
+            <!-- BOTTOM SECTION: User Profile (Composição Horizontal com Texto Centralizado entre si) -->
+            <div class="flex items-center w-full gap-5 pt-8 border-t border-white/5 px-4">
                 
-                <!-- Badge de Cargo -->
-                <div class="mt-1 px-3 py-0.5 bg-[#4b2427] rounded-full border border-[#f8dcc0]/50 shadow-sm">
-                    <span class="[font-family:'Bebas_Neue'] text-[#f8dcc0] text-xs tracking-wider uppercase whitespace-nowrap">
-                        <%= role %>
-                    </span>
+                <!-- Avatar (Lado Esquerdo - Mantive Robusto) -->
+                <div class="relative w-16 h-16 shrink-0 rounded-full border-2 border-[#803e30] shadow-[0px_4px_15px_rgba(0,0,0,0.6)] overflow-hidden">
+                    <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
+                        alt="Avatar" class="w-full h-full object-cover">
                 </div>
-            </div>
 
-        </div>
+                <!-- Info (Lado Direito: Nickname e Cargo alinhados ao centro um do outro) -->
+                <div class="flex flex-col items-center justify-center flex-1 min-w-0">
+                    
+                    <!-- Nickname -->
+                    <span class="[font-family:'Tilt_Warp'] text-[#f8dcc0] text-lg uppercase leading-tight text-center truncate w-full mb-1.5">
+                        <%= nickname %>
+                    </span>
+                    
+                    <!-- Badge de Cargo (Centralizado abaixo do Nick) -->
+                    <div class="px-4 py-1 bg-[#4b2427] rounded-full border border-[#f8dcc0]/40 shadow-sm flex items-center justify-center">
+                        <span class="[font-family:'Bebas_Neue'] text-[#f8dcc0] text-sm tracking-[1px] uppercase whitespace-nowrap">
+                            <%= role %>
+                        </span>
+                    </div>
+                </div>
+
+            </div>
 
         <!-- Logout (Link solitário abaixo da composição para manter o alinhamento) -->
         <div class="w-full flex justify-center pb-2">
