@@ -4,7 +4,7 @@
     <!-- TOP SECTION: Logo -->
     <div class="flex flex-col items-center w-full gap-2">
         <img 
-            class="w-40 h-auto object-contain transition-transform hover:scale-105 duration-500"
+            class="w-50 h-auto object-contain transition-transform hover:scale-105 duration-500"
             alt="Titans pass logo"
             src="https://c.animaapp.com/mnb8jqp9dw8rx4/img/titans-pass-logo-1.png"
         />
@@ -35,31 +35,34 @@
     </nav>
 
             <!-- BOTTOM SECTION: User Profile (Composição Horizontal com Texto Centralizado entre si) -->
-            <div class="flex items-center w-full gap-5 pt-8 border-t border-white/5 px-4">
-                
-                <!-- Avatar (Lado Esquerdo - Mantive Robusto) -->
-                <div class="relative w-16 h-16 shrink-0 rounded-full border-2 border-[#803e30] shadow-[0px_4px_15px_rgba(0,0,0,0.6)] overflow-hidden">
-                    <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
-                        alt="Avatar" class="w-full h-full object-cover">
-                </div>
-
-                <!-- Info (Lado Direito: Nickname e Cargo alinhados ao centro um do outro) -->
-                <div class="flex flex-col items-center justify-center flex-1 min-w-0">
-                    
-                    <!-- Nickname -->
-                    <span class="[font-family:'Tilt_Warp'] text-[#f8dcc0] text-lg uppercase leading-tight text-center truncate w-full mb-1.5">
-                        <%= nickname %>
-                    </span>
-                    
-                    <!-- Badge de Cargo (Centralizado abaixo do Nick) -->
-                    <div class="px-4 py-1 bg-[#4b2427] rounded-full border border-[#f8dcc0]/40 shadow-sm flex items-center justify-center">
-                        <span class="[font-family:'Bebas_Neue'] text-[#f8dcc0] text-sm tracking-[1px] uppercase whitespace-nowrap">
-                            <%= role %>
-                        </span>
-                    </div>
-                </div>
-
+            <div class="mt-auto pt-10 border-t border-white/5 flex flex-col items-center w-full px-2">
+    
+            <div class="relative w-24 h-24 mb-6 shrink-0 rounded-full border-2 border-[#803e30] shadow-[0px_4px_20px_rgba(0,0,0,0.7)] overflow-hidden">
+                <img src="https://cdn.discordapp.com/avatars/<%= user.id %>/<%= user.avatar %>.png" 
+                    alt="Avatar" class="w-full h-full object-cover bg-[#292929]">
             </div>
+
+            <div class="flex flex-col items-center justify-center w-full text-center">
+                
+                <span class="[font-family:'Tilt_Warp',Helvetica] font-normal text-[#f8dcc0] text-xl text-center tracking-[0.5px] leading-tight uppercase w-full">
+                    <%= nickname %>
+                </span>
+                
+                <div class="w-12 h-[1px] bg-[#D9A362]/20 my-2 shadow-[0_0_8px_rgba(217,163,98,0.3)]"></div>
+
+                <div class="flex items-center justify-center px-5 py-1.5 mt-1 bg-[#4b2427] rounded-full border border-[#f8dcc0]/40 shadow-[0px_8px_15px_rgba(0,0,0,0.5)]">
+                    <span class="[font-family:'Bebas_Neue',Helvetica] font-normal text-[#f8dcc0] text-sm text-center tracking-[1.5px] leading-tight uppercase whitespace-nowrap">
+                        <%= role %>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full flex justify-center pb-4 mt-2">
+            <a href="/logout" class="text-[9px] text-white/15 hover:text-red-400 transition-colors uppercase tracking-[3px] font-bold">
+                Sair
+            </a>
+        </div>
 
         <!-- Logout (Link solitário abaixo da composição para manter o alinhamento) -->
         <div class="w-full flex justify-center pb-2">
