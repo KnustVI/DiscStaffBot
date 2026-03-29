@@ -174,7 +174,7 @@ text-align: center;
     height: 250px;
     top: -25px; /* Centralizamos o container maior */
     left: -10px;
-    transform: rotate(54deg); /* Faz o progresso começar no topo */
+    transform: rotate(-90deg); /* Faz o progresso começar no topo */
 }
 
 /* Estilo dos Arcos */
