@@ -23,189 +23,89 @@
             overflow: hidden;
         }
 
-        /* No seu public/css/style.css */
+        /* UNIFICAÇÃO PREMIUM: Sidebar e Cards compartilham o mesmo DNA */
+.titan-card-premium, .sidebar {
+    background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+    border-radius: 24px; /* Aumentado levemente para suavidade do Figma */
+    
+    /* Box Shadow "Deep": 
+       A primeira sombra é a oclusão (preto pesado), 
+       a segunda é o 'inner glow' de 0.5px que separa o card do fundo */
+    box-shadow: 
+        -15px 30px 50px rgba(0, 0, 0, 0.8), 
+        inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12); 
+    
+    border: 1px solid rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
 
-        .titan-card-premium, .sidebar {
-            /* O fundo exato do seu Figma */
-            background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
-            border-radius: 20px;
-            
-            /* Box Shadow do Figma: 
-            1. Sombra externa grande e difusa
-            2. Borda de luz interna (stroke de 0.5px no topo) */
-            box-shadow: 
-                -25px 47px 68px rgba(0, 0, 0, 0.74), 
-                inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12); 
-            
-            /* Borda lateral sutil para definição */
-            border: 1px solid rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
+/* SIDEBAR: Ajustes de posicionamento */
+.sidebar {
+    width: 320px;
+    height: calc(100vh - 40px); /* Dá um respiro nas bordas se quiser ela flutuante */
+    margin: 20px 0 20px 20px;   /* Margem para não colar no topo/fundo */
+    padding: 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative; /* Mudado de left:0 para fluir no flex do body */
+}
 
-        /* Ajuste específico para a sidebar não ter bordas arredondadas na direita se preferir */
-        .sidebar {
-            width: 320px;
-            height: 100vh;
-            border-radius: 20px 20px 20px 20px;
-            left: 0;
-            top: 0;
-            padding: 40px 30px; /* Seus 30px de margem interna */
-        }
+.logo-titans {
+    width: 180px;
+    margin-bottom: 40px;
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6));
+}
 
-        .logo-titans {
-            width: 180px;
-            margin-bottom: 30px;
-            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));
-        }
+.nav-item {
+    font-family: var(--font-head);
+    text-decoration: none;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.2); /* Mais escuro para dar profundidade */
+    padding: 14px;
+    border-radius: 14px;
+    text-align: center;
+    border: 1px solid rgba(248, 220, 192, 0.05); /* Borda fantasma */
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 0.85rem;
+}
 
-        .nav-menu {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: auto;
-        }
+.nav-item:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+    transform: translateY(-2px); /* Efeito de levitação em vez de pro lado */
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
 
-        .nav-item {
-            font-family: var(--font-head);
-            text-decoration: none;
-            color: var(--text-secondary);
-            background: rgba(255,255,255,0.03);
-            padding: 12px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid var(--stroke);
-            transition: 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.9rem;
-        }
+/* GRÁFICOS: Ajuste de espessura e centralização */
+.circle-bg {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.5); /* Trilho mais visível */
+    stroke-width: 16; /* Um pouco mais grosso como no print */
+}
 
-        .nav-item:hover {
-            background: var(--surface-hover);
-            color: var(--text-primary);
-            transform: translateX(5px);
-        }
+.circle-main {
+    fill: none;
+    stroke-width: 16;
+    stroke-linecap: butt; 
+    transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.chart-label-container span:first-child {
+    font-family: var(--font-head);
+    letter-spacing: 1px;
+}
 
-        /* PERFIL STAFF (DENTRO DA SIDEBAR) */
-        .staff-profile {
-            width: 100%;
-            padding-top: 20px;
-            border-top: 1px solid var(--stroke);
-            display: grid;
-            grid-template-columns: 80px 1fr;
-            gap: 15px;
-            align-items: center;
-        }
+/* Classes de Utilidade */
+.color-gold { stroke: var(--accent); }
+.color-dark-red { stroke: var(--surface); }
 
-        .staff-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: 2px solid var(--accent);
-            object-fit: cover;
-        }
-
-        .staff-info .name {
-            font-family: var(--font-head);
-            font-size: 1.1rem;
-            text-transform: uppercase;
-        }
-
-        .staff-info .role {
-            background: var(--surface);
-            font-size: 0.65rem;
-            padding: 2px 8px;
-            border-radius: 5px;
-            display: inline-block;
-        }
-
-        .staff-stats {
-            margin-top: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .stat-tag {
-            background: var(--accent);
-            color: var(--bg-main);
-            font-size: 0.7rem;
-            font-weight: bold;
-            padding: 2px 10px;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        /* ÁREA PRINCIPAL (DIREITA) */
-        .main-content {
-            flex: 1;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        /* QUADRO DE ALERTAS (VERMELHO - ESTILO TAG SUSPENSA) */
-        .feed-alerts {
-            position: absolute;
-            top: 0;
-            right: 50px;
-            width: 180px;
-            background: #4B2427; /* Color Surface 2 */
-            padding: 25px 15px;
-            border-radius: 0 0 20px 20px;
-            border: 2px solid var(--stroke);
-            border-top: none;
-            text-align: center;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
-            z-index: 5;
-        }
-
-        .feed-alerts h4 {
-            font-family: var(--font-head);
-            margin: 0;
-            color: var(--text-primary);
-            letter-spacing: 2px;
-        }
-
-        /* Estilo dos Arcos (Gráficos) */
-        .progress-ring svg {
-            transform: rotate(-90deg); /* Faz o gráfico começar do topo */
-        }
-
-        .circle-bg {
-            fill: none;
-            stroke: rgba(0, 0, 0, 0.4); /* O "trilho" escuro do fundo */
-            stroke-width: 14;
-        }
-
-        .circle-main {
-            fill: none;
-            stroke-width: 14;
-            stroke-linecap: butt; /* Pontas retas como no print */
-            transition: stroke-dashoffset 1s ease-in-out;
-        }
-
-        /* Cores específicas do seu print */
-        .color-gold { stroke: #DCA15E; }
-        .color-dark-red { stroke: #803E30; }
-
-        .chart-label-container {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            pointer-events: none;
-        }
-        .canvas-container {
-            flex: 1;
-            position: relative;
-        }
-        
+/* SCROLLBAR CUSTOMIZADA (Para não quebrar o visual premium) */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+    background: rgba(248, 220, 192, 0.1); 
+    border-radius: 10px; 
+}
