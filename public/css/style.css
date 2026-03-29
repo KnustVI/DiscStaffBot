@@ -173,7 +173,7 @@ text-align: center;
     width: 250px; 
     height: 250px;
     top: -25px; /* Centralizamos o container maior */
-    left: -25px;
+    left: -10px;
     transform: rotate(-90deg); /* Faz o progresso começar no topo */
 }
 
