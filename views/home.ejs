@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | <%= bot.user.username %></title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
 
     <script>
@@ -13,7 +13,7 @@
             theme: {
                 extend: {
                     colors: {
-                        'titan-bg': '#131314',
+                        'titan-bg': '#0D0D0D',
                         'titan-accent': '#803E30',
                         'titan-cream': '#F8DCC0',
                         'titan-gold': '#D9A362',
@@ -24,140 +24,180 @@
     </script>
 
     <style>
-    /* Configurações Globais */
+    /* Estilo Identico ao Figma */
     body {
-        background-color: #131314;
+        background-color: #0D0D0D; /* Fundo externo mais escuro para destacar os cards */
         color: #F8DCC0;
         font-family: 'Poppins', sans-serif;
         margin: 0;
         padding: 0;
     }
+    .tilt-warp { font-family: 'Tilt_Warp', sans-serif; }
 
-    /* A CLASSE DO SEU GRADIENTE */
-    .titan-card-premium {
-        /* O Gradiente Linear que você pediu */
-        background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
-        
-        /* A Sombra Premium (Profundidade + Brilho na borda superior) */
-        box-shadow: -25px 47px 68.1px rgba(0, 0, 0, 0.74), 0.5px -0.5px 0.5px #F8DCC0;
-        
-        /* Borda e Arredondamento */
-        border-radius: 20px;
-        border: 1px solid rgba(248, 220, 192, 0.05);
-        
-        /* Garante que o conteúdo não saia das bordas arredondadas */
-        overflow: hidden;
+    .chart-label {
+        position: absolute;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
     }
-    
-    /* Ajuste para os anéis de progresso ficarem elegantes sobre o gradiente */
-    .circle-bg { stroke: rgba(255, 255, 255, 0.03); }
-    .circle-main { filter: drop-shadow(0 0 8px rgba(217, 163, 98, 0.2)); }
-</style>
+    </style>
 </head>
-<body class="flex min-h-screen p-4 gap-6">
+<body class="flex min-h-screen">
 
-    <aside class="w-72 hidden lg:block h-[calc(100vh-2rem)] sticky top-4">
+    <!-- SIDEBAR (Ajustada com padding de 30px no arquivo partial) -->
+    <aside class="w-[300px] hidden lg:block h-screen sticky top-0">
         <%- include('partials/sidebar') %>
     </aside>
 
-    <main class="flex-1 flex flex-col gap-6 overflow-y-auto">
+    <!-- CONTEÚDO PRINCIPAL (Margem de 30px em tudo) -->
+    <main class="flex-1 flex flex-col p-[30px] gap-[30px] overflow-y-auto">
         
-        <header class="flex justify-between items-center px-4">
+        <!-- HEADER -->
+        <header class="flex justify-between items-end px-2">
             <div>
-                <h1 class="tilt-warp text-2xl uppercase tracking-tighter">Dashboard de <%= guild.name %></h1>
-                <p class="text-xs opacity-50">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
+                <h1 class="tilt-warp text-2xl uppercase tracking-[1px]">Dashboard de <%= guild.name %></h1>
+                <p class="text-[11px] opacity-40 uppercase tracking-[2px]">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
             </div>
             <div class="text-right">
-                <p class="text-[10px] uppercase tracking-widest opacity-40">Cargo Atual</p>
-                <p class="text-sm font-bold text-titan-accent uppercase"><%= role %></p>
+                <p class="text-[10px] uppercase tracking-widest opacity-30">Cargo Atual</p>
+                <p class="bebas text-xl text-titan-accent tracking-[1.5px] uppercase"><%= role %></p>
             </div>
         </header>
 
-        <!-- SEÇÃO DE GRÁFICOS COM SEU ESTILO -->
-        <section class="titan-card-premium p-8 flex flex-wrap justify-around items-center gap-8">
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle id="circle-rep" class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 377;"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="block font-semibold uppercase tracking-tighter text-[10px]">Sua Reputação</span>
-                        <span class="text-xs text-titan-gold"><%= reputation %>/100</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle id="circle-lvl" class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 377;"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="block font-semibold uppercase tracking-tighter text-[10px]">Nível Atividade</span>
-                        <span class="text-xs text-titan-gold">Lvl <%= level %></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle id="circle-online" class="circle-alt" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 377;"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="block font-semibold uppercase tracking-tighter text-[10px]">Membros Servidor</span>
-                        <span class="text-xs text-titan-accent"><%= guild.memberCount %></span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- SEÇÃO INFERIOR COM SEU ESTILO -->
-        <section class="titan-container-style flex-1 p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="tilt-warp text-xl uppercase tracking-widest opacity-30">Informações do Servidor</h2>
-                <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" 
-                     onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'"
-                     class="w-12 h-12 rounded-2xl border border-[#f8dcc0]/20 shadow-xl">
-            </div>
+        <!-- SEÇÃO DE ESTATÍSTICAS (O Card Superior) -->
+        <section class="titan-card-premium p-[40px] flex flex-wrap justify-around items-center gap-10">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-black/20 p-4 rounded-xl border border-white/5">
-                    <p class="text-[10px] uppercase opacity-40">ID do Servidor</p>
-                    <p class="text-sm font-mono tracking-tighter"><%= guild.id %></p>
+            <!-- Reputação -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140" class="rotate-[-90deg]">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle id="circle-rep" class="circle-main" cx="70" cy="70" r="60"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="tilt-warp text-[9px] uppercase opacity-60 leading-tight">Sua<br>Reputação</span>
+                        <span class="bebas text-lg text-titan-gold mt-1"><%= reputation %>/100</span>
+                    </div>
                 </div>
-                <div class="bg-black/20 p-4 rounded-xl border border-white/5">
-                    <p class="text-[10px] uppercase opacity-40">Total de Membros</p>
-                    <p class="text-sm tracking-tight"><%= guild.memberCount %> usuários</p>
+            </div>
+
+            <!-- Nível -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140" class="rotate-[-90deg]">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle id="circle-lvl" class="circle-main" cx="70" cy="70" r="60"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="tilt-warp text-[9px] uppercase opacity-60 leading-tight">Nível<br>Atividade</span>
+                        <span class="bebas text-lg text-titan-gold mt-1">LVL <%= level %></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Membros -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140" class="rotate-[-90deg]">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle id="circle-online" class="circle-alt" cx="70" cy="70" r="60"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="tilt-warp text-[9px] uppercase opacity-60 leading-tight">Membros<br>Servidor</span>
+                        <span class="bebas text-lg text-titan-accent mt-1"><%= guild.memberCount %></span>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <div class="text-right pb-4">
-            <span class="text-[10px] uppercase tracking-[5px] text-titan-cream opacity-20 tilt-warp">BY: KNUST SEIER VI</span>
-        </div>
+                <!-- Seção de Estatísticas -->
+        <section class="titan-card-premium p-[40px] flex justify-between items-center gap-4">
+            
+            <!-- Gráfico 1: Retenção -->
+            <div class="relative flex-1 flex flex-col items-center">
+                <div class="progress-ring relative w-[160px] h-[160px]">
+                    <svg width="160" height="160">
+                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
+                        <circle id="circle-retencao" class="circle-main color-gold" cx="80" cy="80" r="70"></circle>
+                    </svg>
+                    <div class="chart-label-container">
+                        <span class="text-[10px] uppercase opacity-60 leading-tight">Retenção de<br>usuários</span>
+                        <span class="text-xs mt-1">50/100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico 2: Staffs -->
+            <div class="relative flex-1 flex flex-col items-center">
+                <div class="progress-ring relative w-[160px] h-[160px]">
+                    <svg width="160" height="160">
+                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
+                        <circle id="circle-staffs" class="circle-main color-gold" cx="80" cy="80" r="70"></circle>
+                    </svg>
+                    <div class="chart-label-container">
+                        <span class="text-[10px] uppercase opacity-60 leading-tight">Staffs Ativos</span>
+                        <span class="text-xs mt-1">50/100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico 3: Strikes -->
+            <div class="relative flex-1 flex flex-col items-center">
+                <div class="progress-ring relative w-[160px] h-[160px]">
+                    <svg width="160" height="160">
+                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
+                        <circle id="circle-strikes" class="circle-main color-gold" cx="80" cy="80" r="70"></circle>
+                    </svg>
+                    <div class="chart-label-container">
+                        <span class="text-[10px] uppercase opacity-60 leading-tight">Strikes</span>
+                        <span class="text-xs mt-1">50/100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico 4: Players Online (Cor Diferente) -->
+            <div class="relative flex-1 flex flex-col items-center">
+                <div class="progress-ring relative w-[160px] h-[160px]">
+                    <svg width="160" height="160">
+                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
+                        <circle id="circle-online" class="circle-main color-dark-red" cx="80" cy="80" r="70"></circle>
+                    </svg>
+                    <div class="chart-label-container">
+                        <span class="text-[10px] uppercase opacity-60 leading-tight">Players Online</span>
+                        <span class="text-xs mt-1">50/100</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- FOOTER / BY -->
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
     </main>
 
-    <script>
-        function setProgress(elementId, value, max) {
-            const circle = document.getElementById(elementId);
-            if (!circle) return;
-            const val = parseFloat(value) || 0;
-            const maximum = parseFloat(max) || 100;
+        <script>
+        function updateChart(id, percent) {
+            const circle = document.getElementById(id);
             const radius = circle.r.baseVal.value;
             const circumference = 2 * Math.PI * radius;
-            const offset = circumference - (val / maximum) * circumference;
-            circle.style.strokeDasharray = `${circumference}`;
+            
+            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+            // O cálculo do offset (ex: 50% preenchido)
+            const offset = circumference - (percent / 100) * circumference;
             circle.style.strokeDashoffset = offset;
         }
-        window.onload = () => {
-            setProgress('circle-rep', Number("<%= reputation %>"), 100);
-            setProgress('circle-lvl', Number("<%= level %>"), 10);
-            setProgress('circle-online', 100, 100);
-        };
+
+        window.addEventListener('load', () => {
+            // Exemplo: todos em 50% como no seu print
+            updateChart('circle-retencao', 50);
+            updateChart('circle-staffs', 50);
+            updateChart('circle-strikes', 50);
+            updateChart('circle-online', 75); // Esse parece maior no print
+        });
     </script>
-</body>
+    </body>
 </html>
