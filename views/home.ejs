@@ -7,7 +7,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="src/style.css">
 
     <script>
         tailwind.config = {
@@ -45,70 +45,46 @@
                 <p class="text-[10px] uppercase tracking-widest opacity-30">Cargo Atual</p>
                 <p class="bebas text-xl text-titan-accent tracking-[1.5px] uppercase"><%= role %></p>
             </div>
-        </header>
-
-        <!-- SEÇÃO DE ESTATÍSTICAS (O Card Superior) -->
-        <section class="titan-card-premium p-[40px] flex flex-wrap justify-around items-center gap-10">
-            
-            <!-- Reputação -->
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140" class="rotate-[-90deg]">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle id="circle-rep" class="circle-main" cx="70" cy="70" r="60"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="tilt-warp text-[9px] uppercase opacity-60 leading-tight">Sua<br>Reputação</span>
-                        <span class="bebas text-lg text-titan-gold mt-1"><%= reputation %>/100</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Nível -->
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140" class="rotate-[-90deg]">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle id="circle-lvl" class="circle-main" cx="70" cy="70" r="60"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="tilt-warp text-[9px] uppercase opacity-60 leading-tight">Nível<br>Atividade</span>
-                        <span class="bebas text-lg text-titan-gold mt-1">LVL <%= level %></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Membros -->
-            <div class="flex flex-col items-center">
-                <div class="progress-ring">
-                    <svg width="140" height="140" class="rotate-[-90deg]">
-                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
-                        <circle id="circle-online" class="circle-alt" cx="70" cy="70" r="60"></circle>
-                    </svg>
-                    <div class="chart-label">
-                        <span class="tilt-warp text-[9px] uppercase opacity-60 leading-tight">Membros<br>Servidor</span>
-                        <span class="bebas text-lg text-titan-accent mt-1"><%= guild.memberCount %></span>
-                    </div>
-                </div>
-            </div>
-        </section>
+        </header>           
 
                 <!-- Seção de Estatísticas -->
-        <section class="titan-card-premium p-[40px] flex justify-between items-center gap-4">
+        <section class="titan-card-premium justify-evenly items-center flex">
             
             <!-- Gráfico 1: Retenção -->
-            <div class="relative flex-1 flex flex-col items-center">
+            <div class="relative flex-1 items-center">
                 <div class="premium-card-graph-container">
                     <svg class="premium-graph-inner" viewBox="0 0 100 100">
-                            <circle class="premium-circle-bg" cx="50" cy="50" r="43"></circle>
+                    <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
+                    <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
+                            <circle class="premium-circle-bg" cx="50" cy="50" r="35"></circle>
                             
                             <circle class="premium-circle-progress" 
-                                    cx="50" cy="50" r="43" 
+                                    cx="50" cy="50" r="35" 
                                     stroke-dasharray="270.2" 
                                     stroke-dashoffset="135.1">
                             </circle>
                         </svg>
+                        <div class="premium-graph-label-container">
+                            <span class="premium-graph-title">Retenção</span>
+                            <span class="premium-graph-value">50/100</span>
+                        </div>
+                </div>
+            </div>
 
+            <!-- Gráfico 2: Staffs -->
+            <div class="relative flex-1 items-center">
+                <div class="premium-card-graph-container">
+                    <svg class="premium-graph-inner" viewBox="0 0 100 100">
+                    <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
+                    <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
+                            <circle class="premium-circle-bg" cx="50" cy="50" r="35"></circle>
+                            
+                            <circle class="premium-circle-progress" 
+                                    cx="50" cy="50" r="35" 
+                                    stroke-dasharray="270.2" 
+                                    stroke-dashoffset="135.1">
+                            </circle>
+                        </svg>
                         <div class="premium-graph-label-container">
                             <span class="premium-graph-title">Staffs Ativos</span>
                             <span class="premium-graph-value">50/100</span>
@@ -116,49 +92,51 @@
                 </div>
             </div>
 
-            <!-- Gráfico 2: Staffs -->
-            <div class="relative flex-1 flex flex-col items-center">
-                <div class="progress-ring relative w-[160px] h-[160px]">
-                    <svg width="160" height="160">
-                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
-                        <circle id="circle-staffs" class="circle-main color-gold" cx="80" cy="80" r="70"></circle>
-                    </svg>
-                    <div class="chart-label-container">
-                        <span class="text-[10px] uppercase opacity-60 leading-tight">Staffs Ativos</span>
-                        <span class="text-xs mt-1">50/100</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Gráfico 3: Strikes -->
-            <div class="relative flex-1 flex flex-col items-center">
-                <div class="progress-ring relative w-[160px] h-[160px]">
-                    <svg width="160" height="160">
-                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
-                        <circle id="circle-strikes" class="circle-main color-gold" cx="80" cy="80" r="70"></circle>
-                    </svg>
-                    <div class="chart-label-container">
-                        <span class="text-[10px] uppercase opacity-60 leading-tight">Strikes</span>
-                        <span class="text-xs mt-1">50/100</span>
-                    </div>
+            <div class="relative flex-1 items-center">
+                <div class="premium-card-graph-container">
+                    <svg class="premium-graph-inner" viewBox="0 0 100 100">
+                    <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
+                    <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
+                            <circle class="premium-circle-bg" cx="50" cy="50" r="35"></circle>
+                            
+                            <circle class="premium-circle-progress" 
+                                    cx="50" cy="50" r="35" 
+                                    stroke-dasharray="270.2" 
+                                    stroke-dashoffset="135.1">
+                            </circle>
+                        </svg>
+                        <div class="premium-graph-label-container">
+                            <span class="premium-graph-title">Strikes</span>
+                            <span class="premium-graph-value">50/100</span>
+                        </div>
                 </div>
             </div>
 
-            <!-- Gráfico 4: Players Online (Cor Diferente) -->
-            <div class="relative flex-1 flex flex-col items-center">
-                <div class="progress-ring relative w-[160px] h-[160px]">
-                    <svg width="160" height="160">
-                        <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
-                        <circle id="circle-online" class="circle-main color-dark-red" cx="80" cy="80" r="70"></circle>
-                    </svg>
-                    <div class="chart-label-container">
-                        <span class="text-[10px] uppercase opacity-60 leading-tight">Players Online</span>
-                        <span class="text-xs mt-1">50/100</span>
-                    </div>
+          <!-- Gráfico 4: Usuários ATIVOS -->
+            <div class="relative flex-1 flex items-center">
+                <div class="premium-card-graph-container">
+                    <svg class="premium-graph-inner" viewBox="0 0 100 100">
+                    <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
+                    <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
+                            <circle class="premium-circle-bg" cx="50" cy="50" r="35"></circle>
+                            
+                            <circle class="premium-circle-progress" 
+                                    cx="50" cy="50" r="35" 
+                                    stroke-dasharray="270.2" 
+                                    stroke-dashoffset="135.1">
+                            </circle>
+                        </svg>
+                        <div class="premium-graph-label-container">
+                            <span class="premium-graph-title">Usuários Ativos</span>
+                            <span class="premium-graph-value">50/100</span>
+                        </div>
                 </div>
             </div>
 
         </section>
+
+        <section class="titan-card-premium justify-evenly items-center flex"> </section>
 
         <!-- FOOTER / BY -->
         <footer class="flex justify-end pb-2">
