@@ -1,56 +1,117 @@
-<main class="flex-1 flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações | Titan's Pass</title>
     
-    <div class="text-center opacity-40 text-[10px] tracking-[4px] mb-[-10px]">BY: KNUST SEIER VI</div>
+    <!-- Fontes e Ícones -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind para utilitários rápidos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Seu CSS Customizado (Certifique-se de que o caminho comece com /) -->
+    <link rel="stylesheet" href="/css/style.css">
 
-    <form action="/manage/<%= guild.id %>/save" method="POST">
+    <style>
+        /* CSS INLINE PARA GARANTIR O FUNDO CASO O ARQUIVO EXTERNO DEMORE */
+        body {
+            background-color: #1F1D20 !important;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body class="flex min-h-screen">
+
+    <!-- Sidebar Lateral -->
+    <%- include('partials/sidebar') %>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[6px] overflow-y-auto">
         
-        <!-- CARD SUPERIOR: CONFIGS E REPUTAÇÃO -->
-        <div class="titan-card-premium !flex-row !justify-between !items-start">
-            
-            <!-- Esquerda: Configurações -->
-            <div class="flex-1 px-4">
-                <h3 class="section-title text-center mb-6">Configurações</h3>
-                
-                <div class="input-container-premium">
-                    <div class="icon-box"><i class="fa-solid fa-circle-user"></i></div>
-                    <input type="text" class="input-premium-field" placeholder="Cargo Staff" name="staffRole">
-                </div>
-
-                <div class="input-container-premium">
-                    <div class="icon-box"><i class="fa-solid fa-circle-user"></i></div>
-                    <input type="text" class="input-premium-field" placeholder="Canal de logs" name="logChannel">
-                </div>
-            </div>
-
-            <!-- Direita: Reputação -->
-            <div class="flex-1 px-4">
-                <h3 class="section-title text-center mb-6">Reputação por dia</h3>
-                <div class="input-container-premium max-w-[300px] mx-auto">
-                    <div class="icon-box"><i class="fa-solid fa-circle-user"></i></div>
-                    <input type="number" class="input-premium-field" placeholder="Numero" name="dailyRep">
-                </div>
-            </div>
+        <!-- Créditos no topo -->
+        <div class="text-center opacity-40 text-[10px] tracking-[4px] mb-2 text-[#F8DCC0] uppercase">
+            BY: KNUST SEIER VI
         </div>
 
-        <!-- CARD INFERIOR: REGRAS DE PUNIÇÃO -->
-        <div class="titan-card-premium flex-col items-center mt-6">
-            <h3 class="section-title mb-10">Regras de Punição</h3>
+        <form action="/manage/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
             
-            <div class="w-full max-w-[700px]">
-                <% [1, 1, 1, 1, 1].forEach((val, index) => { %>
-                <div class="level-row">
-                    <span class="level-text">Nível 1</span>
-                    <div class="input-container-premium flex-1 !mb-0">
-                        <input type="text" class="input-premium-field" placeholder="-<%= (index + 1) * 20 - 10 %> pts" name="punish_level_<%= index + 1 %>">
+            <!-- CARD SUPERIOR: CONFIGS GERAIS E REPUTAÇÃO -->
+            <div class="titan-card-premium flex flex-row justify-between items-start gap-12">
+                
+                <!-- Coluna Esquerda: Configurações -->
+                <div class="flex-1">
+                    <h3 class="section-title text-center mb-8">Configurações</h3>
+                    
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i class="fa-solid fa-user-shield"></i></div>
+                        <input type="text" class="input-premium-field" 
+                               placeholder="ID do Cargo Staff" name="staffRole" 
+                               value="<%= guild.staffRole || '' %>">
+                    </div>
+
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i class="fa-solid fa-terminal"></i></div>
+                        <input type="text" class="input-premium-field" 
+                               placeholder="ID do Canal de logs" name="logChannel"
+                               value="<%= guild.logChannel || '' %>">
                     </div>
                 </div>
-                <% }) %>
+
+                <!-- Coluna Direita: Reputação -->
+                <div class="flex-1 border-l border-white/5 pl-12">
+                    <h3 class="section-title text-center mb-8">Reputação por dia</h3>
+                    
+                    <div class="input-container-premium max-w-[320px] mx-auto">
+                        <div class="icon-box"><i class="fa-solid fa-star"></i></div>
+                        <input type="number" class="input-premium-field" 
+                               placeholder="Número de pontos" name="dailyRep"
+                               value="<%= guild.dailyRep || 0 %>">
+                    </div>
+                </div>
             </div>
 
-            <div class="mt-8">
-                <button type="submit" class="btn-salvar-final">Salvar</button>
-            </div>
-        </div>
+            <!-- CARD INFERIOR: REGRAS DE PUNIÇÃO -->
+            <div class="titan-card-premium flex flex-col items-center">
+                <h3 class="section-title mb-12">Regras de Punição</h3>
+                
+                <div class="w-full max-w-[750px] flex flex-col gap-5">
+                    <% [1, 2, 3, 4, 5].forEach((level) => { %>
+                    <div class="flex items-center justify-between gap-10">
+                        <!-- Label Nível -->
+                        <span class="font-semibold text-[#F8DCC0] opacity-80 uppercase text-[0.85rem] tracking-[2px] min-w-[100px]">
+                            Nível <%= level %>
+                        </span>
 
-    </form>
-</main>
+                        <!-- Input com design Premium -->
+                        <div class="input-container-premium flex-1 !mb-0">
+                            <!-- Nota: O placeholder muda conforme o nível apenas para exemplo visual -->
+                            <input type="text" class="input-premium-field" 
+                                   placeholder="-<%= level * 20 %> pts" 
+                                   name="punish_level_<%= level %>"
+                                   value="<%= guild.punishments ? guild.punishments[level] : '' %>">
+                        </div>
+                    </div>
+                    <% }) %>
+                </div>
+
+                <!-- Botão de Ação -->
+                <div class="mt-12">
+                    <button type="submit" class="btn-salvar-final">
+                        Salvar Alterações
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </main>
+
+</body>
+</html>

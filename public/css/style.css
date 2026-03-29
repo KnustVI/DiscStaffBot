@@ -34,33 +34,40 @@ body {
     gap: 30px; /* Espaço entre sidebar e conteúdo principal */
 }
 
-/* UNIFICAÇÃO PREMIUM: Sidebar e Cards compartilham o mesmo DNA */
+/* --- BASE PREMIUM (DNA COMUM) --- */
 .titan-card-premium, .sidebar {
-    /* MANTÉM O DESIGN ORIGINAL */
     background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
     border-radius: 24px;
-    box-shadow: 
-        -15px 30px 50px rgba(0, 0, 0, 0.8), 
-        inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12); 
+    box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), 
+                inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12); 
     border: 1px solid rgba(0, 0, 0, 0.4);
-    overflow: hidden;
-
-    /* APLICA A REGRA DE CRESCIMENTO E MARGEM INTERNA */
-    display: flex;
-    padding: 40px;
-    box-sizing: border-box;
-    flex-direction: row;
-    width: 100%;
 }
 
-/* SIDEBAR: Ajustes de posicionamento */
+/* --- CARD: Comportamento de Container --- */
+.titan-card-premium {
+    display: flex;
+    padding: 40px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- TÍTULOS (As fontes que não carregaram no seu print) --- */
+.section-title {
+    font-family: 'Tilt Warp', cursive;
+    color: #F8DCC0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* --- SIDEBAR: Comportamento de Barra Lateral --- */
 .sidebar {
     width: 320px;
-    height: 100%; /* Ocupa a altura disponível dentro do padding do body */
+    min-width: 320px; /* Impede que ela esmague */
+    height: calc(100vh - 60px); /* Altura total menos margem */
+    margin: 30px 0 30px 30px;
     display: flex;
     flex-direction: column;
     padding: 40px 20px;
-    box-sizing: border-box;
 }
 
 .logo-titans {
