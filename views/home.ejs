@@ -1,149 +1,162 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home | Titan's Pass</title>
     
-    <!-- Fontes -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
-    <!-- Chart.js para os Gráficos -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#131314',
+                        'titan-card': '#1F1D20',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #131314;
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Efeito de Profundidade dos Cards (Neomorfismo Dark) */
+        .premium-card {
+            background: #1F1D20;
+            border: 1px solid rgba(248, 220, 192, 0.05);
+            border-radius: 24px;
+            box-shadow: 10px 10px 20px #0a0a0b, -5px -5px 15px rgba(255,255,255,0.02);
+        }
+
+        /* Gráfico Circular Customizado via CSS */
+        .progress-ring {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .progress-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 12;
+            stroke-linecap: round;
+        }
+
+        .circle-bg { stroke: #2a282b; }
+        .circle-main { stroke: #D9A362; transition: stroke-dashoffset 1s ease-in-out; }
+        .circle-alt { stroke: #803E30; }
+
+        .chart-label {
+            position: absolute;
+            text-align: center;
+            font-size: 0.7rem;
+            line-height: 1.2;
+            color: rgba(248, 220, 192, 0.8);
+        }
+    </style>
 </head>
-<body>
+<body class="flex min-h-screen p-4 gap-6">
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-            <!-- Isso puxa todo o código do arquivo que criamos acima -->
+    <!-- SIDEBAR (Injetada) -->
+    <aside class="w-72 hidden lg:block">
         <%- include('partials/sidebar') %>
-
-        <main class="main-content">
-            <!-- Conteúdo específico de cada página aqui -->
-        </main>
     </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 flex flex-col gap-6">
         
-        <!-- FEED + ALERTAS -->
-        <div class="feed-alerts">
-            <h4>FEED</h4>
-        </div>
-
-        <!-- GRÁFICOS 1 -->
-        <div class="chart-card">
-            <div class="chart-header">Estatísticas de Mensagens</div>
-            <div class="canvas-container">
-                <canvas id="chartLineArea"></canvas>
+        <!-- SEÇÃO DE GRÁFICOS SUPERIORES (KPIs) -->
+        <section class="premium-card p-8 flex flex-wrap justify-around items-center gap-8">
+            
+            <!-- Retenção -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 188;"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="block font-semibold">Retenção de<br>usuários</span>
+                        <span class="text-xs opacity-60">50/100</span>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- GRÁFICOS 2 -->
-        <div class="chart-card">
-            <div class="chart-header">Novos Membros</div>
-            <div class="canvas-container">
-                <canvas id="chartRadar"></canvas>
+            <!-- Staffs Ativos -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 150;"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="block font-semibold">Staffs Ativos</span>
+                        <span class="text-xs opacity-60">60/100</span>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div style="text-align: right; font-size: 0.7rem; color: var(--text-secondary); letter-spacing: 2px;">
-            BY: KNUST SEIER VI
+            <!-- Strikes -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle class="circle-main" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 280;"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="block font-semibold">Strikes</span>
+                        <span class="text-xs opacity-60">25/100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Players Online -->
+            <div class="flex flex-col items-center">
+                <div class="progress-ring">
+                    <svg width="140" height="140">
+                        <circle class="circle-bg" cx="70" cy="70" r="60"></circle>
+                        <circle class="circle-alt" cx="70" cy="70" r="60" style="stroke-dasharray: 377; stroke-dashoffset: 100;"></circle>
+                    </svg>
+                    <div class="chart-label">
+                        <span class="block font-semibold">Players Online</span>
+                        <span class="text-xs opacity-60">75/100</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- SEÇÃO INFERIOR (CONTEÚDO DINÂMICO) -->
+        <section class="premium-card flex-1 p-8">
+            <h2 class="tilt-warp text-xl uppercase tracking-widest opacity-20">Área de Dados Gerais</h2>
+            <!-- Espaço para seus gráficos de linha ou tabelas -->
+        </section>
+
+        <!-- FOOTER ASSINATURA -->
+        <div class="text-right">
+            <span class="text-[10px] uppercase tracking-[5px] text-titan-cream opacity-20 tilt-warp">
+                BY: KNUST SEIER VI
+            </span>
         </div>
     </main>
 
-    <script>
-        // Configuração do Gráfico 1 (Linha)
-        const ctxLine = document.getElementById('chartLineArea').getContext('2d');
-
-            // 1. Criar degradês para a Linha e o Preenchimento
-            const gradientLine = ctxLine.createLinearGradient(0, 0, 0, 400);
-            gradientLine.addColorStop(0, '#FFC0CB'); // Rosa Claro (Topo)
-            gradientLine.addColorStop(1, '#800080'); // Roxo (Base)
-
-            const gradientFill = ctxLine.createLinearGradient(0, 0, 0, 400);
-            gradientFill.addColorStop(0, 'rgba(255, 192, 203, 0.4)'); // Rosa Semi-transparente
-            gradientFill.addColorStop(1, 'rgba(128, 0, 128, 0.0)');  // Roxo Totalmente Transparente
-
-            new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'],
-                    datasets: [{
-                        label: 'Atividade',
-                        data: [15, 30, 25, 60, 45, 80, 70], // Dados de exemplo
-                        borderColor: gradientLine, // Aplica o degradê na linha
-                        backgroundColor: gradientFill, // Aplica o degradê no preenchimento
-                        fill: true, // Preenche a área sob a linha
-                        tension: 0.4, // Suaviza as curvas (crucial para o visual)
-                        borderWidth: 3,
-                        pointRadius: 0, // Remove os pontos para um visual mais limpo
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }, // Esconde a legenda
-                    scales: {
-                        // Estilização dos eixos para combinar com o tema escuro
-                        y: {
-                            grid: { color: 'rgba(255, 255, 255, 0.05)' }, // Linhas de grade sutis
-                            ticks: { color: '#A89986' } // Cor do texto dos ticks
-                        },
-                        x: {
-                            grid: { display: false }, // Esconde a grade vertical
-                            ticks: { color: '#A89986' }
-                        }
-                    }
-                }
-            });
-
-        // Configuração do Gráfico 2 (Barras)
-            const ctxRadar = document.getElementById('chartRadar').getContext('2d');
-
-            new Chart(ctxRadar, {
-                type: 'radar',
-                data: {
-                    labels: ['Força', 'Agilidade', 'Inteligência', 'Magia', 'Defesa', 'Sorte'],
-                    datasets: [{
-                        label: 'Estatísticas Atuais',
-                        data: [85, 70, 90, 60, 75, 50], // Dados de exemplo
-                        borderColor: '#00FFFF', // Ciano Neon
-                        backgroundColor: 'rgba(0, 255, 255, 0.15)', // Ciano Semi-transparente
-                        borderWidth: 2,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#00FFFF',
-                        pointRadius: 4,
-                    },
-                    {
-                        label: 'Média do Servidor',
-                        data: [65, 75, 60, 80, 60, 70],
-                        borderColor: '#FF00FF', // Magenta Neon
-                        backgroundColor: 'rgba(255, 0, 255, 0.1)', // Magenta Semi-transparente
-                        borderWidth: 1,
-                        pointRadius: 0,
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        r: {
-                            // Estilização específica para o gráfico de radar
-                            angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, // Linhas diagonais
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' }, // Círculos concêntricos
-                            pointLabels: { color: '#A89986', font: { size: 12 } }, // Rótulos dos cantos
-                            ticks: { display: false } // Esconde os números do eixo central
-                        }
-                    }
-                }
-            });
-    </script>
 </body>
 </html>

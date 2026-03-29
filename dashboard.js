@@ -69,6 +69,7 @@ function loadDashboard(client) {
         }
         res.render('index', { 
             user: req.user,
+            nickname: member ? member.nickname : req.user.username,
             bot: client,
             isAdmin: userGuilds.length > 0,
             guilds: userGuilds

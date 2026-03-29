@@ -72,7 +72,8 @@
                         </div>
                         <div class="flex flex-col items-center justify-center w-full mt-1">
                             <span class="text-titan-cream text-center" style="font-family: 'Tilt Warp', sans-serif; font-size: clamp(28px, 3.5vw, 48px);">
-                                <%= user.username %>
+                                <%# Tenta puxar o apelido (nickname), se não existir, usa o username %>
+                                <%= (user.nickname || user.global_name || user.username) %>
                             </span>
                             <a href="/logout" class="text-titan-cream opacity-50 hover:opacity-100 text-sm underline">Sair</a>
                         </div>
@@ -117,8 +118,8 @@
 
         <!-- Footer -->
         <div class="text-center py-2">
-            <span class="text-titan-cream opacity-60" style="font-family: 'Bebas Neue', sans-serif; font-size: clamp(16px, 1.5vw, 24px);">
-                by: KNUST SEIER VI
+            <span class="text-titan-cream opacity-60" style="font-family: 'Poppins', sans-serif; font-size: 16px;">
+                BY: KNUST SEIER VI
             </span>
         </div>
     </div>
