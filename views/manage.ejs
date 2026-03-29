@@ -34,71 +34,78 @@
     <%- include('partials/sidebar') %>
 
     <!-- Conteúdo Principal -->
-    <main class="flex-1 w-full flex flex-col p-[30px] gap-[20px] overflow-y-auto">
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[20px] overflow-y-auto bg-[#1F1D20]">
     
-    <div class="text-center opacity-40 text-[10px] tracking-[4px] mb-[-10px] text-[#F8DCC0]">
+    <div class="text-center opacity-40 text-[10px] tracking-[4px] mb-[-10px] text-[#F8DCC0] uppercase">
         BY: KNUST SEIER VI
     </div>
 
     <form action="/manage/<%= guild.id %>/save" method="POST" class="flex flex-col gap-6">
         
-        <!-- CARD SUPERIOR -->
-        <div class="titan-card-premium flex flex-row justify-between items-start gap-10">
-            <!-- Esquerda: Configurações -->
-            <div class="flex-1 flex flex-col">
+        <!-- CARD SUPERIOR: CONFIGS E REPUTAÇÃO -->
+        <div class="titan-card-premium flex flex-row justify-between items-stretch gap-10 min-h-[250px]">
+            
+            <!-- Coluna Esquerda: Configurações -->
+            <div class="flex-1 flex flex-col justify-center">
                 <h3 class="section-title text-center mb-6">Configurações</h3>
                 
                 <div class="input-container-premium">
                     <div class="icon-box"><i class="fa-solid fa-user-shield"></i></div>
-                    <input type="text" class="input-premium-field" placeholder="Cargo Staff" name="staffRole" value="<%= guild.staffRole || '' %>">
+                    <input type="text" class="input-premium-field" 
+                           placeholder="Cargo Staff" name="staffRole" 
+                           value="<%= settings.staffRole || '' %>">
                 </div>
 
                 <div class="input-container-premium">
                     <div class="icon-box"><i class="fa-solid fa-terminal"></i></div>
-                    <input type="text" class="input-premium-field" placeholder="Canal de logs" name="logChannel" value="<%= guild.logChannel || '' %>">
+                    <input type="text" class="input-premium-field" 
+                           placeholder="Canal de logs" name="logChannel" 
+                           value="<%= settings.logChannel || '' %>">
                 </div>
             </div>
 
-            <!-- Divisor Vertical (Opcional, mas ajuda no visual) -->
-            <div class="w-[1px] h-full bg-white/5 self-stretch"></div>
+            <!-- Divisor Vertical Visível -->
+            <div class="w-[1px] bg-white/10 my-4"></div>
 
-            <!-- Direita: Reputação -->
-            <div class="flex-1 flex flex-col">
+            <!-- Coluna Direita: Reputação -->
+            <div class="flex-1 flex flex-col justify-center">
                 <h3 class="section-title text-center mb-6">Reputação por dia</h3>
-                <div class="input-container-premium max-w-[350px] mx-auto w-full">
+                <div class="input-container-premium max-w-[300px] mx-auto w-full">
                     <div class="icon-box"><i class="fa-solid fa-star"></i></div>
-                    <input type="number" class="input-premium-field" placeholder="0" name="dailyRep" value="<%= guild.dailyRep || 0 %>">
+                    <input type="number" class="input-premium-field" 
+                           placeholder="0" name="dailyRep" 
+                           value="<%= settings.dailyRep || 0 %>">
                 </div>
             </div>
         </div>
 
         <!-- CARD INFERIOR: REGRAS DE PUNIÇÃO -->
-        <div class="titan-card-premium flex-col items-center">
+        <div class="titan-card-premium flex flex-col items-center p-10">
             <h3 class="section-title mb-10">Regras de Punição</h3>
             
             <div class="w-full max-w-[700px] flex flex-col gap-4">
-                <% const punishments = [
-                    { label: 'Nível 1', value: '-20 pts' },
-                    { label: 'Nível 2', value: '-40 pts' },
-                    { label: 'Nível 3', value: '-60 pts' },
-                    { label: 'Nível 4', value: '-80 pts' },
-                    { label: 'Nível 5', value: '-100 pts' }
-                ]; %>
-
-                <% punishments.forEach((p, index) => { %>
+                <% 
+                const defaultPuns = { '1': '-20 pts', '2': '-40 pts', '3': '-60 pts', '4': '-80 pts', '5': '-100 pts' };
+                [1, 2, 3, 4, 5].forEach((num) => { 
+                %>
                 <div class="flex items-center justify-between gap-10">
-                    <span class="font-bold uppercase text-[0.8rem] tracking-widest text-[#F8DCC0] opacity-80 min-w-[80px]">
-                        <%= p.label %>
+                    <span class="font-bold uppercase text-[0.75rem] tracking-[3px] text-[#F8DCC0] opacity-60 w-[100px]">
+                        Nível <%= num %>
                     </span>
                     <div class="input-container-premium flex-1 !mb-0">
-                        <input type="text" class="input-premium-field" placeholder="<%= p.value %>" name="punish_level_<%= index + 1 %>">
+                        <input type="text" class="input-premium-field text-center" 
+                               placeholder="<%= defaultPuns[num] %>" 
+                               name="punish_level_<%= num %>"
+                               value="<%= settings['punish_level_' + num] || '' %>">
                     </div>
                 </div>
                 <% }) %>
             </div>
 
-            <div class="mt-10">
-                <button type="submit" class="btn-salvar-final">Salvar Alterações</button>
+            <div class="mt-12">
+                <button type="submit" class="btn-salvar-final">
+                    SALVAR ALTERAÇÕES
+                </button>
             </div>
         </div>
     </form>
