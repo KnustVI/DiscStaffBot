@@ -68,7 +68,7 @@ class DatabaseManager {
     /**
      * Cria todas as tabelas do schema
      */
-    createAllTables() {
+        createAllTables() {
         try {
             // Criar tabelas principais
             const tables = [
@@ -81,7 +81,8 @@ class DatabaseManager {
                 'ticket_messages',
                 'staff_analytics',
                 'activity_logs',
-                'temporary_roles'
+                'temporary_roles',
+                'feedbacks'
             ];
             
             for (const table of tables) {
@@ -90,9 +91,14 @@ class DatabaseManager {
                 }
             }
             
-            // Criar índices adicionais
-            if (SCHEMA.indexes) {
-                this.db.exec(SCHEMA.indexes);
+            // Criar índices separadamente
+            const { INDEXES } = require('./schema');
+            for (const indexSql of INDEXES) {
+                try {
+                    this.db.exec(indexSql);
+                } catch (err) {
+                    console.error(`❌ Erro ao criar índice:`, err.message);
+                }
             }
             
             console.log('📋 Schema do banco de dados verificado/criado');
