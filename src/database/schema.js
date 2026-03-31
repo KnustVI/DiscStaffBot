@@ -18,8 +18,7 @@ const SCHEMA = {
             created_at INTEGER,
             first_seen INTEGER DEFAULT (strftime('%s', 'now')),
             last_seen INTEGER DEFAULT (strftime('%s', 'now')),
-            is_bot INTEGER DEFAULT 0,
-            INDEX idx_last_seen (last_seen)
+            is_bot INTEGER DEFAULT 0
         )
     `,
 
@@ -31,8 +30,7 @@ const SCHEMA = {
             icon TEXT,
             owner_id TEXT,
             joined_at INTEGER DEFAULT (strftime('%s', 'now')),
-            settings TEXT, -- JSON com configurações do servidor
-            INDEX idx_owner (owner_id)
+            settings TEXT
         )
     `,
 
@@ -44,8 +42,7 @@ const SCHEMA = {
             value TEXT,
             updated_at INTEGER DEFAULT (strftime('%s', 'now')),
             updated_by TEXT,
-            PRIMARY KEY (guild_id, key),
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
+            PRIMARY KEY (guild_id, key)
         )
     `,
 
@@ -56,14 +53,10 @@ const SCHEMA = {
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             points INTEGER DEFAULT 100,
-            rank TEXT DEFAULT 'normal', -- 'exemplar', 'normal', 'problematico'
+            rank TEXT DEFAULT 'normal',
             updated_at INTEGER DEFAULT (strftime('%s', 'now')),
             updated_by TEXT,
-            UNIQUE(guild_id, user_id),
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-            INDEX idx_guild_user (guild_id, user_id),
-            INDEX idx_points (points)
+            UNIQUE(guild_id, user_id)
         )
     `,
 
@@ -71,29 +64,21 @@ const SCHEMA = {
     punishments: `
         CREATE TABLE IF NOT EXISTS punishments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL, -- UUID único para referência global
+            uuid TEXT UNIQUE NOT NULL,
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             moderator_id TEXT NOT NULL,
             reason TEXT NOT NULL,
-            severity INTEGER NOT NULL, -- 0-5
+            severity INTEGER NOT NULL,
             points_deducted INTEGER DEFAULT 0,
-            ticket_id TEXT, -- Referência ao ticket associado
+            ticket_id TEXT,
             created_at INTEGER NOT NULL,
             expires_at INTEGER,
-            status TEXT DEFAULT 'active', -- 'active', 'expired', 'revoked'
+            status TEXT DEFAULT 'active',
             revoked_by TEXT,
             revoked_reason TEXT,
             revoked_at INTEGER,
-            notes TEXT,
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-            FOREIGN KEY (moderator_id) REFERENCES users(user_id),
-            INDEX idx_guild_user (guild_id, user_id),
-            INDEX idx_moderator (moderator_id),
-            INDEX idx_created (created_at),
-            INDEX idx_status (status),
-            INDEX idx_ticket (ticket_id)
+            notes TEXT
         )
     `,
 
@@ -101,34 +86,25 @@ const SCHEMA = {
     tickets: `
         CREATE TABLE IF NOT EXISTS tickets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL, -- UUID único para referência global
+            uuid TEXT UNIQUE NOT NULL,
             guild_id TEXT NOT NULL,
-            user_id TEXT NOT NULL, -- Criador do ticket
+            user_id TEXT NOT NULL,
             channel_id TEXT NOT NULL,
             category_id TEXT,
-            status TEXT DEFAULT 'open', -- 'open', 'claimed', 'closed', 'archived'
-            priority TEXT DEFAULT 'normal', -- 'low', 'normal', 'high', 'urgent'
-            type TEXT DEFAULT 'support', -- 'support', 'appeal', 'report', 'other'
+            status TEXT DEFAULT 'open',
+            priority TEXT DEFAULT 'normal',
+            type TEXT DEFAULT 'support',
             title TEXT,
             description TEXT,
             created_at INTEGER NOT NULL,
-            claimed_by TEXT, -- Staff que assumiu o ticket
+            claimed_by TEXT,
             claimed_at INTEGER,
             closed_by TEXT,
             closed_at INTEGER,
             closed_reason TEXT,
-            rating INTEGER, -- 1-5 stars
+            rating INTEGER,
             feedback TEXT,
-            metadata TEXT, -- JSON com dados adicionais
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            FOREIGN KEY (claimed_by) REFERENCES users(user_id),
-            FOREIGN KEY (closed_by) REFERENCES users(user_id),
-            INDEX idx_guild (guild_id),
-            INDEX idx_user (user_id),
-            INDEX idx_status (status),
-            INDEX idx_claimed_by (claimed_by),
-            INDEX idx_created (created_at)
+            metadata TEXT
         )
     `,
 
@@ -140,13 +116,9 @@ const SCHEMA = {
             message_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             content TEXT,
-            attachments TEXT, -- JSON com URLs dos anexos
+            attachments TEXT,
             created_at INTEGER NOT NULL,
-            is_staff_reply INTEGER DEFAULT 0,
-            FOREIGN KEY (ticket_uuid) REFERENCES tickets(uuid) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            INDEX idx_ticket (ticket_uuid),
-            INDEX idx_message (message_id)
+            is_staff_reply INTEGER DEFAULT 0
         )
     `,
 
@@ -156,22 +128,18 @@ const SCHEMA = {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
-            period TEXT NOT NULL, -- 'day', 'week', 'month'
-            date TEXT NOT NULL, -- YYYY-MM-DD
+            period TEXT NOT NULL,
+            date TEXT NOT NULL,
             punishments_applied INTEGER DEFAULT 0,
             punishments_revoked INTEGER DEFAULT 0,
             tickets_claimed INTEGER DEFAULT 0,
             tickets_closed INTEGER DEFAULT 0,
-            avg_response_time INTEGER DEFAULT 0, -- em segundos
-            avg_resolution_time INTEGER DEFAULT 0, -- em segundos
-            satisfaction_score REAL DEFAULT 0, -- média de avaliações
-            metrics TEXT, -- JSON com métricas adicionais
+            avg_response_time INTEGER DEFAULT 0,
+            avg_resolution_time INTEGER DEFAULT 0,
+            satisfaction_score REAL DEFAULT 0,
+            metrics TEXT,
             updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-            UNIQUE(guild_id, user_id, period, date),
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            INDEX idx_guild_user (guild_id, user_id),
-            INDEX idx_period (period, date)
+            UNIQUE(guild_id, user_id, period, date)
         )
     `,
 
@@ -182,17 +150,11 @@ const SCHEMA = {
             uuid TEXT UNIQUE NOT NULL,
             guild_id TEXT NOT NULL,
             user_id TEXT,
-            action TEXT NOT NULL, -- 'punishment_add', 'punishment_remove', 'ticket_create', etc.
-            target_id TEXT, -- ID do alvo (user_id, punishment_id, ticket_id)
-            details TEXT, -- JSON com detalhes da ação
+            action TEXT NOT NULL,
+            target_id TEXT,
+            details TEXT,
             ip_address TEXT,
-            created_at INTEGER NOT NULL,
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            INDEX idx_guild (guild_id),
-            INDEX idx_user (user_id),
-            INDEX idx_action (action),
-            INDEX idx_created (created_at)
+            created_at INTEGER NOT NULL
         )
     `,
 
@@ -203,32 +165,54 @@ const SCHEMA = {
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             role_id TEXT NOT NULL,
-            punishment_id INTEGER, -- Referência à punição que causou o cargo
+            punishment_id INTEGER,
             expires_at INTEGER NOT NULL,
-            created_at INTEGER DEFAULT (strftime('%s', 'now')),
-            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            FOREIGN KEY (punishment_id) REFERENCES punishments(id) ON DELETE SET NULL,
-            INDEX idx_expires (expires_at),
-            INDEX idx_user (user_id)
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
     `,
 
-    // ==================== ÍNDICES ADICIONAIS PARA PERFORMANCE ====================
-    indexes: `
-        -- Índices para queries do dashboard
-        CREATE INDEX IF NOT EXISTS idx_punishments_dashboard 
-        ON punishments(created_at, guild_id, status, severity);
-        
-        CREATE INDEX IF NOT EXISTS idx_tickets_dashboard 
-        ON tickets(created_at, guild_id, status, priority, claimed_by);
-        
-        CREATE INDEX IF NOT EXISTS idx_reputation_dashboard 
-        ON reputation(guild_id, points, rank);
-        
-        CREATE INDEX IF NOT EXISTS idx_staff_analytics_dashboard 
-        ON staff_analytics(guild_id, user_id, date, period);
+    // ==================== FEEDBACKS ====================
+    feedbacks: `
+        CREATE TABLE IF NOT EXISTS feedbacks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT UNIQUE NOT NULL,
+            guild_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            message_id TEXT,
+            channel_id TEXT,
+            status TEXT DEFAULT 'pending',
+            reviewed_by TEXT,
+            reviewed_at INTEGER,
+            created_at INTEGER NOT NULL
+        )
     `
 };
 
-module.exports = SCHEMA;
+// ==================== ÍNDICES SEPARADOS ====================
+// Os índices devem ser criados separadamente para evitar erros de sintaxe
+const INDEXES = [
+    `CREATE INDEX IF NOT EXISTS idx_punishments_guild_user ON punishments(guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_punishments_moderator ON punishments(moderator_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_punishments_created ON punishments(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_punishments_status ON punishments(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_claimed ON tickets(claimed_by)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_created ON tickets(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_reputation_guild_user ON reputation(guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_reputation_points ON reputation(points)`,
+    `CREATE INDEX IF NOT EXISTS idx_staff_analytics_guild_user ON staff_analytics(guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_staff_analytics_date ON staff_analytics(date)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_guild ON activity_logs(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON activity_logs(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_temporary_roles_expires ON temporary_roles(expires_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_feedbacks_created ON feedbacks(created_at)`
+];
+
+module.exports = { SCHEMA, INDEXES };
