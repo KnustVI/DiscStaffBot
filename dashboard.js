@@ -10,9 +10,9 @@ const app = express();
 function loadDashboard(client) {
 
     // 1. Configurações Globais de Renderização e Estáticos
-    app.set('views', path.join(__dirname, 'views'));
+    app.set('views', path.join(__dirname, 'src', 'web', 'views'));
     app.set('view engine', 'ejs');
-    app.use(express.static(path.join(__dirname, 'public')));
+    app.use(express.static(path.join(__dirname, 'src', 'web', 'public')));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
