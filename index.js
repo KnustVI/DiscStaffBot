@@ -2,8 +2,6 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const loadDashboard = require('./dashboard');
-const db = require('./src/database');
 
 const client = new Client({
     intents: [
@@ -14,26 +12,21 @@ const client = new Client({
     ]
 });
 
-// Centralização de Sistemas (Problema 2: Evita require repetitivo)
+// --- 1. CENTRALIZAÇÃO DE SISTEMAS (LIMPEZA TOTAL) ---
+// Note que removemos configHandler, configCache e getSettings. 
+// Tudo agora é controlado pelo configSystem.
 client.systems = {
-    // Caminhos baseados na sua pasta /src/systems/
-    config: require('./src/systems/configHandler'),
-    configSystem: require('./src/systems/configSystem'), // Importante para o Punishment ler configs
+    config: require('./src/systems/configSystem'), 
     punishment: require('./src/systems/punishmentSystem'), 
-    
-    // Verifique se estes dois abaixo estão na raiz ou dentro de /src/systems/
-    // Se estiverem dentro de /src/systems/, use o caminho com ./src/systems/...
-    cache: require('./src/systems/configCache'),
     logger: require('./src/systems/errorLogger'),
-    
-    // Verifique se a pasta /utils/ está na raiz ou dentro de /src/
-    sessions: require('./src/utils/sessionManager') 
+    sessions: require('./src/utils/sessionManager'),
+    emojis: require('./src/database/emojis').EMOJIS // Carregamento global de emojis
 };
 
 client.commands = new Collection();
 
-// Carregamento de Comandos
-const commandsPath = path.join(__dirname, 'commands');
+// --- 2. CARREGAMENTO DE COMANDOS (RECURSIVO) ---
+const commandsPath = path.join(__dirname, 'src/commands'); // Ajuste o caminho se necessário
 if (fs.existsSync(commandsPath)) {
     const commandFolders = fs.readdirSync(commandsPath);
     for (const folder of commandFolders) {
@@ -50,8 +43,8 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
-// Carregamento de Eventos (Unificado)
-const eventsPath = path.join(__dirname, 'events');
+// --- 3. CARREGAMENTO DE EVENTOS ---
+const eventsPath = path.join(__dirname, 'src/events'); // Ajuste o caminho se necessário
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
     for (const file of eventFiles) {
@@ -64,28 +57,28 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
+// --- 4. BOOTSTRAP ---
 async function bootstrap() {
     try {
         await client.login(process.env.TOKEN);
 
+        // Inicialização pós-login
         client.once('ready', () => {
-    console.log(`✅ ${client.user.tag} online!`);
-    
-    if (client.systems.punishment && typeof client.systems.punishment.initWorker === 'function') {
-        client.systems.punishment.initWorker(client);
-    } else {
-        console.error('❌ Erro: initWorker não encontrado no PunishmentSystem');
-    }
-});
-        
-        // Inicializa Dashboard e AutoMod após o login
-        const autoModeration = require('./systems/autoModeration');
-        if (typeof autoModeration === 'function') autoModeration(client);
-        if (typeof loadDashboard === 'function') loadDashboard(client);
+            console.log(`✅ Logado como ${client.user.tag}`);
+            
+            // 1. Inicia o AutoMod (Ciclo das 12:00)
+            const autoMod = require('./src/systems/autoModeration');
+            if (typeof autoMod === 'function') autoMod(client);
 
-        console.log(`✅ ${client.user.tag} online e sistemas carregados!`);
+            // 2. Dashboard (Se houver)
+            const loadDashboard = require('./dashboard'); // Ajuste se estiver em /src
+            if (typeof loadDashboard === 'function') loadDashboard(client);
+
+            console.log(`🚀 Todos os sistemas de integridade ativos!`);
+        });
+
     } catch (error) {
-        client.systems.logger.log('Bootstrap_Error', error);
+        console.error('❌ Erro fatal no Bootstrap:', error);
         process.exit(1);
     }
 }

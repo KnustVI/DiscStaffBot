@@ -1,9 +1,4 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../../../database/database');
-const { EMOJIS } = require('../../../database/emojis');
-const ConfigSystem = require('../../../systems/configSystem');
-const ConfigCache = require('../../../systems/configCache'); // Adicionado
-const ErrorLogger = require('../../../systems/errorLogger');
 
 const DEVELOPER_ID = '203676076189286412'; 
 
@@ -18,18 +13,20 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        const { guild, user, options } = interaction;
+        const { client, guild, user, options } = interaction;
         const confirmacao = options.getString('confirmar');
+        
+        // Ponto 2: Acesso centralizado
+        const db = require('../../../database/index.js'); // Use o caminho central do seu index
+        const EMOJIS = client.systems.emojis || {};
+        const Config = client.systems.config;
 
-        // 1. Trava de Segurança
+        // 1. Trava de Segurança (Sem defer se não for o dono)
         if (user.id !== DEVELOPER_ID) {
-            return interaction.reply({ 
-                content: `${EMOJIS.ERRO || '❌'} **Acesso Negado.** Comando restrito ao desenvolvedor.`, 
-                ephemeral: true 
+            return interaction.editReply({ 
+                content: `${EMOJIS.ERRO || '❌'} **Acesso Negado.** Comando restrito ao desenvolvedor.`
             });
         }
-
-        await interaction.deferReply(); 
 
         if (confirmacao !== 'LIMPAR TUDO') {
             return interaction.editReply({ 
@@ -38,26 +35,20 @@ module.exports = {
         }
 
         try {
-            // 2. Execução da Limpeza em Transação
+            // 2. Execução da Limpeza em Transação (Performance e Segurança)
             const clearDB = db.transaction(() => {
-                // Apaga Reputação e Punições
                 db.prepare('DELETE FROM reputation WHERE guild_id = ?').run(guild.id);
                 db.prepare('DELETE FROM punishments WHERE guild_id = ?').run(guild.id);
-                
-                // OPCIONAL: Se quiser resetar as CONFIGURAÇÕES do bot também:
-                // db.prepare('DELETE FROM settings WHERE guild_id = ?').run(guild.id);
             });
             
             clearDB();
 
-            // Limpa o cache da RAM para este servidor (Garante que o bot leia o banco vazio)
-            ConfigCache.deleteGuild(guild.id);
-
-            // Otimiza o arquivo físico na VPS
+            // Ponto 4: Limpa o cache para este servidor
+            if (Config.clearCache) Config.clearCache(guild.id);
             db.pragma('vacuum');
 
-            // 3. Notificação de Log (Usando nosso sistema de cache)
-            const logChanId = ConfigSystem.getSetting(guild.id, 'logs_channel');
+            // 3. Notificação de Log
+            const logChanId = Config.getSetting(guild.id, 'logs_channel');
             if (logChanId) {
                 const logChannel = await guild.channels.fetch(logChanId).catch(() => null);
                 if (logChannel) {
@@ -65,7 +56,7 @@ module.exports = {
                         .setTitle(`${EMOJIS.WARNING || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`)
                         .setDescription(`O desenvolvedor ${user} executou um reset global nos dados de reputação e punições.\n\n**O histórico foi apagado permanentemente.**`)
                         .setColor(0xFF3C72)
-                        .setFooter(ConfigSystem.getFooter(guild.name))
+                        .setFooter(Config.getFooter(guild.name))
                         .setTimestamp();
                     
                     await logChannel.send({ embeds: [alertEmbed] }).catch(() => null);
@@ -74,16 +65,16 @@ module.exports = {
 
             const embed = new EmbedBuilder()
                 .setTitle(`${EMOJIS.CLEAN || '🧹'} Database Resetada`)
-                .setDescription(`### Operação Concluída com Sucesso\nTodos os dados de **reputação** e **punições** de **${guild.name}** foram removidos.\n\n*Nota: As configurações de cargos/canais foram mantidas (ou limpas no cache).*`)
-                .setColor(0x00FF7F) // Verde para sucesso
-                .setFooter(ConfigSystem.getFooter(guild.name))
+                .setDescription(`### Operação Concluída com Sucesso\nTodos os dados de **reputação** e **punições** de **${guild.name}** foram removidos.`)
+                .setColor(0x00FF7F)
+                .setFooter(Config.getFooter(guild.name))
                 .setTimestamp();
 
             return interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            ErrorLogger.log('Command_ResetDB_Fatal', err);
-            return interaction.editReply({ content: `${EMOJIS.AVISO || '⚠️'} Erro crítico ao resetar o banco. Verifique o console.` });
+            if (client.systems.logger) client.systems.logger.log('Command_ResetDB_Fatal', err);
+            return interaction.editReply({ content: `⚠️ Erro crítico ao resetar o banco.` });
         }
     }
 };

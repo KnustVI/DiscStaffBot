@@ -7,49 +7,46 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Usuário a consultar').setRequired(true)),
 
     async execute(interaction) {
-        const { client, guildId, user } = interaction;
-        const target = interaction.options.getUser('usuario');
+        const { client, guildId, user, options } = interaction;
+        const target = options.getUser('usuario');
 
-        // Problema 2: Acessando via client.systems (carregados no index)
+        // Ponto 2: Acesso centralizado
         const EMOJIS = client.systems.emojis || {};
-        const PunishmentSystem = client.systems.punishment; // Certifique-se de exportar como 'punishment' no index
+        const Punishment = client.systems.punishment;
         const Session = client.systems.sessions;
-        const ErrorLogger = client.systems.logger;
-
-        // 1. Inicializa a Sessão (Contextualizada para evitar conflito entre usuários)
-        // Guardamos o targetId para que o Pagination Handler saiba quem filtrar depois
-        Session.set(guildId, user.id, 'history', { 
-            targetId: target.id,
-            currentPage: 1 
-        });
 
         try {
-            // 2. Busca os dados (Passando página 1 como padrão inicial)
-            // Problema 6: Se for consulta ao DB, mantemos o await
-            const history = await PunishmentSystem.getUserHistory(guildId, target.id, 1);
+            // 1. Busca os dados iniciais (Síncrono se possível, mas await por segurança de DB)
+            const history = await Punishment.getUserHistory(guildId, target.id, 1);
             
-            if (!history) {
+            if (!history || history.totalRecords === 0) {
                 return interaction.editReply({ 
-                    content: `${EMOJIS.ERRO || '❌'} Não foi possível localizar registros para este usuário.` 
+                    content: `${EMOJIS.ERRO || '❌'} **${target.username}** está limpo! Nenhum registro encontrado.` 
                 });
             }
 
-            // 3. Gera a UI (Embed e Botões)
-            const embed = PunishmentSystem.generateHistoryEmbed(target, history, 1);
-            const components = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
+            // 2. Inicializa a Sessão de Paginação (Expira em 5 min)
+            if (Session) {
+                Session.set(guildId, user.id, 'history', { 
+                    targetId: target.id,
+                    currentPage: 1,
+                    totalPages: history.totalPages
+                });
+            }
 
-            // 4. Resposta (Sempre editReply por conta do deferReply global)
+            // 3. Gera a UI
+            const embed = Punishment.generateHistoryEmbed(target, history, 1);
+            const components = Punishment.generateHistoryButtons(target.id, 1, history.totalPages);
+
             await interaction.editReply({ 
                 embeds: [embed], 
                 components: components ? [components] : [] 
             });
 
         } catch (err) {
-            if (ErrorLogger) ErrorLogger.log('Command_Historico', err);
-            console.error(`[History Error]`, err);
-            
+            if (client.systems.logger) client.systems.logger.log('Command_Historico', err);
             await interaction.editReply({ 
-                content: `${EMOJIS.ERRO || '❌'} **Falha ao carregar o histórico:**\n\`${err.message || 'Erro de integridade no banco de dados.'}\`` 
+                content: `${EMOJIS.ERRO || '❌'} Erro ao carregar histórico: \`${err.message}\`` 
             });
         }
     }
