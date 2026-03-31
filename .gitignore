@@ -1,3 +1,11 @@
 credentials.json
 node_modules/
 .env
+
+database.db
+database.sqlite
+node_modules/
+
+database.db
+database.sqlite
+node_modules/
