@@ -63,7 +63,7 @@ async function bootstrap() {
         await client.login(process.env.TOKEN);
 
         // Inicialização pós-login
-        client.once('ready', () => {
+        client.once('clientReady', (c) => {
             console.log(`✅ Logado como ${client.user.tag}`);
             
             // 1. Inicia o AutoMod (Ciclo das 12:00)
