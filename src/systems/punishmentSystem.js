@@ -1,6 +1,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const db = require('../../database');
-const { EMOJIS } = require('../../../database/emojis');
+const db = require('../database');
+const { EMOJIS } = require('../database/emojis');
 const ErrorLogger = require('./errorLogger');
 const ConfigSystem = require('./configSystem');
 
