@@ -1,7 +1,7 @@
 const cron = require('node-cron');
-const db = require('../database/database');
+const db = require('../../../database/database');
 const { EmbedBuilder } = require('discord.js');
-const { EMOJIS } = require('../database/emojis');
+const { EMOJIS } = require('../../database/emojis');
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
 
@@ -96,7 +96,7 @@ module.exports = (client) => {
 
                 const embed = new EmbedBuilder()
                     .setTitle(`${EMOJIS.CHECK || '✅'} Manutenção de Integridade`)
-                    .setColor(0x5865F2)
+                    .setColor(0xDCA15E)
                     .setThumbnail(client.user.displayAvatarURL())
                     .setDescription(`O processamento diário de reputação e cargos foi concluído.`)
                     .addFields(

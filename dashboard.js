@@ -3,7 +3,7 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
-const db = require('./database/database');
+const db = require('./src/database');
 
 const app = express();
 

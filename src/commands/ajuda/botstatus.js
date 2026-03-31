@@ -1,28 +1,33 @@
 const { SlashCommandBuilder, EmbedBuilder, version } = require('discord.js');
-const { EMOJIS } = require('../../database/emojis');
-const SystemStatus = require('../../systems/systemStatus'); 
-const ConfigSystem = require('../../systems/configSystem'); 
 
 module.exports = {
+    // Mantive botstatus para seguir o padrão do /ajuda, altere se necessário
     data: new SlashCommandBuilder()
-        .setName('bot-status')
+        .setName('botstatus')
         .setDescription('Verifica o estado de saúde do bot e do AutoMod.'),
 
     async execute(interaction) {
         const { guild, client } = interaction;
 
+        // Problema 2: Acessando sistemas pré-carregados no index.js
+        const EMOJIS = client.systems.emojis || {};
+        const SystemStatus = client.systems.status; // Certifique-se de carregar systemStatus no index
+        const ConfigSystem = client.systems.config;
+
         try {
-            // Pede os dados para o analista (SystemStatus)
+            // Problema 6: Removendo await desnecessário se getBotStatus for síncrono
             const status = SystemStatus.getBotStatus(client, guild.id);
             
             if (!status) {
-                return interaction.editReply({ content: "⚠️ Erro ao coletar dados do sistema. Tente novamente." });
+                return interaction.editReply({ 
+                    content: "⚠️ Erro ao coletar dados do sistema. Tente novamente." 
+                });
             }
 
-            // Criação do Painel Visual
+            // Criação do Painel Visual (Mantendo sua formatação original)
             const embed = new EmbedBuilder()
                 .setTitle(`${EMOJIS.PAINEL || '🖥️'} Painel de Controle do Bot`)
-                .setColor(0xBA0054) // Cor Vinho/Rosa forte
+                .setColor(0xDCA15E)
                 .setThumbnail(client.user.displayAvatarURL())
                 .addFields(
                     { 
@@ -51,14 +56,20 @@ module.exports = {
                         inline: false
                     }
                 )
-                // footerData puxa o footer padrão que configuramos com seu nome (KnustVI)
                 .setFooter(ConfigSystem.getFooter(guild.name))
                 .setTimestamp();
 
+            // Usamos editReply pois o interactionCreate já deu o deferReply
             await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            console.error("❌ Erro fatal no comando bot-status:", err);
+            console.error("❌ Erro fatal no comando botstatus:", err);
+            
+            // Logando o erro no nosso sistema de logs
+            if (client.systems.logger) {
+                client.systems.logger.log('Command_BotStatus', err);
+            }
+
             await interaction.editReply({ 
                 content: "❌ Ocorreu um erro crítico ao gerar o relatório. Verifique o console da Oracle Cloud." 
             });

@@ -1,31 +1,40 @@
-const db = require('../database/database');
-const ConfigCache = require('./configCache');
-const ErrorLogger = require('./errorLogger');
-const { getSettings } = require('./getSettings'); // Caminho corrigido conforme sua imagem
-const { EMOJIS } = require('../database/emojis');
 const { PermissionFlagsBits } = require('discord.js');
 
 const ConfigSystem = {
+    /**
+     * Busca uma configuração específica
+     */
     getSetting(guildId, key) {
         try {
-            // 1. Tenta pegar no Cache (RAM)
+            // Acessamos o cache que deve estar injetado no client ou importado
+            // Se o ConfigCache for um Map global, mantemos a lógica
+            const ConfigCache = require('./configCache'); 
+            
             let value = ConfigCache.get(guildId, key);
 
-            // 2. Se não estiver no Cache, busca no Banco e salva no Cache
             if (value === undefined) {
+                // Se não está no cache, faz o lookup (getSettings deve ser síncrono com better-sqlite3)
+                const { getSettings } = require('./getSettings');
                 const settings = getSettings(guildId);
+                
                 ConfigCache.setFull(guildId, settings);
                 value = settings[key] || null;
             }
             return value;
         } catch (err) {
-            ErrorLogger.log('ConfigSystem_Get', err);
+            console.error('❌ Erro no ConfigSystem_Get:', err);
             return null;
         }
     },
 
+    /**
+     * Atualiza no banco e reflete no Cache
+     */
     updateSetting(guildId, key, value) {
         try {
+            const db = require('../database');
+            const ConfigCache = require('./configCache');
+
             db.prepare(`
                 INSERT INTO settings (guild_id, key, value) 
                 VALUES (?, ?, ?) 
@@ -35,29 +44,45 @@ const ConfigSystem = {
             ConfigCache.set(guildId, key, value);
             return true;
         } catch (err) {
-            ErrorLogger.log('ConfigSystem_Update', err);
             throw err;
         }
     },
 
-    async checkAuth(interaction) {
+    /**
+     * Checagem de Autoridade Rápida
+     * Alterado para síncrono (Otimização de Performance)
+     */
+    checkAuth(interaction) {
+        const EMOJIS = interaction.client.systems.emojis || {};
+        
         const staffRoleId = this.getSetting(interaction.guildId, 'staff_role');
         const logsChannelId = this.getSetting(interaction.guildId, 'logs_channel');
 
+        // 1. Verifica se o bot foi configurado
         if (!staffRoleId || !logsChannelId) {
-            return { authorized: false, message: `${EMOJIS.ERRO || '❌'} **Configuração Incompleta!** Use \`/config\`.` };
+            return { 
+                authorized: false, 
+                message: `${EMOJIS.ERRO || '❌'} **Configuração Incompleta!** Use \`/config\` primeiro.` 
+            };
         }
 
+        // 2. Verifica permissões (Admin ignora restrição de cargo)
         const isStaff = interaction.member.roles.cache.has(staffRoleId);
         const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
 
         if (!isStaff && !isAdmin) {
-            return { authorized: false, message: `${EMOJIS.ERRO || '❌'} **Acesso Negado!**` };
+            return { 
+                authorized: false, 
+                message: `${EMOJIS.ERRO || '❌'} **Acesso Negado!** Apenas a Staff pode usar este comando.` 
+            };
         }
 
         return { authorized: true };
     },
 
+    /**
+     * Footer Padronizado (KnustVI)
+     */
     getFooter(guildName) {
         return {
             text: `✧ Made By: KnustVI | ${guildName}`,

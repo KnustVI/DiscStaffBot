@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { EMOJIS } = require('../../database/emojis');
+const { EMOJIS } = require('../../../database/emojis');
 
 // CONFIGURAÇÃO GLOBAL - ID do seu canal de suporte/bugs
 const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717'; 

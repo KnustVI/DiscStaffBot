@@ -2,9 +2,8 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const loadDashboard = require('./dashboard'); // ADICIONADO
+const loadDashboard = require('./dashboard');
 
-// ESTA DEVE SER A LINHA 6 OU 7 (NÃO PODE TER 'client.on' ANTES DISSO)
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -14,28 +13,18 @@ const client = new Client({
     ]
 });
 
-// Agora sim, tudo que usa 'client' vem DEPOIS
+// Centralização de Sistemas (Problema 2: Evita require repetitivo)
+client.systems = {
+    config: require('./src/systems/configHandler'),
+    moderation: require('./src/systems/modHandler'),
+    cache: require('./systems/configCache'),
+    sessions: require('./utils/sessionManager'),
+    logger: require('./systems/errorLogger')
+};
+
 client.commands = new Collection();
 
-// ==========================================
-// 2. AGORA SIM: USAR O CLIENT (DEBUG RAW)
-// ==========================================
-client.on('raw', packet => {
-    if (packet.t === 'INTERACTION_CREATE') {
-        console.log('--- [DEBUG RAW] SINAL RECEBIDO DO DISCORD ---');
-    }
-});
-
-// ==========================================
-// 3. IMPORTAÇÃO DOS SISTEMAS
-// ==========================================
-const ConfigCache = require('./systems/configCache');
-const autoModeration = require('./systems/autoModeration');
-const ErrorLogger = require('./systems/errorLogger');
-
-// =========================
-// 4. CARREGAMENTO DE COMANDOS
-// =========================
+// Carregamento de Comandos
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
     const commandFolders = fs.readdirSync(commandsPath);
@@ -45,26 +34,20 @@ if (fs.existsSync(commandsPath)) {
 
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
         for (const file of commandFiles) {
-            const filePath = path.join(folderPath, file);
-            const command = require(filePath);
-            if ('data' in command && 'execute' in command) {
+            const command = require(path.join(folderPath, file));
+            if (command.data && command.execute) {
                 client.commands.set(command.data.name, command);
-                console.log(`[COMANDO CARREGADO]: /${command.data.name}`);
             }
         }
     }
 }
 
-// =========================
-// 5. CARREGAMENTO DE EVENTOS
-// =========================
+// Carregamento de Eventos (Unificado)
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
     for (const file of eventFiles) {
-        const filePath = path.join(eventsPath, file);
-        const event = require(filePath); 
-        console.log(`[EVENTO CARREGADO]: ${event.name}`);
+        const event = require(path.join(eventsPath, file));
         if (event.once) {
             client.once(event.name, (...args) => event.execute(...args, client));
         } else {
@@ -73,40 +56,26 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// =========================
-// 6. INICIALIZAÇÃO DO BOT
-// =========================
 async function bootstrap() {
     try {
-        console.log('🚀 Iniciando sistemas...');
-
-        // Login no Discord
         await client.login(process.env.TOKEN);
 
-        // Iniciar o AutoMod
-        if (typeof autoModeration === 'function') {
-            autoModeration(client);
-        }
+        client.once('ready', () => {
+        // Inicializa o sistema de limpeza de punições
+        client.systems.punishment.initWorker(client);
+        console.log(`Logado como ${client.user.tag}`);
+    });
+        
+        // Inicializa Dashboard e AutoMod após o login
+        const autoModeration = require('./systems/autoModeration');
+        if (typeof autoModeration === 'function') autoModeration(client);
+        if (typeof loadDashboard === 'function') loadDashboard(client);
 
-        // Iniciar Dashboard - ADICIONADO
-        if (typeof loadDashboard === 'function') {
-            loadDashboard(client);
-        }
-
-        console.log(`✅ ${client.user.tag} está online!`);
-
+        console.log(`✅ ${client.user.tag} online e sistemas carregados!`);
     } catch (error) {
-        if (ErrorLogger && ErrorLogger.log) {
-            ErrorLogger.log('Bootstrap_Error', error);
-        }
-        console.error('❌ Falha crítica ao iniciar o bot:', error);
+        client.systems.logger.log('Bootstrap_Error', error);
         process.exit(1);
     }
 }
-
-// Tratamento de erros globais
-process.on('unhandledRejection', error => {
-    console.error(' [Unhandled Rejection]:', error);
-});
 
 bootstrap();

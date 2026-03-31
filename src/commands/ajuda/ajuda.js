@@ -1,7 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { EMOJIS } = require('../../database/emojis'); 
-const ConfigSystem = require('../../systems/configSystem'); // Integrado
-const ErrorLogger = require('../../systems/errorLogger');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,15 +8,20 @@ module.exports = {
     async execute(interaction) {
         const { client, member, guild } = interaction;
 
-        // Montando a descrição com Markdown moderno para melhor leitura
+        // Problema 2: Acessando sistemas via client.systems (pré-carregados no index)
+        const EMOJIS = client.systems.emojis || {}; 
+        const ConfigSystem = client.systems.config; 
+        const ErrorLogger = client.systems.logger;
+
+        // Conteúdo formatado (Mantendo sua estrutura de Markdown)
         const description = [
             `# ${EMOJIS.ROBIN || '🤖'} Assistente Robin`,
             `Olá **${member.displayName}**! Sou o braço direito da sua Staff. Fui projetado para gerenciar a ordem e a integridade do **${guild.name}** através de um sistema inteligente de reputação.`,
             `### ${EMOJIS.CONFIG || '⚙️'} 1. Configuração Inicial`,
             `- \`/config\`: Painel interativo para definir cargos Staff e canais de Log.`,
-            `- \`/bot-status\`: Verifica a saúde do sistema e o próximo ciclo do AutoMod.`,
+            `- \`/botstatus\`: Verifica a saúde do sistema e o próximo ciclo do AutoMod.`,
             `### ${EMOJIS.ACTION || '🛠️'} 2. Moderação & Gestão`,
-            `- \`/punir\`: Aplica sanções (Stikes), remove reputação e aplica timeout.`,
+            `- \`/strike\`: Aplica sanções (Strikes), remove reputação e aplica timeout.`,
             `- \`/rep-set\`: Ajuste manual de pontos (Exclusivo para cargos de confiança).`,
             `- \`/historico\`: Consulta a ficha completa e punições de um membro.`,
             `- \`/info\`: Consulta rápida da reputação atual de um usuário.`,
@@ -31,11 +33,11 @@ module.exports = {
             `> Utilize os comandos acima para manter o servidor seguro. Em caso de erros, contate o desenvolvedor.`
         ].join('\n');
 
-        // Pegamos o footer padronizado
-        const footerData = ConfigSystem.getFooter(guild.name);
+        // Pegamos o footer padronizado (Problema 6: Removido await desnecessário se for síncrono)
+        const footerData = ConfigSystem.getFooter ? ConfigSystem.getFooter(guild.name) : { text: guild.name, iconURL: guild.iconURL() };
 
         const embed = new EmbedBuilder()
-            .setColor(0xBA0054) // Mantendo seu padrão de cor
+            .setColor(0xDCA15E) 
             .setThumbnail(client.user.displayAvatarURL())
             .setDescription(description)
             .addFields({ 
@@ -50,12 +52,12 @@ module.exports = {
             .setTimestamp();
 
         try {
+            // Importante: Usamos editReply porque o interactionCreate já deu deferReply
             await interaction.editReply({ 
-                embeds: [embed], 
-                ephemeral: true 
+                embeds: [embed]
             });
         } catch (error) {
-            ErrorLogger.log('Command_Ajuda', error);
+            if (ErrorLogger) ErrorLogger.log('Command_Ajuda', error);
             console.error("❌ Erro ao enviar comando de ajuda:", error);
         }
     }

@@ -1,17 +1,14 @@
+// --- database/index.js (VERSÃO CORRIGIDA) ---
 const Database = require('better-sqlite3');
 const path = require('path');
 
 const dbPath = path.join(__dirname, 'database.sqlite');
 const db = new Database(dbPath);
 
-// PERFORMANCE PRO: Modo WAL para evitar 'Database Locked' na Oracle Cloud
 db.pragma('journal_mode = WAL');
 db.pragma('synchronous = NORMAL');
-db.pragma('temp_store = MEMORY');
 
-/**
- * 1. CRIAÇÃO DE TABELAS (Sincronizadas com os Handlers)
- */
+// 1. CRIAÇÃO DE TABELAS
 db.prepare(`
     CREATE TABLE IF NOT EXISTS settings (
         guild_id TEXT NOT NULL, 
@@ -30,7 +27,6 @@ db.prepare(`
     )
 `).run();
 
-// IMPORTANTE: created_at deve ser INTEGER para cálculos matemáticos (Date.now())
 db.prepare(`
     CREATE TABLE IF NOT EXISTS punishments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,6 +37,27 @@ db.prepare(`
         severity INTEGER NOT NULL,
         ticket_id TEXT DEFAULT 'N/A',
         created_at INTEGER NOT NULL
+    )
+`).run();
+
+// CORREÇÃO: Adicionado parêntese final e tabela de bans temporários
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS temporary_roles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+    )
+`).run();
+
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS temporary_punishments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
     )
 `).run();
 

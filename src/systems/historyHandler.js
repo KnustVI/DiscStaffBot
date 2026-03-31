@@ -1,6 +1,6 @@
 const PunishmentSystem = require('./punishmentSystem');
 const ErrorLogger = require('./errorLogger');
-const { EMOJIS } = require('../database/emojis');
+const { EMOJIS } = require('../../../database/emojis');
 
 const HistoryHandler = {
     async handle(interaction, parts) {

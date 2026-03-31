@@ -1,9 +1,9 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const db = require('../../database/database');
-const { EMOJIS } = require('../../database/emojis');
-const ConfigSystem = require('../../systems/configSystem');
-const ConfigCache = require('../../systems/configCache'); // Adicionado
-const ErrorLogger = require('../../systems/errorLogger');
+const db = require('../../../database/database');
+const { EMOJIS } = require('../../../database/emojis');
+const ConfigSystem = require('../../../systems/configSystem');
+const ConfigCache = require('../../../systems/configCache'); // Adicionado
+const ErrorLogger = require('../../../systems/errorLogger');
 
 const DEVELOPER_ID = '203676076189286412'; 
 
