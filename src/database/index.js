@@ -1,109 +1,304 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const SCHEMA = require('./schema');
 
-// Caminho absoluto para o arquivo do banco
-const dbPath = path.join(__dirname, '../../database.sqlite');
-const db = new Database(dbPath);
-
-/**
- * OTIMIZAÇÕES DE PERFORMANCE (Nível Produção)
- * WAL: Permite leituras e escritas simultâneas.
- * Synchronous NORMAL: Balanço ideal entre velocidade e segurança contra corrupção.
- */
-db.pragma('journal_mode = WAL');
-db.pragma('synchronous = NORMAL');
-db.pragma('foreign_keys = ON'); // Ativa integridade referencial
-
-// --- 1. ESTRUTURA DE TABELAS ---
-
-// Configurações do Servidor (Cache-friendly)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS settings (
-        guild_id TEXT NOT NULL, 
-        key TEXT NOT NULL, 
-        value TEXT, 
-        PRIMARY KEY (guild_id, key)
-    )
-`).run();
-
-// Pontuação de Reputação (Escalável)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS reputation (
-        guild_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        points INTEGER DEFAULT 100,
-        updated_at INTEGER,
-        PRIMARY KEY (guild_id, user_id)
-    )
-`).run();
-
-// Registro Permanente de Punições
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS punishments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guild_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        moderator_id TEXT NOT NULL,
-        reason TEXT DEFAULT 'Motivo não informado',
-        severity INTEGER NOT NULL,
-        ticket_id TEXT DEFAULT 'N/A',
-        created_at INTEGER NOT NULL
-    )
-`).run();
-
-// Controle de Cargos Temporários (Ex: Mute/Strike temporário)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS temporary_roles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guild_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        role_id TEXT NOT NULL,
-        expires_at INTEGER NOT NULL
-    )
-`).run();
-
-// Controle de Punições Temporárias (Bans/Mutes)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS temporary_punishments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        guild_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        type TEXT NOT NULL,
-        expires_at INTEGER NOT NULL
-    )
-`).run();
-
-// --- 2. SISTEMA DE MIGRAÇÃO DINÂMICA ---
-// Evita erros ao atualizar o bot com novas funcionalidades
-const ensureColumn = (tableName, columnName, definition) => {
-    const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
-    if (!tableInfo.some(col => col.name === columnName)) {
+class DatabaseManager {
+    constructor(options = {}) {
+        this.options = {
+            dbPath: options.dbPath || path.join(__dirname, '../../database.sqlite'),
+            verbose: options.verbose || false,
+            enableWal: options.enableWal !== false,
+            ...options
+        };
+        
+        this.db = null;
+        this.isConnected = false;
+        this.transactions = [];
+        
+        this.init();
+    }
+    
+    /**
+     * Gera um UUID único
+     */
+    generateUUID() {
+        return crypto.randomUUID();
+    }
+    
+    /**
+     * Inicializa a conexão com o banco de dados
+     */
+    init() {
         try {
-            db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
-            console.log(`✅ [DB_MIGRATION] Coluna '${columnName}' injetada em '${tableName}'.`);
-        } catch (e) {
-            console.error(`⚠️ [DB_MIGRATION] Falha ao injetar '${columnName}': ${e.message}`);
+            // Garantir que o diretório existe
+            const dbDir = path.dirname(this.options.dbPath);
+            if (!fs.existsSync(dbDir)) {
+                fs.mkdirSync(dbDir, { recursive: true });
+            }
+            
+            // Conectar ao banco
+            this.db = new Database(this.options.dbPath, {
+                verbose: this.options.verbose ? console.log : null
+            });
+            
+            // Configurações de performance
+            if (this.options.enableWal) {
+                this.db.pragma('journal_mode = WAL');
+            }
+            this.db.pragma('synchronous = NORMAL');
+            this.db.pragma('cache_size = 10000');
+            this.db.pragma('temp_store = MEMORY');
+            this.db.pragma('foreign_keys = ON'); // IMPORTANTE: manter integridade referencial
+            
+            this.isConnected = true;
+            
+            // Criar todas as tabelas
+            this.createAllTables();
+            
+            console.log('✅ Banco de dados SQLite conectado com sucesso');
+            
+        } catch (error) {
+            console.error('❌ Erro ao conectar ao banco de dados:', error);
+            throw error;
         }
     }
-};
-
-// Migrações necessárias para a versão atual
-ensureColumn('reputation', 'updated_at', "INTEGER");
-ensureColumn('punishments', 'ticket_id', "TEXT DEFAULT 'N/A'");
-
-// --- 3. ÍNDICES DE VELOCIDADE (O Segredo da Fluidez) ---
-db.exec(`
-    -- Busca rápida de reputação por servidor/membro
-    CREATE INDEX IF NOT EXISTS idx_rep_lookup ON reputation (guild_id, user_id);
     
-    -- Busca de histórico ordenada por data (Otimiza o /historico)
-    CREATE INDEX IF NOT EXISTS idx_punish_history ON punishments (guild_id, user_id, created_at DESC);
+    /**
+     * Cria todas as tabelas do schema
+     */
+    createAllTables() {
+        try {
+            // Criar tabelas principais
+            const tables = [
+                'users',
+                'guilds',
+                'settings',
+                'reputation',
+                'punishments',
+                'tickets',
+                'ticket_messages',
+                'staff_analytics',
+                'activity_logs',
+                'temporary_roles'
+            ];
+            
+            for (const table of tables) {
+                if (SCHEMA[table]) {
+                    this.db.exec(SCHEMA[table]);
+                }
+            }
+            
+            // Criar índices adicionais
+            if (SCHEMA.indexes) {
+                this.db.exec(SCHEMA.indexes);
+            }
+            
+            console.log('📋 Schema do banco de dados verificado/criado');
+            
+        } catch (error) {
+            console.error('❌ Erro ao criar tabelas:', error);
+            throw error;
+        }
+    }
     
-    -- Otimiza o AutoMod Diário (Busca por expiração)
-    CREATE INDEX IF NOT EXISTS idx_temp_roles_exp ON temporary_roles (expires_at);
-    CREATE INDEX IF NOT EXISTS idx_temp_punish_exp ON temporary_punishments (expires_at);
-`);
+    /**
+     * Garante que um usuário existe na tabela de usuários
+     */
+    ensureUser(userId, username = null, discriminator = null, avatar = null) {
+        const existing = this.prepare('SELECT user_id FROM users WHERE user_id = ?').get(userId);
+        
+        if (!existing) {
+            this.prepare(`
+                INSERT INTO users (user_id, username, discriminator, avatar, created_at, first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).run(
+                userId, 
+                username || 'unknown', 
+                discriminator || '0000', 
+                avatar || null,
+                Date.now(),
+                Date.now(),
+                Date.now()
+            );
+        } else if (username) {
+            // Atualizar informações se necessário
+            this.prepare(`
+                UPDATE users SET 
+                    username = COALESCE(?, username),
+                    discriminator = COALESCE(?, discriminator),
+                    avatar = COALESCE(?, avatar),
+                    last_seen = ?
+                WHERE user_id = ?
+            `).run(username, discriminator, avatar, Date.now(), userId);
+        } else {
+            // Apenas atualizar last_seen
+            this.prepare(`UPDATE users SET last_seen = ? WHERE user_id = ?`).run(Date.now(), userId);
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Garante que um servidor existe na tabela de guilds
+     */
+    ensureGuild(guildId, name = null, icon = null, ownerId = null) {
+        const existing = this.prepare('SELECT guild_id FROM guilds WHERE guild_id = ?').get(guildId);
+        
+        if (!existing && name) {
+            this.prepare(`
+                INSERT INTO guilds (guild_id, name, icon, owner_id, joined_at)
+                VALUES (?, ?, ?, ?, ?)
+            `).run(guildId, name, icon, ownerId, Date.now());
+        } else if (name) {
+            this.prepare(`
+                UPDATE guilds SET 
+                    name = COALESCE(?, name),
+                    icon = COALESCE(?, icon),
+                    owner_id = COALESCE(?, owner_id)
+                WHERE guild_id = ?
+            `).run(name, icon, ownerId, guildId);
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Registra uma atividade no log
+     */
+    logActivity(guildId, userId, action, targetId = null, details = null, ipAddress = null) {
+        const uuid = this.generateUUID();
+        
+        this.prepare(`
+            INSERT INTO activity_logs (uuid, guild_id, user_id, action, target_id, details, ip_address, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(uuid, guildId, userId, action, targetId, details ? JSON.stringify(details) : null, ipAddress, Date.now());
+        
+        return uuid;
+    }
+    
+    // ==================== MÉTODOS PRINCIPAIS ====================
+    
+    prepare(sql) {
+        if (!this.isConnected) {
+            throw new Error('Banco de dados não está conectado');
+        }
+        return this.db.prepare(sql);
+    }
+    
+    exec(sql) {
+        if (!this.isConnected) {
+            throw new Error('Banco de dados não está conectado');
+        }
+        return this.db.exec(sql);
+    }
+    
+    transaction(fn) {
+        if (!this.isConnected) {
+            throw new Error('Banco de dados não está conectado');
+        }
+        return this.db.transaction(fn);
+    }
+    
+    close() {
+        if (this.db) {
+            this.db.close();
+            this.isConnected = false;
+            console.log('🔌 Conexão com banco de dados fechada');
+        }
+    }
+    
+    // ==================== MÉTODOS DE UTILIDADE ====================
+    
+    getStats() {
+        if (!this.isConnected) return null;
+        
+        try {
+            const tables = ['users', 'guilds', 'punishments', 'tickets', 'staff_analytics'];
+            const stats = {};
+            
+            for (const table of tables) {
+                try {
+                    const count = this.prepare(`SELECT COUNT(*) as count FROM ${table}`).get();
+                    stats[table] = count.count;
+                } catch (e) {
+                    stats[table] = 0;
+                }
+            }
+            
+            const fileStats = fs.statSync(this.options.dbPath);
+            
+            return {
+                tables: stats,
+                fileSize: (fileStats.size / 1024 / 1024).toFixed(2) + ' MB',
+                connected: this.isConnected,
+                journalMode: this.prepare('PRAGMA journal_mode').get().journal_mode
+            };
+        } catch (error) {
+            console.error('❌ Erro ao obter stats do DB:', error);
+            return null;
+        }
+    }
+    
+    backup(backupPath = null) {
+        try {
+            const backupDir = backupPath || path.join(__dirname, '../../backups');
+            if (!fs.existsSync(backupDir)) {
+                fs.mkdirSync(backupDir, { recursive: true });
+            }
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const backupFile = path.join(backupDir, `database_backup_${timestamp}.sqlite`);
+            
+            fs.copyFileSync(this.options.dbPath, backupFile);
+            
+            // Limpar backups antigos
+            const backups = fs.readdirSync(backupDir)
+                .filter(f => f.startsWith('database_backup_'))
+                .sort()
+                .reverse();
+            
+            for (let i = 10; i < backups.length; i++) {
+                fs.unlinkSync(path.join(backupDir, backups[i]));
+            }
+            
+            console.log(`💾 Backup criado: ${backupFile}`);
+            return backupFile;
+            
+        } catch (error) {
+            console.error('❌ Erro ao criar backup:', error);
+            return null;
+        }
+    }
+    
+    generateUUID() {
+        return crypto.randomUUID();
+    }
+}
 
-console.log("🗄️ [DATABASE] Banco de Dados pronto e otimizado com WAL Mode.");
+// ==================== SINGLETON E EXPORTAÇÃO ====================
 
-module.exports = db;
+let instance = null;
+
+function getInstance(options = {}) {
+    if (!instance) {
+        instance = new DatabaseManager(options);
+    }
+    return instance;
+}
+
+const defaultInstance = getInstance();
+
+// Exportar para compatibilidade com código existente
+module.exports = defaultInstance.db;
+module.exports.default = defaultInstance;
+module.exports.DatabaseManager = DatabaseManager;
+module.exports.getInstance = getInstance;
+module.exports.generateUUID = () => defaultInstance.generateUUID();
+module.exports.ensureUser = (userId, username, discriminator, avatar) => 
+    defaultInstance.ensureUser(userId, username, discriminator, avatar);
+module.exports.ensureGuild = (guildId, name, icon, ownerId) => 
+    defaultInstance.ensureGuild(guildId, name, icon, ownerId);
+module.exports.logActivity = (guildId, userId, action, targetId, details, ip) => 
+    defaultInstance.logActivity(guildId, userId, action, targetId, details, ip);

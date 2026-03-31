@@ -1,87 +1,150 @@
 const sessions = new Map();
 
-/**
- * SESSION MANAGER OTIMIZADO
- * Gerencia o estado temporário de interações (menus, botões, formulários)
- * evitando sobrecarga de memória e conflitos de contexto.
- */
-const SessionManager = {
-    DEFAULT_EXPIRY: 600000, // 10 minutos (10 * 60 * 1000)
-
+class SessionManager {
     /**
-     * Gera uma chave composta para isolar o contexto.
-     * @private
+     * Cria uma sessão com contexto completo
+     * @param {string} userId - ID do usuário
+     * @param {string} guildId - ID do servidor
+     * @param {string} action - Ação/contexto (ex: 'config', 'strike', 'ticket')
+     * @param {any} data - Dados da sessão
+     * @param {number} ttl - Tempo de vida em ms (padrão: 5 minutos)
+     * @returns {string} Chave da sessão
      */
-    _generateKey(guildId, userId, action) {
-        return `${guildId}:${userId}:${action}`;
-    },
-
-    /**
-     * Cria ou atualiza uma sessão ativa.
-     */
-    set(guildId, userId, action, data = {}, ttl = this.DEFAULT_EXPIRY) {
-        const key = this._generateKey(guildId, userId, action);
-        
-        // Remove sessão anterior para garantir dados limpos
-        if (sessions.has(key)) sessions.delete(key);
-
-        sessions.set(key, {
-            ...data,
-            guildId,
+    static set(userId, guildId, action, data, ttl = 300000) {
+        const key = `${userId}_${guildId}_${action}`;
+        const session = {
+            data,
+            expires: Date.now() + ttl,
             userId,
-            action,
-            expiresAt: Date.now() + ttl
-        });
-    },
-
+            guildId,
+            action
+        };
+        
+        sessions.set(key, session);
+        
+        // Auto-limpeza após TTL
+        setTimeout(() => {
+            const current = sessions.get(key);
+            if (current && current.expires <= Date.now()) {
+                sessions.delete(key);
+            }
+        }, ttl);
+        
+        return key;
+    }
+    
     /**
-     * Recupera dados da sessão com validação de expiração (Lazy Delete).
+     * Obtém uma sessão pelo contexto completo
+     * @param {string} userId - ID do usuário
+     * @param {string} guildId - ID do servidor
+     * @param {string} action - Ação/contexto
+     * @returns {any|null} Dados da sessão ou null
      */
-    get(guildId, userId, action) {
-        const key = this._generateKey(guildId, userId, action);
+    static get(userId, guildId, action) {
+        const key = `${userId}_${guildId}_${action}`;
         const session = sessions.get(key);
         
         if (!session) return null;
-
-        // Validação de expiração no momento do acesso
-        if (Date.now() > session.expiresAt) {
+        
+        if (session.expires <= Date.now()) {
             sessions.delete(key);
             return null;
         }
-
-        return session;
-    },
-
+        
+        return session.data;
+    }
+    
     /**
-     * Finaliza uma sessão manualmente (Ex: após concluir um formulário).
+     * Remove uma sessão específica
      */
-    delete(guildId, userId, action) {
-        const key = this._generateKey(guildId, userId, action);
-        return sessions.delete(key);
-    },
-
+    static delete(userId, guildId, action) {
+        const key = `${userId}_${guildId}_${action}`;
+        sessions.delete(key);
+    }
+    
     /**
-     * Limpeza periódica para evitar Memory Leak (Vazamento de memória).
+     * Remove todas as sessões de um usuário
      */
-    cleanup() {
-        const now = Date.now();
-        let count = 0;
-
-        for (const [key, session] of sessions.entries()) {
-            if (now > session.expiresAt) {
+    static clearUser(userId) {
+        for (const [key] of sessions) {
+            if (key.startsWith(`${userId}_`)) {
                 sessions.delete(key);
-                count++;
             }
         }
-
-        if (count > 0) {
-            // Log discreto para monitoramento na Oracle Cloud
-            console.log(`\x1b[34m[SESSION]\x1b[0m Limpeza concluída: ${count} sessões expiradas removidas.`);
+    }
+    
+    /**
+     * Remove todas as sessões de um servidor
+     */
+    static clearGuild(guildId) {
+        for (const [key, session] of sessions) {
+            if (session.guildId === guildId) {
+                sessions.delete(key);
+            }
         }
     }
-};
-
-// Intervalo de manutenção automática (A cada 10 minutos)
-setInterval(() => SessionManager.cleanup(), 600000);
+    
+    /**
+     * Verifica se uma sessão existe
+     */
+    static exists(userId, guildId, action) {
+        const key = `${userId}_${guildId}_${action}`;
+        const session = sessions.get(key);
+        return session && session.expires > Date.now();
+    }
+    
+    /**
+     * Atualiza os dados de uma sessão sem alterar o TTL
+     */
+    static update(userId, guildId, action, newData) {
+        const key = `${userId}_${guildId}_${action}`;
+        const session = sessions.get(key);
+        
+        if (session && session.expires > Date.now()) {
+            session.data = { ...session.data, ...newData };
+            sessions.set(key, session);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Extende o TTL de uma sessão
+     */
+    static extend(userId, guildId, action, additionalMs = 300000) {
+        const key = `${userId}_${guildId}_${action}`;
+        const session = sessions.get(key);
+        
+        if (session && session.expires > Date.now()) {
+            session.expires += additionalMs;
+            sessions.set(key, session);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Obtém estatísticas das sessões ativas
+     */
+    static getStats() {
+        const now = Date.now();
+        let active = 0;
+        let expired = 0;
+        
+        for (const [key, session] of sessions) {
+            if (session.expires > now) active++;
+            else expired++;
+        }
+        
+        return {
+            total: sessions.size,
+            active,
+            expired,
+            keys: Array.from(sessions.keys())
+        };
+    }
+}
 
 module.exports = SessionManager;
