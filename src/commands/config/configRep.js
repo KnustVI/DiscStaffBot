@@ -5,13 +5,11 @@ module.exports = {
         .setName('config-rep')
         .setDescription('⚙️ Configura o sistema de Reputação e Punições.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        // Sub-comando para os Cargos
         .addSubcommand(sub => sub.setName('cargos')
             .setDescription('Define os cargos de reputação.')
             .addRoleOption(opt => opt.setName('exemplar').setDescription('Cargo para bons jogadores (Rep > Limit)'))
             .addRoleOption(opt => opt.setName('problematico').setDescription('Cargo para infratores (Rep < Limit)'))
             .addRoleOption(opt => opt.setName('strike').setDescription('Cargo temporário aplicado no /strike')))
-        // Sub-comando para os Limites (Métricas)
         .addSubcommand(sub => sub.setName('limites')
             .setDescription('Define as métricas de pontos para troca de cargos.')
             .addIntegerOption(opt => opt.setName('meta_exemplar').setDescription('Pontos mínimos para ser Exemplar (Ex: 90)').setMinValue(50).setMaxValue(100))
@@ -27,30 +25,31 @@ module.exports = {
             let desc = [];
 
             if (sub === 'cargos') {
-                const roles = {
-                    role_exemplar: options.getRole('exemplar'),
-                    role_problematico: options.getRole('problematico'),
-                    role_strike: options.getRole('strike')
-                };
+                const roles = [
+                    { key: 'role_exemplar', role: options.getRole('exemplar') },
+                    { key: 'role_problematico', role: options.getRole('problematico') },
+                    { key: 'role_strike', role: options.getRole('strike') }
+                ];
 
-                for (const [key, role] of Object.entries(roles)) {
-                    if (role) {
-                        await Config.setSetting(guild.id, key, role.id);
-                        desc.push(`- **${key.replace('role_', '').toUpperCase()}:** ${role}`);
+                for (const item of roles) {
+                    if (item.role) {
+                        // Ponto 6: setSetting no Better-SQLite3 é síncrono
+                        Config.setSetting(guild.id, item.key, item.role.id);
+                        desc.push(`- **${item.key.replace('role_', '').toUpperCase()}:** ${item.role}`);
                     }
                 }
             }
 
             if (sub === 'limites') {
-                const limits = {
-                    limit_exemplar: options.getInteger('meta_exemplar'),
-                    limit_problematico: options.getInteger('alerta_ruim')
-                };
+                const limits = [
+                    { key: 'limit_exemplar', val: options.getInteger('meta_exemplar') },
+                    { key: 'limit_problematico', val: options.getInteger('alerta_ruim') }
+                ];
 
-                for (const [key, val] of Object.entries(limits)) {
-                    if (val !== null) {
-                        await Config.setSetting(guild.id, key, val.toString());
-                        desc.push(`- **${key.replace('limit_', '').toUpperCase()}:** \`${val} pts\``);
+                for (const item of limits) {
+                    if (item.val !== null) {
+                        Config.setSetting(guild.id, item.key, item.val.toString());
+                        desc.push(`- **${item.key.replace('limit_', '').toUpperCase()}:** \`${item.val} pts\``);
                     }
                 }
             }

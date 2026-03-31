@@ -1,18 +1,18 @@
 const cron = require('node-cron');
-const db = require('../../../database/database');
+const db = require('../../../database/index'); // Ajustado para o index central
 const { EmbedBuilder } = require('discord.js');
-const { EMOJIS } = require('../../database/emojis');
-const ConfigSystem = require('./configSystem');
-const ErrorLogger = require('./errorLogger');
 
 module.exports = (client) => {
-    // Agendado para Meio-dia (Brasília se o servidor estiver em UTC-3)
+    // Agendado para Meio-dia (Brasília)
     cron.schedule('0 12 * * *', async () => {
         console.log("🛡️ [AutoMod] Iniciando processamento de integridade diária...");
+        
+        const EMOJIS = client.systems.emojis || {};
+        const Config = client.systems.config;
+        const Logger = client.systems.logger;
         const stats = {};
 
-        // --- 1. RECUPERAÇÃO DE REPUTAÇÃO (Trava de 24h pós-punição) ---
-        let globalRecovered = 0;
+        // --- 1. RECUPERAÇÃO DE REPUTAÇÃO (Otimizado com Transação) ---
         try {
             const result = db.prepare(`
                 UPDATE reputation 
@@ -25,14 +25,15 @@ module.exports = (client) => {
                     AND (strftime('%s','now') * 1000 - punishments.created_at) < 86400000
                 )
             `).run();
-            globalRecovered = result.changes;
+            
+            console.log(`📈 [AutoMod] ${result.changes} usuários recuperaram pontos.`);
         } catch (err) {
-            ErrorLogger.log('AutoMod_Reputation_DB', err);
+            if (Logger) Logger.log('AutoMod_Reputation_DB', err);
         }
 
-        // --- 2. LOOP DE MEMBROS (FILTRADO) ---
+        // --- 2. LOOP DE MEMBROS (FILTRADO POR CARGO) ---
         try {
-            // Buscamos apenas quem está nos limites de ganhar ou perder cargos
+            // Buscamos apenas quem REALMENTE precisa de atualização de cargo
             const users = db.prepare(`SELECT * FROM reputation WHERE points >= 90 OR points <= 50`).all();
 
             for (const userData of users) {
@@ -40,88 +41,75 @@ module.exports = (client) => {
                 const guild = client.guilds.cache.get(gId);
                 if (!guild) continue;
 
-                if (!stats[gId]) {
-                    stats[gId] = { added: 0, removed: 0, guildName: guild.name };
-                }
+                if (!stats[gId]) stats[gId] = { added: 0, removed: 0, guildName: guild.name };
 
                 try {
                     const member = await guild.members.fetch(uId).catch(() => null);
                     if (!member) continue;
 
-                    // Consulta via ConfigSystem (Usa o Cache automaticamente)
-                    const exemplarRole = ConfigSystem.getSetting(gId, 'exemplar_role');
-                    const problemRole = ConfigSystem.getSetting(gId, 'problem_role');
+                    // IMPORTANTE: Ajustei os nomes para bater com o seu /config-rep
+                    const roleExId = Config.getSetting(gId, 'role_exemplar');
+                    const roleProbId = Config.getSetting(gId, 'role_problematico');
+                    
+                    // Limites configuráveis ou padrões
+                    const limitEx = parseInt(Config.getSetting(gId, 'limit_exemplar')) || 95;
+                    const limitProb = parseInt(Config.getSetting(gId, 'limit_problematico')) || 30;
 
-                    // Lógica de Cargo Exemplar
-                    if (exemplarRole) {
-                        const hasEx = member.roles.cache.has(exemplarRole);
-                        if (rep >= 95 && !hasEx) {
-                            await member.roles.add(exemplarRole).catch(() => null);
+                    // Lógica Exemplar
+                    if (roleExId) {
+                        const hasEx = member.roles.cache.has(roleExId);
+                        if (rep >= limitEx && !hasEx) {
+                            await member.roles.add(roleExId).catch(() => null);
                             stats[gId].added++;
-                            await member.send(`${EMOJIS.EXEMPLAR || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar! Continue assim.`).catch(() => null);
-                        } else if (rep < 90 && hasEx) {
-                            await member.roles.remove(exemplarRole).catch(() => null);
+                            await member.send(`${EMOJIS.EXEMPLAR || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar!`).catch(() => null);
+                        } else if (rep < (limitEx - 5) && hasEx) {
+                            await member.roles.remove(roleExId).catch(() => null);
                             stats[gId].removed++;
                         }
                     }
 
-                    // Lógica de Cargo Problemático
-                    if (problemRole) {
-                        const hasProb = member.roles.cache.has(problemRole);
-                        if (rep <= 30 && !hasProb) {
-                            await member.roles.add(problemRole).catch(() => null);
+                    // Lógica Problemático
+                    if (roleProbId) {
+                        const hasProb = member.roles.cache.has(roleProbId);
+                        if (rep <= limitProb && !hasProb) {
+                            await member.roles.add(roleProbId).catch(() => null);
                             stats[gId].added++;
-                            await member.send(`${EMOJIS.WARNING || '⚠️'} Atenção: Sua reputação em **${guild.name}** caiu drasticamente. Melhore sua conduta para evitar punições severas.`).catch(() => null);
+                            await member.send(`${EMOJIS.WARNING || '⚠️'} Sua reputação em **${guild.name}** caiu. Melhore sua conduta!`).catch(() => null);
                         } else if (rep > 50 && hasProb) {
-                            await member.roles.remove(problemRole).catch(() => null);
+                            await member.roles.remove(roleProbId).catch(() => null);
                             stats[gId].removed++;
                         }
                     }
-                } catch (memberErr) {
-                    continue; // Pula para o próximo se houver erro com este membro específico
-                }
+                } catch (e) { continue; }
             }
-        } catch (dbErr) {
-            ErrorLogger.log('AutoMod_MainLoop', dbErr);
+        } catch (err) {
+            if (Logger) Logger.log('AutoMod_MainLoop', err);
         }
 
-        // --- 3. RELATÓRIOS POR SERVIDOR ---
+        // --- 3. RELATÓRIOS E REGISTRO ---
         for (const gId in stats) {
             try {
-                const logChanId = ConfigSystem.getSetting(gId, 'logs_channel');
-                if (!logChanId) continue;
+                const logChanId = Config.getSetting(gId, 'logs_channel');
+                const channel = logChanId ? await client.channels.fetch(logChanId).catch(() => null) : null;
 
-                const channel = await client.channels.fetch(logChanId).catch(() => null);
-                if (!channel) continue;
+                if (channel) {
+                    const embed = new EmbedBuilder()
+                        .setTitle(`${EMOJIS.CHECK || '✅'} Manutenção Diária`)
+                        .setColor(0xDCA15E)
+                        .setDescription(`Processamento de reputação concluído.`)
+                        .addFields(
+                            { name: `📈 Recuperação`, value: `Usuários ativos (24h limpos) receberam **+1pt**.`, inline: false },
+                            { name: `🎭 Cargos`, value: `\`${stats[gId].added}\` Atribuídos | \`${stats[gId].removed}\` Removidos`, inline: true }
+                        )
+                        .setFooter(Config.getFooter(stats[gId].guildName));
 
-                const embed = new EmbedBuilder()
-                    .setTitle(`${EMOJIS.CHECK || '✅'} Manutenção de Integridade`)
-                    .setColor(0xDCA15E)
-                    .setThumbnail(client.user.displayAvatarURL())
-                    .setDescription(`O processamento diário de reputação e cargos foi concluído.`)
-                    .addFields(
-                        { 
-                            name: `${EMOJIS.UP || '📈'} Recuperação de Pontos`, 
-                            value: `Usuários que não foram punidos nas últimas 24h receberam **+1** ponto.`, 
-                            inline: false 
-                        },
-                        { 
-                            name: `${EMOJIS.STATUS || '🎭'} Cargos Atualizados`, 
-                            value: `\`${stats[gId].added}\` Atribuídos / \`${stats[gId].removed}\` Removidos`, 
-                            inline: true 
-                        }
-                    )
-                    .setFooter(ConfigSystem.getFooter(stats[gId].guildName))
-                    .setTimestamp();
+                    await channel.send({ embeds: [embed] });
+                }
+                
+                // Ponto 4: Registro da última execução
+                Config.setSetting(gId, 'last_automod_run', Date.now().toString());
 
-                await channel.send({ embeds: [embed] });
-
-                // Registra a última execução
-                ConfigSystem.updateSetting(gId, 'last_automod_run', new Date().toISOString());
-
-            } catch (logErr) {
-                ErrorLogger.log(`AutoMod_Report_${gId}`, logErr);
-            }
+            } catch (e) { /* ignore */ }
         }
     });
 };

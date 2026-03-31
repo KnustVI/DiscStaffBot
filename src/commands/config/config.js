@@ -17,83 +17,81 @@ module.exports = {
     async execute(interaction) {
         const { client, guild, user, guildId } = interaction;
 
+        // Ponto 2: Acesso rápido aos sistemas pré-carregados
+        const EMOJIS = client.systems.emojis || {};
+        const ConfigSystem = client.systems.config;
+        const Session = client.systems.sessions;
+
         try {
-            // Sistemas pré-carregados
-            const EMOJIS = client.systems.emojis || {};
-            const ConfigSystem = client.systems.config;
-            const Session = client.systems.sessions;
+            // Ponto 3: Inicialização de Sessão com Contexto (Guild-User-Action)
+            // Isso evita que o bot confunda ações se o usuário abrir o config em dois servers.
+            if (Session) {
+                Session.set(guildId, user.id, 'config_panel', {
+                    currentStep: 'main',
+                    timestamp: Date.now()
+                });
+            }
 
-            // 1. INICIALIZAÇÃO DE SESSÃO (Contextualizada: Guild-User-Action)
-            // Guardamos que o usuário está no fluxo de 'config'
-            Session.set(guildId, user.id, 'config', {
-                step: 'main_panel',
-                lastUpdate: Date.now()
-            });
-
-            // 2. BUSCA DE DADOS ATUAIS (Puxando do seu ConfigSystem)
+            // Ponto 6: Busca de dados síncrona (ConfigSystem deve ler do Map/Cache)
             const settings = {
                 staff: ConfigSystem.getSetting(guildId, 'staff_role'),
                 logs: ConfigSystem.getSetting(guildId, 'logs_channel'),
                 strike: ConfigSystem.getSetting(guildId, 'strike_role'),
                 exemplar: ConfigSystem.getSetting(guildId, 'exemplar_role'),
-                problematico: ConfigSystem.getSetting(guildId, 'problematic_role')
+                problematic: ConfigSystem.getSetting(guildId, 'problematic_role')
             };
 
-            // 3. CONSTRUÇÃO DO EMBED (Mantendo sua formatação)
             const embed = new EmbedBuilder()
                 .setTitle(`${EMOJIS.CONFIG || '⚙️'} Painel de Configuração`)
-                .setDescription('Gerencie os cargos de hierarquia, punição e canais de sistema.')
+                .setDescription('Gerencie os cargos de hierarquia e canais de logs do sistema Robin.')
                 .setColor(0xDCA15E)
                 .addFields(
                     { 
-                        name: `${EMOJIS.STAFF || '👤'} Cargos Administrativos`, 
-                        value: `Staff: ${settings.staff ? `<@&${settings.staff}>` : '`❌`'}\nLogs: ${settings.logs ? `<#${settings.logs}>` : '`❌`'}`, 
+                        name: `${EMOJIS.STAFF || '👤'} Administração`, 
+                        value: `> **Staff:** ${settings.staff ? `<@&${settings.staff}>` : '`Não definido`'}\n> **Logs:** ${settings.logs ? `<#${settings.logs}>` : '`Não definido`'}`, 
                         inline: false 
                     },
                     { 
-                        name: `${EMOJIS.REPUTATION || '📊'} Cargos de Reputação`, 
-                        value: `Exemplar: ${settings.exemplar ? `<@&${settings.exemplar}>` : '`❌`'}\nProblemático: ${settings.problematico ? `<@&${settings.problematico}>` : '`❌`'}\nStrike: ${settings.strike ? `<@&${settings.strike}>` : '`❌`'}`, 
+                        name: `${EMOJIS.REPUTATION || '📊'} Reputação & Punição`, 
+                        value: `> **Exemplar:** ${settings.exemplar ? `<@&${settings.exemplar}>` : '`❌`'}\n> **Problemático:** ${settings.problematic ? `<@&${settings.problematic}>` : '`❌`'}\n> **Cargo Strike:** ${settings.strike ? `<@&${settings.strike}>` : '`❌`'}`, 
                         inline: false 
                     }
                 )
                 .setFooter(ConfigSystem.getFooter(guild.name))
                 .setTimestamp();
 
-            // 4. COMPONENTES (Organizados por ActionRows)
-            
-            // Fila 1: Configurações Base (Staff e Logs)
+            // Ponto 2 & 5: Componentes com IDs padronizados para o Roteador
             const rowBase = new ActionRowBuilder().addComponents(
                 new RoleSelectMenuBuilder()
-                    .setCustomId('config:set:staff_role')
-                    .setPlaceholder('Definir Cargo Staff'),
+                    .setCustomId('config:set_staff')
+                    .setPlaceholder('Selecionar Cargo Staff'),
                 new ChannelSelectMenuBuilder()
-                    .setCustomId('config:set:logs_channel')
+                    .setCustomId('config:set_logs')
                     .addChannelTypes(ChannelType.GuildText)
-                    .setPlaceholder('Definir Canal de Logs')
+                    .setPlaceholder('Selecionar Canal de Logs')
             );
 
-            // Fila 2: Configurações de Reputação (Strike, Exemplar, Problemático)
-            // Aqui usamos um Menu de Seleção de Cargos para os 3 tipos
-            const rowReputation = new ActionRowBuilder().addComponents(
+            const rowRep = new ActionRowBuilder().addComponents(
                 new RoleSelectMenuBuilder()
-                    .setCustomId('config:set:reputation_roles')
-                    .setPlaceholder('Configurar Cargos de Reputação (Exemplar/Prob/Strike)')
+                    .setCustomId('config:set_rep_roles')
+                    .setPlaceholder('Configurar Cargos de Reputação/Strike')
                     .setMinValues(1)
-                    .setMaxValues(1) // O Handler tratará qual deles está sendo setado via sub-menu ou ordem
+                    .setMaxValues(1)
             );
 
-            // 5. RESPOSTA (O deferReply já foi dado pelo interactionCreate)
+            // Resposta única via editReply (O deferReply já foi dado pelo interactionCreate)
             await interaction.editReply({
                 embeds: [embed],
-                components: [rowBase, rowReputation]
+                components: [rowBase, rowRep]
             });
 
         } catch (error) {
-            console.error('[ERRO] Comando Config:', error);
             if (client.systems.logger) client.systems.logger.log('Command_Config', error);
-            
+            console.error('❌ Erro no Painel Config:', error);
+
             await interaction.editReply({ 
-                content: `❌ Erro ao processar o painel de configuração.` 
+                content: '❌ Ocorreu um erro ao carregar o painel de configurações.',
+                components: [] // Limpa botões em caso de erro crítico
             });
         }
     }
