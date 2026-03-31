@@ -15,11 +15,18 @@ const client = new Client({
 
 // Centralização de Sistemas (Problema 2: Evita require repetitivo)
 client.systems = {
+    // Caminhos baseados na sua pasta /src/systems/
     config: require('./src/systems/configHandler'),
-    moderation: require('./src/systems/modHandler'),
-    cache: require('./systems/configCache'),
-    sessions: require('./utils/sessionManager'),
-    logger: require('./systems/errorLogger')
+    configSystem: require('./src/systems/configSystem'), // Importante para o Punishment ler configs
+    punishment: require('./src/systems/punishmentSystem'), 
+    
+    // Verifique se estes dois abaixo estão na raiz ou dentro de /src/systems/
+    // Se estiverem dentro de /src/systems/, use o caminho com ./src/systems/...
+    cache: require('./src/systems/configCache'),
+    logger: require('./src/systems/errorLogger'),
+    
+    // Verifique se a pasta /utils/ está na raiz ou dentro de /src/
+    sessions: require('./src/utils/sessionManager') 
 };
 
 client.commands = new Collection();
@@ -61,10 +68,14 @@ async function bootstrap() {
         await client.login(process.env.TOKEN);
 
         client.once('ready', () => {
-        // Inicializa o sistema de limpeza de punições
+    console.log(`✅ ${client.user.tag} online!`);
+    
+    if (client.systems.punishment && typeof client.systems.punishment.initWorker === 'function') {
         client.systems.punishment.initWorker(client);
-        console.log(`Logado como ${client.user.tag}`);
-    });
+    } else {
+        console.error('❌ Erro: initWorker não encontrado no PunishmentSystem');
+    }
+});
         
         // Inicializa Dashboard e AutoMod após o login
         const autoModeration = require('./systems/autoModeration');
