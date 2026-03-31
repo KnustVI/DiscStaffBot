@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const db = require('../../../database/index'); // Ajustado para o index central
+const db = require('../database/index');
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = (client) => {
