@@ -5,68 +5,79 @@ module.exports = {
         .setName('botstatus')
         .setDescription('Verifica o estado de saúde do bot e do AutoMod.'),
 
+    /**
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
+     */
     async execute(interaction) {
-        const { guild, client } = interaction;
+        const { guild, client, guildId } = interaction;
 
-        // Ponto 2: Acesso rápido aos sistemas
-        const EMOJIS = client.systems.emojis || {};
-        const SystemStatus = client.systems.status; // Referência à CLASSE
-        const ConfigSystem = client.systems.config;
+        // Acesso aos sistemas centralizados (Lookup em RAM)
+        const { emojis, config, logger, status: statusSystem } = client.systems;
+        const EMOJIS = emojis || {};
 
         try {
-            // AJUSTE AQUI: Como o método é STATIC, chamamos direto da Classe
-            // Ponto 6: Sem await, pois o processamento de OS/Date é instantâneo
-            const status = interaction.client.systems.status.getBotStatus();
+            // 1. Coleta de dados via System (Lógica isolada em src/systems/systemStatus.js)
+            // Note: Chamada síncrona se o sistema usar cache ou propriedades do client
+            const status = statusSystem.getBotStatus(client, guildId);
             
             if (!status) {
-                return interaction.editReply({ 
-                    content: "⚠️ Erro ao coletar dados do sistema. Verifique o ErrorLogger." 
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.ERRO || '❌'} Erro ao coletar dados do sistema. Verifique o ErrorLogger.`
                 });
             }
 
+            // 2. Construção da UI
             const embed = new EmbedBuilder()
                 .setTitle(`${EMOJIS.PAINEL || '🖥️'} Painel de Controle do Bot`)
                 .setColor(0xDCA15E)
                 .setThumbnail(client.user.displayAvatarURL())
                 .addFields(
                     { 
-                        name: `${EMOJIS.BOT || '🤖'} Status Global (Alcance)`, 
+                        name: `${EMOJIS.BOT || '🤖'} Status Global`, 
                         value: [
                             `**Servidores:** \`${status.totalGuilds}\``,
-                            `**Usuários Totais:** \`${status.totalUsers.toLocaleString('pt-BR')}\``,
+                            `**Usuários:** \`${status.totalUsers.toLocaleString('pt-BR')}\``,
                             `**Uptime:** \`${status.uptime}\``,
-                            `**Latência:** \`${status.ping}\``
+                            `**Latência:** \`${status.ping}ms\``
                         ].join('\n'), 
-                        inline: false 
+                        inline: true 
                     },
                     { 
-                        name: `${EMOJIS.AUTO_MOD || '🛡️'} Contexto de ${guild.name}`, 
+                        name: `${EMOJIS.INFRA || '📦'} Hardware`, 
                         value: [
-                            `**Próximo Ciclo (+1 pt):** <t:${status.nextAutoMod}:R>`,
+                            `**RAM:** \`${status.memory}\``,
+                            `**Node:** \`${process.version}\``,
+                            `**DJS:** \`v${version}\``
+                        ].join('\n'), 
+                        inline: true 
+                    },
+                    { 
+                        name: `${EMOJIS.AUTO_MOD || '🛡️'} Contexto Local: ${guild.name}`, 
+                        value: [
+                            `**Próximo Ciclo:** <t:${status.nextAutoMod}:R>`,
                             `**Última Execução:** ${status.lastRun ? `<t:${status.lastRun}:f>` : '`Nenhum registro`'}`,
-                            `**Canal de Logs:** ${status.logChannel !== "Não configurado" ? `<#${status.logChannel}>` : '`⚠️ Não definido`'}`,
-                            `**Status local:** \`🟢 Operacional\``
+                            `**Logs:** ${status.logChannel !== "Não configurado" ? `<#${status.logChannel}>` : '`⚠️ Não definido`'}`,
+                            `**Status:** \`🟢 Operacional\``
                         ].join('\n'), 
                         inline: false 
-                    },
-                    {
-                        name: `${EMOJIS.INFRA || '📦'} Hardware & Engine`,
-                        value: `**RAM em Uso:** \`${status.memory}\` | **DJS:** \`v${version}\` | **Node:** \`${process.version}\``,
-                        inline: false
                     }
                 )
-                .setFooter(ConfigSystem.getFooter(guild.name))
+                .setFooter({ 
+                    text: config.getSetting(guildId, 'footer_text') || guild.name,
+                    iconURL: guild.iconURL() 
+                })
                 .setTimestamp();
 
+            // 3. Finalização (Contrato: Slash usa editReply)
             await interaction.editReply({ embeds: [embed] });
 
         } catch (err) {
-            if (client.systems.logger) client.systems.logger.log('Command_BotStatus_Error', err);
-            console.error("❌ Erro no comando botstatus:", err);
+            if (logger) logger.log('Command_BotStatus_Error', err);
             
+            // SafeExecute: Resposta de erro padronizada
             await interaction.editReply({ 
-                content: "❌ Ocorreu um erro ao gerar o relatório de status." 
-            });
+                content: `${EMOJIS.ERRO || '❌'} Ocorreu um erro ao gerar o relatório de status.`
+            }).catch(() => null);
         }
     }
 };

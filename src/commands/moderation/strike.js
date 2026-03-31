@@ -33,57 +33,82 @@ module.exports = {
                 { name: 'Ban do Jogo', value: 'rcon_ban' }
             )),
 
+    /**
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
+     */
     async execute(interaction) {
-        const { client, guild, options, channel, member } = interaction;
+        const { client, guild, options, channel, member: staffMember } = interaction;
         
-        // Ponto 2: Sistemas via lookup de memória
-        const EMOJIS = client.systems.emojis || {};
-        const Config = client.systems.config;
-        const Punishment = client.systems.punishment;
+        // 1. Lookup de Sistemas (RAM)
+        const { emojis, config, punishment, logger } = client.systems;
+        const EMOJIS = emojis || {};
 
-        // 1. Verificação de Autorização (Boas Práticas)
-        const auth = Config.checkAuth ? Config.checkAuth(interaction) : { authorized: true };
-        if (!auth.authorized) return interaction.editReply({ content: auth.message });
-
+        // 2. Extração de Opções
         const targetUser = options.getUser('usuario');
-        const targetMember = await guild.members.fetch(targetUser.id).catch(() => null);
-
-        // 2. Proteção de Hierarquia (Ponto 3 - Contexto)
-        if (targetMember && targetMember.roles.highest.position >= member.roles.highest.position) {
-            return interaction.editReply({ 
-                content: `${EMOJIS.ERROR || '❌'} Você não pode punir alguém com cargo igual ou superior ao seu.` 
-            });
-        }
-
-        // 3. Captura automática de Ticket
-        const ticketId = options.getString('ticket') || (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : 'N/A');
+        const severity = options.getInteger('gravidade');
+        const reason = options.getString('motivo');
+        const durationStr = options.getString('duracao');
+        const discordAct = options.getString('discord_act') || 'none';
+        const jogoAct = options.getString('jogo_act') || 'none';
+        
+        // Lógica de Ticket Inteligente (Síncrona)
+        const ticketId = options.getString('ticket') || 
+            (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : 'N/A');
 
         try {
-            // Ponto 1: O processamento ocorre enquanto o Discord aguarda (Defer já ativo)
-            const result = await Punishment.executeFullProcess({
-                guild,
-                target: targetUser,
-                moderator: member.user,
-                severity: options.getInteger('gravidade'),
-                reason: options.getString('motivo'),
-                ticketId: ticketId,
-                discordAct: options.getString('discord_act') || 'none',
-                jogoAct: options.getString('jogo_act') || 'none',
-                durationStr: options.getString('duracao')
+            // 3. Validação de Hierarquia (Otimizada com Cache)
+            const targetMember = guild.members.cache.get(targetUser.id) || await guild.members.fetch(targetUser.id).catch(() => null);
+
+            if (targetMember && targetMember.roles.highest.position >= staffMember.roles.highest.position && interaction.user.id !== guild.ownerId) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.ERRO || '❌'} **Erro de Hierarquia:** Você não pode punir este membro.` 
+                });
+            }
+
+            // 4. Processamento da Punição (Lógica em PunishmentSystem)
+            // Esta função deve cuidar do DB, Cálculo de Pontos e Ações de API
+            const result = await punishment.executeFullProcess({
+                guildId: guild.id,
+                targetId: targetUser.id,
+                moderatorId: interaction.user.id,
+                severity,
+                reason,
+                ticketId,
+                durationStr,
+                discordAct,
+                jogoAct
             });
 
-            // Resposta Final
+            // 5. Resposta Imediata (Contrato Slash: editReply)
             await interaction.editReply({
-                content: `${EMOJIS.SUCCESS || '✅'} **Punição registrada com sucesso!**\nO saldo de **${targetUser.username}** agora é \`${result.newPoints || '??'}/100\` pontos.`
+                content: [
+                    `${EMOJIS.CHECK || '✅'} **Punição Aplicada com Sucesso!**`,
+                    `👤 **Alvo:** ${targetUser.tag}`,
+                    `⚖️ **Gravidade:** Nível ${severity}`,
+                    `📊 **Saldo Final:** \`${result.newPoints}/100\` pontos.`,
+                    discordAct !== 'none' ? `🛠️ **Ação Discord:** \`${discordAct}\`` : null,
+                    jogoAct !== 'none' ? `🎮 **Ação Jogo:** \`${jogoAct}\`` : null
+                ].filter(Boolean).join('\n')
             });
-            
+
+            // 6. Logs e Notificações (Rodando em Background - Sem await bloqueante)
+            punishment.dispatchLogs({
+                guild,
+                target: targetUser,
+                moderator: interaction.user,
+                severity,
+                reason,
+                ticketId,
+                newPoints: result.newPoints,
+                action: discordAct
+            }).catch(e => logger?.log('Strike_Log_Error', e));
+
         } catch (err) {
-            if (client.systems.logger) client.systems.logger.log('Strike_Cmd_Error', err);
-            console.error("❌ Erro ao processar strike:", err);
+            if (logger) logger.log('Command_Strike_Error', err);
             
             await interaction.editReply({
-                content: `${EMOJIS.ERROR || '❌'} Erro crítico ao aplicar strike: \`${err.message}\``
-            });
+                content: `${EMOJIS.ERRO || '❌'} Erro crítico ao aplicar strike: \`${err.message}\``
+            }).catch(() => null);
         }
     }
 };

@@ -6,48 +6,57 @@ module.exports = {
         .setDescription('Consulta a reputação e punições de um usuário.')
         .addUserOption(opt => opt.setName('usuario').setDescription('Usuário a consultar').setRequired(true)),
 
+    /**
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
+     */
     async execute(interaction) {
         const { client, guildId, user, options } = interaction;
         const target = options.getUser('usuario');
 
-        // Ponto 2: Acesso centralizado
-        const EMOJIS = client.systems.emojis || {};
-        const Punishment = client.systems.punishment;
-        const Session = client.systems.sessions;
+        // Extração de sistemas (Lookup em RAM)
+        const { punishment, sessions, emojis, logger } = client.systems;
+        const EMOJIS = emojis || {};
 
         try {
-            // 1. Busca os dados iniciais (Síncrono se possível, mas await por segurança de DB)
-            const history = await Punishment.getUserHistory(guildId, target.id, 1);
+            // 1. Busca de dados (Lógica pesada isolada no PunishmentSystem)
+            // Mantemos o await aqui pois é uma consulta ao SQLite que pode demorar ms
+            const history = await punishment.getUserHistory(guildId, target.id, 1);
             
+            // Caso o usuário não tenha registros
             if (!history || history.totalRecords === 0) {
-                return interaction.editReply({ 
-                    content: `${EMOJIS.ERRO || '❌'} **${target.username}** está limpo! Nenhum registro encontrado.` 
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.CHECK || '✅'} **${target.username}** não possui registros de punição.` 
                 });
             }
 
-            // 2. Inicializa a Sessão de Paginação (Expira em 5 min)
-            if (Session) {
-                Session.set(guildId, user.id, 'history', { 
+            // 2. Sistema de Sessão com Contexto (Ponto 3 do manifesto)
+            // Chave estruturada: userId_guildId_history
+            if (sessions) {
+                sessions.set(guildId, user.id, 'history', { 
                     targetId: target.id,
                     currentPage: 1,
                     totalPages: history.totalPages
                 });
             }
 
-            // 3. Gera a UI
-            const embed = Punishment.generateHistoryEmbed(target, history, 1);
-            const components = Punishment.generateHistoryButtons(target.id, 1, history.totalPages);
+            // 3. Geração de UI delegada ao Sistema
+            // Padronizamos os CustomIDs como: punishment:history:acao:targetId:page
+            const embed = punishment.generateHistoryEmbed(target, history, 1);
+            const components = punishment.generateHistoryButtons(target.id, 1, history.totalPages);
 
+            // 4. Resposta (Contrato Slash: editReply)
             await interaction.editReply({ 
                 embeds: [embed], 
                 components: components ? [components] : [] 
             });
 
         } catch (err) {
-            if (client.systems.logger) client.systems.logger.log('Command_Historico', err);
+            if (logger) logger.log('Command_Historico', err);
+            
+            // SafeExecute: Resposta amigável ao erro
             await interaction.editReply({ 
                 content: `${EMOJIS.ERRO || '❌'} Erro ao carregar histórico: \`${err.message}\`` 
-            });
+            }).catch(() => null);
         }
     }
 };

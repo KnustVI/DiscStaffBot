@@ -1,28 +1,29 @@
 const sessions = new Map();
 
 /**
- * SESSION MANAGER OTIMIZADO (Ponto 3 & 4)
- * Focado em contexto Guild-User-Action e expiração automática.
+ * SESSION MANAGER OTIMIZADO
+ * Gerencia o estado temporário de interações (menus, botões, formulários)
+ * evitando sobrecarga de memória e conflitos de contexto.
  */
 const SessionManager = {
-    DEFAULT_EXPIRY: 600000, // 10 minutos
+    DEFAULT_EXPIRY: 600000, // 10 minutos (10 * 60 * 1000)
 
-    // Função interna para gerar a chave única (Ponto 3)
+    /**
+     * Gera uma chave composta para isolar o contexto.
+     * @private
+     */
     _generateKey(guildId, userId, action) {
         return `${guildId}:${userId}:${action}`;
     },
 
     /**
-     * @param {string} guildId - ID do Servidor
-     * @param {string} userId - ID do Usuário
-     * @param {string} action - Prefixo da ação (ex: 'config', 'strike')
-     * @param {object} data - Dados da sessão
+     * Cria ou atualiza uma sessão ativa.
      */
     set(guildId, userId, action, data = {}, ttl = this.DEFAULT_EXPIRY) {
         const key = this._generateKey(guildId, userId, action);
         
-        // Limpa resíduos antes de setar nova
-        sessions.delete(key);
+        // Remove sessão anterior para garantir dados limpos
+        if (sessions.has(key)) sessions.delete(key);
 
         sessions.set(key, {
             ...data,
@@ -33,13 +34,16 @@ const SessionManager = {
         });
     },
 
+    /**
+     * Recupera dados da sessão com validação de expiração (Lazy Delete).
+     */
     get(guildId, userId, action) {
         const key = this._generateKey(guildId, userId, action);
         const session = sessions.get(key);
         
         if (!session) return null;
 
-        // Ponto 4: Auto-limpeza no acesso (Lazy Delete)
+        // Validação de expiração no momento do acesso
         if (Date.now() > session.expiresAt) {
             sessions.delete(key);
             return null;
@@ -48,25 +52,36 @@ const SessionManager = {
         return session;
     },
 
+    /**
+     * Finaliza uma sessão manualmente (Ex: após concluir um formulário).
+     */
     delete(guildId, userId, action) {
-        return sessions.delete(this._generateKey(guildId, userId, action));
+        const key = this._generateKey(guildId, userId, action);
+        return sessions.delete(key);
     },
 
-    // Limpeza em massa para segurança de memória (Ponto 4)
+    /**
+     * Limpeza periódica para evitar Memory Leak (Vazamento de memória).
+     */
     cleanup() {
         const now = Date.now();
         let count = 0;
+
         for (const [key, session] of sessions.entries()) {
             if (now > session.expiresAt) {
                 sessions.delete(key);
                 count++;
             }
         }
-        if (count > 0) console.log(`[CLEANUP] ${count} sessões expiradas removidas.`);
+
+        if (count > 0) {
+            // Log discreto para monitoramento na Oracle Cloud
+            console.log(`\x1b[34m[SESSION]\x1b[0m Limpeza concluída: ${count} sessões expiradas removidas.`);
+        }
     }
 };
 
-// Ponto 4: Intervalo de limpeza pesada a cada 10 minutos
+// Intervalo de manutenção automática (A cada 10 minutos)
 setInterval(() => SessionManager.cleanup(), 600000);
 
 module.exports = SessionManager;

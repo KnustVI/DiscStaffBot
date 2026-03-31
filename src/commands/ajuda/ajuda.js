@@ -5,64 +5,72 @@ module.exports = {
         .setName('ajuda')
         .setDescription('Guia de introdução e lista de comandos do Assistente Robin.'),
 
+    /**
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
+     */
     async execute(interaction) {
-        // Destruturação rápida para performance
+        // 1. Extração de dependências do Client (Lookup em memória)
         const { client, member, guild } = interaction;
+        const { emojis, config, logger } = client.systems;
 
-        // Ponto 2: Lookup direto na memória (Client.systems já carregado no index)
-        const EMOJIS = client.systems.emojis || {}; 
-        const ConfigSystem = client.systems.config; 
-        const ErrorLogger = client.systems.logger;
-
-        // Ponto 6: Remoção de await em funções síncronas. 
-        // Se getFooter apenas formata texto, o await causa um micro-atraso desnecessário.
-        const footerData = ConfigSystem.getFooter 
-            ? ConfigSystem.getFooter(guild.name) 
-            : { text: guild.name, iconURL: guild.iconURL() };
-
-        // Construção da descrição usando Template Strings de forma limpa
-        const description = [
-            `# ${EMOJIS.ROBIN || '🤖'} Assistente Robin`,
-            `Olá **${member.displayName}**! Sou o braço direito da sua Staff no **${guild.name}**.`,
-            `### ${EMOJIS.CONFIG || '⚙️'} 1. Configuração Inicial`,
-            `- \`/config\`: Painel interativo para Staff e Logs.`,
-            `- \`/botstatus\`: Saúde do sistema e ciclos.`,
-            `### ${EMOJIS.ACTION || '🛠️'} 2. Moderação & Gestão`,
-            `- \`/strike\`: Aplica sanções e remove reputação.`,
-            `- \`/rep-set\`: Ajuste manual de pontos.`,
-            `- \`/historico\`: Consulta a ficha completa.`,
-            `### ${EMOJIS.REPUTATION || '📊'} 3. Sistema de Reputação`,
-            `- **Base:** Todos iniciam com \`100\` pontos.`,
-            `- **Cargos:** \`95+\` **Exemplares** | \`< 30\` **Problemáticos**.`,
-            `---`,
-            `> Utilize os comandos acima para manter a ordem.`
-        ].join('\n');
-
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E) 
-            .setThumbnail(client.user.displayAvatarURL())
-            .setDescription(description)
-            .addFields({ 
-                name: `📡 Integridade`, 
-                value: `🟢 Online | SQLite (WAL)`, 
-                inline: true 
-            })
-            .setFooter({ 
-                text: footerData.text, 
-                iconURL: footerData.iconURL 
-            })
-            .setTimestamp();
-
+        const EMOJIS = emojis || {};
+        
         try {
-            // Ponto 1: Usando editReply porque o roteador já deu deferReply
+            // 2. Lógica Síncrona (Aproveitando o Cache do ConfigSystem)
+            // Não usamos await aqui pois o cache em RAM do seu sistema é instantâneo
+            const footerText = config.getSetting(guild.id, 'footer_text') || guild.name;
+            
+            // 3. Construção da UI (Template Strings otimizadas)
+            const description = [
+                `# ${EMOJIS.ROBIN || '🤖'} Assistente Robin`,
+                `Olá **${member.displayName}**! Sou o sistema de gestão do **${guild.name}**.`,
+                '',
+                `### ${EMOJIS.CONFIG || '⚙️'} 1. Configuração`,
+                `- \`/config\`: Painel de controle da Staff.`,
+                `- \`/botstatus\`: Integridade técnica do sistema.`,
+                '',
+                `### ${EMOJIS.ACTION || '🛠️'} 2. Moderação`,
+                `- \`/strike\`: Aplica punições e reduz reputação.`,
+                `- \`/historico\`: Consulta a ficha de um usuário.`,
+                `- \`/rep-set\`: Ajuste manual de reputação.`,
+                '',
+                `### ${EMOJIS.REPUTATION || '📊'} 3. Reputação`,
+                `- **Máxima:** \`100\` pontos.`,
+                `- **Status:** \`> 90\` (Exemplar) | \`< 30\` (Risco).`,
+                '---',
+                `> Use os comandos com responsabilidade.`
+            ].join('\n');
+
+            const embed = new EmbedBuilder()
+                .setColor(0xDCA15E) // Cor padrão Robin
+                .setThumbnail(client.user.displayAvatarURL())
+                .setDescription(description)
+                .addFields({ 
+                    name: `📡 Sistema`, 
+                    value: `🟢 Operacional | v3.0`, 
+                    inline: true 
+                })
+                .setFooter({ 
+                    text: footerText, 
+                    iconURL: guild.iconURL() 
+                })
+                .setTimestamp();
+
+            // 4. Resposta Final (Contrato: Slash Command usa editReply)
             await interaction.editReply({ embeds: [embed] });
+
         } catch (error) {
-            // Ponto 5: Log centralizado sem duplicar lógica no console se houver logger
-            if (ErrorLogger && typeof ErrorLogger.log === 'function') {
-                ErrorLogger.log('Command_Ajuda', error);
+            // 5. Proteção contra erro (SafeExecute)
+            if (logger) {
+                logger.log('Command_Ajuda', error);
             } else {
-                console.error("❌ Erro no comando ajuda:", error);
+                console.error("Critical Error in /ajuda:", error);
             }
+
+            // Garante que o usuário saiba que algo deu errado, sem travar a interação
+            await interaction.editReply({ 
+                content: `${EMOJIS.ERRO || '❌'} Houve um erro interno ao gerar o guia de ajuda.` 
+            }).catch(() => null);
         }
     }
 };

@@ -3,31 +3,32 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
-const db = require('./src/database');
+const db = require('../database'); // Ajustado para o caminho correto
 
 const app = express();
 
 function loadDashboard(client) {
-
-    // 1. Configurações Globais de Renderização e Estáticos
-    app.set('views', path.join(__dirname, 'src', 'web', 'views'));
+    // --- 1. CONFIGURAÇÕES DE RENDERIZAÇÃO ---
+    app.set('views', path.join(__dirname, '..', 'web', 'views'));
     app.set('view engine', 'ejs');
-    app.use(express.static(path.join(__dirname, 'src', 'web', 'public')));
+    
+    // Middlewares padrão
+    app.use(express.static(path.join(__dirname, '..', 'web', 'public')));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
-    // 2. Configuração ÚNICA de Sessão (Essencial para manter logado no F5)
+    // --- 2. GERENCIAMENTO DE SESSÃO ---
     app.use(session({
-        secret: process.env.SESSION_SECRET || 'titans_pass_secret_123',
-        resave: false,                  
-        saveUninitialized: false,       
+        secret: process.env.SESSION_SECRET || 'robin_integrity_secure_session_882',
+        resave: false,
+        saveUninitialized: false,
         cookie: { 
-            secure: false,              // 'false' para localhost (HTTP). Se usar HTTPS, mude para true.
-            maxAge: 1000 * 60 * 60 * 24 // 24 horas de duração
+            secure: process.env.NODE_ENV === 'production', // true se usar HTTPS
+            maxAge: 1000 * 60 * 60 * 24 // 24 horas
         }
     }));
 
-    // 3. Configuração do Passport
+    // --- 3. PASSPORT (OAUTH2 DISCORD) ---
     passport.serializeUser((user, done) => done(null, user));
     passport.deserializeUser((obj, done) => done(null, obj));
 
@@ -43,30 +44,30 @@ function loadDashboard(client) {
     app.use(passport.initialize());
     app.use(passport.session());
 
-    // 4. Middleware de Autenticação (A trava de segurança)
+    // --- 4. MIDDLEWARES DE PROTEÇÃO ---
     function checkAuth(req, res, next) {
-        // req.isAuthenticated() é o método padrão do Passport
-        if (req.isAuthenticated()) {
-            return next();
-        }
-        res.redirect('/'); 
+        if (req.isAuthenticated()) return next();
+        res.redirect('/login'); 
     }
 
-    // ==========================
-    // ROTAS DE AUTENTICAÇÃO
-    // ==========================
-    app.get('/login', passport.authenticate('discord'));
-    
-    app.get('/auth/discord/callback', passport.authenticate('discord', { failureRedirect: '/' }), (req, res) => {
-        // Força a gravação da sessão antes do redirecionamento para evitar erros de F5 logo no início
-        req.session.save(() => {
-            res.redirect('/');
-        });
+    // Middleware para injetar dados globais em todos os templates EJS
+    app.use((req, res, next) => {
+        res.locals.user = req.user || null;
+        res.locals.bot = client;
+        next();
     });
 
-    app.get('/logout', (req, res, next) => {
-        req.logout((err) => {
-            if (err) return next(err);
+    // --- 5. ROTAS DE AUTENTICAÇÃO ---
+    app.get('/login', passport.authenticate('discord'));
+    
+    app.get('/auth/discord/callback', passport.authenticate('discord', { 
+        failureRedirect: '/' 
+    }), (req, res) => {
+        req.session.save(() => res.redirect('/'));
+    });
+
+    app.get('/logout', (req, res) => {
+        req.logout(() => {
             req.session.destroy(() => {
                 res.clearCookie('connect.sid');
                 res.redirect('/');
@@ -74,132 +75,97 @@ function loadDashboard(client) {
         });
     });
 
-    // ==========================
-    // INDEX (PÁGINA INICIAL / SELEÇÃO)
-    // ==========================
+    // --- 6. ROTAS DE NAVEGAÇÃO ---
+
+    // Index: Seleção de Servidores
     app.get('/', (req, res) => {
-        let userGuilds = [];
+        let adminGuilds = [];
         if (req.user && req.user.guilds) {
-            userGuilds = req.user.guilds.filter(g => 
-                (parseInt(g.permissions) & 0x8) === 0x8 // Filtra apenas onde é ADM
-            ).map(g => {
-                const botIn = client.guilds.cache.has(g.id);
-                return { ...g, botIn };
-            });
+            adminGuilds = req.user.guilds.filter(g => 
+                (parseInt(g.permissions) & 0x8) === 0x8 // Permissão de ADMINISTRADOR
+            ).map(g => ({
+                ...g,
+                botIn: client.guilds.cache.has(g.id)
+            }));
         }
-        res.render('index', { 
-            user: req.user,
-            bot: client,
-            guilds: userGuilds
+        res.render('index', { guilds: adminGuilds });
+    });
+
+    // Home do Servidor (Stats)
+    app.get('/home/:guildID', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        
+        if (!guild) return res.redirect('/');
+
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+
+        // Dados do DB para a Dashboard
+        const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
+        const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ?").get(guildID);
+
+        res.render('home', {
+            guild,
+            member,
+            reputation: repData?.points || 100,
+            totalPunishments: punCount?.total || 0
         });
     });
 
-    // ==========================
-    // HOME (ESTATÍSTICAS / GRÁFICOS)
-    // ==========================
-    app.get('/home/:guildID', checkAuth, async (req, res) => {
-        try {
-            const { guildID } = req.params;
-            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
-            
-            if (!guild) return res.redirect('/');
-
-            const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
-
-            const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
-            const reputation = repData ? repData.points : 100;
-
-            const punCount = db.prepare("SELECT COUNT(*) as total FROM punishments WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
-            const level = punCount ? Math.floor(punCount.total / 5) + 1 : 1;
-
-            res.render('home', {
-                guild,
-                user: req.user,
-                bot: client,
-                member: member,
-                nickname: member.displayName || req.user.username,
-                role: member.roles.highest.name !== '@everyone' ? member.roles.highest.name : "Membro",
-                reputation: reputation,
-                level: level
-            });
-        } catch (err) {
-            console.error("Erro na Home:", err);
-            res.redirect('/');
-        }
-    });
-
-    // ==========================
-    // MANAGE (CONFIGURAÇÕES)
-    // ==========================
+    // Gerenciar Configurações
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
-        try {
-            const { guildID } = req.params;
-            const guild = client.guilds.cache.get(guildID) || await client.guilds.fetch(guildID).catch(() => null);
-            
-            if (!guild) return res.redirect('/');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        
+        if (!guild) return res.redirect('/');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
 
-            const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+        const settingsRows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
+        const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
 
-            const settingsRows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
-            const settings = {};
-            settingsRows.forEach(row => {
-                settings[row.key] = row.value;
-            });
-
-            res.render('manage', {
-                path: 'manage',
-                guild,
-                user: req.user,
-                bot: client,
-                member: member,
-                nickname: member.displayName || req.user.username,
-                role: member.roles.highest.name !== '@everyone' ? member.roles.highest.name : "Membro",
-                settings: settings,
-                success: req.query.success === 'true'
-            });
-        } catch (err) {
-            console.error("Erro na Manage:", err);
-            res.redirect('/');
-        }
+        res.render('manage', {
+            guild,
+            settings,
+            success: req.query.success === 'true'
+        });
     });
 
-    // ==========================
-    // SALVAR CONFIGURAÇÕES (POST)
-    // ==========================
+    // Salvar Configurações (POST com Transação)
     app.post('/manage/:guildID/save', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+
+        if (!guild) return res.status(404).send("Guild não encontrada.");
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has("Administrator")) return res.status(403).send("Acesso negado.");
+
+        const upsert = db.prepare(`
+            INSERT INTO settings (guild_id, key, value) 
+            VALUES (?, ?, ?) 
+            ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
+        `);
+
+        // Uso de Transaction do Better-SQLite3 para performance e segurança
+        const saveSettings = db.transaction((data) => {
+            for (const [key, value] of Object.entries(data)) {
+                upsert.run(guildID, key, String(value));
+            }
+        });
+
         try {
-            const { guildID } = req.params;
-            const guild = client.guilds.cache.get(guildID);
-            if (!guild) return res.status(404).send("Guild não encontrada.");
-
-            const member = await guild.members.fetch(req.user.id).catch(() => null);
-            if (!member || !member.permissions.has("Administrator")) return res.status(403).send("Sem permissão.");
-
-            const upsert = db.prepare(`
-                INSERT INTO settings (guild_id, key, value) 
-                VALUES (?, ?, ?) 
-                ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value
-            `);
-
-            const transaction = db.transaction((data) => {
-                for (const [key, value] of Object.entries(data)) {
-                    upsert.run(guildID, key, value ? value.toString() : "");
-                }
-            });
-
-            transaction(req.body);
+            saveSettings(req.body);
             res.redirect(`/manage/${guildID}?success=true`);
-        } catch (error) {
-            console.error("Erro ao salvar:", error);
-            res.status(500).send("Erro ao salvar dados.");
+        } catch (err) {
+            console.error("Erro ao salvar:", err);
+            res.status(500).send("Erro interno ao salvar.");
         }
     });
 
     const PORT = process.env.DASHBOARD_PORT || 3000;
     app.listen(PORT, () => {
-        console.log(`✅ Dashboard Online na porta ${PORT}!`);
+        console.log(`\x1b[35m[WEB]\x1b[0m Dashboard rodando em http://localhost:${PORT}`);
     });
 }
 

@@ -9,45 +9,68 @@ module.exports = {
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo do ajuste').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
+    /**
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
+     */
     async execute(interaction) {
-        const { client, guild, options, user: staff, member } = interaction;
-        const EMOJIS = client.systems.emojis || {};
-        const Config = client.systems.config;
-        const Punishment = client.systems.punishment;
+        const { client, guild, options, user: staff, member: staffMember } = interaction;
+        
+        // Lookup de sistemas (RAM)
+        const { emojis, config, punishment, logger } = client.systems;
+        const EMOJIS = emojis || {};
 
         const target = options.getUser('usuario');
-        const targetMember = await guild.members.fetch(target.id).catch(() => null);
-
-        // Trava de Hierarquia (Ponto 3)
-        if (targetMember && targetMember.roles.highest.position >= member.roles.highest.position && staff.id !== guild.ownerId) {
-            return interaction.editReply({ content: `${EMOJIS.ERRO || '❌'} Você não tem autoridade para ajustar a reputação deste membro.` });
-        }
+        const newPoints = options.getInteger('pontos');
+        const reason = options.getString('motivo');
 
         try {
-            const result = await Punishment.setManualReputation(guild.id, target.id, options.getInteger('pontos'));
+            // 1. Trava de Hierarquia (Performance: Fetch apenas se necessário)
+            const targetMember = guild.members.cache.get(target.id) || await guild.members.fetch(target.id).catch(() => null);
+            
+            if (targetMember && targetMember.roles.highest.position >= staffMember.roles.highest.position && staff.id !== guild.ownerId) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.ERRO || '❌'} Você não tem autoridade para ajustar a reputação de um cargo superior ou igual ao seu.` 
+                });
+            }
+
+            // 2. Execução da Lógica (Delegada ao System)
+            // Retorna { oldPoints, newPoints, diff }
+            const result = await punishment.setManualReputation(guild.id, target.id, newPoints);
             const diffText = result.diff >= 0 ? `+${result.diff}` : `${result.diff}`;
 
-            // Log de Canal
-            const logChanId = Config.getSetting(guild.id, 'logs_channel');
-            if (logChanId) {
-                const logChannel = await guild.channels.fetch(logChanId).catch(() => null);
+            // 3. Resposta Imediata (Contrato Slash: editReply)
+            await interaction.editReply({
+                content: `${EMOJIS.CHECK || '✅'} Reputação de **${target.username}** definida para \`${result.newPoints} pts\` (Alteração: \`${diffText}\`).`
+            });
+
+            // 4. Fluxo de Log (Async em segundo plano para não atrasar a interação)
+            const logChannelId = config.getSetting(guild.id, 'logs_channel');
+            if (logChannelId) {
+                const logChannel = guild.channels.cache.get(logChannelId) || await guild.channels.fetch(logChannelId).catch(() => null);
+                
                 if (logChannel) {
                     const logEmbed = new EmbedBuilder()
                         .setColor(result.diff >= 0 ? 0x00FF7F : 0xFF4500)
-                        .setTitle(`${EMOJIS.UP || '📈'} Ajuste de Reputação`)
-                        .setDescription(`**Usuário:** ${target}\n**Responsável:** ${staff}\n**Alteração:** \`${diffText} pts\`\n**Saldo Final:** \`${result.newPoints}/100\``)
-                        .addFields({ name: 'Motivo', value: options.getString('motivo') })
-                        .setFooter(Config.getFooter(guild.name));
-                    
-                    await logChannel.send({ embeds: [logEmbed] });
+                        .setAuthor({ name: `Ajuste de Reputação`, iconURL: target.displayAvatarURL() })
+                        .setDescription([
+                            `**Alvo:** ${target} (\`${target.id}\`)`,
+                            `**Moderador:** ${staff}`,
+                            `**Ajuste:** \`${diffText} pts\` → Final: \`${result.newPoints}/100\``,
+                            `**Motivo:** ${reason}`
+                        ].join('\n'))
+                        .setFooter({ text: config.getSetting(guild.id, 'footer_text') || guild.name })
+                        .setTimestamp();
+
+                    logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                 }
             }
 
-            await interaction.editReply({
-                content: `${EMOJIS.CHECK || '✅'} Reputação de **${target.username}** definida para \`${result.newPoints} pts\`.`
-            });
         } catch (err) {
-            await interaction.editReply({ content: `❌ Erro: ${err.message}` });
+            if (logger) logger.log('Command_RepSet_Error', err);
+            
+            await interaction.editReply({ 
+                content: `${EMOJIS.ERRO || '❌'} Erro ao processar ajuste: \`${err.message}\`` 
+            }).catch(() => null);
         }
     }
 };

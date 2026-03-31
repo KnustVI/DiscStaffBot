@@ -1,41 +1,46 @@
-const fs = require('fs').promises; // Usando a versão de promessas para não travar o bot
+const fs = require('fs').promises;
 const path = require('path');
 
 const ErrorLogger = {
     /**
-     * Registra um erro em um arquivo local e no console
-     * @param {string} context - Onde o erro ocorreu
-     * @param {Error|string|any} error - O objeto de erro ou mensagem
+     * Registra um erro de forma persistente e visível no console.
+     * @param {string} context - Onde o erro ocorreu (ex: 'Command_Strike')
+     * @param {Error|string|object} error - O erro em si
+     * @param {object} metadata - Opcional: Dados extras (user, guild, etc)
      */
-    async log(context, error) {
+    async log(context, error, metadata = null) {
         const timestamp = new Date().toLocaleString('pt-BR');
-        
-        // Garante que temos uma mensagem e um stack, mesmo que o erro seja apenas uma string
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorStack = error instanceof Error ? error.stack : 'Sem stack trace disponível';
+        const logDir = path.join(__dirname, '../../logs');
+        const logPath = path.join(logDir, 'system_errors.log');
+
+        // 1. Normalização do Erro
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : 'Sem stack trace';
+        const extra = metadata ? `\nMETADATA: ${JSON.stringify(metadata, null, 2)}` : '';
 
         const logEntry = [
-            `[${timestamp}]`,
-            `[CONTEXTO: ${context.toUpperCase()}]`,
-            `[MENSAGEM: ${errorMessage}]`,
-            `STACK: ${errorStack}`,
-            '-'.repeat(60),
+            `╔═ [${timestamp}] ══════════════════════════════════════════════`,
+            `║ CONTEXTO: ${context.toUpperCase()}`,
+            `║ MENSAGEM: ${message}`,
+            `║ STACK: ${stack}${extra}`,
+            `╚═══════════════════════════════════════════════════════════════`,
             ''
         ].join('\n');
 
-        // Caminho do arquivo (Garante que a pasta logs existe se você preferir, 
-        // mas aqui mantive na raiz como o seu original)
-        const logPath = path.join(__dirname, '../../logs_erro_system.log');
-
         try {
-            // appendFile assíncrono evita "gargalos" no processamento do bot
+            // 2. Garante que a pasta de logs existe (Prevenção de erro I/O)
+            await fs.mkdir(logDir, { recursive: true }).catch(() => null);
+
+            // 3. Escrita Assíncrona (Append)
             await fs.appendFile(logPath, logEntry, 'utf8');
         } catch (err) {
-            console.error('\x1b[41m\x1b[37m[CRITICAL]\x1b[0m Falha ao gravar no arquivo de log:', err.message);
+            // Se falhar o disco, avisamos no console com destaque
+            console.error('\x1b[41m\x1b[37m[CRITICAL]\x1b[0m Falha ao gravar log no disco:', err.message);
         }
 
-        // Destaque visual no console da Oracle Cloud
-        console.error(`\x1b[31m[SYSTEM ERROR]\x1b[0m Erro em \x1b[33m${context}\x1b[0m: ${errorMessage}`);
+        // 4. Output Visual no Terminal (Padrão Oracle Cloud / PM2)
+        console.error(`\x1b[31m[SYSTEM ERROR]\x1b[0m Erro em \x1b[33m${context}\x1b[0m: ${message}`);
+        if (metadata) console.dir(metadata, { depth: null, colors: true });
     }
 };
 
