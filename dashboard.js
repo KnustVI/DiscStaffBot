@@ -128,7 +128,10 @@ function loadDashboard(client) {
         res.render('manage', {
             guild,
             settings,
-            success: req.query.success === 'true'
+            success: req.query.success === 'true',
+            user: req.user || null, // Garante que 'user' exista para o EJS
+            bot: client,            // Garante que 'bot' exista para o título
+            guilds: userGuilds
         });
     });
 
