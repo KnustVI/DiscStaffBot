@@ -1,10 +1,5 @@
 /**
  * Schema completo do banco de dados
- * Preparado para suportar:
- * - Sistema de punições (strikes)
- * - Sistema de tickets (atendimento)
- * - Analytics de staff
- * - Dashboard web
  */
 
 const SCHEMA = {
@@ -190,27 +185,40 @@ const SCHEMA = {
     `
 };
 
-// ==================== ÍNDICES SEPARADOS ====================
-// Os índices devem ser criados separadamente para evitar erros de sintaxe
+// ==================== ÍNDICES COM VERIFICAÇÃO DE COLUNAS ====================
+// Usando IF NOT EXISTS e verificando se as colunas existem
 const INDEXES = [
+    // Punishments
     `CREATE INDEX IF NOT EXISTS idx_punishments_guild_user ON punishments(guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_moderator ON punishments(moderator_id)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_created ON punishments(created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_status ON punishments(status)`,
+    
+    // Tickets
     `CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`,
     `CREATE INDEX IF NOT EXISTS idx_tickets_claimed ON tickets(claimed_by)`,
     `CREATE INDEX IF NOT EXISTS idx_tickets_created ON tickets(created_at)`,
+    
+    // Reputation
     `CREATE INDEX IF NOT EXISTS idx_reputation_guild_user ON reputation(guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reputation_points ON reputation(points)`,
+    
+    // Staff Analytics
     `CREATE INDEX IF NOT EXISTS idx_staff_analytics_guild_user ON staff_analytics(guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_staff_analytics_date ON staff_analytics(date)`,
+    
+    // Activity Logs
     `CREATE INDEX IF NOT EXISTS idx_activity_logs_guild ON activity_logs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON activity_logs(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action)`,
     `CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at)`,
+    
+    // Temporary Roles
     `CREATE INDEX IF NOT EXISTS idx_temporary_roles_expires ON temporary_roles(expires_at)`,
+    
+    // Feedbacks
     `CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status)`,
     `CREATE INDEX IF NOT EXISTS idx_feedbacks_created ON feedbacks(created_at)`
 ];
