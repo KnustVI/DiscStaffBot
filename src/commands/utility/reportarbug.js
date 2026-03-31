@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { EMOJIS } = require('../../../database/emojis');
 
 // CONFIGURAÇÃO GLOBAL - ID do seu canal de suporte/bugs
 const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717'; 
@@ -22,15 +21,13 @@ module.exports = {
                 .setRequired(true)),
 
     async execute(interaction) {
-        // ==========================================================
-        // O deferReply({ ephemeral: true }) já foi executado 
-        // pelo interactionCreate.js antes de chegar aqui.
-        // ==========================================================
+        const { client, options, user, guild } = interaction;
+        
+        // PONTO 2: Acesso centralizado aos Emojis que definimos na index.js
+        const EMOJIS = client.systems.emojis || {};
 
-        const tipo = interaction.options.getString('tipo');
-        const msg = interaction.options.getString('mensagem');
-        const user = interaction.user;
-        const guild = interaction.guild;
+        const tipo = options.getString('tipo');
+        const msg = options.getString('mensagem');
 
         // 1. Embed que chega para VOCÊ no seu servidor de suporte
         const devEmbed = new EmbedBuilder()
@@ -47,28 +44,24 @@ module.exports = {
 
         try {
             // 2. Busca o canal central de logs do desenvolvedor
-            const devChannel = await interaction.client.channels.fetch(SEU_CANAL_DE_REPORTS_ID).catch(() => null);
+            const devChannel = await client.channels.fetch(SEU_CANAL_DE_REPORTS_ID).catch(() => null);
 
             if (devChannel) {
-                // Envia para o seu canal
                 await devChannel.send({ embeds: [devEmbed] });
                 
-                // 3. Resposta de confirmação para o usuário (Editando o defer global)
                 await interaction.editReply({ 
-                    content: `${EMOJIS.EXCELLENT || '⭐'} **Obrigado!** Seu feedback foi enviado diretamente para o desenvolvedor (KnustVI).`
+                    content: `${EMOJIS.CHECK || '✅'} **Obrigado!** Seu feedback foi enviado diretamente para o desenvolvedor.`
                 });
             } else {
-                // Caso o ID do canal esteja errado ou o bot não tenha acesso
                 await interaction.editReply({ 
-                    content: `${EMOJIS.ERRO || '❌'} Erro ao contatar a central de suporte. Tente novamente mais tarde.`
+                    content: `❌ Erro ao contatar a central de suporte. Avise um administrador.`
                 });
             }
 
         } catch (error) {
             console.error("Erro ao enviar feedback:", error);
-            // Evita crashar o bot e avisa o usuário
             await interaction.editReply({ 
-                content: `${EMOJIS.ERRO || '❌'} Houve um erro interno ao processar seu envio.` 
+                content: `❌ Houve um erro interno ao processar seu envio.` 
             });
         }
     }
