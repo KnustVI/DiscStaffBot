@@ -20,7 +20,8 @@ client.systems = {
     punishment: require('./src/systems/punishmentSystem'), 
     logger: require('./src/systems/errorLogger'),
     sessions: require('./src/utils/sessionManager'),
-    emojis: require('./src/database/emojis').EMOJIS // Carregamento global de emojis
+    emojis: require('./src/database/emojis').EMOJIS,
+    status: require('./src/systems/systemStatus') // Carregamento global de emojis
 };
 
 client.commands = new Collection();

@@ -38,7 +38,10 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ content: errorMsg });
             } else {
-                await interaction.reply({ content: errorMsg, ephemeral: true });
+                await interaction.reply({ 
+                    content: errorMsg, 
+                    flags: [MessageFlags.Ephemeral] 
+                });
             }
         }
     }
