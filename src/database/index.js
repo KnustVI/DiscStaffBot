@@ -65,39 +65,109 @@ class DatabaseManager {
         }
     }
     
-    /**
+            /**
+     * Cria índices apenas para tabelas que existem
+     */
+    createIndexes() {
+        const { INDEXES } = require('./schema');
+        
+        for (const indexSql of INDEXES) {
+            try {
+                // Extrair nome da tabela
+                const match = indexSql.match(/ON\s+(\w+)/i);
+                if (match) {
+                    const tableName = match[1];
+                    
+                    // Verificar se a tabela existe
+                    const tableCheck = this.db.prepare(`
+                        SELECT name FROM sqlite_master 
+                        WHERE type='table' AND name = ?
+                    `).get(tableName);
+                    
+                    if (tableCheck) {
+                        this.db.exec(indexSql);
+                    }
+                } else {
+                    // Tentar criar mesmo assim
+                    this.db.exec(indexSql);
+                }
+            } catch (err) {
+                // Ignorar erros silenciosamente
+                if (!err.message.includes('already exists')) {
+                    // console.log(`   ⚠️ Índice ignorado: ${err.message}`);
+                }
+            }
+        }
+    }
+
+
+        /**
      * Cria todas as tabelas do schema
      */
-        createAllTables() {
+    createAllTables() {
         try {
-            // Criar tabelas principais
-            const tables = [
-                'users',
-                'guilds',
-                'settings',
-                'reputation',
-                'punishments',
-                'tickets',
-                'ticket_messages',
-                'staff_analytics',
-                'activity_logs',
-                'temporary_roles',
-                'feedbacks'
+            // 1. Primeiro, criar as tabelas principais em ordem de dependência
+            const tablesInOrder = [
+                'users',        // Base
+                'guilds',       // Base
+                'settings',     // Depende de guilds
+                'reputation',   // Depende de users e guilds
+                'punishments',  // Depende de users e guilds
+                'tickets',      // Depende de users e guilds
+                'ticket_messages', // Depende de tickets
+                'staff_analytics', // Depende de users e guilds
+                'activity_logs',   // Depende de users e guilds
+                'temporary_roles', // Depende de users e guilds
+                'feedbacks'        // Depende de users e guilds
             ];
             
-            for (const table of tables) {
+            for (const table of tablesInOrder) {
                 if (SCHEMA[table]) {
-                    this.db.exec(SCHEMA[table]);
+                    try {
+                        this.db.exec(SCHEMA[table]);
+                        console.log(`   ✅ Tabela ${table} criada/verificada`);
+                    } catch (err) {
+                        console.error(`   ❌ Erro ao criar tabela ${table}:`, err.message);
+                    }
                 }
             }
             
-            // Criar índices separadamente
+            // 2. Aguardar um momento para garantir que as tabelas foram criadas
+            // (SQLite é síncrono, então não precisa de await, mas vamos verificar)
+            
+            // 3. Verificar se as tabelas existem antes de criar índices
             const { INDEXES } = require('./schema');
+            
+            console.log('   📊 Criando índices...');
+            
             for (const indexSql of INDEXES) {
                 try {
-                    this.db.exec(indexSql);
+                    // Extrair o nome da tabela do índice para verificar se existe
+                    const tableMatch = indexSql.match(/ON\s+(\w+)/i);
+                    const tableName = tableMatch ? tableMatch[1] : null;
+                    
+                    if (tableName) {
+                        // Verificar se a tabela existe
+                        const tableExists = this.db.prepare(`
+                            SELECT name FROM sqlite_master 
+                            WHERE type='table' AND name=?
+                        `).get(tableName);
+                        
+                        if (tableExists) {
+                            this.db.exec(indexSql);
+                            // console.log(`   ✅ Índice criado para ${tableName}`);
+                        } else {
+                            // console.log(`   ⏭️ Pulando índice para ${tableName} (tabela não existe ainda)`);
+                        }
+                    } else {
+                        // Tentar criar mesmo assim
+                        this.db.exec(indexSql);
+                    }
                 } catch (err) {
-                    console.error(`❌ Erro ao criar índice:`, err.message);
+                    // Ignorar erros de índices (podem já existir)
+                    if (!err.message.includes('already exists')) {
+                        console.log(`   ⚠️ Índice ignorado: ${err.message.slice(0, 50)}...`);
+                    }
                 }
             }
             
