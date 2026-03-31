@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
-// CONFIGURAÇÃO GLOBAL - ID do seu canal de suporte/bugs
+// ID Centralizado de Suporte (Pode ser movido para o ConfigSystem futuramente)
 const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717'; 
 
 module.exports = {
@@ -20,49 +20,59 @@ module.exports = {
                 .setDescription('Detalhe sua sugestão ou o erro encontrado')
                 .setRequired(true)),
 
+    /**
+     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
+     */
     async execute(interaction) {
         const { client, options, user, guild } = interaction;
         
-        // PONTO 2: Acesso centralizado aos Emojis que definimos na index.js
-        const EMOJIS = client.systems.emojis || {};
+        // 1. Lookup de Sistemas (RAM)
+        const { emojis, logger } = client.systems;
+        const EMOJIS = emojis || {};
 
         const tipo = options.getString('tipo');
         const msg = options.getString('mensagem');
 
-        // 1. Embed que chega para VOCÊ no seu servidor de suporte
-        const devEmbed = new EmbedBuilder()
-            .setTitle(`${tipo === 'BUG' ? '🐞 Novo Bug Reportado' : '💡 Nova Sugestão'}`)
-            .setColor(tipo === 'BUG' ? 0xEF4444 : 0x3B82F6)
-            .addFields(
-                { name: 'Enviado por:', value: `${user.tag} (\`${user.id}\`)`, inline: true },
-                { name: 'Servidor:', value: `${guild.name} (\`${guild.id}\`)`, inline: true },
-                { name: 'Mensagem:', value: `\`\`\`${msg}\`\`\`` }
-            )
-            .setThumbnail(user.displayAvatarURL())
-            .setFooter({ text: `✧ Sistema de Feedback Centralizado`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
-            .setTimestamp();
-
         try {
-            // 2. Busca o canal central de logs do desenvolvedor
-            const devChannel = await client.channels.fetch(SEU_CANAL_DE_REPORTS_ID).catch(() => null);
+            // 2. Busca o canal central (Primeiro no Cache, depois Fetch)
+            // Otimização: Evita I/O de rede desnecessário se o canal já estiver mapeado
+            const devChannel = client.channels.cache.get(SEU_CANAL_DE_REPORTS_ID) || 
+                               await client.channels.fetch(SEU_CANAL_DE_REPORTS_ID).catch(() => null);
 
-            if (devChannel) {
-                await devChannel.send({ embeds: [devEmbed] });
-                
-                await interaction.editReply({ 
-                    content: `${EMOJIS.CHECK || '✅'} **Obrigado!** Seu feedback foi enviado diretamente para o desenvolvedor.`
-                });
-            } else {
-                await interaction.editReply({ 
-                    content: `❌ Erro ao contatar a central de suporte. Avise um administrador.`
+            if (!devChannel) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.ERRO || '❌'} A central de suporte está temporariamente offline. Tente novamente mais tarde.` 
                 });
             }
 
-        } catch (error) {
-            console.error("Erro ao enviar feedback:", error);
+            // 3. Construção da Embed para o Desenvolvedor
+            const devEmbed = new EmbedBuilder()
+                .setAuthor({ name: `Feedback: ${tipo}`, iconURL: user.displayAvatarURL() })
+                .setColor(tipo === 'BUG' ? 0xEF4444 : 0x3B82F6)
+                .addFields(
+                    { name: '👤 Enviado por:', value: `${user.tag} (\`${user.id}\`)`, inline: true },
+                    { name: '🌐 Servidor:', value: `${guild.name} (\`${guild.id}\`)`, inline: true },
+                    { name: '📝 Mensagem:', value: `\`\`\`text\n${msg}\n\`\`\`` }
+                )
+                .setFooter({ text: `Sistema Robin Feedback`, iconURL: client.user.displayAvatarURL() })
+                .setTimestamp();
+
+            // 4. Envio Externo e Resposta ao Usuário
+            // Usamos Promise.all se quiséssemos disparar vários envios, 
+            // mas aqui priorizamos a confirmação do envio externo primeiro.
+            await devChannel.send({ embeds: [devEmbed] });
+
+            // Resposta Final (Contrato Slash: editReply)
             await interaction.editReply({ 
-                content: `❌ Houve um erro interno ao processar seu envio.` 
+                content: `${EMOJIS.CHECK || '✅'} **Sucesso!** Seu feedback foi enviado para minha central de suporte. Obrigado por contribuir!`
             });
+
+        } catch (error) {
+            if (logger) logger.log('Command_ReportarBug_Error', error);
+            
+            await interaction.editReply({ 
+                content: `${EMOJIS.ERRO || '❌'} Houve um erro interno ao processar seu envio.` 
+            }).catch(() => null);
         }
     }
 };

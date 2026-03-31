@@ -4,61 +4,60 @@ const os = require('os');
 
 class SystemStatus {
     /**
-     * Coleta informações detalhadas sobre a saúde do bot e do ciclo AutoMod
+     * Coleta informações detalhadas sobre a saúde do bot e do ciclo AutoMod.
      */
     static getBotStatus(client, guildId) {
         try {
-            // CORREÇÃO: Verificação de segurança para evitar erro de 'undefined' no uptime
-            if (!client || typeof client.uptime === 'undefined') {
-                throw new Error("Objeto Client inválido ou não inicializado.");
+            // 1. Verificação de Integridade do Client
+            if (!client?.isReady()) {
+                throw new Error("O Client do Discord não está pronto ou não foi inicializado.");
             }
 
-            // 1. Cálculo de Uptime do Bot (Desde o Login)
+            // 2. Cálculo de Uptime (Formatado para humanos)
             const uptimeMs = client.uptime || 0;
             const days = Math.floor(uptimeMs / 86400000);
             const hours = Math.floor((uptimeMs % 86400000) / 3600000);
             const minutes = Math.floor((uptimeMs % 3600000) / 60000);
 
-            // 2. Cálculo do Próximo Ciclo do AutoMod (12:00 BRT)
+            // 3. Previsão do Próximo Ciclo AutoMod (Lógica baseada em 12h BRT)
             const now = new Date();
-            const brtOffset = -3; 
-            let nextRun = new Date(now.getTime() + (brtOffset * 3600000));
-            nextRun.setUTCHours(12, 0, 0, 0);
-            
-            if (now.getUTCHours() >= (12 - brtOffset)) {
-                nextRun.setUTCDate(nextRun.getUTCDate() + 1);
+            let nextRun = new Date();
+            nextRun.setHours(12, 0, 0, 0);
+
+            // Se já passou das 12h hoje, a próxima execução é amanhã
+            if (now.getHours() >= 12) {
+                nextRun.setDate(nextRun.getDate() + 1);
             }
 
-            // 3. Métricas GLOBAIS
-            const totalGuilds = client.guilds.cache.size;
-            const totalUsers = client.guilds.cache.reduce((acc, g) => acc + (g.memberCount || 0), 0);
-
-            // 4. Configurações Locais
-            const logChanId = ConfigSystem.getSetting ? ConfigSystem.getSetting(guildId, 'logs_channel') : null;
-            const lastRunDate = ConfigSystem.getSetting ? ConfigSystem.getSetting(guildId, 'last_automod_run') : null;
-
-            // 5. Hardware
+            // 4. Métricas de Hardware & Network
             const usedMem = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
             const totalMem = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
             const ping = client.ws?.ping > 0 ? `${client.ws.ping}ms` : "Calculando...";
 
+            // 5. Dados do Servidor Atual (Guild-Specific)
+            const guildData = ConfigSystem.getMany(guildId, ['logs_channel', 'last_automod_run']);
+
             return {
+                // Métricas do Bot
                 uptime: `${days}d ${hours}h ${minutes}m`,
                 ping: ping,
-                memory: `${usedMem}MB / ${totalMem}GB`,
-                nextAutoMod: Math.floor(nextRun.getTime() / 1000), 
-                lastRun: lastRunDate ? Math.floor(new Date(lastRunDate).getTime() / 1000) : null,
-                logChannel: logChanId || "Não configurado",
-                totalGuilds: totalGuilds,
-                totalUsers: totalUsers,
+                memory: `${usedMem} MB / ${totalMem} GB`,
+                
+                // Ciclo AutoMod (Retornando em segundos para Timestamps do Discord)
+                nextAutoModTS: Math.floor(nextRun.getTime() / 1000), 
+                lastRunTS: guildData.last_automod_run ? Math.floor(Number(guildData.last_automod_run) / 1000) : null,
+                
+                // Estatísticas Globais
+                totalGuilds: client.guilds.cache.size,
+                totalUsers: client.guilds.cache.reduce((acc, g) => acc + (g.memberCount || 0), 0),
+                
+                // Contexto Local
+                logChannel: guildData.logs_channel ? `<#${guildData.logs_channel}>` : "⚠️ Não configurado",
                 guildName: client.guilds.cache.get(guildId)?.name || "Este Servidor"
             };
+
         } catch (err) {
-            if (ErrorLogger && ErrorLogger.log) {
-                ErrorLogger.log('SystemStatus_Error', err);
-            } else {
-                console.error("Erro em SystemStatus:", err);
-            }
+            if (ErrorLogger) ErrorLogger.log('SystemStatus_Logic_Error', err);
             return null; 
         }
     }
