@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, version } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, version, MessageFlags } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -6,21 +6,22 @@ module.exports = {
         .setDescription('Verifica o estado de saúde do bot e do AutoMod.'),
 
     async execute(interaction) {
-        const { guild, client } = interaction;
+        // O deferReply deve ser usado se o comando demorar, 
+        // mas como as infos de OS são rápidas, usamos reply direto com flags.
+        const { guild, client, guildId } = interaction;
 
-        // Ponto 2: Acesso rápido aos sistemas
+        // Acesso aos sistemas centralizados no client
         const EMOJIS = client.systems.emojis || {};
-        const SystemStatus = client.systems.status; // Referência à CLASSE
         const ConfigSystem = client.systems.config;
 
         try {
-            // AJUSTE AQUI: Como o método é STATIC, chamamos direto da Classe
-            // Ponto 6: Sem await, pois o processamento de OS/Date é instantâneo
-            const status = interaction.client.systems.status.getBotStatus();
+            // CORREÇÃO: Passando o client e guildId para a função estática
+            const status = client.systems.status.getBotStatus(client, guildId);
             
             if (!status) {
-                return interaction.editReply({ 
-                    content: "⚠️ Erro ao coletar dados do sistema. Verifique o ErrorLogger." 
+                return interaction.reply({ 
+                    content: "⚠️ Erro ao coletar dados do sistema. Verifique o ErrorLogger.",
+                    flags: [MessageFlags.Ephemeral]
                 });
             }
 
@@ -55,17 +56,18 @@ module.exports = {
                         inline: false
                     }
                 )
-                .setFooter(ConfigSystem.getFooter(guild.name))
+                .setFooter(ConfigSystem.getFooter ? ConfigSystem.getFooter(guild.name) : { text: guild.name })
                 .setTimestamp();
 
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed] });
 
         } catch (err) {
             if (client.systems.logger) client.systems.logger.log('Command_BotStatus_Error', err);
             console.error("❌ Erro no comando botstatus:", err);
             
-            await interaction.editReply({ 
-                content: "❌ Ocorreu um erro ao gerar o relatório de status." 
+            await interaction.reply({ 
+                content: "❌ Ocorreu um erro ao gerar o relatório de status.",
+                flags: [MessageFlags.Ephemeral]
             });
         }
     }

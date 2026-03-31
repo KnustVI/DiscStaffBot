@@ -8,6 +8,11 @@ class SystemStatus {
      */
     static getBotStatus(client, guildId) {
         try {
+            // CORREÇÃO: Verificação de segurança para evitar erro de 'undefined' no uptime
+            if (!client || typeof client.uptime === 'undefined') {
+                throw new Error("Objeto Client inválido ou não inicializado.");
+            }
+
             // 1. Cálculo de Uptime do Bot (Desde o Login)
             const uptimeMs = client.uptime || 0;
             const days = Math.floor(uptimeMs / 86400000);
@@ -15,28 +20,26 @@ class SystemStatus {
             const minutes = Math.floor((uptimeMs % 3600000) / 60000);
 
             // 2. Cálculo do Próximo Ciclo do AutoMod (12:00 BRT)
-            // Forçamos o cálculo para o fuso de Brasília (UTC-3)
             const now = new Date();
             const brtOffset = -3; 
             let nextRun = new Date(now.getTime() + (brtOffset * 3600000));
             nextRun.setUTCHours(12, 0, 0, 0);
             
-            // Se já passou das 12h hoje, o próximo é amanhã
             if (now.getUTCHours() >= (12 - brtOffset)) {
                 nextRun.setUTCDate(nextRun.getUTCDate() + 1);
             }
 
-            // 3. Métricas GLOBAIS (Performance de Cache)
+            // 3. Métricas GLOBAIS
             const totalGuilds = client.guilds.cache.size;
             const totalUsers = client.guilds.cache.reduce((acc, g) => acc + (g.memberCount || 0), 0);
 
-            // 4. Configurações Locais via ConfigSystem
-            const logChanId = ConfigSystem.getSetting(guildId, 'logs_channel');
-            const lastRunDate = ConfigSystem.getSetting(guildId, 'last_automod_run');
+            // 4. Configurações Locais
+            const logChanId = ConfigSystem.getSetting ? ConfigSystem.getSetting(guildId, 'logs_channel') : null;
+            const lastRunDate = ConfigSystem.getSetting ? ConfigSystem.getSetting(guildId, 'last_automod_run') : null;
 
-            // 5. Hardware (VPS Oracle Cloud) - Ponto 4 (Otimização)
+            // 5. Hardware
             const usedMem = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
-            const totalMem = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1); // GB
+            const totalMem = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
             const ping = client.ws?.ping > 0 ? `${client.ws.ping}ms` : "Calculando...";
 
             return {
@@ -51,7 +54,11 @@ class SystemStatus {
                 guildName: client.guilds.cache.get(guildId)?.name || "Este Servidor"
             };
         } catch (err) {
-            ErrorLogger.log('SystemStatus_Error', err);
+            if (ErrorLogger && ErrorLogger.log) {
+                ErrorLogger.log('SystemStatus_Error', err);
+            } else {
+                console.error("Erro em SystemStatus:", err);
+            }
             return null; 
         }
     }
