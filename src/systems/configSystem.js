@@ -1,4 +1,4 @@
-const db = require('../../database/index'); // Caminho pro seu SQLite
+const db = require('../database/index'); // Caminho pro seu SQLite
 
 const cache = new Map();
 
