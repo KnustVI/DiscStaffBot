@@ -16,7 +16,7 @@ module.exports = {
         try {
             // AJUSTE AQUI: Como o método é STATIC, chamamos direto da Classe
             // Ponto 6: Sem await, pois o processamento de OS/Date é instantâneo
-            const status = SystemStatus.getBotStatus(client, guild.id);
+            const status = interaction.client.systems.status.getBotStatus();
             
             if (!status) {
                 return interaction.editReply({ 
