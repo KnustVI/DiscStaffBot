@@ -99,10 +99,16 @@ class InteractionHandler {
      * CustomId padrão: sistema:acao:parametro
      */
     async handleComponent(interaction) {
+        console.log(`🔍 [HANDLER] Componente recebido!`);
+        console.log(`🔍 [HANDLER] customId: ${interaction.customId}`);
+        console.log(`🔍 [HANDLER] Tipo: ${interaction.constructor.name}`);
+
         const parts = interaction.customId.split(':');
         const system = parts[0];
         const action = parts[1];
         const param = parts.slice(2).join(':') || null;
+
+        console.log(`🔍 [HANDLER] system=${system}, action=${action}, param=${param}`);
         
         const handler = this.handlers[system];
         if (!handler) {
@@ -112,11 +118,16 @@ class InteractionHandler {
                 components: [] 
             });
         }
+
+        console.log(`🔍 [HANDLER] Handler encontrado: ${system}`);
+        console.log(`🔍 [HANDLER] handler.handleComponent existe? ${!!handler.handleComponent}`);
         
         // Verificar se o handler tem o método handleComponent
         if (handler.handleComponent && typeof handler.handleComponent === 'function') {
             try {
+                console.log(`🔍 [HANDLER] Chamando handler.handleComponent...`);
                 await handler.handleComponent(interaction, action, param);
+                console.log(`✅ [HANDLER] handler.handleComponent executado com sucesso`);
             } catch (error) {
                 console.error(`❌ Erro no handleComponent do sistema ${system}:`, error);
                 await this.handleError(interaction, error, 'component');

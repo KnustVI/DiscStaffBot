@@ -103,18 +103,27 @@ const ConfigSystem = {
      * Chamado pelo InteractionHandler quando customId começa com "config:"
      */
     async handleComponent(interaction, action, param) {
+
+        console.log(`🔍 [CONFIG] handleComponent chamado!`);
+        console.log(`🔍 [CONFIG] action=${action}, param=${param}`);
+        console.log(`🔍 [CONFIG] interaction.customId=${interaction.customId}`);
+
         try {
             switch (action) {
                 case 'menu':
+                     console.log(`🔍 [CONFIG] Caso 'menu'`);
                     await this.handleConfigMenu(interaction, param);
                     break;
                 case 'set':
+                    console.log(`🔍 [CONFIG] Caso 'set'`);
                     await this.handleSetConfig(interaction, param);
                     break;
                 case 'reset':
+                    console.log(`🔍 [CONFIG] Caso 'reset'`);
                     await this.handleResetConfig(interaction, param);
                     break;
                 default:
+                    console.log(`🔍 [CONFIG] Ação desconhecida: ${action}`);
                     await interaction.editReply({
                         content: `❌ Ação "${action}" não reconhecida no sistema de configuração.`,
                         components: []
@@ -209,7 +218,7 @@ const ConfigSystem = {
         console.log(`🔍 [CONFIG] isStringSelectMenu: ${interaction.isStringSelectMenu?.()}`);
         
         if (!configKey) {
-            return await interaction.update({
+            return await interaction.editReply({
                 content: '❌ Configuração inválida.',
                 components: []
             });
@@ -219,7 +228,7 @@ const ConfigSystem = {
         if (interaction.isRoleSelectMenu && interaction.isRoleSelectMenu()) {
             const selectedRoleId = interaction.values[0];
             if (!selectedRoleId) {
-                return await interaction.update({
+                return await interaction.editReply({
                     content: '❌ Nenhum cargo selecionado.',
                     components: []
                 });
@@ -228,7 +237,7 @@ const ConfigSystem = {
             // Verificar se o cargo existe
             const role = interaction.guild.roles.cache.get(selectedRoleId);
             if (!role) {
-                return await interaction.update({
+                return await interaction.editReply({
                     content: '❌ Cargo não encontrado.',
                     components: []
                 });
@@ -255,7 +264,7 @@ const ConfigSystem = {
             // Atualizar o painel com os novos valores
             await this.refreshConfigPanel(interaction);
             
-            return await interaction.update({
+            return await interaction.editReply({
                 embeds: [embed],
                 components: [],
                 content: null

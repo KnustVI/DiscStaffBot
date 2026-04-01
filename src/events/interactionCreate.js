@@ -23,18 +23,18 @@ module.exports = {
                 return;
             }
             
-            // Componentes (Botões e Select Menus)
-            if (interaction.isButton() || interaction.isStringSelectMenu()) {
-                // Validação do customId antes de tudo
-                if (!interaction.customId || !interaction.customId.includes(':')) {
-                    await interaction.update({ 
-                        content: '❌ Formato de interação inválido.', 
-                        components: [] 
-                    });
-                    return;
+                // Componentes (Botões e Select Menus)
+            if (interaction.isButton() || interaction.isStringSelectMenu() || 
+                interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu()) {
+                
+                console.log(`🔍 [EVENT] Componente recebido: ${interaction.customId}`);
+                console.log(`🔍 [EVENT] Tipo: ${interaction.constructor.name}`);
+                
+                // IMPORTANTE: Para componentes, usar deferUpdate (não deferReply)
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferUpdate();
                 }
                 
-                await interaction.update({});
                 await handler.handleComponent(interaction);
                 return;
             }
