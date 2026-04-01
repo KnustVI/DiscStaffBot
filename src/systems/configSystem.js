@@ -142,14 +142,14 @@ const ConfigSystem = {
                 default:
                     await interaction.editReply({
                         content: `❌ Modal "${action}" não reconhecido no sistema de configuração.`,
-                        ephemeral: true
+                        flags: 64
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleModal do configSystem:', error);
             await interaction.editReply({
                 content: '❌ Ocorreu um erro ao processar o modal de configuração.',
-                ephemeral: true
+                flags: 64
             });
         }
     },
@@ -280,7 +280,7 @@ const ConfigSystem = {
         if (!session || session.configKey !== configKey) {
             return await interaction.editReply({
                 content: '❌ Sessão expirada ou inválida. Por favor, inicie a configuração novamente.',
-                ephemeral: true
+                flags: 64
             });
         }
 
@@ -291,7 +291,7 @@ const ConfigSystem = {
             if (!/^\d+$/.test(newValue)) {
                 return await interaction.editReply({
                     content: '❌ Por favor, insira um ID válido (apenas números).',
-                    ephemeral: true
+                    flags: 64
                 });
             }
             
@@ -301,7 +301,7 @@ const ConfigSystem = {
                 if (!role) {
                     return await interaction.editReply({
                         content: '❌ Cargo não encontrado. Verifique o ID e tente novamente.',
-                        ephemeral: true
+                        flags: 64
                     });
                 }
             } else if (configKey === 'log_channel') {
@@ -309,7 +309,7 @@ const ConfigSystem = {
                 if (!channel) {
                     return await interaction.editReply({
                         content: '❌ Canal não encontrado. Verifique o ID e tente novamente.',
-                        ephemeral: true
+                        flags: 64
                     });
                 }
             }

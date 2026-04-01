@@ -45,12 +45,12 @@ module.exports = {
                 if (!interaction.customId || !interaction.customId.includes(':')) {
                     await interaction.reply({ 
                         content: '❌ Formato de modal inválido.', 
-                        ephemeral: true 
+                        flags: 64 
                     });
                     return;
                 }
                 
-                await interaction.reply({ content: '⏳ Processando...', ephemeral: true });
+                await interaction.reply({ content: '⏳ Processando...', flags: 64 });
                 await handler.handleModal(interaction);
                 return;
             }
@@ -62,7 +62,7 @@ module.exports = {
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ 
                     content: '❌ Ocorreu um erro fatal ao processar esta interação.', 
-                    ephemeral: true 
+                    flags: 64 
                 }).catch(() => {});
             } else if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ 

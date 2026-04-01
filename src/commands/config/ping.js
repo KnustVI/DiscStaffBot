@@ -21,7 +21,7 @@ module.exports = {
             
             // Fallback em caso de erro
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '❌ Ocorreu um erro ao executar o comando ping.', ephemeral: true });
+                await interaction.reply({ content: '❌ Ocorreu um erro ao executar o comando ping.', flags: 64 });
             } else if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ content: '❌ Ocorreu um erro ao executar o comando ping.' });
             }
