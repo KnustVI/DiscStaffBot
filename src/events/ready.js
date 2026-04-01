@@ -147,5 +147,14 @@ module.exports = {
             users: client.users.cache.size,
             commands: commandCount
         });
+        
+        // Após carregar os caches, forçar limpeza do cache de configuração
+        try {
+            const ConfigSystem = require('../systems/configSystem');
+            ConfigSystem.clearAllCache();
+            console.log('🗑️ Cache de configurações reiniciado');
+        } catch (err) {
+            console.error('❌ Erro ao limpar cache:', err);
+        }
     }
 };
