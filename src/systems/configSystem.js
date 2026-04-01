@@ -207,248 +207,201 @@ const ConfigSystem = {
         });
     },
 
-    /**
-     * Processa a seleção de uma configuração para alterar
-     */
-    async handleSetConfig(interaction, configKey) {
-        console.log(`🔍 [CONFIG] handleSetConfig chamado com configKey: ${configKey}`);
-        console.log(`🔍 [CONFIG] Tipo de interação: ${interaction.constructor.name}`);
-        console.log(`🔍 [CONFIG] isRoleSelectMenu: ${interaction.isRoleSelectMenu?.()}`);
-        console.log(`🔍 [CONFIG] isChannelSelectMenu: ${interaction.isChannelSelectMenu?.()}`);
-        console.log(`🔍 [CONFIG] isStringSelectMenu: ${interaction.isStringSelectMenu?.()}`);
-        
-        if (!configKey) {
-            return await interaction.editReply({
-                content: '❌ Configuração inválida.',
-                components: []
-            });
-        }
+            /**
+         * Processa a seleção de uma configuração para alterar
+         */
+        async handleSetConfig(interaction, configKey) {
+            console.log(`🔍 [CONFIG] handleSetConfig: configKey=${configKey}`);
+            
+            if (!configKey) {
+                // Usar update em vez de editReply para componentes
+                return await interaction.update({
+                    content: '❌ Configuração inválida.',
+                    components: []
+                });
+            }
 
-        // ==================== PROCESSAR ROLE SELECT MENU ====================
-        if (interaction.isRoleSelectMenu && interaction.isRoleSelectMenu()) {
-            const selectedRoleId = interaction.values[0];
-            if (!selectedRoleId) {
-                return await interaction.editReply({
-                    content: '❌ Nenhum cargo selecionado.',
-                    components: []
-                });
-            }
-            
-            // Verificar se o cargo existe
-            const role = interaction.guild.roles.cache.get(selectedRoleId);
-            if (!role) {
-                return await interaction.editReply({
-                    content: '❌ Cargo não encontrado.',
-                    components: []
-                });
-            }
-            
-            // Salvar configuração
-            this.setSetting(interaction.guildId, configKey, selectedRoleId);
-            
-            // Confirmar alteração
-            const configLabels = {
-                staff_role: 'Cargo Staff',
-                strike_role: 'Cargo de Strike'
-            };
-            
-            const label = configLabels[configKey] || configKey;
-            
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00)
-                .setTitle('✅ Configuração Atualizada')
-                .setDescription(`**${label}** alterado para:\n<@&${selectedRoleId}>`)
-                .setFooter(this.getFooter(interaction.guild.name))
-                .setTimestamp();
-            
-            // Atualizar o painel com os novos valores
-            await this.refreshConfigPanel(interaction);
-            
-            return await interaction.editReply({
-                embeds: [embed],
-                components: [],
-                content: null
-            });
-        }
-        
-        // ==================== PROCESSAR CHANNEL SELECT MENU ====================
-        if (interaction.isChannelSelectMenu && interaction.isChannelSelectMenu()) {
-            const selectedChannelId = interaction.values[0];
-            if (!selectedChannelId) {
-                return await interaction.update({
-                    content: '❌ Nenhum canal selecionado.',
-                    components: []
-                });
-            }
-            
-            // Verificar se o canal existe
-            const channel = interaction.guild.channels.cache.get(selectedChannelId);
-            if (!channel) {
-                return await interaction.update({
-                    content: '❌ Canal não encontrado.',
-                    components: []
-                });
-            }
-            
-            // Salvar configuração
-            this.setSetting(interaction.guildId, configKey, selectedChannelId);
-            
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00)
-                .setTitle('✅ Configuração Atualizada')
-                .setDescription(`**Canal de Logs** alterado para:\n<#${selectedChannelId}>`)
-                .setFooter(this.getFooter(interaction.guild.name))
-                .setTimestamp();
-            
-            // Atualizar o painel com os novos valores
-            await this.refreshConfigPanel(interaction);
-            
-            return await interaction.update({
-                embeds: [embed],
-                components: [],
-                content: null
-            });
-        }
-        
-        // ==================== PROCESSAR STRING SELECT MENU (menu de opções) ====================
-        if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
-            const selectedValue = interaction.values[0];
-            
-            // Se for reset all, chama o método de reset
-            if (selectedValue === 'reset_all') {
-                return await this.handleResetConfig(interaction, 'all');
-            }
-            
-            // Se for automod_enabled, faz toggle direto (sem modal)
-            if (selectedValue === 'automod_enabled') {
-                const current = this.getSetting(interaction.guildId, 'automod_enabled') === 'true';
-                const newValue = !current;
-                this.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
+            // ==================== PROCESSAR ROLE SELECT MENU ====================
+            if (interaction.isRoleSelectMenu()) {
+                const selectedRoleId = interaction.values[0];
+                if (!selectedRoleId) {
+                    return await interaction.update({
+                        content: '❌ Nenhum cargo selecionado.',
+                        components: []
+                    });
+                }
                 
-                const status = newValue ? '✅ ativada' : '❌ desativada';
+                // Salvar configuração
+                this.setSetting(interaction.guildId, configKey, selectedRoleId);
                 
-                // Atualizar o painel
+                // Atualizar o painel com os novos valores
                 await this.refreshConfigPanel(interaction);
                 
+                // Responder com sucesso (usando update, não editReply)
                 return await interaction.update({
-                    content: `🛡️ Auto moderação ${status} com sucesso!`,
+                    content: `✅ **${this.getConfigLabel(configKey)}** alterado para <@&${selectedRoleId}>`,
                     components: [],
                     embeds: []
                 });
             }
             
-            // Para prefixo, abrir modal
-            if (selectedValue === 'prefix') {
-                // Salvar qual config está sendo editada na sessão
-                SessionManager.set(
-                    interaction.user.id,
-                    interaction.guildId,
-                    'config_editing',
-                    { configKey: selectedValue, originalInteractionId: interaction.id },
-                    300000
-                );
+            // ==================== PROCESSAR CHANNEL SELECT MENU ====================
+            if (interaction.isChannelSelectMenu()) {
+                const selectedChannelId = interaction.values[0];
+                if (!selectedChannelId) {
+                    return await interaction.update({
+                        content: '❌ Nenhum canal selecionado.',
+                        components: []
+                    });
+                }
                 
-                // Criar modal para entrada de valor
-                const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+                // Salvar configuração
+                this.setSetting(interaction.guildId, configKey, selectedChannelId);
                 
-                const modal = new ModalBuilder()
-                    .setCustomId(`config:set:${selectedValue}`)
-                    .setTitle(`Configurar Prefixo`);
+                // Atualizar o painel com os novos valores
+                await this.refreshConfigPanel(interaction);
                 
-                const input = new TextInputBuilder()
-                    .setCustomId('value')
-                    .setLabel('Novo prefixo para o bot')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setPlaceholder('Ex: !, /, ?');
-                
-                const row = new ActionRowBuilder().addComponents(input);
-                modal.addComponents(row);
-                
-                return await interaction.showModal(modal);
+                // Responder com sucesso
+                return await interaction.update({
+                    content: `✅ **${this.getConfigLabel(configKey)}** alterado para <#${selectedChannelId}>`,
+                    components: [],
+                    embeds: []
+                });
             }
             
-            // Para staff_role e log_channel, não deveriam vir aqui (são tratados pelos menus específicos)
-            // Mas se vierem, mostrar mensagem
+            // ==================== PROCESSAR STRING SELECT MENU ====================
+            if (interaction.isStringSelectMenu()) {
+                const selectedValue = interaction.values[0];
+                
+                if (selectedValue === 'reset_all') {
+                    return await this.handleResetConfig(interaction, 'all');
+                }
+                
+                if (selectedValue === 'automod_enabled') {
+                    const current = this.getSetting(interaction.guildId, 'automod_enabled') === 'true';
+                    const newValue = !current;
+                    this.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
+                    
+                    const status = newValue ? '✅ ativada' : '❌ desativada';
+                    
+                    // Atualizar o painel
+                    await this.refreshConfigPanel(interaction);
+                    
+                    return await interaction.update({
+                        content: `🛡️ Auto moderação ${status} com sucesso!`,
+                        components: [],
+                        embeds: []
+                    });
+                }
+                
+                // Para prefixo, abrir modal
+                if (selectedValue === 'prefix') {
+                    SessionManager.set(
+                        interaction.user.id,
+                        interaction.guildId,
+                        'config_editing',
+                        { configKey: selectedValue, originalInteractionId: interaction.id },
+                        300000
+                    );
+                    
+                    const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+                    
+                    const modal = new ModalBuilder()
+                        .setCustomId(`config:set:${selectedValue}`)
+                        .setTitle(`Configurar Prefixo`);
+                    
+                    const input = new TextInputBuilder()
+                        .setCustomId('value')
+                        .setLabel('Novo prefixo para o bot')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setPlaceholder('Ex: !, /, ?');
+                    
+                    const row = new ActionRowBuilder().addComponents(input);
+                    modal.addComponents(row);
+                    
+                    // Para modal, usamos showModal (não update)
+                    return await interaction.showModal(modal);
+                }
+                
+                return await interaction.update({
+                    content: `❌ Opção "${selectedValue}" não reconhecida.`,
+                    components: []
+                });
+            }
+            
             return await interaction.update({
-                content: `❌ Selecione a opção usando os menus específicos abaixo.`,
+                content: `❌ Tipo de interação não suportado.`,
                 components: []
             });
-        }
-        
-        // Fallback para outros tipos (não deveria acontecer)
-        return await interaction.update({
-            content: `❌ Tipo de interação não suportado para configuração.`,
-            components: []
-        });
-    },
+        },
 
-        /**
-     * Atualiza o painel de configuração com os valores atuais
-     */
-    async refreshConfigPanel(interaction) {
-        const guildId = interaction.guildId;
-        
-        // Buscar configurações atuais
-        const staffRole = this.getSetting(guildId, 'staff_role');
-        const logChannel = this.getSetting(guildId, 'log_channel');
-        const strikeRole = this.getSetting(guildId, 'strike_role');
-        const automodEnabled = this.getSetting(guildId, 'automod_enabled') === 'true';
-        const exemplarLimit = this.getSetting(guildId, 'limit_exemplar') || '95';
-        const problematicLimit = this.getSetting(guildId, 'limit_problematico') || '30';
-        
-        // Obter emojis
-        let emojis = {};
-        try {
-            const emojisFile = require('../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
-        } catch (err) {
-            emojis = {};
-        }
-        
-        const embed = new EmbedBuilder()
-            .setTitle(`${emojis.Config || '⚙️'} Configuração do Servidor`)
-            .setColor(0xDCA15E)
-            .setDescription('Selecione abaixo os cargos e canais que o bot deve utilizar para o sistema de reputação.')
-            .addFields(
-                { name: '🛡️ Cargo Staff', value: staffRole ? `<@&${staffRole}>` : '`❌ Não definido`', inline: true },
-                { name: '📜 Canal de Logs', value: logChannel ? `<#${logChannel}>` : '`❌ Não definido`', inline: true },
-                { name: '⚠️ Cargo de Strike', value: strikeRole ? `<@&${strikeRole}>` : '`❌ Não definido`', inline: true },
-                { name: '🛡️ Auto Moderação', value: automodEnabled ? '✅ Ativada' : '❌ Desativada', inline: true },
-                { name: '🎖️ Limite Exemplar', value: `\`${exemplarLimit} pontos\``, inline: true },
-                { name: '⚠️ Limite Problemático', value: `\`${problematicLimit} pontos\``, inline: true }
-            )
-            .setFooter(this.getFooter(interaction.guild.name))
-            .setTimestamp();
-        
-        // Criar os menus novamente
-        const { ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
-        
-        const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config:set:staff_role')
-                .setPlaceholder('Selecionar Cargo de Moderadores')
-        );
-        
-        const logRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config:set:log_channel')
-                .setPlaceholder('Selecionar Canal de Logs')
-                .addChannelTypes(ChannelType.GuildText)
-        );
-        
-        const strikeRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config:set:strike_role')
-                .setPlaceholder('Selecionar Cargo de Strike')
-        );
-        
-        // Usar update para atualizar a mensagem original
-        await interaction.editReply({
-            embeds: [embed],
-            components: [staffRow, logRow, strikeRow]
-        });
-    },
+            /**
+            * Atualiza o painel de configuração com os valores atuais
+            */
+            async refreshConfigPanel(interaction) {
+                const guildId = interaction.guildId;
+                
+                // Buscar configurações atuais
+                const staffRole = this.getSetting(guildId, 'staff_role');
+                const logChannel = this.getSetting(guildId, 'log_channel');
+                const strikeRole = this.getSetting(guildId, 'strike_role');
+                const automodEnabled = this.getSetting(guildId, 'automod_enabled') === 'true';
+                const exemplarLimit = this.getSetting(guildId, 'limit_exemplar') || '95';
+                const problematicLimit = this.getSetting(guildId, 'limit_problematico') || '30';
+                
+                // Obter emojis
+                let emojis = {};
+                try {
+                    const emojisFile = require('../database/emojis.js');
+                    emojis = emojisFile.EMOJIS || {};
+                } catch (err) {
+                    emojis = {};
+                }
+                
+                const embed = new EmbedBuilder()
+                    .setTitle(`${emojis.Config || '⚙️'} Configuração do Servidor`)
+                    .setColor(0xDCA15E)
+                    .setDescription('Selecione abaixo os cargos e canais que o bot deve utilizar para o sistema de reputação.')
+                    .addFields(
+                        { name: '🛡️ Cargo Staff', value: staffRole ? `<@&${staffRole}>` : '`❌ Não definido`', inline: true },
+                        { name: '📜 Canal de Logs', value: logChannel ? `<#${logChannel}>` : '`❌ Não definido`', inline: true },
+                        { name: '⚠️ Cargo de Strike', value: strikeRole ? `<@&${strikeRole}>` : '`❌ Não definido`', inline: true },
+                        { name: '🛡️ Auto Moderação', value: automodEnabled ? '✅ Ativada' : '❌ Desativada', inline: true },
+                        { name: '🎖️ Limite Exemplar', value: `\`${exemplarLimit} pontos\``, inline: true },
+                        { name: '⚠️ Limite Problemático', value: `\`${problematicLimit} pontos\``, inline: true }
+                    )
+                    .setFooter(this.getFooter(interaction.guild.name))
+                    .setTimestamp();
+                
+                // Criar os menus novamente
+                const { ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
+                
+                const staffRow = new ActionRowBuilder().addComponents(
+                    new RoleSelectMenuBuilder()
+                        .setCustomId('config:set:staff_role')
+                        .setPlaceholder('Selecionar Cargo de Moderadores')
+                );
+                
+                const logRow = new ActionRowBuilder().addComponents(
+                    new ChannelSelectMenuBuilder()
+                        .setCustomId('config:set:log_channel')
+                        .setPlaceholder('Selecionar Canal de Logs')
+                        .addChannelTypes(ChannelType.GuildText)
+                );
+                
+                const strikeRow = new ActionRowBuilder().addComponents(
+                    new RoleSelectMenuBuilder()
+                        .setCustomId('config:set:strike_role')
+                        .setPlaceholder('Selecionar Cargo de Strike')
+                );
+                
+                // Usar update para atualizar a mensagem original (NÃO editReply)
+                await interaction.update({
+                    embeds: [embed],
+                    components: [staffRow, logRow, strikeRow]
+                });
+            },
 
     /**
      * Processa o modal enviado pelo usuário
@@ -522,43 +475,43 @@ const ConfigSystem = {
         });
     },
 
-    /**
-     * Reseta configurações
-     */
-    async handleResetConfig(interaction, param) {
-        if (param === 'all') {
-            // Resetar todas as configurações
-            db.prepare('DELETE FROM settings WHERE guild_id = ?').run(interaction.guildId);
-            this.clearCache(interaction.guildId);
-            
-            const embed = new EmbedBuilder()
-                .setColor(0xDCA15E)
-                .setTitle('⚠️ Configurações Resetadas')
-                .setDescription('Todas as configurações do bot foram resetadas para o padrão.')
-                .setFooter(this.getFooter(interaction.guild.name))
-                .setTimestamp();
-
-            await interaction.editReply({
-                embeds: [embed],
-                components: []
-            });
-        } else {
-            // Resetar configuração específica
-            this.setSetting(interaction.guildId, param, null);
-            
-            const embed = new EmbedBuilder()
-                .setColor(0xDCA15E)
-                .setTitle('⚠️ Configuração Resetada')
-                .setDescription(`**${this.getConfigLabel(param)}** foi resetado para o valor padrão.`)
-                .setFooter(this.getFooter(interaction.guild.name))
-                .setTimestamp();
-
-            await interaction.editReply({
-                embeds: [embed],
-                components: []
-            });
-        }
-    },
+            /**
+             * Reseta configurações
+             */
+            async handleResetConfig(interaction, param) {
+                if (param === 'all') {
+                    // Resetar todas as configurações
+                    db.prepare('DELETE FROM settings WHERE guild_id = ?').run(interaction.guildId);
+                    this.clearCache(interaction.guildId);
+                    
+                    const embed = new EmbedBuilder()
+                        .setColor(0xDCA15E)
+                        .setTitle('⚠️ Configurações Resetadas')
+                        .setDescription('Todas as configurações do bot foram resetadas para o padrão.')
+                        .setFooter(this.getFooter(interaction.guild.name))
+                        .setTimestamp();
+                    
+                    // Atualizar o painel
+                    await this.refreshConfigPanel(interaction);
+                    
+                    return await interaction.update({
+                        embeds: [embed],
+                        components: []
+                    });
+                } else {
+                    // Resetar configuração específica
+                    this.setSetting(interaction.guildId, param, null);
+                    
+                    // Atualizar o painel
+                    await this.refreshConfigPanel(interaction);
+                    
+                    return await interaction.update({
+                        content: `⚠️ **${this.getConfigLabel(param)}** foi resetado para o valor padrão.`,
+                        components: [],
+                        embeds: []
+                    });
+                }
+            },
 
     /**
      * Helper para padronização visual das Embeds.
