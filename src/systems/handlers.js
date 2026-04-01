@@ -1,3 +1,6 @@
+const ResponseManager = require('../utils/responseManager');
+const sessionManager = require('../utils/sessionManager');
+
 // Importação dos handlers específicos do seu sistema
 const configSystem = require('./configSystem');
 const punishmentSystem = require('./punishmentSystem');
@@ -5,37 +8,30 @@ const autoModerationModule = require('./autoModeration');
 const systemStatus = require('./systemStatus');
 const errorLoggerModule = require('./errorLogger');
 
-// Inicializar corretamente os módulos que precisam de instância
-// autoModerationModule é uma função que espera receber o client
-// errorLoggerModule é uma função singleton que retorna a instância
-
 class InteractionHandler {
     constructor(client) {
         this.client = client;
         
-        // Inicializar autoModeration com o client (se for função)
+        // Inicializar autoModeration com o client
         let autoModeration;
         if (typeof autoModerationModule === 'function') {
-            // Se for uma função que retorna uma instância
             const result = autoModerationModule(client);
             autoModeration = result;
         } else if (autoModerationModule.AutoModerationSystem) {
-            // Se for a classe exportada
             autoModeration = new autoModerationModule.AutoModerationSystem(client);
         } else {
-            // Se já for o objeto direto
             autoModeration = autoModerationModule;
         }
         
-        // Inicializar errorLogger (já é singleton, só pegar a instância)
+        // Inicializar errorLogger
         const errorLogger = errorLoggerModule;
         
-        // Cache estático de handlers (evita require dinâmico)
+        // Cache estático de handlers
         this.handlers = {
             config: configSystem,
             punishment: punishmentSystem,
             moderation: autoModeration,
-            automod: autoModeration,      // Alias para automod
+            automod: autoModeration,
             status: systemStatus,
             error: errorLogger
         };
@@ -81,10 +77,7 @@ class InteractionHandler {
         const command = this.client.commands.get(interaction.commandName);
         
         if (!command) {
-            return interaction.editReply({ 
-                content: '❌ Comando não encontrado.', 
-                flags: 64 
-            });
+            return await ResponseManager.error(interaction, 'Comando não encontrado.');
         }
         
         try {
@@ -96,57 +89,36 @@ class InteractionHandler {
     
     /**
      * Processa componentes (botões e selects)
-     * CustomId padrão: sistema:acao:parametro
      */
     async handleComponent(interaction) {
-        console.log(`🔍 [HANDLER] Componente recebido!`);
-        console.log(`🔍 [HANDLER] customId: ${interaction.customId}`);
-        console.log(`🔍 [HANDLER] Tipo: ${interaction.constructor.name}`);
-
         const parts = interaction.customId.split(':');
         const system = parts[0];
         const action = parts[1];
         const param = parts.slice(2).join(':') || null;
-
-        console.log(`🔍 [HANDLER] system=${system}, action=${action}, param=${param}`);
         
         const handler = this.handlers[system];
         if (!handler) {
-            console.warn(`⚠️ Handler não encontrado para sistema: ${system}`);
-            return interaction.editReply({ 
-                content: `❌ Sistema "${system}" não reconhecido.`, 
-                components: [] 
-            });
+            return await ResponseManager.error(interaction, `Sistema "${system}" não reconhecido.`);
         }
-
-        console.log(`🔍 [HANDLER] Handler encontrado: ${system}`);
-        console.log(`🔍 [HANDLER] handler.handleComponent existe? ${!!handler.handleComponent}`);
         
-        // Verificar se o handler tem o método handleComponent
         if (handler.handleComponent && typeof handler.handleComponent === 'function') {
             try {
-                console.log(`🔍 [HANDLER] Chamando handler.handleComponent...`);
                 await handler.handleComponent(interaction, action, param);
-                console.log(`✅ [HANDLER] handler.handleComponent executado com sucesso`);
             } catch (error) {
                 console.error(`❌ Erro no handleComponent do sistema ${system}:`, error);
                 await this.handleError(interaction, error, 'component');
             }
         } else {
-            // Fallback: tentar usar o actionMap
             const methodName = this.actionMap[action];
             if (methodName && handler[methodName] && typeof handler[methodName] === 'function') {
                 try {
                     await handler[methodName](interaction, param);
                 } catch (error) {
-                    console.error(`❌ Erro no método ${methodName} do sistema ${system}:`, error);
+                    console.error(`❌ Erro no método ${methodName}:`, error);
                     await this.handleError(interaction, error, 'component');
                 }
             } else {
-                await interaction.editReply({ 
-                    content: `❌ Ação "${action}" não implementada para o sistema "${system}".`,
-                    components: [] 
-                });
+                await ResponseManager.error(interaction, `Ação "${action}" não implementada para o sistema "${system}".`);
             }
         }
     }
@@ -161,13 +133,9 @@ class InteractionHandler {
         
         const handler = this.handlers[system];
         if (!handler) {
-            return interaction.editReply({ 
-                content: `❌ Sistema "${system}" não reconhecido.`, 
-                flags: 64
-            });
+            return await ResponseManager.error(interaction, `Sistema "${system}" não reconhecido.`);
         }
         
-        // Verificar se o handler tem o método handleModal
         if (handler.handleModal && typeof handler.handleModal === 'function') {
             try {
                 await handler.handleModal(interaction, action);
@@ -176,7 +144,6 @@ class InteractionHandler {
                 await this.handleError(interaction, error, 'modal');
             }
         } else {
-            // Fallback: tentar método específico
             const methodName = `handleModal${action.charAt(0).toUpperCase() + action.slice(1)}`;
             if (handler[methodName] && typeof handler[methodName] === 'function') {
                 try {
@@ -185,38 +152,38 @@ class InteractionHandler {
                     await this.handleError(interaction, error, 'modal');
                 }
             } else {
-                await interaction.editReply({ 
-                    content: `❌ Modal "${action}" não implementado para o sistema "${system}".`,
-                    flags: 64
-                });
+                await ResponseManager.error(interaction, `Modal "${action}" não implementado para o sistema "${system}".`);
             }
         }
     }
     
     /**
-     * Tratamento de erros unificado
+     * Tratamento de erros unificado com logging profissional
      */
     async handleError(interaction, error, type) {
+        // Log detalhado
         console.error(`❌ Erro no ${type}:`, error);
         
-        const errorMessage = '❌ Ocorreu um erro ao processar esta interação.';
-        
-        // Garantir que a interação sempre recebe resposta
-        try {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: errorMessage, flags: 64 });
-            } else if (interaction.deferred && !interaction.replied) {
-                await interaction.editReply({ content: errorMessage });
-            } else if (interaction.replied && type === 'modal') {
-                await interaction.followUp({ content: errorMessage, flags: 64 });
-            }
-        } catch (err) {
-            console.error('❌ Erro ao enviar mensagem de erro:', err);
-        }
-        
-        // Log detalhado no sistema de erros (se disponível)
+        // Registrar no sistema de logs com categoria
         if (this.handlers.error?.logInteractionError) {
             await this.handlers.error.logInteractionError(interaction, error, type);
+        } else {
+            // Fallback: log no console
+            const ErrorLogger = require('./errorLogger');
+            await ErrorLogger.error('system', `Interaction_${type}`, error, {
+                interactionId: interaction.id,
+                guildId: interaction.guildId,
+                userId: interaction.user?.id,
+                commandName: interaction.commandName,
+                customId: interaction.customId
+            });
+        }
+        
+        // Garantir resposta amigável ao usuário
+        try {
+            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar sua solicitação. A equipe foi notificada.');
+        } catch (err) {
+            console.error('❌ Erro ao enviar mensagem de erro:', err);
         }
     }
     

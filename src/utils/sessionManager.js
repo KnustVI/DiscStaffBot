@@ -1,53 +1,77 @@
-const sessions = new Map();
+/**
+ * Sistema de Sessão Avançado com Isolamento Total
+ * 
+ * Formato da chave: ${userId}_${guildId}_${system}_${action}
+ * 
+ * Exemplos:
+ * - 123456_789012_config_setting
+ * - 123456_789012_ticket_create
+ * - 123456_789012_strike_confirm
+ * 
+ * Garante isolamento entre:
+ * - Servidores diferentes (guildId)
+ * - Sistemas diferentes (system)
+ * - Ações diferentes (action)
+ * - Usuários diferentes (userId)
+ */
 
 class SessionManager {
+    constructor() {
+        this.sessions = new Map();
+        this.defaultTTL = 300000; // 5 minutos
+        this.cleanupInterval = null;
+        
+        // Iniciar limpeza automática a cada minuto
+        this.startCleanup();
+    }
+    
     /**
-     * Cria uma sessão com contexto completo
-     * @param {string} userId - ID do usuário
-     * @param {string} guildId - ID do servidor
-     * @param {string} action - Ação/contexto (ex: 'config', 'strike', 'ticket')
-     * @param {any} data - Dados da sessão
-     * @param {number} ttl - Tempo de vida em ms (padrão: 5 minutos)
-     * @returns {string} Chave da sessão
+     * Gera chave única para sessão com isolamento total
      */
-    static set(userId, guildId, action, data, ttl = 300000) {
-        const key = `${userId}_${guildId}_${action}`;
+    generateKey(userId, guildId, system, action) {
+        if (!userId || !guildId || !system || !action) {
+            throw new Error('userId, guildId, system e action são obrigatórios');
+        }
+        return `${userId}_${guildId}_${system}_${action}`;
+    }
+    
+    /**
+     * Cria ou atualiza uma sessão
+     */
+    set(userId, guildId, system, action, data, ttl = this.defaultTTL) {
+        const key = this.generateKey(userId, guildId, system, action);
         const session = {
             data,
             expires: Date.now() + ttl,
-            userId,
-            guildId,
-            action
+            metadata: {
+                userId,
+                guildId,
+                system,
+                action,
+                createdAt: Date.now()
+            }
         };
         
-        sessions.set(key, session);
+        this.sessions.set(key, session);
         
-        // Auto-limpeza após TTL
-        setTimeout(() => {
-            const current = sessions.get(key);
-            if (current && current.expires <= Date.now()) {
-                sessions.delete(key);
-            }
-        }, ttl);
+        // Log de debug (opcional)
+        // console.log(`📦 [Session] Criada: ${key} | TTL: ${ttl}ms`);
         
         return key;
     }
     
     /**
-     * Obtém uma sessão pelo contexto completo
-     * @param {string} userId - ID do usuário
-     * @param {string} guildId - ID do servidor
-     * @param {string} action - Ação/contexto
-     * @returns {any|null} Dados da sessão ou null
+     * Obtém uma sessão
      */
-    static get(userId, guildId, action) {
-        const key = `${userId}_${guildId}_${action}`;
-        const session = sessions.get(key);
+    get(userId, guildId, system, action) {
+        const key = this.generateKey(userId, guildId, system, action);
+        const session = this.sessions.get(key);
         
         if (!session) return null;
         
+        // Verificar expiração
         if (session.expires <= Date.now()) {
-            sessions.delete(key);
+            this.sessions.delete(key);
             return null;
         }
         
@@ -55,96 +79,140 @@ class SessionManager {
     }
     
     /**
+     * Obtém sessão completa (com metadados)
+     */
+    getFull(userId, guildId, system, action) {
+        const key = this.generateKey(userId, guildId, system, action);
+        const session = this.sessions.get(key);
+        
+        if (!session) return null;
+        if (session.expires <= Date.now()) {
+            this.sessions.delete(key);
+            return null;
+        }
+        
+        return session;
+    }
+    
+    /**
+     * Atualiza dados de uma sessão existente
+     */
+    update(userId, guildId, system, action, newData) {
+        const key = this.generateKey(userId, guildId, system, action);
+        const session = this.sessions.get(key);
+        
+        if (!session || session.expires <= Date.now()) {
+            return false;
+        }
+        
+        session.data = { ...session.data, ...newData };
+        this.sessions.set(key, session);
+        
+        return true;
+    }
+    
+    /**
      * Remove uma sessão específica
      */
-    static delete(userId, guildId, action) {
-        const key = `${userId}_${guildId}_${action}`;
-        sessions.delete(key);
+    delete(userId, guildId, system, action) {
+        const key = this.generateKey(userId, guildId, system, action);
+        return this.sessions.delete(key);
     }
     
     /**
-     * Remove todas as sessões de um usuário
+     * Remove todas as sessões de um usuário em um servidor
      */
-    static clearUser(userId) {
-        for (const [key] of sessions) {
-            if (key.startsWith(`${userId}_`)) {
-                sessions.delete(key);
+    deleteUserSessions(userId, guildId) {
+        let count = 0;
+        for (const [key, session] of this.sessions) {
+            if (session.metadata.userId === userId && session.metadata.guildId === guildId) {
+                this.sessions.delete(key);
+                count++;
             }
         }
+        return count;
     }
     
     /**
-     * Remove todas as sessões de um servidor
+     * Remove todas as sessões expiradas
      */
-    static clearGuild(guildId) {
-        for (const [key, session] of sessions) {
-            if (session.guildId === guildId) {
-                sessions.delete(key);
+    cleanup() {
+        const now = Date.now();
+        let removed = 0;
+        
+        for (const [key, session] of this.sessions) {
+            if (session.expires <= now) {
+                this.sessions.delete(key);
+                removed++;
             }
         }
-    }
-    
-    /**
-     * Verifica se uma sessão existe
-     */
-    static exists(userId, guildId, action) {
-        const key = `${userId}_${guildId}_${action}`;
-        const session = sessions.get(key);
-        return session && session.expires > Date.now();
-    }
-    
-    /**
-     * Atualiza os dados de uma sessão sem alterar o TTL
-     */
-    static update(userId, guildId, action, newData) {
-        const key = `${userId}_${guildId}_${action}`;
-        const session = sessions.get(key);
         
-        if (session && session.expires > Date.now()) {
-            session.data = { ...session.data, ...newData };
-            sessions.set(key, session);
-            return true;
+        if (removed > 0) {
+            // console.log(`🧹 [Session] Limpeza: ${removed} sessões expiradas removidas`);
         }
         
-        return false;
+        return removed;
     }
     
     /**
-     * Extende o TTL de uma sessão
+     * Inicia limpeza automática
      */
-    static extend(userId, guildId, action, additionalMs = 300000) {
-        const key = `${userId}_${guildId}_${action}`;
-        const session = sessions.get(key);
-        
-        if (session && session.expires > Date.now()) {
-            session.expires += additionalMs;
-            sessions.set(key, session);
-            return true;
+    startCleanup() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
         }
         
-        return false;
+        this.cleanupInterval = setInterval(() => {
+            this.cleanup();
+        }, 60000); // A cada minuto
     }
     
     /**
-     * Obtém estatísticas das sessões ativas
+     * Para a limpeza automática
      */
-    static getStats() {
+    stopCleanup() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+    }
+    
+    /**
+     * Obtém estatísticas das sessões
+     */
+    getStats() {
         const now = Date.now();
         let active = 0;
         let expired = 0;
         
-        for (const [key, session] of sessions) {
+        for (const session of this.sessions.values()) {
             if (session.expires > now) active++;
             else expired++;
         }
         
         return {
-            total: sessions.size,
+            total: this.sessions.size,
             active,
             expired,
-            keys: Array.from(sessions.keys())
+            bySystem: this.getStatsBySystem()
         };
+    }
+    
+    /**
+     * Estatísticas por sistema
+     */
+    getStatsBySystem() {
+        const bySystem = {};
+        for (const session of this.sessions.values()) {
+            const system = session.metadata.system;
+            bySystem[system] = (bySystem[system] || 0) + 1;
+        }
+        return bySystem;
     }
 }
 
-module.exports = SessionManager;
+// Singleton para uso global
+const sessionManager = new SessionManager();
+
+module.exports = sessionManager;
+module.exports.SessionManager = SessionManager;
