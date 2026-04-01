@@ -20,7 +20,7 @@ module.exports = {
         const guildId = guild.id;
         const target = options.getUser('usuario');
         
-        // Obter emojis do sistema (se existirem)
+        // Obter emojis do sistema
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -33,7 +33,7 @@ module.exports = {
             // 1. VALIDAR SE O USUÁRIO EXISTE
             if (!target) {
                 return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} Usuário não encontrado.`
+                    content: `${emojis.Error || '❌'} Usuário não encontrado.`
                 });
             }
             
@@ -52,7 +52,6 @@ module.exports = {
             // 5. BUSCAR DADOS ADICIONAIS DO USUÁRIO
             const userData = await PunishmentSystem.getUserData(guildId, target.id);
             const totalStrikes = userData.totalStrikes;
-            const lastPunishments = userData.lastPunishments;
             
             // 6. VERIFICAR SE O USUÁRIO TEM REGISTROS
             if (!history || history.totalRecords === 0) {
@@ -69,22 +68,26 @@ module.exports = {
                     }
                 );
                 
+                // Gerar embed unificado para usuário sem registros
+                const repEmoji = (history?.reputation || 100) >= 90 ? '✨' : 
+                                (history?.reputation || 100) >= 70 ? '⭐' : 
+                                (history?.reputation || 100) >= 50 ? '🌟' : '⚠️';
+                
+                const description = [
+                    `# ${emojis.History || '📋'} HISTÓRICO DE ${target.username.toUpperCase()}`,
+                    `Consulta detalhada do sistema de reputação e punições.`,
+                    ``,
+                    `## ${repEmoji} Reputação Atual`,
+                    `**${history?.reputation || 100}/100** pontos`,
+                    ``,
+                    `## ${emojis.strike || '⚠️'} Punições Registradas (0)`,
+                    `\`\`\`\nNenhuma punição registrada para este usuário.\n\`\`\``
+                ].join('\n');
+                
                 const noRecordsEmbed = new EmbedBuilder()
                     .setColor(0xDCA15E)
-                    .setTitle(`${emojis.CHECK || '✅'} Histórico de ${target.username}`)
-                    .setDescription(`**${target.username}** não possui registros de punição.`)
-                    .addFields(
-                        { 
-                            name: '⭐ Reputação', 
-                            value: `\`${history?.reputation || 100}/100\``, 
-                            inline: true 
-                        },
-                        { 
-                            name: '📊 Total de Strikes', 
-                            value: `\`0\``, 
-                            inline: true 
-                        }
-                    )
+                    .setDescription(description)
+                    .setThumbnail(target.displayAvatarURL())
                     .setFooter({ 
                         text: `Consultado por ${user.tag}`, 
                         iconURL: user.displayAvatarURL() 
@@ -94,7 +97,7 @@ module.exports = {
                 return await interaction.editReply({ embeds: [noRecordsEmbed] });
             }
             
-            // 7. CRIAR SESSÃO COM CONTEXTO COMPLETO (userId_guildId_action)
+            // 7. CRIAR SESSÃO COM CONTEXTO COMPLETO
             SessionManager.set(
                 user.id,
                 guildId,
@@ -106,10 +109,10 @@ module.exports = {
                     totalPages: history.totalPages,
                     timestamp: Date.now()
                 },
-                600000 // 10 minutos de sessão
+                600000
             );
             
-            // 8. GERAR UI USANDO O PUNISHMENT SYSTEM (já refatorado)
+            // 8. GERAR UI USANDO O PUNISHMENT SYSTEM
             const embed = PunishmentSystem.generateHistoryEmbed(target, history, 1);
             const components = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
             
@@ -131,14 +134,14 @@ module.exports = {
                 }
             );
             
-            // 10. ATUALIZAR ANALYTICS DO STAFF (se o usuário for staff)
+            // 10. ATUALIZAR ANALYTICS DO STAFF
             if (staffRoleId && interaction.member.roles.cache.has(staffRoleId)) {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            // 11. ADICIONAR FOOTER COM ID DA TRANSAÇÃO
+            // 11. ADICIONAR FOOTER
             embed.setFooter({ 
-                text: `Consulta #${activityId?.slice(0, 8) || 'N/A'} • ${embed.data.footer?.text || ''}`,
+                text: `Página 1 de ${history.totalPages} • Total: ${history.totalRecords} registros`,
                 iconURL: embed.data.footer?.iconURL || user.displayAvatarURL()
             });
             
@@ -148,18 +151,14 @@ module.exports = {
                 components: components ? [components] : [] 
             });
             
-            // Log silencioso de performance
             console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} em ${guild.name} | ${Date.now() - startTime}ms | ${history.totalRecords} registros`);
             
         } catch (error) {
-            // 13. TRATAMENTO DE ERRO COM LOG DETALHADO
             console.error('❌ Erro no comando historico:', error);
             
-            // Registrar erro no sistema de logs
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            // Registrar no banco
             db.logActivity(
                 guildId,
                 user.id,
@@ -173,18 +172,15 @@ module.exports = {
                 }
             );
             
-            // Limpar sessão em caso de erro
             SessionManager.delete(user.id, guildId, 'history');
             
-            // Resposta de erro amigável
             const errorEmbed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('❌ Erro ao Carregar Histórico')
                 .setDescription('Ocorreu um erro interno ao carregar o histórico do usuário. A equipe de staff foi notificada.')
                 .addFields(
                     { name: 'Usuário', value: target?.tag || 'Desconhecido', inline: true },
-                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: true },
-                    { name: 'ID da Transação', value: `\`${Date.now()}\``, inline: false }
+                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: true }
                 )
                 .setFooter({ text: 'Caso persista, contate um administrador.' })
                 .setTimestamp();

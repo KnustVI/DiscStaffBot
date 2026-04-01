@@ -25,7 +25,7 @@ module.exports = {
         const newPoints = options.getInteger('pontos');
         const reason = options.getString('motivo');
         
-        // Obter emojis do sistema (se existirem)
+        // Obter emojis do sistema
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -38,7 +38,7 @@ module.exports = {
             // 1. VALIDAR SE O USUÁRIO EXISTE
             if (!target) {
                 return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} Usuário não encontrado.`
+                    content: `${emojis.Error || '❌'} Usuário não encontrado.`
                 });
             }
             
@@ -49,14 +49,12 @@ module.exports = {
             
             // 3. OBTER SISTEMAS
             const ConfigSystem = require('../../systems/configSystem');
-            const PunishmentSystem = require('../../systems/punishmentSystem');
             
-            // 4. VERIFICAR HIERARQUIA (Trava de Segurança)
+            // 4. VERIFICAR HIERARQUIA
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(target.id).catch(() => null);
             } catch (err) {
-                // Usuário não está no servidor
                 targetMember = null;
             }
             
@@ -65,7 +63,6 @@ module.exports = {
                 staff.id !== guild.ownerId;
             
             if (isStaffHigher) {
-                // Registrar tentativa negada
                 db.logActivity(
                     guildId,
                     staff.id,
@@ -82,7 +79,7 @@ module.exports = {
                 );
                 
                 return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} Você não tem autoridade para ajustar a reputação de um cargo superior ou igual ao seu.` 
+                    content: `${emojis.Error || '❌'} Você não tem autoridade para ajustar a reputação de um cargo superior ou igual ao seu.` 
                 });
             }
             
@@ -93,6 +90,7 @@ module.exports = {
             const oldPoints = currentRep;
             const diff = newPoints - oldPoints;
             const diffText = diff >= 0 ? `+${diff}` : `${diff}`;
+            const isGain = diff >= 0;
             
             // 6. ATUALIZAR REPUTAÇÃO NO BANCO
             db.prepare(`
@@ -108,7 +106,7 @@ module.exports = {
             // Limpar cache do ConfigSystem
             ConfigSystem.clearCache(guildId);
             
-            // 7. REGISTRAR ATIVIDADE NO LOG (com UUID)
+            // 7. REGISTRAR ATIVIDADE NO LOG
             const activityId = db.logActivity(
                 guildId,
                 staff.id,
@@ -128,82 +126,64 @@ module.exports = {
             // 8. ATUALIZAR ANALYTICS DO STAFF
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // 9. RESPOSTA IMEDIATA
-            const successColor = diff >= 0 ? 0x00FF00 : 0xFF0000;
+            // 9. GERAR EMBED UNIFICADO
+            const unifiedEmbed = generateRepSetUnifiedEmbed(
+                target,
+                staff,
+                oldPoints,
+                newPoints,
+                diff,
+                reason,
+                emojis
+            );
             
-            const embed = new EmbedBuilder()
-                .setColor(successColor)
-                .setTitle(`${emojis.CHECK || '✅'} Reputação Ajustada`)
-                .setDescription(`**${target.tag}** teve sua reputação ajustada.`)
-                .addFields(
-                    { 
-                        name: '📊 Alteração', 
-                        value: `\`${oldPoints}\` → \`${newPoints}\` (\`${diffText}\`)`, 
-                        inline: true 
-                    },
-                    { 
-                        name: '👤 Moderador', 
-                        value: `${staff.tag}`, 
-                        inline: true 
-                    },
-                    { 
-                        name: '📝 Motivo', 
-                        value: `\`${reason.slice(0, 100)}\``, 
-                        inline: false 
-                    },
-                    { 
-                        name: '🆔 ID da Transação', 
-                        value: `\`${activityId?.slice(0, 8) || 'N/A'}...\``, 
-                        inline: true 
-                    }
-                )
-                .setFooter({ 
-                    text: `ID: ${activityId?.slice(0, 8) || 'N/A'} • ${ConfigSystem.getFooter(guild.name).text}`,
-                    iconURL: ConfigSystem.getFooter(guild.name).iconURL
-                })
-                .setTimestamp();
+            // 10. ENVIAR DM PARA O USUÁRIO (se possível)
+            if (targetMember) {
+                try {
+                    await targetMember.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                } catch (err) {
+                    console.error('❌ Erro ao enviar DM:', err);
+                }
+            }
             
-            await interaction.editReply({ embeds: [embed], content: null });
-            
-            // 10. FLUXO DE LOG NO CANAL DE LOGS (Async em segundo plano)
+            // 11. ENVIAR LOG PARA CANAL
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-                    
                     if (logChannel) {
-                        const logEmbed = new EmbedBuilder()
-                            .setColor(diff >= 0 ? 0x00FF7F : 0xFF4500)
-                            .setAuthor({ name: `📝 Ajuste de Reputação`, iconURL: target.displayAvatarURL() })
-                            .setDescription([
-                                `**Alvo:** ${target} (\`${target.id}\`)`,
-                                `**Moderador:** ${staff} (\`${staff.id}\`)`,
-                                `**Ajuste:** \`${diffText} pts\` → \`${newPoints}/100\``,
-                                `**Motivo:** ${reason}`,
-                                `**ID Transação:** \`${activityId}\``
-                            ].join('\n'))
-                            .setFooter({ text: ConfigSystem.getSetting(guildId, 'footer_text') || guild.name })
-                            .setTimestamp();
-                        
+                        const logEmbed = new EmbedBuilder(unifiedEmbed.toJSON());
+                        logEmbed.setDescription(
+                            unifiedEmbed.description + 
+                            `\n\n## ${emojis.staff || '👮'} Responsável\n<@${staff.id}>`
+                        );
                         await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                     }
                 } catch (err) {
-                    console.error('❌ Erro ao enviar log para canal:', err);
+                    console.error('❌ Erro ao enviar log:', err);
                 }
             }
             
-            // Log silencioso de performance
+            // 12. RESPOSTA NO CANAL
+            const gainIcon = isGain ? '📈' : '📉';
+            const gainText = isGain ? 'Aumentada' : 'Reduzida';
+            
+            await interaction.editReply({ 
+                content: `${gainIcon} **Reputação de ${target.username} ${gainText}**\n📊 \`${oldPoints}\` → \`${newPoints}\` (\`${diffText}\`)\n📝 Motivo: ${reason.slice(0, 100)}`,
+                embeds: [],
+                components: []
+            });
+            
+            // Log silencioso
             console.log(`📊 [REPSET] ${staff.tag} ajustou ${target.tag} em ${guild.name} | ${diffText} pts | ${Date.now() - startTime}ms`);
             
         } catch (error) {
-            // 11. TRATAMENTO DE ERRO COM LOG DETALHADO
+            // 13. TRATAMENTO DE ERRO
             console.error('❌ Erro no comando repset:', error);
             
-            // Registrar erro no sistema de logs
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            // Registrar no banco
             db.logActivity(
                 guildId,
                 staff.id,
@@ -219,16 +199,14 @@ module.exports = {
                 }
             );
             
-            // Resposta de erro amigável
             const errorEmbed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('❌ Erro ao Ajustar Reputação')
-                .setDescription('Ocorreu um erro interno ao processar o ajuste de reputação. A equipe de staff foi notificada.')
+                .setDescription('Ocorreu um erro interno ao processar o ajuste de reputação.')
                 .addFields(
                     { name: 'Alvo', value: target?.tag || 'Desconhecido', inline: true },
                     { name: 'Valor Solicitado', value: `\`${newPoints}\``, inline: true },
-                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false },
-                    { name: 'ID da Transação', value: `\`${Date.now()}\``, inline: true }
+                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false }
                 )
                 .setFooter({ text: 'Caso persista, contate um administrador.' })
                 .setTimestamp();
@@ -240,3 +218,37 @@ module.exports = {
         }
     }
 };
+
+/**
+ * Gera embed unificado para ajuste de reputação
+ */
+function generateRepSetUnifiedEmbed(target, moderator, oldPoints, newPoints, diff, reason, emojis) {
+    const isGain = diff >= 0;
+    const diffText = diff >= 0 ? `+${diff}` : `${diff}`;
+    const color = isGain ? 0x00FF00 : 0xFF0000;
+    const titleIcon = isGain ? '📈' : '📉';
+    const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
+    
+    const description = [
+        `# ${titleIcon} ${titleText}`,
+        `Uma alteração manual foi registrada no sistema.`,
+        ``,
+        `## ${emojis.user || '👤'} Usuário Alvo: ${target.username}`,
+        `\`${target.id}\``,
+        ``,
+        `## ${emojis.staff || '👮'} Responsável: ${moderator.username}`,
+        `\`${moderator.id}\``,
+        ``,
+        `**Mudança:** \`${diffText} pts\``,
+        `**Saldo Final:** \`${newPoints}/100 pts\``,
+        ``,
+        `## ${emojis.Note || '📝'} Motivo`,
+        `\`\`\`text\n${reason}\n\`\`\``
+    ].join('\n');
+    
+    return new EmbedBuilder()
+        .setColor(color)
+        .setDescription(description)
+        .setFooter({ text: `ID: ${Date.now()} • ${new Date().toLocaleString('pt-BR')}` })
+        .setTimestamp();
+}
