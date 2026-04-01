@@ -83,7 +83,7 @@ class InteractionHandler {
         if (!command) {
             return interaction.editReply({ 
                 content: '❌ Comando não encontrado.', 
-                ephemeral: true 
+                flags: 64 
             });
         }
         
@@ -152,7 +152,7 @@ class InteractionHandler {
         if (!handler) {
             return interaction.editReply({ 
                 content: `❌ Sistema "${system}" não reconhecido.`, 
-                ephemeral: true 
+                flags: 64
             });
         }
         
@@ -176,7 +176,7 @@ class InteractionHandler {
             } else {
                 await interaction.editReply({ 
                     content: `❌ Modal "${action}" não implementado para o sistema "${system}".`,
-                    ephemeral: true 
+                    flags: 64
                 });
             }
         }
@@ -193,11 +193,11 @@ class InteractionHandler {
         // Garantir que a interação sempre recebe resposta
         try {
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: errorMessage, ephemeral: true });
+                await interaction.reply({ content: errorMessage, flags: 64 });
             } else if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({ content: errorMessage });
             } else if (interaction.replied && type === 'modal') {
-                await interaction.followUp({ content: errorMessage, ephemeral: true });
+                await interaction.followUp({ content: errorMessage, flags: 64 });
             }
         } catch (err) {
             console.error('❌ Erro ao enviar mensagem de erro:', err);

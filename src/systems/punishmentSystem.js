@@ -255,14 +255,14 @@ const PunishmentSystem = {
                 default:
                     await interaction.editReply({
                         content: `❌ Modal "${action}" não reconhecido no sistema de punições.`,
-                        ephemeral: true
+                        flags: 64
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleModal do punishmentSystem:', error);
             await interaction.editReply({
                 content: '❌ Ocorreu um erro ao processar o modal.',
-                ephemeral: true
+                flags: 64
             });
         }
     },
@@ -370,7 +370,7 @@ const PunishmentSystem = {
         if (!session) {
             return await interaction.editReply({
                 content: '❌ Sessão expirada. Por favor, execute o comando /strike novamente.',
-                ephemeral: true
+                flags: 64
             });
         }
         
@@ -436,7 +436,7 @@ const PunishmentSystem = {
         if (!session) {
             return await interaction.editReply({
                 content: '❌ Sessão expirada. Por favor, execute o comando /unstrike novamente.',
-                ephemeral: true
+                flags: 64
             });
         }
         
@@ -449,7 +449,7 @@ const PunishmentSystem = {
         if (!strike) {
             return await interaction.editReply({
                 content: '❌ Strike não encontrado.',
-                ephemeral: true
+                flags: 64
             });
         }
         

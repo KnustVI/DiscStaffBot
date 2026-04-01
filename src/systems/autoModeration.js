@@ -69,14 +69,14 @@ class AutoModerationSystem {
                 default:
                     await interaction.editReply({
                         content: `❌ Modal "${action}" não reconhecido no sistema de auto moderação.`,
-                        ephemeral: true
+                        flags: 64
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleModal do autoModeration:', error);
             await interaction.editReply({
                 content: '❌ Ocorreu um erro ao processar o modal.',
-                ephemeral: true
+                    
             });
         }
     }
@@ -180,21 +180,21 @@ class AutoModerationSystem {
         if (isNaN(exLimit) || exLimit < 1 || exLimit > 100) {
             return await interaction.editReply({
                 content: '❌ Limite para cargo Exemplar deve ser um número entre 1 e 100.',
-                ephemeral: true
+                flags: 64
             });
         }
         
         if (isNaN(probLimit) || probLimit < 1 || probLimit > 100) {
             return await interaction.editReply({
                 content: '❌ Limite para cargo Problemático deve ser um número entre 1 e 100.',
-                ephemeral: true
+                flags: 64
             });
         }
         
         if (probLimit >= exLimit) {
             return await interaction.editReply({
                 content: '❌ O limite para cargo Problemático deve ser menor que o limite para cargo Exemplar.',
-                ephemeral: true
+                flags: 64
             });
         }
         
