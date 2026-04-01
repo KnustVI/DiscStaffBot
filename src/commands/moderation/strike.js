@@ -45,7 +45,7 @@ module.exports = {
         const { guild, options, channel, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
         
-        // Obter emojis do sistema (se existirem)
+        // Obter emojis do sistema
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -80,7 +80,7 @@ module.exports = {
             // 1. VALIDAR SE O USUÁRIO EXISTE
             if (!targetUser) {
                 return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} Usuário não encontrado.`
+                    content: `${emojis.Error || '❌'} Usuário não encontrado.`
                 });
             }
             
@@ -106,7 +106,6 @@ module.exports = {
                 staff.id !== guild.ownerId;
             
             if (isStaffHigher) {
-                // Registrar tentativa negada
                 db.logActivity(
                     guildId,
                     staff.id,
@@ -125,7 +124,7 @@ module.exports = {
                 );
                 
                 return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} **Erro de Hierarquia:** Você não pode punir este membro.` 
+                    content: `${emojis.Error || '❌'} **Erro de Hierarquia:** Você não pode punir este membro.` 
                 });
             }
             
@@ -135,7 +134,7 @@ module.exports = {
             
             const newPoints = Math.max(0, currentRep - pointsToLose);
             
-            // 6. CALCULAR EXPIRAÇÃO (se aplicável)
+            // 6. CALCULAR EXPIRAÇÃO
             let expiresAt = null;
             let durationMs = 0;
             if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
@@ -166,13 +165,13 @@ module.exports = {
                 WHERE guild_id = ? AND user_id = ?
             `).run(newPoints, Date.now(), staff.id, guildId, targetUser.id);
             
-            // 10. APLICAR AÇÕES DO DISCORD (se necessário)
+            // 10. APLICAR AÇÕES DO DISCORD
             let discordActionResult = null;
             if (discordAct !== 'none' && targetMember) {
                 try {
                     switch (discordAct) {
                         case 'timeout':
-                            const timeoutDuration = durationMs > 0 ? durationMs : 60000; // 1 min padrão
+                            const timeoutDuration = durationMs > 0 ? durationMs : 60000;
                             await targetMember.timeout(timeoutDuration, reason);
                             discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
                             break;
@@ -186,7 +185,7 @@ module.exports = {
                             break;
                     }
                 } catch (err) {
-                    discordActionResult = `Erro: ${err.message}`;
+                    discordActionResult = `❌ Erro: ${err.message}`;
                 }
             }
             
@@ -218,124 +217,68 @@ module.exports = {
             // 12. ATUALIZAR ANALYTICS DO STAFF
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // 13. GERAR EMBED DE CONFIRMAÇÃO
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcon = ['', '🟢', '🟡', '🟠', '🔴', '💀'][severity] || '❓';
+            // 13. GERAR EMBED UNIFICADO (DM + LOG)
+            const unifiedEmbed = PunishmentSystem.generateStrikeUnifiedEmbed(
+                targetUser,
+                staff,
+                strikeId,
+                severity,
+                reason,
+                ticketId || null,
+                pointsToLose,
+                newPoints,
+                discordAct,
+                discordActionResult
+            );
             
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000) // Vermelho para perda de reputação
-                .setTitle(`${severityIcon} Strike Aplicado`)
-                .setDescription(`**Punição registrada com sucesso!**`)
-                .addFields(
-                    { name: '👤 Alvo', value: `${targetUser.tag}\n\`${targetUser.id}\``, inline: true },
-                    { name: '👮 Moderador', value: `${staff.tag}\n\`${staff.id}\``, inline: true },
-                    { name: '⚖️ Gravidade', value: `${severityNames[severity] || severity} (Nível ${severity})`, inline: true },
-                    { name: '📉 Pontos Perdidos', value: `\`-${pointsToLose} pts\``, inline: true },
-                    { name: '⭐ Reputação Final', value: `\`${newPoints}/100\``, inline: true },
-                    { name: '📝 Motivo', value: `\`${reason.slice(0, 100)}\``, inline: false },
-                    { name: '🆔 ID da Punição', value: `\`${punishmentUuid.slice(0, 8)}...\``, inline: true },
-                    { name: '🎫 Ticket', value: ticketId ? `\`${ticketId}\`` : '`N/A`', inline: true }
-                )
-                .setFooter({ 
-                    text: `Transação: ${activityId?.slice(0, 8) || 'N/A'} • ${ConfigSystem.getFooter(guild.name).text}`,
-                    iconURL: ConfigSystem.getFooter(guild.name).iconURL
-                })
-                .setTimestamp();
-            
-            // Adicionar ações se houver
-            if (discordAct !== 'none') {
-                embed.addFields({ 
-                    name: '🛠️ Ação Discord', 
-                    value: discordActionResult || `\`${discordAct}\``, 
-                    inline: true 
-                });
+            // 14. ENVIAR DM PARA O USUÁRIO
+            if (targetMember) {
+                try {
+                    await targetMember.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                } catch (err) {
+                    console.error('❌ Erro ao enviar DM:', err);
+                }
             }
             
-            if (jogoAct !== 'none') {
-                embed.addFields({ 
-                    name: '🎮 Ação In-Game', 
-                    value: `\`${jogoAct}\` (pendente)`, 
-                    inline: true 
-                });
-            }
-            
-            if (expiresAt) {
-                embed.addFields({ 
-                    name: '⏰ Expira em', 
-                    value: `<t:${Math.floor(expiresAt / 1000)}:R>`, 
-                    inline: true 
-                });
-            }
-            
-            // 14. RESPOSTA FINAL
-            await interaction.editReply({ embeds: [embed], content: null });
-            
-            // 15. ENVIAR LOG PARA CANAL DE LOGS (Async)
+            // 15. ENVIAR LOG PARA CANAL DE LOGS
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logEmbed = new EmbedBuilder()
-                            .setColor(0xFF0000)
-                            .setAuthor({ name: `⚠️ Strike Aplicado`, iconURL: targetUser.displayAvatarURL() })
-                            .setDescription([
-                                `**Alvo:** ${targetUser} (\`${targetUser.id}\`)`,
-                                `**Moderador:** ${staff} (\`${staff.id}\`)`,
-                                `**Gravidade:** Nível ${severity} (${severityNames[severity]})`,
-                                `**Motivo:** ${reason}`,
-                                `**Pontos Perdidos:** \`-${pointsToLose}\` → \`${newPoints}/100\``,
-                                `**Ticket:** ${ticketId || 'N/A'}`,
-                                `**UUID:** \`${punishmentUuid}\``,
-                                `**ID Transação:** \`${activityId}\``,
-                                discordAct !== 'none' ? `**Ação Discord:** \`${discordAct}\`` : null,
-                                jogoAct !== 'none' ? `**Ação Jogo:** \`${jogoAct}\`` : null,
-                                expiresAt ? `**Expira:** <t:${Math.floor(expiresAt / 1000)}:F>` : null
-                            ].filter(Boolean).join('\n'))
-                            .setFooter({ text: ConfigSystem.getSetting(guildId, 'footer_text') || guild.name })
-                            .setTimestamp();
-                        
+                        // Adicionar menção do moderador no log
+                        const logEmbed = new EmbedBuilder(unifiedEmbed.toJSON());
+                        logEmbed.setDescription(
+                            unifiedEmbed.description + 
+                            `\n\n## ${emojis.staff || '👮'} Moderador\n<@${staff.id}>`
+                        );
                         await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                     }
                 } catch (err) {
-                    console.error('❌ Erro ao enviar log para canal:', err);
+                    console.error('❌ Erro ao enviar log:', err);
                 }
             }
             
-            // 16. NOTIFICAR O USUÁRIO VIA DM (se possível)
-            if (targetMember) {
-                try {
-                    const dmEmbed = new EmbedBuilder()
-                        .setColor(0xFF0000)
-                        .setTitle(`${severityIcon} Você recebeu um Strike`)
-                        .setDescription(`**Servidor:** ${guild.name}`)
-                        .addFields(
-                            { name: 'Motivo', value: reason, inline: false },
-                            { name: 'Gravidade', value: `${severityNames[severity]} (Nível ${severity})`, inline: true },
-                            { name: 'Pontos Perdidos', value: `-${pointsToLose} pts`, inline: true },
-                            { name: 'Reputação Atual', value: `${newPoints}/100`, inline: true }
-                        )
-                        .setFooter({ text: `ID: ${punishmentUuid.slice(0, 8)}` })
-                        .setTimestamp();
-                    
-                    await targetMember.send({ embeds: [dmEmbed] }).catch(() => null);
-                } catch (err) {
-                    // Silenciar erro de DM
-                }
-            }
+            // 16. RESPOSTA NO CANAL
+            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+            const severityIcon = ['', '🟢', '🟡', '🟠', '🔴', '💀'][severity] || '❓';
+            
+            await interaction.editReply({ 
+                content: `${severityIcon} **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos | ⭐ Reputação: ${newPoints}/100\n📝 Motivo: ${reason.slice(0, 100)}`,
+                embeds: [],
+                components: []
+            });
             
             // Log silencioso de performance
-            console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} em ${guild.name} | Nível ${severity} | ${Date.now() - startTime}ms`);
+            console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} em ${guild.name} | Nível ${severity} | #${strikeId} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
-            // 17. TRATAMENTO DE ERRO COM LOG DETALHADO
+            // 17. TRATAMENTO DE ERRO
             console.error('❌ Erro no comando strike:', error);
             
-            // Registrar erro no sistema de logs
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            // Registrar no banco
             db.logActivity(
                 guildId,
                 staff.id,
@@ -354,7 +297,6 @@ module.exports = {
                 }
             );
             
-            // Resposta de erro amigável
             const errorEmbed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('❌ Erro ao Aplicar Strike')
@@ -362,8 +304,7 @@ module.exports = {
                 .addFields(
                     { name: 'Alvo', value: targetUser?.tag || 'Desconhecido', inline: true },
                     { name: 'Gravidade', value: `Nível ${severity}`, inline: true },
-                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false },
-                    { name: 'ID da Transação', value: `\`${Date.now()}\``, inline: true }
+                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false }
                 )
                 .setFooter({ text: 'Caso persista, contate um administrador.' })
                 .setTimestamp();

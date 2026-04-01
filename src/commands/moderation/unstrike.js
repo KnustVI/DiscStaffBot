@@ -23,7 +23,7 @@ module.exports = {
         const punishmentId = options.getInteger('id');
         const reason = options.getString('motivo');
         
-        // Obter emojis do sistema (se existirem)
+        // Obter emojis do sistema
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -48,7 +48,6 @@ module.exports = {
             `).get(punishmentId, guildId);
             
             if (!punishment) {
-                // Registrar tentativa de anular punição inexistente
                 db.logActivity(
                     guildId,
                     staff.id,
@@ -64,18 +63,17 @@ module.exports = {
                 
                 const errorEmbed = new EmbedBuilder()
                     .setColor(0xFFA500)
-                    .setTitle('⚠️ Punição Não Encontrada')
+                    .setTitle(`${emojis.Warning || '⚠️'} Punição Não Encontrada`)
                     .setDescription(`Não foi encontrada uma punição ativa com o ID \`${punishmentId}\` neste servidor.`)
                     .addFields(
-                        { name: '💡 Dica', value: 'Verifique o ID correto usando `/historico`' },
-                        { name: 'ID da Transação', value: `\`${Date.now()}\``, inline: true }
+                        { name: '💡 Dica', value: 'Verifique o ID correto usando `/historico`' }
                     )
                     .setTimestamp();
                 
                 return await interaction.editReply({ embeds: [errorEmbed] });
             }
             
-            // 4. VALIDAÇÃO DE HIERARQUIA (se o alvo ainda estiver no servidor)
+            // 4. VALIDAÇÃO DE HIERARQUIA
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
@@ -88,7 +86,6 @@ module.exports = {
                 staff.id !== guild.ownerId;
             
             if (isStaffHigher) {
-                // Registrar tentativa negada
                 db.logActivity(
                     guildId,
                     staff.id,
@@ -104,28 +101,22 @@ module.exports = {
                 );
                 
                 return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} **Erro de Hierarquia:** Você não pode anular punições de um cargo superior ou igual ao seu.` 
+                    content: `${emojis.Error || '❌'} **Erro de Hierarquia:** Você não pode anular punições de um cargo superior ou igual ao seu.` 
                 });
             }
             
-            // 5. OBTER PONTOS A RESTAURAR (baseado na severidade)
-            const pointsMap = {
-                1: 10,
-                2: 25,
-                3: 40,
-                4: 60,
-                5: 100
-            };
+            // 5. OBTER PONTOS A RESTAURAR
+            const pointsMap = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
             const pointsToRestore = pointsMap[punishment.severity] || 10;
             
-            // 6. OBTER REPUTAÇÃO ATUAL DO USUÁRIO
+            // 6. OBTER REPUTAÇÃO ATUAL
             const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, punishment.user_id)?.points || 100;
             const newPoints = Math.min(100, currentRep + pointsToRestore);
             
-            // 7. GERAR UUID ÚNICO PARA ANULAÇÃO (para rastreamento)
+            // 7. GERAR UUID PARA ANULAÇÃO
             const reversalUuid = db.generateUUID();
             
-            // 8. ATUALIZAR PUNIÇÃO (marcar como revogada)
+            // 8. ATUALIZAR PUNIÇÃO
             db.prepare(`
                 UPDATE punishments SET 
                     status = 'revoked',
@@ -141,7 +132,7 @@ module.exports = {
                 WHERE guild_id = ? AND user_id = ?
             `).run(newPoints, Date.now(), staff.id, guildId, punishment.user_id);
             
-            // 10. REMOVER CARGO TEMPORÁRIO SE EXISTIR (strike role)
+            // 10. REMOVER CARGO TEMPORÁRIO (strike role)
             const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
             if (strikeRoleId && targetMember && targetMember.roles.cache.has(strikeRoleId)) {
                 try {
@@ -151,7 +142,7 @@ module.exports = {
                 }
             }
             
-            // 11. REMOVER TIMEOUT SE EXISTIR
+            // 11. REMOVER TIMEOUT
             if (targetMember && targetMember.communicationDisabledUntilTimestamp) {
                 try {
                     await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
@@ -188,103 +179,64 @@ module.exports = {
             
             // 14. BUSCAR INFORMAÇÕES DO ALVO
             const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
-            const targetTag = targetUser?.tag || punishment.user_id;
             
-            // 15. GERAR EMBED DE CONFIRMAÇÃO
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcon = ['', '🟢', '🟡', '🟠', '🔴', '💀'][punishment.severity] || '❓';
+            // 15. GERAR EMBED UNIFICADO
+            const unifiedEmbed = PunishmentSystem.generateUnstrikeUnifiedEmbed(
+                targetUser,
+                staff,
+                punishmentId,
+                reason,
+                pointsToRestore,
+                newPoints,
+                punishment.reason
+            );
             
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00) // Verde para ganho de reputação
-                .setTitle(`${emojis.CHECK || '✅'} Punição Anulada`)
-                .setDescription(`**Punição #${punishmentId} foi anulada com sucesso!**`)
-                .addFields(
-                    { name: '👤 Alvo', value: `${targetTag}\n\`${punishment.user_id}\``, inline: true },
-                    { name: '👮 Moderador Original', value: `<@${punishment.moderator_id}>`, inline: true },
-                    { name: '⚖️ Gravidade Original', value: `${severityNames[punishment.severity]} (Nível ${punishment.severity})`, inline: true },
-                    { name: '📈 Pontos Restaurados', value: `\`+${pointsToRestore} pts\``, inline: true },
-                    { name: '⭐ Reputação Final', value: `\`${newPoints}/100\``, inline: true },
-                    { name: '📝 Motivo Original', value: `\`${punishment.reason.slice(0, 100)}\``, inline: false },
-                    { name: '📝 Motivo da Anulação', value: `\`${reason.slice(0, 100)}\``, inline: false },
-                    { name: '🆔 UUID da Punição', value: `\`${punishment.uuid?.slice(0, 8) || 'N/A'}...\``, inline: true },
-                    { name: '🆔 ID da Transação', value: `\`${activityId?.slice(0, 8) || 'N/A'}...\``, inline: true }
-                )
-                .setFooter({ 
-                    text: `Anulado por ${staff.tag} • ${ConfigSystem.getFooter(guild.name).text}`,
-                    iconURL: ConfigSystem.getFooter(guild.name).iconURL
-                })
-                .setTimestamp();
+            // 16. ENVIAR DM PARA O USUÁRIO
+            if (targetUser) {
+                try {
+                    await targetUser.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                } catch (err) {
+                    console.error('❌ Erro ao enviar DM:', err);
+                }
+            }
             
-            // 16. RESPOSTA FINAL
-            await interaction.editReply({ embeds: [embed], content: null });
-            
-            // 17. ENVIAR LOG PARA CANAL DE LOGS (Async)
+            // 17. ENVIAR LOG PARA CANAL
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logEmbed = new EmbedBuilder()
-                            .setColor(0x00FF00)
-                            .setAuthor({ name: `✅ Punição Anulada`, iconURL: targetUser?.displayAvatarURL() })
-                            .setDescription([
-                                `**Punição ID:** #${punishmentId}`,
-                                `**UUID:** \`${punishment.uuid}\``,
-                                `**Alvo:** <@${punishment.user_id}> (\`${punishment.user_id}\`)`,
-                                `**Moderador Original:** <@${punishment.moderator_id}>`,
-                                `**Anulado por:** ${staff} (\`${staff.id}\`)`,
-                                `**Gravidade:** Nível ${punishment.severity} (${severityNames[punishment.severity]})`,
-                                `**Motivo Original:** ${punishment.reason}`,
-                                `**Motivo da Anulação:** ${reason}`,
-                                `**Pontos Restaurados:** \`+${pointsToRestore}\` → \`${newPoints}/100\``,
-                                `**Data Original:** <t:${Math.floor(punishment.created_at / 1000)}:F>`,
-                                `**ID Transação:** \`${activityId}\``
-                            ].join('\n'))
-                            .setFooter({ text: ConfigSystem.getSetting(guildId, 'footer_text') || guild.name })
-                            .setTimestamp();
-                        
+                        const logEmbed = new EmbedBuilder(unifiedEmbed.toJSON());
+                        logEmbed.setDescription(
+                            unifiedEmbed.description + 
+                            `\n\n## ${emojis.staff || '👮'} Anulado por\n<@${staff.id}>`
+                        );
                         await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                     }
                 } catch (err) {
-                    console.error('❌ Erro ao enviar log para canal:', err);
+                    console.error('❌ Erro ao enviar log:', err);
                 }
             }
             
-            // 18. NOTIFICAR O USUÁRIO VIA DM (se possível)
-            if (targetUser) {
-                try {
-                    const dmEmbed = new EmbedBuilder()
-                        .setColor(0x00FF00)
-                        .setTitle('✅ Sua punição foi anulada')
-                        .setDescription(`**Servidor:** ${guild.name}`)
-                        .addFields(
-                            { name: 'Punição Anulada', value: `#${punishmentId}`, inline: true },
-                            { name: 'Motivo Original', value: punishment.reason, inline: false },
-                            { name: 'Motivo da Anulação', value: reason, inline: false },
-                            { name: 'Pontos Restaurados', value: `+${pointsToRestore} pts`, inline: true },
-                            { name: 'Reputação Atual', value: `${newPoints}/100`, inline: true }
-                        )
-                        .setFooter({ text: `Anulado por ${staff.tag}` })
-                        .setTimestamp();
-                    
-                    await targetUser.send({ embeds: [dmEmbed] }).catch(() => null);
-                } catch (err) {
-                    // Silenciar erro de DM
-                }
-            }
+            // 18. RESPOSTA NO CANAL
+            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
             
-            // Log silencioso de performance
-            console.log(`📊 [UNSTRIKE] ${staff.tag} anulou punição #${punishmentId} de ${targetTag} em ${guild.name} | ${Date.now() - startTime}ms`);
+            await interaction.editReply({ 
+                content: `${emojis.Check || '✅'} **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts restaurados | ⭐ Reputação: ${newPoints}/100\n📝 Motivo: ${reason.slice(0, 100)}`,
+                embeds: [],
+                components: []
+            });
+            
+            // Log silencioso
+            console.log(`📊 [UNSTRIKE] ${staff.tag} anulou punição #${punishmentId} de ${targetUser?.tag || punishment.user_id} em ${guild.name} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
-            // 19. TRATAMENTO DE ERRO COM LOG DETALHADO
+            // 19. TRATAMENTO DE ERRO
             console.error('❌ Erro no comando unstrike:', error);
             
-            // Registrar erro no sistema de logs
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            // Registrar no banco
             db.logActivity(
                 guildId,
                 staff.id,
@@ -299,15 +251,13 @@ module.exports = {
                 }
             );
             
-            // Resposta de erro amigável
             const errorEmbed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('❌ Erro ao Anular Punição')
                 .setDescription('Ocorreu um erro interno ao processar a anulação. A equipe de staff foi notificada.')
                 .addFields(
                     { name: 'ID da Punição', value: `\`${punishmentId}\``, inline: true },
-                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false },
-                    { name: 'ID da Transação', value: `\`${Date.now()}\``, inline: true }
+                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false }
                 )
                 .setFooter({ text: 'Caso persista, contate um administrador.' })
                 .setTimestamp();
