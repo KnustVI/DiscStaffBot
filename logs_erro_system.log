@@ -1,0 +1,49 @@
+[31/03/2026, 09:34:17]
+[CONTEXTO: COMMAND_HISTORICO]
+[MENSAGEM: Punishment.getUserHistory is not a function]
+STACK: TypeError: Punishment.getUserHistory is not a function
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/commands/moderation/historico.js:20:46)
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/events/interactionCreate.js:16:38)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+------------------------------------------------------------
+[31/03/2026, 09:34:41]
+[CONTEXTO: COMMAND_CONFIG]
+[MENSAGEM: Invalid Form Body
+components[0].components[1][COMPONENT_LAYOUT_WIDTH_EXCEEDED]: The specified component exceeds the maximum width]
+STACK: DiscordAPIError[50035]: Invalid Form Body
+components[0].components[1][COMPONENT_LAYOUT_WIDTH_EXCEEDED]: The specified component exceeds the maximum width
+    at handleErrors (/home/ubuntu/DiscStaffBot/node_modules/@discordjs/rest/dist/index.js:762:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async SequentialHandler.runRequest (/home/ubuntu/DiscStaffBot/node_modules/@discordjs/rest/dist/index.js:1163:23)
+    at async SequentialHandler.queueRequest (/home/ubuntu/DiscStaffBot/node_modules/@discordjs/rest/dist/index.js:994:14)
+    at async _REST.request (/home/ubuntu/DiscStaffBot/node_modules/@discordjs/rest/dist/index.js:1307:22)
+    at async InteractionWebhook.editMessage (/home/ubuntu/DiscStaffBot/node_modules/discord.js/src/structures/Webhook.js:351:15)
+    at async ChatInputCommandInteraction.editReply (/home/ubuntu/DiscStaffBot/node_modules/discord.js/src/structures/interfaces/InteractionResponses.js:247:17)
+    at async Object.execute (/home/ubuntu/DiscStaffBot/src/commands/config/config.js:83:13)
+    at async Object.execute (/home/ubuntu/DiscStaffBot/src/events/interactionCreate.js:16:24)
+------------------------------------------------------------
+[31/03/2026, 09:44:06]
+[CONTEXTO: COMMAND_BOTSTATUS_ERROR]
+[MENSAGEM: Cannot read properties of undefined (reading 'getBotStatus')]
+STACK: TypeError: Cannot read properties of undefined (reading 'getBotStatus')
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/commands/ajuda/botstatus.js:19:41)
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/events/interactionCreate.js:16:38)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+------------------------------------------------------------
+[31/03/2026, 09:49:15]
+[CONTEXTO: SYSTEMSTATUS_ERROR]
+[MENSAGEM: Cannot read properties of undefined (reading 'uptime')]
+STACK: TypeError: Cannot read properties of undefined (reading 'uptime')
+    at SystemStatus.getBotStatus (/home/ubuntu/DiscStaffBot/src/systems/systemStatus.js:12:37)
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/commands/ajuda/botstatus.js:19:62)
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/events/interactionCreate.js:16:38)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+------------------------------------------------------------
+[31/03/2026, 09:54:54]
+[CONTEXTO: COMMAND_HISTORICO]
+[MENSAGEM: Punishment.getUserHistory is not a function]
+STACK: TypeError: Punishment.getUserHistory is not a function
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/commands/moderation/historico.js:20:46)
+    at Object.execute (/home/ubuntu/DiscStaffBot/src/events/interactionCreate.js:16:38)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+------------------------------------------------------------
