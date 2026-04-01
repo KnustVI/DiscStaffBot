@@ -2,55 +2,42 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const SCHEMA = require('./schema');
+const { SCHEMA, INDEXES } = require('./schema');
 
 class DatabaseManager {
     constructor(options = {}) {
         this.options = {
             dbPath: options.dbPath || path.join(__dirname, '../../database.sqlite'),
             verbose: options.verbose || false,
-            enableWal: options.enableWal !== false,
             ...options
         };
         
         this.db = null;
         this.isConnected = false;
-        this.transactions = [];
         
         this.init();
     }
     
-    /**
-     * Gera um UUID único
-     */
     generateUUID() {
         return crypto.randomUUID();
     }
     
-    /**
-     * Inicializa a conexão com o banco de dados
-     */
     init() {
         try {
-            // Garantir que o diretório existe
             const dbDir = path.dirname(this.options.dbPath);
             if (!fs.existsSync(dbDir)) {
                 fs.mkdirSync(dbDir, { recursive: true });
             }
             
-            // Conectar ao banco
             this.db = new Database(this.options.dbPath, {
                 verbose: this.options.verbose ? console.log : null
             });
             
             // Configurações de performance
-            if (this.options.enableWal) {
-                this.db.pragma('journal_mode = WAL');
-            }
+            this.db.pragma('journal_mode = WAL');
             this.db.pragma('synchronous = NORMAL');
             this.db.pragma('cache_size = 10000');
-            this.db.pragma('temp_store = MEMORY');
-            this.db.pragma('foreign_keys = ON'); // IMPORTANTE: manter integridade referencial
+            this.db.pragma('foreign_keys = ON');
             
             this.isConnected = true;
             
@@ -65,113 +52,45 @@ class DatabaseManager {
         }
     }
     
-            /**
-     * Cria índices apenas para tabelas que existem
-     */
-    createIndexes() {
-        const { INDEXES } = require('./schema');
-        
-        for (const indexSql of INDEXES) {
-            try {
-                // Extrair nome da tabela
-                const match = indexSql.match(/ON\s+(\w+)/i);
-                if (match) {
-                    const tableName = match[1];
-                    
-                    // Verificar se a tabela existe
-                    const tableCheck = this.db.prepare(`
-                        SELECT name FROM sqlite_master 
-                        WHERE type='table' AND name = ?
-                    `).get(tableName);
-                    
-                    if (tableCheck) {
-                        this.db.exec(indexSql);
-                    }
-                } else {
-                    // Tentar criar mesmo assim
-                    this.db.exec(indexSql);
-                }
-            } catch (err) {
-                // Ignorar erros silenciosamente
-                if (!err.message.includes('already exists')) {
-                    // console.log(`   ⚠️ Índice ignorado: ${err.message}`);
-                }
-            }
-        }
-    }
-
-
-        /**
-     * Cria todas as tabelas do schema
-     */
     createAllTables() {
         try {
-            // 1. Primeiro, criar as tabelas principais em ordem de dependência
-            const tablesInOrder = [
-                'users',        // Base
-                'guilds',       // Base
-                'settings',     // Depende de guilds
-                'reputation',   // Depende de users e guilds
-                'punishments',  // Depende de users e guilds
-                'tickets',      // Depende de users e guilds
-                'ticket_messages', // Depende de tickets
-                'staff_analytics', // Depende de users e guilds
-                'activity_logs',   // Depende de users e guilds
-                'temporary_roles', // Depende de users e guilds
-                'feedbacks'        // Depende de users e guilds
+            // Criar tabelas em ordem
+            const tables = [
+                'users',
+                'guilds',
+                'settings',
+                'reputation',
+                'punishments',
+                'tickets',
+                'ticket_messages',
+                'staff_analytics',
+                'activity_logs',
+                'temporary_roles',
+                'feedbacks'
             ];
             
-            for (const table of tablesInOrder) {
+            for (const table of tables) {
                 if (SCHEMA[table]) {
                     try {
                         this.db.exec(SCHEMA[table]);
-                        console.log(`   ✅ Tabela ${table} criada/verificada`);
+                        console.log(`   ✅ Tabela ${table} criada`);
                     } catch (err) {
                         console.error(`   ❌ Erro ao criar tabela ${table}:`, err.message);
                     }
                 }
             }
             
-            // 2. Aguardar um momento para garantir que as tabelas foram criadas
-            // (SQLite é síncrono, então não precisa de await, mas vamos verificar)
-            
-            // 3. Verificar se as tabelas existem antes de criar índices
-            const { INDEXES } = require('./schema');
-            
+            // Criar índices
             console.log('   📊 Criando índices...');
-            
             for (const indexSql of INDEXES) {
                 try {
-                    // Extrair o nome da tabela do índice para verificar se existe
-                    const tableMatch = indexSql.match(/ON\s+(\w+)/i);
-                    const tableName = tableMatch ? tableMatch[1] : null;
-                    
-                    if (tableName) {
-                        // Verificar se a tabela existe
-                        const tableExists = this.db.prepare(`
-                            SELECT name FROM sqlite_master 
-                            WHERE type='table' AND name=?
-                        `).get(tableName);
-                        
-                        if (tableExists) {
-                            this.db.exec(indexSql);
-                            // console.log(`   ✅ Índice criado para ${tableName}`);
-                        } else {
-                            // console.log(`   ⏭️ Pulando índice para ${tableName} (tabela não existe ainda)`);
-                        }
-                    } else {
-                        // Tentar criar mesmo assim
-                        this.db.exec(indexSql);
-                    }
+                    this.db.exec(indexSql);
                 } catch (err) {
-                    // Ignorar erros de índices (podem já existir)
-                    if (!err.message.includes('already exists')) {
-                        console.log(`   ⚠️ Índice ignorado: ${err.message.slice(0, 50)}...`);
-                    }
+                    // Ignorar erros de índices
                 }
             }
             
-            console.log('📋 Schema do banco de dados verificado/criado');
+            console.log('📋 Schema do banco de dados criado');
             
         } catch (error) {
             console.error('❌ Erro ao criar tabelas:', error);
@@ -179,10 +98,23 @@ class DatabaseManager {
         }
     }
     
-    /**
-     * Garante que um usuário existe na tabela de usuários
-     */
+    // Verificar se uma tabela existe
+    tableExists(tableName) {
+        const result = this.db.prepare(`
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name = ?
+        `).get(tableName);
+        return !!result;
+    }
+    
+    // Garantir que um usuário existe
     ensureUser(userId, username = null, discriminator = null, avatar = null) {
+        // Verificar se a tabela existe
+        if (!this.tableExists('users')) {
+            console.warn('⚠️ Tabela users não existe, criando...');
+            this.createAllTables();
+        }
+        
         const existing = this.prepare('SELECT user_id FROM users WHERE user_id = ?').get(userId);
         
         if (!existing) {
@@ -199,7 +131,6 @@ class DatabaseManager {
                 Date.now()
             );
         } else if (username) {
-            // Atualizar informações se necessário
             this.prepare(`
                 UPDATE users SET 
                     username = COALESCE(?, username),
@@ -209,17 +140,18 @@ class DatabaseManager {
                 WHERE user_id = ?
             `).run(username, discriminator, avatar, Date.now(), userId);
         } else {
-            // Apenas atualizar last_seen
             this.prepare(`UPDATE users SET last_seen = ? WHERE user_id = ?`).run(Date.now(), userId);
         }
         
         return true;
     }
     
-    /**
-     * Garante que um servidor existe na tabela de guilds
-     */
+    // Garantir que um servidor existe
     ensureGuild(guildId, name = null, icon = null, ownerId = null) {
+        if (!this.tableExists('guilds')) {
+            this.createAllTables();
+        }
+        
         const existing = this.prepare('SELECT guild_id FROM guilds WHERE guild_id = ?').get(guildId);
         
         if (!existing && name) {
@@ -240,22 +172,27 @@ class DatabaseManager {
         return true;
     }
     
-    /**
-     * Registra uma atividade no log
-     */
+    // Registrar atividade
     logActivity(guildId, userId, action, targetId = null, details = null, ipAddress = null) {
+        if (!this.tableExists('activity_logs')) {
+            this.createAllTables();
+        }
+        
         const uuid = this.generateUUID();
         
-        this.prepare(`
-            INSERT INTO activity_logs (uuid, guild_id, user_id, action, target_id, details, ip_address, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(uuid, guildId, userId, action, targetId, details ? JSON.stringify(details) : null, ipAddress, Date.now());
+        try {
+            this.prepare(`
+                INSERT INTO activity_logs (uuid, guild_id, user_id, action, target_id, details, ip_address, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(uuid, guildId, userId, action, targetId, details ? JSON.stringify(details) : null, ipAddress, Date.now());
+        } catch (err) {
+            console.error('❌ Erro ao registrar atividade:', err.message);
+        }
         
         return uuid;
     }
     
-    // ==================== MÉTODOS PRINCIPAIS ====================
-    
+    // Métodos principais
     prepare(sql) {
         if (!this.isConnected) {
             throw new Error('Banco de dados não está conectado');
@@ -277,28 +214,32 @@ class DatabaseManager {
         return this.db.transaction(fn);
     }
     
+    pragma(sql) {
+        if (!this.isConnected) {
+            throw new Error('Banco de dados não está conectado');
+        }
+        return this.db.pragma(sql);
+    }
+    
     close() {
         if (this.db) {
             this.db.close();
             this.isConnected = false;
-            console.log('🔌 Conexão com banco de dados fechada');
         }
     }
-    
-    // ==================== MÉTODOS DE UTILIDADE ====================
     
     getStats() {
         if (!this.isConnected) return null;
         
         try {
-            const tables = ['users', 'guilds', 'punishments', 'tickets', 'staff_analytics'];
+            const tables = ['users', 'guilds', 'punishments', 'tickets'];
             const stats = {};
             
             for (const table of tables) {
-                try {
+                if (this.tableExists(table)) {
                     const count = this.prepare(`SELECT COUNT(*) as count FROM ${table}`).get();
                     stats[table] = count.count;
-                } catch (e) {
+                } else {
                     stats[table] = 0;
                 }
             }
@@ -308,53 +249,15 @@ class DatabaseManager {
             return {
                 tables: stats,
                 fileSize: (fileStats.size / 1024 / 1024).toFixed(2) + ' MB',
-                connected: this.isConnected,
-                journalMode: this.prepare('PRAGMA journal_mode').get().journal_mode
+                connected: this.isConnected
             };
         } catch (error) {
-            console.error('❌ Erro ao obter stats do DB:', error);
             return null;
         }
-    }
-    
-    backup(backupPath = null) {
-        try {
-            const backupDir = backupPath || path.join(__dirname, '../../backups');
-            if (!fs.existsSync(backupDir)) {
-                fs.mkdirSync(backupDir, { recursive: true });
-            }
-            
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const backupFile = path.join(backupDir, `database_backup_${timestamp}.sqlite`);
-            
-            fs.copyFileSync(this.options.dbPath, backupFile);
-            
-            // Limpar backups antigos
-            const backups = fs.readdirSync(backupDir)
-                .filter(f => f.startsWith('database_backup_'))
-                .sort()
-                .reverse();
-            
-            for (let i = 10; i < backups.length; i++) {
-                fs.unlinkSync(path.join(backupDir, backups[i]));
-            }
-            
-            console.log(`💾 Backup criado: ${backupFile}`);
-            return backupFile;
-            
-        } catch (error) {
-            console.error('❌ Erro ao criar backup:', error);
-            return null;
-        }
-    }
-    
-    generateUUID() {
-        return crypto.randomUUID();
     }
 }
 
-// ==================== SINGLETON E EXPORTAÇÃO ====================
-
+// Singleton
 let instance = null;
 
 function getInstance(options = {}) {
@@ -366,7 +269,7 @@ function getInstance(options = {}) {
 
 const defaultInstance = getInstance();
 
-// Exportar para compatibilidade com código existente
+// Exportar para compatibilidade
 module.exports = defaultInstance.db;
 module.exports.default = defaultInstance;
 module.exports.DatabaseManager = DatabaseManager;
@@ -378,3 +281,4 @@ module.exports.ensureGuild = (guildId, name, icon, ownerId) =>
     defaultInstance.ensureGuild(guildId, name, icon, ownerId);
 module.exports.logActivity = (guildId, userId, action, targetId, details, ip) => 
     defaultInstance.logActivity(guildId, userId, action, targetId, details, ip);
+module.exports.getStats = () => defaultInstance.getStats();
