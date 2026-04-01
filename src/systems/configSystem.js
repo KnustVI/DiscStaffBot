@@ -337,18 +337,30 @@ const ConfigSystem = {
         },
 
             /**
-            * Atualiza o painel de configuração com os valores atuais
-            */
+             * Atualiza o painel de configuração com os valores atuais
+             */
             async refreshConfigPanel(interaction) {
                 const guildId = interaction.guildId;
                 
-                // Buscar configurações atuais
+                // FORÇAR RECARREGAMENTO DO CACHE para este servidor
+                this.clearCache(guildId);
+                
+                // Buscar configurações atuais DIRETAMENTE do banco (ignorando cache)
                 const staffRole = this.getSetting(guildId, 'staff_role');
                 const logChannel = this.getSetting(guildId, 'log_channel');
                 const strikeRole = this.getSetting(guildId, 'strike_role');
                 const automodEnabled = this.getSetting(guildId, 'automod_enabled') === 'true';
                 const exemplarLimit = this.getSetting(guildId, 'limit_exemplar') || '95';
                 const problematicLimit = this.getSetting(guildId, 'limit_problematico') || '30';
+                
+                console.log(`📊 [CONFIG] Dados atuais:`, {
+                    staffRole: staffRole || 'não definido',
+                    logChannel: logChannel || 'não definido',
+                    strikeRole: strikeRole || 'não definido',
+                    automodEnabled,
+                    exemplarLimit,
+                    problematicLimit
+                });
                 
                 // Obter emojis
                 let emojis = {};
@@ -396,7 +408,7 @@ const ConfigSystem = {
                         .setPlaceholder('Selecionar Cargo de Strike')
                 );
                 
-                // Usar update para atualizar a mensagem original (NÃO editReply)
+                // Usar update para atualizar a mensagem original
                 await interaction.update({
                     embeds: [embed],
                     components: [staffRow, logRow, strikeRow]
@@ -535,16 +547,25 @@ const ConfigSystem = {
         };
         return labels[configKey] || configKey;
     },
-
     /**
      * Verifica se um usuário tem permissão de staff
+     * NOTA: Este método requer que o client seja passado como parâmetro
      */
-    isStaff(userId, guildId) {
+    isStaff(userId, guildId, client) {
         try {
             const staffRoleId = this.getSetting(guildId, 'staff_role');
             if (!staffRoleId) return false;
             
-            const member = client?.guilds.cache.get(guildId)?.members.cache.get(userId);
+            // Verificar se client foi passado e está disponível
+            if (!client) {
+                console.warn('⚠️ [isStaff] Client não fornecido, retornando false');
+                return false;
+            }
+            
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) return false;
+            
+            const member = guild.members.cache.get(userId);
             if (!member) return false;
             
             return member.roles.cache.has(staffRoleId);
@@ -552,7 +573,21 @@ const ConfigSystem = {
             console.error('❌ Erro ao verificar staff:', error);
             return false;
         }
-    }
+    },
+
+        /**
+         * Limpa todo o cache (para forçar recarregamento)
+         */
+        clearAllCache() {
+            try {
+                cache.clear();
+                console.log('🗑️ Cache completo limpo');
+            } catch (error) {
+                console.error('❌ Erro ao limpar cache completo:', error);
+            }
+        }
+
 };
+
 
 module.exports = ConfigSystem;
