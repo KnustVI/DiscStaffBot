@@ -1,53 +1,72 @@
-// config/emojis.js
+/**
+ * Arquivo de emojis personalizados do bot
+ * Todos os emojis são do servidor de suporte
+ */
 
-const EMOJIS = {
-    // --- PERFIL E USUÁRIO ---
-    USER: '<:Usuario:1484311639284252783>',
-    ROBIN: '<:Robin:1484256798826303538>',
-    DM: '<:DM:1484311606191063231>',
-
-    // --- RANKS E STATUS DE REPUTAÇÃO ---
-    EXCELLENT: '<:Excellent:1484311610431373484>',
-    GOOD: '<:Good:1484311613719974009>',
-    OBSERVATION: '<:Observation:1484311618895609876>',
-    PROBLEMATIC: '<:Problematic:1484311622817284238>',
-    CRITIC: '<:Critic:1484311597005672588>',
-    REPUTATION: '<:Reputation:1484311626646556673>',
-
-    // --- CLASSIFICAÇÃO / PODIUM ---
-    FIRST: '<:First:1484311611870286024>',
-    SECOND: '<:Second:1484311627628019782>',
-    THIRD: '<:Third:1484311632464314378>',
-    RANK: '<:Rank:148431    1625644249229>',
-    COROA: '<:Coroa:1484311594359066795>',
-
-    // --- SISTEMA E CONFIGURAÇÃO ---
-    CONFIG: '<:Config:1484311591754399884>',
-    PAINEL: '<:Painel:1484311620355362887>',
-    STATUS: '<:Status:1484311631302230219>',
-    SERVER: '<:Servidor:1484311628781588501>',
-    PAUSE: '<:Pause:1484311621626237049>',
-    CHECK: '<:Check:1484311589137023188>',
-    ERRO: '<:Erro:1484311609395380405>',
-    WARNING: '<:Warning:1484317912948015104>',
-
-    // --- MODERAÇÃO E STAFF ---
-    STAFF: '<:STAFF:1484311630035685568>',
-    ACTION: '<:Action:1484311624209924096>',
-    TICKET: '<:Ticket:1484311636914343996>',
-    CLEAN: '<:Clean:1484336678645665945>',
-    DAYSCLEAN: '<:Daysclean:1484311599044104364>',
-    DATE: '<:Date:1484332579950956604>',
-    HISTORY: '<:History:1484332596677709894>',
-
-    // --- UTILITÁRIOS E NAVEGAÇÃO ---
-    UP: '<:Up:1484311638231351537>',
-    DOWN: '<:Down:1484311607709270027>',
-    NOTE: '<:Note:1484311616303665317>',
-    HOW: '<:How:1484311615104090133>',
-    CONSULT: '<:Consult:1484311592844922961>',
-    RIGTH: '<:Right:1484339519841894540>',
-    LEFT: '<:Left:1484339533276250232'
+// Função para formatar emoji com ID
+const formatEmoji = (id, name) => {
+    if (!id) return `:${name}:`;
+    return `<:${name}:${id}>`;
 };
 
-module.exports = { EMOJIS };
+// Objeto com todos os emojis
+const EMOJIS = {
+    Warning: formatEmoji('1488572178084659324', 'Warning'),
+    user: formatEmoji('1488572168332640338', 'user'),
+    Ticket: formatEmoji('1488572166608916575', 'Ticket'),
+    thumbsUP: formatEmoji('1488572163916038295', 'thumbsUP'),
+    thumbsDOWN: formatEmoji('1488572162825781479', 'thumbsDOWN'),
+    strike: formatEmoji('1488572161256849489', 'strike'),
+    Status: formatEmoji('1488572159814271067', 'Status'),
+    star: formatEmoji('1488572158819958875', 'star'),
+    star2: formatEmoji('1488572157448425694', 'star2'),
+    staff: formatEmoji('1488572156114636970', 'staff'),
+    stack: formatEmoji('1488572154424463361', 'stack'),
+    shinystar: formatEmoji('1488572153577341089', 'shinystar'),
+    serverguild: formatEmoji('1488572152289562775', 'serverguild'),
+    Rigth: formatEmoji('1488572150859169882', 'Rigth'),
+    Reset: formatEmoji('1488572149709934662', 'Reset'),
+    Rank: formatEmoji('1488572146711265300', 'Rank'),
+    plusone: formatEmoji('1488572145402646581', 'plusone'),
+    play: formatEmoji('1488572144337027226', 'play'),
+    Pause: formatEmoji('1488572143217279216', 'Pause'),
+    panel: formatEmoji('1488572141640356061', 'panel'),
+    notregistred: formatEmoji('1488572140218486825', 'notregistred'),
+    Note: formatEmoji('1488572138871848960', 'Note'),
+    mute: formatEmoji('1488572137785786519', 'mute'),
+    loose: formatEmoji('1488572136472707203', 'loose'),
+    Left: formatEmoji('1488572135361351760', 'Left'),
+    Leadboard: formatEmoji('1488572134057054230', 'Leadboard'),
+    Identification: formatEmoji('1488572132962341015', 'Identification'),
+    How: formatEmoji('1488572131846656150', 'How'),
+    History: formatEmoji('1488572130277720084', 'History'),
+    heart: formatEmoji('1488572128109264998', 'heart'),
+    global: formatEmoji('1488572126666428498', 'global'),
+    gain: formatEmoji('1488572125643145256', 'gain'),
+    fixed: formatEmoji('1488572124376338442', 'fixed'),
+    Error: formatEmoji('1488572123306922144', 'Error'),
+    eraser: formatEmoji('1488572121167958136', 'eraser'),
+    edit: formatEmoji('1488572117334364170', 'edit'),
+    DM: formatEmoji('1488572115895451840', 'DM'),
+    diamond: formatEmoji('1488572114679365826', 'diamond'),
+    Daysclean: formatEmoji('1488572113626337423', 'Daysclean'),
+    Date: formatEmoji('1488572112464511016', 'Date'),
+    dashboard: formatEmoji('1488572111437168670', 'dashboard'),
+    crown: formatEmoji('1488572108534583406', 'crown'),
+    Consult: formatEmoji('1488572107393863800', 'Consult'),
+    Config: formatEmoji('1488572106261139616', 'Config'),
+    Check: formatEmoji('1488572104826818812', 'Check'),
+    Book: formatEmoji('1488572103279120454', 'Book'),
+    ban: formatEmoji('1488572101496410243', 'ban')
+};
+
+// Exportar também a função utilitária
+const getEmoji = (name) => {
+    return EMOJIS[name] || `:${name}:`;
+};
+
+module.exports = {
+    EMOJIS,
+    getEmoji,
+    formatEmoji
+};

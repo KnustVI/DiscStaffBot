@@ -5,8 +5,8 @@ let handler = null;
 let isReady = false;
 
 module.exports = {
-    name: 'ready',
-    once: true, // Garantir que executa apenas uma vez
+    name: 'clientReady',
+    once: true,
     async execute(client) {
         // Evitar execução duplicada
         if (isReady) return;
