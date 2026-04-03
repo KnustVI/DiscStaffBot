@@ -42,7 +42,6 @@ module.exports = {
         const { guild, options, channel, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
         
-        // Obter emojis
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -60,9 +59,6 @@ module.exports = {
         const ticketId = options.getString('ticket') || 
             (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : null);
         
-        const pointsMap = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-        const pointsToLose = pointsMap[severity] || 10;
-        
         try {
             if (!targetUser) {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
@@ -75,6 +71,16 @@ module.exports = {
             
             const ConfigSystem = require('../../systems/configSystem');
             const PunishmentSystem = require('../../systems/punishmentSystem');
+            
+            // Buscar pontos configurados para o nível (customizável via /config-strike)
+            const pointsMap = {
+                1: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_1')) || 10,
+                2: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_2')) || 25,
+                3: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_3')) || 40,
+                4: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_4')) || 60,
+                5: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_5')) || 100
+            };
+            const pointsToLose = pointsMap[severity] || 10;
             
             // Validar hierarquia
             let targetMember = null;
