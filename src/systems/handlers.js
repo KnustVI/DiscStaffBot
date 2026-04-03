@@ -70,8 +70,6 @@ class InteractionHandler {
 
             // Config Strike
             'config-strike': 'handleStrikeConfig',
-            'reset': 'handleReset',
-            'edit': 'handleEdit'
         };
     }
     
