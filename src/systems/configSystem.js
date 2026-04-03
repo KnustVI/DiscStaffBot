@@ -110,8 +110,11 @@ const ConfigSystem = {
                 case 'reset':
                     await this.handleResetConfig(interaction, param);
                     break;
-                case 'config-strike':  // ← NOVO: para botões do config-strike
-                    await this.handleStrikeConfig(interaction, param);
+                case 'edit':      // Botão: config-strike:edit
+                    await this.handleStrikeEdit(interaction);
+                    break;
+                case 'reset-strike':  // Botão: config-strike:reset-strike
+                    await this.handleStrikeReset(interaction);
                     break;
                 default:
                     await ResponseManager.error(interaction, `Ação "${action}" não reconhecida.`);
@@ -124,97 +127,6 @@ const ConfigSystem = {
 
         
         //Handler para componentes do config-strike
-        
-        async handleStrikeConfig(interaction, action, nivel) {
-            const guildId = interaction.guildId;
-            const ConfigSystem = this;
-            
-            if (action === 'edit') {
-                // Buscar valores atuais
-                const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-                const pontos = {
-                    1: ConfigSystem.getSetting(guildId, 'strike_points_1') || DEFAULT_POINTS[1],
-                    2: ConfigSystem.getSetting(guildId, 'strike_points_2') || DEFAULT_POINTS[2],
-                    3: ConfigSystem.getSetting(guildId, 'strike_points_3') || DEFAULT_POINTS[3],
-                    4: ConfigSystem.getSetting(guildId, 'strike_points_4') || DEFAULT_POINTS[4],
-                    5: ConfigSystem.getSetting(guildId, 'strike_points_5') || DEFAULT_POINTS[5]
-                };
-                
-                // Criar modal com 5 campos
-                const modal = new ModalBuilder()
-                    .setCustomId('config-strike:modal:all')
-                    .setTitle('⚙️ Configurar Níveis de Strike');
-                
-                // Nível 1
-                const nivel1 = new TextInputBuilder()
-                    .setCustomId('nivel1')
-                    .setLabel('🟢 Nível 1 (Leve) - Pontos')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setValue(pontos[1].toString())
-                    .setPlaceholder('Ex: 10');
-                
-                // Nível 2
-                const nivel2 = new TextInputBuilder()
-                    .setCustomId('nivel2')
-                    .setLabel('🟡 Nível 2 (Moderada) - Pontos')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setValue(pontos[2].toString())
-                    .setPlaceholder('Ex: 25');
-                
-                // Nível 3
-                const nivel3 = new TextInputBuilder()
-                    .setCustomId('nivel3')
-                    .setLabel('🟠 Nível 3 (Grave) - Pontos')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setValue(pontos[3].toString())
-                    .setPlaceholder('Ex: 40');
-                
-                // Nível 4
-                const nivel4 = new TextInputBuilder()
-                    .setCustomId('nivel4')
-                    .setLabel('🔴 Nível 4 (Severa) - Pontos')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setValue(pontos[4].toString())
-                    .setPlaceholder('Ex: 60');
-                
-                // Nível 5
-                const nivel5 = new TextInputBuilder()
-                    .setCustomId('nivel5')
-                    .setLabel('💀 Nível 5 (Permanente) - Pontos')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setValue(pontos[5].toString())
-                    .setPlaceholder('Ex: 100');
-                
-                // Adicionar todos os campos ao modal (em ordem)
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(nivel1),
-                    new ActionRowBuilder().addComponents(nivel2),
-                    new ActionRowBuilder().addComponents(nivel3),
-                    new ActionRowBuilder().addComponents(nivel4),
-                    new ActionRowBuilder().addComponents(nivel5)
-                );
-                
-                await interaction.showModal(modal);
-                return;
-            }
-            
-            if (action === 'reset') {
-                // Resetar todos os níveis
-                const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-                for (let i = 1; i <= 5; i++) {
-                    ConfigSystem.setSetting(guildId, `strike_points_${i}`, DEFAULT_POINTS[i].toString());
-                }
-                ConfigSystem.clearCache(guildId);
-                
-                await this.refreshStrikePanel(interaction, '✅ Todos os níveis foram resetados para os valores padrão!');
-                return;
-            }
-        },
 
         /**
          * Processa o modal unificado de edição de níveis do strike
@@ -265,26 +177,106 @@ const ConfigSystem = {
             await this.refreshStrikePanel(interaction, changeMessage);
         },
 
-    /**
-     * Handler para modais
-     */
-    async handleModal(interaction, action) {
-        try {
-             // 🔥 ADICIONAR ESTA VERIFICAÇÃO PRIMEIRO
-            if (interaction.customId === 'config-strike:modal:all') {
-                await this.processStrikeModal(interaction);
-                return;
+        async handleStrikeEdit(interaction) {
+            const guildId = interaction.guildId;
+            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+            
+            const pontos = {
+                1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
+                2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
+                3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
+                4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
+                5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
+            };
+            
+            const modal = new ModalBuilder()
+                .setCustomId('config-strike:modal')
+                .setTitle('⚙️ Configurar Níveis de Strike');
+            
+            const nivel1 = new TextInputBuilder()
+                .setCustomId('nivel1')
+                .setLabel('🟢 Nível 1 (Leve) - Pontos')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setValue(pontos[1].toString())
+                .setPlaceholder('Ex: 10');
+            
+            const nivel2 = new TextInputBuilder()
+                .setCustomId('nivel2')
+                .setLabel('🟡 Nível 2 (Moderada) - Pontos')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setValue(pontos[2].toString())
+                .setPlaceholder('Ex: 25');
+            
+            const nivel3 = new TextInputBuilder()
+                .setCustomId('nivel3')
+                .setLabel('🟠 Nível 3 (Grave) - Pontos')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setValue(pontos[3].toString())
+                .setPlaceholder('Ex: 40');
+            
+            const nivel4 = new TextInputBuilder()
+                .setCustomId('nivel4')
+                .setLabel('🔴 Nível 4 (Severa) - Pontos')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setValue(pontos[4].toString())
+                .setPlaceholder('Ex: 60');
+            
+            const nivel5 = new TextInputBuilder()
+                .setCustomId('nivel5')
+                .setLabel('💀 Nível 5 (Permanente) - Pontos')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setValue(pontos[5].toString())
+                .setPlaceholder('Ex: 100');
+            
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(nivel1),
+                new ActionRowBuilder().addComponents(nivel2),
+                new ActionRowBuilder().addComponents(nivel3),
+                new ActionRowBuilder().addComponents(nivel4),
+                new ActionRowBuilder().addComponents(nivel5)
+            );
+            
+            await interaction.showModal(modal);
+        },
+
+        async handleStrikeReset(interaction) {
+            const guildId = interaction.guildId;
+            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+            
+            for (let i = 1; i <= 5; i++) {
+                this.setSetting(guildId, `strike_points_${i}`, DEFAULT_POINTS[i].toString());
             }
-            if (action === 'set') {
-                await this.processConfigModal(interaction);
-            } else {
-                await ResponseManager.error(interaction, `Modal "${action}" não reconhecido.`);
+            this.clearCache(guildId);
+            
+            await this.refreshStrikePanel(interaction, '✅ Todos os níveis foram resetados para os valores padrão!');
+        },
+
+        /**
+         * Handler para modais
+         */
+        async handleModal(interaction, action) {
+            try {
+                // Verificar se é modal do config-strike
+                if (interaction.customId === 'config-strike:modal') {  // ← SEM o :all no final
+                    await this.processStrikeModal(interaction);
+                    return;
+                }
+                
+                if (action === 'set') {
+                    await this.processConfigModal(interaction);
+                } else {
+                    await ResponseManager.error(interaction, `Modal "${action}" não reconhecido.`);
+                }
+            } catch (error) {
+                console.error('❌ Erro no handleModal:', error);
+                await ResponseManager.error(interaction, 'Ocorreu um erro ao processar o modal.');
             }
-        } catch (error) {
-            console.error('❌ Erro no handleModal:', error);
-            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar o modal.');
-        }
-    },
+        },
 
     // ==================== MENU PRINCIPAL ====================
 
