@@ -110,7 +110,7 @@ const ConfigSystem = {
                 case 'reset':
                     await this.handleResetConfig(interaction, param);
                     break;
-                case 'edit':      // Botão: config-strike:edit
+                case 'edit':      // Botão: config-strike:edit:modal
                     await this.handleStrikeEdit(interaction);
                     break;
                 case 'reset-strike':  // Botão: config-strike:reset-strike
@@ -176,6 +176,7 @@ const ConfigSystem = {
             
             await this.refreshStrikePanel(interaction, changeMessage);
         },
+
 
         async handleStrikeEdit(interaction) {
             const guildId = interaction.guildId;
