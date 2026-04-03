@@ -1,14 +1,24 @@
-const InteractionHandler = require('../systems/handlers');
 const ResponseManager = require('../utils/responseManager');
+const processing = new Set(); // Previne dupla execução
 
-let handler = null;
+let commandHandler = null;
+let componentHandler = null;
+let modalHandler = null;
 
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
-        // Inicializa o handler uma única vez
-        if (!handler) {
-            handler = new InteractionHandler(client);
+        // Previne dupla execução
+        if (processing.has(interaction.id)) {
+            return;
+        }
+        processing.add(interaction.id);
+        
+        // Lazy load handlers
+        if (!commandHandler) {
+            commandHandler = require('../handlers/commandHandler');
+            componentHandler = require('../handlers/componentHandler');
+            modalHandler = require('../handlers/modalHandler');
         }
         
         try {
@@ -16,57 +26,50 @@ module.exports = {
             if (interaction.isCommand()) {
                 const isEphemeral = ['config', 'strike', 'unstrike', 'repset'].includes(interaction.commandName);
                 await ResponseManager.defer(interaction, isEphemeral);
-                await handler.handleCommand(interaction);
+                await commandHandler.execute(interaction);
                 return;
             }
             
-            // ==================== COMPONENTES (Botões e Select Menus) ====================
-            if (interaction.isButton() || interaction.isStringSelectMenu() || 
-                interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu()) {
-                
-                // Validar customId
+            // ==================== COMPONENTES ====================
+            const isSelectMenu = interaction.isStringSelectMenu() ||
+                                 interaction.isUserSelectMenu() ||
+                                 interaction.isRoleSelectMenu() ||
+                                 interaction.isChannelSelectMenu() ||
+                                 interaction.isMentionableSelectMenu();
+            
+            if (interaction.isButton() || isSelectMenu) {
                 if (!interaction.customId) {
-                    return await ResponseManager.error(interaction, 'Configuração inválida. Tente novamente.');
+                    return await ResponseManager.error(interaction, 'Configuração inválida.');
                 }
-                
-                // Defer para componentes
-                await ResponseManager.defer(interaction);
-                await handler.handleComponent(interaction);
+                // Componentes NÃO precisam de defer automático
+                await componentHandler.execute(interaction);
                 return;
             }
             
             // ==================== MODAIS ====================
             if (interaction.isModalSubmit()) {
-                // Validar customId
-                if (!interaction.customId || !interaction.customId.includes(':')) {
-                    return await ResponseManager.error(interaction, 'Formato de modal inválido.');
+                if (!interaction.customId) {
+                    return await ResponseManager.error(interaction, 'Formato inválido.');
                 }
-                
-                // Modais precisam de reply imediato
-                await ResponseManager.send(interaction, {
-                    content: '⏳ Processando...',
-                    ephemeral: true
-                });
-                
-                await handler.handleModal(interaction);
+                // Modais: handler é responsável por responder
+                await modalHandler.execute(interaction);
                 return;
             }
             
         } catch (error) {
-            console.error(`❌ Erro fatal no interactionCreate:`, error);
+            console.error(`❌ Erro fatal:`, error);
             
-            // Tentar responder com erro amigável
             try {
                 if (!interaction.replied && !interaction.deferred) {
-                    await ResponseManager.error(interaction, 'Ocorreu um erro fatal. Tente novamente mais tarde.');
+                    await ResponseManager.error(interaction, 'Ocorreu um erro fatal.');
                 } else if (interaction.deferred && !interaction.replied) {
-                    await interaction.editReply({ 
-                        content: '❌ Ocorreu um erro fatal. Tente novamente mais tarde.' 
-                    });
+                    await interaction.editReply({ content: '❌ Erro fatal.' });
                 }
             } catch (err) {
-                console.error('❌ Erro ao enviar mensagem de erro:', err);
+                // fallback silencioso
             }
+        } finally {
+            setTimeout(() => processing.delete(interaction.id), 1000);
         }
     }
 };
