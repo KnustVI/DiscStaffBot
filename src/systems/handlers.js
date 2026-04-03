@@ -66,7 +66,12 @@ class InteractionHandler {
             view: 'handleViewLogs',
             clear: 'handleClearLogs',
             export: 'handleExportLogs',
-            filter: 'handleFilterLogs'
+            filter: 'handleFilterLogs',
+
+            // Config Strike
+            'config-strike': 'handleStrikeConfig',
+            'reset': 'handleReset',
+            'edit': 'handleEdit'
         };
     }
     

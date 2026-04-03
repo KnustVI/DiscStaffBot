@@ -3,41 +3,49 @@ const { EmbedBuilder } = require('discord.js');
 
 class AnalyticsSystem {
     
-    /**
-     * Atualiza analytics diários de um staff
-     */
+    // Função auxiliar para data local
+    static getLocalDate(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
     static async updateStaffAnalytics(guildId, userId, date = null) {
-        const targetDate = date || new Date().toISOString().slice(0, 10);
+        const targetDate = date || this.getLocalDate();
         
-        // Buscar dados do dia
+        // 🔧 CORREÇÃO: timezone local
         const punishmentsApplied = db.prepare(`
             SELECT COUNT(*) as count FROM punishments 
-            WHERE guild_id = ? AND moderator_id = ? AND date(created_at/1000, 'unixepoch') = ?
+            WHERE guild_id = ? AND moderator_id = ? 
+            AND date(created_at/1000, 'unixepoch', 'localtime') = ?
         `).get(guildId, userId, targetDate).count;
         
         const ticketsClaimed = db.prepare(`
             SELECT COUNT(*) as count FROM tickets 
-            WHERE guild_id = ? AND claimed_by = ? AND date(claimed_at/1000, 'unixepoch') = ?
+            WHERE guild_id = ? AND claimed_by = ? 
+            AND date(claimed_at/1000, 'unixepoch', 'localtime') = ?
         `).get(guildId, userId, targetDate).count;
         
         const ticketsClosed = db.prepare(`
             SELECT COUNT(*) as count FROM tickets 
-            WHERE guild_id = ? AND closed_by = ? AND date(closed_at/1000, 'unixepoch') = ?
+            WHERE guild_id = ? AND closed_by = ? 
+            AND date(closed_at/1000, 'unixepoch', 'localtime') = ?
         `).get(guildId, userId, targetDate).count;
         
-        // Calcular tempo médio de resposta
+        // 🔧 CORREÇÃO: tempo médio com null para sem dados
         const responseTimes = db.prepare(`
             SELECT (claimed_at - created_at) as response_time 
             FROM tickets 
             WHERE guild_id = ? AND claimed_by = ? AND claimed_at IS NOT NULL 
-            AND date(created_at/1000, 'unixepoch') = ?
+            AND date(created_at/1000, 'unixepoch', 'localtime') = ?
         `).all(guildId, userId, targetDate);
         
         const avgResponseTime = responseTimes.length > 0 
-            ? responseTimes.reduce((a, b) => a + b.response_time, 0) / responseTimes.length / 1000
-            : 0;
+            ? Math.round(responseTimes.reduce((a, b) => a + b.response_time, 0) / responseTimes.length / 1000)
+            : null;
         
-        // Inserir ou atualizar
+        // 🔧 CORREÇÃO: suporte a null no avg_response_time
         db.prepare(`
             INSERT INTO staff_analytics (
                 guild_id, user_id, period, date, 
@@ -54,7 +62,7 @@ class AnalyticsSystem {
         `).run(
             guildId, userId, targetDate,
             punishmentsApplied, ticketsClaimed, ticketsClosed,
-            Math.round(avgResponseTime), Date.now()
+            avgResponseTime, Date.now()
         );
         
         return {
@@ -62,24 +70,18 @@ class AnalyticsSystem {
             punishmentsApplied,
             ticketsClaimed,
             ticketsClosed,
-            avgResponseTime: Math.round(avgResponseTime)
+            avgResponseTime
         };
     }
     
-    /**
-     * Gera relatório de performance de staff
-     */
     static async getStaffReport(guildId, userId, period = 'week') {
-        const periods = {
-            day: 1,
-            week: 7,
-            month: 30
-        };
-        
+        const periods = { day: 1, week: 7, month: 30 };
         const days = periods[period] || 7;
+        
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
-        const startDateStr = startDate.toISOString().slice(0, 10);
+        // 🔧 CORREÇÃO: data local
+        const startDateStr = this.getLocalDate(startDate);
         
         const data = db.prepare(`
             SELECT * FROM staff_analytics 
@@ -91,19 +93,23 @@ class AnalyticsSystem {
             punishmentsApplied: 0,
             ticketsClaimed: 0,
             ticketsClosed: 0,
-            avgResponseTime: 0
+            avgResponseTime: 0,
+            daysWithData: 0
         };
         
         for (const day of data) {
             totals.punishmentsApplied += day.punishments_applied;
             totals.ticketsClaimed += day.tickets_claimed;
             totals.ticketsClosed += day.tickets_closed;
-            totals.avgResponseTime += day.avg_response_time;
+            if (day.avg_response_time !== null) {
+                totals.avgResponseTime += day.avg_response_time;
+                totals.daysWithData++;
+            }
         }
         
-        if (data.length > 0) {
-            totals.avgResponseTime = Math.round(totals.avgResponseTime / data.length);
-        }
+        totals.avgResponseTime = totals.daysWithData > 0 
+            ? Math.round(totals.avgResponseTime / totals.daysWithData)
+            : null;
         
         return {
             period,
@@ -113,13 +119,16 @@ class AnalyticsSystem {
         };
     }
     
-    /**
-     * Gera ranking de staff por período
-     */
     static async getStaffRanking(guildId, metric = 'punishments_applied', period = 'week', limit = 10) {
+        // 🔧 CORREÇÃO: validação de métrica
+        const validMetrics = ['punishments_applied', 'tickets_claimed', 'tickets_closed'];
+        if (!validMetrics.includes(metric)) {
+            throw new Error(`Métrica inválida: ${metric}`);
+        }
+        
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - (period === 'week' ? 7 : 30));
-        const startDateStr = startDate.toISOString().slice(0, 10);
+        const startDateStr = this.getLocalDate(startDate);
         
         const ranking = db.prepare(`
             SELECT 
@@ -135,21 +144,22 @@ class AnalyticsSystem {
         return ranking;
     }
     
-    /**
-     * Gera embed com relatório de staff
-     */
     static async generateStaffReportEmbed(guildId, userId, period = 'week') {
         const report = await this.getStaffReport(guildId, userId, period);
         
+        const avgResponseText = report.totals.avgResponseTime !== null 
+            ? `${report.totals.avgResponseTime}s` 
+            : 'Sem dados';
+        
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setTitle(`📊 Relatório de Performance - <@${userId}>`)
-            .setDescription(`Período: ${period === 'week' ? 'Últimos 7 dias' : 'Últimos 30 dias'}`)
+            .setTitle(`📊 Relatório - <@${userId}>`)
+            .setDescription(`Período: ${period === 'week' ? '7 dias' : '30 dias'}`)
             .addFields(
-                { name: '⚠️ Punições Aplicadas', value: `${report.totals.punishmentsApplied}`, inline: true },
+                { name: '⚠️ Punições', value: `${report.totals.punishmentsApplied}`, inline: true },
                 { name: '🎫 Tickets Assumidos', value: `${report.totals.ticketsClaimed}`, inline: true },
                 { name: '✅ Tickets Fechados', value: `${report.totals.ticketsClosed}`, inline: true },
-                { name: '⏱️ Tempo Médio Resposta', value: `${report.totals.avgResponseTime}s`, inline: true }
+                { name: '⏱️ Tempo Médio', value: avgResponseText, inline: true }
             )
             .setFooter({ text: `${report.days} dias analisados` })
             .setTimestamp();

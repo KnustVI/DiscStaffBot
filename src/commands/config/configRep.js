@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/index');
-const SessionManager = require('../../utils/sessionManager');
+const sessionManager = require('../../utils/sessionManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const ResponseManager = require('../../utils/responseManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -18,16 +19,11 @@ module.exports = {
             .addIntegerOption(opt => opt.setName('meta_exemplar').setDescription('Mínimo para ser Exemplar (Sugerido: 95)').setMinValue(50).setMaxValue(100))
             .addIntegerOption(opt => opt.setName('alerta_ruim').setDescription('Máximo para ser Problemático (Sugerido: 30)').setMinValue(0).setMaxValue(50))),
 
-    /**
-     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
-     * @param {import('discord.js').Client} client 
-     */
     async execute(interaction, client) {
         const startTime = Date.now();
         const { guild, user, member, options } = interaction;
         const guildId = guild.id;
         
-        // Obter emojis do sistema (se existirem)
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -37,7 +33,7 @@ module.exports = {
         }
         
         try {
-            // 1. VERIFICAR PERMISSÕES (segurança extra)
+            // Verificar permissões
             if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
                 const errorEmbed = new EmbedBuilder()
                     .setColor(0xFF0000)
@@ -45,35 +41,35 @@ module.exports = {
                     .setDescription('Apenas administradores podem configurar o sistema de reputação.')
                     .setTimestamp();
                 
-                return await interaction.editReply({ embeds: [errorEmbed] });
+                return await ResponseManager.send(interaction, { embeds: [errorEmbed] });
             }
             
-            // 2. GARANTIR QUE USUÁRIO E GUILD EXISTEM NO BANCO
+            // Garantir registros no banco
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
             
-            // 3. OBTER SISTEMAS
             const ConfigSystem = require('../../systems/configSystem');
             const sub = options.getSubcommand();
             
             let changes = [];
             let configSnapshot = {};
             
-            // 4. REGISTRAR SESSÃO DE CONFIGURAÇÃO
-            SessionManager.set(
+            // Criar sessão com isolamento total
+            sessionManager.set(
                 user.id,
                 guildId,
-                'config_rep',
+                'config-rep',
+                sub,
                 { 
                     timestamp: Date.now(),
                     subcommand: sub,
                     userId: user.id,
                     guildId: guildId
                 },
-                300000 // 5 minutos
+                300000
             );
             
-            // --- SUBCOMANDO: CARGOS ---
+            // ==================== SUBCOMANDO: CARGOS ====================
             if (sub === 'cargos') {
                 const rolesToSet = [
                     { key: 'role_exemplar', role: options.getRole('exemplar'), label: 'Exemplar' },
@@ -81,7 +77,6 @@ module.exports = {
                     { key: 'strike_role', role: options.getRole('strike'), label: 'Strike' }
                 ];
                 
-                // Capturar valores anteriores para log
                 const oldValues = {};
                 for (const item of rolesToSet) {
                     if (item.role) {
@@ -91,27 +86,24 @@ module.exports = {
                 
                 for (const item of rolesToSet) {
                     if (item.role) {
-                        // Persistência no Cache + SQLite
                         ConfigSystem.setSetting(guildId, item.key, item.role.id);
-                        changes.push(`${emojis.CHECK || '✅'} **${item.label}:** ${item.role}`);
+                        changes.push(`${emojis.Check || '✅'} **${item.label}:** ${item.role}`);
                         configSnapshot[item.key] = item.role.id;
                     }
                 }
                 
-                // Log das alterações
                 if (Object.keys(oldValues).length > 0) {
                     configSnapshot.oldValues = oldValues;
                 }
             }
             
-            // --- SUBCOMANDO: LIMITES ---
+            // ==================== SUBCOMANDO: LIMITES ====================
             if (sub === 'limites') {
                 const limitsToSet = [
                     { key: 'limit_exemplar', val: options.getInteger('meta_exemplar'), label: 'Meta Exemplar', default: 95 },
                     { key: 'limit_problematico', val: options.getInteger('alerta_ruim'), label: 'Alerta Problemático', default: 30 }
                 ];
                 
-                // Capturar valores anteriores para log
                 const oldValues = {};
                 for (const item of limitsToSet) {
                     if (item.val !== null) {
@@ -130,12 +122,11 @@ module.exports = {
                                 .setFooter({ text: 'Revise os limites para garantir separação adequada.' })
                                 .setTimestamp();
                             
-                            await interaction.editReply({ embeds: [warningEmbed] }).catch(() => null);
+                            await ResponseManager.warning(interaction, null, { embeds: [warningEmbed] });
                         }
                         
-                        // Salvar como string no banco
                         ConfigSystem.setSetting(guildId, item.key, item.val.toString());
-                        changes.push(`${emojis.CHECK || '✅'} **${item.label}:** \`${item.val} pontos\``);
+                        changes.push(`${emojis.Check || '✅'} **${item.label}:** \`${item.val} pontos\``);
                         configSnapshot[item.key] = item.val;
                     }
                 }
@@ -145,22 +136,21 @@ module.exports = {
                 }
             }
             
-            // --- VALIDAR SE HOUVE ALTERAÇÕES ---
+            // Validar se houve alterações
             if (changes.length === 0) {
-                // Limpar sessão
-                SessionManager.delete(user.id, guildId, 'config_rep');
+                sessionManager.delete(user.id, guildId, 'config-rep', sub);
                 
                 const noChangesEmbed = new EmbedBuilder()
                     .setColor(0xFFA500)
-                    .setTitle(`${emojis.WARNING || '⚠️'} Nenhuma Alteração`)
+                    .setTitle(`${emojis.Warning || '⚠️'} Nenhuma Alteração`)
                     .setDescription('Nenhuma alteração foi especificada. Selecione pelo menos uma opção para configurar.')
                     .setFooter(ConfigSystem.getFooter(guild.name))
                     .setTimestamp();
                 
-                return await interaction.editReply({ embeds: [noChangesEmbed] });
+                return await ResponseManager.send(interaction, { embeds: [noChangesEmbed] });
             }
             
-            // --- REGISTRAR ATIVIDADE NO LOG ---
+            // Registrar atividade
             const activityId = db.logActivity(
                 guildId,
                 user.id,
@@ -175,79 +165,53 @@ module.exports = {
                 }
             );
             
-            // --- ATUALIZAR ANALYTICS DO STAFF ---
+            // Atualizar analytics
             await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             
-            // --- RESPOSTA VISUAL ---
+            // Resposta visual
             const embed = new EmbedBuilder()
-                .setTitle(`${emojis.SETTINGS || '⚙️'} Reputação: Regras Atualizadas`)
-                .setColor(0xDCA15E) // Cor padrão do sistema
-                .setDescription(`As novas diretrizes foram aplicadas e o **AutoMod** passará a utilizá-las no próximo ciclo.\n\n${changes.join('\n')}`)
+                .setTitle(`${emojis.Config || '⚙️'} Reputação: Regras Atualizadas`)
+                .setColor(0xDCA15E)
+                .setDescription(`As novas diretrizes foram aplicadas.\n\n${changes.join('\n')}`)
                 .addFields(
-                    { 
-                        name: '📊 ID da Transação', 
-                        value: `\`${activityId || 'N/A'}\``, 
-                        inline: true 
-                    },
-                    { 
-                        name: '🕒 Data', 
-                        value: `<t:${Math.floor(Date.now() / 1000)}:F>`, 
-                        inline: true 
-                    }
+                    { name: '🕒 Data', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
                 )
                 .setFooter(ConfigSystem.getFooter(guild.name))
                 .setTimestamp();
             
-            await interaction.editReply({ embeds: [embed] });
+            await ResponseManager.send(interaction, { embeds: [embed] });
             
-            // Log silencioso de performance
-            console.log(`📊 [CONFIG-REP] ${sub.toUpperCase()} por ${user.tag} em ${guild.name} | ${Date.now() - startTime}ms`);
+            console.log(`📊 [CONFIG-REP] ${sub.toUpperCase()} por ${user.tag} | ${Date.now() - startTime}ms`);
             
-            // Limpar sessão após sucesso
-            SessionManager.delete(user.id, guildId, 'config_rep');
+            // Limpar sessão
+            sessionManager.delete(user.id, guildId, 'config-rep', sub);
             
         } catch (error) {
-            // 5. TRATAMENTO DE ERRO COM LOG DETALHADO
-            console.error('❌ Erro no comando config-rep:', error);
+            console.error('❌ Erro no config-rep:', error);
             
-            // Registrar erro no sistema de logs
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            // Registrar no banco
-            db.logActivity(
-                guildId,
-                user.id,
-                'error',
-                null,
-                { 
-                    command: 'config-rep',
-                    subcommand: options?.getSubcommand() || 'unknown',
-                    error: error.message,
-                    stack: error.stack
-                }
-            );
+            db.logActivity(guildId, user.id, 'error', null, { 
+                command: 'config-rep',
+                subcommand: options?.getSubcommand() || 'unknown',
+                error: error.message
+            });
             
-            // Limpar sessão em caso de erro
-            SessionManager.delete(user.id, guildId, 'config_rep');
+            sessionManager.delete(user.id, guildId, 'config-rep', options?.getSubcommand() || 'unknown');
             
-            // Resposta de erro amigável
             const errorEmbed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle('❌ Erro ao Salvar Configurações')
-                .setDescription('Ocorreu um erro crítico ao salvar as diretrizes de reputação. A equipe de staff foi notificada.')
+                .setDescription('Ocorreu um erro crítico. A equipe foi notificada.')
                 .addFields(
-                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 100) || 'Desconhecido'}\``, inline: false },
-                    { name: 'Subcomando', value: `\`${options?.getSubcommand() || 'unknown'}\``, inline: true },
-                    { name: 'ID da Transação', value: `\`${Date.now()}\``, inline: true }
+                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 100) || 'Desconhecido'}\`` },
+                    { name: 'Subcomando', value: `\`${options?.getSubcommand() || 'unknown'}\``, inline: true }
                 )
                 .setFooter({ text: 'Caso persista, contate um administrador.' })
                 .setTimestamp();
             
-            await interaction.editReply({ 
-                embeds: [errorEmbed],
-                content: null
-            }).catch(() => null);
+            await ResponseManager.send(interaction, { embeds: [errorEmbed] });
         }
     }
 };
