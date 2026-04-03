@@ -105,6 +105,18 @@ class ResponseManager {
         const { embeds = [], content } = opts;
         return this.send(interaction, { content, embeds, components });
     }
+
+    static async defer(interaction, ephemeral = false) {
+    if (interaction.replied || interaction.deferred) {
+        return;
+    }
+    
+    if (interaction.isCommand()) {
+        await interaction.deferReply({ flags: ephemeral ? 64 : 0 });
+    } else if (interaction.isButton() || interaction.isAnySelectMenu()) {
+        await interaction.deferUpdate();
+    }
+}
 }
 
 module.exports = new ResponseManager();
