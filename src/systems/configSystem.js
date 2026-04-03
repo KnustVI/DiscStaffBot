@@ -110,12 +110,50 @@ const ConfigSystem = {
                 case 'reset':
                     await this.handleResetConfig(interaction, param);
                     break;
+                case 'config-strike':  // ← NOVO: para botões do config-strike
+                    await this.handleStrikeConfig(interaction, param);
+                    break;
                 default:
                     await ResponseManager.error(interaction, `Ação "${action}" não reconhecida.`);
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
             await ResponseManager.error(interaction, 'Ocorreu um erro ao processar a configuração.');
+        }
+    },
+
+        // NOVO método para lidar com botões do config-strike
+    async handleStrikeConfig(interaction, action) {
+        const guildId = interaction.guildId;
+        const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+        
+        if (action === 'reset') {
+            // Resetar todos os níveis
+            for (let i = 1; i <= 5; i++) {
+                this.setSetting(guildId, `strike_points_${i}`, DEFAULT_POINTS[i].toString());
+            }
+            this.clearCache(guildId);
+            
+            const embed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setTitle('✅ Configurações Resetadas')
+                .setDescription('Todos os níveis de strike foram resetados para os valores padrão:\n\n' +
+                    '🟢 Nível 1: `10 pontos`\n' +
+                    '🟡 Nível 2: `25 pontos`\n' +
+                    '🟠 Nível 3: `40 pontos`\n' +
+                    '🔴 Nível 4: `60 pontos`\n' +
+                    '💀 Nível 5: `100 pontos`')
+                .setFooter(this.getFooter(interaction.guild.name))
+                .setTimestamp();
+            
+            await interaction.update({ embeds: [embed], components: [] });
+            
+        } else if (action === 'edit') {
+            await interaction.update({
+                content: 'Use o comando `/config-strike set nivel:<1-5> pontos:<valor>` para editar cada nível.',
+                components: [],
+                embeds: []
+            });
         }
     },
 
