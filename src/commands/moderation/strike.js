@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/index');
-const SessionManager = require('../../utils/sessionManager');
+const sessionManager = require('../../utils/sessionManager');
+const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 
 module.exports = {
@@ -36,16 +37,12 @@ module.exports = {
                 { name: 'Ban do Jogo', value: 'rcon_ban' }
             )),
 
-    /**
-     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
-     * @param {import('discord.js').Client} client 
-     */
     async execute(interaction, client) {
         const startTime = Date.now();
         const { guild, options, channel, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
         
-        // Obter emojis do sistema
+        // Obter emojis
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -54,46 +51,32 @@ module.exports = {
             emojis = {};
         }
         
-        // Extração de Opções
         const targetUser = options.getUser('usuario');
         const severity = options.getInteger('gravidade');
         const reason = options.getString('motivo');
         const durationStr = options.getString('duracao');
         const discordAct = options.getString('discord_act') || 'none';
         const jogoAct = options.getString('jogo_act') || 'none';
-        
-        // Lógica de Ticket Inteligente
         const ticketId = options.getString('ticket') || 
             (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : null);
         
-        // Mapeamento de pontos por severidade
-        const pointsMap = {
-            1: 10,
-            2: 25,
-            3: 40,
-            4: 60,
-            5: 100
-        };
+        const pointsMap = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         const pointsToLose = pointsMap[severity] || 10;
         
         try {
-            // 1. VALIDAR SE O USUÁRIO EXISTE
             if (!targetUser) {
-                return await interaction.editReply({ 
-                    content: `${emojis.Error || '❌'} Usuário não encontrado.`
-                });
+                return await ResponseManager.error(interaction, 'Usuário não encontrado.');
             }
             
-            // 2. GARANTIR QUE USUÁRIOS E GUILD EXISTEM NO BANCO
+            // Garantir registros no banco
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureUser(targetUser.id, targetUser.username, targetUser.discriminator, targetUser.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
             
-            // 3. OBTER SISTEMAS
             const ConfigSystem = require('../../systems/configSystem');
             const PunishmentSystem = require('../../systems/punishmentSystem');
             
-            // 4. VALIDAÇÃO DE HIERARQUIA
+            // Validar hierarquia
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(targetUser.id).catch(() => null);
@@ -106,73 +89,48 @@ module.exports = {
                 staff.id !== guild.ownerId;
             
             if (isStaffHigher) {
-                db.logActivity(
-                    guildId,
-                    staff.id,
-                    'strike_denied',
-                    targetUser.id,
-                    { 
-                        command: 'strike',
-                        reason: 'Hierarquia insuficiente',
-                        severity,
-                        pointsToLose,
-                        motivo: reason,
-                        duration: durationStr,
-                        discordAct,
-                        jogoAct
-                    }
-                );
-                
-                return await interaction.editReply({ 
-                    content: `${emojis.Error || '❌'} **Erro de Hierarquia:** Você não pode punir este membro.` 
+                db.logActivity(guildId, staff.id, 'strike_denied', targetUser.id, {
+                    command: 'strike', reason: 'Hierarquia insuficiente', severity, pointsToLose
                 });
+                return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
             
-            // 5. OBTER REPUTAÇÃO ATUAL
+            // Obter reputação atual
             const currentRep = ConfigSystem.getSetting(guildId, `rep_${targetUser.id}`) || 
                 db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, targetUser.id)?.points || 100;
             
             const newPoints = Math.max(0, currentRep - pointsToLose);
             
-            // 6. CALCULAR EXPIRAÇÃO
+            // Calcular expiração
             let expiresAt = null;
             let durationMs = 0;
             if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
                 durationMs = PunishmentSystem.parseDuration(durationStr);
-                if (durationMs > 0) {
-                    expiresAt = Date.now() + durationMs;
-                }
+                if (durationMs > 0) expiresAt = Date.now() + durationMs;
             }
             
-            // 7. GERAR UUID ÚNICO PARA PUNIÇÃO
+            // Aplicar punição
             const punishmentUuid = db.generateUUID();
-            
-            // 8. APLICAR PUNIÇÃO NO BANCO
             const strikeId = db.prepare(`
-                INSERT INTO punishments (
-                    uuid, guild_id, user_id, moderator_id, reason, severity, 
-                    points_deducted, ticket_id, created_at, expires_at, status, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
-                punishmentUuid, guildId, targetUser.id, staff.id, reason, severity,
+                INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, 
+                    points_deducted, ticket_id, created_at, expires_at, status, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(punishmentUuid, guildId, targetUser.id, staff.id, reason, severity,
                 pointsToLose, ticketId || null, Date.now(), expiresAt, 'active',
                 JSON.stringify({ discordAct, jogoAct, duration: durationStr })
             ).lastInsertRowid;
             
-            // 9. ATUALIZAR REPUTAÇÃO
-            db.prepare(`
-                UPDATE reputation SET points = ?, updated_at = ?, updated_by = ?
-                WHERE guild_id = ? AND user_id = ?
-            `).run(newPoints, Date.now(), staff.id, guildId, targetUser.id);
+            // Atualizar reputação
+            db.prepare(`UPDATE reputation SET points = ?, updated_at = ?, updated_by = ?
+                WHERE guild_id = ? AND user_id = ?`).run(newPoints, Date.now(), staff.id, guildId, targetUser.id);
             
-            // 10. APLICAR AÇÕES DO DISCORD
+            // Aplicar ações do Discord
             let discordActionResult = null;
             if (discordAct !== 'none' && targetMember) {
                 try {
                     switch (discordAct) {
                         case 'timeout':
-                            const timeoutDuration = durationMs > 0 ? durationMs : 60000;
-                            await targetMember.timeout(timeoutDuration, reason);
+                            await targetMember.timeout(durationMs > 0 ? durationMs : 60000, reason);
                             discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
                             break;
                         case 'kick':
@@ -189,130 +147,55 @@ module.exports = {
                 }
             }
             
-            // 11. REGISTRAR ATIVIDADE NO LOG
-            const activityId = db.logActivity(
-                guildId,
-                staff.id,
-                'strike',
-                targetUser.id,
-                { 
-                    command: 'strike',
-                    punishmentId: strikeId,
-                    punishmentUuid,
-                    severity,
-                    pointsLost: pointsToLose,
-                    oldPoints: currentRep,
-                    newPoints,
-                    reason,
-                    duration: durationStr,
-                    expiresAt,
-                    discordAct,
-                    jogoAct,
-                    ticketId: ticketId || null,
-                    discordActionResult,
-                    responseTime: Date.now() - startTime
-                }
-            );
+            // Registrar atividade
+            db.logActivity(guildId, staff.id, 'strike', targetUser.id, {
+                command: 'strike', punishmentId: strikeId, severity, pointsLost: pointsToLose,
+                oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct
+            });
             
-            // 12. ATUALIZAR ANALYTICS DO STAFF
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // 13. GERAR EMBED UNIFICADO (DM + LOG)
+            // Gerar embed unificado
             const unifiedEmbed = PunishmentSystem.generateStrikeUnifiedEmbed(
-                targetUser,
-                staff,
-                strikeId,
-                severity,
-                reason,
-                ticketId || null,
-                pointsToLose,
-                newPoints,
-                discordAct,
-                discordActionResult
+                targetUser, staff, strikeId, severity, reason, ticketId || null,
+                pointsToLose, newPoints, discordAct, discordActionResult
             );
             
-            // 14. ENVIAR DM PARA O USUÁRIO
+            // Enviar DM
             if (targetMember) {
                 try {
                     await targetMember.send({ embeds: [unifiedEmbed] }).catch(() => null);
-                } catch (err) {
-                    console.error('❌ Erro ao enviar DM:', err);
-                }
+                } catch (err) {}
             }
             
-            // 15. ENVIAR LOG PARA CANAL DE LOGS
+            // Enviar log
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        // Adicionar menção do moderador no log
                         const logEmbed = new EmbedBuilder(unifiedEmbed.toJSON());
-                        logEmbed.setDescription(
-                            unifiedEmbed.description + 
-                            `\n\n## ${emojis.staff || '👮'} Moderador\n<@${staff.id}>`
-                        );
+                        logEmbed.setDescription(unifiedEmbed.description + `\n\n## ${emojis.staff || '👮'} Moderador\n<@${staff.id}>`);
                         await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
                     }
-                } catch (err) {
-                    console.error('❌ Erro ao enviar log:', err);
-                }
+                } catch (err) {}
             }
             
-            // 16. RESPOSTA NO CANAL
+            // Resposta no canal
             const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
             const severityIcon = ['', '🟢', '🟡', '🟠', '🔴', '💀'][severity] || '❓';
             
-            await interaction.editReply({ 
-                content: `${severityIcon} **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos | ⭐ Reputação: ${newPoints}/100\n📝 Motivo: ${reason.slice(0, 100)}`,
-                embeds: [],
-                components: []
-            });
-            
-            // Log silencioso de performance
-            console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} em ${guild.name} | Nível ${severity} | #${strikeId} | ${Date.now() - startTime}ms`);
-            
-        } catch (error) {
-            // 17. TRATAMENTO DE ERRO
-            console.error('❌ Erro no comando strike:', error);
-            
-            const ErrorLogger = require('../../systems/errorLogger');
-            await ErrorLogger.logInteractionError(interaction, error, 'command');
-            
-            db.logActivity(
-                guildId,
-                staff.id,
-                'error',
-                targetUser?.id || null,
-                { 
-                    command: 'strike',
-                    targetTag: targetUser?.tag || 'unknown',
-                    severity,
-                    reason,
-                    duration: durationStr,
-                    discordAct,
-                    jogoAct,
-                    error: error.message,
-                    stack: error.stack
-                }
+            await ResponseManager.success(interaction, 
+                `${severityIcon} **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos | ⭐ Reputação: ${newPoints}/100`
             );
             
-            const errorEmbed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('❌ Erro ao Aplicar Strike')
-                .setDescription('Ocorreu um erro interno ao processar a punição. A equipe de staff foi notificada.')
-                .addFields(
-                    { name: 'Alvo', value: targetUser?.tag || 'Desconhecido', inline: true },
-                    { name: 'Gravidade', value: `Nível ${severity}`, inline: true },
-                    { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: false }
-                )
-                .setFooter({ text: 'Caso persista, contate um administrador.' })
-                .setTimestamp();
+            console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} | #${strikeId} | ${Date.now() - startTime}ms`);
             
-            await interaction.editReply({ 
-                embeds: [errorEmbed],
-                content: null
-            }).catch(() => null);
+        } catch (error) {
+            console.error('❌ Erro no strike:', error);
+            const ErrorLogger = require('../../systems/errorLogger');
+            await ErrorLogger.logInteractionError(interaction, error, 'command');
+            await ResponseManager.error(interaction, 'Erro ao aplicar strike. A equipe foi notificada.');
         }
     }
 };
