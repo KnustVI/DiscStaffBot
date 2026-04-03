@@ -81,8 +81,8 @@ module.exports = {
             // Botões
             const row1 = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId('config-strike:edit:all')
-                    .setLabel('✏️ Editar Todos os Níveis')
+                    .setCustomId('config-strike:edit:modal')
+                    .setLabel('Editar Todos os Níveis')
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('✏️')
             );
@@ -90,7 +90,7 @@ module.exports = {
             const row2 = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('config-strike:reset')
-                    .setLabel('⚠️ Resetar Padrão')
+                    .setLabel('Resetar Padrão')
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('⚠️')
             );
