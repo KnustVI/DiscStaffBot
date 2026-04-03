@@ -32,8 +32,9 @@ class InteractionHandler {
             punishment: punishmentSystem,
             moderation: autoModeration,
             automod: autoModeration,
-            status: systemStatus,
-            error: errorLogger
+            status: systemStatus,   
+            error: errorLogger,
+            'config-strike': configSystem
         };
         
         // Mapeamento de ações para métodos
