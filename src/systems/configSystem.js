@@ -56,47 +56,67 @@ const ConfigSystem = {
 
     getFooter(guildName) {
         return {
-            text: `Sistema Robin • ${guildName}`,
+            text: `By:KnustVI • ${guildName}`,
             iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
         };
     },
 
-    // ==================== HANDLER PRINCIPAL ====================
+    // ==================== HANDLER PRINCIPAL CONFIGS ====================
 
-    async handleComponent(interaction, action, param) {
-        try {
-            switch (action) {
+            async handleComponent(interaction, action, param) {
+            try {
+                // Identificar o sistema pelo customId
+                const customId = interaction.customId;
+                
                 // CONFIG-POINTS
-                case 'points':
-                    if (param === 'strike') await this.handleStrikeModal(interaction);
-                    else if (param === 'limites') await this.handleLimitesModal(interaction);
-                    break;
-                case 'reset-points':
+                if (customId.startsWith('config-points:strike')) {
+                    await this.handleStrikeModal(interaction);
+                    return;
+                }
+                if (customId.startsWith('config-points:limites')) {
+                    await this.handleLimitesModal(interaction);
+                    return;
+                }
+                if (customId === 'config-points:reset') {
                     await this.resetPoints(interaction);
-                    break;
-
+                    return;
+                }
+                
                 // CONFIG-ROLES
-                case 'roles':
-                    if (param === 'staff') await this.setRole(interaction, 'staff_role');
-                    else if (param === 'strike') await this.setRole(interaction, 'strike_role');
-                    else if (param === 'exemplar') await this.setRole(interaction, 'role_exemplar');
-                    else if (param === 'problematico') await this.setRole(interaction, 'role_problematico');
-                    break;
-
+                if (customId === 'config-roles:staff') {
+                    await this.setRole(interaction, 'staff_role');
+                    return;
+                }
+                if (customId === 'config-roles:strike') {
+                    await this.setRole(interaction, 'strike_role');
+                    return;
+                }
+                if (customId === 'config-roles:exemplar') {
+                    await this.setRole(interaction, 'role_exemplar');
+                    return;
+                }
+                if (customId === 'config-roles:problematico') {
+                    await this.setRole(interaction, 'role_problematico');
+                    return;
+                }
+                
                 // CONFIG-LOGS
-                case 'logs':
-                    if (param === 'geral') await this.setLogChannel(interaction, 'log_channel');
-                    else if (param === 'criar') await this.createLogChannels(interaction);
-                    break;
-
-                default:
-                    await ResponseManager.error(interaction, `Ação "${action}" não reconhecida.`);
+                if (customId === 'config-logs:geral') {
+                    await this.setLogChannel(interaction, 'log_channel');
+                    return;
+                }
+                if (customId === 'config-logs:criar') {
+                    await this.createLogChannels(interaction);
+                    return;
+                }
+                
+                // Fallback para outros casos
+                await ResponseManager.error(interaction, `Ação não reconhecida: ${customId}`);
+            } catch (error) {
+                console.error('❌ Erro no handleComponent:', error);
+                await ResponseManager.error(interaction, 'Ocorreu um erro ao processar a configuração.');
             }
-        } catch (error) {
-            console.error('❌ Erro no handleComponent:', error);
-            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar a configuração.');
-        }
-    },
+        },
 
     async handleModal(interaction, action) {
         try {
