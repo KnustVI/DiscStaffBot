@@ -131,7 +131,7 @@ const ConfigSystem = {
         /**
          * Processa o modal unificado de edição de níveis do strike
          */
-        async processStrikeModal(interaction) {
+            async processStrikeModal(interaction) {
             // Extrair valores de todos os campos
             const novosPontos = {
                 1: parseInt(interaction.fields.getTextInputValue('nivel1')),
@@ -174,7 +174,82 @@ const ConfigSystem = {
                 ? `✅ **${changes.length} alterações salvas!**\n${changes.join('\n')}`
                 : 'ℹ️ Nenhuma alteração foi detectada.';
             
+            // ⚠️ IMPORTANTE: O modal já respondeu com reply, agora usamos editReply
             await this.refreshStrikePanel(interaction, changeMessage);
+        },
+
+        /**
+         * Atualiza o painel do config-strike após alterações
+         */
+        async refreshStrikePanel(interaction, successMessage) {
+            const guildId = interaction.guildId;
+            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+            
+            const points = {
+                1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
+                2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
+                3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
+                4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
+                5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
+            };
+            
+            const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+            
+            let emojis = {};
+            try {
+                const emojisFile = require('../database/emojis.js');
+                emojis = emojisFile.EMOJIS || {};
+            } catch (err) {}
+            
+            const description = [
+                `# ${emojis.Config || '⚙️'} Configuração dos Níveis de Strike`,
+                `Gerencie quantos pontos cada nível remove.`,
+                ``,
+                `## ${emojis.strike || '⚠️'} Valores Atuais`,
+                `${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``,
+                `${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``,
+                `${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``,
+                `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
+                `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
+                ``,
+                `## ${emojis.Note || '📝'} Valores Padrão`,
+                `Nível 1: 10 pts | Nível 2: 25 pts | Nível 3: 40 pts | Nível 4: 60 pts | Nível 5: 100 pts`,
+                ``,
+                `## ${emojis.How || '💡'} Como usar`,
+                `Clique no botão **✏️ Editar Todos os Níveis** para alterar os valores em um único modal.`
+            ].join('\n');
+            
+            const embed = new EmbedBuilder()
+                .setColor(0xDCA15E)
+                .setDescription(description)
+                .setFooter(this.getFooter(interaction.guild.name))
+                .setTimestamp();
+            
+            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+            
+            const row1 = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('config-strike:edit:modal')
+                    .setLabel('✏️ Editar Todos os Níveis')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('✏️')
+            );
+            
+            const row2 = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('config-strike:reset')
+                    .setLabel('⚠️ Resetar Padrão')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('⚠️')
+            );
+            
+            // Usar update para atualizar a mensagem original
+            await interaction.update({
+                content: successMessage || null,
+                embeds: [embed],
+                components: [row1, row2]
+            });
         },
 
 

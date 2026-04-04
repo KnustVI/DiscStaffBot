@@ -45,10 +45,10 @@ module.exports = {
                     return await ResponseManager.error(interaction, 'Formato de modal inválido.');
                 }
                 
-                await ResponseManager.send(interaction, {
-                    content: '⏳ Processando...',
-                    ephemeral: true
-                });
+                //await ResponseManager.send(interaction, {
+                //    content: '⏳ Processando...',
+                //    ephemeral: true
+                //});
                 
                 await handler.handleModal(interaction);
                 return;
