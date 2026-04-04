@@ -34,7 +34,9 @@ class InteractionHandler {
             automod: autoModeration,
             status: systemStatus,   
             error: errorLogger,
-            'config-strike': configSystem
+            'config-points': configSystem,
+            'config-roles': configSystem,
+            'config-logs': configSystem
         };
         
         // Mapeamento de ações para métodos
@@ -70,7 +72,9 @@ class InteractionHandler {
             filter: 'handleFilterLogs',
 
             // Config Strike
-            'config-strike': 'handleStrikeConfig',
+            'config-points': 'handleComponent', 
+            'config-roles': 'handleComponent',   
+            'config-logs': 'handleComponent'     
         };
     }
     
