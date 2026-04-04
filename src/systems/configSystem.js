@@ -1,18 +1,17 @@
 const db = require('../database/index');
 const sessionManager = require('../utils/sessionManager');
 const ResponseManager = require('../utils/responseManager');
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 /**
- * Cache em memória com TTL
+ * Cache em memória
  * Chave: {guildId}_{key}
  */
 const cache = new Map();
 
 const ConfigSystem = {
-    /**
-     * Busca uma configuração
-     */
+    // ==================== MÉTODOS BASE ====================
+
     getSetting(guildId, key) {
         try {
             const cacheKey = `${guildId}_${key}`;
@@ -20,7 +19,6 @@ const ConfigSystem = {
 
             const row = db.prepare('SELECT value FROM settings WHERE guild_id = ? AND key = ?').get(guildId, key);
             const val = row ? row.value : null;
-
             cache.set(cacheKey, val);
             return val;
         } catch (error) {
@@ -29,20 +27,15 @@ const ConfigSystem = {
         }
     },
 
-    /**
-     * Salva ou Atualiza uma configuração
-     */
     setSetting(guildId, key, value) {
         try {
             const finalValue = value?.toString() || null;
-
             db.prepare(`
                 INSERT INTO settings (guild_id, key, value) 
                 VALUES (?, ?, ?)
                 ON CONFLICT(guild_id, key) 
                 DO UPDATE SET value = excluded.value
             `).run(guildId, key, finalValue);
-
             cache.set(`${guildId}_${key}`, finalValue);
             return true;
         } catch (error) {
@@ -51,71 +44,51 @@ const ConfigSystem = {
         }
     },
 
-    /**
-     * Busca múltiplas configurações
-     */
-    getMany(guildId, keys = []) {
-        const result = {};
-        for (const key of keys) {
-            result[key] = this.getSetting(guildId, key);
-        }
-        return result;
-    },
-
-    /**
-     * Remove cache de um servidor
-     */
     clearCache(guildId) {
         try {
             for (const key of cache.keys()) {
-                if (key.startsWith(`${guildId}_`)) {
-                    cache.delete(key);
-                }
+                if (key.startsWith(`${guildId}_`)) cache.delete(key);
             }
         } catch (error) {
             console.error(`❌ Erro ao limpar cache:`, error);
         }
     },
 
-    /**
-     * Carrega cache do servidor
-     */
-    async loadCache(guildId) {
-        try {
-            const rows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildId);
-            for (const row of rows) {
-                cache.set(`${guildId}_${row.key}`, row.value);
-            }
-            return rows.length;
-        } catch (error) {
-            console.error(`❌ Erro ao carregar cache:`, error);
-            return 0;
-        }
+    getFooter(guildName) {
+        return {
+            text: `Sistema Robin • ${guildName}`,
+            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
+        };
     },
 
     // ==================== HANDLER PRINCIPAL ====================
 
-    /**
-     * Handler para componentes
-     */
     async handleComponent(interaction, action, param) {
         try {
             switch (action) {
-                case 'menu':
-                    await this.handleConfigMenu(interaction);
+                // CONFIG-POINTS
+                case 'points':
+                    if (param === 'strike') await this.handleStrikeModal(interaction);
+                    else if (param === 'limites') await this.handleLimitesModal(interaction);
                     break;
-                case 'set':
-                    await this.handleSetConfig(interaction, param);
+                case 'reset-points':
+                    await this.resetPoints(interaction);
                     break;
-                case 'reset':
-                    await this.handleResetConfig(interaction, param);
+
+                // CONFIG-ROLES
+                case 'roles':
+                    if (param === 'staff') await this.setRole(interaction, 'staff_role');
+                    else if (param === 'strike') await this.setRole(interaction, 'strike_role');
+                    else if (param === 'exemplar') await this.setRole(interaction, 'role_exemplar');
+                    else if (param === 'problematico') await this.setRole(interaction, 'role_problematico');
                     break;
-                case 'edit':      // Botão: config-strike:edit:modal
-                    await this.handleStrikeEdit(interaction);
+
+                // CONFIG-LOGS
+                case 'logs':
+                    if (param === 'geral') await this.setLogChannel(interaction, 'log_channel');
+                    else if (param === 'criar') await this.createLogChannels(interaction);
                     break;
-                case 'reset-strike':  // Botão: config-strike:reset-strike
-                    await this.handleStrikeReset(interaction);
-                    break;
+
                 default:
                     await ResponseManager.error(interaction, `Ação "${action}" não reconhecida.`);
             }
@@ -125,541 +98,410 @@ const ConfigSystem = {
         }
     },
 
-        
-        //Handler para componentes do config-strike
-
-        /**
-         * Processa o modal unificado de edição de níveis do strike
-         */
-            async processStrikeModal(interaction) {
-            // Extrair valores de todos os campos
-            const novosPontos = {
-                1: parseInt(interaction.fields.getTextInputValue('nivel1')),
-                2: parseInt(interaction.fields.getTextInputValue('nivel2')),
-                3: parseInt(interaction.fields.getTextInputValue('nivel3')),
-                4: parseInt(interaction.fields.getTextInputValue('nivel4')),
-                5: parseInt(interaction.fields.getTextInputValue('nivel5'))
-            };
-            
-            const changes = [];
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
-            
-            // Validar cada nível
-            for (let i = 1; i <= 5; i++) {
-                if (isNaN(novosPontos[i]) || novosPontos[i] < 0 || novosPontos[i] > 100) {
-                    return await ResponseManager.error(interaction, `Nível ${i} deve ser um número entre 0 e 100.`);
-                }
+    async handleModal(interaction, action) {
+        try {
+            if (interaction.customId === 'config-points:strike:modal') {
+                await this.processPointsStrikeModal(interaction);
+                return;
             }
-            
-            // Salvar configurações
-            for (let i = 1; i <= 5; i++) {
-                const valorAntigo = this.getSetting(interaction.guildId, `strike_points_${i}`);
-                if (valorAntigo !== novosPontos[i].toString()) {
-                    this.setSetting(interaction.guildId, `strike_points_${i}`, novosPontos[i].toString());
-                    changes.push(`${severityIcons[i]} Nível ${i} (${severityNames[i]}): \`${valorAntigo || 'padrão'}\` → \`${novosPontos[i]}\``);
-                }
+            if (interaction.customId === 'config-points:limites:modal') {
+                await this.processLimitesModal(interaction);
+                return;
             }
-            
-            this.clearCache(interaction.guildId);
-            
-            // Registrar atividade
-            const db = require('../database/index');
-            db.logActivity(interaction.guildId, interaction.user.id, 'config_strike_set', null, {
-                changes: novosPontos
-            });
-            
-            // Atualizar o painel
-            const changeMessage = changes.length > 0 
-                ? `✅ **${changes.length} alterações salvas!**\n${changes.join('\n')}`
-                : 'ℹ️ Nenhuma alteração foi detectada.';
-            
-            // ⚠️ IMPORTANTE: O modal já respondeu com reply, agora usamos editReply
-            await this.refreshStrikePanel(interaction, changeMessage);
-        },
+            await ResponseManager.error(interaction, 'Modal não reconhecido.');
+        } catch (error) {
+            console.error('❌ Erro no handleModal:', error);
+            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar o modal.');
+        }
+    },
 
+    // ==================== CONFIG-POINTS ====================
 
-        async handleStrikeEdit(interaction) {
-            const guildId = interaction.guildId;
-            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-            
-            const pontos = {
-                1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
-                2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
-                3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
-                4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
-                5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
-            };
-            
-            const modal = new ModalBuilder()
-                .setCustomId('config-strike:modal')
-                .setTitle('⚙️ Configurar Níveis de Strike');
-            
-            const nivel1 = new TextInputBuilder()
-                .setCustomId('nivel1')
-                .setLabel('🟢 Nível 1 (Leve) - Pontos')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(pontos[1].toString())
-                .setPlaceholder('Ex: 10');
-            
-            const nivel2 = new TextInputBuilder()
-                .setCustomId('nivel2')
-                .setLabel('🟡 Nível 2 (Moderada) - Pontos')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(pontos[2].toString())
-                .setPlaceholder('Ex: 25');
-            
-            const nivel3 = new TextInputBuilder()
-                .setCustomId('nivel3')
-                .setLabel('🟠 Nível 3 (Grave) - Pontos')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(pontos[3].toString())
-                .setPlaceholder('Ex: 40');
-            
-            const nivel4 = new TextInputBuilder()
-                .setCustomId('nivel4')
-                .setLabel('🔴 Nível 4 (Severa) - Pontos')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(pontos[4].toString())
-                .setPlaceholder('Ex: 60');
-            
-            const nivel5 = new TextInputBuilder()
-                .setCustomId('nivel5')
-                .setLabel('💀 Nível 5 (Permanente) - Pontos')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(pontos[5].toString())
-                .setPlaceholder('Ex: 100');
-            
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(nivel1),
-                new ActionRowBuilder().addComponents(nivel2),
-                new ActionRowBuilder().addComponents(nivel3),
-                new ActionRowBuilder().addComponents(nivel4),
-                new ActionRowBuilder().addComponents(nivel5)
-            );
-            
-            await interaction.showModal(modal);
-        },
-
-        async handleStrikeReset(interaction) {
-            const guildId = interaction.guildId;
-            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-            
-            for (let i = 1; i <= 5; i++) {
-                this.setSetting(guildId, `strike_points_${i}`, DEFAULT_POINTS[i].toString());
-            }
-            this.clearCache(guildId);
-            
-            await this.refreshStrikePanel(interaction, '✅ Todos os níveis foram resetados para os valores padrão!');
-        },
-
-                /**
-         * Atualiza o painel do config-strike após alterações
-         */
-        async refreshStrikePanel(interaction, successMessage) {
-            const guildId = interaction.guildId;
-            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-            
-            const points = {
-                1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
-                2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
-                3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
-                4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
-                5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
-            };
-            
-            const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            
-            let emojis = {};
-            try {
-                const emojisFile = require('../database/emojis.js');
-                emojis = emojisFile.EMOJIS || {};
-            } catch (err) {}
-            
-            const description = [
-                `# ${emojis.Config || '⚙️'} Configuração dos Níveis de Strike`,
-                `Gerencie quantos pontos cada nível remove.`,
-                ``,
-                `## ${emojis.strike || '⚠️'} Valores Atuais`,
-                `${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``,
-                `${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``,
-                `${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``,
-                `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
-                `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
-                ``,
-                `## ${emojis.Note || '📝'} Valores Padrão`,
-                `Nível 1: 10 pts | Nível 2: 25 pts | Nível 3: 40 pts | Nível 4: 60 pts | Nível 5: 100 pts`
-            ].join('\n');
-            
-            const embed = new EmbedBuilder()
-                .setColor(0xDCA15E)
-                .setDescription(description)
-                .setFooter(this.getFooter(interaction.guild.name))
-                .setTimestamp();
-            
-            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-            
-            const row1 = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('config-strike:edit:modal')
-                    .setLabel('✏️ Editar Todos os Níveis')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('✏️')
-            );
-            
-            const row2 = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('config-strike:reset')
-                    .setLabel('⚠️ Resetar Padrão')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('⚠️')
-            );
-            
-            // Usar update para atualizar a mensagem original
-            await interaction.update({
-                content: successMessage || null,
-                embeds: [embed],
-                components: [row1, row2]
-            });
-        },
-
-        /**
-         * Handler para modais
-         */
-        async handleModal(interaction, action) {
-            try {
-                // Verificar se é modal do config-strike
-                if (interaction.customId === 'config-strike:modal') {  // ← SEM o :all no final
-                    await this.processStrikeModal(interaction);
-                    return;
-                }
-                
-                if (action === 'set') {
-                    await this.processConfigModal(interaction);
-                } else {
-                    await ResponseManager.error(interaction, `Modal "${action}" não reconhecido.`);
-                }
-            } catch (error) {
-                console.error('❌ Erro no handleModal:', error);
-                await ResponseManager.error(interaction, 'Ocorreu um erro ao processar o modal.');
-            }
-        },
-
-    // ==================== MENU PRINCIPAL ====================
-
-    /**
-     * Exibe o menu principal de configuração
-     */
-    async handleConfigMenu(interaction) {
+    async handleStrikeModal(interaction) {
         const guildId = interaction.guildId;
+        const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         
-        const prefix = this.getSetting(guildId, 'prefix') || '/';
-        const staffRole = this.getSetting(guildId, 'staff_role');
-        const logChannel = this.getSetting(guildId, 'log_channel');
-        const autoMod = this.getSetting(guildId, 'automod_enabled') === 'true' ? '✅ Ativado' : '❌ Desativado';
+        const pontos = {
+            1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
+            2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
+            3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
+            4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
+            5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
+        };
+        
+        const modal = new ModalBuilder()
+            .setCustomId('config-points:strike:modal')
+            .setTitle('⚙️ Configurar Níveis de Strike');
+        
+        const fields = [
+            { id: 'nivel1', label: '🟢 Nível 1 (Leve)', value: pontos[1] },
+            { id: 'nivel2', label: '🟡 Nível 2 (Moderada)', value: pontos[2] },
+            { id: 'nivel3', label: '🟠 Nível 3 (Grave)', value: pontos[3] },
+            { id: 'nivel4', label: '🔴 Nível 4 (Severa)', value: pontos[4] },
+            { id: 'nivel5', label: '💀 Nível 5 (Permanente)', value: pontos[5] }
+        ];
+        
+        for (const field of fields) {
+            const input = new TextInputBuilder()
+                .setCustomId(field.id)
+                .setLabel(field.label)
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setValue(field.value.toString())
+                .setPlaceholder('Ex: 10');
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+        }
+        
+        await interaction.showModal(modal);
+    },
 
+    async handleLimitesModal(interaction) {
+        const guildId = interaction.guildId;
+        const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
+        const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
+        
+        const modal = new ModalBuilder()
+            .setCustomId('config-points:limites:modal')
+            .setTitle('📊 Configurar Limites de Reputação');
+        
+        const exemplarInput = new TextInputBuilder()
+            .setCustomId('exemplar_limit')
+            .setLabel('🎖️ Limite Exemplar (50-100)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setValue(exemplarLimit.toString())
+            .setPlaceholder('Ex: 95');
+        
+        const problematicInput = new TextInputBuilder()
+            .setCustomId('problematic_limit')
+            .setLabel('⚠️ Limite Problemático (0-50)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setValue(problematicLimit.toString())
+            .setPlaceholder('Ex: 30');
+        
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(exemplarInput),
+            new ActionRowBuilder().addComponents(problematicInput)
+        );
+        
+        await interaction.showModal(modal);
+    },
+
+    async processPointsStrikeModal(interaction) {
+        const novosPontos = {
+            1: parseInt(interaction.fields.getTextInputValue('nivel1')),
+            2: parseInt(interaction.fields.getTextInputValue('nivel2')),
+            3: parseInt(interaction.fields.getTextInputValue('nivel3')),
+            4: parseInt(interaction.fields.getTextInputValue('nivel4')),
+            5: parseInt(interaction.fields.getTextInputValue('nivel5'))
+        };
+        
+        const changes = [];
+        const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+        
+        for (let i = 1; i <= 5; i++) {
+            if (isNaN(novosPontos[i]) || novosPontos[i] < 0 || novosPontos[i] > 100) {
+                return await ResponseManager.error(interaction, `Nível ${i} deve ser um número entre 0 e 100.`);
+            }
+        }
+        
+        for (let i = 1; i <= 5; i++) {
+            const valorAntigo = this.getSetting(interaction.guildId, `strike_points_${i}`);
+            if (valorAntigo !== novosPontos[i].toString()) {
+                this.setSetting(interaction.guildId, `strike_points_${i}`, novosPontos[i].toString());
+                changes.push(`${severityIcons[i]} Nível ${i} (${severityNames[i]}): \`${valorAntigo || 'padrão'}\` → \`${novosPontos[i]}\``);
+            }
+        }
+        
+        this.clearCache(interaction.guildId);
+        
+        const changeMessage = changes.length > 0 
+            ? `✅ **${changes.length} alterações salvas!**\n${changes.join('\n')}`
+            : 'ℹ️ Nenhuma alteração foi detectada.';
+        
+        await this.refreshPointsPanel(interaction, changeMessage);
+    },
+
+    async processLimitesModal(interaction) {
+        const exemplarLimit = parseInt(interaction.fields.getTextInputValue('exemplar_limit'));
+        const problematicLimit = parseInt(interaction.fields.getTextInputValue('problematic_limit'));
+        
+        if (isNaN(exemplarLimit) || exemplarLimit < 50 || exemplarLimit > 100) {
+            return await ResponseManager.error(interaction, 'Limite Exemplar deve ser entre 50 e 100.');
+        }
+        if (isNaN(problematicLimit) || problematicLimit < 0 || problematicLimit > 50) {
+            return await ResponseManager.error(interaction, 'Limite Problemático deve ser entre 0 e 50.');
+        }
+        if (problematicLimit >= exemplarLimit) {
+            return await ResponseManager.error(interaction, 'O limite Problemático deve ser menor que o limite Exemplar.');
+        }
+        
+        const oldExemplar = this.getSetting(interaction.guildId, 'limit_exemplar');
+        const oldProblematic = this.getSetting(interaction.guildId, 'limit_problematico');
+        
+        this.setSetting(interaction.guildId, 'limit_exemplar', exemplarLimit.toString());
+        this.setSetting(interaction.guildId, 'limit_problematico', problematicLimit.toString());
+        this.clearCache(interaction.guildId);
+        
+        const changes = [];
+        if (oldExemplar != exemplarLimit) changes.push(`🎖️ Exemplar: \`${oldExemplar || 95}\` → \`${exemplarLimit}\``);
+        if (oldProblematic != problematicLimit) changes.push(`⚠️ Problemático: \`${oldProblematic || 30}\` → \`${problematicLimit}\``);
+        
+        const changeMessage = changes.length > 0 
+            ? `✅ **Limites atualizados!**\n${changes.join('\n')}`
+            : 'ℹ️ Nenhuma alteração foi detectada.';
+        
+        await this.refreshPointsPanel(interaction, changeMessage);
+    },
+
+    async resetPoints(interaction) {
+        const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+        for (let i = 1; i <= 5; i++) {
+            this.setSetting(interaction.guildId, `strike_points_${i}`, DEFAULT_POINTS[i].toString());
+        }
+        this.setSetting(interaction.guildId, 'limit_exemplar', '95');
+        this.setSetting(interaction.guildId, 'limit_problematico', '30');
+        this.clearCache(interaction.guildId);
+        await this.refreshPointsPanel(interaction, '✅ Todos os valores foram resetados para o padrão!');
+    },
+
+    async refreshPointsPanel(interaction, successMessage) {
+        const guildId = interaction.guildId;
+        const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+        
+        const points = {
+            1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
+            2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
+            3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
+            4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
+            5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
+        };
+        
+        const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
+        const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
+        
+        const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+        
+        const description = [
+            `# ⚙️ Configuração de Pontos e Limites`,
+            `Gerencie os valores do sistema de reputação.`,
+            ``,
+            `## 🎯 Níveis de Strike`,
+            `${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``,
+            `${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``,
+            `${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``,
+            `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
+            `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
+            ``,
+            `## 📊 Limites de Reputação`,
+            `**🎖️ Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
+            `**⚠️ Problemático:** Abaixo de \`${problematicLimit}\` pontos`
+        ].join('\n');
+        
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setTitle('⚙️ Painel de Configuração')
-            .setDescription('Configure o bot de acordo com as necessidades do seu servidor.')
-            .addFields(
-                { name: '📝 Prefixo', value: `\`${prefix}\``, inline: true },
-                { name: '👥 Cargo Staff', value: staffRole ? `<@&${staffRole}>` : '`❌ Não definido`', inline: true },
-                { name: '📋 Canal de Logs', value: logChannel ? `<#${logChannel}>` : '`❌ Não definido`', inline: true },
-                { name: '🛡️ Auto Moderação', value: autoMod, inline: true }
-            )
+            .setDescription(description)
             .setFooter(this.getFooter(interaction.guild.name))
             .setTimestamp();
-
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('config:set:menu')
-            .setPlaceholder('Selecione uma opção para configurar')
-            .addOptions([
-                { label: 'Prefixo', value: 'prefix', description: 'Alterar o prefixo do bot', emoji: '📝' },
-                { label: 'Cargo Staff', value: 'staff_role', description: 'Definir cargo da equipe', emoji: '👥' },
-                { label: 'Canal de Logs', value: 'log_channel', description: 'Definir canal para logs', emoji: '📋' },
-                { label: 'Auto Moderação', value: 'automod_enabled', description: 'Ativar/Desativar', emoji: '🛡️' },
-                { label: 'Resetar Tudo', value: 'reset_all', description: 'Resetar todas as configurações', emoji: '⚠️' }
-            ]);
-
-        const row = new ActionRowBuilder().addComponents(selectMenu);
-
-        await ResponseManager.send(interaction, {
+        
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('config-points:strike:modal')
+                .setLabel('🎯 Editar Níveis de Strike')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('✏️'),
+            new ButtonBuilder()
+                .setCustomId('config-points:limites:modal')
+                .setLabel('📊 Editar Limites')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('✏️'),
+            new ButtonBuilder()
+                .setCustomId('config-points:reset')
+                .setLabel('Resetar Padrão')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('⚠️')
+        );
+        
+        await interaction.update({
+            content: successMessage || null,
             embeds: [embed],
             components: [row]
         });
     },
 
-    // ==================== PROCESSAMENTO DE CONFIGURAÇÃO ====================
+    // ==================== CONFIG-ROLES ====================
 
-    /**
-     * Processa a seleção de uma configuração
-     */
-    async handleSetConfig(interaction, configKey) {
-        if (!configKey) {
-            return await ResponseManager.error(interaction, 'Configuração inválida.');
-        }
-
-        // Role Select Menu
-        if (interaction.isRoleSelectMenu()) {
-            const selectedRoleId = interaction.values[0];
-            if (!selectedRoleId) {
-                return await ResponseManager.error(interaction, 'Nenhum cargo selecionado.');
-            }
-            
-            this.setSetting(interaction.guildId, configKey, selectedRoleId);
-            return await this.updateConfigPanel(interaction, `✅ **${this.getConfigLabel(configKey)}** alterado para <@&${selectedRoleId}>`);
+    async setRole(interaction, roleKey) {
+        const selectedRoleId = interaction.values[0];
+        if (!selectedRoleId) {
+            return await ResponseManager.error(interaction, 'Nenhum cargo selecionado.');
         }
         
-        // Channel Select Menu
-        if (interaction.isChannelSelectMenu()) {
-            const selectedChannelId = interaction.values[0];
-            if (!selectedChannelId) {
-                return await ResponseManager.error(interaction, 'Nenhum canal selecionado.');
-            }
-            
-            this.setSetting(interaction.guildId, configKey, selectedChannelId);
-            return await this.updateConfigPanel(interaction, `✅ **${this.getConfigLabel(configKey)}** alterado para <#${selectedChannelId}>`);
+        const role = interaction.guild.roles.cache.get(selectedRoleId);
+        if (!role) {
+            return await ResponseManager.error(interaction, 'Cargo não encontrado.');
         }
         
-        // String Select Menu (menu de opções)
-        if (interaction.isStringSelectMenu()) {
-            const selectedValue = interaction.values[0];
-            
-            if (selectedValue === 'reset_all') {
-                return await this.handleResetConfig(interaction, 'all');
-            }
-            
-            if (selectedValue === 'automod_enabled') {
-                const current = this.getSetting(interaction.guildId, 'automod_enabled') === 'true';
-                const newValue = !current;
-                this.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
-                const status = newValue ? '✅ ativada' : '❌ desativada';
-                return await this.updateConfigPanel(interaction, `🛡️ Auto moderação ${status} com sucesso!`);
-            }
-            
-            if (selectedValue === 'prefix') {
-                // Criar sessão com isolamento total
-                sessionManager.set(
-                    interaction.user.id,
-                    interaction.guildId,
-                    'config',
-                    'prefix_edit',
-                    { configKey: selectedValue },
-                    300000
-                );
-                
-                const modal = new ModalBuilder()
-                    .setCustomId(`config:set:${selectedValue}`)
-                    .setTitle('Configurar Prefixo');
-                
-                const input = new TextInputBuilder()
-                    .setCustomId('value')
-                    .setLabel('Novo prefixo para o bot')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setPlaceholder('Ex: !, /, ?');
-                
-                const row = new ActionRowBuilder().addComponents(input);
-                modal.addComponents(row);
-                
-                return await interaction.showModal(modal);
-            }
-            
-            return await ResponseManager.error(interaction, `Opção "${selectedValue}" não reconhecida.`);
-        }
+        this.setSetting(interaction.guildId, roleKey, selectedRoleId);
+        this.clearCache(interaction.guildId);
         
-        return await ResponseManager.error(interaction, 'Tipo de interação não suportado.');
+        const roleLabels = {
+            staff_role: 'Staff',
+            strike_role: 'Strike',
+            role_exemplar: 'Exemplar',
+            role_problematico: 'Problemático'
+        };
+        
+        await this.refreshRolesPanel(interaction, `✅ **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
-    /**
-     * Processa modal de configuração
-     */
-    async processConfigModal(interaction) {
-        const [, , configKey] = interaction.customId.split(':');
-        
-        // Verificar sessão com isolamento total
-        const session = sessionManager.get(
-            interaction.user.id,
-            interaction.guildId,
-            'config',
-            'prefix_edit'
-        );
-
-        if (!session || session.configKey !== configKey) {
-            return await ResponseManager.error(interaction, 'Sessão expirada. Inicie a configuração novamente.');
-        }
-
-        const newValue = interaction.fields.getTextInputValue('value');
-
-        // Validação para prefixo
-        if (!newValue || newValue.trim().length === 0) {
-            return await ResponseManager.error(interaction, 'O prefixo não pode estar vazio.');
-        }
-
-        if (newValue.length > 5) {
-            return await ResponseManager.error(interaction, 'O prefixo deve ter no máximo 5 caracteres.');
-        }
-
-        // Salvar configuração
-        this.setSetting(interaction.guildId, configKey, newValue);
-        
-        // Limpar sessão
-        sessionManager.delete(interaction.user.id, interaction.guildId, 'config', 'prefix_edit');
-
-        // Confirmar alteração
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('✅ Configuração Atualizada')
-            .setDescription(`**${this.getConfigLabel(configKey)}** alterado para:\n\`${newValue}\``)
-            .setFooter(this.getFooter(interaction.guild.name))
-            .setTimestamp();
-
-        await ResponseManager.send(interaction, {
-            embeds: [embed],
-            components: []
-        });
-    },
-
-    /**
-     * Reseta configurações
-     */
-    async handleResetConfig(interaction, param) {
-        if (param === 'all') {
-            db.prepare('DELETE FROM settings WHERE guild_id = ?').run(interaction.guildId);
-            this.clearCache(interaction.guildId);
-            return await this.updateConfigPanel(interaction, '⚠️ **Todas as configurações foram resetadas para o padrão!**');
-        } else {
-            this.setSetting(interaction.guildId, param, null);
-            return await this.updateConfigPanel(interaction, `⚠️ **${this.getConfigLabel(param)}** foi resetado para o valor padrão.`);
-        }
-    },
-
-    /**
-     * Atualiza o painel com mensagem de sucesso (UMA ÚNICA RESPOSTA)
-     */
-    async updateConfigPanel(interaction, successMessage) {
+    async refreshRolesPanel(interaction, successMessage) {
         const guildId = interaction.guildId;
         
-        // Forçar recarregamento do cache
-        this.clearCache(guildId);
-        
-        // Buscar configurações atuais
         const staffRole = this.getSetting(guildId, 'staff_role');
-        const logChannel = this.getSetting(guildId, 'log_channel');
         const strikeRole = this.getSetting(guildId, 'strike_role');
-        const automodEnabled = this.getSetting(guildId, 'automod_enabled') === 'true';
-        const exemplarLimit = this.getSetting(guildId, 'limit_exemplar') || '95';
-        const problematicLimit = this.getSetting(guildId, 'limit_problematico') || '30';
-        
-        // Obter emojis
-        let emojis = {};
-        try {
-            const emojisFile = require('../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
-        } catch (err) {
-            emojis = {};
-        }
+        const exemplarRole = this.getSetting(guildId, 'role_exemplar');
+        const problematicoRole = this.getSetting(guildId, 'role_problematico');
         
         const embed = new EmbedBuilder()
-            .setTitle(`${emojis.Config || '⚙️'} Configuração do Servidor`)
             .setColor(0xDCA15E)
-            .setDescription('Selecione abaixo os cargos e canais que o bot deve utilizar.')
+            .setTitle('👥 Cargos do Sistema')
+            .setDescription('Selecione os cargos abaixo:')
             .addFields(
-                { name: '🛡️ Cargo Staff', value: staffRole ? `<@&${staffRole}>` : '`❌ Não definido`', inline: true },
-                { name: '📜 Canal de Logs', value: logChannel ? `<#${logChannel}>` : '`❌ Não definido`', inline: true },
-                { name: '⚠️ Cargo de Strike', value: strikeRole ? `<@&${strikeRole}>` : '`❌ Não definido`', inline: true },
-                { name: '🛡️ Auto Moderação', value: automodEnabled ? '✅ Ativada' : '❌ Desativada', inline: true },
-                { name: '🎖️ Limite Exemplar', value: `\`${exemplarLimit} pontos\``, inline: true },
-                { name: '⚠️ Limite Problemático', value: `\`${problematicLimit} pontos\``, inline: true }
+                { name: '🛡️ Staff', value: staffRole ? `<@&${staffRole}>` : '`❌ Não definido`', inline: true },
+                { name: '⚠️ Strike (Temporário)', value: strikeRole ? `<@&${strikeRole}>` : '`❌ Não definido`', inline: true },
+                { name: '✨ Exemplar', value: exemplarRole ? `<@&${exemplarRole}>` : '`❌ Não definido`', inline: true },
+                { name: '⚠️ Problemático', value: problematicoRole ? `<@&${problematicoRole}>` : '`❌ Não definido`', inline: true }
             )
             .setFooter(this.getFooter(interaction.guild.name))
             .setTimestamp();
         
-        // Criar menus
-        const { ActionRowBuilder, RoleSelectMenuBuilder, ChannelSelectMenuBuilder, ChannelType } = require('discord.js');
+        const { ActionRowBuilder, RoleSelectMenuBuilder } = require('discord.js');
         
         const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config:set:staff_role')
-                .setPlaceholder('Selecionar Cargo de Moderadores')
+            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
         );
-        
-        const logRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config:set:log_channel')
-                .setPlaceholder('Selecionar Canal de Logs')
-                .addChannelTypes(ChannelType.GuildText)
-        );
-        
         const strikeRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config:set:strike_role')
-                .setPlaceholder('Selecionar Cargo de Strike')
+            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike')
+        );
+        const exemplarRow = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar')
+        );
+        const problematicoRow = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático')
         );
         
-        // RESPOSTA ÚNICA - usando ResponseManager
-        await ResponseManager.send(interaction, {
-            content: successMessage,
+        await interaction.update({
+            content: successMessage || null,
             embeds: [embed],
-            components: [staffRow, logRow, strikeRow]
+            components: [staffRow, strikeRow, exemplarRow, problematicoRow]
         });
     },
 
-    // ==================== UTILITÁRIOS ====================
+    // ==================== CONFIG-LOGS ====================
 
-    getFooter(guildName) {
-        return {
-            text: `Sistema Robin • ${guildName}`,
-            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
-        };
-    },
-
-    getConfigLabel(configKey) {
-        const labels = {
-            prefix: 'Prefixo',
-            staff_role: 'Cargo Staff',
-            log_channel: 'Canal de Logs',
-            strike_role: 'Cargo de Strike',
-            automod_enabled: 'Auto Moderação',
-            limit_exemplar: 'Limite Exemplar',
-            limit_problematico: 'Limite Problemático'
-        };
-        return labels[configKey] || configKey;
-    },
-
-    isStaff(userId, guildId, client) {
-        try {
-            const staffRoleId = this.getSetting(guildId, 'staff_role');
-            if (!staffRoleId) return false;
-            if (!client) return false;
-            
-            const guild = client.guilds.cache.get(guildId);
-            if (!guild) return false;
-            
-            const member = guild.members.cache.get(userId);
-            if (!member) return false;
-            
-            return member.roles.cache.has(staffRoleId);
-        } catch (error) {
-            console.error('❌ Erro ao verificar staff:', error);
-            return false;
+    async setLogChannel(interaction, channelKey) {
+        const selectedChannelId = interaction.values[0];
+        if (!selectedChannelId) {
+            return await ResponseManager.error(interaction, 'Nenhum canal selecionado.');
         }
+        
+        const channel = interaction.guild.channels.cache.get(selectedChannelId);
+        if (!channel) {
+            return await ResponseManager.error(interaction, 'Canal não encontrado.');
+        }
+        
+        this.setSetting(interaction.guildId, channelKey, selectedChannelId);
+        this.clearCache(interaction.guildId);
+        
+        await this.refreshLogsPanel(interaction, `✅ **Canal de logs** alterado para ${channel}`);
     },
 
-    clearAllCache() {
-        try {
-            cache.clear();
-            console.log('🗑️ Cache completo limpo');
-        } catch (error) {
-            console.error('❌ Erro ao limpar cache:', error);
-        }
+    async createLogChannels(interaction) {
+        const guild = interaction.guild;
+        
+        const category = await guild.channels.create({
+            name: '📊 LOGS DO SISTEMA',
+            type: ChannelType.GuildCategory,
+            permissionOverwrites: [
+                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks] }
+            ]
+        });
+        
+        const channels = {
+            geral: await guild.channels.create({ name: '📜 logs-gerais', type: ChannelType.GuildText, parent: category.id }),
+            automod: await guild.channels.create({ name: '🛡️ logs-automod', type: ChannelType.GuildText, parent: category.id }),
+            punishments: await guild.channels.create({ name: '⚖️ logs-punicoes', type: ChannelType.GuildText, parent: category.id }),
+            tickets: await guild.channels.create({ name: '🎫 logs-tickets', type: ChannelType.GuildText, parent: category.id })
+        };
+        
+        this.setSetting(guild.id, 'log_channel', channels.geral.id);
+        this.setSetting(guild.id, 'log_automod', channels.automod.id);
+        this.setSetting(guild.id, 'log_punishments', channels.punishments.id);
+        this.setSetting(guild.id, 'log_tickets', channels.tickets.id);
+        this.clearCache(guild.id);
+        
+        const embed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('✅ Canais de Log Criados')
+            .setDescription('Os seguintes canais foram criados:')
+            .addFields(
+                { name: '📜 Geral', value: `<#${channels.geral.id}>`, inline: true },
+                { name: '🛡️ AutoMod', value: `<#${channels.automod.id}>`, inline: true },
+                { name: '⚖️ Punições', value: `<#${channels.punishments.id}>`, inline: true },
+                { name: '🎫 Tickets', value: `<#${channels.tickets.id}>`, inline: true }
+            )
+            .setFooter(this.getFooter(guild.name))
+            .setTimestamp();
+        
+        await interaction.update({ embeds: [embed], components: [] });
+    },
+
+    async refreshLogsPanel(interaction, successMessage) {
+        const guildId = interaction.guildId;
+        
+        const logGeral = this.getSetting(guildId, 'log_channel');
+        const logAutomod = this.getSetting(guildId, 'log_automod');
+        const logPunishments = this.getSetting(guildId, 'log_punishments');
+        const logTickets = this.getSetting(guildId, 'log_tickets');
+        
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setTitle('📝 Canais de Log')
+            .setDescription('Configure os canais para cada sistema:')
+            .addFields(
+                { name: '📜 Geral', value: logGeral ? `<#${logGeral}>` : '`❌ Não definido`', inline: false },
+                { name: '🛡️ AutoModeração', value: logAutomod ? `<#${logAutomod}>` : '`❌ Não definido`', inline: true },
+                { name: '⚖️ Punições', value: logPunishments ? `<#${logPunishments}>` : '`❌ Não definido`', inline: true },
+                { name: '🎫 Tickets', value: logTickets ? `<#${logTickets}>` : '`❌ Não definido`', inline: true }
+            )
+            .setFooter(this.getFooter(interaction.guild.name))
+            .setTimestamp();
+        
+        const row1 = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:geral')
+                .setPlaceholder('Selecionar canal de logs gerais')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('config-logs:criar')
+                .setLabel('➕ Criar Canais Automaticamente')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('➕')
+        );
+        
+        await interaction.update({
+            content: successMessage || null,
+            embeds: [embed],
+            components: [row1, row2]
+        });
     }
 };
 
