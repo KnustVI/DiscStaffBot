@@ -502,7 +502,18 @@ const ConfigSystem = {
             embeds: [embed],
             components: [row1, row2]
         });
+    },
+
+        clearAllCache() {
+        try {
+            cache.clear();
+            console.log('🗑️ Cache completo limpo');
+        } catch (error) {
+            console.error('❌ Erro ao limpar cache:', error);
+        }
     }
 };
+
+
 
 module.exports = ConfigSystem;
