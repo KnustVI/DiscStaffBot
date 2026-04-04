@@ -151,7 +151,7 @@ module.exports = {
         // Após carregar os caches, forçar limpeza do cache de configuração
         try {
             const ConfigSystem = require('../systems/configSystem');
-            ConfigSystem.clearAllCache();
+            ConfigSystem.clearCache(guildId);
             console.log('🗑️ Cache de configurações reiniciado');
         } catch (err) {
             console.error('❌ Erro ao limpar cache:', err);
