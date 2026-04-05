@@ -100,7 +100,7 @@ module.exports = {
             }
             
             // Enviar log
-            const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
+            const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);

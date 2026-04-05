@@ -400,7 +400,7 @@ class AutoModerationSystem {
         
         for (const [gId, data] of Object.entries(stats)) {
             try {
-                const logChanId = ConfigSystem.getSetting(gId, 'log_channel');
+                const logChanId = ConfigSystem.getSetting(gId, 'log_automod');
                 if (!logChanId) continue;
                 
                 const channel = await this.client.channels.fetch(logChanId).catch(() => null);
