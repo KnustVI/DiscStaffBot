@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType, Perms } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 
@@ -21,103 +21,66 @@ module.exports = {
         
         const ConfigSystem = require('../../systems/configSystem');
         
+        // Buscar configurações atuais
         const logGeral = ConfigSystem.getSetting(guildId, 'log_channel');
+        const logPunishments = ConfigSystem.getSetting(guildId, 'log_punishments');
+        const logAutomod = ConfigSystem.getSetting(guildId, 'log_automod');
+        const logTickets = ConfigSystem.getSetting(guildId, 'log_tickets');
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
             .setTitle('📝 Canais de Log')
-            .setDescription('Configure os canais para cada sistema:')
+            .setDescription('Selecione os canais abaixo:')
             .addFields(
-                { name: '📜 Geral', value: logGeral ? `<#${logGeral}>` : '`❌ Não definido`', inline: false },
-                { name: '🛡️ AutoModeração', value: '`⏳ Aguardando configuração`', inline: true },
-                { name: '⚖️ Punições', value: '`⏳ Aguardando configuração`', inline: true },
-                { name: '🎫 Tickets', value: '`⏳ Aguardando configuração`', inline: true }
+                { name: '📜 Geral', value: logGeral ? `<#${logGeral}>` : '`❌ Não definido`', inline: true },
+                { name: '⚖️ Punições', value: logPunishments ? `<#${logPunishments}>` : '`❌ Não definido`', inline: true },
+                { name: '🛡️ AutoMod', value: logAutomod ? `<#${logAutomod}>` : '`❌ Não definido`', inline: true },
+                { name: '🎫 Tickets', value: logTickets ? `<#${logTickets}>` : '`❌ Não definido`', inline: true }
             )
             .setFooter(ConfigSystem.getFooter(guild.name))
             .setTimestamp();
         
-        const row1 = new ActionRowBuilder().addComponents(
+        const { ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+        
+        const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:geral')
-                .setPlaceholder('Selecionar canal de logs gerais')
+                .setPlaceholder('📜 Selecionar canal de logs gerais')
                 .addChannelTypes(ChannelType.GuildText)
         );
         
-        const row2 = new ActionRowBuilder().addComponents(
+        const punishmentsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:punishments')
+                .setPlaceholder('⚖️ Selecionar canal de logs de punições')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const automodRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:automod')
+                .setPlaceholder('🛡️ Selecionar canal de logs de automoderação')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const ticketsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:tickets')
+                .setPlaceholder('🎫 Selecionar canal de logs de tickets')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const buttonRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-logs:criar')
-                .setLabel('➕ Criar Canais Automaticamente')
+                .setLabel('Criar Canais Automaticamente')
                 .setStyle(ButtonStyle.Success)
                 .setEmoji('➕')
         );
         
-        await ResponseManager.send(interaction, { embeds: [embed], components: [row1, row2] });
-    },
-    
-    // Método para criar canais automaticamente (chamado via handler)
-    async createLogChannels(interaction) {
-        const guild = interaction.guild;
-        const ConfigSystem = require('../../systems/configSystem');
-        
-        // Criar categoria
-        const category = await guild.channels.create({
-            name: '📊 LOGS DO SISTEMA',
-            type: ChannelType.GuildCategory,
-            permissionOverwrites: [
-                {
-                    id: guild.id,
-                    deny: [Perms.ViewChannel]
-                },
-                {
-                    id: interaction.client.user.id,
-                    allow: [Perms.ViewChannel, Perms.SendMessages, Perms.EmbedLinks]
-                }
-            ]
+        await ResponseManager.send(interaction, {
+            embeds: [embed],
+            components: [geralRow, punishmentsRow, automodRow, ticketsRow, buttonRow]
         });
-        
-        // Criar canais
-        const channels = {
-            geral: await guild.channels.create({
-                name: '📜 logs-gerais',
-                type: ChannelType.GuildText,
-                parent: category.id
-            }),
-            automod: await guild.channels.create({
-                name: '🛡️ logs-automod',
-                type: ChannelType.GuildText,
-                parent: category.id
-            }),
-            punishments: await guild.channels.create({
-                name: '⚖️ logs-punicoes',
-                type: ChannelType.GuildText,
-                parent: category.id
-            }),
-            tickets: await guild.channels.create({
-                name: '🎫 logs-tickets',
-                type: ChannelType.GuildText,
-                parent: category.id
-            })
-        };
-        
-        // Salvar no banco
-        ConfigSystem.setSetting(guild.id, 'log_channel', channels.geral.id);
-        ConfigSystem.setSetting(guild.id, 'log_automod', channels.automod.id);
-        ConfigSystem.setSetting(guild.id, 'log_punishments', channels.punishments.id);
-        ConfigSystem.setSetting(guild.id, 'log_tickets', channels.tickets.id);
-        
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('✅ Canais de Log Criados')
-            .setDescription('Os seguintes canais foram criados:')
-            .addFields(
-                { name: '📜 Geral', value: `<#${channels.geral.id}>`, inline: true },
-                { name: '🛡️ AutoMod', value: `<#${channels.automod.id}>`, inline: true },
-                { name: '⚖️ Punições', value: `<#${channels.punishments.id}>`, inline: true },
-                { name: '🎫 Tickets', value: `<#${channels.tickets.id}>`, inline: true }
-            )
-            .setFooter(ConfigSystem.getFooter(guild.name))
-            .setTimestamp();
-        
-        await interaction.update({ embeds: [embed], components: [] });
     }
 };

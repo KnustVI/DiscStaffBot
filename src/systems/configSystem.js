@@ -451,38 +451,60 @@ const ConfigSystem = {
 
     // ==================== CONFIG-LOGS ====================
 
-    async refreshLogsPanel(interaction, successMessage) {
+        async refreshLogsPanel(interaction, successMessage) {
         const guildId = interaction.guildId;
         
         const logGeral = this.getSetting(guildId, 'log_channel');
-        const logAutomod = this.getSetting(guildId, 'log_automod');
         const logPunishments = this.getSetting(guildId, 'log_punishments');
+        const logAutomod = this.getSetting(guildId, 'log_automod');
         const logTickets = this.getSetting(guildId, 'log_tickets');
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
             .setTitle('📝 Canais de Log')
-            .setDescription('Configure os canais para cada sistema:')
+            .setDescription('Selecione os canais abaixo:')
             .addFields(
-                { name: '📜 Geral', value: logGeral ? `<#${logGeral}>` : '`❌ Não definido`', inline: false },
-                { name: '🛡️ AutoModeração', value: logAutomod ? `<#${logAutomod}>` : '`❌ Não definido`', inline: true },
+                { name: '📜 Geral', value: logGeral ? `<#${logGeral}>` : '`❌ Não definido`', inline: true },
                 { name: '⚖️ Punições', value: logPunishments ? `<#${logPunishments}>` : '`❌ Não definido`', inline: true },
+                { name: '🛡️ AutoMod', value: logAutomod ? `<#${logAutomod}>` : '`❌ Não definido`', inline: true },
                 { name: '🎫 Tickets', value: logTickets ? `<#${logTickets}>` : '`❌ Não definido`', inline: true }
             )
             .setFooter(this.getFooter(interaction.guild.name))
             .setTimestamp();
         
-        const row1 = new ActionRowBuilder().addComponents(
+        // Cada select menu em sua própria linha (igual aos cargos)
+        const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:geral')
-                .setPlaceholder('Selecionar canal de logs gerais')
+                .setPlaceholder('📜 Selecionar canal de logs gerais')
                 .addChannelTypes(ChannelType.GuildText)
         );
         
-        const row2 = new ActionRowBuilder().addComponents(
+        const punishmentsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:punishments')
+                .setPlaceholder('⚖️ Selecionar canal de logs de punições')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const automodRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:automod')
+                .setPlaceholder('🛡️ Selecionar canal de logs de automoderação')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const ticketsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:tickets')
+                .setPlaceholder('🎫 Selecionar canal de logs de tickets')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const buttonRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-logs:criar')
-                .setLabel('➕ Criar Canais Automaticamente')
+                .setLabel('Criar Canais Automaticamente')
                 .setStyle(ButtonStyle.Success)
                 .setEmoji('➕')
         );
@@ -492,13 +514,13 @@ const ConfigSystem = {
                 await interaction.editReply({
                     content: successMessage || null,
                     embeds: [embed],
-                    components: [row1, row2]
+                    components: [geralRow, punishmentsRow, automodRow, ticketsRow, buttonRow]
                 });
             } else {
                 await interaction.update({
                     content: successMessage || null,
                     embeds: [embed],
-                    components: [row1, row2]
+                    components: [geralRow, punishmentsRow, automodRow, ticketsRow, buttonRow]
                 });
             }
         } catch (error) {
