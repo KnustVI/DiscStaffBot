@@ -73,62 +73,60 @@ const ConfigSystem = {
         };
     },
 
-    // ==================== HANDLER PRINCIPAL CONFIGS ====================
+    // ==================== HANDLER PRINCIPAL ====================
 
-            async handleComponent(interaction, action, param) {
-            try {
-                // Identificar o sistema pelo customId
-                const customId = interaction.customId;
-                
-                // CONFIG-POINTS
-                if (customId.startsWith('config-points:strike')) {
-                    await this.handleStrikeModal(interaction);
-                    return;
-                }
-                if (customId.startsWith('config-points:limites')) {
-                    await this.handleLimitesModal(interaction);
-                    return;
-                }
-                if (customId === 'config-points:reset') {
-                    await this.resetPoints(interaction);
-                    return;
-                }
-                
-                // CONFIG-ROLES
-                if (customId === 'config-roles:staff') {
-                    await this.setRole(interaction, 'staff_role');
-                    return;
-                }
-                if (customId === 'config-roles:strike') {
-                    await this.setRole(interaction, 'strike_role');
-                    return;
-                }
-                if (customId === 'config-roles:exemplar') {
-                    await this.setRole(interaction, 'role_exemplar');
-                    return;
-                }
-                if (customId === 'config-roles:problematico') {
-                    await this.setRole(interaction, 'role_problematico');
-                    return;
-                }
-                
-                // CONFIG-LOGS
-                if (customId === 'config-logs:geral') {
-                    await this.setLogChannel(interaction, 'log_channel');
-                    return;
-                }
-                if (customId === 'config-logs:criar') {
-                    await this.createLogChannels(interaction);
-                    return;
-                }
-                
-                // Fallback para outros casos
-                await ResponseManager.error(interaction, `Ação não reconhecida: ${customId}`);
-            } catch (error) {
-                console.error('❌ Erro no handleComponent:', error);
-                await ResponseManager.error(interaction, 'Ocorreu um erro ao processar a configuração.');
+    async handleComponent(interaction, action, param) {
+        try {
+            const customId = interaction.customId;
+            
+            // CONFIG-POINTS
+            if (customId.startsWith('config-points:strike')) {
+                await this.handleStrikeModal(interaction);
+                return;
             }
-        },
+            if (customId.startsWith('config-points:limites')) {
+                await this.handleLimitesModal(interaction);
+                return;
+            }
+            if (customId === 'config-points:reset') {
+                await this.resetPoints(interaction);
+                return;
+            }
+            
+            // CONFIG-ROLES
+            if (customId === 'config-roles:staff') {
+                await this.setRole(interaction, 'staff_role');
+                return;
+            }
+            if (customId === 'config-roles:strike') {
+                await this.setRole(interaction, 'strike_role');
+                return;
+            }
+            if (customId === 'config-roles:exemplar') {
+                await this.setRole(interaction, 'role_exemplar');
+                return;
+            }
+            if (customId === 'config-roles:problematico') {
+                await this.setRole(interaction, 'role_problematico');
+                return;
+            }
+            
+            // CONFIG-LOGS
+            if (customId === 'config-logs:geral') {
+                await this.setLogChannel(interaction, 'log_channel');
+                return;
+            }
+            if (customId === 'config-logs:criar') {
+                await this.createLogChannels(interaction);
+                return;
+            }
+            
+            await ResponseManager.error(interaction, `Ação não reconhecida: ${customId}`);
+        } catch (error) {
+            console.error('❌ Erro no handleComponent:', error);
+            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar a configuração.');
+        }
+    },
 
     async handleModal(interaction, action) {
         try {
@@ -357,25 +355,77 @@ const ConfigSystem = {
                 .setEmoji('⚠️')
         );
         
-         if (interaction.deferred) {
-        await interaction.editReply({
-            content: successMessage || null,
-            embeds: [embed],
-            components: [row]
-        });
-    } else {
-        await interaction.update({
-            content: successMessage || null,
-            embeds: [embed],
-            components: [row]
-        });
-    }
-},
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply({
+                content: successMessage || null,
+                embeds: [embed],
+                components: [row]
+            });
+        } else {
+            await interaction.update({
+                content: successMessage || null,
+                embeds: [embed],
+                components: [row]
+            });
+        }
+    },
 
     // ==================== CONFIG-ROLES ====================
 
-        async setRole(interaction, roleKey) {
-        // Select menus já têm defer do interactionCreate
+    async refreshRolesPanel(interaction, successMessage) {
+        const guildId = interaction.guildId;
+        
+        const staffRole = this.getSetting(guildId, 'staff_role');
+        const strikeRole = this.getSetting(guildId, 'strike_role');
+        const exemplarRole = this.getSetting(guildId, 'role_exemplar');
+        const problematicoRole = this.getSetting(guildId, 'role_problematico');
+        
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setTitle('👥 Cargos do Sistema')
+            .setDescription('Selecione os cargos abaixo:')
+            .addFields(
+                { name: '🛡️ Staff', value: staffRole ? `<@&${staffRole}>` : '`❌ Não definido`', inline: true },
+                { name: '⚠️ Strike (Temporário)', value: strikeRole ? `<@&${strikeRole}>` : '`❌ Não definido`', inline: true },
+                { name: '✨ Exemplar', value: exemplarRole ? `<@&${exemplarRole}>` : '`❌ Não definido`', inline: true },
+                { name: '⚠️ Problemático', value: problematicoRole ? `<@&${problematicoRole}>` : '`❌ Não definido`', inline: true }
+            )
+            .setFooter(this.getFooter(interaction.guild.name))
+            .setTimestamp();
+        
+        const staffRow = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
+        );
+        const strikeRow = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike')
+        );
+        const exemplarRow = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar')
+        );
+        const problematicoRow = new ActionRowBuilder().addComponents(
+            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático')
+        );
+        
+        try {
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({
+                    content: successMessage || null,
+                    embeds: [embed],
+                    components: [staffRow, strikeRow, exemplarRow, problematicoRow]
+                });
+            } else {
+                await interaction.update({
+                    content: successMessage || null,
+                    embeds: [embed],
+                    components: [staffRow, strikeRow, exemplarRow, problematicoRow]
+                });
+            }
+        } catch (error) {
+            console.error('❌ Erro no refreshRolesPanel:', error);
+        }
+    },
+
+    async setRole(interaction, roleKey) {
         const selectedRoleId = interaction.values[0];
         if (!selectedRoleId) {
             return await ResponseManager.error(interaction, 'Nenhum cargo selecionado.');
@@ -399,127 +449,9 @@ const ConfigSystem = {
         await this.refreshRolesPanel(interaction, `✅ **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
-        async setLogChannel(interaction, channelKey) {
-        const selectedChannelId = interaction.values[0];
-        if (!selectedChannelId) {
-            return await ResponseManager.error(interaction, 'Nenhum canal selecionado.');
-        }
-        
-        const channel = interaction.guild.channels.cache.get(selectedChannelId);
-        if (!channel) {
-            return await ResponseManager.error(interaction, 'Canal não encontrado.');
-        }
-        
-        this.setSetting(interaction.guildId, channelKey, selectedChannelId);
-        this.clearCache(interaction.guildId);
-        
-        await this.refreshLogsPanel(interaction, `✅ **Canal de logs** alterado para ${channel}`);
-},
+    // ==================== CONFIG-LOGS ====================
 
-    async createLogChannels(interaction) {
-    try {
-        // Verificar se a interação ainda é válida
-        if (!interaction.isRepliable()) {
-            console.error('❌ Interação não pode ser respondida');
-            return;
-        }
-        
-        const guild = interaction.guild;
-        
-        // Verificar permissões
-        if (!guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
-            if (interaction.deferred) {
-                await interaction.editReply({ content: '❌ Não tenho permissão para criar canais.', components: [] });
-            } else {
-                await interaction.reply({ content: '❌ Não tenho permissão para criar canais.', flags: 64 });
-            }
-            return;
-        }
-        
-        // Responder imediatamente para evitar timeout
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.reply({ content: '⏳ Criando canais de log...', flags: 64 });
-        }
-        
-        // Criar categoria
-        const category = await guild.channels.create({
-            name: '📊 LOGS DO SISTEMA',
-            type: ChannelType.GuildCategory,
-            permissionOverwrites: [
-                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks] }
-            ]
-        });
-        
-        // Criar canais
-        const geral = await guild.channels.create({
-            name: '📜 logs-gerais',
-            type: ChannelType.GuildText,
-            parent: category.id
-        });
-        
-        const automod = await guild.channels.create({
-            name: '🛡️ logs-automod',
-            type: ChannelType.GuildText,
-            parent: category.id
-        });
-        
-        const punishments = await guild.channels.create({
-            name: '⚖️ logs-punicoes',
-            type: ChannelType.GuildText,
-            parent: category.id
-        });
-        
-        const tickets = await guild.channels.create({
-            name: '🎫 logs-tickets',
-            type: ChannelType.GuildText,
-            parent: category.id
-        });
-        
-        // Salvar configurações
-        this.setSetting(guild.id, 'log_channel', geral.id);
-        this.setSetting(guild.id, 'log_automod', automod.id);
-        this.setSetting(guild.id, 'log_punishments', punishments.id);
-        this.setSetting(guild.id, 'log_tickets', tickets.id);
-        this.clearCache(guild.id);
-        
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('✅ Canais de Log Criados')
-            .setDescription('Os seguintes canais foram criados:')
-            .addFields(
-                { name: '📜 Geral', value: `<#${geral.id}>`, inline: true },
-                { name: '🛡️ AutoMod', value: `<#${automod.id}>`, inline: true },
-                { name: '⚖️ Punições', value: `<#${punishments.id}>`, inline: true },
-                { name: '🎫 Tickets', value: `<#${tickets.id}>`, inline: true }
-            )
-            .setFooter(this.getFooter(guild.name))
-            .setTimestamp();
-        
-        // Editar a mensagem original
-        if (interaction.deferred) {
-            await interaction.editReply({ embeds: [embed], components: [] });
-        } else if (interaction.replied) {
-            await interaction.editReply({ embeds: [embed], components: [] });
-        } else {
-            await interaction.reply({ embeds: [embed], flags: 64 });
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao criar canais:', error);
-        try {
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: `❌ Erro ao criar canais: ${error.message}`, components: [] });
-            } else {
-                await interaction.reply({ content: `❌ Erro ao criar canais: ${error.message}`, flags: 64 });
-            }
-        } catch (err) {
-            console.error('❌ Erro ao responder:', err);
-        }
-    }
-},
-
-        async refreshLogsPanel(interaction, successMessage) {
+    async refreshLogsPanel(interaction, successMessage) {
         const guildId = interaction.guildId;
         
         const logGeral = this.getSetting(guildId, 'log_channel');
@@ -550,7 +482,7 @@ const ConfigSystem = {
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-logs:criar')
-                .setLabel('Criar Canais Automaticamente')
+                .setLabel('➕ Criar Canais Automaticamente')
                 .setStyle(ButtonStyle.Success)
                 .setEmoji('➕')
         );
@@ -572,7 +504,127 @@ const ConfigSystem = {
         } catch (error) {
             console.error('❌ Erro no refreshLogsPanel:', error);
         }
+    },
+
+    async setLogChannel(interaction, channelKey) {
+        const selectedChannelId = interaction.values[0];
+        if (!selectedChannelId) {
+            return await ResponseManager.error(interaction, 'Nenhum canal selecionado.');
+        }
+        
+        const channel = interaction.guild.channels.cache.get(selectedChannelId);
+        if (!channel) {
+            return await ResponseManager.error(interaction, 'Canal não encontrado.');
+        }
+        
+        this.setSetting(interaction.guildId, channelKey, selectedChannelId);
+        this.clearCache(interaction.guildId);
+        
+        await this.refreshLogsPanel(interaction, `✅ **Canal de logs** alterado para ${channel}`);
+    },
+
+    async createLogChannels(interaction) {
+        try {
+            if (!interaction.isRepliable()) {
+                console.error('❌ Interação não pode ser respondida');
+                return;
+            }
+            
+            const guild = interaction.guild;
+            
+            if (!guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ content: '❌ Não tenho permissão para criar canais.', components: [] });
+                } else {
+                    await interaction.reply({ content: '❌ Não tenho permissão para criar canais.', flags: 64 });
+                }
+                return;
+            }
+            
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.reply({ content: '⏳ Criando canais de log...', flags: 64 });
+            }
+            
+            const category = await guild.channels.create({
+                name: '📊 LOGS DO SISTEMA',
+                type: ChannelType.GuildCategory,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks] }
+                ]
+            });
+            
+            const geral = await guild.channels.create({
+                name: '📜 logs-gerais',
+                type: ChannelType.GuildText,
+                parent: category.id
+            });
+            
+            const automod = await guild.channels.create({
+                name: '🛡️ logs-automod',
+                type: ChannelType.GuildText,
+                parent: category.id
+            });
+            
+            const punishments = await guild.channels.create({
+                name: '⚖️ logs-punicoes',
+                type: ChannelType.GuildText,
+                parent: category.id
+            });
+            
+            const tickets = await guild.channels.create({
+                name: '🎫 logs-tickets',
+                type: ChannelType.GuildText,
+                parent: category.id
+            });
+            
+            this.setSetting(guild.id, 'log_channel', geral.id);
+            this.setSetting(guild.id, 'log_automod', automod.id);
+            this.setSetting(guild.id, 'log_punishments', punishments.id);
+            this.setSetting(guild.id, 'log_tickets', tickets.id);
+            this.clearCache(guild.id);
+            
+            const embed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setTitle('✅ Canais de Log Criados')
+                .setDescription('Os seguintes canais foram criados:')
+                .addFields(
+                    { name: '📜 Geral', value: `<#${geral.id}>`, inline: true },
+                    { name: '🛡️ AutoMod', value: `<#${automod.id}>`, inline: true },
+                    { name: '⚖️ Punições', value: `<#${punishments.id}>`, inline: true },
+                    { name: '🎫 Tickets', value: `<#${tickets.id}>`, inline: true }
+                )
+                .setFooter(this.getFooter(guild.name))
+                .setTimestamp();
+            
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({ embeds: [embed], components: [] });
+            } else {
+                await interaction.reply({ embeds: [embed], flags: 64 });
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao criar canais:', error);
+            try {
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ content: `❌ Erro ao criar canais: ${error.message}`, components: [] });
+                } else {
+                    await interaction.reply({ content: `❌ Erro ao criar canais: ${error.message}`, flags: 64 });
+                }
+            } catch (err) {
+                console.error('❌ Erro ao responder:', err);
+            }
+        }
+    },
+
+    clearAllCache() {
+    try {
+        cache.clear();
+        console.log('🗑️ Cache completo limpo');
+    } catch (error) {
+        console.error('❌ Erro ao limpar cache completo:', error);
     }
+}
 };
- 
+
 module.exports = ConfigSystem;
