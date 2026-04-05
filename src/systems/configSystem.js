@@ -345,12 +345,20 @@ const ConfigSystem = {
                 .setEmoji('⚠️')
         );
         
+         if (interaction.deferred) {
+        await interaction.editReply({
+            content: successMessage || null,
+            embeds: [embed],
+            components: [row]
+        });
+    } else {
         await interaction.update({
             content: successMessage || null,
             embeds: [embed],
             components: [row]
         });
-    },
+    }
+},
 
     // ==================== CONFIG-ROLES ====================
 
