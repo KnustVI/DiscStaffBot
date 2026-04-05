@@ -639,6 +639,23 @@ const ConfigSystem = {
         }
     },
 
+    getLogChannel(guildId, type) {
+        const channelMap = {
+            geral: 'log_channel',
+            punishments: 'log_punishments',
+            automod: 'log_automod',
+            tickets: 'log_tickets'
+        };
+        
+        const key = channelMap[type];
+        if (!key) return null;
+        
+        const channelId = this.getSetting(guildId, key);
+        if (!channelId) return null;
+        
+        return channelId;
+    },
+
     clearAllCache() {
     try {
         cache.clear();
