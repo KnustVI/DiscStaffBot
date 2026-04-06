@@ -100,33 +100,37 @@ const PunishmentSystem = {
         return embed;
     },
 
-    /**
-     * Constrói a lista de punições para o histórico
-     */
-    buildPunishmentsList(punishments, EMOJIS) {
-        if (punishments.length === 0) {
-            return `\`\`\`\nNenhuma punição registrada.\n\`\`\``;
-        }
-        
-        const listItems = [];
-        
-        for (const p of punishments) {
-            const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
-            const severityIcon = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'][p.severity] || '❓';
-            const statusIcon = p.status === 'active' ? '🔴' : (p.status === 'revoked' ? '✅' : '⚪');
+        /**
+         * Constrói a lista de punições para o histórico
+         */
+        buildPunishmentsList(punishments, EMOJIS) {
+            if (punishments.length === 0) {
+                return `\`\`\`\nNenhuma punição registrada.\n\`\`\``;
+            }
             
-            listItems.push(
-                `### ${severityIcon} Strike #${p.id} | ${date}`,
-                `- **Motivo:** ${p.reason}`,
-                `- **Moderador:** <@${p.moderator_id}>`,
-                p.ticket_id ? `- **Ticket:** \`${p.ticket_id}\`` : null,
-                p.status === 'revoked' ? `- **Status:** ✅ Anulado` : null,
-                ``
-            ).filter(line => line !== null);
-        }
-        
-        return listItems.join('\n');
-    },
+            const listItems = [];
+            
+            for (const p of punishments) {
+                const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
+                const severityIcon = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'][p.severity] || '❓';
+                
+                listItems.push(`### ${severityIcon} Strike #${p.id} | ${date}`);
+                listItems.push(`- **Motivo:** ${p.reason}`);
+                listItems.push(`- **Moderador:** <@${p.moderator_id}>`);
+                
+                if (p.ticket_id) {
+                    listItems.push(`- **Ticket:** \`${p.ticket_id}\``);
+                }
+                
+                if (p.status === 'revoked') {
+                    listItems.push(`- **Status:** ✅ Anulado`);
+                }
+                
+                listItems.push(``); // linha em branco entre punições
+            }
+            
+            return listItems.join('\n');
+        },
     
     generateHistoryButtons(targetId, currentPage, totalPages) {
         if (totalPages <= 1) return null;
