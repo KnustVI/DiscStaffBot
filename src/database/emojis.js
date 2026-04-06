@@ -34,7 +34,7 @@ const EMOJIS = {
     notregistred: formatEmoji('1488572140218486825', 'notregistred'),
     Note: formatEmoji('1488572138871848960', 'Note'),
     mute: formatEmoji('1488572137785786519', 'mute'),
-    loose: formatEmoji('1488572136472707203', 'loose'),
+    lose: formatEmoji('1488572136472707203', 'lose'),
     Left: formatEmoji('1488572135361351760', 'Left'),
     Leadboard: formatEmoji('1488572134057054230', 'Leadboard'),
     Identification: formatEmoji('1488572132962341015', 'Identification'),
