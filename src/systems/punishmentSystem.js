@@ -84,9 +84,9 @@ const PunishmentSystem = {
         // Construir descrição com headers
         const description = [
             `# ${EMOJIS.History || '📋'} HISTÓRICO`,
+            `Consulta detalhada do sistema de reputação e punições.`,
             `## <@${target.id}>`,
             `【${target.username}】`,
-            `Consulta detalhada do sistema de reputação e punições.`,
         ].join('\n');
         
         const embed = new EmbedBuilder()
