@@ -7,9 +7,9 @@ const EmbedFormatter = require('../utils/embedFormatter');
 // Cores padrão do sistema
 const COLORS = {
     DEFAULT: 0xDCA15E,
-    SUCCESS: 0x00FF00,
-    DANGER: 0xFF0000,
-    WARNING: 0xFFA500
+    SUCCESS: 0xBBF96A,
+    DANGER: 0xF64B4E,
+    WARNING: 0xFFBD59
 };
 
 const PunishmentSystem = {
