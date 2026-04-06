@@ -25,7 +25,7 @@ module.exports = {
             const footerText = ConfigSystem.getSetting(guild.id, 'footer_text') || guild.name;
             
             const description = [
-                `# ${emojis.user || '🤖'} Assistente Robin`,
+                `# ${emojis.user || '🤖'} Assistente TITAN`,
                 `Olá **${member.displayName}**! Sou o sistema de gestão do **${guild.name}**.`,
                 `### ${emojis.Config || '⚙️'} Configuração`,
                 `Apenas administradores podem usar estes comandos para configurar o sistema e personalizar a experiência da equipe.`,
