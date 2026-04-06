@@ -323,7 +323,7 @@ const ConfigSystem = {
         await this.refreshPointsPanel(interaction, `${emojisFile.Check || '✅'} Todos os valores foram resetados para o padrão!`);
     },
 
-    async refreshPointsPanel(interaction, successMessage) {
+    async refreshPointsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         
@@ -359,7 +359,7 @@ const ConfigSystem = {
             .setColor(0xDCA15E)
             .setDescription(description)
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -396,7 +396,7 @@ const ConfigSystem = {
 
     // ==================== CONFIG-ROLES ====================
 
-    async refreshRolesPanel(interaction, successMessage) {
+    async refreshRolesPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
         
         const staffRole = this.getSetting(guildId, 'staff_role');
@@ -415,7 +415,7 @@ const ConfigSystem = {
                 { name: `${EMOJIS.Warning || '⚠️'} Problemático`, value: problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder(`${EMOJIS.staff || '🛡️'} Selecionar cargo de Staff`)
@@ -475,7 +475,7 @@ const ConfigSystem = {
 
     // ==================== CONFIG-LOGS ====================
 
-    async refreshLogsPanel(interaction, successMessage) {
+    async refreshLogsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
         
         const logGeral = this.getSetting(guildId, 'log_channel');
@@ -494,7 +494,7 @@ const ConfigSystem = {
                 { name: `${EMOJIS.Ticket || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
