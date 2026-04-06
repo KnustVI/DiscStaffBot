@@ -218,7 +218,7 @@ const PunishmentSystem = {
         EmbedFormatter.addFields(embed, [
             EmbedFormatter.userField(target, null),           // inline: true
             EmbedFormatter.moderatorField(moderator, null),   // inline: true
-            EmbedFormatter.pointsField('Pontos subtraídos', -pointsLost, `${emoji.lose || '📉'}`),  // inline: true
+            EmbedFormatter.pointsField('Pontos subtraídos', -pointsLost, `${EMOJIS.lose || '📉'}`),  // inline: true
             EmbedFormatter.reputationField(newPoints + pointsLost, newPoints)     // inline: true
         ]);
         
@@ -259,7 +259,7 @@ const PunishmentSystem = {
         
         // Ações baseadas na severidade
         if (severity >= 1 && severity <= 2) {
-            actions.push(`- ${EMOJIS.edit || '📝'} **Registro:** Infração registrada no sistema`);
+            actions.push(`- ${EMOJIS.DM || '📝'} **Registro:** Infração registrada no sistema`);
         }
         if (severity >= 3) {
             actions.push(`- ${EMOJIS.Warning || '⚠️'} **Aviso Formal:** Comportamento inadequado registrado`);
