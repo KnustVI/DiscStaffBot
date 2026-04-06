@@ -1,6 +1,7 @@
 const db = require('../database/index');
 const sessionManager = require('../utils/sessionManager');
 const ResponseManager = require('../utils/responseManager');
+const EmbedFormatter = require('../utils/embedFormatter');
 const { 
     EmbedBuilder, 
     ActionRowBuilder, 
@@ -84,13 +85,6 @@ const ConfigSystem = {
         } catch (error) {
             console.error(`❌ Erro ao limpar cache:`, error);
         }
-    },
-
-    getFooter(guildName) {
-        return {
-            text: `[By:KnustVI](https://github.com/KnustVI) • ${guildName}`,
-            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
-        };
     },
 
     // ==================== HANDLER PRINCIPAL ====================
@@ -280,8 +274,8 @@ const ConfigSystem = {
         this.clearCache(interaction.guildId);
         
         const changeMessage = changes.length > 0 
-            ? `✅ **${changes.length} alterações salvas!**\n${changes.join('\n')}`
-            : 'ℹ️ Nenhuma alteração foi detectada.';
+            ? `${emojisFile.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`
+            : `${emojisFile.Info || 'ℹ️'} Nenhuma alteração foi detectada.`;
         
         await this.refreshPointsPanel(interaction, changeMessage);
     },
@@ -312,8 +306,8 @@ const ConfigSystem = {
         if (oldProblematic != problematicLimit) changes.push(`⚠️ Problemático: \`${oldProblematic || 30}\` → \`${problematicLimit}\``);
         
         const changeMessage = changes.length > 0 
-            ? `✅ **Limites atualizados!**\n${changes.join('\n')}`
-            : 'ℹ️ Nenhuma alteração foi detectada.';
+            ? `${emojisFile.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
+            : `${emojisFile.Info || 'ℹ️'} Nenhuma alteração foi detectada.`;
         
         await this.refreshPointsPanel(interaction, changeMessage);
     },
@@ -326,7 +320,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'limit_exemplar', '95');
         this.setSetting(interaction.guildId, 'limit_problematico', '30');
         this.clearCache(interaction.guildId);
-        await this.refreshPointsPanel(interaction, '✅ Todos os valores foram resetados para o padrão!');
+        await this.refreshPointsPanel(interaction, `${emojisFile.Check || '✅'} Todos os valores foram resetados para o padrão!`);
     },
 
     async refreshPointsPanel(interaction, successMessage) {
@@ -350,14 +344,12 @@ const ConfigSystem = {
         const description = [
             `# ${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`,
             `Gerencie os valores do sistema de reputação.`,
-            ``,
             `## ${EMOJIS.strike || '🎯'} Níveis de Strike`,
             `${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``,
             `${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``,
             `${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``,
             `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
             `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
-            ``,
             `## ${EMOJIS.Rank || '📊'} Limites de Reputação`,
             `**${EMOJIS.shinystar || '🎖️'} Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
             `**${EMOJIS.Warning || '⚠️'} Problemático:** Abaixo de \`${problematicLimit}\` pontos`
@@ -366,19 +358,19 @@ const ConfigSystem = {
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
             .setDescription(description)
-            .setFooter(this.getFooter(interaction.guild.name))
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-points:strike:modal')
                 .setLabel(`${EMOJIS.strike || '🎯'} Editar Níveis de Strike`)
-                .setStyle(ButtonStyle.Primary)
+                .setStyle(ButtonStyle.Secondary)
                 .setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:limites:modal')
                 .setLabel(`${EMOJIS.Rank || '📊'} Editar Limites`)
-                .setStyle(ButtonStyle.Primary)
+                .setStyle(ButtonStyle.Secondary)
                 .setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:reset')
@@ -422,8 +414,8 @@ const ConfigSystem = {
                 { name: `${EMOJIS.shinystar || '✨'} Exemplar`, value: exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.Warning || '⚠️'} Problemático`, value: problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
-            .setFooter(this.getFooter(interaction.guild.name))
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder(`${EMOJIS.staff || '🛡️'} Selecionar cargo de Staff`)
@@ -478,7 +470,7 @@ const ConfigSystem = {
             role_problematico: 'Problemático'
         };
         
-        await this.refreshRolesPanel(interaction, `✅ **${roleLabels[roleKey]}** alterado para ${role}`);
+        await this.refreshRolesPanel(interaction, `${emojisFile.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
     // ==================== CONFIG-LOGS ====================
@@ -501,8 +493,8 @@ const ConfigSystem = {
                 { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.Ticket || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
-            .setFooter(this.getFooter(interaction.guild.name))
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
         
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
@@ -536,7 +528,7 @@ const ConfigSystem = {
             new ButtonBuilder()
                 .setCustomId('config-logs:criar')
                 .setLabel('Criar Canais Automaticamente')
-                .setStyle(ButtonStyle.Success)
+                .setStyle(ButtonStyle.Secondary)
                 .setEmoji(EMOJIS.plusone || '➕')
         );
         
@@ -606,7 +598,7 @@ const ConfigSystem = {
             }
             
             const category = await guild.channels.create({
-                name: '📊 LOGS DO SISTEMA',
+                name: '▋▋🪵 𝗟𝗢𝗚𝗦 𝗗𝗢 𝗦𝗜𝗦𝗧𝗘𝗠𝗔▋▋',
                 type: ChannelType.GuildCategory,
                 permissionOverwrites: [
                     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -615,25 +607,25 @@ const ConfigSystem = {
             });
             
             const geral = await guild.channels.create({
-                name: `${EMOJIS.global || '📜'} logs-gerais`,
+                name: `'📜' logs-gerais`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const automod = await guild.channels.create({
-                name: `${EMOJIS.AutoMod || '🛡️'} logs-automod`,
+                name: `'🛡️'logs-automod`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const punishments = await guild.channels.create({
-                name: `${EMOJIS.strike || '⚖️'} logs-punicoes`,
+                name: `'⚖️' logs-punicoes`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const tickets = await guild.channels.create({
-                name: `${EMOJIS.Ticket || '🎫'} logs-tickets`,
+                name: `'🎫' logs-tickets`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
@@ -645,7 +637,7 @@ const ConfigSystem = {
             this.clearCache(guild.id);
             
             const embed = new EmbedBuilder()
-                .setColor(0x00FF00)
+                .setColor(0xBBF96A)
                 .setTitle(`${EMOJIS.Check || '✅'} Canais de Log Criados`)
                 .setDescription('Os seguintes canais foram criados:')
                 .addFields(
@@ -654,8 +646,8 @@ const ConfigSystem = {
                     { name: `${EMOJIS.strike || '⚖️'} Punições`, value: `<#${punishments.id}>`, inline: true },
                     { name: `${EMOJIS.Ticket || '🎫'} Tickets`, value: `<#${tickets.id}>`, inline: true }
                 )
-                .setFooter(this.getFooter(guild.name))
                 .setTimestamp();
+                embed.setFooter(EmbedFormatter.getFooter(guild.name));
             
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ embeds: [embed], components: [] });

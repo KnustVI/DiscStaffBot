@@ -85,7 +85,7 @@ const PunishmentSystem = {
         // Construir descrição com headers
         const description = [
             `# ${EMOJIS.History || '📋'} HISTÓRICO`,
-            `${userMention} ${target.username.toUpperCase()}`,
+            `${userMention}`,
             `Consulta detalhada do sistema de reputação e punições.`,
         ].join('\n');
         
@@ -98,11 +98,7 @@ const PunishmentSystem = {
 
                 // Fields com informações
             embed.addFields(
-                { 
-                    name: `${EMOJIS.user || '👤'} Usuário`, 
-                    value: EmbedFormatter.formatUser(target),
-                    inline: true 
-                },
+
                 { 
                     name: `${repEmoji} Reputação Atual`, 
                     value: `${history.reputation}/100 pontos`,
@@ -147,19 +143,18 @@ const PunishmentSystem = {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
                 const severityIcon = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'][p.severity] || '❓';
                 
-                listItems.push(`### ${severityIcon} Strike #${p.id} | ${date}`);
-                listItems.push(`- **Motivo:** ${p.reason}`);
-                listItems.push(`- **Moderador:** <@${p.moderator_id}>`);
+                listItems.push(`╭ ${severityIcon} Strike #${p.id} | ${date}`);
+                listItems.push(`┃**Moderador:** <@${p.moderator_id}>`);
                 
                 if (p.ticket_id) {
-                    listItems.push(`- **Ticket:** \`${p.ticket_id}\``);
+                    listItems.push(`┃**Ticket:** \`${p.ticket_id}\``);
                 }
                 
                 if (p.status === 'revoked') {
-                    listItems.push(`- **Status:** ${EMOJIS.check || '✅'} Anulado`);
+                    listItems.push(`┃**Status:** ${EMOJIS.Check || '✅'} Anulado`);
                 }
                 
-                listItems.push(``); // linha em branco entre punições
+                listItems.push(`╰━━━━━━━━━━━━━━━━━━━━`);
             }
             
             return listItems.join('\n');
@@ -183,7 +178,7 @@ const PunishmentSystem = {
     },
     
     generateSystemStatusEmbed(guildName, stats) {
-        return new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle(`${EMOJIS.Config || '⚙️'} Status do Sistema de Punições`)
             .setColor(COLORS.DEFAULT)
             .setDescription(`**Servidor:** ${guildName}`)
@@ -193,8 +188,8 @@ const PunishmentSystem = {
                 { name: '⭐ Reputação Média', value: `\`${stats.avgReputation}/100\``, inline: true },
                 { name: '⚠️ Strikes Ativos (30d)', value: `\`${stats.recentStrikes}\``, inline: true }
             )
-            .setFooter({ text: `Sistema Robin • ${guildName}` })
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
     },
     
     // ==================== EMBEDS UNIFICADOS (DM + LOG) ====================
@@ -207,9 +202,9 @@ const PunishmentSystem = {
         const description = [
             `# ${EMOJIS.lose || '❌'} STRIKE! | #${strikeId}`,
             `Um novo registro de infração foi adicionado ao sistema.`,
-            `### ${EMOJIS.strike || '⚠️'} Punições Aplicadas`,
+            `## ${EMOJIS.strike || '⚠️'} Punições Aplicadas`,
             this.getPunishmentActions(severity, discordAct, discordActionResult),
-            `### ${EMOJIS.Note || '📝'} Motivo`,
+            `## ${EMOJIS.Note || '📝'} Motivo`,
             `\`\`\`text\n${reason}\n\`\`\``
         ].join('\n');
         
@@ -222,11 +217,11 @@ const PunishmentSystem = {
         EmbedFormatter.addFields(embed, [
             EmbedFormatter.userField(target, null),           // inline: true
             EmbedFormatter.moderatorField(moderator, null),   // inline: true
-            EmbedFormatter.pointsField('Pontos subtraídos', -pointsLost, '📉'),  // inline: true
+            EmbedFormatter.pointsField('Pontos subtraídos', -pointsLost, `${emoji.lose || '📉'}`),  // inline: true
             EmbedFormatter.reputationField(newPoints + pointsLost, newPoints)     // inline: true
         ]);
         
-        embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
+        embed.setFooter(EmbedFormatter.getFooter(guildName));
         return embed;
 
         },
@@ -254,7 +249,7 @@ const PunishmentSystem = {
         EmbedFormatter.reputationField(newPoints - pointsRestored, newPoints)    // inline: true
     ]);
     
-            embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
             return embed;
     },
     
@@ -263,7 +258,7 @@ const PunishmentSystem = {
         
         // Ações baseadas na severidade
         if (severity >= 1 && severity <= 2) {
-            actions.push(`- ${EMOJIS.Note || '📝'} **Registro:** Infração registrada no sistema`);
+            actions.push(`- ${EMOJIS.edit || '📝'} **Registro:** Infração registrada no sistema`);
         }
         if (severity >= 3) {
             actions.push(`- ${EMOJIS.Warning || '⚠️'} **Aviso Formal:** Comportamento inadequado registrado`);

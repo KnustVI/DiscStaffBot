@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
+const EmbedFormatter = require('../../utils/embedFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -49,40 +50,40 @@ module.exports = {
         const description = [
             `# ${emojis.Config || '⚙️'} Configuração de Pontos e Limites`,
             `Gerencie os valores do sistema de reputação.`,
-            `### ${emojis.strike || '🎯'} Níveis de Strike`,
+            `## ${emojis.strike || '🎯'} Níveis de Strike`,
             `${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``,
             `${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``,
             `${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``,
             `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
             `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
-            `### ${emojis.Rank || '📊'} Limites de Reputação`,
-            `**${emojis.shinystar || '🎖️'} Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
-            `**${emojis.Warning || '⚠️'} Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
-            `### ${emojis.Note || '📝'} Valores Padrão`,
-            `Strike: 10 | 25 | 40 | 60 | 100`,
-            `Limites: Exemplar > 95 | Problemático < 30`
+            `## ${emojis.Rank || '📊'} Limites de Reputação`,
+            `- **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
+            `- **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
+            `## ${emojis.Note || '📝'} Valores Padrão`,
+            `- **Strike:** 10 | 25 | 40 | 60 | 100`,
+            `- **Limites:** Exemplar > 95 | Problemático <30`
         ].join('\n');
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
             .setDescription(description)
-            .setFooter(ConfigSystem.getFooter(guild.name))
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-points:strike:modal')
-                .setLabel(`${emojis.strike || '🎯'} Editar Níveis de Strike`)
+                .setLabel(` Editar Níveis de Strike`)
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji(emojis.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:limites:modal')
-                .setLabel(`${emojis.Rank || '📊'} Editar Limites`)
+                .setLabel(`Editar Limites`)
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji(emojis.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:reset')
-                .setLabel(`${emojis.Reset || '⚠️'} Resetar Padrão`)
+                .setLabel(`Resetar Padrão`)
                 .setStyle(ButtonStyle.Danger)
                 .setEmoji(emojis.Reset || '⚠️')
         );

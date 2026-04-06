@@ -3,22 +3,31 @@ const ErrorLogger = require('./errorLogger');
 const os = require('os');
 const { EmbedBuilder } = require('discord.js');
 
+// Carregar emojis do servidor
+let EMOJIS = {};
+try {
+    const emojisFile = require('../database/emojis.js');
+    EMOJIS = emojisFile.EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 // Cores padrão do sistema
 const COLORS = {
-    DEFAULT: 0xDCA15E,      // Cor padrão
-    SUCCESS: 0x00FF00,      // Verde para status bom
-    WARNING: 0xFFA500,      // Laranja para status moderado
-    DANGER: 0xFF0000        // Vermelho para status crítico
+    DEFAULT: 0xDCA15E,
+    SUCCESS: 0xBBF96A,
+    WARNING: 0xFFBD59,
+    DANGER: 0xF64B4E
 };
+
+// Cache para estatísticas
+const statsCache = new Map();
+const CACHE_TTL = 60000; // 1 minuto
 
 class SystemStatus {
     
     // ==================== MÉTODOS PARA HANDLER CENTRAL ====================
     
-    /**
-     * Handler para componentes (botões e selects)
-     * Chamado pelo InteractionHandler quando customId começa com "status:"
-     */
     static async handleComponent(interaction, action, param) {
         try {
             switch (action) {
@@ -30,40 +39,36 @@ class SystemStatus {
                     break;
                 default:
                     await interaction.editReply({
-                        content: `❌ Ação "${action}" não reconhecida no sistema de status.`,
+                        content: `${EMOJIS.Error || '❌'} Ação "${action}" não reconhecida no sistema de status.`,
                         components: []
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent do systemStatus:', error);
             await interaction.editReply({
-                content: '❌ Ocorreu um erro ao processar o status do sistema.',
+                content: `${EMOJIS.Error || '❌'} Ocorreu um erro ao processar o status do sistema.`,
                 components: []
             });
         }
     }
     
-    /**
-     * Atualiza o status (refresh)
-     */
     static async handleRefreshStatus(interaction) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         
         if (!status) {
             return await interaction.editReply({
-                content: '❌ Erro ao obter status do sistema.',
+                content: `${EMOJIS.Error || '❌'} Erro ao obter status do sistema.`,
                 components: []
             });
         }
         
-        const embed = this.generateStatusEmbed(status);
+        const embed = this.generateStatusEmbed(status, interaction.guild);
         
-        // Adicionar botão de refresh
         const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('status:refresh')
-                .setLabel('🔄 Atualizar')
+                .setLabel(`${EMOJIS.Reset || '🔄'} Atualizar`)
                 .setStyle(ButtonStyle.Secondary)
         );
         
@@ -73,20 +78,17 @@ class SystemStatus {
         });
     }
     
-    /**
-     * Mostra status detalhado (com informações do sistema)
-     */
     static async handleDetailedStatus(interaction, param) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         
         if (!status) {
             return await interaction.editReply({
-                content: '❌ Erro ao obter status detalhado.',
+                content: `${EMOJIS.Error || '❌'} Erro ao obter status detalhado.`,
                 components: []
             });
         }
         
-        const detailedEmbed = this.generateDetailedStatusEmbed(status, interaction.client);
+        const detailedEmbed = this.generateDetailedStatusEmbed(status, interaction.client, interaction.guild);
         
         await interaction.editReply({
             embeds: [detailedEmbed],
@@ -94,13 +96,50 @@ class SystemStatus {
         });
     }
     
-    // ==================== GERADORES DE UI ====================
+    // ==================== ESTATÍSTICAS COM CACHE ====================
     
     /**
-     * Gera embed de status principal
+     * Busca estatísticas de punições com cache
      */
-    static generateStatusEmbed(status) {
-        // Determinar cor baseada na saúde do sistema
+    static async getPunishmentStats(guildId) {
+        const db = require('../database/index');
+        
+        // Verificar cache
+        const cached = statsCache.get(guildId);
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            return cached.data;
+        }
+        
+        // Buscar do banco
+        const stats = {
+            totalPunishments: db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ?`).get(guildId)?.count || 0,
+            totalUsers: db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0,
+            avgReputation: db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 100,
+            recentStrikes: db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND created_at > ?`).get(guildId, Date.now() - (30 * 24 * 60 * 60 * 1000))?.count || 0,
+            activeTickets: db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ? AND status = 'open'`).get(guildId)?.count || 0
+        };
+        
+        // Salvar no cache
+        statsCache.set(guildId, { data: stats, timestamp: Date.now() });
+        
+        return stats;
+    }
+    
+    /**
+     * Limpa o cache de estatísticas
+     */
+    static clearStatsCache(guildId = null) {
+        if (guildId) {
+            statsCache.delete(guildId);
+        } else {
+            statsCache.clear();
+        }
+        console.log('🗑️ [SystemStatus] Cache de estatísticas limpo');
+    }
+    
+    // ==================== GERADORES DE UI ====================
+    
+    static generateStatusEmbed(status, guild) {
         let color = COLORS.DEFAULT;
         if (status.ping !== "Calculando...") {
             const pingValue = parseInt(status.ping);
@@ -110,22 +149,22 @@ class SystemStatus {
         }
         
         const embed = new EmbedBuilder()
-            .setAuthor({ name: '📊 Status do Sistema', iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
+            .setAuthor({ name: `${EMOJIS.panel || '📊'} Status do Sistema`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
             .setColor(color)
             .setDescription(`**${status.guildName}** • Sistema operacional normalmente`)
             .addFields(
                 {
-                    name: '🤖 Bot',
+                    name: `${EMOJIS.Bot || '🤖'} Bot`,
                     value: `**Uptime:** ${status.uptime}\n**Latência:** ${status.ping}\n**Memória:** ${status.memory}`,
                     inline: true
                 },
                 {
-                    name: '📈 Estatísticas',
-                    value: `**Servidores:** ${status.totalGuilds}\n**Usuários:** ${status.totalUsers.toLocaleString()}\n**Canais de Log:** ${status.logChannel}`,
+                    name: `${EMOJIS.Rank || '📈'} Estatísticas`,
+                    value: `**Servidores:** ${status.totalGuilds}\n**Usuários:** ${status.totalUsers.toLocaleString()}\n**Logs:** ${status.logChannel}`,
                     inline: true
                 },
                 {
-                    name: '🛡️ Auto Moderação',
+                    name: `${EMOJIS.AutoMod || '🛡️'} Auto Moderação`,
                     value: `**Próxima Execução:** ${status.nextAutoModTS ? `<t:${status.nextAutoModTS}:R>` : 'N/A'}\n**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:R>` : 'Nunca'}`,
                     inline: false
                 }
@@ -136,18 +175,13 @@ class SystemStatus {
         return embed;
     }
     
-    /**
-     * Gera embed de status detalhado
-     */
-    static generateDetailedStatusEmbed(status, client) {
-        // Informações adicionais do sistema
+    static generateDetailedStatusEmbed(status, client, guild) {
         const cpuUsage = os.loadavg()[0];
         const totalCores = os.cpus().length;
         const platform = os.platform();
         const nodeVersion = process.version;
         const discordVersion = require('discord.js').version;
         
-        // Cálculo de health score
         let healthScore = 100;
         const pingValue = status.ping !== "Calculando..." ? parseInt(status.ping) : 100;
         if (pingValue > 200) healthScore -= 20;
@@ -160,27 +194,27 @@ class SystemStatus {
         const healthEmoji = healthScore >= 80 ? '🟢' : (healthScore >= 50 ? '🟡' : '🔴');
         
         const embed = new EmbedBuilder()
-            .setAuthor({ name: '🔧 Status Detalhado do Sistema', iconURL: client.user?.displayAvatarURL() })
+            .setAuthor({ name: `${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, iconURL: client.user?.displayAvatarURL() })
             .setColor(COLORS.DEFAULT)
             .addFields(
                 {
-                    name: '🤖 Bot',
-                    value: `**Uptime:** ${status.uptime}\n**Latência:** ${status.ping}\n**Memória RAM:** ${status.memory}\n**Node.js:** ${nodeVersion}\n**Discord.js:** v${discordVersion}`,
+                    name: `${EMOJIS.Bot || '🤖'} Bot`,
+                    value: `**Uptime:** ${status.uptime}\n**Latência:** ${status.ping}\n**Memória:** ${status.memory}\n**Node:** ${nodeVersion}\n**DJS:** v${discordVersion}`,
                     inline: true
                 },
                 {
-                    name: '💻 Sistema Operacional',
-                    value: `**OS:** ${platform}\n**CPU:** ${totalCores} cores\n**Load Avg:** ${cpuUsage.toFixed(2)}\n**Arquitetura:** ${os.arch()}`,
+                    name: `${EMOJIS.stack || '💻'} Sistema`,
+                    value: `**OS:** ${platform}\n**CPU:** ${totalCores} cores\n**Load:** ${cpuUsage.toFixed(2)}\n**Arquitetura:** ${os.arch()}`,
                     inline: true
                 },
                 {
-                    name: '📊 Métricas do Servidor',
+                    name: `${EMOJIS.global || '📊'} Métricas`,
                     value: `**Servidores:** ${status.totalGuilds}\n**Usuários:** ${status.totalUsers.toLocaleString()}\n**Canais:** ${client.channels.cache.size}\n**Emojis:** ${client.emojis.cache.size}`,
                     inline: true
                 },
                 {
-                    name: '🛡️ Auto Moderação',
-                    value: `**Próxima Execução:** ${status.nextAutoModTS ? `<t:${status.nextAutoModTS}:F>` : 'N/A'}\n**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:F>` : 'Nunca'}\n**Canal de Logs:** ${status.logChannel}`,
+                    name: `${EMOJIS.AutoMod || '🛡️'} Auto Moderação`,
+                    value: `**Próxima Execução:** ${status.nextAutoModTS ? `<t:${status.nextAutoModTS}:F>` : 'N/A'}\n**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:F>` : 'Nunca'}\n**Logs:** ${status.logChannel}`,
                     inline: false
                 },
                 {
@@ -189,66 +223,50 @@ class SystemStatus {
                     inline: false
                 }
             )
-            .setFooter({ text: `ID do Cluster: ${process.pid} • Gerado em tempo real`, iconURL: client.user?.displayAvatarURL() })
+            .setFooter({ text: `PID: ${process.pid} • ${new Date().toLocaleString('pt-BR')}`, iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
         
         return embed;
     }
     
-    /**
-     * Retorna recomendações baseadas no health score
-     */
     static getHealthRecommendations(healthScore, ping, memory) {
         if (healthScore >= 80) {
-            return '✅ Sistema saudável. Nenhuma ação necessária.';
+            return `${EMOJIS.Check || '✅'} Sistema saudável. Nenhuma ação necessária.`;
         } else if (healthScore >= 50) {
             let recommendations = [];
-            if (ping > 100) recommendations.push('• Latência elevada, verifique a conexão com Discord');
-            if (memory > 300) recommendations.push('• Consumo de memória alto, considere reiniciar o bot');
-            return `⚠️ Recomendações:\n${recommendations.join('\n')}`;
+            if (ping > 100) recommendations.push('• Latência elevada, verifique a conexão');
+            if (memory > 300) recommendations.push('• Consumo de memória alto, reinicie o bot');
+            return `${EMOJIS.Warning || '⚠️'} Recomendações:\n${recommendations.join('\n')}`;
         } else {
-            return '🔴 **AÇÃO URGENTE:**\n• Reinicie o bot imediatamente\n• Verifique logs de erro\n• Considere escalar recursos do servidor';
+            return `${EMOJIS.DANGER || '🔴'} **AÇÃO URGENTE:**\n• Reinicie o bot imediatamente\n• Verifique os logs\n• Escale recursos do servidor`;
         }
     }
     
     // ==================== FUNÇÕES PRINCIPAIS ====================
     
-    /**
-     * Coleta informações detalhadas sobre a saúde do bot e do ciclo AutoMod.
-     */
     static getBotStatus(client, guildId) {
         try {
-            // 1. Verificação de Integridade do Client
             if (!client?.isReady()) {
                 throw new Error("O Client do Discord não está pronto ou não foi inicializado.");
             }
             
-            // 2. Cálculo de Uptime (Formatado para humanos)
             const uptimeMs = client.uptime || 0;
             const days = Math.floor(uptimeMs / 86400000);
             const hours = Math.floor((uptimeMs % 86400000) / 3600000);
             const minutes = Math.floor((uptimeMs % 3600000) / 60000);
             
-            // 3. Previsão do Próximo Ciclo AutoMod (Lógica baseada em 12h BRT)
             const now = new Date();
             let nextRun = new Date();
             nextRun.setHours(12, 0, 0, 0);
             
-            // Se já passou das 12h hoje, a próxima execução é amanhã
             if (now.getHours() >= 12) {
                 nextRun.setDate(nextRun.getDate() + 1);
             }
             
-            // Ajuste para fuso horário de Brasília (UTC-3)
-            const brtOffset = -3 * 60;
-            const nextRunBRT = new Date(nextRun.getTime() + (brtOffset * 60 * 1000));
-            
-            // 4. Métricas de Hardware & Network
             const usedMem = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
             const totalMem = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
             const ping = client.ws?.ping > 0 ? `${client.ws.ping}ms` : "Calculando...";
             
-            // 5. Dados do Servidor Atual (Guild-Specific)
             let guildData = {};
             try {
                 guildData = ConfigSystem.getMany(guildId, ['log_channel', 'last_automod_run']);
@@ -257,43 +275,30 @@ class SystemStatus {
                 guildData = { log_channel: null, last_automod_run: null };
             }
             
-            // 6. Contagem total de usuários (mais precisa)
             const totalUsers = client.guilds.cache.reduce((acc, g) => {
                 return acc + (g.memberCount || g.approximateMemberCount || 0);
             }, 0);
             
             return {
-                // Métricas do Bot
                 uptime: `${days}d ${hours}h ${minutes}m`,
                 uptimeMs: uptimeMs,
                 ping: ping,
                 memory: `${usedMem} MB / ${totalMem} GB`,
                 memoryRaw: parseFloat(usedMem),
-                
-                // Ciclo AutoMod (Retornando em segundos para Timestamps do Discord)
                 nextAutoModTS: Math.floor(nextRun.getTime() / 1000),
-                nextAutoModBRT: nextRunBRT,
                 lastRunTS: guildData.last_automod_run ? Math.floor(Number(guildData.last_automod_run) / 1000) : null,
-                
-                // Estatísticas Globais
                 totalGuilds: client.guilds.cache.size,
                 totalUsers: totalUsers,
                 totalChannels: client.channels.cache.size,
                 totalEmojis: client.emojis.cache.size,
-                
-                // Contexto Local
-                logChannel: guildData.log_channel ? `<#${guildData.log_channel}>` : "⚠️ Não configurado",
+                logChannel: guildData.log_channel ? `<#${guildData.log_channel}>` : `${EMOJIS.Error || '⚠️'} Não configurado`,
                 logChannelId: guildData.log_channel,
                 guildName: client.guilds.cache.get(guildId)?.name || "Este Servidor",
                 guildId: guildId,
-                
-                // Métricas de Hardware
                 cpuLoad: os.loadavg()[0],
                 cpuCores: os.cpus().length,
                 platform: os.platform(),
                 nodeVersion: process.version,
-                
-                // Timestamp atual para referência
                 currentTimestamp: Math.floor(Date.now() / 1000)
             };
             
@@ -306,9 +311,6 @@ class SystemStatus {
         }
     }
     
-    /**
-     * Verifica se o sistema está saudável (retorna boolean)
-     */
     static isSystemHealthy(client, guildId) {
         const status = this.getBotStatus(client, guildId);
         if (!status) return false;
@@ -320,23 +322,17 @@ class SystemStatus {
         return isPingOk && isMemoryOk;
     }
     
-    /**
-     * Retorna um resumo rápido do status (para logs)
-     */
     static getQuickStatus(client, guildId) {
         const status = this.getBotStatus(client, guildId);
-        if (!status) return "❌ Sistema indisponível";
+        if (!status) return `${EMOJIS.Error || '❌'} Sistema indisponível`;
         
-        return `✅ Online | ${status.uptime} | ${status.ping} | ${status.memory}`;
+        return `${EMOJIS.Check || '✅'} Online | ${status.uptime} | ${status.ping} | ${status.memory}`;
     }
     
-    /**
-     * Gera relatório de performance para análise
-     */
     static getPerformanceReport(client) {
         const startTime = process.hrtime();
         
-        const report = {
+        return {
             timestamp: Date.now(),
             bot: {
                 uptime: client.uptime,
@@ -354,8 +350,6 @@ class SystemStatus {
                 eventLoopLag: process.hrtime(startTime)[1] / 1000000
             }
         };
-        
-        return report;
     }
 }
 

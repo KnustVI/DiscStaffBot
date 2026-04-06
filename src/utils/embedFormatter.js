@@ -18,7 +18,7 @@ const EmbedFormatter = {
     const mention = `<@${user.id}>`;
     
     // Formato: @Menção (username) [id]
-    return `${mention} (${user.username}) [${user.id}]`;
+    return `${mention}\n【${user.username}】`;
     },
     
     /**
@@ -37,7 +37,7 @@ const EmbedFormatter = {
         const mention = `<@${user.id}>`;
         
         // Formato: @Menção (username) [id]
-        return `${mention} (${user.username}) [${user.id}]`;
+        return `${mention}\n【${user.username}】`;
     },
     
     /**
@@ -48,8 +48,8 @@ const EmbedFormatter = {
      */
     getFooter(guildName, extraText = '') {
         const footerText = extraText 
-            ? `By:KnustVI(https://knustseiervi.carrd.co/) • ${guildName} • ${extraText}`
-            : `By:KnustVI(https://knustseiervi.carrd.co/) • ${guildName}`;
+            ? `By:KnustVI • ${guildName} • ${extraText}`
+            : `By:KnustVI • ${guildName}`;
         
         return {
             text: footerText,
