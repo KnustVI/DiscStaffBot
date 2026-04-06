@@ -196,11 +196,12 @@ module.exports = {
             }
 
             // ==================== RESPOSTA NO CANAL ====================
-            await interaction.editReply({ 
-                content: `${severityIcon} **Strike #${strikeId} aplicado!**\n📉 ${pointsToLose} pts | ⭐ ${newPoints}/100`,
-                embeds: [],
-                components: []
-            });
+                await ResponseManager.success(interaction,
+        `**Strike #${strikeId} aplicado em ${targetUser.username}**
+            ${emojis.lose || '📉'}
+            ${pointsToLose} pts perdidos
+            ${emojis.star || '⭐'} Reputação: ${newPoints}/100`
+                );
             
             console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} | #${strikeId} | ${Date.now() - startTime}ms`);
             
@@ -210,5 +211,5 @@ module.exports = {
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao aplicar strike. A equipe foi notificada.');
         }
-    }
-};
+   }
+}; 
