@@ -4,6 +4,7 @@ const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const EmbedFormatter = require('../../utils/embedFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -56,8 +57,9 @@ module.exports = {
                     .setColor(0xDCA15E)
                     .setDescription(description)
                     .setThumbnail(target.displayAvatarURL())
-                    .setFooter({ text: `Consultado por ${user.tag}` })
                     .setTimestamp();
+
+                     embed.setFooter(EmbedFormatter.getFooter(guild.name));
                 
                 return await ResponseManager.send(interaction, { embeds: [embed] });
             }

@@ -74,32 +74,61 @@ const PunishmentSystem = {
         else if (history.reputation < 50) color = COLORS.WARNING;
         
         // Determinar emoji de reputação
-        const repEmoji = history.reputation >= 90 ? EMOJIS.shinystar || '✨' : 
+        const repEmoji = history.reputation >= 90 ? EMOJIS.shinystar || '🌟' : 
                         history.reputation >= 70 ? EMOJIS.star || '⭐' : 
-                        history.reputation >= 50 ? EMOJIS.star2 || '🌟' : 
+                        history.reputation >= 50 ? EMOJIS.thumbsUP || '👍' : 
                         EMOJIS.Warning || '⚠️';
+
+        // Usando EmbedFormatter para formatar o usuário com menção
+        const userMention = EmbedFormatter.formatUser(target);
         
         // Construir descrição com headers
         const description = [
-            `# ${EMOJIS.History || '📋'} HISTÓRICO DE ${target.username.toUpperCase()}`,
+            `# ${EMOJIS.History || '📋'} HISTÓRICO`,
+            `${userMention} ${target.username.toUpperCase()}`,
             `Consulta detalhada do sistema de reputação e punições.`,
-            ``,
-            `## ${repEmoji} Reputação Atual`,
-            `**${history.reputation}/100** pontos`,
-            ``,
-            `## ${EMOJIS.strike || '⚠️'} Punições Registradas (${history.totalRecords})`,
-            this.buildPunishmentsList(history.punishments, EMOJIS)
         ].join('\n');
         
         const embed = new EmbedBuilder()
             .setColor(color)
             .setDescription(description)
             .setThumbnail(target.displayAvatarURL())
-            .setFooter({ 
-                text: EmbedFormatter.getHistoryFooter(page, history.totalPages, history.totalRecords),
-                iconURL: target.displayAvatarURL()
-            })
             .setTimestamp();
+            embed.setFooter({ text: EmbedFormatter.getHistoryFooter(page, history.totalPages, history.totalRecords) });
+
+                // Fields com informações
+            embed.addFields(
+                { 
+                    name: `${EMOJIS.user || '👤'} Usuário`, 
+                    value: EmbedFormatter.formatUser(target),
+                    inline: true 
+                },
+                { 
+                    name: `${repEmoji} Reputação Atual`, 
+                    value: `${history.reputation}/100 pontos`,
+                    inline: true 
+                },
+                { 
+                    name: `${EMOJIS.strike || '⚠️'} Total de Punições`, 
+                    value: `${history.totalRecords}`,
+                    inline: true 
+                }
+            );
+            
+            // Lista de punições
+            if (history.punishments.length > 0) {
+                embed.addFields({ 
+                    name: 'Registros', 
+                    value: this.buildPunishmentsList(history.punishments, EMOJIS),
+                    inline: false 
+                });
+            } else {
+                embed.addFields({ 
+                    name: 'Registros', 
+                    value: '```\nNenhuma punição registrada.\n```',
+                    inline: false 
+                });
+            }
         
         return embed;
     },
@@ -127,7 +156,7 @@ const PunishmentSystem = {
                 }
                 
                 if (p.status === 'revoked') {
-                    listItems.push(`- **Status:** ✅ Anulado`);
+                    listItems.push(`- **Status:** ${EMOJIS.check || '✅'} Anulado`);
                 }
                 
                 listItems.push(``); // linha em branco entre punições
@@ -189,32 +218,18 @@ const PunishmentSystem = {
             .setDescription(description)
             .setTimestamp();
 
+            // 4 FIELDS INLINE usando EmbedFormatter
         EmbedFormatter.addFields(embed, [
-        // Field do usuário (inline = true)
-        EmbedFormatter.userField(target, null),
+            EmbedFormatter.userField(target, null),           // inline: true
+            EmbedFormatter.moderatorField(moderator, null),   // inline: true
+            EmbedFormatter.pointsField('Pontos subtraídos', -pointsLost, '📉'),  // inline: true
+            EmbedFormatter.reputationField(newPoints + pointsLost, newPoints)     // inline: true
+        ]);
         
-        // Field do moderador (inline = true)
-        EmbedFormatter.moderatorField(moderator, null),
-        
-        // Pontos perdidos (inline = true)
-        EmbedFormatter.pointsField('Pontos Subtraídos', -pointsLost, '📉'),
-        
-        // Reputação (inline = true)
-        EmbedFormatter.reputationField(newPoints + pointsLost, newPoints),
-        
-        // Severidade (inline = true)
-        EmbedFormatter.severityField(severity),
-        
-        // Ticket (inline = true) - só aparece se tiver ticket
-        EmbedFormatter.ticketField(ticketId),
-        
-        // ID do Strike (inline = true)
-        EmbedFormatter.strikeIdField(strikeId)
-    ]);
-    embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
-    return embed;
+        embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
+        return embed;
 
-    },
+        },
     
     generateUnstrikeUnifiedEmbed(target, moderator, strikeId, reason, pointsRestored, newPoints, originalReason) {
         const description = [
@@ -231,22 +246,14 @@ const PunishmentSystem = {
             .setDescription(description)
             .setTimestamp();
 
-            EmbedFormatter.addFields(embed, [
-            // Field do usuário (inline = true)
-            EmbedFormatter.userField(target, null),
-            
-            // Field do moderador (inline = true)
-            EmbedFormatter.moderatorField(moderator, null),
-            
-            // Pontos restaurados (inline = true)
-            EmbedFormatter.pointsField('Pontos Restaurados', pointsRestored, '📈'),
-            
-            // Reputação (inline = true)
-            EmbedFormatter.reputationField(newPoints - pointsRestored, newPoints),
-            
-            // ID do Strike (inline = true)
-            EmbedFormatter.strikeIdField(strikeId)
-        ]);
+            // 4 FIELDS INLINE usando EmbedFormatter
+    EmbedFormatter.addFields(embed, [
+        EmbedFormatter.userField(target, null),           // inline: true
+        EmbedFormatter.moderatorField(moderator, null),   // inline: true
+        EmbedFormatter.pointsField('Pontos restaurados', pointsRestored, '📈'),  // inline: true
+        EmbedFormatter.reputationField(newPoints - pointsRestored, newPoints)    // inline: true
+    ]);
+    
             embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
             return embed;
     },
