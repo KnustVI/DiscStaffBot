@@ -95,30 +95,42 @@ module.exports = {
             
             const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
             
-            // Gerar embed unificado
+            // ==================== GERAR EMBED UNIFICADO ====================
             const unifiedEmbed = PunishmentSystem.generateUnstrikeUnifiedEmbed(
-                targetUser, staff, punishmentId, reason, pointsToRestore, newPoints, punishment.reason
+                targetUser,
+                staff,
+                punishmentId,
+                reason,
+                pointsToRestore,
+                newPoints,
+                punishment.reason
             );
-            
-            // Enviar DM
+
+            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetUser) {
                 try {
                     await targetUser.send({ embeds: [unifiedEmbed] }).catch(() => null);
                 } catch (err) {}
             }
-            
-            // Enviar log
+
+            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logEmbed = new EmbedBuilder(unifiedEmbed.toJSON());
-                        logEmbed.setDescription(unifiedEmbed.description + `\n\n## ${emojis.staff || '👮'} Anulado por\n<@${staff.id}>`);
-                        await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                        // Usar o MESMO embed unificado
+                        await logChannel.send({ embeds: [unifiedEmbed] }).catch(() => null);
                     }
                 } catch (err) {}
             }
+
+            // ==================== RESPOSTA NO CANAL ====================
+            await interaction.editReply({ 
+                content: `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
+                embeds: [],
+                components: []
+            });
             
             await ResponseManager.success(interaction, 
                 `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`
