@@ -12,10 +12,13 @@ const EmbedFormatter = {
      * @returns {string} Texto formatado: "Apelido (username) [id]" ou "username (username) [id]"
      */
     formatUser(user, member = null) {
-        if (!user) return '`Usuário desconhecido`';
-        
-        const displayName = member?.nickname || user.username;
-        return `${displayName} (${user.username}) [${user.id}]`;
+    if (!user) return '`Usuário desconhecido`';
+    
+    const displayName = member?.nickname || user.username;
+    const mention = `<@${user.id}>`;
+    
+    // Formato: @Menção (username) [id]
+    return `${mention} (${user.username}) [${user.id}]`;
     },
     
     /**
@@ -24,8 +27,17 @@ const EmbedFormatter = {
      * @param {object} member - Objeto Member do Discord (opcional, para nickname)
      * @returns {string} Texto formatado
      */
+    /**
+     * Formata um usuário para o campo "Moderador" (com menção)
+     */
     formatModerator(user, member = null) {
-        return this.formatUser(user, member);
+        if (!user) return '`Desconhecido`';
+        
+        const displayName = member?.nickname || user.username;
+        const mention = `<@${user.id}>`;
+        
+        // Formato: @Menção (username) [id]
+        return `${mention} (${user.username}) [${user.id}]`;
     },
     
     /**
@@ -36,8 +48,8 @@ const EmbedFormatter = {
      */
     getFooter(guildName, extraText = '') {
         const footerText = extraText 
-            ? `By:KnustVI • ${guildName} • ${extraText}`
-            : `By:KnustVI • ${guildName}`;
+            ? `By:KnustVI(https://knustseiervi.carrd.co/) • ${guildName} • ${extraText}`
+            : `By:KnustVI(https://knustseiervi.carrd.co/) • ${guildName}`;
         
         return {
             text: footerText,

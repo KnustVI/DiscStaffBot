@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
+const EmbedFormatter = require('../utils/embedFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -26,21 +27,18 @@ module.exports = {
             const description = [
                 `# ${emojis.user || '🤖'} Assistente Robin`,
                 `Olá **${member.displayName}**! Sou o sistema de gestão do **${guild.name}**.`,
-                ``,
-                `## ${emojis.Config || '⚙️'} Configuração`,
+                `### ${emojis.Config || '⚙️'} Configuração`,
+                `Apenas administradores podem usar estes comandos para configurar o sistema e personalizar a experiência da equipe.`,
                 `- \`/config\`: Painel de controle da Staff`,
                 `- \`/botstatus\`: Integridade técnica do sistema`,
-                ``,
-                `## ${emojis.strike || '🛠️'} Moderação`,
+                `### ${emojis.strike || '🛠️'} Moderação`,
+                `Apenas aqueles com o cargo staff a configuração podem usar estes comandos`,
                 `- \`/strike\`: Aplica punições e reduz reputação`,
                 `- \`/unstrike\`: Remove punições e restaura reputação`,
                 `- \`/historico\`: Consulta a ficha de um usuário`,
                 `- \`/repset\`: Ajuste manual de reputação`,
-                ``,
-                `## ${emojis.star || '📊'} Reputação`,
-                `- **Máxima:** \`100\` pontos`,
-                `- **Exemplar:** \`> 90\` pontos`,
-                `- **Risco:** \`< 30\` pontos`,
+                `### ${emojis.star || '📊'} Reputação`,
+                `- **Máxima:** 100 pontos`,
                 `- **Recuperação:** +1 ponto/dia sem punições`,
                 ``,
                 `> Use os comandos com responsabilidade.`
@@ -50,8 +48,9 @@ module.exports = {
                 .setColor(0xDCA15E)
                 .setThumbnail(client.user.displayAvatarURL())
                 .setDescription(description)
-                .setFooter({ text: footerText, iconURL: guild.iconURL() || client.user.displayAvatarURL() })
                 .setTimestamp();
+
+                embed.setFooter(EmbedFormatter.getFooter(guild.name));
             
             await ResponseManager.send(interaction, { embeds: [embed] });
             

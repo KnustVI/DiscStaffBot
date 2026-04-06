@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('disc
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const EmbedFormatter = require('../../utils/embedFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -74,15 +75,11 @@ module.exports = {
             
             // Gerar embed
             const color = isGain ? 0x00FF00 : 0xFF0000;
-            const titleIcon = isGain ? '📈' : '📉';
+            const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
             
             const description = [
                 `# ${titleIcon} ${titleText}`,
-                `## ${emojis.user || '👤'} ${target.username}`,
-                `## ${emojis.staff || '👮'} ${staff.username}`,
-                `**📊 Mudança:** \`${diffText} pts\` (${currentRep} → ${newPoints})`,
-                `**⭐ Nova Reputação:** \`${newPoints}/100\``,
                 `## ${emojis.Note || '📝'} Motivo`,
                 `\`\`\`text\n${reason}\n\`\`\``
             ].join('\n');
@@ -91,6 +88,32 @@ module.exports = {
                 .setColor(color)
                 .setDescription(description)
                 .setTimestamp();
+
+                // Fields com formatação padronizada
+            embed.addFields(
+                { 
+                    name: `${emojis.user || '👤'} Usuário:`, 
+                    value: EmbedFormatter.formatUser(target, targetMember),
+                    inline: true 
+                },
+                { 
+                    name: `${emojis.staff || '👮'} Responsável:`, 
+                    value: EmbedFormatter.formatUser(staff, staffMember),
+                    inline: true 
+                },
+                { 
+                    name: `${isGain ? '📈' : '📉'} Mudança:`, 
+                    value: `${diffText} pts (${currentRep} → ${newPoints})`,
+                    inline: true 
+                },
+                { 
+                    name: `${emojis.star || '⭐'} Nova Reputação:`, 
+                    value: `${newPoints}/100`,
+                    inline: true 
+                }
+            );
+
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
             
             // Enviar DM
             if (targetMember) {
@@ -113,7 +136,7 @@ module.exports = {
             }
             
             await ResponseManager.success(interaction, 
-                `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n📊 \`${currentRep}\` → \`${newPoints}\` (\`${diffText}\`)`
+                `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n ${emojis.status} ${currentRep} → ${newPoints} (${diffText})`
             );
             
             console.log(`📊 [REPSET] ${staff.tag} ajustou ${target.tag} | ${diffText} pts | ${Date.now() - startTime}ms`);
