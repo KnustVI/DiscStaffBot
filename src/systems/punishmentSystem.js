@@ -80,12 +80,12 @@ const PunishmentSystem = {
                         EMOJIS.Warning || '⚠️';
 
         // Usando EmbedFormatter para formatar o usuário com menção
-        const userMention = EmbedFormatter.formatUser(target);
         
         // Construir descrição com headers
         const description = [
             `# ${EMOJIS.History || '📋'} HISTÓRICO`,
-            `${userMention}`,
+            `## <@${target.id}>`,
+            `【${target.username}】`,
             `Consulta detalhada do sistema de reputação e punições.`,
         ].join('\n');
         
@@ -166,12 +166,12 @@ const PunishmentSystem = {
         return new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`punishment:history:prev:${targetId}:${currentPage - 1}`)
-                .setEmoji('⬅️')
+                .setEmoji(EMOJIS.Left || '⬅️')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`punishment:history:next:${targetId}:${currentPage + 1}`)
-                .setEmoji('➡️')
+                .setEmoji(EMOJIS.Right || '➡️')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(currentPage === totalPages)
         );
