@@ -2,6 +2,16 @@ const cron = require('node-cron');
 const db = require('../database/index');
 const { EmbedBuilder } = require('discord.js');
 const SessionManager = require('../utils/sessionManager');
+const EmbedFormatter = require('../utils/embedFormatter');
+
+// Carregar emojis do servidor
+let EMOJIS = {};
+try {
+    const emojisFile = require('../database/emojis.js');
+    EMOJIS = emojisFile.EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
 
 // Cores padrão do sistema
 const COLORS = {
@@ -43,14 +53,14 @@ class AutoModerationSystem {
                     break;
                 default:
                     await interaction.editReply({
-                        content: `❌ Ação "${action}" não reconhecida no sistema de auto moderação.`,
+                        content: `${EMOJIS.Error || '❌'} Ação "${action}" não reconhecida no sistema de auto moderação.`,
                         components: []
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent do autoModeration:', error);
             await interaction.editReply({
-                content: '❌ Ocorreu um erro ao processar a auto moderação.',
+                content: `${EMOJIS.Error || '❌'} Ocorreu um erro ao processar a auto moderação.`,
                 components: []
             });
         }
@@ -68,15 +78,15 @@ class AutoModerationSystem {
                     break;
                 default:
                     await interaction.editReply({
-                        content: `❌ Modal "${action}" não reconhecido no sistema de auto moderação.`,
+                        content: `${EMOJIS.Error || '❌'} Modal "${action}" não reconhecido no sistema de auto moderação.`,
                         flags: 64
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleModal do autoModeration:', error);
             await interaction.editReply({
-                content: '❌ Ocorreu um erro ao processar o modal.',
-                    
+                content: `${EMOJIS.Error || '❌'} Ocorreu um erro ao processar o modal.`,
+                flags: 64
             });
         }
     }
@@ -93,7 +103,7 @@ class AutoModerationSystem {
         
         const embed = new EmbedBuilder()
             .setColor(COLORS.DEFAULT)
-            .setTitle('🛡️ Auto Moderação')
+            .setTitle(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`)
             .setDescription(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`)
             .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
             .setTimestamp();
@@ -116,18 +126,18 @@ class AutoModerationSystem {
             
             const modal = new ModalBuilder()
                 .setCustomId('automod:limits')
-                .setTitle('Configurar Limites');
+                .setTitle(`${EMOJIS.Config || '⚙️'} Configurar Limites`);
             
             const exemplarLimit = new TextInputBuilder()
                 .setCustomId('exemplar_limit')
-                .setLabel('Limite para cargo Exemplar (1-100)')
+                .setLabel(`${EMOJIS.shinystar || '🎖️'} Limite para cargo Exemplar (1-100)`)
                 .setPlaceholder('Ex: 95')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
             
             const problematicLimit = new TextInputBuilder()
                 .setCustomId('problematic_limit')
-                .setLabel('Limite para cargo Problemático (1-100)')
+                .setLabel(`${EMOJIS.Warning || '⚠️'} Limite para cargo Problemático (1-100)`)
                 .setPlaceholder('Ex: 30')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
@@ -146,16 +156,16 @@ class AutoModerationSystem {
             
             const embed = new EmbedBuilder()
                 .setColor(COLORS.DEFAULT)
-                .setTitle('⚙️ Configurações da Auto Moderação')
+                .setTitle(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`)
                 .addFields(
-                    { name: 'Status', value: isEnabled ? '✅ Ativado' : '❌ Desativado', inline: true },
-                    { name: '🎖️ Limite Exemplar', value: `${exemplarLimit} pontos`, inline: true },
-                    { name: '⚠️ Limite Problemático', value: `${problematicLimit} pontos`, inline: true },
-                    { name: '📈 Recuperação Diária', value: '+1 ponto para quem não tem punições nas últimas 24h', inline: false },
-                    { name: '🔄 Atualização', value: 'Diariamente às 12:00', inline: true }
+                    { name: `${EMOJIS.Status || '📊'} Status`, value: isEnabled ? `${EMOJIS.Check || '✅'} Ativado` : `${EMOJIS.Error || '❌'} Desativado`, inline: true },
+                    { name: `${EMOJIS.shinystar || '🎖️'} Limite Exemplar`, value: `${exemplarLimit} pontos`, inline: true },
+                    { name: `${EMOJIS.Warning || '⚠️'} Limite Problemático`, value: `${problematicLimit} pontos`, inline: true },
+                    { name: `${EMOJIS.gain || '📈'} Recuperação Diária`, value: '+1 ponto para quem não tem punições nas últimas 24h', inline: false },
+                    { name: `${EMOJIS.Reset || '🔄'} Atualização`, value: 'Diariamente às 12:00', inline: true }
                 )
-                .setFooter({ text: `Sistema Robin • ${interaction.guild.name}` })
                 .setTimestamp();
+                embed.setFooter(EmbedFormatter.getFooter(guild.name));
             
             await interaction.editReply({
                 embeds: [embed],
@@ -179,21 +189,21 @@ class AutoModerationSystem {
         
         if (isNaN(exLimit) || exLimit < 1 || exLimit > 100) {
             return await interaction.editReply({
-                content: '❌ Limite para cargo Exemplar deve ser um número entre 1 e 100.',
+                content: `${EMOJIS.Error || '❌'} Limite para cargo Exemplar deve ser um número entre 1 e 100.`,
                 flags: 64
             });
         }
         
         if (isNaN(probLimit) || probLimit < 1 || probLimit > 100) {
             return await interaction.editReply({
-                content: '❌ Limite para cargo Problemático deve ser um número entre 1 e 100.',
+                content: `${EMOJIS.Error || '❌'} Limite para cargo Problemático deve ser um número entre 1 e 100.`,
                 flags: 64
             });
         }
         
         if (probLimit >= exLimit) {
             return await interaction.editReply({
-                content: '❌ O limite para cargo Problemático deve ser menor que o limite para cargo Exemplar.',
+                content: `${EMOJIS.Error || '❌'} O limite para cargo Problemático deve ser menor que o limite para cargo Exemplar.`,
                 flags: 64
             });
         }
@@ -204,10 +214,10 @@ class AutoModerationSystem {
         
         const embed = new EmbedBuilder()
             .setColor(COLORS.SUCCESS)
-            .setTitle('✅ Configurações Atualizadas')
+            .setTitle(`${EMOJIS.Check || '✅'} Configurações Atualizadas`)
             .addFields(
-                { name: '🎖️ Limite Exemplar', value: `${exLimit} pontos`, inline: true },
-                { name: '⚠️ Limite Problemático', value: `${probLimit} pontos`, inline: true }
+                { name: `${EMOJIS.shinystar || '🎖️'} Limite Exemplar`, value: `${exLimit} pontos`, inline: true },
+                { name: `${EMOJIS.Warning || '⚠️'} Limite Problemático`, value: `${probLimit} pontos`, inline: true }
             )
             .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
             .setTimestamp();
@@ -232,17 +242,17 @@ class AutoModerationSystem {
         
         const embed = new EmbedBuilder()
             .setColor(COLORS.DEFAULT)
-            .setTitle('📊 Relatório de Auto Moderação')
+            .setTitle(`${EMOJIS.Rank || '📊'} Relatório de Auto Moderação`)
             .addFields(
-                { name: '👥 Total de Usuários', value: `\`${totalUsers?.count || 0}\``, inline: true },
-                { name: '⭐ Reputação Média', value: `\`${Math.round(avgRep?.avg || 0)}/100\``, inline: true },
-                { name: '🎖️ Usuários Exemplares', value: `\`${exemplars?.count || 0}\``, inline: true },
-                { name: '⚠️ Usuários Problemáticos', value: `\`${problematic?.count || 0}\``, inline: true },
-                { name: '🕒 Última Execução', value: this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado', inline: true },
-                { name: '📈 Total Recuperado', value: `\`${this.stats.totalRepRecovered}\` pontos`, inline: true }
+                { name: `${EMOJIS.user || '👥'} Total de Usuários`, value: `\`${totalUsers?.count || 0}\``, inline: true },
+                { name: `${EMOJIS.star || '⭐'} Reputação Média`, value: `\`${Math.round(avgRep?.avg || 0)}/100\``, inline: true },
+                { name: `${EMOJIS.shinystar || '🎖️'} Usuários Exemplares`, value: `\`${exemplars?.count || 0}\``, inline: true },
+                { name: `${EMOJIS.Warning || '⚠️'} Usuários Problemáticos`, value: `\`${problematic?.count || 0}\``, inline: true },
+                { name: `${EMOJIS.Date || '🕒'} Última Execução`, value: this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado', inline: true },
+                { name: `${EMOJIS.gain || '📈'} Total Recuperado`, value: `\`${this.stats.totalRepRecovered}\` pontos`, inline: true }
             )
-            .setFooter({ text: `Sistema Robin • ${interaction.guild.name}` })
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
         
         await interaction.editReply({
             embeds: [embed],
@@ -347,7 +357,7 @@ class AutoModerationSystem {
                             totalRolesAdded++;
                             
                             // DM de notificação
-                            await member.send(`✨ Parabéns! Sua conduta em **${guild.name}** é exemplar e você recebeu um cargo especial!`).catch(() => null);
+                            await member.send(`${EMOJIS.shinystar || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar e você recebeu um cargo especial!`).catch(() => null);
                         } else if (rep < (limitEx - 5) && hasEx) {
                             // Margem de erro de 5 pontos para não ficar tirando/ponto o tempo todo
                             await member.roles.remove(roleExId).catch(() => null);
@@ -366,7 +376,7 @@ class AutoModerationSystem {
                             totalRolesAdded++;
                             
                             // DM de aviso
-                            await member.send(`⚠️ Sua reputação em **${guild.name}** atingiu um nível crítico. Melhore sua conduta para evitar sanções severas!`).catch(() => null);
+                            await member.send(`${EMOJIS.Warning || '⚠️'} Sua reputação em **${guild.name}** atingiu um nível crítico. Melhore sua conduta para evitar sanções severas!`).catch(() => null);
                         } else if (rep > 50 && hasProb) {
                             await member.roles.remove(roleProbId).catch(() => null);
                             stats[gId].removed++;
@@ -408,13 +418,13 @@ class AutoModerationSystem {
 
                 const embed = new EmbedBuilder()
                     .setAuthor({ name: 'Sistema de Integridade', iconURL: this.client.user.displayAvatarURL() })
-                    .setTitle('✅ Manutenção Diária Concluída')
+                    .setTitle(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`)
                     .setColor(COLORS.DEFAULT)
                     .setDescription(`O processamento automático de reputação e cargos foi finalizado com sucesso.`)
                     .addFields(
-                        { name: '📈 Recuperação', value: `Usuários sem infrações recentes receberam **+1pt**.`, inline: false },
-                        { name: '🎭 Alterações de Cargos', value: `\`${data.added}\` Atribuídos\n\`${data.removed}\` Removidos`, inline: true },
-                        { name: '📊 Detalhes', value: `🎖️ Exemplares: +${data.exemplarAdded || 0}\n⚠️ Problemáticos: +${data.problematicAdded || 0}`, inline: true }
+                        { name: `${EMOJIS.gain || '📈'} Recuperação`, value: `Usuários sem infrações recentes receberam **+1pt**.`, inline: false },
+                        { name: `${EMOJIS.Leadboard || '🎭'} Alterações de Cargos`, value: `\`${data.added}\` Atribuídos\n\`${data.removed}\` Removidos`, inline: true },
+                        { name: `${EMOJIS.Rank || '📊'} Detalhes`, value: `${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0}\n${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`, inline: true }
                     )
                     .setTimestamp();
 
@@ -451,7 +461,7 @@ class AutoModerationSystem {
     }
 }
 
-/// Exporta a função de inicialização (mantém compatibilidade)
+// Exporta a função de inicialização (mantém compatibilidade)
 module.exports = (client) => {
     const autoMod = new AutoModerationSystem(client);
     autoMod.startWorker();

@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
+const EmbedFormatter = require('../../utils/embedFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -38,44 +39,46 @@ module.exports = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setTitle(`${emojis.dashboard || '📝'} Canais de Log`)
-            .setDescription('Selecione os canais abaixo:')
+            .setDescription(
+                `# ${emojis.dashboard || '📝'} Canais de Log`,
+                'Selecione os canais abaixo:')
             .addFields(
                 { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.AutoMod || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
+                { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.Ticket || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
             )
-            .setFooter(ConfigSystem.getFooter(guild.name))
             .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+
         
         const { ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
         
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:geral')
-                .setPlaceholder(`${emojis.global || '📜'} Selecionar canal de logs gerais`)
+                .setPlaceholder(`Selecionar canal de logs gerais`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const punishmentsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:punishments')
-                .setPlaceholder(`${emojis.strike || '⚖️'} Selecionar canal de logs de punições`)
+                .setPlaceholder(` Selecionar canal de logs de punições`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const automodRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:automod')
-                .setPlaceholder(`${emojis.AutoMod || '🛡️'} Selecionar canal de logs de automoderação`)
+                .setPlaceholder(`Selecionar canal de logs de automoderação`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const ticketsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:tickets')
-                .setPlaceholder(`${emojis.Ticket || '🎫'} Selecionar canal de logs de tickets`)
+                .setPlaceholder(`Selecionar canal de logs de tickets`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
@@ -84,7 +87,7 @@ module.exports = {
                 .setCustomId('config-logs:criar')
                 .setLabel('Criar Canais Automaticamente')
                 .setStyle(ButtonStyle.Success)
-                .setEmoji(emojis.plusone || '➕')
+                .setEmoji(emojis.edit || '➕')
         );
         
         await ResponseManager.send(interaction, {

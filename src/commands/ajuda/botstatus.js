@@ -37,7 +37,12 @@ module.exports = {
             }
             
             const dbStats = db.getStats();
+            
+            // Estatísticas de punições do servidor
             const totalPunishments = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ?`).get(guildId)?.count || 0;
+            const totalUsers = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0;
+            const avgReputation = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 100;
+            const recentStrikes = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND created_at > ?`).get(guildId, Date.now() - (30 * 24 * 60 * 60 * 1000))?.count || 0;
             const activeTickets = db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ? AND status = 'open'`).get(guildId)?.count || 0;
             
             // Verificar saúde
@@ -46,7 +51,7 @@ module.exports = {
             const healthStatus = isHealthy ? 'Saudável' : 'Crítico - Verifique os logs';
             
             // Buscar última mensagem do log de automod
-            let lastLogLink = '`❌ Não definido`';
+            let lastLogLink = `${emojis.Error || '❌'} Não definido`;
             const logAutomodId = ConfigSystem.getSetting(guildId, 'log_automod');
             if (logAutomodId) {
                 try {
@@ -59,10 +64,10 @@ module.exports = {
                             lastLogLink = `<#${logAutomodId}> (sem mensagens)`;
                         }
                     } else {
-                        lastLogLink = `Canal não encontrado`;
+                        lastLogLink = `${emojis.Error || '❌'} Canal não encontrado`;
                     }
                 } catch (err) {
-                    lastLogLink = `Erro ao buscar`;
+                    lastLogLink = `${emojis.Error || '❌'} Erro ao buscar`;
                 }
             }
             
@@ -96,7 +101,7 @@ module.exports = {
             embed.addFields(
                 { 
                     name: `${emojis.database || '🗄️'} Banco de Dados`, 
-                    value: `**Tamanho:** ${dbStats?.fileSize || 'N/A'}\n**Tabelas:** ${Object.keys(dbStats?.tables || {}).length}\n**Punições:** ${dbStats?.tables?.punishments || 0}\n**Tickets Ativos:** ${activeTickets}`,
+                    value: `**Tamanho:** ${dbStats?.fileSize || 'N/A'}\n**Tabelas:** ${Object.keys(dbStats?.tables || {}).length}\n**Punições:** ${totalPunishments}\n**Tickets Ativos:** ${activeTickets}\n**${emojis.user || '👥'} Penalizados:** ${totalUsers}\n**${emojis.star || '⭐'} Média:** ${Math.round(avgReputation)}/100\n**${emojis.strike || '⚠️'} 30d:** ${recentStrikes}`,
                     inline: true 
                 },
                 { 
