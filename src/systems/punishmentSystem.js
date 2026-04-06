@@ -87,6 +87,7 @@ const PunishmentSystem = {
             `Consulta detalhada do sistema de reputação e punições.`,
             `## <@${target.id}>`,
             `【${target.username}】`,
+            `━━━━━━━━━━━━━━━━━━━━`
         ].join('\n');
         
         const embed = new EmbedBuilder()
