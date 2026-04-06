@@ -86,7 +86,7 @@ module.exports = {
             new ButtonBuilder()
                 .setCustomId('config-logs:criar')
                 .setLabel('Criar Canais Automaticamente')
-                .setStyle(ButtonStyle.Success)
+                .setStyle(ButtonStyle.Secondary)
                 .setEmoji(emojis.edit || '➕')
         );
         

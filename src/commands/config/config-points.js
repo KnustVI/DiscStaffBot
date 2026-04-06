@@ -74,12 +74,12 @@ module.exports = {
             new ButtonBuilder()
                 .setCustomId('config-points:strike:modal')
                 .setLabel(` Editar Níveis de Strike`)
-                .setStyle(ButtonStyle.Primary)
+                .setStyle(ButtonStyle.Secondary)
                 .setEmoji(emojis.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:limites:modal')
                 .setLabel(`Editar Limites`)
-                .setStyle(ButtonStyle.Primary)
+                .setStyle(ButtonStyle.Secondary)
                 .setEmoji(emojis.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:reset')
