@@ -117,7 +117,7 @@ class AutoModerationSystem {
     /**
      * Configura limites da auto moderação
      */
-    async handleAutoModConfig(interaction, param) {
+    async handleAutoModConfig(interaction, param, guildName) {
         const ConfigSystem = require('./configSystem');
         
         if (param === 'limits') {
@@ -165,7 +165,7 @@ class AutoModerationSystem {
                     { name: `${EMOJIS.Reset || '🔄'} Atualização`, value: 'Diariamente às 12:00', inline: true }
                 )
                 .setTimestamp();
-                embed.setFooter(EmbedFormatter.getFooter(guild.name));
+                embed.setFooter(EmbedFormatter.getFooter(guildName));
             
             await interaction.editReply({
                 embeds: [embed],
@@ -231,7 +231,7 @@ class AutoModerationSystem {
     /**
      * Gera relatório da auto moderação
      */
-    async handleAutoModReport(interaction) {
+    async handleAutoModReport(interaction, guildName) {
         const ConfigSystem = require('./configSystem');
         
         // Buscar estatísticas
@@ -252,7 +252,7 @@ class AutoModerationSystem {
                 { name: `${EMOJIS.gain || '📈'} Total Recuperado`, value: `\`${this.stats.totalRepRecovered}\` pontos`, inline: true }
             )
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         await interaction.editReply({
             embeds: [embed],

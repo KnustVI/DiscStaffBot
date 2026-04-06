@@ -190,7 +190,7 @@ const PunishmentSystem = {
                 { name: '⚠️ Strikes Ativos (30d)', value: `\`${stats.recentStrikes}\``, inline: true }
             )
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            embed.setFooter(EmbedFormatter.getFooter(guildName));
     },
     
     // ==================== EMBEDS UNIFICADOS (DM + LOG) ====================
@@ -227,7 +227,7 @@ const PunishmentSystem = {
 
         },
     
-    generateUnstrikeUnifiedEmbed(target, moderator, strikeId, reason, pointsRestored, newPoints, originalReason) {
+    generateUnstrikeUnifiedEmbed(target, moderator, strikeId, reason, pointsRestored, newPoints, originalReason, guildName) {
         const description = [
             `# ${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeId}`,
             `Uma punição foi removida do sistema.`,
@@ -250,7 +250,7 @@ const PunishmentSystem = {
         EmbedFormatter.reputationField(newPoints - pointsRestored, newPoints)    // inline: true
     ]);
     
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            embed.setFooter(EmbedFormatter.getFooter(guildName));
             return embed;
     },
     
