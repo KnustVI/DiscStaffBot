@@ -18,7 +18,7 @@ const EmbedFormatter = {
     const mention = `<@${user.id}>`;
     
     // Formato: @Menção (username) [id]
-    return `${mention}\n【${user.username}】`;
+    return ` ${mention}【${user.username}】`;
     },
     
     /**
@@ -37,7 +37,7 @@ const EmbedFormatter = {
         const mention = `<@${user.id}>`;
         
         // Formato: @Menção (username) [id]
-        return `${mention}\n【${user.username}】`;
+        return `${mention}【${user.username}】`;
     },
     
     /**
