@@ -161,7 +161,7 @@ const PunishmentSystem = {
             return listItems.join('\n');
         },
     
-    generateHistoryButtons(targetId, currentPage, totalPages) {
+    generateHistoryButtons(targetId, currentPage, totalPages,) {
         if (totalPages <= 1) return null;
         
         return new ActionRowBuilder().addComponents(
@@ -195,7 +195,7 @@ const PunishmentSystem = {
     
     // ==================== EMBEDS UNIFICADOS (DM + LOG) ====================
     
-    generateStrikeUnifiedEmbed(target, moderator, strikeId, severity, reason, ticketId, pointsLost, newPoints, discordAct, discordActionResult) {
+    generateStrikeUnifiedEmbed(target, moderator, strikeId, severity, reason, ticketId, pointsLost, newPoints, discordAct, discordActionResult, guildName) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityIcon = severityIcons[severity] || '❓';
