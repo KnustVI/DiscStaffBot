@@ -24,7 +24,7 @@ const EMOJIS = {
     stack: formatEmoji('1488572154424463361', 'stack'),
     shinystar: formatEmoji('1488572153577341089', 'shinystar'),
     serverguild: formatEmoji('1488572152289562775', 'serverguild'),
-    Rigth: formatEmoji('1488572150859169882', 'Rigth'),
+    Right: formatEmoji('1488572150859169882', 'Right'),
     Reset: formatEmoji('1488572149709934662', 'Reset'),
     Rank: formatEmoji('1488572146711265300', 'Rank'),
     plusone: formatEmoji('1488572145402646581', 'plusone'),
