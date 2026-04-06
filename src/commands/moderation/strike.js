@@ -161,39 +161,45 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // Gerar embed unificado
+            // ==================== GERAR EMBED UNIFICADO ====================
             const unifiedEmbed = PunishmentSystem.generateStrikeUnifiedEmbed(
-                targetUser, staff, strikeId, severity, reason, ticketId || null,
-                pointsToLose, newPoints, discordAct, discordActionResult
+                targetUser,
+                staff,
+                strikeId,
+                severity,
+                reason,
+                ticketId || null,
+                pointsToLose,
+                newPoints,
+                discordAct,
+                discordActionResult
             );
-            
-            // Enviar DM
+
+            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {
                     await targetMember.send({ embeds: [unifiedEmbed] }).catch(() => null);
                 } catch (err) {}
             }
-            
-            // Enviar log
+
+            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logEmbed = new EmbedBuilder(unifiedEmbed.toJSON());
-                        logEmbed.setDescription(unifiedEmbed.description + `\n\n## ${emojis.staff || '👮'} Moderador\n<@${staff.id}>`);
-                        await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                        // Usar o MESMO embed unificado
+                        await logChannel.send({ embeds: [unifiedEmbed] }).catch(() => null);
                     }
                 } catch (err) {}
             }
-            
-            // Resposta no canal
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcon = ['', '🟢', '🟡', '🟠', '🔴', '💀'][severity] || '❓';
-            
-            await ResponseManager.success(interaction, 
-                `${severityIcon} **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos | ⭐ Reputação: ${newPoints}/100`
-            );
+
+            // ==================== RESPOSTA NO CANAL ====================
+            await interaction.editReply({ 
+                content: `${severityIcon} **Strike #${strikeId} aplicado!**\n📉 ${pointsToLose} pts | ⭐ ${newPoints}/100`,
+                embeds: [],
+                components: []
+            });
             
             console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} | #${strikeId} | ${Date.now() - startTime}ms`);
             
