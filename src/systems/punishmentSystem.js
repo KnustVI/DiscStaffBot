@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
 const SessionManager = require('../utils/sessionManager');
+const EmbedFormatter = require('../utils/embedFormatter');
 
 // Cores padrão do sistema
 const COLORS = {
@@ -94,7 +95,10 @@ const PunishmentSystem = {
             .setColor(color)
             .setDescription(description)
             .setThumbnail(target.displayAvatarURL())
-            .setFooter({ text: `Página ${page} de ${history.totalPages} • Total: ${history.totalRecords} registros` })
+            .setFooter({ 
+                text: EmbedFormatter.getHistoryFooter(page, history.totalPages, history.totalRecords),
+                iconURL: target.displayAvatarURL()
+            })
             .setTimestamp();
         
         return embed;
@@ -171,64 +175,80 @@ const PunishmentSystem = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityIcon = severityIcons[severity] || '❓';
         const severityName = severityNames[severity] || `Nível ${severity}`;
-        
         const description = [
-            `# ${severityIcon} STRIKE! | #${strikeId}`,
+            `# ${EMOJIS.lose || '❌'} STRIKE! | #${strikeId}`,
             `Um novo registro de infração foi adicionado ao sistema.`,
-            ``,
-            `## ${EMOJIS.user || '👤'} ${target.username}`,
-            `\`${target.id}\``,
-            ``,
-            `## ${EMOJIS.staff || '👮'} Moderador: ${moderator.username}`,
-            `\`${moderator.id}\``,
-            ``,
-            `**📉 Pontos Subtraídos:** \`-${pointsLost} pts\``,
-            `**⭐ Reputação Final:** \`${newPoints}/100 pts\``,
-            ``,
-            `## ${EMOJIS.Config || '⚙️'} Detalhes`,
-            `- **Gravidade:** ${severityName} (Nível ${severity})`,
-            ticketId ? `- **Ticket:** \`${ticketId}\`` : null,
-            ``,
-            `## ${EMOJIS.strike || '⚠️'} Punições Aplicadas`,
+            `### ${EMOJIS.strike || '⚠️'} Punições Aplicadas`,
             this.getPunishmentActions(severity, discordAct, discordActionResult),
-            ``,
-            `## ${EMOJIS.Note || '📝'} Motivo`,
+            `### ${EMOJIS.Note || '📝'} Motivo`,
             `\`\`\`text\n${reason}\n\`\`\``
-        ].filter(line => line !== null).join('\n');
+        ].join('\n');
         
-        return new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setColor(COLORS.DANGER)
             .setDescription(description)
-            .setFooter({ text: `ID: #${strikeId} • ${new Date().toLocaleString('pt-BR')}` })
             .setTimestamp();
+
+        EmbedFormatter.addFields(embed, [
+        // Field do usuário (inline = true)
+        EmbedFormatter.userField(target, null),
+        
+        // Field do moderador (inline = true)
+        EmbedFormatter.moderatorField(moderator, null),
+        
+        // Pontos perdidos (inline = true)
+        EmbedFormatter.pointsField('Pontos Subtraídos', -pointsLost, '📉'),
+        
+        // Reputação (inline = true)
+        EmbedFormatter.reputationField(newPoints + pointsLost, newPoints),
+        
+        // Severidade (inline = true)
+        EmbedFormatter.severityField(severity),
+        
+        // Ticket (inline = true) - só aparece se tiver ticket
+        EmbedFormatter.ticketField(ticketId),
+        
+        // ID do Strike (inline = true)
+        EmbedFormatter.strikeIdField(strikeId)
+    ]);
+    embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
+    return embed;
+
     },
     
     generateUnstrikeUnifiedEmbed(target, moderator, strikeId, reason, pointsRestored, newPoints, originalReason) {
         const description = [
-            `# ✅ STRIKE ANULADO | #${strikeId}`,
+            `# ${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeId}`,
             `Uma punição foi removida do sistema.`,
-            ``,
-            `## ${EMOJIS.user || '👤'} ${target.username}`,
-            `\`${target.id}\``,
-            ``,
-            `## ${EMOJIS.staff || '👮'} Anulado por: ${moderator.username}`,
-            `\`${moderator.id}\``,
-            ``,
-            `**📈 Pontos Restaurados:** \`+${pointsRestored} pts\``,
-            `**⭐ Reputação Final:** \`${newPoints}/100 pts\``,
-            ``,
-            `## ${EMOJIS.History || '📋'} Punição Original`,
-            `- **Motivo:** \`${originalReason}\``,
-            ``,
-            `## ${EMOJIS.Note || '📝'} Motivo da Anulação`,
+            `### ${EMOJIS.History || '📋'} Punição Original`,
+            `- **Motivo:** ${originalReason}`,
+            `### ${EMOJIS.Note || '📝'} Motivo da Anulação`,
             `\`\`\`text\n${reason}\n\`\`\``
         ].join('\n');
         
-        return new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setColor(COLORS.SUCCESS)
             .setDescription(description)
-            .setFooter({ text: `ID: #${strikeId} • ${new Date().toLocaleString('pt-BR')}` })
             .setTimestamp();
+
+            EmbedFormatter.addFields(embed, [
+            // Field do usuário (inline = true)
+            EmbedFormatter.userField(target, null),
+            
+            // Field do moderador (inline = true)
+            EmbedFormatter.moderatorField(moderator, null),
+            
+            // Pontos restaurados (inline = true)
+            EmbedFormatter.pointsField('Pontos Restaurados', pointsRestored, '📈'),
+            
+            // Reputação (inline = true)
+            EmbedFormatter.reputationField(newPoints - pointsRestored, newPoints),
+            
+            // ID do Strike (inline = true)
+            EmbedFormatter.strikeIdField(strikeId)
+        ]);
+            embed.setFooter(EmbedFormatter.getFooter('', `ID: #${strikeId}`));
+            return embed;
     },
     
     getPunishmentActions(severity, discordAct, discordActionResult) {
