@@ -116,6 +116,18 @@ const ConfigSystem = {
                 await this.setLogChannel(interaction, 'log_channel');
                 return;
             }
+            if (customId === 'config-logs:punishments') {
+                await this.setLogChannel(interaction, 'log_punishments');
+                return;
+            }
+            if (customId === 'config-logs:automod') {
+                await this.setLogChannel(interaction, 'log_automod');
+                return;
+            }
+            if (customId === 'config-logs:tickets') {
+                await this.setLogChannel(interaction, 'log_tickets');
+                return;
+            }
             if (customId === 'config-logs:criar') {
                 await this.createLogChannels(interaction);
                 return;
@@ -528,7 +540,7 @@ const ConfigSystem = {
         }
     },
 
-    async setLogChannel(interaction, channelKey) {
+        async setLogChannel(interaction, channelKey) {
         const selectedChannelId = interaction.values[0];
         if (!selectedChannelId) {
             return await ResponseManager.error(interaction, 'Nenhum canal selecionado.');
@@ -542,7 +554,14 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, channelKey, selectedChannelId);
         this.clearCache(interaction.guildId);
         
-        await this.refreshLogsPanel(interaction, `✅ **Canal de logs** alterado para ${channel}`);
+        const channelLabels = {
+            log_channel: '📜 Canal de logs gerais',
+            log_punishments: '⚖️ Canal de logs de punições',
+            log_automod: '🛡️ Canal de logs de automoderação',
+            log_tickets: '🎫 Canal de logs de tickets'
+        };
+        
+        await this.refreshLogsPanel(interaction, `✅ **${channelLabels[channelKey]}** alterado para ${channel}`);
     },
 
     async createLogChannels(interaction) {
