@@ -172,7 +172,8 @@ module.exports = {
                 pointsToLose,
                 newPoints,
                 discordAct,
-                discordActionResult
+                discordActionResult,
+                guild.name
             );
 
             // ==================== ENVIAR DM PARA O USUÁRIO ====================
