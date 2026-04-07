@@ -25,6 +25,7 @@ class AutoModerationSystem {
     constructor(client) {
         this.client = client;
         this.isRunning = false;
+        this.isProcessing = false;
         this.stats = {
             lastRun: null,
             totalRepRecovered: 0,
@@ -286,6 +287,15 @@ class AutoModerationSystem {
      * Executa a manutenção diária (pode ser chamada manualmente também)
      */
     async executeDailyMaintenance() {
+        
+        // Evitar execução simultânea
+            if (this.isProcessing) {
+                console.log('⚠️ [AutoMod] Manutenção já em andamento, ignorando...');
+                return;
+            }
+    
+    this.isProcessing = true;
+
         console.log("🛡️ [AutoMod] Iniciando processamento de integridade diária...");
         this.stats.lastRun = Date.now();
         
@@ -402,43 +412,64 @@ class AutoModerationSystem {
         console.log(`✅ [AutoMod] Manutenção concluída - Recuperados: ${totalRepRecovered} | Cargos: +${totalRolesAdded} / -${totalRolesRemoved}`);
     }
 
-    /**
-     * Envia relatórios para os canais de log
-     */
-    async sendLogReports(stats) {
-        const ConfigSystem = require('./configSystem');
-        
-        for (const [gId, data] of Object.entries(stats)) {
-            try {
-                const logChanId = ConfigSystem.getSetting(gId, 'log_automod');
-                if (!logChanId) continue;
-                
-                const channel = await this.client.channels.fetch(logChanId).catch(() => null);
-                if (!channel) continue;
+        /**
+         * Envia relatórios para os canais de log
+         */
+        async sendLogReports(stats) {
+            const ConfigSystem = require('./configSystem');
+            
+            for (const [gId, data] of Object.entries(stats)) {
+                try {
+                    const logChanId = ConfigSystem.getSetting(gId, 'log_automod');
+                    if (!logChanId) continue;
+                    
+                    const channel = await this.client.channels.fetch(logChanId).catch(() => null);
+                    if (!channel) continue;
 
-                const embed = new EmbedBuilder()
-                    .setAuthor({ name: 'Sistema de Integridade', iconURL: this.client.user.displayAvatarURL() })
-                    .setTitle(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`)
-                    .setColor(COLORS.DEFAULT)
-                    .setDescription(`O processamento automático de reputação e cargos foi finalizado com sucesso.`)
-                    .addFields(
-                        { name: `${EMOJIS.gain || '📈'} Recuperação`, value: `Usuários sem infrações recentes receberam **+1pt**.`, inline: false },
-                        { name: `${EMOJIS.Leadboard || '🎭'} Alterações de Cargos`, value: `\`${data.added}\` Atribuídos\n\`${data.removed}\` Removidos`, inline: true },
-                        { name: `${EMOJIS.Rank || '📊'} Detalhes`, value: `${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0}\n${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`, inline: true }
-                    )
-                    .setTimestamp();
+                    // Verificar se já enviou log hoje para este servidor
+                    const lastRun = ConfigSystem.getSetting(gId, 'last_automod_log');
+                    const today = new Date().toDateString();
+                    
+                    if (lastRun === today) {
+                        console.log(`⚠️ [AutoMod] Log já enviado hoje para ${gId}, pulando...`);
+                        continue;
+                    }
 
-                await channel.send({ embeds: [embed] });
-                
-                // Marca a última execução no banco para controle administrativo
-                ConfigSystem.setSetting(gId, 'last_automod_run', Date.now().toString());
+                    const embed = new EmbedBuilder()
+                        .setAuthor({ name: 'Sistema de Integridade', iconURL: this.client.user.displayAvatarURL() })
+                        .setDescription(`# ${EMOJIS.Check || '✅'} Manutenção Diária Concluída`)
+                        .setColor(COLORS.DEFAULT)
+                        .addFields(
+                            { 
+                                name: `${EMOJIS.gain || '📈'} Recuperação`, 
+                                value: `Usuários sem infrações recentes receberam **+1pt**.`, 
+                                inline: false 
+                            },
+                            { 
+                                name: `${EMOJIS.Leadboard || '🎭'} Alterações de Cargos`, 
+                                value: `\`${data.added}\` Atribuídos\n\`${data.removed}\` Removidos`, 
+                                inline: true 
+                            },
+                            { 
+                                name: `${EMOJIS.Rank || '📊'} Detalhes`, 
+                                value: `${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0}\n${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`, 
+                                inline: true 
+                            }
+                        )
+                        .setFooter(EmbedFormatter.getFooter(data.guildName))
+                        .setTimestamp();
 
-            } catch (e) {
-                // Silenciar erros de envio de log
-                console.error(`❌ [AutoMod] Erro ao enviar log para ${gId}:`, e.message);
+                    await channel.send({ embeds: [embed] });
+                    
+                    // Marcar que o log foi enviado hoje
+                    ConfigSystem.setSetting(gId, 'last_automod_log', today);
+                    ConfigSystem.setSetting(gId, 'last_automod_run', Date.now().toString());
+
+                } catch (e) {
+                    console.error(`❌ [AutoMod] Erro ao enviar log para ${gId}:`, e.message);
+                }
             }
         }
-    }
 
     /**
      * Obtém estatísticas atuais do sistema
