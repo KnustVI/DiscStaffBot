@@ -1,10 +1,11 @@
 const InteractionHandler = require('../systems/handlers');
 const ResponseManager = require('../utils/responseManager');
-const TicketSystem = require('../systems/ticketSystem');
-const TicketFormatter = require('../utils/ticketFormatter');
+const TicketSystem = require('../systems/reportChatSystem');
+const TicketFormatter = require('../utils/reportChatFormatter');
+const sessionManager = require('../utils/sessionManager');
 
 let handler = null;
-let ticketSystem = null;
+let reportChatSystem = null;
 
 module.exports = {
     name: 'interactionCreate',
@@ -31,33 +32,43 @@ module.exports = {
             // ==================== TICKET SYSTEM (ANTES DOS COMPONENTES) ====================
             
             // Botão criar ticket
-            if (interaction.customId === 'ticket:create') {
-                await ticketSystem.createTicket(interaction);
+            if (interaction.customId === 'reportchat:create') {
+                await reportChatSystem.createTicket(interaction);
                 return;
             }
             
             // Botão entrar no ticket
-            if (interaction.customId && interaction.customId.startsWith('ticket:join:')) {
+            if (interaction.customId && interaction.customId.startsWith('reportchat:join:')) {
                 const ticketId = interaction.customId.split(':')[2];
                 await ticketSystem.joinTicket(interaction, ticketId);
                 return;
             }
             
             // Botão fechar ticket
-            if (interaction.customId && interaction.customId.startsWith('ticket:close:')) {
-                const ticketId = interaction.customId.split(':')[2];
-                const modal = TicketFormatter.createCloseModal();
-                await interaction.showModal(modal);
-                const sessionManager = require('../utils/sessionManager');
-                sessionManager.set(interaction.user.id, interaction.guildId, 'ticket', 'closing', { ticketId }, 300000);
-                return;
+            if (interaction.customId && interaction.customId.startsWith('reportchat:close:rate:')) {
+            const ticketId = interaction.customId.split(':')[3];
+            const modal = ReportChatFormatter.createRatingModal();
+            await interaction.showModal(modal);
+            sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'closing', { ticketId, withRating: true }, 300000);
+            return;
+            }
+
+            if (interaction.customId && interaction.customId.startsWith('reportchat:close:no-rate:')) {
+            const ticketId = interaction.customId.split(':')[3];
+            await reportChatSystem.closeTicket(interaction, ticketId, null, null);
+            return;
             }
             
-            // Botão avaliar
-            if (interaction.customId === 'ticket:rate') {
-                const modal = TicketFormatter.createRatingModal();
-                await interaction.showModal(modal);
-                return;
+            if (interaction.customId === 'reportchat:rating') {
+            const sessionManager = require('../utils/sessionManager');
+            const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'closing');
+            if (session && session.ticketId) {
+                const nota = parseInt(interaction.fields.getTextInputValue('nota'));
+                const comentario = interaction.fields.getTextInputValue('comentario');
+                await reportChatSystem.closeTicket(interaction, session.ticketId, nota, comentario);
+                sessionManager.delete(interaction.user.id, interaction.guildId, 'reportchat', 'closing');
+            }
+            return;
             }
             
             // ==================== COMPONENTES ====================

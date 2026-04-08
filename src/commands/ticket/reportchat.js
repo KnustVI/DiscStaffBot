@@ -1,12 +1,12 @@
-// src/commands/ticket/ticket.js
+// src/commands/reportchat/reportchat.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const ResponseManager = require('../../utils/responseManager');
-const TicketFormatter = require('../../utils/ticketFormatter');
+const ReportChatFormatter = require('../../utils/reportChatFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('ticket')
-        .setDescription('🎫 Cria o painel de tickets')
+        .setName('reportchat')
+        .setDescription('🎫 Cria o painel de ReportChat')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
@@ -16,12 +16,8 @@ module.exports = {
             return await ResponseManager.error(interaction, 'Apenas administradores podem criar o painel.');
         }
 
-        const panel = TicketFormatter.createPanelEmbed(guild.name);
-        
-        // Enviar o painel no canal (não como resposta do comando)
+        const panel = ReportChatFormatter.createPanelEmbed(guild.name);
         await interaction.channel.send(panel);
-        
-        // Responder o comando como ephemeral
-        await ResponseManager.success(interaction, 'Painel de tickets criado!');
+        await ResponseManager.success(interaction, 'Painel de ReportChat criado!');
     }
 };

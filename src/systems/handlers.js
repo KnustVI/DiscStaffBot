@@ -7,7 +7,7 @@ const punishmentSystem = require('./punishmentSystem');
 const autoModerationModule = require('./autoModeration');
 const systemStatus = require('./systemStatus');
 const errorLoggerModule = require('./errorLogger');
-const TicketSystem = require('../systems/ticketSystem');
+const TicketSystem = require('./reportChatSystem');
 
 class InteractionHandler {
     constructor(client) {

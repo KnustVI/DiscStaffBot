@@ -608,7 +608,7 @@ const ConfigSystem = {
             }
             
             const category = await guild.channels.create({
-                name: '▋▋🪵 𝗟𝗢𝗚𝗦 𝗗𝗢 𝗦𝗜𝗦𝗧𝗘𝗠𝗔▋▋',
+                name: '███🪵𝗟𝗢𝗚𝗦 𝗗𝗢 𝗦𝗜𝗦𝗧𝗘𝗠𝗔 ███',
                 type: ChannelType.GuildCategory,
                 permissionOverwrites: [
                     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -617,25 +617,25 @@ const ConfigSystem = {
             });
             
             const geral = await guild.channels.create({
-                name: `'📜' logs-gerais`,
+                name: `'📜'▏logs-gerais`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const automod = await guild.channels.create({
-                name: `'🛡️'logs-automod`,
+                name: `'🛡️'▏logs-automod`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const punishments = await guild.channels.create({
-                name: `'⚖️' logs-punicoes`,
+                name: `'⚖️'▏logs-punicoes`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const tickets = await guild.channels.create({
-                name: `'🎫' logs-tickets`,
+                name: `'🎫'▏logs-tickets`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
