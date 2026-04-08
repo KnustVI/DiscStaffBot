@@ -88,6 +88,16 @@ module.exports = {
                 sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'rating', { ticketId }, 300000);
                 return;
             }
+
+                if (interaction.customId === 'reportchat:check') {
+                const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(interaction.guildId, interaction.user.id);
+                if (existing) {
+                    const thread = await interaction.guild.channels.fetch(existing.thread_id).catch(() => null);
+                    return await ResponseManager.success(interaction, `Você tem um ticket aberto: ${thread ? thread.url : existing.thread_id}`);
+                } else {
+                    return await ResponseManager.error(interaction, 'Você não possui tickets abertos.');
+                }
+            }
             
             // ==================== MODAIS ====================
             if (interaction.isModalSubmit()) {

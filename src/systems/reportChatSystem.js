@@ -24,7 +24,7 @@ class ReportChatSystem {
         return lastNumber + 1;
     }
 
-    async createTicket(interaction) {
+        async createTicket(interaction) {
         const { guild, user } = interaction;
         
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
@@ -34,9 +34,14 @@ class ReportChatSystem {
             );
         }
         
+        // Verificar se já existe ticket aberto
         const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
         if (existing) {
-            return await ResponseManager.error(interaction, 'Você já possui um canal aberto.');
+            // NÃO FECHAR O EMBED - apenas avisar
+            return await ResponseManager.error(interaction, 
+                `${EMOJIS.Error || '❌'} Você já possui um ticket aberto!\n\n` +
+                `Use o botão **"Entrar no Ticket"** no canal de logs para acessar seu ticket existente.`
+            );
         }
 
         const ticketNumber = this.getNextTicketId(guild.id);
@@ -53,20 +58,21 @@ class ReportChatSystem {
 
         await thread.members.add(user.id);
 
+        const uuid = db.generateUUID();
+        
         db.prepare(`
-            INSERT INTO tickets (id, guild_id, thread_id, user_id, created_at, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).run(ticketId, guild.id, thread.id, user.id, Date.now(), 'open');
+            INSERT INTO tickets (uuid, guild_id, user_id, channel_id, thread_id, title, created_at, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(uuid, guild.id, user.id, thread.id, thread.id, `ReportChat ${ticketId}`, Date.now(), 'open');
 
         const threadUrl = thread.url;
 
-        // DM do usuário - enviar e guardar referência
+        // DM do usuário
         const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, user, threadUrl);
         const dmMessage = await user.send(dmContent).catch(() => null);
         
-        // Salvar ID da mensagem da DM para editar depois
         if (dmMessage) {
-            db.prepare(`UPDATE tickets SET dm_message_id = ? WHERE id = ?`).run(dmMessage.id, ticketId);
+            db.prepare(`UPDATE tickets SET dm_message_id = ? WHERE uuid = ?`).run(dmMessage.id, uuid);
         }
 
         // Embed na thread
@@ -82,6 +88,7 @@ class ReportChatSystem {
             await logChannel.send({ content: mention || '', ...logContent });
         }
 
+        // Resposta de sucesso (não fecha o embed do painel)
         await ResponseManager.success(interaction, `${ticketId} criado! Acesse: ${threadUrl}`);
     }
 
