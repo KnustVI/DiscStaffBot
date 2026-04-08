@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const EmbedFormatter = require('../../utils/embedFormatter');
@@ -6,7 +6,7 @@ const EmbedFormatter = require('../../utils/embedFormatter');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('config-logs')
-        .setDescription('${Eemoji.Config || "📝"} Configura os canais de log do sistema.')
+        .setDescription('📝 Configura os canais de log do sistema.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
@@ -41,18 +41,16 @@ module.exports = {
             .setColor(0xDCA15E)
             .setDescription(
                 `# ${emojis.dashboard || '📝'} Canais de Log`,
-                'Selecione os canais abaixo:')
+                'Selecione os canais abaixo:'
+            )
             .addFields(
                 { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.chat || '🎫'} ReportChat`, value: logTickets ? `<#${logTickets}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
             )
-            .setTimestamp()
-            .setFooter(EmbedFormatter.getFooter(guild.name));
-
-        
-        const { ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+            .setFooter(EmbedFormatter.getFooter(guild.name))
+            .setTimestamp();
         
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
@@ -64,7 +62,7 @@ module.exports = {
         const punishmentsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:punishments')
-                .setPlaceholder(` Selecionar canal de logs de punições`)
+                .setPlaceholder(`Selecionar canal de logs de punições`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
