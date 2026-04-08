@@ -26,24 +26,28 @@ class ReportChatSystem {
     async createTicket(interaction) {
         const { guild, user } = interaction;
         
+        // Verificar se a interação ainda é válida
+        if (!interaction.isRepliable()) {
+            console.error('❌ Interação não pode ser respondida');
+            return;
+        }
+        
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
         if (!logChannelId) {
             return await ResponseManager.error(interaction, 
-                '❌ **Canal de logs não configurado!**\n\n' +
-                'Um administrador precisa configurar o canal de logs de ReportChat primeiro.\n\n' +
-                'Use `/config-logs` e selecione um canal para **ReportChat**.'
+                '❌ **Canal de logs não configurado!**\n\nUse `/config-logs` e selecione um canal para **ReportChat**.'
             );
         }
         
         const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
         if (existing) {
-            return await ResponseManager.error(interaction, 'Você já possui um canal aberto. Aguarde o fechamento para abrir outro.');
+            return await ResponseManager.error(interaction, 'Você já possui um canal aberto.');
         }
 
         const ticketNumber = this.getNextTicketId(guild.id);
         const ticketId = `#RC${ticketNumber}`;
         
-        const threadName = user.username.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const threadName = `${ticketId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-#]/g, '-');
         
         const channel = interaction.channel;
         const thread = await channel.threads.create({
@@ -60,21 +64,29 @@ class ReportChatSystem {
             VALUES (?, ?, ?, ?, ?, ?)
         `).run(ticketId, guild.id, thread.id, user.id, Date.now(), 'open');
 
-        const dmEmbed = ReportChatFormatter.createTicketEmbed(ticketId, user);
-        await user.send(dmEmbed).catch(() => null);
+        // DM do usuário
+        const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, user);
+        await user.send(dmContent).catch(() => null);
 
+        // Log no canal
         const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
         if (logChannel) {
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
             const mention = staffRoleId ? `<@&${staffRoleId}>` : '';
-            const logEmbed = ReportChatFormatter.createLogEmbed(ticketId, user, thread.url);
-            await logChannel.send({ content: mention || '', ...logEmbed });
+            const logContent = ReportChatFormatter.createLogEmbed(ticketId, user, thread.url);
+            await logChannel.send({ content: mention || '', ...logContent });
         }
 
-        const threadEmbed = ReportChatFormatter.createTicketEmbed(ticketId, user);
-        await thread.send({ content: `<@${user.id}>`, ...threadEmbed });
+        // Embed na thread
+        const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, user);
+        await thread.send({ content: `<@${user.id}>`, ...threadContent });
 
-        await ResponseManager.success(interaction, `ReportChat ${ticketId} criado! Acesse: ${thread.url}`);
+        // Responder ao comando (sem editar a mensagem original)
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `${ticketId} criado! Acesse: ${thread.url}`, flags: 64 });
+        } else if (interaction.deferred && !interaction.replied) {
+            await interaction.editReply({ content: `${ticketId} criado! Acesse: ${thread.url}` });
+        }
     }
 
     async joinTicket(interaction, ticketId) {
@@ -82,12 +94,12 @@ class ReportChatSystem {
         
         const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
         if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
-            return await ResponseManager.error(interaction, 'Apenas staff pode entrar em ReportChats.');
+            return await ResponseManager.error(interaction, 'Apenas staff pode entrar.');
         }
 
         const ticket = db.prepare(`SELECT * FROM tickets WHERE id = ? AND guild_id = ? AND status = 'open'`).get(ticketId, guild.id);
         if (!ticket) {
-            return await ResponseManager.error(interaction, 'ReportChat não encontrado ou já fechado.');
+            return await ResponseManager.error(interaction, 'ReportChat não encontrado.');
         }
 
         const thread = await guild.channels.fetch(ticket.thread_id).catch(() => null);
@@ -102,28 +114,64 @@ class ReportChatSystem {
             const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
             if (logChannel) {
                 const targetUser = await this.client.users.fetch(ticket.user_id);
-                const logEmbed = ReportChatFormatter.createLogEmbed(ticketId, targetUser, thread.url, user, 'update');
-                await logChannel.send(logEmbed);
+                const logContent = ReportChatFormatter.createLogEmbed(ticketId, targetUser, thread.url, user, 'update');
+                await logChannel.send(logContent);
             }
         }
 
         const targetUser = await this.client.users.fetch(ticket.user_id);
-        const dmEmbed = ReportChatFormatter.createTicketEmbed(ticketId, targetUser, user);
-        await targetUser.send(dmEmbed).catch(() => null);
+        
+        // Atualizar DM
+        const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, user);
+        await targetUser.send(dmContent).catch(() => null);
 
-        const threadEmbed = ReportChatFormatter.createTicketEmbed(ticketId, targetUser, user);
-        await thread.send({ content: `<@${targetUser.id}>`, ...threadEmbed });
+        // Atualizar thread
+        const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, targetUser, user);
+        await thread.send({ content: `<@${targetUser.id}>`, ...threadContent });
 
-        await ResponseManager.success(interaction, `Você entrou no ReportChat ${ticketId}`);
+        // Responder ao botão
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `Você entrou no ${ticketId}`, flags: 64 });
+        } else if (interaction.deferred && !interaction.replied) {
+            await interaction.editReply({ content: `Você entrou no ${ticketId}` });
+        }
     }
 
-    async closeTicket(interaction, ticketId, nota = null, comentario = null) {
+    async closeTicketWithReason(interaction, ticketId, motivo, punicao) {
         const { guild, user, member } = interaction;
         
         const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
         if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
-            return await ResponseManager.error(interaction, 'Apenas staff pode fechar ReportChats.');
+            return await ResponseManager.error(interaction, 'Apenas staff pode fechar.');
         }
+
+        await this._closeTicket(interaction, ticketId, user, motivo, punicao, true);
+    }
+
+    async closeTicketWithoutReason(interaction, ticketId) {
+        const { guild, user, member } = interaction;
+        
+        const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+        if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+            return await ResponseManager.error(interaction, 'Apenas staff pode fechar.');
+        }
+
+        await this._closeTicket(interaction, ticketId, user, 'Fechado sem motivo', 'Nenhuma', false);
+    }
+
+    async closeTicketWithRating(interaction, ticketId, nota, comentario) {
+        const { guild, user, member } = interaction;
+        
+        const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+        if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+            return await ResponseManager.error(interaction, 'Apenas staff pode fechar.');
+        }
+
+        await this._closeTicket(interaction, ticketId, user, 'Avaliado pelo usuário', 'Nenhuma', true, nota, comentario);
+    }
+
+    async _closeTicket(interaction, ticketId, staff, motivo, punicao, hasReason, nota = null, comentario = null) {
+        const { guild } = interaction;
 
         const ticket = db.prepare(`SELECT * FROM tickets WHERE id = ? AND guild_id = ? AND status = 'open'`).get(ticketId, guild.id);
         if (!ticket) {
@@ -142,40 +190,40 @@ class ReportChatSystem {
                 status = 'closed', 
                 closed_at = ?, 
                 closed_by = ?, 
+                closed_reason = ?,
                 rating = ?, 
                 rating_comment = ?
             WHERE id = ?
-        `).run(Date.now(), user.id, nota || null, comentario || null, ticketId);
+        `).run(Date.now(), staff.id, hasReason ? motivo : null, nota || null, comentario || null, ticketId);
 
         const targetUser = await this.client.users.fetch(ticket.user_id);
-        
-        if (nota) {
-            const embed = new EmbedBuilder()
-                .setColor(0xBBF96A)
-                .setDescription(`# ⭐ ReportChat Fechado com Avaliação\n**ID:** ${ticketId}\n**Staff:** ${user.tag}\n**Sua nota:** ${'⭐'.repeat(nota)} (${nota}/5)\n**Comentário:** ${comentario || 'Nenhum'}\n\nObrigado pelo feedback!`)
-                .setTimestamp();
-            await targetUser.send({ embeds: [embed] }).catch(() => null);
-        } else {
-            const embed = new EmbedBuilder()
-                .setColor(0xDCA15E)
-                .setDescription(`# 🔒 ReportChat Fechado\n**ID:** ${ticketId}\n**Staff:** ${user.tag}\n\nO canal foi fechado sem avaliação.`)
-                .setTimestamp();
-            await targetUser.send({ embeds: [embed] }).catch(() => null);
+        const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+
+        // Atualizar DM do usuário
+        const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, staff, true, motivo, punicao);
+        await targetUser.send(dmContent).catch(() => null);
+
+        // Atualizar thread (se existir)
+        if (thread) {
+            const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, targetUser, staff, true, motivo, punicao);
+            await thread.send(threadContent);
         }
 
-        const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+        // Enviar log
         if (logChannelId) {
             const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
             if (logChannel) {
-                const embed = new EmbedBuilder()
-                    .setColor(0xF64B4E)
-                    .setDescription(`# 🔒 ReportChat Fechado\n**ID:** ${ticketId}\n**Usuário:** ${targetUser.tag}\n**Fechado por:** ${user.tag}\n**Avaliação:** ${nota ? `${'⭐'.repeat(nota)} (${nota}/5)` : 'Sem avaliação'}\n**Comentário:** ${comentario || 'Nenhum'}`)
-                    .setTimestamp();
-                await logChannel.send({ embeds: [embed] });
+                const logContent = ReportChatFormatter.createLogEmbed(ticketId, targetUser, thread ? thread.url : 'Canal deletado', staff, 'close', motivo, punicao);
+                await logChannel.send(logContent);
             }
         }
 
-        await ResponseManager.success(interaction, `ReportChat ${ticketId} fechado com sucesso.`);
+        // Responder ao botão/modal
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `${ticketId} fechado com sucesso!`, flags: 64 });
+        } else if (interaction.deferred && !interaction.replied) {
+            await interaction.editReply({ content: `${ticketId} fechado com sucesso!` });
+        }
     }
 }
 
