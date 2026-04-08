@@ -36,7 +36,8 @@ class InteractionHandler {
             error: errorLogger,
             'config-points': configSystem,
             'config-roles': configSystem,
-            'config-logs': configSystem
+            'config-logs': configSystem,
+            'ticket': this.ticketSystem
         };
         
         // Mapeamento de ações para métodos

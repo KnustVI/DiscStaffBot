@@ -54,63 +54,61 @@ module.exports = {
                 return;
             }
 
-                // Ticket System
-                const TicketSystem = require('../systems/ticketSystem');
-                const ticketSystem = new TicketSystem(client);
+            // ==================== TICKET SYSTEM ====================
+            const TicketSystem = require('../systems/ticketSystem');
+            const ticketSystem = new TicketSystem(client);
 
-                // Botão criar ticket
-                if (interaction.customId === 'ticket:create') {
-                    await ticketSystem.createTicket(interaction);
-                    return;
-                }
+            // Botão criar ticket
+            if (interaction.customId === 'ticket:create') {
+                await ticketSystem.createTicket(interaction);
+                return;
+            }
 
-                // Botão entrar no ticket
-                if (interaction.customId.startsWith('ticket:join:')) {
-                    const ticketId = interaction.customId.split(':')[2];
-                    await ticketSystem.joinTicket(interaction, ticketId);
-                    return;
-                }
+            // Botão entrar no ticket
+            if (interaction.customId && interaction.customId.startsWith('ticket:join:')) {
+                const ticketId = interaction.customId.split(':')[2];
+                await ticketSystem.joinTicket(interaction, ticketId);
+                return;
+            }
 
-                // Botão fechar ticket
-                if (interaction.customId.startsWith('ticket:close:')) {
-                    const ticketId = interaction.customId.split(':')[2];
-                    // Mostrar modal
-                    const modal = TicketFormatter.createCloseModal();
-                    await interaction.showModal(modal);
-                    // Salvar ticketId na sessão
-                    const sessionManager = require('../utils/sessionManager');
-                    sessionManager.set(interaction.user.id, interaction.guildId, 'ticket', 'closing', { ticketId }, 300000);
-                    return;
-                }
+            // Botão fechar ticket
+            if (interaction.customId && interaction.customId.startsWith('ticket:close:')) {
+                const ticketId = interaction.customId.split(':')[2];
+                const modal = TicketFormatter.createCloseModal();
+                await interaction.showModal(modal);
+                const sessionManager = require('../utils/sessionManager');
+                sessionManager.set(interaction.user.id, interaction.guildId, 'ticket', 'closing', { ticketId }, 300000);
+                return;
+            }
 
-                // Botão avaliar
-                if (interaction.customId === 'ticket:rate') {
-                    const modal = TicketFormatter.createRatingModal();
-                    await interaction.showModal(modal);
-                    return;
-                }
+            // Botão avaliar
+            if (interaction.customId === 'ticket:rate') {
+                const modal = TicketFormatter.createRatingModal();
+                await interaction.showModal(modal);
+                return;
+            }
 
-                // Modal fechar ticket
-                if (interaction.customId === 'ticket:close:modal') {
-                    const sessionManager = require('../utils/sessionManager');
-                    const session = sessionManager.get(interaction.user.id, interaction.guildId, 'ticket', 'closing');
-                    if (session && session.ticketId) {
-                        const motivo = interaction.fields.getTextInputValue('motivo');
-                        const resumo = interaction.fields.getTextInputValue('resumo');
-                        const punicao = interaction.fields.getTextInputValue('punicao');
-                        await ticketSystem.closeTicket(interaction, session.ticketId, motivo, resumo, punicao);
-                        sessionManager.delete(interaction.user.id, interaction.guildId, 'ticket', 'closing');
-                    }
-                    return;
+            // Modal fechar ticket
+            if (interaction.customId === 'ticket:close:modal') {
+                const sessionManager = require('../utils/sessionManager');
+                const session = sessionManager.get(interaction.user.id, interaction.guildId, 'ticket', 'closing');
+                if (session && session.ticketId) {
+                    const motivo = interaction.fields.getTextInputValue('motivo');
+                    const resumo = interaction.fields.getTextInputValue('resumo');
+                    const punicao = interaction.fields.getTextInputValue('punicao');
+                    await ticketSystem.closeTicket(interaction, session.ticketId, motivo, resumo, punicao);
+                    sessionManager.delete(interaction.user.id, interaction.guildId, 'ticket', 'closing');
                 }
+                return;
+            }
 
-                // Modal avaliar
-                if (interaction.customId === 'ticket:rating') {
-                    const nota = parseInt(interaction.fields.getTextInputValue('nota'));
-                    const comentario = interaction.fields.getTextInputValue('comentario');
-                    await ticketSystem.rateTicket(interaction, nota, comentario);
-                    return;
-                }
+            // Modal avaliar
+            if (interaction.customId === 'ticket:rating') {
+                const nota = parseInt(interaction.fields.getTextInputValue('nota'));
+                const comentario = interaction.fields.getTextInputValue('comentario');
+                await ticketSystem.rateTicket(interaction, nota, comentario);
+                return;
+            }
             
         } catch (error) {
             console.error(`❌ Erro fatal:`, error);
