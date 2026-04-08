@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../../database/index');
-const SessionManager = require('../../utils/sessionManager');
+const ResponseManager = require('../../utils/responseManager');
+const EmbedFormatter = require('../../utils/embedFormatter');
 
 // ID Centralizado de Suporte
 const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717'; 
@@ -22,10 +23,6 @@ module.exports = {
                 .setDescription('Detalhe sua sugestão ou o erro encontrado')
                 .setRequired(true)),
 
-    /**
-     * @param {import('discord.js').ChatInputCommandInteraction} interaction 
-     * @param {import('discord.js').Client} client 
-     */
     async execute(interaction, client) {
         const startTime = Date.now();
         const { options, user, guild, member } = interaction;
@@ -44,18 +41,16 @@ module.exports = {
         }
         
         try {
-            // 1. VALIDAR MENSAGEM
+            // Validar mensagem
             if (!mensagem || mensagem.trim().length === 0) {
-                return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} A mensagem não pode estar vazia.` 
-                });
+                return await ResponseManager.error(interaction, 'A mensagem não pode estar vazia.');
             }
             
-            // 2. GARANTIR QUE USUÁRIO E GUILD EXISTEM NO BANCO
+            // Garantir registros no banco
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
             
-            // 3. BUSCAR CANAL DE REPORTS
+            // Buscar canal de reports
             let devChannel = client.channels.cache.get(SEU_CANAL_DE_REPORTS_ID);
             if (!devChannel) {
                 try {
@@ -66,169 +61,107 @@ module.exports = {
             }
             
             if (!devChannel) {
-                db.logActivity(
-                    guildId,
-                    user.id,
-                    'feedback_channel_error',
-                    null,
-                    { 
-                        command: 'reportarbug',
-                        tipo,
-                        error: 'Canal de suporte não encontrado',
-                        channelId: SEU_CANAL_DE_REPORTS_ID
-                    }
-                );
-                
-                return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} A central de suporte está temporariamente offline. Tente novamente mais tarde.` 
+                db.logActivity(guildId, user.id, 'feedback_channel_error', null, {
+                    command: 'reportarbug', tipo,
+                    error: 'Canal de suporte não encontrado',
+                    channelId: SEU_CANAL_DE_REPORTS_ID
                 });
+                
+                return await ResponseManager.error(interaction, 'A central de suporte está temporariamente offline.');
             }
             
-            // 4. GERAR UUID ÚNICO PARA O FEEDBACK
+            // Gerar UUID
             const feedbackUuid = db.generateUUID();
             
-            // 5. CONSTRUÇÃO DA EMBED PARA O DESENVOLVEDOR
-            const tipoIcon = tipo === 'BUG' ? '🐛' : '💡';
-            const tipoColor = tipo === 'BUG' ? 0xEF4444 : 0x3B82F6;
+            // Embed para o desenvolvedor (canal de reports)
+            const tipoIcon = tipo === 'BUG' ? emojis.Error || '🐛' : emojis.How || '💡';
+            const tipoColor = tipo === 'BUG' ? 0xF64B4E : 0x3B82F6;
             
             const devEmbed = new EmbedBuilder()
-                .setAuthor({ 
-                    name: `📬 Feedback: ${tipo}`, 
-                    iconURL: user.displayAvatarURL() 
-                })
                 .setColor(tipoColor)
+                .setDescription(`# ${tipoIcon} Feedback: ${tipo}`)
                 .addFields(
                     { 
-                        name: '👤 Enviado por:', 
+                        name: `${emojis.user || '👤'} Enviado por:`, 
                         value: `${user.tag}\n\`${user.id}\``, 
                         inline: true 
                     },
                     { 
-                        name: '🌐 Servidor:', 
+                        name: `${emojis.serverguild || '🌐'} Servidor:`, 
                         value: `${guild.name}\n\`${guild.id}\``, 
                         inline: true 
                     },
                     { 
-                        name: '👥 Cargo:', 
+                        name: `${emojis.Rank || '👥'} Cargo:`, 
                         value: member?.roles.highest ? `${member.roles.highest.name}` : 'Sem cargo', 
                         inline: true 
                     },
                     { 
-                        name: '📝 Mensagem:', 
+                        name: `${emojis.Note || '📝'} Mensagem:`, 
                         value: `\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``,
                         inline: false 
                     },
                     { 
-                        name: '🆔 ID do Feedback:', 
+                        name: `${emojis.ID || '🆔'} ID do Feedback:`, 
                         value: `\`${feedbackUuid}\``, 
                         inline: true 
                     }
                 )
-                .setFooter({ 
-                    text: `Sistema Robin Feedback • ID: ${feedbackUuid.slice(0, 8)}`, 
-                    iconURL: client.user.displayAvatarURL() 
-                })
+                .setFooter({ text: `Sistema Robin Feedback • ID: ${feedbackUuid.slice(0, 8)}`, iconURL: client.user.displayAvatarURL() })
                 .setTimestamp();
             
-            // 6. ENVIAR PARA O CANAL DE FEEDBACK
+            // Enviar para o canal
             let sentMessage = null;
             try {
                 sentMessage = await devChannel.send({ embeds: [devEmbed] });
             } catch (err) {
                 console.error('❌ Erro ao enviar feedback:', err);
-                
-                db.logActivity(
-                    guildId,
-                    user.id,
-                    'feedback_send_error',
-                    null,
-                    { 
-                        command: 'reportarbug',
-                        tipo,
-                        feedbackUuid,
-                        error: err.message
-                    }
-                );
-                
-                return await interaction.editReply({ 
-                    content: `${emojis.ERRO || '❌'} Ocorreu um erro ao enviar seu feedback. Tente novamente mais tarde.` 
+                db.logActivity(guildId, user.id, 'feedback_send_error', null, {
+                    command: 'reportarbug', tipo, feedbackUuid, error: err.message
                 });
+                return await ResponseManager.error(interaction, 'Ocorreu um erro ao enviar seu feedback.');
             }
             
-            // 7. REGISTRAR ATIVIDADE NO LOG
-            const activityId = db.logActivity(
-                guildId,
-                user.id,
-                'feedback',
-                null,
-                { 
-                    command: 'reportarbug',
-                    tipo,
-                    feedbackUuid,
-                    messageId: sentMessage.id,
-                    channelId: devChannel.id,
-                    messagePreview: mensagem.slice(0, 200),
-                    messageLength: mensagem.length,
-                    responseTime: Date.now() - startTime
-                }
-            );
+            // Registrar atividade
+            db.logActivity(guildId, user.id, 'feedback', null, {
+                command: 'reportarbug', tipo, feedbackUuid,
+                messageId: sentMessage.id, channelId: devChannel.id,
+                messagePreview: mensagem.slice(0, 200), responseTime: Date.now() - startTime
+            });
             
-            // 8. REGISTRAR FEEDBACK NA TABELA (se existir)
+            // Registrar na tabela feedbacks (se existir)
             try {
-                const tableExists = db.prepare(`
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name='feedbacks'
-                `).get();
-                
+                const tableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='feedbacks'`).get();
                 if (tableExists) {
                     db.prepare(`
-                        INSERT INTO feedbacks (
-                            uuid, guild_id, user_id, type, message, 
-                            message_id, channel_id, created_at, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `).run(
-                        feedbackUuid, guildId, user.id, tipo, mensagem,
-                        sentMessage.id, devChannel.id, Date.now(), 'pending'
-                    );
+                        INSERT INTO feedbacks (uuid, guild_id, user_id, type, message, message_id, channel_id, created_at, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `).run(feedbackUuid, guildId, user.id, tipo, mensagem, sentMessage.id, devChannel.id, Date.now(), 'pending');
                 }
-            } catch (err) {
-                // Silenciar erro - tabela pode não existir ainda
-            }
+            } catch (err) {}
             
-            // 9. RESPOSTA PARA O USUÁRIO
+            // Resposta para o usuário
             const responseEmbed = new EmbedBuilder()
-                .setColor(0x00FF00)
-                .setTitle(`${tipoIcon} ${tipo === 'BUG' ? 'Bug Reportado' : 'Sugestão Enviada'}`)
-                .setDescription(`${emojis.CHECK || '✅'} **Sucesso!** Seu feedback foi enviado para minha central de suporte.`)
+                .setColor(0xBBF96A)
+                .setDescription(`# ${tipoIcon} ${tipo === 'BUG' ? 'Bug Reportado' : 'Sugestão Enviada'}`)
                 .addFields(
                     { 
-                        name: '📝 Resumo da Mensagem', 
+                        name: `${emojis.Note || '📝'} Resumo da Mensagem`, 
                         value: `\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``,
                         inline: false 
                     },
                     { 
-                        name: '🆔 ID do Feedback', 
+                        name: `${emojis.ID || '🆔'} ID do Feedback`, 
                         value: `\`${feedbackUuid.slice(0, 8)}...\``, 
                         inline: true 
                     },
-                    { 
-                        name: '📊 Status', 
-                        value: '`Aguardando análise`', 
-                        inline: true 
-                    }
                 )
-                .setFooter({ 
-                    text: `Obrigado por contribuir! ID: ${activityId?.slice(0, 8) || feedbackUuid.slice(0, 8)}`, 
-                    iconURL: user.displayAvatarURL() 
-                })
+                .setFooter({ text: `Obrigado por contribuir!`, iconURL: user.displayAvatarURL() })
                 .setTimestamp();
             
-            await interaction.editReply({ 
-                embeds: [responseEmbed],
-                content: null
-            });
+            await ResponseManager.send(interaction, { embeds: [responseEmbed] });
             
-            // 10. ATUALIZAR ANALYTICS DO STAFF (se o usuário for staff)
+            // Atualizar analytics se for staff
             const ConfigSystem = require('../../systems/configSystem');
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
             if (staffRoleId && member.roles.cache.has(staffRoleId)) {
@@ -239,38 +172,26 @@ module.exports = {
             console.log(`📊 [FEEDBACK] ${user.tag} enviou ${tipo} em ${guild.name} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
-            console.error('❌ Erro no comando reportarbug:', error);
+            console.error('❌ Erro no reportarbug:', error);
             
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            db.logActivity(
-                guildId,
-                user.id,
-                'error',
-                null,
-                { 
-                    command: 'reportarbug',
-                    tipo,
-                    error: error.message,
-                    stack: error.stack
-                }
-            );
+            db.logActivity(guildId, user.id, 'error', null, {
+                command: 'reportarbug', tipo, error: error.message
+            });
             
             const errorEmbed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('❌ Erro ao Enviar Feedback')
-                .setDescription('Ocorreu um erro interno ao processar seu envio. A equipe de desenvolvimento foi notificada.')
+                .setColor(0xF64B4E)
+                .setDescription(`# ${emojis.Error || '❌'} Erro ao Enviar Feedback`)
                 .addFields(
                     { name: 'Tipo', value: tipo, inline: true },
                     { name: 'Código do Erro', value: `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``, inline: true }
                 )
+                .setFooter({ text: 'Caso persista, contate um administrador.' })
                 .setTimestamp();
             
-            await interaction.editReply({ 
-                embeds: [errorEmbed],
-                content: null
-            }).catch(() => null);
+            await ResponseManager.send(interaction, { embeds: [errorEmbed] });
         }
     }
 };
