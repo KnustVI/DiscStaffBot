@@ -51,25 +51,25 @@ module.exports = {
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:staff')
-                .setPlaceholder(`${emojis.staff || '🛡️'} Selecionar cargo de Staff`)
+                .setPlaceholder('Selecionar cargo de Staff')
         );
         
         const strikeRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:strike')
-                .setPlaceholder(`${emojis.strike || '⚠️'} Selecionar cargo de Strike`)
+                .setPlaceholder('Selecionar cargo de Strike')
         );
         
         const exemplarRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:exemplar')
-                .setPlaceholder(`${emojis.shinystar || '✨'} Selecionar cargo Exemplar`)
+                .setPlaceholder('Selecionar cargo Exemplar')
         );
         
         const problematicoRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:problematico')
-                .setPlaceholder(`${emojis.Warning || '⚠️'} Selecionar cargo Problemático`)
+                .setPlaceholder('Selecionar cargo Problemático')
         );
         
         await ResponseManager.send(interaction, {
