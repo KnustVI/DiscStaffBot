@@ -1,276 +1,192 @@
-/**
- * Utilitário para formatação padronizada de embeds
- */
+// src/utils/reportChatFormatter.js
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const EmbedFormatter = require('./embedFormatter');
 
-const { EMOJIS } = require('../database/emojis.js');
+// Carregar emojis
+let EMOJIS = {};
+try {
+    const emojisFile = require('../database/emojis.js');
+    EMOJIS = emojisFile.EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
 
-const EmbedFormatter = {
-    /**
-     * Formata um usuário para exibição em embeds
-     * @param {object} user - Objeto User do Discord
-     * @param {object} member - Objeto Member do Discord (opcional, para nickname)
-     * @returns {string} Texto formatado: "Apelido (username) [id]" ou "username (username) [id]"
-     */
-    formatUser(user, member = null) {
-    if (!user) return '`Usuário desconhecido`';
-    
-    const displayName = member?.nickname || user.username;
-    const mention = `<@${user.id}>`;
-    
-    // Formato: @Menção (username) [id]
-    return ` ${mention}【${user.username}】`;
-    },
-    
-    /**
-     * Formata um usuário para o campo "Moderador" ou similar
-     * @param {object} user - Objeto User do Discord
-     * @param {object} member - Objeto Member do Discord (opcional, para nickname)
-     * @returns {string} Texto formatado
-     */
-    /**
-     * Formata um usuário para o campo "Moderador" (com menção)
-     */
-    formatModerator(user, member = null) {
-        if (!user) return '`Desconhecido`';
-        
-        const displayName = member?.nickname || user.username;
-        const mention = `<@${user.id}>`;
-        
-        // Formato: @Menção (username) [id]
-        return `${mention}【${user.username}】`;
-    },
-    
-    /**
-     * Gera o footer padrão para embeds
-     * @param {string} guildName - Nome do servidor
-     * @param {string} extraText - Texto adicional (opcional)
-     * @returns {object} Objeto com text e iconURL
-     */
-    getFooter(guildName, extraText = '') {
-        const footerText = extraText 
-            ? `By:KnustVI • ${guildName} • ${extraText}`
-            : `By:KnustVI • ${guildName}`;
-        
-        return {
-            text: footerText,
-            iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png'
-        };
-    },
-    
-    /**
-     * Gera o footer para históricos com paginação
-     * @param {number} currentPage - Página atual
-     * @param {number} totalPages - Total de páginas
-     * @param {number} totalRecords - Total de registros
-     * @returns {string} Texto do footer
-     */
-    getHistoryFooter(currentPage, totalPages, totalRecords) {
-        return `Página ${currentPage} de ${totalPages} • Total: ${totalRecords} registros`;
-    },
-    
-    /**
-     * Formata uma data para exibição em embed
-     * @param {number} timestamp - Timestamp em milissegundos
-     * @returns {string} Data formatada
-     */
-    formatDate(timestamp) {
-        return `<t:${Math.floor(timestamp / 1000)}:d>`;
-    },
-    
-    /**
-     * Formata uma data relativa (ex: "há 2 dias")
-     * @param {number} timestamp - Timestamp em milissegundos
-     * @returns {string} Data relativa formatada
-     */
-    formatRelativeDate(timestamp) {
-        return `<t:${Math.floor(timestamp / 1000)}:R>`;
-    },
+class ReportChatFormatter {
+    static createPanelEmbed(guildName) {
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat\nClique no botão abaixo para abrir um canal de atendimento.\n\n**Regras:**\n• Seja educado\n• Aguarde o atendimento\n• Não abra canais duplicados`)
+            .setFooter(EmbedFormatter.getFooter(guildName))
+            .setTimestamp();
 
-    // ==================== FIELDS PADRONIZADOS ====================
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('reportchat:create')
+                .setLabel('Abrir ReportChat')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji(EMOJIS.chat || '🎫')
+        );
 
-    /**
-     * Cria um field padrão
-     * @param {string} name - Nome do field
-     * @param {string} value - Valor do field
-     * @param {boolean} inline - Se deve ser inline (padrão: false)
-     * @returns {object} Field para EmbedBuilder
-     */
-    field(name, value, inline = false) {
-        return { name, value, inline };
-    },
-
-    /**
-     * Field de usuário (alvo)
-     * @param {object} user - Objeto User
-     * @param {object} member - Objeto Member (opcional)
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    userField(user, member = null, inline = true) {
-        return {
-            name: `${EMOJIS.user || '👤'} Usuário`,
-            value: this.formatUser(user, member),
-            inline
-        };
-    },
-
-    /**
-     * Field de moderador
-     * @param {object} user - Objeto User do moderador
-     * @param {object} member - Objeto Member do moderador (opcional)
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    moderatorField(user, member = null, inline = true) {
-        return {
-            name: `${EMOJIS.staff || '👮'} Moderador`,
-            value: this.formatUser(user, member),
-            inline
-        };
-    },
-
-    /**
-     * Field de reputação (pontos)
-     * @param {number} oldPoints - Pontos antigos
-     * @param {number} newPoints - Pontos novos
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    reputationField(oldPoints, newPoints, inline = true) {
-        const diff = newPoints - oldPoints;
-        const diffText = diff >= 0 ? `+${diff}` : `${diff}`;
-        return {
-            name: `${EMOJIS.star || '⭐'} Reputação`,
-            value: `\`${oldPoints}\` → \`${newPoints}\` (\`${diffText}\`)`,
-            inline
-        };
-    },
-
-    /**
-     * Field de pontos (genérico)
-     * @param {string} label - Rótulo (ex: "Pontos Perdidos")
-     * @param {number} points - Quantidade de pontos
-     * @param {string} emoji - Emoji opcional
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    pointsField(label, points, emoji = '📊', inline = true) {
-        const prefix = points >= 0 ? '+' : '';
-        return {
-            name: `${emoji} ${label}`,
-            value: `\`${prefix}${points} pts\``,
-            inline
-        };
-    },
-
-    /**
-     * Field de motivo
-     * @param {string} reason - Motivo
-     * @param {boolean} inline - Se deve ser inline (padrão: false)
-     * @returns {object} Field
-     */
-    reasonField(reason, inline = false) {
-        return {
-            name: `${EMOJIS.Note || '📝'} Motivo`,
-            value: reason.length > 100 ? `${reason.slice(0, 97)}...` : reason,
-            inline
-        };
-    },
-
-    /**
-     * Field de severidade (strike)
-     * @param {number} severity - Nível da severidade (1-5)
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    severityField(severity, inline = true) {
-        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
-        return {
-            name: `${severityIcons[severity] || '⚠️'} Gravidade`,
-            value: `${severityNames[severity] || `Nível ${severity}`}`,
-            inline
-        };
-    },
-
-    /**
-     * Field de ticket
-     * @param {string} ticketId - ID do ticket
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    ticketField(ticketId, inline = true) {
-        if (!ticketId) return null;
-        return {
-            name: `${EMOJIS.Ticket || '🎫'} Ticket`,
-            value: `\`${ticketId}\``,
-            inline
-        };
-    },
-
-    /**
-     * Field de ID da punição
-     * @param {number} strikeId - ID do strike
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    strikeIdField(strikeId, inline = true) {
-        return {
-            name: `${EMOJIS.strike || '⚠️'} ID do Strike`,
-            value: `#${strikeId}`,
-            inline
-        };
-    },
-
-    /**
-     * Field de status
-     * @param {string} status - Status (active, revoked, etc)
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    statusField(status, inline = true) {
-        const statusMap = {
-            active: '✅ Ativo',
-            revoked: '❌ Anulado',
-            expired: '⏰ Expirado'
-        };
-        return {
-            name: `${EMOJIS.Status || '📊'} Status`,
-            value: statusMap[status] || status,
-            inline
-        };
-    },
-
-    /**
-     * Field de data
-     * @param {number} timestamp - Timestamp em milissegundos
-     * @param {string} label - Rótulo (ex: "Criado em")
-     * @param {boolean} relative - Se deve usar formato relativo
-     * @param {boolean} inline - Se deve ser inline
-     * @returns {object} Field
-     */
-    dateField(timestamp, label = 'Data', relative = false, inline = true) {
-        const formattedDate = relative ? this.formatRelativeDate(timestamp) : this.formatDate(timestamp);
-        return {
-            name: `${EMOJIS.Date || '📅'} ${label}`,
-            value: formattedDate,
-            inline
-        };
-    },
-
-    /**
-     * Adiciona múltiplos fields a um embed
-     * @param {EmbedBuilder} embed - EmbedBuilder do Discord
-     * @param {Array} fields - Lista de fields (objetos ou null)
-     * @returns {EmbedBuilder} Embed com fields adicionados
-     */
-    addFields(embed, fields) {
-        const validFields = fields.filter(f => f !== null);
-        if (validFields.length > 0) {
-            embed.addFields(validFields);
-        }
-        return embed;
+        return { embeds: [embed], components: [row] };
     }
-};
 
-module.exports = EmbedFormatter;
+    // Embed da DM do usuário (ABERTO)
+    static createUserDmEmbed(ticketId, user, threadUrl, staff = null) {
+        const embed = new EmbedBuilder()
+            .setColor(0xBBF96A)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat ${ticketId}\n**Status:** ${EMOJIS.Check || '✅'} Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staff ? staff.tag : `${EMOJIS.Error || '❌'} Nenhum staff presente`}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setFooter({ text: `${ticketId}` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`reportchat:close:no-rate:${ticketId}`)
+                .setLabel(`Fechar sem Avaliação`)
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji(EMOJIS.Error || '🔒'),
+            new ButtonBuilder()
+                .setCustomId(`reportchat:close:rate:${ticketId}`)
+                .setLabel(`Fechar com Avaliação`)
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji(EMOJIS.star || '⭐')
+        );
+
+        return { embeds: [embed], components: [row] };
+    }
+
+    // Embed da DM do usuário (FECHADO) - Para EDITAR o existente
+    static createUserDmClosedEmbed(ticketId, user, threadUrl, staff, motivo, punicao) {
+        const embed = new EmbedBuilder()
+            .setColor(0xF64B4E)
+            .setDescription(`# ${EMOJIS.lose || '🔒'} ReportChat Fechado\n**ID:** ${ticketId}\n**Criado por:** ${user.tag}\n**Fechado por:** ${staff ? staff.tag : 'Sistema'}\n**Thread:** [Clique aqui](${threadUrl})\n**Motivo:** ${motivo || 'Não informado'}\n**Punição:** ${punicao || 'Nenhuma'}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setFooter({ text: `${ticketId}` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`reportchat:rate:${ticketId}`)
+                .setLabel(`Avaliar Atendimento`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji(EMOJIS.star || '⭐')
+        );
+
+        return { embeds: [embed], components: [row] };
+    }
+
+    // Embed da Thread (para staff e usuário) - ABERTO
+    static createThreadEmbed(ticketId, user, threadUrl, staff = null) {
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat ${ticketId}\n**Status:** ${EMOJIS.Check || '✅'} Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staff ? staff.tag : `${EMOJIS.Error || '❌'} Nenhum staff presente`}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setFooter({ text: `${ticketId}` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`reportchat:close:no-reason:${ticketId}`)
+                .setLabel(`Fechar sem Motivo`)
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji(EMOJIS.Error || '🔒'),
+            new ButtonBuilder()
+                .setCustomId(`reportchat:close:reason:${ticketId}`)
+                .setLabel(`Fechar com Motivo`)
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji(EMOJIS.Note || '📝')
+        );
+
+        return { embeds: [embed], components: [row] };
+    }
+
+    // Embed da Thread (FECHADO)
+    static createThreadClosedEmbed(ticketId, user, threadUrl, staff, motivo, punicao) {
+        const embed = new EmbedBuilder()
+            .setColor(0xF64B4E)
+            .setDescription(`# ${EMOJIS.lose || '🔒'} ReportChat Fechado\n**ID:** ${ticketId}\n**Criado por:** ${user.tag}\n**Fechado por:** ${staff ? staff.tag : 'Sistema'}\n**Thread:** [Clique aqui](${threadUrl})\n**Motivo:** ${motivo || 'Não informado'}\n**Punição:** ${punicao || 'Nenhuma'}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setFooter({ text: `${ticketId}` })
+            .setTimestamp();
+
+        return { embeds: [embed], components: [] };
+    }
+
+    // Embed do Log (canal de logs)
+    static createLogEmbed(ticketId, user, threadUrl, staff = null, action = 'open', motivo = null, punicao = null) {
+        const isOpen = action === 'open';
+        const embed = new EmbedBuilder()
+            .setColor(isOpen ? 0xBBF96A : 0xF64B4E)
+            .setDescription(`# ${isOpen ? `${EMOJIS.chat || '🎫'} ReportChat Aberto` : `${EMOJIS.lose || '🔒'} ReportChat Fechado`}\n**ID:** ${ticketId}\n**Usuário:** ${user.tag}\n**Staff:** ${staff ? staff.tag : 'Aguardando'}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setTimestamp();
+
+        if (!isOpen && motivo) {
+            embed.addFields(
+                { name: `${EMOJIS.Note || '📝'} Motivo`, value: motivo, inline: false },
+                { name: `${EMOJIS.strike || '⚠️'} Punição`, value: punicao || 'Nenhuma', inline: false }
+            );
+        }
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`reportchat:join:${ticketId}`)
+                .setLabel(` Entrar no ReportChat`)
+                .setStyle(ButtonStyle.Success)
+                .setEmoji(EMOJIS.staff || '👋')
+        );
+
+        return { embeds: [embed], components: [row] };
+    }
+
+    static createCloseReasonModal() {
+        const modal = new ModalBuilder()
+            .setCustomId('reportchat:close:reason:modal')
+            .setTitle('Fechar ReportChat');
+
+        const motivo = new TextInputBuilder()
+            .setCustomId('motivo')
+            .setLabel('Motivo do fechamento')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: Problema resolvido');
+
+        const punicao = new TextInputBuilder()
+            .setCustomId('punicao')
+            .setLabel('Punição aplicada (se houver)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+            .setPlaceholder('Ex: Advertência, Ban, Strike #RC1');
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(motivo),
+            new ActionRowBuilder().addComponents(punicao)
+        );
+
+        return modal;
+    }
+
+    static createRatingModal() {
+        const modal = new ModalBuilder()
+            .setCustomId('reportchat:rating')
+            .setTitle('Avaliar Atendimento');
+
+        const nota = new TextInputBuilder()
+            .setCustomId('nota')
+            .setLabel('Nota para o staff (1 a 5)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: 5');
+
+        const comentario = new TextInputBuilder()
+            .setCustomId('comentario')
+            .setLabel('Comentário (opcional)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+            .setPlaceholder('Deixe seu feedback sobre o atendimento...');
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(nota),
+            new ActionRowBuilder().addComponents(comentario)
+        );
+
+        return modal;
+    }
+}
+
+module.exports = ReportChatFormatter;

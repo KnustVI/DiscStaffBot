@@ -46,7 +46,7 @@ module.exports = {
                 { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.Ticket || '🎫'} ReportChat`, value: logTickets ? `<#${logTickets}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
+                { name: `${emojis.chat || '🎫'} ReportChat`, value: logTickets ? `<#${logTickets}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
             )
             .setTimestamp();
             embed.setFooter(EmbedFormatter.getFooter(guild.name));

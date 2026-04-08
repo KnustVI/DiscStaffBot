@@ -501,7 +501,7 @@ const ConfigSystem = {
                 { name: `${EMOJIS.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
-                { name: `${EMOJIS.Ticket || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
+                { name: `${EMOJIS.chat || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
             .setTimestamp();
             embed.setFooter(EmbedFormatter.getFooter(guildName));
@@ -579,7 +579,7 @@ const ConfigSystem = {
             log_channel: `${EMOJIS.global || '📜'} Canal de logs gerais`,
             log_punishments: `${EMOJIS.strike || '⚖️'} Canal de logs de punições`,
             log_automod: `${EMOJIS.AutoMod || '🛡️'} Canal de logs de automoderação`,
-            log_tickets: `${EMOJIS.Ticket || '🎫'} Canal de logs de tickets`
+            log_tickets: `${EMOJIS.chat || '🎫'} Canal de logs de tickets`
         };
         
         await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`);
@@ -655,7 +655,7 @@ const ConfigSystem = {
                     { name: `${EMOJIS.global || '📜'} Geral`, value: `<#${geral.id}>`, inline: true },
                     { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: `<#${automod.id}>`, inline: true },
                     { name: `${EMOJIS.strike || '⚖️'} Punições`, value: `<#${punishments.id}>`, inline: true },
-                    { name: `${EMOJIS.Ticket || '🎫'} Tickets`, value: `<#${tickets.id}>`, inline: true }
+                    { name: `${EMOJIS.chat || '🎫'} Tickets`, value: `<#${tickets.id}>`, inline: true }
                 )
                 .setTimestamp();
                 embed.setFooter(EmbedFormatter.getFooter(guild.name));

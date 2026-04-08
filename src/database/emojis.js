@@ -13,7 +13,7 @@ const formatEmoji = (id, name) => {
 const EMOJIS = {
     Warning: formatEmoji('1488572178084659324', 'Warning'),
     user: formatEmoji('1488572168332640338', 'user'),
-    Ticket: formatEmoji('1488572166608916575', 'Ticket'),
+    chat: formatEmoji('1488572166608916575', 'chat'),
     thumbsUP: formatEmoji('1488572163916038295', 'thumbsUP'),
     thumbsDOWN: formatEmoji('1488572162825781479', 'thumbsDOWN'),
     strike: formatEmoji('1488572161256849489', 'strike'),

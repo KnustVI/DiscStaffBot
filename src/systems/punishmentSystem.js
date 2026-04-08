@@ -195,7 +195,7 @@ const PunishmentSystem = {
     
     // ==================== EMBEDS UNIFICADOS (DM + LOG) ====================
     
-    generateStrikeUnifiedEmbed(target, moderator, strikeId, severity, reason, ticketId, pointsLost, newPoints, discordAct, discordActionResult, guildName) {
+    generateStrikeUnifiedEmbed(target, moderator, strikeId, severity, reason, ticketId, pointsLost, newPoints, discordAct, discordActionResult, guildName,ticketLink) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityIcon = severityIcons[severity] || '❓';
@@ -206,6 +206,7 @@ const PunishmentSystem = {
             `## ${EMOJIS.strike || '⚠️'} Punições Aplicadas`,
             this.getPunishmentActions(severity, discordAct, discordActionResult),
             `## ${EMOJIS.Note || '📝'} Motivo`,
+            ticketId ? `- **Ticket:** ${ticketLink ? `[${ticketId}](${ticketLink})` : ticketId}` : null,
             `\`\`\`text\n${reason}\n\`\`\``
         ].join('\n');
         
