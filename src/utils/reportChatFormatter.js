@@ -1,6 +1,9 @@
-// src/utils/reportChatFormatter.js
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const EmbedFormatter = require('./embedFormatter');
+// src/systems/reportChatSystem.js
+const db = require('../database/index');
+const ResponseManager = require('../utils/responseManager');
+const ReportChatFormatter = require('../utils/reportChatFormatter');
+const ConfigSystem = require('./configSystem');
+const { ChannelType } = require('discord.js');
 
 // Carregar emojis
 let EMOJIS = {};
@@ -11,182 +14,282 @@ try {
     EMOJIS = {};
 }
 
-class ReportChatFormatter {
-    static createPanelEmbed(guildName) {
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat\nClique no botão abaixo para abrir um canal de atendimento.\n\n**Regras:**\n• Seja educado\n• Aguarde o atendimento\n• Não abra canais duplicados`)
-            .setFooter(EmbedFormatter.getFooter(guildName))
-            .setTimestamp();
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('reportchat:create')
-                .setLabel('Abrir ReportChat')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(EMOJIS.chat || '🎫')
-        );
-
-        return { embeds: [embed], components: [row] };
+class ReportChatSystem {
+    constructor(client) {
+        this.client = client;
     }
 
-    // Embed da DM do usuário (ABERTO)
-    static createUserDmEmbed(ticketId, user, threadUrl, staff = null) {
-        const embed = new EmbedBuilder()
-            .setColor(0xBBF96A)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat ${ticketId}\n**Status:** ${EMOJIS.Check || '✅'} Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staff ? staff.tag : `${EMOJIS.Error || '❌'} Nenhum staff presente`}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:no-rate:${ticketId}`)
-                .setLabel(`Fechar sem Avaliação`)
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(EMOJIS.Error || '🔒'),
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:rate:${ticketId}`)
-                .setLabel(`Fechar com Avaliação`)
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(EMOJIS.star || '⭐')
-        );
-
-        return { embeds: [embed], components: [row] };
+    getNextTicketId(guildId) {
+        const lastTicket = db.prepare(`
+            SELECT id FROM tickets 
+            WHERE guild_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `).get(guildId);
+        
+        if (!lastTicket) return 1;
+        const lastNumber = parseInt(lastTicket.id.replace('#RC', ''));
+        return isNaN(lastNumber) ? 1 : lastNumber + 1;
     }
 
-    // Embed da DM do usuário (FECHADO) - Para EDITAR o existente
-    static createUserDmClosedEmbed(ticketId, user, threadUrl, staff, motivo, punicao) {
-        const embed = new EmbedBuilder()
-            .setColor(0xF64B4E)
-            .setDescription(`# ${EMOJIS.lose || '🔒'} ReportChat Fechado\n**ID:** ${ticketId}\n**Criado por:** ${user.tag}\n**Fechado por:** ${staff ? staff.tag : 'Sistema'}\n**Thread:** [Clique aqui](${threadUrl})\n**Motivo:** ${motivo || 'Não informado'}\n**Punição:** ${punicao || 'Nenhuma'}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
+    async createTicket(interaction) {
+        const { guild, user } = interaction;
+        
+        try {
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+            if (!logChannelId) {
+                return await interaction.editReply({ 
+                    content: '❌ **Canal de logs não configurado!**\n\nUse `/config-logs` e selecione um canal para **ReportChat**.',
+                    components: []
+                });
+            }
+            
+            // Verificar se já existe ticket aberto
+            const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
+            if (existing) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.Error || '❌'} Você já possui um ticket aberto!\n\nAguarde o fechamento para abrir um novo.`,
+                    components: []
+                });
+            }
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:rate:${ticketId}`)
-                .setLabel(`Avaliar Atendimento`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(EMOJIS.star || '⭐')
-        );
+            const ticketNumber = this.getNextTicketId(guild.id);
+            const ticketId = `#RC${ticketNumber}`;
+            const threadName = `${ticketId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-#]/g, '-');
+            
+            const channel = interaction.channel;
+            const thread = await channel.threads.create({
+                name: threadName,
+                type: ChannelType.PrivateThread,
+                invitable: false,
+                reason: `ReportChat criado por ${user.tag}`
+            });
 
-        return { embeds: [embed], components: [row] };
-    }
+            await thread.members.add(user.id);
 
-    // Embed da Thread (para staff e usuário) - ABERTO
-    static createThreadEmbed(ticketId, user, threadUrl, staff = null) {
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat ${ticketId}\n**Status:** ${EMOJIS.Check || '✅'} Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staff ? staff.tag : `${EMOJIS.Error || '❌'} Nenhum staff presente`}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
+            db.prepare(`
+                INSERT INTO tickets (id, guild_id, user_id, thread_id, created_at, status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(ticketId, guild.id, user.id, thread.id, Date.now(), 'open');
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:no-reason:${ticketId}`)
-                .setLabel(`Fechar sem Motivo`)
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(EMOJIS.Error || '🔒'),
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:reason:${ticketId}`)
-                .setLabel(`Fechar com Motivo`)
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(EMOJIS.Note || '📝')
-        );
+            const threadUrl = thread.url;
 
-        return { embeds: [embed], components: [row] };
-    }
+            // DM do usuário (sem await para não travar)
+            const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, user, threadUrl);
+            user.send(dmContent).catch(() => null);
 
-    // Embed da Thread (FECHADO)
-    static createThreadClosedEmbed(ticketId, user, threadUrl, staff, motivo, punicao) {
-        const embed = new EmbedBuilder()
-            .setColor(0xF64B4E)
-            .setDescription(`# ${EMOJIS.lose || '🔒'} ReportChat Fechado\n**ID:** ${ticketId}\n**Criado por:** ${user.tag}\n**Fechado por:** ${staff ? staff.tag : 'Sistema'}\n**Thread:** [Clique aqui](${threadUrl})\n**Motivo:** ${motivo || 'Não informado'}\n**Punição:** ${punicao || 'Nenhuma'}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
+            // Embed na thread
+            const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, user, threadUrl);
+            await thread.send({ content: `<@${user.id}>`, ...threadContent });
 
-        return { embeds: [embed], components: [] };
-    }
+            // Log no canal
+            const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+            if (logChannel) {
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                const mention = staffRoleId ? `<@&${staffRoleId}>` : '';
+                const logContent = ReportChatFormatter.createLogEmbed(ticketId, user, threadUrl);
+                await logChannel.send({ content: mention || '', ...logContent });
+            }
 
-    // Embed do Log (canal de logs)
-    static createLogEmbed(ticketId, user, threadUrl, staff = null, action = 'open', motivo = null, punicao = null) {
-        const isOpen = action === 'open';
-        const embed = new EmbedBuilder()
-            .setColor(isOpen ? 0xBBF96A : 0xF64B4E)
-            .setDescription(`# ${isOpen ? `${EMOJIS.chat || '🎫'} ReportChat Aberto` : `${EMOJIS.lose || '🔒'} ReportChat Fechado`}\n**ID:** ${ticketId}\n**Usuário:** ${user.tag}\n**Staff:** ${staff ? staff.tag : 'Aguardando'}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setTimestamp();
-
-        if (!isOpen && motivo) {
-            embed.addFields(
-                { name: `${EMOJIS.Note || '📝'} Motivo`, value: motivo, inline: false },
-                { name: `${EMOJIS.strike || '⚠️'} Punição`, value: punicao || 'Nenhuma', inline: false }
-            );
+            // Resposta
+            await interaction.editReply({ 
+                content: `${ticketId} criado! Acesse: ${threadUrl}`,
+                components: []
+            });
+            
+        } catch (error) {
+            console.error('❌ Erro ao criar ticket:', error);
+            await interaction.editReply({ 
+                content: '❌ Ocorreu um erro ao criar o ticket. Tente novamente.',
+                components: []
+            });
         }
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:join:${ticketId}`)
-                .setLabel(` Entrar no ReportChat`)
-                .setStyle(ButtonStyle.Success)
-                .setEmoji(EMOJIS.staff || '👋')
-        );
-
-        return { embeds: [embed], components: [row] };
     }
 
-    static createCloseReasonModal() {
-        const modal = new ModalBuilder()
-            .setCustomId('reportchat:close:reason:modal')
-            .setTitle('Fechar ReportChat');
+    async joinTicket(interaction, ticketId) {
+        const { guild, user, member } = interaction;
+        
+        try {
+            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+            if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.Error || '❌'} Apenas staff pode entrar.`,
+                    components: []
+                });
+            }
 
-        const motivo = new TextInputBuilder()
-            .setCustomId('motivo')
-            .setLabel('Motivo do fechamento')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: Problema resolvido');
+            const ticket = db.prepare(`SELECT * FROM tickets WHERE id = ? AND guild_id = ? AND status = 'open'`).get(ticketId, guild.id);
+            if (!ticket) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.Error || '❌'} ReportChat não encontrado.`,
+                    components: []
+                });
+            }
 
-        const punicao = new TextInputBuilder()
-            .setCustomId('punicao')
-            .setLabel('Punição aplicada (se houver)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false)
-            .setPlaceholder('Ex: Advertência, Ban, Strike #RC1');
+            const thread = await guild.channels.fetch(ticket.thread_id).catch(() => null);
+            if (!thread) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.Error || '❌'} Canal não encontrado.`,
+                    components: []
+                });
+            }
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(motivo),
-            new ActionRowBuilder().addComponents(punicao)
-        );
+            await thread.members.add(user.id);
 
-        return modal;
+            const targetUser = await this.client.users.fetch(ticket.user_id);
+            const threadUrl = thread.url;
+
+            // Atualizar DM
+            const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, threadUrl, user);
+            await targetUser.send(dmContent).catch(() => null);
+
+            // Atualizar thread
+            const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, targetUser, threadUrl, user);
+            await thread.send({ content: `<@${targetUser.id}>`, ...threadContent });
+
+            // Log no canal
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+            if (logChannelId) {
+                const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                if (logChannel) {
+                    const logContent = ReportChatFormatter.createLogEmbed(ticketId, targetUser, threadUrl, user, 'update');
+                    await logChannel.send(logContent);
+                }
+            }
+
+            await interaction.editReply({ 
+                content: `${EMOJIS.Check || '✅'} Você entrou no ${ticketId}`,
+                components: []
+            });
+            
+        } catch (error) {
+            console.error('❌ Erro ao entrar no ticket:', error);
+            await interaction.editReply({ 
+                content: '❌ Ocorreu um erro ao entrar no ticket.',
+                components: []
+            });
+        }
     }
 
-    static createRatingModal() {
-        const modal = new ModalBuilder()
-            .setCustomId('reportchat:rating')
-            .setTitle('Avaliar Atendimento');
+    async _closeTicket(interaction, ticketId, staff, motivo, punicao, hasReason, nota = null) {
+        const { guild } = interaction;
 
-        const nota = new TextInputBuilder()
-            .setCustomId('nota')
-            .setLabel('Nota para o staff (1 a 5)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: 5');
+        try {
+            const ticket = db.prepare(`SELECT * FROM tickets WHERE id = ? AND guild_id = ? AND status = 'open'`).get(ticketId, guild.id);
+            if (!ticket) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.Error || '❌'} ReportChat não encontrado.`,
+                    components: []
+                });
+            }
 
-        const comentario = new TextInputBuilder()
-            .setCustomId('comentario')
-            .setLabel('Comentário (opcional)')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(false)
-            .setPlaceholder('Deixe seu feedback sobre o atendimento...');
+            const thread = await guild.channels.fetch(ticket.thread_id).catch(() => null);
+            const threadUrl = thread ? thread.url : 'Canal deletado';
+            
+            if (thread) {
+                await thread.members.remove(ticket.user_id).catch(() => null);
+                await thread.setLocked(true);
+                await thread.setArchived(true);
+            }
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(nota),
-            new ActionRowBuilder().addComponents(comentario)
-        );
+            db.prepare(`
+                UPDATE tickets SET 
+                    status = 'closed', 
+                    closed_at = ?, 
+                    closed_by = ?, 
+                    closed_reason = ?,
+                    rating = ?
+                WHERE id = ?
+            `).run(Date.now(), staff.id, hasReason ? motivo : null, nota || null, ticketId);
 
-        return modal;
+            const targetUser = await this.client.users.fetch(ticket.user_id);
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+
+            // Atualizar DM
+            const dmContent = ReportChatFormatter.createUserDmClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
+            await targetUser.send(dmContent).catch(() => null);
+
+            // Atualizar thread
+            if (thread) {
+                const threadContent = ReportChatFormatter.createThreadClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
+                await thread.send(threadContent);
+            }
+
+            // Enviar log
+            if (logChannelId) {
+                const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                if (logChannel) {
+                    const logContent = ReportChatFormatter.createLogEmbed(ticketId, targetUser, threadUrl, staff, 'close', motivo, punicao);
+                    await logChannel.send(logContent);
+                }
+            }
+
+            await interaction.editReply({ 
+                content: `${EMOJIS.Check || '✅'} ${ticketId} fechado com sucesso!`,
+                components: []
+            });
+            
+        } catch (error) {
+            console.error('❌ Erro ao fechar ticket:', error);
+            await interaction.editReply({ 
+                content: '❌ Ocorreu um erro ao fechar o ticket.',
+                components: []
+            });
+        }
+    }
+
+    async closeTicketWithReason(interaction, ticketId, motivo, punicao) {
+        const { user, member } = interaction;
+        const staffRoleId = ConfigSystem.getSetting(interaction.guild.id, 'staff_role');
+        if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+            return await interaction.editReply({ 
+                content: `${EMOJIS.Error || '❌'} Apenas staff pode fechar.`,
+                components: []
+            });
+        }
+        await this._closeTicket(interaction, ticketId, user, motivo, punicao, true);
+    }
+
+    async closeTicketWithoutReason(interaction, ticketId) {
+        const { user, member } = interaction;
+        const staffRoleId = ConfigSystem.getSetting(interaction.guild.id, 'staff_role');
+        if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+            return await interaction.editReply({ 
+                content: `${EMOJIS.Error || '❌'} Apenas staff pode fechar.`,
+                components: []
+            });
+        }
+        await this._closeTicket(interaction, ticketId, user, 'Fechado sem motivo', 'Nenhuma', false);
+    }
+
+    async closeTicketWithRating(interaction, ticketId, nota, comentario) {
+        const { user, member } = interaction;
+        const staffRoleId = ConfigSystem.getSetting(interaction.guild.id, 'staff_role');
+        if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+            return await interaction.editReply({ 
+                content: `${EMOJIS.Error || '❌'} Apenas staff pode fechar.`,
+                components: []
+            });
+        }
+        await this._closeTicket(interaction, ticketId, user, 'Avaliado pelo usuário', 'Nenhuma', true, nota);
+    }
+
+    async getTicketLink(guildId, ticketId) {
+        const ticket = db.prepare(`
+            SELECT thread_id FROM tickets 
+            WHERE id = ? AND guild_id = ?
+        `).get(ticketId, guildId);
+        
+        if (!ticket) return null;
+        
+        const guild = this.client.guilds.cache.get(guildId);
+        if (!guild) return null;
+        
+        const thread = await guild.channels.fetch(ticket.thread_id).catch(() => null);
+        if (!thread) return null;
+        
+        return thread.url;
     }
 }
 
-module.exports = ReportChatFormatter;
+module.exports = ReportChatSystem;

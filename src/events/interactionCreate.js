@@ -28,6 +28,9 @@ module.exports = {
             
             // Botão criar - NÃO precisa de defer
             if (interaction.customId === 'reportchat:create') {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferUpdate();
+                }
                 await reportChatSystem.createTicket(interaction);
                 return;
             }
