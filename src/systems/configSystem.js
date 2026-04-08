@@ -464,6 +464,14 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, roleKey, selectedRoleId);
         this.clearCache(interaction.guildId);
         
+        let emojis = {};
+        try {
+            const emojisFile = require('../database/emojis.js');
+            emojis = emojisFile.EMOJIS || {};
+        } catch (err) {
+            emojis = {};
+        }
+
         const roleLabels = {
             staff_role: 'Staff',
             strike_role: 'Strike',
