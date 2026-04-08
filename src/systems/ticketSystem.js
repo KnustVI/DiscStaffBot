@@ -23,14 +23,12 @@ class TicketSystem {
                     break;
                 case 'close':
                     // Mostrar modal
-                    const TicketFormatter = require('../utils/ticketFormatter');
                     const modal = TicketFormatter.createCloseModal();
                     await interaction.showModal(modal);
                     const sessionManager = require('../utils/sessionManager');
                     sessionManager.set(interaction.user.id, interaction.guildId, 'ticket', 'closing', { ticketId: param }, 300000);
                     break;
                 case 'rate':
-                    const TicketFormatter = require('../utils/ticketFormatter');
                     const modalRate = TicketFormatter.createRatingModal();
                     await interaction.showModal(modalRate);
                     break;
