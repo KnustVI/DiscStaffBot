@@ -48,8 +48,8 @@ module.exports = {
                 { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.chat || '🎫'} ReportChat`, value: logTickets ? `<#${logTickets}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
             )
-            .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+            .setTimestamp()
+            .setFooter(EmbedFormatter.getFooter(guild.name));
 
         
         const { ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
