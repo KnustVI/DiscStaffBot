@@ -166,6 +166,23 @@ const SCHEMA = {
         )
     `,
 
+    // ==================== TICKETS ====================
+        tickets: `
+        CREATE TABLE IF NOT EXISTS tickets (
+            id TEXT PRIMARY KEY,
+            guild_id TEXT NOT NULL,
+            thread_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            closed_at INTEGER,
+            closed_by TEXT,
+            closed_reason TEXT,
+            rating INTEGER,
+            rating_comment TEXT,
+            status TEXT DEFAULT 'open'
+        )
+    `,
+
     // ==================== FEEDBACKS ====================
     feedbacks: `
         CREATE TABLE IF NOT EXISTS feedbacks (
