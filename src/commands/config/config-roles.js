@@ -14,12 +14,12 @@ module.exports = {
         const guildId = guild.id;
         
         // Carregar emojis do servidor
-        let EMOJIS = {};
+        let emojis = {};
         try {
-            const emojisFile = require('../database/emojis.js');
-            EMOJIS = emojisFile.EMOJIS || {};
+            const emojisFile = require('../../database/emojis.js');
+            emojis = emojisFile.EMOJIS || {};
         } catch (err) {
-            EMOJIS = {};
+            emojis = {};
         }
         
         if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -38,40 +38,38 @@ module.exports = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(
-                `# ${emojis.staff || '👥'} Cargos do Sistema`,
-                'Selecione os cargos abaixo:')
+            .setDescription(`# ${emojis.staff || '👥'} Cargos do Sistema\nSelecione os cargos abaixo:`)
             .addFields(
                 { name: `${emojis.staff || '🛡️'} Staff`, value: staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.strike || '⚠️'} Strike (Temporário)`, value: strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.shinystar || '✨'} Exemplar`, value: exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.Warning || '⚠️'} Problemático`, value: problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
             )
+            .setFooter(EmbedFormatter.getFooter(guild.name))
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:staff')
-                .setPlaceholder(`Selecionar cargo de Staff`)
+                .setPlaceholder(`${emojis.staff || '🛡️'} Selecionar cargo de Staff`)
         );
         
         const strikeRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:strike')
-                .setPlaceholder(`Selecionar cargo de Strike`)
+                .setPlaceholder(`${emojis.strike || '⚠️'} Selecionar cargo de Strike`)
         );
         
         const exemplarRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:exemplar')
-                .setPlaceholder(`Selecionar cargo Exemplar`)
+                .setPlaceholder(`${emojis.shinystar || '✨'} Selecionar cargo Exemplar`)
         );
         
         const problematicoRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
                 .setCustomId('config-roles:problematico')
-                .setPlaceholder(`Selecionar cargo Problemático`)
+                .setPlaceholder(`${emojis.Warning || '⚠️'} Selecionar cargo Problemático`)
         );
         
         await ResponseManager.send(interaction, {
