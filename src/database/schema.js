@@ -78,29 +78,18 @@ const SCHEMA = {
     `,
 
     // ==================== TICKETS ====================
-    tickets: `
+        tickets: `
         CREATE TABLE IF NOT EXISTS tickets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL,
+            id TEXT PRIMARY KEY,
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
-            dm_message_id TEXT,
-            channel_id TEXT NOT NULL,
-            category_id TEXT,
-            status TEXT DEFAULT 'open',
-            priority TEXT DEFAULT 'normal',
-            type TEXT DEFAULT 'support',
-            title TEXT,
-            description TEXT,
+            thread_id TEXT NOT NULL,
             created_at INTEGER NOT NULL,
-            claimed_by TEXT,
-            claimed_at INTEGER,
-            closed_by TEXT,
             closed_at INTEGER,
+            closed_by TEXT,
             closed_reason TEXT,
             rating INTEGER,
-            feedback TEXT,
-            metadata TEXT
+            status TEXT DEFAULT 'open'
         )
     `,
 
