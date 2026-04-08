@@ -9,6 +9,40 @@ class TicketSystem {
         this.client = client;
     }
 
+     // Handler para componentes do ticket
+    async handleComponent(interaction, action, param) {
+        console.log(`🎫 [TICKET] handleComponent chamado: action=${action}, param=${param}`);
+        
+        try {
+            switch (action) {
+                case 'create':
+                    await this.createTicket(interaction);
+                    break;
+                case 'join':
+                    await this.joinTicket(interaction, param);
+                    break;
+                case 'close':
+                    // Mostrar modal
+                    const TicketFormatter = require('../utils/ticketFormatter');
+                    const modal = TicketFormatter.createCloseModal();
+                    await interaction.showModal(modal);
+                    const sessionManager = require('../utils/sessionManager');
+                    sessionManager.set(interaction.user.id, interaction.guildId, 'ticket', 'closing', { ticketId: param }, 300000);
+                    break;
+                case 'rate':
+                    const TicketFormatter = require('../utils/ticketFormatter');
+                    const modalRate = TicketFormatter.createRatingModal();
+                    await interaction.showModal(modalRate);
+                    break;
+                default:
+                    await ResponseManager.error(interaction, `Ação "${action}" não reconhecida.`);
+            }
+        } catch (error) {
+            console.error('❌ Erro no handleComponent do ticket:', error);
+            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar o ticket.');
+        }
+    }
+
     generateTicketId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
     }
