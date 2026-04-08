@@ -451,27 +451,20 @@ const ConfigSystem = {
     },
 
     async setRole(interaction, roleKey) {
+        // Usar EMOJIS já definido no topo do arquivo
         const selectedRoleId = interaction.values[0];
         if (!selectedRoleId) {
-            return await ResponseManager.error(interaction, 'Nenhum cargo selecionado.');
+            return await ResponseManager.error(interaction, `${EMOJIS.Error || '❌'} Nenhum cargo selecionado.`);
         }
         
         const role = interaction.guild.roles.cache.get(selectedRoleId);
         if (!role) {
-            return await ResponseManager.error(interaction, 'Cargo não encontrado.');
+            return await ResponseManager.error(interaction, `${EMOJIS.Error || '❌'} Cargo não encontrado.`);
         }
         
         this.setSetting(interaction.guildId, roleKey, selectedRoleId);
         this.clearCache(interaction.guildId);
         
-        let emojis = {};
-        try {
-            const emojisFile = require('../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
-        } catch (err) {
-            emojis = {};
-        }
-
         const roleLabels = {
             staff_role: 'Staff',
             strike_role: 'Strike',
@@ -479,7 +472,7 @@ const ConfigSystem = {
             role_problematico: 'Problemático'
         };
         
-        await this.refreshRolesPanel(interaction, `${emojisFile.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
+        await this.refreshRolesPanel(interaction, `${EMOJIS.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
     // ==================== CONFIG-LOGS ====================
