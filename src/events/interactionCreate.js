@@ -1,7 +1,10 @@
 const InteractionHandler = require('../systems/handlers');
 const ResponseManager = require('../utils/responseManager');
+const TicketSystem = require('../systems/ticketSystem');
+const TicketFormatter = require('../utils/ticketFormatter'); 
 
 let handler = null;
+let ticketSystem = null;
 
 module.exports = {
     name: 'interactionCreate',
@@ -55,8 +58,6 @@ module.exports = {
             }
 
             // ==================== TICKET SYSTEM ====================
-            const TicketSystem = require('../systems/ticketSystem');
-            const ticketSystem = new TicketSystem(client);
 
             // Botão criar ticket
             if (interaction.customId === 'ticket:create') {
