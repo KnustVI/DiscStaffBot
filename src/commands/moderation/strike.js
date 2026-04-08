@@ -3,6 +3,7 @@ const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const ReportChatSystem = require('../../systems/reportChatSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -37,27 +38,34 @@ module.exports = {
                 { name: 'Ban do Jogo', value: 'rcon_ban' }
             )),
 
-    async execute(interaction, client) {
-        const startTime = Date.now();
-        const { guild, options, channel, user: staff, member: staffMember } = interaction;
-        const guildId = guild.id;
-        
-        let emojis = {};
-        try {
-            const emojisFile = require('../../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
-        } catch (err) {
-            emojis = {};
-        }
-        
-        const targetUser = options.getUser('usuario');
-        const severity = options.getInteger('gravidade');
-        const reason = options.getString('motivo');
-        const durationStr = options.getString('duracao');
-        const discordAct = options.getString('discord_act') || 'none';
-        const jogoAct = options.getString('jogo_act') || 'none';
-        const ticketId = options.getString('ticket') || 
-            (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : null);
+            async execute(interaction, client) {
+            const startTime = Date.now();
+            const { guild, options, channel, user: staff, member: staffMember } = interaction;
+            const guildId = guild.id;
+            
+            let emojis = {};
+            try {
+                const emojisFile = require('../../database/emojis.js');
+                emojis = emojisFile.EMOJIS || {};
+            } catch (err) {
+                emojis = {};
+            }
+            
+            const targetUser = options.getUser('usuario');
+            const severity = options.getInteger('gravidade');
+            const reason = options.getString('motivo');
+            const durationStr = options.getString('duracao');
+            const discordAct = options.getString('discord_act') || 'none';
+            const jogoAct = options.getString('jogo_act') || 'none';
+            const ticketId = options.getString('ticket') || 
+                (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : null);
+            
+            // Buscar link do ticket se for ReportChat
+            let ticketLink = null;
+            if (ticketId && ticketId.startsWith('#RC')) {
+                const reportSystem = new ReportChatSystem(client);
+                ticketLink = await reportSystem.getTicketLink(guildId, ticketId);
+            }
         
         try {
             if (!targetUser) {
@@ -169,11 +177,13 @@ module.exports = {
                 severity,
                 reason,
                 ticketId || null,
+                ticketLink,
                 pointsToLose,
                 newPoints,
                 discordAct,
                 discordActionResult,
                 guild.name
+                
             );
 
             // ==================== ENVIAR DM PARA O USUÁRIO ====================
@@ -197,7 +207,7 @@ module.exports = {
 
             // ==================== RESPOSTA NO CANAL ====================
                 await ResponseManager.success(interaction,
-        `**Strike #${strikeId} aplicado em ${targetUser.username}**
+            `**Strike #${strikeId} aplicado em ${targetUser.username}**
             ${emojis.lose || '📉'}
             ${pointsToLose} pts perdidos
             ${emojis.star || '⭐'} Reputação: ${newPoints}/100`

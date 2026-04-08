@@ -1,5 +1,15 @@
+// src/systems/analyticsSystem.js
 const db = require('../database/index');
 const { EmbedBuilder } = require('discord.js');
+
+// Carregar emojis do servidor
+let EMOJIS = {};
+try {
+    const emojisFile = require('../database/emojis.js');
+    EMOJIS = emojisFile.EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
 
 class AnalyticsSystem {
     
@@ -14,38 +24,56 @@ class AnalyticsSystem {
     static async updateStaffAnalytics(guildId, userId, date = null) {
         const targetDate = date || this.getLocalDate();
         
-        // 🔧 CORREÇÃO: timezone local
+        // Punições aplicadas
         const punishmentsApplied = db.prepare(`
             SELECT COUNT(*) as count FROM punishments 
             WHERE guild_id = ? AND moderator_id = ? 
             AND date(created_at/1000, 'unixepoch', 'localtime') = ?
         `).get(guildId, userId, targetDate).count;
         
-        const ticketsClaimed = db.prepare(`
-            SELECT COUNT(*) as count FROM tickets 
-            WHERE guild_id = ? AND claimed_by = ? 
-            AND date(claimed_at/1000, 'unixepoch', 'localtime') = ?
-        `).get(guildId, userId, targetDate).count;
+        // Tickets assumidos (verificar se a coluna existe)
+        let ticketsClaimed = 0;
+        try {
+            ticketsClaimed = db.prepare(`
+                SELECT COUNT(*) as count FROM tickets 
+                WHERE guild_id = ? AND claimed_by = ? 
+                AND date(claimed_at/1000, 'unixepoch', 'localtime') = ?
+            `).get(guildId, userId, targetDate).count;
+        } catch (err) {
+            // Coluna não existe ainda
+            ticketsClaimed = 0;
+        }
         
-        const ticketsClosed = db.prepare(`
-            SELECT COUNT(*) as count FROM tickets 
-            WHERE guild_id = ? AND closed_by = ? 
-            AND date(closed_at/1000, 'unixepoch', 'localtime') = ?
-        `).get(guildId, userId, targetDate).count;
+        // Tickets fechados
+        let ticketsClosed = 0;
+        try {
+            ticketsClosed = db.prepare(`
+                SELECT COUNT(*) as count FROM tickets 
+                WHERE guild_id = ? AND closed_by = ? 
+                AND date(closed_at/1000, 'unixepoch', 'localtime') = ?
+            `).get(guildId, userId, targetDate).count;
+        } catch (err) {
+            ticketsClosed = 0;
+        }
         
-        // 🔧 CORREÇÃO: tempo médio com null para sem dados
-        const responseTimes = db.prepare(`
-            SELECT (claimed_at - created_at) as response_time 
-            FROM tickets 
-            WHERE guild_id = ? AND claimed_by = ? AND claimed_at IS NOT NULL 
-            AND date(created_at/1000, 'unixepoch', 'localtime') = ?
-        `).all(guildId, userId, targetDate);
+        // Tempo médio de resposta
+        let avgResponseTime = null;
+        try {
+            const responseTimes = db.prepare(`
+                SELECT (claimed_at - created_at) as response_time 
+                FROM tickets 
+                WHERE guild_id = ? AND claimed_by = ? AND claimed_at IS NOT NULL 
+                AND date(created_at/1000, 'unixepoch', 'localtime') = ?
+            `).all(guildId, userId, targetDate);
+            
+            avgResponseTime = responseTimes.length > 0 
+                ? Math.round(responseTimes.reduce((a, b) => a + b.response_time, 0) / responseTimes.length / 1000)
+                : null;
+        } catch (err) {
+            avgResponseTime = null;
+        }
         
-        const avgResponseTime = responseTimes.length > 0 
-            ? Math.round(responseTimes.reduce((a, b) => a + b.response_time, 0) / responseTimes.length / 1000)
-            : null;
-        
-        // 🔧 CORREÇÃO: suporte a null no avg_response_time
+        // Inserir ou atualizar
         db.prepare(`
             INSERT INTO staff_analytics (
                 guild_id, user_id, period, date, 
@@ -80,7 +108,6 @@ class AnalyticsSystem {
         
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
-        // 🔧 CORREÇÃO: data local
         const startDateStr = this.getLocalDate(startDate);
         
         const data = db.prepare(`
@@ -120,7 +147,6 @@ class AnalyticsSystem {
     }
     
     static async getStaffRanking(guildId, metric = 'punishments_applied', period = 'week', limit = 10) {
-        // 🔧 CORREÇÃO: validação de métrica
         const validMetrics = ['punishments_applied', 'tickets_claimed', 'tickets_closed'];
         if (!validMetrics.includes(metric)) {
             throw new Error(`Métrica inválida: ${metric}`);
@@ -153,15 +179,37 @@ class AnalyticsSystem {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setTitle(`📊 Relatório - <@${userId}>`)
-            .setDescription(`Período: ${period === 'week' ? '7 dias' : '30 dias'}`)
-            .addFields(
-                { name: '⚠️ Punições', value: `${report.totals.punishmentsApplied}`, inline: true },
-                { name: '🎫 Tickets Assumidos', value: `${report.totals.ticketsClaimed}`, inline: true },
-                { name: '✅ Tickets Fechados', value: `${report.totals.ticketsClosed}`, inline: true },
-                { name: '⏱️ Tempo Médio', value: avgResponseText, inline: true }
-            )
+            .setDescription(`# ${EMOJIS.Rank || '📊'} Relatório de Staff\n**Staff:** <@${userId}>\n**Período:** ${period === 'week' ? '7 dias' : '30 dias'}\n\n${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}\n${EMOJIS.Ticket || '🎫'} **Tickets Assumidos:** ${report.totals.ticketsClaimed}\n${EMOJIS.Check || '✅'} **Tickets Fechados:** ${report.totals.ticketsClosed}\n⏱️ **Tempo Médio:** ${avgResponseText}`)
             .setFooter({ text: `${report.days} dias analisados` })
+            .setTimestamp();
+        
+        return embed;
+    }
+    
+    static async generateRankingEmbed(guildId, metric = 'punishments_applied', period = 'week', limit = 10) {
+        const ranking = await this.getStaffRanking(guildId, metric, period, limit);
+        
+        const metricLabels = {
+            punishments_applied: `${EMOJIS.strike || '⚠️'} Punições`,
+            tickets_claimed: `${EMOJIS.Ticket || '🎫'} Tickets Assumidos`,
+            tickets_closed: `${EMOJIS.Check || '✅'} Tickets Fechados`
+        };
+        
+        const description = [
+            `# ${EMOJIS.Leadboard || '🏆'} Ranking de Staff`,
+            `**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`,
+            `**Métrica:** ${metricLabels[metric] || metric}`,
+            ``,
+            ...ranking.map((item, index) => {
+                const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}º`));
+                return `**${medal}** <@${item.user_id}>: \`${item.total}\``;
+            })
+        ].join('\n');
+        
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setDescription(description)
+            .setFooter({ text: `Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}` })
             .setTimestamp();
         
         return embed;
