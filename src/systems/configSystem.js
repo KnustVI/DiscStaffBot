@@ -406,8 +406,9 @@ const ConfigSystem = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setTitle(`${EMOJIS.staff || '👥'} Cargos do Sistema`)
-            .setDescription('Selecione os cargos abaixo:')
+            .setDescription(
+                `# ${EMOJIS.staff || '👥'} Cargos do Sistema`,
+                'Selecione os cargos abaixo:')
             .addFields(
                 { name: `${EMOJIS.staff || '🛡️'} Staff`, value: staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.strike || '⚠️'} Strike (Temporário)`, value: strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
@@ -418,16 +419,16 @@ const ConfigSystem = {
             embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder(`${EMOJIS.staff || '🛡️'} Selecionar cargo de Staff`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder(`Selecionar cargo de Staff`)
         );
         const strikeRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder(`${EMOJIS.strike || '⚠️'} Selecionar cargo de Strike`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder(`Selecionar cargo de Strike`)
         );
         const exemplarRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder(`${EMOJIS.shinystar || '✨'} Selecionar cargo Exemplar`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder(`Selecionar cargo Exemplar`)
         );
         const problematicoRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder(`${EMOJIS.Warning || '⚠️'} Selecionar cargo Problemático`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder(`Selecionar cargo Problemático`)
         );
         
         try {
@@ -485,8 +486,9 @@ const ConfigSystem = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setTitle(`${EMOJIS.dashboard || '📝'} Canais de Log`)
-            .setDescription('Selecione os canais abaixo:')
+            .setDescription(
+                `# ${EMOJIS.dashboard || '📝'} Canais de Log`,
+                'Selecione os canais abaixo:')
             .addFields(
                 { name: `${EMOJIS.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
@@ -499,28 +501,28 @@ const ConfigSystem = {
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:geral')
-                .setPlaceholder(`${EMOJIS.global || '📜'} Selecionar canal de logs gerais`)
+                .setPlaceholder(`Selecionar canal de logs gerais`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const punishmentsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:punishments')
-                .setPlaceholder(`${EMOJIS.strike || '⚖️'} Selecionar canal de logs de punições`)
+                .setPlaceholder(`Selecionar canal de logs de punições`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const automodRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:automod')
-                .setPlaceholder(`${EMOJIS.AutoMod || '🛡️'} Selecionar canal de logs de automoderação`)
+                .setPlaceholder(`Selecionar canal de logs de automoderação`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const ticketsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:tickets')
-                .setPlaceholder(`${EMOJIS.Ticket || '🎫'} Selecionar canal de logs de tickets`)
+                .setPlaceholder(`Selecionar canal de logs de tickets`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
@@ -572,7 +574,7 @@ const ConfigSystem = {
             log_tickets: `${EMOJIS.Ticket || '🎫'} Canal de logs de tickets`
         };
         
-        await this.refreshLogsPanel(interaction, `✅ **${channelLabels[channelKey]}** alterado para ${channel}`);
+        await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`);
     },
 
     async createLogChannels(interaction) {
@@ -638,8 +640,9 @@ const ConfigSystem = {
             
             const embed = new EmbedBuilder()
                 .setColor(0xBBF96A)
-                .setTitle(`${EMOJIS.Check || '✅'} Canais de Log Criados`)
-                .setDescription('Os seguintes canais foram criados:')
+                .setDescription(
+                    `# ${EMOJIS.Check || '✅'} Canais de Log Criados`,
+                    'Os seguintes canais foram criados:')
                 .addFields(
                     { name: `${EMOJIS.global || '📜'} Geral`, value: `<#${geral.id}>`, inline: true },
                     { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: `<#${automod.id}>`, inline: true },
