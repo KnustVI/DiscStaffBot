@@ -5,10 +5,18 @@ const ReportChatFormatter = require('../utils/reportChatFormatter');
 const ConfigSystem = require('./configSystem');
 const { ChannelType } = require('discord.js');
 
+// Carregar emojis
+let EMOJIS = {};
+try {
+    const emojisFile = require('../database/emojis.js');
+    EMOJIS = emojisFile.EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 class ReportChatSystem {
     constructor(client) {
         this.client = client;
-        this.userMessages = new Map(); // Armazenar IDs das mensagens enviadas para editar depois
     }
 
     getNextTicketId(guildId) {
@@ -21,10 +29,10 @@ class ReportChatSystem {
         
         if (!lastTicket) return 1;
         const lastNumber = parseInt(lastTicket.id.replace('#RC', ''));
-        return lastNumber + 1;
+        return isNaN(lastNumber) ? 1 : lastNumber + 1;
     }
 
-        async createTicket(interaction) {
+    async createTicket(interaction) {
         const { guild, user } = interaction;
         
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
@@ -37,10 +45,9 @@ class ReportChatSystem {
         // Verificar se já existe ticket aberto
         const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
         if (existing) {
-            // NÃO FECHAR O EMBED - apenas avisar
             return await ResponseManager.error(interaction, 
                 `${EMOJIS.Error || '❌'} Você já possui um ticket aberto!\n\n` +
-                `Use o botão **"Entrar no Ticket"** no canal de logs para acessar seu ticket existente.`
+                `Aguarde o fechamento para abrir um novo.`
             );
         }
 
@@ -58,22 +65,17 @@ class ReportChatSystem {
 
         await thread.members.add(user.id);
 
-        const uuid = db.generateUUID();
-        
+        // Inserir usando a estrutura simplificada
         db.prepare(`
-            INSERT INTO tickets (uuid, guild_id, user_id, channel_id, thread_id, title, created_at, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(uuid, guild.id, user.id, thread.id, thread.id, `ReportChat ${ticketId}`, Date.now(), 'open');
+            INSERT INTO tickets (id, guild_id, user_id, thread_id, created_at, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(ticketId, guild.id, user.id, thread.id, Date.now(), 'open');
 
         const threadUrl = thread.url;
 
         // DM do usuário
         const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, user, threadUrl);
-        const dmMessage = await user.send(dmContent).catch(() => null);
-        
-        if (dmMessage) {
-            db.prepare(`UPDATE tickets SET dm_message_id = ? WHERE uuid = ?`).run(dmMessage.id, uuid);
-        }
+        await user.send(dmContent).catch(() => null);
 
         // Embed na thread
         const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, user, threadUrl);
@@ -88,7 +90,6 @@ class ReportChatSystem {
             await logChannel.send({ content: mention || '', ...logContent });
         }
 
-        // Resposta de sucesso (não fecha o embed do painel)
         await ResponseManager.success(interaction, `${ticketId} criado! Acesse: ${threadUrl}`);
     }
 
@@ -115,26 +116,11 @@ class ReportChatSystem {
         const targetUser = await this.client.users.fetch(ticket.user_id);
         const threadUrl = thread.url;
 
-        // ATUALIZAR DM existente (editar em vez de criar novo)
-        if (ticket.dm_message_id) {
-            try {
-                const dmChannel = await targetUser.createDM();
-                const dmMessage = await dmChannel.messages.fetch(ticket.dm_message_id).catch(() => null);
-                if (dmMessage) {
-                    const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, threadUrl, user);
-                    await dmMessage.edit(dmContent);
-                }
-            } catch (err) {
-                // Se não conseguir editar, envia novo
-                const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, threadUrl, user);
-                await targetUser.send(dmContent).catch(() => null);
-            }
-        } else {
-            const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, threadUrl, user);
-            await targetUser.send(dmContent).catch(() => null);
-        }
+        // Atualizar DM
+        const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, targetUser, threadUrl, user);
+        await targetUser.send(dmContent).catch(() => null);
 
-        // ATUALIZAR thread
+        // Atualizar thread
         const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, targetUser, threadUrl, user);
         await thread.send({ content: `<@${targetUser.id}>`, ...threadContent });
 
@@ -151,7 +137,7 @@ class ReportChatSystem {
         await ResponseManager.success(interaction, `Você entrou no ${ticketId}`);
     }
 
-    async _closeTicket(interaction, ticketId, staff, motivo, punicao, hasReason, nota = null, comentario = null) {
+    async _closeTicket(interaction, ticketId, staff, motivo, punicao, hasReason, nota = null) {
         const { guild } = interaction;
 
         const ticket = db.prepare(`SELECT * FROM tickets WHERE id = ? AND guild_id = ? AND status = 'open'`).get(ticketId, guild.id);
@@ -168,40 +154,25 @@ class ReportChatSystem {
             await thread.setArchived(true);
         }
 
+        // Atualizar usando a estrutura simplificada
         db.prepare(`
             UPDATE tickets SET 
                 status = 'closed', 
                 closed_at = ?, 
                 closed_by = ?, 
                 closed_reason = ?,
-                rating = ?, 
-                rating_comment = ?
+                rating = ?
             WHERE id = ?
-        `).run(Date.now(), staff.id, hasReason ? motivo : null, nota || null, comentario || null, ticketId);
+        `).run(Date.now(), staff.id, hasReason ? motivo : null, nota || null, ticketId);
 
         const targetUser = await this.client.users.fetch(ticket.user_id);
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
 
-        // EDITAR DM existente (em vez de criar novo)
-        if (ticket.dm_message_id) {
-            try {
-                const dmChannel = await targetUser.createDM();
-                const dmMessage = await dmChannel.messages.fetch(ticket.dm_message_id).catch(() => null);
-                if (dmMessage) {
-                    const dmContent = ReportChatFormatter.createUserDmClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
-                    await dmMessage.edit(dmContent);
-                }
-            } catch (err) {
-                // Fallback: enviar novo
-                const dmContent = ReportChatFormatter.createUserDmClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
-                await targetUser.send(dmContent).catch(() => null);
-            }
-        } else {
-            const dmContent = ReportChatFormatter.createUserDmClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
-            await targetUser.send(dmContent).catch(() => null);
-        }
+        // Atualizar DM
+        const dmContent = ReportChatFormatter.createUserDmClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
+        await targetUser.send(dmContent).catch(() => null);
 
-        // EDITAR thread (se existir)
+        // Atualizar thread
         if (thread) {
             const threadContent = ReportChatFormatter.createThreadClosedEmbed(ticketId, targetUser, threadUrl, staff, motivo, punicao);
             await thread.send(threadContent);
@@ -243,13 +214,13 @@ class ReportChatSystem {
         if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
             return await ResponseManager.error(interaction, 'Apenas staff pode fechar.');
         }
-        await this._closeTicket(interaction, ticketId, user, 'Avaliado pelo usuário', 'Nenhuma', true, nota, comentario);
+        await this._closeTicket(interaction, ticketId, user, 'Avaliado pelo usuário', 'Nenhuma', true, nota);
     }
 
     async getTicketLink(guildId, ticketId) {
         const ticket = db.prepare(`
             SELECT thread_id FROM tickets 
-            WHERE id = ? AND guild_id = ? AND status = 'closed'
+            WHERE id = ? AND guild_id = ?
         `).get(ticketId, guildId);
         
         if (!ticket) return null;
@@ -262,7 +233,6 @@ class ReportChatSystem {
         
         return thread.url;
     }
-
 }
 
 module.exports = ReportChatSystem;
