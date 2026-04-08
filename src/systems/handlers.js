@@ -74,7 +74,10 @@ class InteractionHandler {
             // Config Strike
             'config-points': 'handleComponent', 
             'config-roles': 'handleComponent',   
-            'config-logs': 'handleComponent'     
+            'config-logs': 'handleComponent',   
+             
+            // Ticket System
+            'ticket': 'handleTicket',
         };
     }
     
