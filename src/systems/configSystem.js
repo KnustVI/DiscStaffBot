@@ -66,9 +66,6 @@ const ConfigSystem = {
         }
     },
 
-    /**
-     * Busca múltiplas configurações de uma vez
-     */
     getMany(guildId, keys = []) {
         const result = {};
         for (const key of keys) {
@@ -274,10 +271,10 @@ const ConfigSystem = {
         this.clearCache(interaction.guildId);
         
         const changeMessage = changes.length > 0 
-            ? `${emojisFile.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`
-            : `${emojisFile.Info || 'ℹ️'} Nenhuma alteração foi detectada.`;
+            ? `${EMOJIS.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`
+            : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
         
-        await this.refreshPointsPanel(interaction, changeMessage);
+        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
     async processLimitesModal(interaction) {
@@ -306,10 +303,10 @@ const ConfigSystem = {
         if (oldProblematic != problematicLimit) changes.push(`⚠️ Problemático: \`${oldProblematic || 30}\` → \`${problematicLimit}\``);
         
         const changeMessage = changes.length > 0 
-            ? `${emojisFile.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
-            : `${emojisFile.Info || 'ℹ️'} Nenhuma alteração foi detectada.`;
+            ? `${EMOJIS.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
+            : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
         
-        await this.refreshPointsPanel(interaction, changeMessage);
+        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
     async resetPoints(interaction) {
@@ -320,7 +317,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'limit_exemplar', '95');
         this.setSetting(interaction.guildId, 'limit_problematico', '30');
         this.clearCache(interaction.guildId);
-        await this.refreshPointsPanel(interaction, `${emojisFile.Check || '✅'} Todos os valores foram resetados para o padrão!`);
+        await this.refreshPointsPanel(interaction, `${EMOJIS.Check || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name);
     },
 
     async refreshPointsPanel(interaction, successMessage, guildName) {
@@ -358,8 +355,8 @@ const ConfigSystem = {
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
             .setDescription(description)
+            .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -396,7 +393,7 @@ const ConfigSystem = {
 
     // ==================== CONFIG-ROLES ====================
 
-    async refreshRolesPanel(interaction, successMessage, guildName) {
+    async refreshRolesPanel(interaction, successMessage) {
         const guildId = interaction.guildId;
         
         const staffRole = this.getSetting(guildId, 'staff_role');
@@ -406,29 +403,27 @@ const ConfigSystem = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(
-                `# ${EMOJIS.staff || '👥'} Cargos do Sistema`,
-                'Selecione os cargos abaixo:')
+            .setDescription(`# ${EMOJIS.staff || '👥'} Cargos do Sistema\nSelecione os cargos abaixo:`)
             .addFields(
                 { name: `${EMOJIS.staff || '🛡️'} Staff`, value: staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.strike || '⚠️'} Strike (Temporário)`, value: strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.shinystar || '✨'} Exemplar`, value: exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.Warning || '⚠️'} Problemático`, value: problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
+            .setFooter(EmbedFormatter.getFooter(interaction.guild.name))
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder(`Selecionar cargo de Staff`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
         );
         const strikeRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder(`Selecionar cargo de Strike`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike')
         );
         const exemplarRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder(`Selecionar cargo Exemplar`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar')
         );
         const problematicoRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder(`Selecionar cargo Problemático`)
+            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático')
         );
         
         try {
@@ -451,7 +446,6 @@ const ConfigSystem = {
     },
 
     async setRole(interaction, roleKey) {
-        // Usar EMOJIS já definido no topo do arquivo
         const selectedRoleId = interaction.values[0];
         if (!selectedRoleId) {
             return await ResponseManager.error(interaction, `${EMOJIS.Error || '❌'} Nenhum cargo selecionado.`);
@@ -487,17 +481,15 @@ const ConfigSystem = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(
-                `# ${EMOJIS.dashboard || '📝'} Canais de Log`,
-                'Selecione os canais abaixo:')
+            .setDescription(`# ${EMOJIS.dashboard || '📝'} Canais de Log\nSelecione os canais abaixo:`)
             .addFields(
                 { name: `${EMOJIS.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.chat || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
+            .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guildName));
         
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
@@ -575,7 +567,7 @@ const ConfigSystem = {
             log_tickets: `${EMOJIS.chat || '🎫'} Canal de logs de tickets`
         };
         
-        await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`);
+        await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
     },
 
     async createLogChannels(interaction) {
@@ -601,7 +593,7 @@ const ConfigSystem = {
             }
             
             const category = await guild.channels.create({
-                name: '███🪵𝗟𝗢𝗚𝗦 𝗗𝗢 𝗦𝗜𝗦𝗧𝗘𝗠𝗔 ███',
+                name: '📊 LOGS DO SISTEMA',
                 type: ChannelType.GuildCategory,
                 permissionOverwrites: [
                     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -610,25 +602,25 @@ const ConfigSystem = {
             });
             
             const geral = await guild.channels.create({
-                name: `'📜'▏logs-gerais`,
+                name: `📜 logs-gerais`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const automod = await guild.channels.create({
-                name: `'🛡️'▏logs-automod`,
+                name: `🛡️ logs-automod`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const punishments = await guild.channels.create({
-                name: `'⚖️'▏logs-punicoes`,
+                name: `⚖️ logs-punicoes`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
             
             const tickets = await guild.channels.create({
-                name: `'🎫'▏logs-tickets`,
+                name: `🎫 logs-tickets`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
@@ -641,17 +633,15 @@ const ConfigSystem = {
             
             const embed = new EmbedBuilder()
                 .setColor(0xBBF96A)
-                .setDescription(
-                    `# ${EMOJIS.Check || '✅'} Canais de Log Criados`,
-                    'Os seguintes canais foram criados:')
+                .setDescription(`# ${EMOJIS.Check || '✅'} Canais de Log Criados\nOs seguintes canais foram criados:`)
                 .addFields(
                     { name: `${EMOJIS.global || '📜'} Geral`, value: `<#${geral.id}>`, inline: true },
                     { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: `<#${automod.id}>`, inline: true },
                     { name: `${EMOJIS.strike || '⚖️'} Punições`, value: `<#${punishments.id}>`, inline: true },
                     { name: `${EMOJIS.chat || '🎫'} Tickets`, value: `<#${tickets.id}>`, inline: true }
                 )
+                .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
-                embed.setFooter(EmbedFormatter.getFooter(guild.name));
             
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ embeds: [embed], components: [] });
@@ -700,4 +690,4 @@ const ConfigSystem = {
     }
 };
 
-module.exports = ConfigSystem;
+module.exports = ConfigSystem; 
