@@ -32,65 +32,79 @@ class ReportChatSystem {
         return isNaN(lastNumber) ? 1 : lastNumber + 1;
     }
 
-    async createTicket(interaction) {
+        async createTicket(interaction) {
         const { guild, user } = interaction;
         
-        const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
-        if (!logChannelId) {
-            return await ResponseManager.error(interaction, 
-                '❌ **Canal de logs não configurado!**\n\nUse `/config-logs` e selecione um canal para **ReportChat**.'
-            );
+        // Já tem deferReply do interactionCreate, então usamos editReply
+        try {
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+            if (!logChannelId) {
+                return await interaction.editReply({ 
+                    content: '❌ **Canal de logs não configurado!**\n\nUse `/config-logs` e selecione um canal para **ReportChat**.',
+                    flags: 64
+                });
+            }
+            
+            // Verificar se já existe ticket aberto
+            const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
+            if (existing) {
+                return await interaction.editReply({ 
+                    content: `${EMOJIS.Error || '❌'} Você já possui um ticket aberto!\n\nAguarde o fechamento para abrir um novo.`,
+                    flags: 64
+                });
+            }
+
+            const ticketNumber = this.getNextTicketId(guild.id);
+            const ticketId = `#RC${ticketNumber}`;
+            const threadName = `${ticketId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-#]/g, '-');
+            
+            const channel = interaction.channel;
+            const thread = await channel.threads.create({
+                name: threadName,
+                type: ChannelType.PrivateThread,
+                invitable: false,
+                reason: `ReportChat criado por ${user.tag}`
+            });
+
+            await thread.members.add(user.id);
+
+            db.prepare(`
+                INSERT INTO tickets (id, guild_id, user_id, thread_id, created_at, status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `).run(ticketId, guild.id, user.id, thread.id, Date.now(), 'open');
+
+            const threadUrl = thread.url;
+
+            // DM do usuário (não precisa de await para não travar)
+            const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, user, threadUrl);
+            user.send(dmContent).catch(() => null);
+
+            // Embed na thread
+            const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, user, threadUrl);
+            await thread.send({ content: `<@${user.id}>`, ...threadContent });
+
+            // Log no canal
+            const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+            if (logChannel) {
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                const mention = staffRoleId ? `<@&${staffRoleId}>` : '';
+                const logContent = ReportChatFormatter.createLogEmbed(ticketId, user, threadUrl);
+                await logChannel.send({ content: mention || '', ...logContent });
+            }
+
+            // Resposta usando editReply (já que teve defer)
+            await interaction.editReply({ 
+                content: `${ticketId} criado! Acesse: ${threadUrl}`,
+                flags: 64
+            });
+            
+        } catch (error) {
+            console.error('❌ Erro ao criar ticket:', error);
+            await interaction.editReply({ 
+                content: '❌ Ocorreu um erro ao criar o ticket. Tente novamente.',
+                flags: 64
+            });
         }
-        
-        // Verificar se já existe ticket aberto
-        const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
-        if (existing) {
-            return await ResponseManager.error(interaction, 
-                `${EMOJIS.Error || '❌'} Você já possui um ticket aberto!\n\n` +
-                `Aguarde o fechamento para abrir um novo.`
-            );
-        }
-
-        const ticketNumber = this.getNextTicketId(guild.id);
-        const ticketId = `#RC${ticketNumber}`;
-        const threadName = `${ticketId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-#]/g, '-');
-        
-        const channel = interaction.channel;
-        const thread = await channel.threads.create({
-            name: threadName,
-            type: ChannelType.PrivateThread,
-            invitable: false,
-            reason: `ReportChat criado por ${user.tag}`
-        });
-
-        await thread.members.add(user.id);
-
-        // Inserir usando a estrutura simplificada
-        db.prepare(`
-            INSERT INTO tickets (id, guild_id, user_id, thread_id, created_at, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).run(ticketId, guild.id, user.id, thread.id, Date.now(), 'open');
-
-        const threadUrl = thread.url;
-
-        // DM do usuário
-        const dmContent = ReportChatFormatter.createUserDmEmbed(ticketId, user, threadUrl);
-        await user.send(dmContent).catch(() => null);
-
-        // Embed na thread
-        const threadContent = ReportChatFormatter.createThreadEmbed(ticketId, user, threadUrl);
-        await thread.send({ content: `<@${user.id}>`, ...threadContent });
-
-        // Log no canal
-        const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-        if (logChannel) {
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            const mention = staffRoleId ? `<@&${staffRoleId}>` : '';
-            const logContent = ReportChatFormatter.createLogEmbed(ticketId, user, threadUrl);
-            await logChannel.send({ content: mention || '', ...logContent });
-        }
-
-        await ResponseManager.success(interaction, `${ticketId} criado! Acesse: ${threadUrl}`);
     }
 
     async joinTicket(interaction, ticketId) {

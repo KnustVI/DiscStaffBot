@@ -34,6 +34,9 @@ module.exports = {
             
             // Botão entrar - NÃO precisa de defer
             if (interaction.customId?.startsWith('reportchat:join:')) {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferUpdate();
+                }
                 const ticketId = interaction.customId.split(':')[2];
                 await reportChatSystem.joinTicket(interaction, ticketId);
                 return;
