@@ -1,5 +1,5 @@
 // src/utils/ticketFormatter.js
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const EmbedFormatter = require('./embedFormatter');
 
 class TicketFormatter {
@@ -26,8 +26,8 @@ class TicketFormatter {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# 🎫 Ticket #${ticketId}\n**Status:** Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staffText}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `ID: ${ticketId}` })
+            .setDescription(`# 🎫 Ticket ${ticketId}\n**Status:** Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staffText}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setFooter({ text: `${ticketId}` })
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -45,7 +45,7 @@ class TicketFormatter {
         const isOpen = action === 'open';
         const embed = new EmbedBuilder()
             .setColor(isOpen ? 0xBBF96A : 0xF64B4E)
-            .setDescription(`# ${isOpen ? '📩 Ticket Aberto' : '🔒 Ticket Fechado'}\n**ID:** #${ticketId}\n**Usuário:** ${user.tag}\n**Staff:** ${staff ? staff.tag : 'Aguardando'}\n**Thread:** ${threadLink}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
+            .setDescription(`# ${isOpen ? '📩 Ticket Aberto' : '🔒 Ticket Fechado'}\n**ID:** ${ticketId}\n**Usuário:** ${user.tag}\n**Staff:** ${staff ? staff.tag : 'Aguardando'}\n**Thread:** ${threadLink}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -75,38 +75,7 @@ class TicketFormatter {
         return { embeds: [embed], components: [row] };
     }
 
-    static createRatingModal() {
-        const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-        
-        const modal = new ModalBuilder()
-            .setCustomId('ticket:rating')
-            .setTitle('Avaliar Atendimento');
-
-        const nota = new TextInputBuilder()
-            .setCustomId('nota')
-            .setLabel('Nota (1 a 5)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: 5');
-
-        const comentario = new TextInputBuilder()
-            .setCustomId('comentario')
-            .setLabel('Comentário')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(false)
-            .setPlaceholder('Deixe seu feedback...');
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(nota),
-            new ActionRowBuilder().addComponents(comentario)
-        );
-
-        return modal;
-    }
-
     static createCloseModal() {
-        const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-        
         const modal = new ModalBuilder()
             .setCustomId('ticket:close:modal')
             .setTitle('Fechar Ticket');
@@ -136,6 +105,33 @@ class TicketFormatter {
             new ActionRowBuilder().addComponents(motivo),
             new ActionRowBuilder().addComponents(resumo),
             new ActionRowBuilder().addComponents(punicao)
+        );
+
+        return modal;
+    }
+
+    static createRatingModal() {
+        const modal = new ModalBuilder()
+            .setCustomId('ticket:rating')
+            .setTitle('Avaliar Atendimento');
+
+        const nota = new TextInputBuilder()
+            .setCustomId('nota')
+            .setLabel('Nota (1 a 5)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: 5');
+
+        const comentario = new TextInputBuilder()
+            .setCustomId('comentario')
+            .setLabel('Comentário')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+            .setPlaceholder('Deixe seu feedback...');
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(nota),
+            new ActionRowBuilder().addComponents(comentario)
         );
 
         return modal;

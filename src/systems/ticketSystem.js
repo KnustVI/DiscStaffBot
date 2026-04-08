@@ -2,63 +2,60 @@
 const db = require('../database/index');
 const ResponseManager = require('../utils/responseManager');
 const TicketFormatter = require('../utils/ticketFormatter');
-const { ChannelType, PermissionFlagsBits } = require('discord.js');
+const ConfigSystem = require('./configSystem');
+const { ChannelType, EmbedBuilder } = require('discord.js');
 
 class TicketSystem {
     constructor(client) {
         this.client = client;
     }
 
-     // Handler para componentes do ticket
-    async handleComponent(interaction, action, param) {
-        console.log(`🎫 [TICKET] handleComponent chamado: action=${action}, param=${param}`);
+    // Gerar próximo ID sequencial para o servidor
+    getNextTicketId(guildId) {
+        const lastTicket = db.prepare(`
+            SELECT id FROM tickets 
+            WHERE guild_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `).get(guildId);
         
-        try {
-            switch (action) {
-                case 'create':
-                    await this.createTicket(interaction);
-                    break;
-                case 'join':
-                    await this.joinTicket(interaction, param);
-                    break;
-                case 'close':
-                    // Mostrar modal
-                    const modal = TicketFormatter.createCloseModal();
-                    await interaction.showModal(modal);
-                    const sessionManager = require('../utils/sessionManager');
-                    sessionManager.set(interaction.user.id, interaction.guildId, 'ticket', 'closing', { ticketId: param }, 300000);
-                    break;
-                case 'rate':
-                    const modalRate = TicketFormatter.createRatingModal();
-                    await interaction.showModal(modalRate);
-                    break;
-                default:
-                    await ResponseManager.error(interaction, `Ação "${action}" não reconhecida.`);
-            }
-        } catch (error) {
-            console.error('❌ Erro no handleComponent do ticket:', error);
-            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar o ticket.');
-        }
-    }
-
-    generateTicketId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+        if (!lastTicket) return 1;
+        
+        // Extrair número do formato #C1
+        const lastNumber = parseInt(lastTicket.id.replace('#C', ''));
+        return lastNumber + 1;
     }
 
     async createTicket(interaction) {
         const { guild, user, member } = interaction;
-        const ticketId = this.generateTicketId();
 
+        // VERIFICAR SE O CANAL DE LOG DE TICKETS ESTÁ CONFIGURADO
+    const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
+    if (!logChannelId) {
+        return await ResponseManager.error(interaction, 
+            '❌ **Canal de logs não configurado!**\n\n' +
+            'Um administrador precisa configurar o canal de logs de tickets primeiro.\n\n' +
+            'Use `/config-logs` e selecione um canal para **Tickets**.'
+        );
+    }
+        
         // Verificar se já tem ticket aberto
         const existing = db.prepare(`SELECT * FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'`).get(guild.id, user.id);
         if (existing) {
             return await ResponseManager.error(interaction, 'Você já possui um ticket aberto. Aguarde o fechamento para abrir outro.');
         }
 
+        // Gerar ID sequencial
+        const ticketNumber = this.getNextTicketId(guild.id);
+        const ticketId = `#C${ticketNumber}`;
+        
+        // Criar nome da thread com o nome do usuário
+        const threadName = user.username.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        
         // Criar thread
         const channel = interaction.channel;
         const thread = await channel.threads.create({
-            name: `ticket-${ticketId}`,
+            name: threadName,
             type: ChannelType.PrivateThread,
             invitable: false,
             reason: `Ticket criado por ${user.tag}`
@@ -77,32 +74,29 @@ class TicketSystem {
         const dmEmbed = TicketFormatter.createTicketEmbed(ticketId, user);
         await user.send(dmEmbed).catch(() => null);
 
-        // Enviar log para canal de tickets
-        const logChannelId = require('./configSystem').getSetting(guild.id, 'log_tickets');
-        if (logChannelId) {
-            const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-            if (logChannel) {
-                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-                const mention = staffRoleId ? `<@&${staffRoleId}>` : '';
-                const logEmbed = TicketFormatter.createLogEmbed(ticketId, user, thread.url);
-                await logChannel.send(logEmbed);
-            }
+         // ENVIAR LOG PARA O CANAL CONFIGURADO
+        const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+        if (logChannel) {
+            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+            const mention = staffRoleId ? `<@&${staffRoleId}>` : '';
+            
+            const logEmbed = TicketFormatter.createLogEmbed(ticketId, user, thread.url);
+            await logChannel.send({ content: mention || '', ...logEmbed });
+        } else {
+            console.error(`❌ Canal de log não encontrado: ${logChannelId}`);
         }
+
 
         // Enviar embed na thread
         const threadEmbed = TicketFormatter.createTicketEmbed(ticketId, user);
         await thread.send({ content: `<@${user.id}>`, ...threadEmbed });
 
         // Resposta
-        await ResponseManager.success(interaction, `Ticket #${ticketId} criado! Acesse: ${thread.url}`);
-        
-        // Preparar para analytics (futuro)
-        // await AnalyticsSystem.logStaffAction(guild.id, user.id, 'ticket_create', ticketId);
+        await ResponseManager.success(interaction, `Ticket ${ticketId} criado! Acesse: ${thread.url}`);
     }
 
     async joinTicket(interaction, ticketId) {
         const { guild, user, member } = interaction;
-        const ConfigSystem = require('./configSystem');
         
         // Verificar se é staff
         const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
@@ -125,16 +119,18 @@ class TicketSystem {
         // Adicionar staff na thread
         await thread.members.add(user.id);
 
+        
+
         // Atualizar log
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_tickets');
-        if (logChannelId) {
-            const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-            if (logChannel) {
-                const targetUser = await this.client.users.fetch(ticket.user_id);
-                const logEmbed = TicketFormatter.createLogEmbed(ticketId, targetUser, thread.url, user, 'update');
-                await logChannel.send(logEmbed);
-            }
+    if (logChannelId) {
+        const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+        if (logChannel) {
+            const targetUser = await this.client.users.fetch(ticket.user_id);
+            const logEmbed = TicketFormatter.createLogEmbed(ticketId, targetUser, thread.url, user, 'update');
+            await logChannel.send(logEmbed);
         }
+    }
 
         // Atualizar DM
         const targetUser = await this.client.users.fetch(ticket.user_id);
@@ -145,15 +141,11 @@ class TicketSystem {
         const threadEmbed = TicketFormatter.createTicketEmbed(ticketId, targetUser, user);
         await thread.send({ content: `<@${targetUser.id}>`, ...threadEmbed });
 
-        await ResponseManager.success(interaction, `Você entrou no ticket #${ticketId}`);
-        
-        // Preparar para analytics (futuro)
-        // await AnalyticsSystem.logStaffAction(guild.id, user.id, 'ticket_join', ticketId);
+        await ResponseManager.success(interaction, `Você entrou no ticket ${ticketId}`);
     }
 
     async closeTicket(interaction, ticketId, motivo, resumo, punicao) {
         const { guild, user, member } = interaction;
-        const ConfigSystem = require('./configSystem');
         
         // Verificar se é staff
         const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
@@ -195,16 +187,13 @@ class TicketSystem {
             if (logChannel) {
                 const embed = new EmbedBuilder()
                     .setColor(0xF64B4E)
-                    .setDescription(`# 🔒 Ticket Fechado\n**ID:** #${ticketId}\n**Usuário:** ${targetUser.tag}\n**Fechado por:** ${user.tag}\n**Motivo:** ${motivo}\n**Resumo:** ${resumo}\n**Punição:** ${punicao || 'Nenhuma'}`)
+                    .setDescription(`# 🔒 Ticket Fechado\n**ID:** ${ticketId}\n**Usuário:** ${targetUser.tag}\n**Fechado por:** ${user.tag}\n**Motivo:** ${motivo}\n**Resumo:** ${resumo}\n**Punição:** ${punicao || 'Nenhuma'}`)
                     .setTimestamp();
                 await logChannel.send({ embeds: [embed] });
             }
         }
 
-        await ResponseManager.success(interaction, `Ticket #${ticketId} fechado com sucesso.`);
-        
-        // Preparar para analytics (futuro)
-        // await AnalyticsSystem.logStaffAction(guild.id, user.id, 'ticket_close', ticketId, { motivo, resumo, punicao });
+        await ResponseManager.success(interaction, `Ticket ${ticketId} fechado com sucesso.`);
     }
 
     async rateTicket(interaction, nota, comentario) {
@@ -224,7 +213,6 @@ class TicketSystem {
         db.prepare(`UPDATE tickets SET rating = ?, rating_comment = ? WHERE id = ?`).run(nota, comentario, ticket.id);
 
         // Enviar para log
-        const ConfigSystem = require('./configSystem');
         const guild = this.client.guilds.cache.get(ticket.guild_id);
         const logChannelId = ConfigSystem.getSetting(ticket.guild_id, 'log_tickets');
         
@@ -233,7 +221,7 @@ class TicketSystem {
             if (logChannel) {
                 const embed = new EmbedBuilder()
                     .setColor(0xBBF96A)
-                    .setDescription(`# ⭐ Avaliação Recebida\n**Ticket:** #${ticket.id}\n**Usuário:** ${user.tag}\n**Nota:** ${'⭐'.repeat(nota)} (${nota}/5)\n**Comentário:** ${comentario || 'Nenhum'}`)
+                    .setDescription(`# ⭐ Avaliação Recebida\n**Ticket:** ${ticket.id}\n**Usuário:** ${user.tag}\n**Nota:** ${'⭐'.repeat(nota)} (${nota}/5)\n**Comentário:** ${comentario || 'Nenhum'}`)
                     .setTimestamp();
                 await logChannel.send({ embeds: [embed] });
             }
