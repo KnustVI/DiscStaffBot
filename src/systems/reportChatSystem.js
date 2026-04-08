@@ -2,7 +2,7 @@
 const db = require('../database/index');
 const ResponseManager = require('../utils/responseManager');
 const ReportChatFormatter = require('../utils/reportChatFormatter');
-const ConfigSystem = require('../systems/configSystem');
+const ConfigSystem = require('./configSystem');
 const { ChannelType } = require('discord.js');
 
 // Carregar emojis
