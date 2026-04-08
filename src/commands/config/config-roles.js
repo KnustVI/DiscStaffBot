@@ -14,12 +14,12 @@ module.exports = {
         const guildId = guild.id;
         
         // Carregar emojis do servidor
-        let emojis = {};
+        let EMOJIS = {};
         try {
-            const emojisFile = require('../../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
+            const emojisFile = require('../database/emojis.js');
+            EMOJIS = emojisFile.EMOJIS || {};
         } catch (err) {
-            emojis = {};
+            EMOJIS = {};
         }
         
         if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
