@@ -17,7 +17,11 @@ module.exports = {
         }
 
         const panel = TicketFormatter.createPanelEmbed(guild.name);
+        
+        // Enviar o painel no canal (não como resposta do comando)
         await interaction.channel.send(panel);
+        
+        // Responder o comando como ephemeral
         await ResponseManager.success(interaction, 'Painel de tickets criado!');
     }
 };
