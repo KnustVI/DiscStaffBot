@@ -79,7 +79,7 @@ module.exports = {
                 return;
             }
 
-            // ==================== MODAIS ====================
+           // ==================== MODAIS ====================
             if (interaction.isModalSubmit()) {
                 const sessionManager = require('../utils/sessionManager');
                 
