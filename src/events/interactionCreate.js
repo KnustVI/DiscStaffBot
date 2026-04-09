@@ -134,16 +134,19 @@ module.exports = {
                 }
                 
                 const needsDefer = !interaction.customId.endsWith(':modal') && 
-                                  !interaction.customId.startsWith('reportchat:close:rate') &&
-                                  !interaction.customId.startsWith('reportchat:close:reason') &&
-                                  !interaction.customId.startsWith('reportchat:rate');
+                                !interaction.customId.startsWith('reportchat:close:rate') &&
+                                !interaction.customId.startsWith('reportchat:close:reason') &&
+                                !interaction.customId.startsWith('reportchat:rate') &&
+                                !interaction.customId.startsWith('reportchat:create') &&  
+                                !interaction.customId.startsWith('reportchat:join');    
                 
                 if (needsDefer && !interaction.replied && !interaction.deferred) {
                     await interaction.deferUpdate();
                 }
                 
+                if (!interaction.customId.startsWith('reportchat')) {
                 await handler.handleComponent(interaction);
-                return;
+}
             }
             
         } catch (error) {
