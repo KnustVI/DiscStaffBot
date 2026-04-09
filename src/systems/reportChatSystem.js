@@ -166,40 +166,74 @@ class ReportChatSystem {
         }
     }
         async joinReport(interaction, reportId) {
-        const { guild, user, member } = interaction;
-        
-        // Responder imediatamente
-        await interaction.reply({ content: '⏳ Processando...', flags: 64 });
-        
-        try {
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
-                return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Apenas staff pode entrar.`, flags: 64 });
-            }
-
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
-            if (!report) {
-                return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
-            }
-
-            const thread = await guild.channels.fetch(report.thread_id);
-            await thread.members.add(user.id);
-
-            let staffs = report.staffs ? JSON.parse(report.staffs) : [];
-            if (!staffs.includes(user.id)) {
-                staffs.push(user.id);
-                db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
-            }
-
-            await this.updateEmbeds(guild.id, reportId);
+            const { guild, user, member } = interaction;
             
-            await interaction.editReply({ content: `${EMOJIS.Check || '✅'} Você entrou no ${reportId}`, components: [] });
-            
-        } catch (error) {
-            console.error('❌ Erro ao entrar no report:', error);
-            await interaction.editReply({ content: '❌ Erro ao entrar no report.', flags: 64 });
+            try {
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
+                    return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Apenas staff pode entrar.`, components: [] });
+                }
+
+                const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
+                if (!report) {
+                    return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, components: [] });
+                }
+
+                const thread = await guild.channels.fetch(report.thread_id);
+                await thread.members.add(user.id);
+
+                let staffs = report.staffs ? JSON.parse(report.staffs) : [];
+                if (!staffs.includes(user.id)) {
+                    staffs.push(user.id);
+                    db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
+                }
+
+                await this.updateEmbeds(guild.id, reportId);
+                
+                await interaction.editReply({ content: `${EMOJIS.Check || '✅'} Você entrou no ${reportId}`, components: [] });
+                
+            } catch (error) {
+                console.error('❌ Erro ao entrar no report:', error);
+                await interaction.editReply({ content: '❌ Erro ao entrar no report.', components: [] });
+            }
         }
-    }
+
+        async closeReport(interaction, reportId, motivo, punicao, hasReason) {
+            const { guild, user, member } = interaction;
+            
+            try {
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                const isStaff = staffRoleId && member.roles.cache.has(staffRoleId);
+                const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
+                
+                if (!report) {
+                    return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, components: [] });
+                }
+
+                const thread = await guild.channels.fetch(report.thread_id);
+                
+                const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
+                const closedByName = isStaff ? `Staff <@${user.id}>` : `Usuário <@${user.id}>`;
+                
+                db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
+                    .run(status, Date.now(), user.id, hasReason ? motivo : `${closedByName} (sem motivo)`, punicao || null, reportId);
+
+                await this.updateEmbeds(guild.id, reportId);
+                
+                if (thread) {
+                    await thread.members.remove(report.user_id).catch(() => null);
+                    await thread.setLocked(true);
+                    await thread.setArchived(true);
+                }
+                
+                const responseText = hasReason ? `${reportId} fechado com motivo: ${motivo}` : `${reportId} fechado sem motivo por ${closedByName}`;
+                await interaction.editReply({ content: `${EMOJIS.Check || '✅'} ${responseText}`, components: [] });
+                
+            } catch (error) {
+                console.error('❌ Erro ao fechar report:', error);
+                await interaction.editReply({ content: '❌ Erro ao fechar report.', components: [] });
+            }
+        }
 
         async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         const { guild, user, member } = interaction;
