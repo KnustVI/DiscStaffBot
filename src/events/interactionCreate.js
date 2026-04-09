@@ -27,7 +27,7 @@ module.exports = {
             }
             
             // ==================== REPORCHAT SYSTEM ====================
-
+            if (interaction.isButton()) {
             // Botão que ABRE o modal de criação
             if (interaction.customId === 'reportchat:create') {
                 console.log('📌 Abrindo modal de criação');
@@ -92,6 +92,7 @@ module.exports = {
                     );
                     return;
                 }
+            }
 
            // ==================== MODAIS ====================
             if (interaction.isModalSubmit()) {
@@ -159,7 +160,7 @@ module.exports = {
                     }
                     return;
                 }
-                
+
                 // ==================== OUTROS MODAIS ====================
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({ content: '⏳ Processando...', flags: 64 });
