@@ -84,7 +84,7 @@ class ReportChatFormatter {
     }
 
     // ==================== EMBED DO LOG (canal de logs) ====================
-    static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null) {
+    static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName) {
         const statusMap = {
             waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
             responded: `${EMOJIS.chat || '💬'} Respondido`,
