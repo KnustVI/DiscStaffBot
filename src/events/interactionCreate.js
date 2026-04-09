@@ -54,6 +54,9 @@ module.exports = {
                     const reportId = interaction.customId.split(':')[3];
                     const modal = ReportChatFormatter.createCloseReasonModal();
                     await interaction.showModal(modal);
+                console.log('userId:', interaction.user.id);
+                console.log('guildId:', interaction.guildId);
+                console.log('customId:', interaction.customId);
                     sessionManager.set(
                         interaction.user.id,
                         interaction.guildId,
@@ -82,6 +85,9 @@ module.exports = {
                     const reportId = interaction.customId.split(':')[2];
                     const modal = ReportChatFormatter.createRatingModal();
                     await interaction.showModal(modal);
+                console.log('userId:', interaction.user.id);
+                console.log('guildId:', interaction.guildId);
+                console.log('customId:', interaction.customId);                    
                     sessionManager.set(
                         interaction.user.id,
                         interaction.guildId,
@@ -114,6 +120,9 @@ module.exports = {
                 // Modal de fechamento com motivo
                 if (interaction.customId === 'reportchat:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento');
+                console.log('userId:', interaction.user.id);
+                console.log('guildId:', interaction.guildId);
+                console.log('customId:', interaction.customId);                    
                     const session = sessionManager.get(
                         interaction.user.id,
                         interaction.guildId,
@@ -125,7 +134,9 @@ module.exports = {
                         const motivo = interaction.fields.getTextInputValue('motivo');
                         const punicao = interaction.fields.getTextInputValue('punicao');
                         await reportChatSystem.closeReport(interaction, session.reportId, motivo, punicao, true);
-                        
+                console.log('userId:', interaction.user.id);
+                console.log('guildId:', interaction.guildId);
+                console.log('customId:', interaction.customId);                        
                         sessionManager.delete(
                             interaction.user.id,
                             interaction.guildId,
@@ -139,6 +150,9 @@ module.exports = {
                 // Modal de avaliação
                 if (interaction.customId === 'reportchat:rating') {
                     console.log('📌 Processando modal de avaliação');
+                console.log('userId:', interaction.user.id);
+                console.log('guildId:', interaction.guildId);
+                console.log('customId:', interaction.customId);                    
                     const session = sessionManager.get(
                         interaction.user.id,
                         interaction.guildId,
@@ -150,7 +164,9 @@ module.exports = {
                         const nota = parseInt(interaction.fields.getTextInputValue('nota'));
                         const comentario = interaction.fields.getTextInputValue('comentario');
                         await reportChatSystem.rateReport(interaction, session.reportId, nota, comentario);
-                        
+                console.log('userId:', interaction.user.id);
+                console.log('guildId:', interaction.guildId);
+                console.log('customId:', interaction.customId);                        
                         sessionManager.delete(
                             interaction.user.id,
                             interaction.guildId,
