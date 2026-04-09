@@ -9,6 +9,7 @@ let reportChatSystem = null;
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
+        console.log(`🔍 Interação recebida: ${interaction.customId || interaction.commandName}`);
         // Inicializar
         if (!handler) handler = new InteractionHandler(client);
         if (!reportChatSystem) reportChatSystem = new ReportChatSystem(client);
@@ -28,6 +29,10 @@ module.exports = {
 
             // Botão que ABRE o modal (não processa dados)
             if (interaction.customId === 'reportchat:create') {
+            if (interaction.deferred) {
+                console.log('⚠️ Interação já deferida, não pode mostrar modal');
+                return;
+            }
                 const modal = ReportChatFormatter.createOpenModal();
                 await interaction.showModal(modal);
                 return;

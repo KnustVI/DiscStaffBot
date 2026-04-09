@@ -32,6 +32,7 @@ class ReportChatFormatter {
 
     // ==================== MODAL DE ABERTURA ====================
     static createOpenModal() {
+        console.log('✅ Criando modal de abertura');
         const modal = new ModalBuilder()
             .setCustomId('reportchat:open:modal')
             .setTitle('Abrir ReportChat');
@@ -78,7 +79,7 @@ class ReportChatFormatter {
             new ActionRowBuilder().addComponents(regra),
             new ActionRowBuilder().addComponents(descricao)
         );
-
+        console.log('✅ Modal criado com sucesso');
         return modal;
     }
 
