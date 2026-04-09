@@ -77,33 +77,44 @@ const SCHEMA = {
         )
     `,
 
-    // ==================== TICKETS ====================
-        tickets: `
-        CREATE TABLE IF NOT EXISTS tickets (
-            id TEXT PRIMARY KEY,
-            guild_id TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            thread_id TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            closed_at INTEGER,
-            closed_by TEXT,
-            closed_reason TEXT,
-            rating INTEGER,
-            status TEXT DEFAULT 'open'
-        )
-    `,
+            // ==================== REPORTS (REPORTCHAT) ====================
+        reports: `
+            CREATE TABLE IF NOT EXISTS reports (
+                id TEXT PRIMARY KEY,
+                guild_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                log_message_id TEXT,
+                dm_message_id TEXT,
+                thread_message_id TEXT,
+                description TEXT,
+                status TEXT DEFAULT 'waiting',
+                staffs TEXT DEFAULT '[]',
+                last_message_at INTEGER,
+                closed_by TEXT,
+                closed_reason TEXT,
+                punishment TEXT,
+                rating INTEGER,
+                rating_comment TEXT,
+                created_at INTEGER NOT NULL,
+                closed_at INTEGER,
+                FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            )
+        `,
 
-    // ==================== MENSAGENS DOS TICKETS ====================
-    ticket_messages: `
-        CREATE TABLE IF NOT EXISTS ticket_messages (
+        // ==================== MENSAGENS DOS REPORTS ====================
+    report_messages: `
+        CREATE TABLE IF NOT EXISTS report_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticket_uuid TEXT NOT NULL,
+            report_id TEXT NOT NULL,
             message_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             content TEXT,
             attachments TEXT,
             created_at INTEGER NOT NULL,
-            is_staff_reply INTEGER DEFAULT 0
+            is_staff_reply INTEGER DEFAULT 0,
+            FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
         )
     `,
 
@@ -177,15 +188,39 @@ const SCHEMA = {
 
 // ==================== ÍNDICES ====================
 const INDEXES = [
+    // Punishments
     `CREATE INDEX IF NOT EXISTS idx_punishments_guild_user ON punishments(guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_moderator ON punishments(moderator_id)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_created ON punishments(created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_tickets_guild ON tickets(guild_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_punishments_status ON punishments(status)`,
+    
+        // Reports (ReportChat)
+    `CREATE INDEX IF NOT EXISTS idx_reports_guild ON reports(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_reports_user ON reports(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_reports_last_message ON reports(last_message_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_reports_guild_status ON reports(guild_id, status)`,
+    
+    // Reputation
     `CREATE INDEX IF NOT EXISTS idx_reputation_guild_user ON reputation(guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_reputation_points ON reputation(points)`,
+    
+    // Staff Analytics
+    `CREATE INDEX IF NOT EXISTS idx_staff_analytics_guild_user ON staff_analytics(guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_staff_analytics_date ON staff_analytics(date)`,
+    
+    // Activity Logs
     `CREATE INDEX IF NOT EXISTS idx_activity_logs_guild ON activity_logs(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON activity_logs(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_action ON activity_logs(action)`,
     `CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_temporary_roles_expires ON temporary_roles(expires_at)`
+    
+    // Temporary Roles
+    `CREATE INDEX IF NOT EXISTS idx_temporary_roles_expires ON temporary_roles(expires_at)`,
+    
+    // Feedbacks
+    `CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_feedbacks_created ON feedbacks(created_at)`
 ];
 
 module.exports = { SCHEMA, INDEXES };
