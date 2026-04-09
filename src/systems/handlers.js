@@ -24,6 +24,9 @@ class InteractionHandler {
             autoModeration = autoModerationModule;
         }
         
+        // Inicializar reportChatSystem
+        const reportChatSystem = new ReportChatSystem(client); 
+
         // Inicializar errorLogger
         const errorLogger = errorLoggerModule;
         
