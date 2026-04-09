@@ -38,6 +38,7 @@ module.exports = {
             // Botão entrar no report
             if (interaction.customId?.startsWith('reportchat:join:')) {
                 console.log('📌 Staff entrando no report');
+                // NÃO fazer reply aqui
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.deferUpdate();
                 }
@@ -49,6 +50,7 @@ module.exports = {
             // Botão fechar com motivo - abre modal
             if (interaction.customId?.startsWith('reportchat:close:reason:')) {
                 console.log('📌 Abrindo modal de fechamento com motivo');
+                // NÃO fazer deferUpdate - modal precisa de resposta imediata
                 const reportId = interaction.customId.split(':')[3];
                 const modal = ReportChatFormatter.createCloseReasonModal();
                 await interaction.showModal(modal);
@@ -69,15 +71,16 @@ module.exports = {
             }
 
             // Botão avaliar - abre modal
-            if (interaction.customId?.startsWith('reportchat:rate:')) {
-                console.log('📌 Abrindo modal de avaliação');
-                const reportId = interaction.customId.split(':')[2];
-                const modal = ReportChatFormatter.createRatingModal();
-                await interaction.showModal(modal);
-                const sessionManager = require('../utils/sessionManager');
-                sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'rating', { reportId }, 300000);
-                return;
-            }
+                if (interaction.customId?.startsWith('reportchat:rate:')) {
+                    console.log('📌 Abrindo modal de avaliação');
+                    // NÃO fazer deferUpdate - modal precisa de resposta imediata
+                    const reportId = interaction.customId.split(':')[2];
+                    const modal = ReportChatFormatter.createRatingModal();
+                    await interaction.showModal(modal);
+                    const sessionManager = require('../utils/sessionManager');
+                    sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'rating', { reportId }, 300000);
+                    return;
+                }
 
            // ==================== MODAIS ====================
             if (interaction.isModalSubmit()) {
