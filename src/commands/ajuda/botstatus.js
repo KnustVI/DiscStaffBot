@@ -38,12 +38,14 @@ module.exports = {
             
             const dbStats = db.getStats();
             
-            // Estatísticas de punições do servidor
+                        // Estatísticas de punições do servidor
             const totalPunishments = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ?`).get(guildId)?.count || 0;
             const totalUsers = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0;
             const avgReputation = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 100;
             const recentStrikes = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND created_at > ?`).get(guildId, Date.now() - (30 * 24 * 60 * 60 * 1000))?.count || 0;
-            const activeTickets = db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ? AND status = 'open'`).get(guildId)?.count || 0;
+
+            // Tickets ativos (status NÃO começa com 'closed')
+            const activeTickets = db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ? AND status NOT LIKE 'closed%'`).get(guildId)?.count || 0;
             
             // Verificar saúde
             const isHealthy = SystemStatus.isSystemHealthy(client, guildId);

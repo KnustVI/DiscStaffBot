@@ -60,11 +60,11 @@ module.exports = {
             const ticketId = options.getString('ticket') || 
                 (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : null);
             
-            // Buscar link do ticket se for ReportChat
-            let ticketLink = null;
-            if (ticketId && ticketId.startsWith('#RC')) {
+            // Buscar link do report (apenas se começar com #R)
+            let reportLink = null;
+            if (ticketId && ticketId.startsWith('#R')) {
                 const reportSystem = new ReportChatSystem(client);
-                ticketLink = await reportSystem.getTicketLink(guildId, ticketId);
+                reportLink = await reportSystem.getReportLink(guildId, ticketId);
             }
         
         try {

@@ -16,7 +16,7 @@ module.exports = {
             return await ResponseManager.error(interaction, 'Apenas administradores podem criar o painel.');
         }
 
-        const panel = ReportChatFormatter.createPanelEmbed(guild.name);
+        const panel = ReportChatFormatter.createMainPanel(guild.name);
         await interaction.channel.send(panel);
         await ResponseManager.success(interaction, 'Painel de ReportChat criado!');
     }

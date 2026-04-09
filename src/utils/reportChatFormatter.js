@@ -2,7 +2,6 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const EmbedFormatter = require('./embedFormatter');
 
-// Carregar emojis
 let EMOJIS = {};
 try {
     const emojisFile = require('../database/emojis.js');
@@ -12,17 +11,18 @@ try {
 }
 
 class ReportChatFormatter {
-    static createPanelEmbed(guildName) {
+    // ==================== PAINEL PRINCIPAL ====================
+    static createMainPanel(guildName) {
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat\nClique no botão abaixo para abrir um canal de atendimento.\n\n**Regras:**\n• Seja educado\n• Aguarde o atendimento\n• Não abra canais duplicados`)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} Bem vindo ao ReportChat\n\nAo clicar no botão "Abrir Report" abaixo, você iniciará um novo atendimento.\n\n## ${EMOJIS.Config || '📋'} Passo a passo:\n- Preencha as informações solicitadas (Seu nick/ID Alderon, Nick/ID Alderon do infrator, data/hora e regra quebrada).\n- Descreva o ocorrido de forma clara e objetiva.\n- Sempre que possível, anexe ou envie vídeos da situação – isso acelera muito a nossa análise.\n- Nosso staff irá avaliar e retornará em breve.\n\n## ${EMOJIS.shinystar || '⭐'} Regra de ouro:\nTenha respeito pelo staff e pelos outros jogadores. Seremos respeitosos com você também. Um ambiente tranquilo ajuda todo mundo.\n\n${EMOJIS.Check || '✅'} Agradecemos por ajudar a manter o ambiente de jogo agradável!`)
             .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('reportchat:create')
-                .setLabel('Abrir ReportChat')
+                .setCustomId('reportchat:open:modal')
+                .setLabel('Abrir Report')
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji(EMOJIS.chat || '🎫')
         );
@@ -30,110 +30,174 @@ class ReportChatFormatter {
         return { embeds: [embed], components: [row] };
     }
 
-    // Embed da DM do usuário (ABERTO)
-    static createUserDmEmbed(ticketId, user, threadUrl, staff = null) {
-        const embed = new EmbedBuilder()
-            .setColor(0xBBF96A)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat ${ticketId}\n**Status:** ${EMOJIS.Check || '✅'} Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staff ? staff.tag : `${EMOJIS.Error || '❌'} Nenhum staff presente`}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
+    // ==================== MODAL DE ABERTURA ====================
+    static createOpenModal() {
+        const modal = new ModalBuilder()
+            .setCustomId('reportchat:open:modal')
+            .setTitle('Abrir ReportChat');
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:no-rate:${ticketId}`)
-                .setLabel(`Fechar sem Avaliação`)
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(EMOJIS.Error || '🔒'),
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:rate:${ticketId}`)
-                .setLabel(`Fechar com Avaliação`)
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(EMOJIS.star || '⭐')
+        const seuNick = new TextInputBuilder()
+            .setCustomId('seu_nick')
+            .setLabel('Seu nick/ID Alderon')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: KnustVI');
+
+        const alvoNick = new TextInputBuilder()
+            .setCustomId('alvo_nick')
+            .setLabel('Nick/ID Alderon do infrator')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: LupusSaurus');
+
+        const dataHora = new TextInputBuilder()
+            .setCustomId('data_hora')
+            .setLabel('Data e hora do ocorrido')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: 09/04/2026 14:30');
+
+        const regra = new TextInputBuilder()
+            .setCustomId('regra')
+            .setLabel('Regra quebrada')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: Regra 5 - Flood');
+
+        const descricao = new TextInputBuilder()
+            .setCustomId('descricao')
+            .setLabel('Descrição do ocorrido')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+            .setPlaceholder('Descreva detalhadamente o que aconteceu...');
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(seuNick),
+            new ActionRowBuilder().addComponents(alvoNick),
+            new ActionRowBuilder().addComponents(dataHora),
+            new ActionRowBuilder().addComponents(regra),
+            new ActionRowBuilder().addComponents(descricao)
         );
 
-        return { embeds: [embed], components: [row] };
+        return modal;
     }
 
-    // Embed da DM do usuário (FECHADO)
-    static createUserDmClosedEmbed(ticketId, user, threadUrl, staff, motivo, punicao) {
-        const embed = new EmbedBuilder()
-            .setColor(0xF64B4E)
-            .setDescription(`# ${EMOJIS.lose || '🔒'} ReportChat Fechado\n**ID:** ${ticketId}\n**Criado por:** ${user.tag}\n**Fechado por:** ${staff ? staff.tag : 'Sistema'}\n**Thread:** [Clique aqui](${threadUrl})\n**Motivo:** ${motivo || 'Não informado'}\n**Punição:** ${punicao || 'Nenhuma'}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
+    // ==================== EMBED DO LOG (canal de logs) ====================
+    static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null) {
+        const statusMap = {
+            waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
+            responded: `${EMOJIS.chat || '💬'} Respondido`,
+            inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
+            closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
+            closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
+        };
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:rate:${ticketId}`)
-                .setLabel(`Avaliar Atendimento`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(EMOJIS.star || '⭐')
-        );
-
-        return { embeds: [embed], components: [row] };
-    }
-
-    // Embed da Thread (ABERTO)
-    static createThreadEmbed(ticketId, user, threadUrl, staff = null) {
+        const statusText = statusMap[status] || status;
+        const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
+        
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} ReportChat ${ticketId}\n**Status:** ${EMOJIS.Check || '✅'} Aberto\n**Criado por:** ${user.tag}\n**Staff:** ${staff ? staff.tag : `${EMOJIS.Error || '❌'} Nenhum staff presente`}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
+            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## <@${user.id}>\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}\n${punishment ? `- **Punição aplicada:** ${punishment}` : ''}\n${rating ? `- **Avaliação:** ${'⭐'.repeat(rating)} (${rating}/5)\n- **Comentário:** ${ratingComment || 'Nenhum'}` : ''}`)
+            .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId(`reportchat:close:no-reason:${ticketId}`)
-                .setLabel(`Fechar sem Motivo`)
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(EMOJIS.Error || '🔒'),
-            new ButtonBuilder()
-                .setCustomId(`reportchat:close:reason:${ticketId}`)
-                .setLabel(`Fechar com Motivo`)
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(EMOJIS.Note || '📝')
-        );
-
-        return { embeds: [embed], components: [row] };
-    }
-
-    // Embed da Thread (FECHADO)
-    static createThreadClosedEmbed(ticketId, user, threadUrl, staff, motivo, punicao) {
-        const embed = new EmbedBuilder()
-            .setColor(0xF64B4E)
-            .setDescription(`# ${EMOJIS.lose || '🔒'} ReportChat Fechado\n**ID:** ${ticketId}\n**Criado por:** ${user.tag}\n**Fechado por:** ${staff ? staff.tag : 'Sistema'}\n**Thread:** [Clique aqui](${threadUrl})\n**Motivo:** ${motivo || 'Não informado'}\n**Punição:** ${punicao || 'Nenhuma'}\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setFooter({ text: `${ticketId}` })
-            .setTimestamp();
-
-        return { embeds: [embed], components: [] };
-    }
-
-    // Embed do Log (canal de logs)
-    static createLogEmbed(ticketId, user, threadUrl, staff = null, action = 'open', motivo = null, punicao = null) {
-        const isOpen = action === 'open';
-        const embed = new EmbedBuilder()
-            .setColor(isOpen ? 0xBBF96A : 0xF64B4E)
-            .setDescription(`# ${isOpen ? `${EMOJIS.chat || '🎫'} ReportChat Aberto` : `${EMOJIS.lose || '🔒'} ReportChat Fechado`}\n**ID:** ${ticketId}\n**Usuário:** ${user.tag}\n**Staff:** ${staff ? staff.tag : 'Aguardando'}\n**Thread:** [Clique aqui](${threadUrl})\n**Data:** <t:${Math.floor(Date.now() / 1000)}:F>`)
-            .setTimestamp();
-
-        if (!isOpen && motivo) {
-            embed.addFields(
-                { name: `${EMOJIS.Note || '📝'} Motivo`, value: motivo, inline: false },
-                { name: `${EMOJIS.strike || '⚠️'} Punição`, value: punicao || 'Nenhuma', inline: false }
-            );
-        }
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:join:${ticketId}`)
-                .setLabel(`Entrar no ReportChat`)
+                .setCustomId(`reportchat:join:${reportId}`)
+                .setLabel('Entrar no chat')
                 .setStyle(ButtonStyle.Success)
                 .setEmoji(EMOJIS.staff || '👋')
         );
 
+        return { embeds: [embed], components: status === 'closed_no_reason' || status === 'closed_with_reason' ? [] : [row] };
+    }
+
+    // ==================== EMBED DA DM DO USUÁRIO ====================
+    static createUserDmEmbed(reportId, user, guildName, threadUrl, staffs = [], status = 'waiting') {
+        const statusMap = {
+            waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
+            responded: `${EMOJIS.chat || '💬'} Respondido`,
+            inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
+            closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
+            closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
+        };
+
+        const statusText = statusMap[status] || status;
+        const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
+        const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
+
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nEsse é o painel de informações do seu report, caso ocorra algum bug ou problema avise a equipe do servidor em questão.\n\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`)
+            .setFooter(EmbedFormatter.getFooter(guildName))
+            .setTimestamp();
+
+        let row;
+        if (!isClosed) {
+            row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:close:no-reason:${reportId}`)
+                    .setLabel('Fechar')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji(EMOJIS.lose || '🔒'),
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:close:reason:${reportId}`)
+                    .setLabel('Fechar com Motivo')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji(EMOJIS.Note || '📝')
+            );
+        } else {
+            row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:rate:${reportId}`)
+                    .setLabel('Avaliar Atendimento')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji(EMOJIS.star || '⭐')
+            );
+        }
+
         return { embeds: [embed], components: [row] };
     }
 
+    // ==================== EMBED DA THREAD ====================
+    static createThreadEmbed(reportId, user, guildName, staffRoleId, status = 'waiting', customText = '') {
+        const statusMap = {
+            waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
+            responded: `${EMOJIS.chat || '💬'} Respondido`,
+            inactive: `${EMOJIS.Warning || '⚠️'} Inativo`
+        };
+
+        const statusText = statusMap[status] || status;
+        const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
+
+        const embed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId} ${guildName}\n## Bem vindo ao ReportChat <@${user.id}>!\nLogo um staff deve te atender. Este é um chat privado com ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'} do servidor.\nCaso identifique algum bug avise a equipe do servidor.\n${customText}\n\n- **Status:** ${statusText}`)
+            .setFooter(EmbedFormatter.getFooter(guildName))
+            .setTimestamp();
+
+        let row;
+        if (!isClosed) {
+            row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:close:no-reason:${reportId}`)
+                    .setLabel('Fechar')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji(EMOJIS.lose || '🔒'),
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:close:reason:${reportId}`)
+                    .setLabel('Fechar com Motivo')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji(EMOJIS.Note || '📝')
+            );
+        } else {
+            row = new ActionRowBuilder().addComponents();
+        }
+
+        return { embeds: [embed], components: [row] };
+    }
+
+    // ==================== MODAIS ====================
     static createCloseReasonModal() {
         const modal = new ModalBuilder()
             .setCustomId('reportchat:close:reason:modal')
@@ -151,7 +215,7 @@ class ReportChatFormatter {
             .setLabel('Punição aplicada (se houver)')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
-            .setPlaceholder('Ex: Advertência, Ban, Strike #RC1');
+            .setPlaceholder('Ex: Advertência, Ban, Strike');
 
         modal.addComponents(
             new ActionRowBuilder().addComponents(motivo),
@@ -168,17 +232,17 @@ class ReportChatFormatter {
 
         const nota = new TextInputBuilder()
             .setCustomId('nota')
-            .setLabel('Nota para o staff (1 a 5)')
+            .setLabel('Nota (1 a 5)')
             .setStyle(TextInputStyle.Short)
             .setRequired(true)
             .setPlaceholder('Ex: 5');
 
         const comentario = new TextInputBuilder()
             .setCustomId('comentario')
-            .setLabel('Comentário (opcional)')
+            .setLabel('Comentário')
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(false)
-            .setPlaceholder('Deixe seu feedback sobre o atendimento...');
+            .setPlaceholder('Deixe seu feedback...');
 
         modal.addComponents(
             new ActionRowBuilder().addComponents(nota),

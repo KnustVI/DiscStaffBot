@@ -31,6 +31,7 @@ module.exports = {
                 `Apenas administradores podem usar estes comandos para configurar o sistema e personalizar a experiência da equipe.`,
                 `- \`/config\`: Painel de controle da Staff`,
                 `- \`/botstatus\`: Integridade técnica do sistema`,
+                `- \`/reportchat\`: Configura o sistema de ReportChat`,
                 `### ${emojis.strike || '🛠️'} Moderação`,
                 `Apenas aqueles com o cargo staff a configuração podem usar estes comandos`,
                 `- \`/strike\`: Aplica punições e reduz reputação`,
