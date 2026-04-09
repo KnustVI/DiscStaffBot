@@ -26,7 +26,14 @@ module.exports = {
             
             // ==================== REPORCHAT SYSTEM ====================
             
-            // MODAL DE ABERTURA (NOVO)
+            // Botão que ABRE o modal (não processa dados)
+            if (interaction.customId === 'reportchat:create') {
+                const modal = ReportChatFormatter.createOpenModal();
+                await interaction.showModal(modal);
+                return;
+            }
+
+            // MODAL SUBMIT - processa os dados (NOVO)
             if (interaction.customId === 'reportchat:open:modal') {
                 const data = {
                     seuNick: interaction.fields.getTextInputValue('seu_nick'),
@@ -36,13 +43,6 @@ module.exports = {
                     descricao: interaction.fields.getTextInputValue('descricao')
                 };
                 await reportChatSystem.openReport(interaction, data);
-                return;
-            }
-            
-            // Botão criar (NOVO - com modal)
-            if (interaction.customId === 'reportchat:create') {
-                const modal = ReportChatFormatter.createOpenModal();
-                await interaction.showModal(modal);
                 return;
             }
             
