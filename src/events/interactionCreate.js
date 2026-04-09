@@ -27,19 +27,17 @@ module.exports = {
             
             // ==================== REPORCHAT SYSTEM ====================
 
-            // Botão que ABRE o modal (não processa dados)
+            // Botão que ABRE o modal de criação
             if (interaction.customId === 'reportchat:create') {
-            if (interaction.deferred) {
-                console.log('⚠️ Interação já deferida, não pode mostrar modal');
-                return;
-            }
+                console.log('📌 Abrindo modal de criação');
                 const modal = ReportChatFormatter.createOpenModal();
                 await interaction.showModal(modal);
                 return;
             }
 
-            // Botão entrar
+            // Botão entrar no report
             if (interaction.customId?.startsWith('reportchat:join:')) {
+                console.log('📌 Staff entrando no report');
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.deferUpdate();
                 }
@@ -50,6 +48,7 @@ module.exports = {
 
             // Botão fechar com motivo - abre modal
             if (interaction.customId?.startsWith('reportchat:close:reason:')) {
+                console.log('📌 Abrindo modal de fechamento com motivo');
                 const reportId = interaction.customId.split(':')[3];
                 const modal = ReportChatFormatter.createCloseReasonModal();
                 await interaction.showModal(modal);
@@ -60,6 +59,7 @@ module.exports = {
 
             // Botão fechar sem motivo
             if (interaction.customId?.startsWith('reportchat:close:no-reason:')) {
+                console.log('📌 Fechando report sem motivo');
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.deferUpdate();
                 }
@@ -70,6 +70,7 @@ module.exports = {
 
             // Botão avaliar - abre modal
             if (interaction.customId?.startsWith('reportchat:rate:')) {
+                console.log('📌 Abrindo modal de avaliação');
                 const reportId = interaction.customId.split(':')[2];
                 const modal = ReportChatFormatter.createRatingModal();
                 await interaction.showModal(modal);
@@ -84,6 +85,7 @@ module.exports = {
                 
                 // MODAL DE ABERTURA - processa os dados
                 if (interaction.customId === 'reportchat:open:modal') {
+                    console.log('📌 Processando modal de abertura');
                     const data = {
                         seuNick: interaction.fields.getTextInputValue('seu_nick'),
                         alvoNick: interaction.fields.getTextInputValue('alvo_nick'),
@@ -97,6 +99,7 @@ module.exports = {
                 
                 // Modal de fechamento com motivo
                 if (interaction.customId === 'reportchat:close:reason:modal') {
+                    console.log('📌 Processando modal de fechamento');
                     const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'closing');
                     if (session?.reportId) {
                         const motivo = interaction.fields.getTextInputValue('motivo');
@@ -109,6 +112,7 @@ module.exports = {
                 
                 // Modal de avaliação
                 if (interaction.customId === 'reportchat:rating') {
+                    console.log('📌 Processando modal de avaliação');
                     const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'rating');
                     if (session?.reportId) {
                         const nota = parseInt(interaction.fields.getTextInputValue('nota'));
