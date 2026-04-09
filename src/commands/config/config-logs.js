@@ -75,8 +75,8 @@ module.exports = {
         
         const ticketsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:tickets')
-                .setPlaceholder(`Selecionar canal de logs de tickets`)
+                .setCustomId('config-logs:reports')
+                .setPlaceholder(`Selecionar canal de logs de reports`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
