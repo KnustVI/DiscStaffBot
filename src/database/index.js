@@ -66,7 +66,8 @@ class DatabaseManager {
                 'staff_analytics',
                 'activity_logs',
                 'temporary_roles',
-                'feedbacks'
+                'feedbacks',
+                'reports'
             ];
             
             for (const table of tables) {
