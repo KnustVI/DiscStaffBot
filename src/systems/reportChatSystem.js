@@ -89,7 +89,7 @@ class ReportChatSystem {
             return await interaction.reply({ content: `${EMOJIS.Error || '❌'} Você já possui um report aberto!`, flags: 64 });
         }
 
-        const reportId = `#R${this.getNextReportId(guild.id)}`;
+        const reportId = `#${this.getNextReportId(guild.id)}`;
         const threadName = `report-${reportId.substring(1)}-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
         
         const channel = interaction.channel;
@@ -115,7 +115,7 @@ class ReportChatSystem {
 
         // Criar log
         const logChannel = await guild.channels.fetch(logChannelId);
-        const logContent = ReportChatFormatter.createLogEmbed(reportId, user, thread.url);
+        const logContent = ReportChatFormatter.createLogEmbed(reportId, user, thread.url, [], 'waiting', null, null, null, guild.name);
         const logMessage = await logChannel.send(logContent);
         const logMessageId = logMessage.id;
 
