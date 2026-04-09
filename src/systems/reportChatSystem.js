@@ -218,6 +218,7 @@ class ReportChatSystem {
                 db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
                     .run(status, Date.now(), user.id, hasReason ? motivo : `${closedByName} (sem motivo)`, punicao || null, reportId);
 
+                // Atualizar embeds ANTES de arquivar
                 await this.updateEmbeds(guild.id, reportId);
                 
                 if (thread) {
@@ -227,6 +228,8 @@ class ReportChatSystem {
                 }
                 
                 const responseText = hasReason ? `${reportId} fechado com motivo: ${motivo}` : `${reportId} fechado sem motivo por ${closedByName}`;
+                
+                // Usar editReply (já tem defer do botão)
                 await interaction.editReply({ content: `${EMOJIS.Check || '✅'} ${responseText}`, components: [] });
                 
             } catch (error) {
