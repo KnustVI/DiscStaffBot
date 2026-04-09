@@ -18,63 +18,81 @@ class ReportChatSystem {
     }
 
     getNextReportId(guildId) {
-        const lastReport = db.prepare(`SELECT id FROM reports WHERE guild_id = ? ORDER BY created_at DESC LIMIT 1`).get(guildId);
-        if (!lastReport) return 1;
-        const lastNumber = parseInt(lastReport.id.replace('#R', ''));  // ← #R
-        return isNaN(lastNumber) ? 1 : lastNumber + 1;
-    }
+            const lastReport = db.prepare(`SELECT id FROM reports WHERE guild_id = ? ORDER BY created_at DESC LIMIT 1`).get(guildId);
+            if (!lastReport) return 1;
+            const lastNumber = parseInt(lastReport.id.replace('#R', ''));
+            return isNaN(lastNumber) ? 1 : lastNumber + 1;
+        }
 
-    async updateEmbeds(guildId, reportId) {
-        const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);
-        if (!report) return;
+            async updateEmbeds(guildId, reportId) {
+            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);
+            if (!report) return;
 
-        const guild = this.client.guilds.cache.get(guildId);
-        if (!guild) return;
+            const guild = this.client.guilds.cache.get(guildId);
+            if (!guild) return;
 
-        const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
-        const threadUrl = thread ? thread.url : '#';
-        const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
-        if (!targetUser) return;
+            const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
+            const threadUrl = thread ? thread.url : '#';
+            const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
+            if (!targetUser) return;
 
-        const staffs = report.staffs ? JSON.parse(report.staffs) : [];
+            const staffs = report.staffs ? JSON.parse(report.staffs) : [];
+            const isClosed = report.status === 'closed_no_reason' || report.status === 'closed_with_reason';
 
-        // Atualizar log
-        if (report.log_message_id) {
-            const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports'); // ← CORRIGIDO
-            if (logChannelId) {
-                const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-                if (logChannel) {
-                    const logMessage = await logChannel.messages.fetch(report.log_message_id).catch(() => null);
-                    if (logMessage) {
-                        const logContent = ReportChatFormatter.createLogEmbed(reportId, targetUser, threadUrl, staffs, report.status, report.punishment, report.rating, report.rating_comment);
-                        await logMessage.edit(logContent);
+            // Atualizar log
+            if (report.log_message_id) {
+                const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
+                if (logChannelId) {
+                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                    if (logChannel) {
+                        const logMessage = await logChannel.messages.fetch(report.log_message_id).catch(() => null);
+                        if (logMessage) {
+                            const logContent = ReportChatFormatter.createLogEmbed(reportId, targetUser, threadUrl, staffs, report.status, report.punishment, report.rating, report.rating_comment, guild.name);
+                            // Se estiver fechado, enviar sem componentes
+                            if (isClosed) {
+                                await logMessage.edit({ embeds: logContent.embeds, components: [] });
+                            } else {
+                                await logMessage.edit(logContent);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Atualizar DM (similar)
+            if (report.dm_message_id) {
+                const dmChannel = await targetUser.createDM().catch(() => null);
+                if (dmChannel) {
+                    const dmMessage = await dmChannel.messages.fetch(report.dm_message_id).catch(() => null);
+                    if (dmMessage) {
+                        const dmContent = ReportChatFormatter.createUserDmEmbed(
+                            reportId, targetUser, guild.name, threadUrl, staffs, report.status
+                        );
+                        if (isClosed) {
+                            await dmMessage.edit({ embeds: dmContent.embeds, components: dmContent.components });
+                        } else {
+                            await dmMessage.edit(dmContent);
+                        }
+                    }
+                }
+            }
+
+            // Atualizar thread
+            if (report.thread_message_id && thread) {
+                const threadMessage = await thread.messages.fetch(report.thread_message_id).catch(() => null);
+                if (threadMessage) {
+                    const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
+                    const threadContent = ReportChatFormatter.createThreadEmbed(
+                        reportId, targetUser, guild.name, staffRoleId, report.status
+                    );
+                    if (isClosed) {
+                        await threadMessage.edit({ embeds: threadContent.embeds, components: [] });
+                    } else {
+                        await threadMessage.edit(threadContent);
                     }
                 }
             }
         }
-
-        // Atualizar DM
-        if (report.dm_message_id) {
-            const dmChannel = await targetUser.createDM().catch(() => null);
-            if (dmChannel) {
-                const dmMessage = await dmChannel.messages.fetch(report.dm_message_id).catch(() => null);
-                if (dmMessage) {
-                    const dmContent = ReportChatFormatter.createUserDmEmbed(reportId, targetUser, guild.name, threadUrl, staffs, report.status);
-                    await dmMessage.edit(dmContent);
-                }
-            }
-        }
-
-        // Atualizar thread
-        if (report.thread_message_id && thread) {
-            const threadMessage = await thread.messages.fetch(report.thread_message_id).catch(() => null);
-            if (threadMessage) {
-                const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
-                const threadContent = ReportChatFormatter.createThreadEmbed(reportId, targetUser, guild.name, staffRoleId, report.status);
-                await threadMessage.edit(threadContent);
-            }
-        }
-    }
 
     async openReport(interaction, data) {
         const { guild, user } = interaction;
@@ -89,8 +107,8 @@ class ReportChatSystem {
             return await interaction.reply({ content: `${EMOJIS.Error || '❌'} Você já possui um report aberto!`, flags: 64 });
         }
 
-        const reportId = `#${this.getNextReportId(guild.id)}`;
-        const threadName = `report-${reportId.substring(1)}-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const reportId = `#R${this.getNextReportId(guild.id)}`;
+        const threadName = `${reportId}│${user.username}`.toLowerCase().replace(/[^a-z0-9│]/g, '-');
         
         const channel = interaction.channel;
         const thread = await channel.threads.create({
@@ -107,6 +125,12 @@ class ReportChatSystem {
         const threadContent = ReportChatFormatter.createThreadEmbed(reportId, user, guild.name, staffRoleId);
         const threadMessage = await thread.send(threadContent);
         const threadMessageId = threadMessage.id;
+
+        const modalResponseEmbed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setDescription(`# 📋 Informações do Report\n**Seu nick:** ${data.seuNick}\n**Alvo:** ${data.alvoNick}\n**Data/Hora:** ${data.dataHora}\n**Regra:** ${data.regra}\n\n**Descrição:**\n${data.descricao}`)
+            .setTimestamp();
+            await thread.send({ embeds: [modalResponseEmbed] });
 
         // Criar DM
         const dmContent = ReportChatFormatter.createUserDmEmbed(reportId, user, guild.name, thread.url);
@@ -133,16 +157,16 @@ class ReportChatSystem {
     }
 
     async joinReport(interaction, reportId) {
-        const { guild, user, member } = interaction;
-        
+    const { guild, user, member } = interaction;
+    
         const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
         if (!staffRoleId || !member.roles.cache.has(staffRoleId)) {
-            return await interaction.reply({ content: `${EMOJIS.Error || '❌'} Apenas staff pode entrar.`, flags: 64 });
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Apenas staff pode entrar.`, flags: 64 });
         }
 
         const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
         if (!report) {
-            return await interaction.reply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
         }
 
         const thread = await guild.channels.fetch(report.thread_id);
@@ -155,7 +179,9 @@ class ReportChatSystem {
         }
 
         await this.updateEmbeds(guild.id, reportId);
-        await interaction.reply({ content: `${EMOJIS.Check || '✅'} Você entrou no ${reportId}`, flags: 64 });
+        
+        // Usar editReply em vez de reply
+        await interaction.editReply({ content: `${EMOJIS.Check || '✅'} Você entrou no ${reportId}`, components: [] });
     }
 
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
@@ -166,7 +192,7 @@ class ReportChatSystem {
         const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
         
         if (!report) {
-            return await interaction.reply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
         }
 
         const thread = await guild.channels.fetch(report.thread_id);
@@ -175,13 +201,15 @@ class ReportChatSystem {
         await thread.setArchived(true);
 
         const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
+        const closedByName = isStaff ? `Staff <@${user.id}>` : `Usuário <@${user.id}>`;
+        
         db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
-            .run(status, Date.now(), user.id, motivo || null, punicao || null, reportId);
+            .run(status, Date.now(), user.id, hasReason ? `${closedByName}: ${motivo}` : `${closedByName} (sem motivo)`, punicao || null, reportId);
 
         await this.updateEmbeds(guild.id, reportId);
         
-        const responseText = hasReason ? `${reportId} fechado com motivo: ${motivo}` : `${reportId} fechado sem motivo`;
-        await interaction.reply({ content: `${EMOJIS.Check || '✅'} ${responseText}`, flags: 64 });
+        const responseText = hasReason ? `${reportId} fechado com motivo: ${motivo}` : `${reportId} fechado sem motivo por ${closedByName}`;
+        await interaction.editReply({ content: `${EMOJIS.Check || '✅'} ${responseText}`, components: [] });
     }
 
     async rateReport(interaction, reportId, nota, comentario) {

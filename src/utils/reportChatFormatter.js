@@ -84,34 +84,53 @@ class ReportChatFormatter {
     }
 
     // ==================== EMBED DO LOG (canal de logs) ====================
-    static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName) {
-        const statusMap = {
-            waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
-            responded: `${EMOJIS.chat || '💬'} Respondido`,
-            inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
-            closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
-            closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
-        };
+        static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName) {
+            const statusMap = {
+                waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
+                responded: `${EMOJIS.chat || '💬'} Respondido`,
+                inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
+                closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
+                closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
+            };
 
-        const statusText = statusMap[status] || status;
-        const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
-        
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## <@${user.id}>\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}\n${punishment ? `- **Punição aplicada:** ${punishment}` : ''}\n${rating ? `- **Avaliação:** ${'⭐'.repeat(rating)} (${rating}/5)\n- **Comentário:** ${ratingComment || 'Nenhum'}` : ''}`)
-            .setFooter(EmbedFormatter.getFooter(guildName))
-            .setTimestamp();
+            const statusText = statusMap[status] || status;
+            const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
+            const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
+            
+            // Construir a descrição base
+            let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## <@${user.id}>\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`;
+            
+            // Adicionar punição se existir
+            if (punishment) {
+                description += `\n- **Punição aplicada:** ${punishment}`;
+            }
+            
+            // Adicionar avaliação se existir
+            if (rating) {
+                description += `\n- **Avaliação:** ${'⭐'.repeat(rating)} (${rating}/5)\n- **Comentário:** ${ratingComment || 'Nenhum'}`;
+            }
+            
+            const embed = new EmbedBuilder()
+                .setColor(0xDCA15E)
+                .setDescription(description)
+                .setFooter(EmbedFormatter.getFooter(guildName || ''))
+                .setTimestamp();
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`reportchat:join:${reportId}`)
-                .setLabel('Entrar no chat')
-                .setStyle(ButtonStyle.Success)
-                .setEmoji(EMOJIS.staff || '👋')
-        );
+            // Se estiver fechado, não adicionar botões
+            if (isClosed) {
+                return { embeds: [embed], components: [] };
+            }
+            
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:join:${reportId}`)
+                    .setLabel('Entrar no chat')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji(EMOJIS.staff || '👋')
+            );
 
-        return { embeds: [embed], components: status === 'closed_no_reason' || status === 'closed_with_reason' ? [] : [row] };
-    }
+            return { embeds: [embed], components: [row] };
+        }
 
     // ==================== EMBED DA DM DO USUÁRIO ====================
     static createUserDmEmbed(reportId, user, guildName, threadUrl, staffs = [], status = 'waiting') {
