@@ -21,7 +21,7 @@ class ReportChatFormatter {
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('reportchat:open:modal')
+                .setCustomId('reportchat:create')
                 .setLabel('Abrir Report')
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji(EMOJIS.chat || '🎫')
