@@ -2,7 +2,8 @@
 const db = require('../database/index');
 const ReportChatFormatter = require('../utils/reportChatFormatter');
 const ConfigSystem = require('./configSystem');
-const { ChannelType } = require('discord.js');
+const { ChannelType, EmbedBuilder } = require('discord.js');
+
 
 let EMOJIS = {};
 try {
