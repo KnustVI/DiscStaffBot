@@ -38,7 +38,7 @@ class InteractionHandler {
             'config-points': configSystem,
             'config-roles': configSystem,
             'config-logs': configSystem,
-            'ticket': this.ticketSystem
+            'reportchat': reportChatSystem  // ← ADICIONAR
         };
         
         // Mapeamento de ações para métodos
