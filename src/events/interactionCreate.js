@@ -144,9 +144,12 @@ module.exports = {
                     await interaction.deferUpdate();
                 }
                 
+                // Só processa se NÃO for do reportchat
                 if (!interaction.customId.startsWith('reportchat')) {
-                await handler.handleComponent(interaction);
-}
+                    await handler.handleComponent(interaction);
+                }
+                
+                return;
             }
             
         } catch (error) {
