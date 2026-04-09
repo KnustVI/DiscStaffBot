@@ -135,8 +135,8 @@ const ConfigSystem = {
                 await this.setLogChannel(interaction, 'log_automod');
                 return;
             }
-            if (customId === 'config-logs:tickets') {
-                await this.setLogChannel(interaction, 'log_tickets');
+            if (customId === 'config-logs:reports') {
+                await this.setLogChannel(interaction, 'log_reports');
                 return;
             }
             if (customId === 'config-logs:criar') {
@@ -477,7 +477,7 @@ const ConfigSystem = {
         const logGeral = this.getSetting(guildId, 'log_channel');
         const logPunishments = this.getSetting(guildId, 'log_punishments');
         const logAutomod = this.getSetting(guildId, 'log_automod');
-        const logTickets = this.getSetting(guildId, 'log_tickets');
+        const logReports = this.getSetting(guildId, 'log_reports');
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
@@ -486,7 +486,7 @@ const ConfigSystem = {
                 { name: `${EMOJIS.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
                 { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true },
-                { name: `${EMOJIS.chat || '🎫'} Tickets`, value: logTickets ? `<#${logTickets}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
+                { name: `${EMOJIS.chat || '🎫'} Reports`, value: logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`, inline: true }
             )
             .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
@@ -512,10 +512,10 @@ const ConfigSystem = {
                 .addChannelTypes(ChannelType.GuildText)
         );
         
-        const ticketsRow = new ActionRowBuilder().addComponents(
+        const reportsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:tickets')
-                .setPlaceholder(`Selecionar canal de logs de tickets`)
+                .setCustomId('config-logs:reports')
+                .setPlaceholder(`🎫 Selecionar canal de logs de reports`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
@@ -532,13 +532,13 @@ const ConfigSystem = {
                 await interaction.editReply({
                     content: successMessage || null,
                     embeds: [embed],
-                    components: [geralRow, punishmentsRow, automodRow, ticketsRow, buttonRow]
+                    components: [geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
                 });
             } else {
                 await interaction.update({
                     content: successMessage || null,
                     embeds: [embed],
-                    components: [geralRow, punishmentsRow, automodRow, ticketsRow, buttonRow]
+                    components: [geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
                 });
             }
         } catch (error) {
@@ -564,7 +564,7 @@ const ConfigSystem = {
             log_channel: `${EMOJIS.global || '📜'} Canal de logs gerais`,
             log_punishments: `${EMOJIS.strike || '⚖️'} Canal de logs de punições`,
             log_automod: `${EMOJIS.AutoMod || '🛡️'} Canal de logs de automoderação`,
-            log_tickets: `${EMOJIS.chat || '🎫'} Canal de logs de tickets`
+            log_reports: `${EMOJIS.chat || '🎫'} Canal de logs de reports`
         };
         
         await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
@@ -619,8 +619,8 @@ const ConfigSystem = {
                 parent: category.id
             });
             
-            const tickets = await guild.channels.create({
-                name: `🎫 logs-tickets`,
+            const reports = await guild.channels.create({
+                name: `🎫 logs-reports`,
                 type: ChannelType.GuildText,
                 parent: category.id
             });
@@ -628,7 +628,7 @@ const ConfigSystem = {
             this.setSetting(guild.id, 'log_channel', geral.id);
             this.setSetting(guild.id, 'log_automod', automod.id);
             this.setSetting(guild.id, 'log_punishments', punishments.id);
-            this.setSetting(guild.id, 'log_tickets', tickets.id);
+            this.setSetting(guild.id, 'log_reports', reports.id);
             this.clearCache(guild.id);
             
             const embed = new EmbedBuilder()
@@ -638,7 +638,7 @@ const ConfigSystem = {
                     { name: `${EMOJIS.global || '📜'} Geral`, value: `<#${geral.id}>`, inline: true },
                     { name: `${EMOJIS.AutoMod || '🛡️'} AutoMod`, value: `<#${automod.id}>`, inline: true },
                     { name: `${EMOJIS.strike || '⚖️'} Punições`, value: `<#${punishments.id}>`, inline: true },
-                    { name: `${EMOJIS.chat || '🎫'} Tickets`, value: `<#${tickets.id}>`, inline: true }
+                    { name: `${EMOJIS.chat || '🎫'} Reports`, value: `<#${reports.id}>`, inline: true }
                 )
                 .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
@@ -668,7 +668,7 @@ const ConfigSystem = {
             geral: 'log_channel',
             punishments: 'log_punishments',
             automod: 'log_automod',
-            tickets: 'log_tickets'
+            reports: 'log_reports'
         };
         
         const key = channelMap[type];
@@ -690,4 +690,4 @@ const ConfigSystem = {
     }
 };
 
-module.exports = ConfigSystem; 
+module.exports = ConfigSystem;
