@@ -83,7 +83,7 @@ class ReportChatFormatter {
         return modal;
     }
 
-    // ==================== EMBED DO LOG (canal de logs) ====================
+            // ==================== EMBED DO LOG (canal de logs) ====================
         static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName) {
             const statusMap = {
                 waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
@@ -97,18 +97,10 @@ class ReportChatFormatter {
             const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
             const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
             
-            // Construir a descrição base
             let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## <@${user.id}>\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`;
             
-            // Adicionar punição se existir
-            if (punishment) {
-                description += `\n- **Punição aplicada:** ${punishment}`;
-            }
-            
-            // Adicionar avaliação se existir
-            if (rating) {
-                description += `\n- **Avaliação:** ${'⭐'.repeat(rating)} (${rating}/5)\n- **Comentário:** ${ratingComment || 'Nenhum'}`;
-            }
+            if (punishment) description += `\n- **Punição aplicada:** ${punishment}`;
+            if (rating) description += `\n- **Avaliação:** ${'⭐'.repeat(rating)} (${rating}/5)\n- **Comentário:** ${ratingComment || 'Nenhum'}`;
             
             const embed = new EmbedBuilder()
                 .setColor(0xDCA15E)
@@ -116,106 +108,111 @@ class ReportChatFormatter {
                 .setFooter(EmbedFormatter.getFooter(guildName || ''))
                 .setTimestamp();
 
-            // Se estiver fechado, não adicionar botões
-            if (isClosed) {
-                return { embeds: [embed], components: [] };
+            // Botões do LOG (apenas se NÃO estiver fechado)
+            if (!isClosed) {
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`reportchat:join:${reportId}`)
+                        .setLabel('Entrar no chat')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji(EMOJIS.staff || '👋'),
+                    new ButtonBuilder()
+                        .setCustomId(`reportchat:close:no-reason:${reportId}`)
+                        .setLabel('Fechar')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji(EMOJIS.lose || '🔒'),
+                    new ButtonBuilder()
+                        .setCustomId(`reportchat:close:reason:${reportId}`)
+                        .setLabel('Fechar com Motivo')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji(EMOJIS.Note || '📝')
+                );
+                return { embeds: [embed], components: [row] };
             }
             
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`reportchat:join:${reportId}`)
-                    .setLabel('Entrar no chat')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji(EMOJIS.staff || '👋')
-            );
-
-            return { embeds: [embed], components: [row] };
+            return { embeds: [embed], components: [] };
         }
 
-    // ==================== EMBED DA DM DO USUÁRIO ====================
-    static createUserDmEmbed(reportId, user, guildName, threadUrl, staffs = [], status = 'waiting') {
-        const statusMap = {
-            waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
-            responded: `${EMOJIS.chat || '💬'} Respondido`,
-            inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
-            closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
-            closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
-        };
+        // ==================== EMBED DA DM DO USUÁRIO ====================
+        static createUserDmEmbed(reportId, user, guildName, threadUrl, staffs = [], status = 'waiting', closedBy = null, closedReason = null) {
+            const statusMap = {
+                waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
+                responded: `${EMOJIS.chat || '💬'} Respondido`,
+                inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
+                closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
+                closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
+            };
 
-        const statusText = statusMap[status] || status;
-        const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
-        const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
+            const statusText = statusMap[status] || status;
+            const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
+            const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
+            
+            let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nEsse é o painel de informações do seu report, caso ocorra algum bug ou problema avise a equipe do servidor em questão.\n\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`;
+            
+            if (closedBy) description += `\n- **Fechado por:** ${closedBy}`;
+            if (closedReason) description += `\n- **Motivo:** ${closedReason}`;
+            
+            const embed = new EmbedBuilder()
+                .setColor(isClosed ? 0xF64B4E : 0xDCA15E)
+                .setDescription(description)
+                .setFooter(EmbedFormatter.getFooter(guildName))
+                .setTimestamp();
 
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nEsse é o painel de informações do seu report, caso ocorra algum bug ou problema avise a equipe do servidor em questão.\n\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`)
-            .setFooter(EmbedFormatter.getFooter(guildName))
-            .setTimestamp();
-
-        let row;
-        if (!isClosed) {
-            row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`reportchat:close:no-reason:${reportId}`)
-                    .setLabel('Fechar')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji(EMOJIS.lose || '🔒'),
-                new ButtonBuilder()
-                    .setCustomId(`reportchat:close:reason:${reportId}`)
-                    .setLabel('Fechar com Motivo')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji(EMOJIS.Note || '📝')
-            );
-        } else {
-            row = new ActionRowBuilder().addComponents(
+            // Botões da DM
+            if (!isClosed) {
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`reportchat:user:close:no-reason:${reportId}`)
+                        .setLabel('Fechar')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji(EMOJIS.lose || '🔒'),
+                    new ButtonBuilder()
+                        .setCustomId(`reportchat:user:close:reason:${reportId}`)
+                        .setLabel('Fechar com Motivo')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji(EMOJIS.Note || '📝')
+                );
+                return { embeds: [embed], components: [row] };
+            }
+            
+            // Botão de avaliação (válido por 24h)
+            const closedAt = Date.now();
+            const canRate = closedAt - (24 * 60 * 60 * 1000);
+            
+            const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`reportchat:rate:${reportId}`)
                     .setLabel('Avaliar Atendimento')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji(EMOJIS.star || '⭐')
+                    .setDisabled(Date.now() > canRate + (24 * 60 * 60 * 1000))
             );
+            
+            return { embeds: [embed], components: [row] };
         }
 
-        return { embeds: [embed], components: [row] };
-    }
+        // ==================== EMBED DA THREAD (sem botões) ====================
+        static createThreadEmbed(reportId, user, guildName, staffRoleId, status = 'waiting', customText = '') {
+            const statusMap = {
+                waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
+                responded: `${EMOJIS.chat || '💬'} Respondido`,
+                inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
+                closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo`,
+                closed_with_reason: `${EMOJIS.Check || '✅'} Fechado`
+            };
 
-    // ==================== EMBED DA THREAD ====================
-    static createThreadEmbed(reportId, user, guildName, staffRoleId, status = 'waiting', customText = '') {
-        const statusMap = {
-            waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
-            responded: `${EMOJIS.chat || '💬'} Respondido`,
-            inactive: `${EMOJIS.Warning || '⚠️'} Inativo`
-        };
+            const statusText = statusMap[status] || status;
+            const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
 
-        const statusText = statusMap[status] || status;
-        const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
+            const embed = new EmbedBuilder()
+                .setColor(isClosed ? 0xF64B4E : 0xDCA15E)
+                .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId} ${guildName}\n## Bem vindo ao ReportChat <@${user.id}>!\nLogo um staff deve te atender. Este é um chat privado com ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'} do servidor.\nCaso identifique algum bug avise a equipe do servidor.\n${customText}\n\n- **Status:** ${statusText}`)
+                .setFooter(EmbedFormatter.getFooter(guildName))
+                .setTimestamp();
 
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId} ${guildName}\n## Bem vindo ao ReportChat <@${user.id}>!\nLogo um staff deve te atender. Este é um chat privado com ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'} do servidor.\nCaso identifique algum bug avise a equipe do servidor.\n${customText}\n\n- **Status:** ${statusText}`)
-            .setFooter(EmbedFormatter.getFooter(guildName))
-            .setTimestamp();
-
-        let row;
-        if (!isClosed) {
-            row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`reportchat:close:no-reason:${reportId}`)
-                    .setLabel('Fechar')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji(EMOJIS.lose || '🔒'),
-                new ButtonBuilder()
-                    .setCustomId(`reportchat:close:reason:${reportId}`)
-                    .setLabel('Fechar com Motivo')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji(EMOJIS.Note || '📝')
-            );
-        } else {
-            row = new ActionRowBuilder().addComponents();
+            // SEM BOTÕES na thread
+            return { embeds: [embed], components: [] };
         }
-
-        return { embeds: [embed], components: [row] };
-    }
 
     // ==================== MODAIS ====================
     static createCloseReasonModal() {
@@ -244,6 +241,23 @@ class ReportChatFormatter {
 
         return modal;
     }
+
+    static createUserCloseReasonModal() {
+    const modal = new ModalBuilder()
+        .setCustomId('reportchat:user:close:reason:modal')
+        .setTitle('Fechar ReportChat');
+
+    const motivo = new TextInputBuilder()
+        .setCustomId('motivo')
+        .setLabel('Motivo do fechamento')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder('Ex: Problema resolvido');
+
+    modal.addComponents(new ActionRowBuilder().addComponents(motivo));
+
+    return modal;
+}
 
     static createRatingModal() {
         const modal = new ModalBuilder()

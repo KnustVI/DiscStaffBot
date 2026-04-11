@@ -238,45 +238,43 @@ class ReportChatSystem {
             }
         }
 
-        async closeReport(interaction, reportId, motivo, punicao, hasReason) {
-        const { guild, user, member } = interaction;
-        
-        // Responder imediatamente
-        await interaction.reply({ content: '⏳ Processando...', flags: 64 });
-        
-        try {
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            const isStaff = staffRoleId && member.roles.cache.has(staffRoleId);
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
+        async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = true) {
+            const { guild, user, member } = interaction;
             
-            if (!report) {
-                return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
-            }
+            try {
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                const isStaffUser = isStaff && staffRoleId && member?.roles.cache.has(staffRoleId);
+                const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ? AND status NOT LIKE 'closed%'`).get(reportId, guild.id);
+                
+                if (!report) {
+                    return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, components: [] });
+                }
 
-            const thread = await guild.channels.fetch(report.thread_id);
-            
-            const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
-            const closedByName = isStaff ? `Staff <@${user.id}>` : `Usuário <@${user.id}>`;
-            
-            db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
-                .run(status, Date.now(), user.id, hasReason ? motivo : `${closedByName} (sem motivo)`, punicao || null, reportId);
+                const thread = await guild.channels.fetch(report.thread_id);
+                
+                const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
+                const closedByName = isStaffUser ? `Staff <@${user.id}>` : `Usuário <@${user.id}>`;
+                const closedReasonText = hasReason ? `${closedByName}: ${motivo}` : `${closedByName} (sem motivo)`;
+                
+                db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
+                    .run(status, Date.now(), user.id, closedReasonText, punicao || null, reportId);
 
-            await this.updateEmbeds(guild.id, reportId);
-            
-            if (thread) {
-                await thread.members.remove(report.user_id).catch(() => null);
-                await thread.setLocked(true);
-                await thread.setArchived(true);
+                await this.updateEmbeds(guild.id, reportId);
+                
+                if (thread) {
+                    await thread.members.remove(report.user_id).catch(() => null);
+                    await thread.setLocked(true);
+                    await thread.setArchived(true);
+                }
+                
+                const responseText = hasReason ? `${reportId} fechado com motivo: ${motivo}` : `${reportId} fechado sem motivo`;
+                await interaction.editReply({ content: `${EMOJIS.Check || '✅'} ${responseText}`, components: [] });
+                
+            } catch (error) {
+                console.error('❌ Erro ao fechar report:', error);
+                await interaction.editReply({ content: '❌ Erro ao fechar report.', components: [] });
             }
-            
-            const responseText = hasReason ? `${reportId} fechado com motivo: ${motivo}` : `${reportId} fechado sem motivo por ${closedByName}`;
-            await interaction.editReply({ content: `${EMOJIS.Check || '✅'} ${responseText}`, components: [] });
-            
-        } catch (error) {
-            console.error('❌ Erro ao fechar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao fechar report.', flags: 64 });
         }
-    }
 
         async updateStatus(reportId, status) {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND status NOT LIKE 'closed%'`).get(reportId);
