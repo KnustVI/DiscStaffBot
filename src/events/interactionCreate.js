@@ -65,14 +65,17 @@ module.exports = {
                     const reportId = interaction.customId.split(':')[3];
                     const modal = ReportChatFormatter.createCloseReasonModal();
                     await interaction.showModal(modal);
-                    sessionManager.set(
-                        interaction.user.id,
-                        interaction.guildId,
-                        'reportchat',
-                        'closing_staff',
-                        { reportId },
-                        300000
-                    );
+                    // Só criar sessão se estiver em um servidor
+                    if (interaction.guildId) {
+                        sessionManager.set(
+                            interaction.user.id,
+                            interaction.guildId,
+                            'reportchat',
+                            'closing_user',
+                            { reportId },
+                            300000
+                        );
+                    }
                     return;
                 }
                 
@@ -93,14 +96,17 @@ module.exports = {
                     const reportId = interaction.customId.split(':')[3];
                     const modal = ReportChatFormatter.createUserCloseReasonModal();
                     await interaction.showModal(modal);
-                    sessionManager.set(
-                        interaction.user.id,
-                        interaction.guildId,
-                        'reportchat',
-                        'closing_user',
-                        { reportId },
-                        300000
-                    );
+                    // Só criar sessão se estiver em um servidor
+                    if (interaction.guildId) {
+                        sessionManager.set(
+                            interaction.user.id,
+                            interaction.guildId,
+                            'reportchat',
+                            'closing_user',
+                            { reportId },
+                            300000
+                        );
+                    }
                     return;
                 }
 
@@ -110,14 +116,17 @@ module.exports = {
                     const reportId = interaction.customId.split(':')[2];
                     const modal = ReportChatFormatter.createRatingModal();
                     await interaction.showModal(modal);
-                    sessionManager.set(
-                        interaction.user.id,
-                        interaction.guildId,
-                        'reportchat',
-                        'rating',
-                        { reportId },
-                        300000
-                    );
+                    // Só criar sessão se estiver em um servidor
+                    if (interaction.guildId) {
+                        sessionManager.set(
+                            interaction.user.id,
+                            interaction.guildId,
+                            'reportchat',
+                            'rating',
+                            { reportId },
+                            300000
+                        );
+                    }
                     return;
                 }
             }
@@ -142,12 +151,14 @@ module.exports = {
                 // Modal de fechamento com motivo (STAFF)
                 if (interaction.customId === 'reportchat:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento (staff)');
-                    const session = sessionManager.get(
-                        interaction.user.id,
-                        interaction.guildId,
-                        'reportchat',
-                        'closing_staff'
-                    );
+                // Só buscar sessão se estiver em um servidor
+                    if (interaction.guildId) {
+                        const session = sessionManager.get(
+                            interaction.user.id,
+                            interaction.guildId,
+                            'reportchat',
+                            'closing_staff'
+                        );
                     
                     if (session && session.reportId) {
                         const motivo = interaction.fields.getTextInputValue('motivo');
@@ -161,11 +172,13 @@ module.exports = {
                         );
                     }
                     return;
-                }
+                }}
                 
                 // Modal de fechamento com motivo (USUÁRIO)
                 if (interaction.customId === 'reportchat:user:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento (usuário)');
+                    // Só buscar sessão se estiver em um servidor
+                if (interaction.guildId) {
                     const session = sessionManager.get(
                         interaction.user.id,
                         interaction.guildId,
@@ -184,11 +197,12 @@ module.exports = {
                         );
                     }
                     return;
-                }
+                }}
                 
                 // Modal de avaliação
                 if (interaction.customId === 'reportchat:rating') {
                     console.log('📌 Processando modal de avaliação');
+                if (interaction.guildId) {
                     const session = sessionManager.get(
                         interaction.user.id,
                         interaction.guildId,
@@ -208,7 +222,7 @@ module.exports = {
                         );
                     }
                     return;
-                }
+                }}
 
                 // ==================== OUTROS MODAIS ====================
                 if (!interaction.replied && !interaction.deferred) {
