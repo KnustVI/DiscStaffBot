@@ -71,7 +71,7 @@ module.exports = {
                             interaction.user.id,
                             interaction.guildId,
                             'reportchat',
-                            'closing_user',
+                            'closing_staff',
                             { reportId },
                             300000
                         );
