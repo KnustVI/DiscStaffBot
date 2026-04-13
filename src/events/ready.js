@@ -1,6 +1,5 @@
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
-const { startInactiveReportsJob } = require('../systems/inactiveReportsJob'); // ← MOVER PARA CIMA
 
 let handler = null;
 let isReady = false;
@@ -145,9 +144,6 @@ module.exports = {
             users: client.users.cache.size,
             commands: commandCount
         });
-        
-        // 9. Iniciar job de reports inativos (AGORA está no lugar certo)
-        startInactiveReportsJob(client);
         
         // 10. Limpar cache de configuração
         try {
