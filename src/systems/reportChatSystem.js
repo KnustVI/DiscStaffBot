@@ -97,10 +97,7 @@ class ReportChatSystem {
                 }
             }
 
-        async openReport(interaction, data) {
-        const logContent = ReportChatFormatter.createLogEmbed(
-            reportId, user, thread.url, [], 'waiting', null, null, null, guild.name, null, null
-        );
+    async openReport(interaction, data) {
         const { guild, user } = interaction;
         
         // 1. RESPONDER IMEDIATAMENTE (evita timeout)
@@ -148,7 +145,7 @@ class ReportChatSystem {
             const dmMessage = await user.send(dmContent).catch(() => null);
             const dmMessageId = dmMessage ? dmMessage.id : null;
 
-            // Criar log
+            // Criar log (apenas UMA vez)
             const logChannel = await guild.channels.fetch(logChannelId);
             const logContent = ReportChatFormatter.createLogEmbed(reportId, user, thread.url, [], 'waiting', null, null, null, guild.name);
             const logMessage = await logChannel.send(logContent);
@@ -169,7 +166,12 @@ class ReportChatSystem {
             
         } catch (error) {
             console.error('❌ Erro ao criar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao criar report. Tente novamente.', flags: 64 });
+            // Verificar se já respondeu antes de tentar editar
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.editReply({ content: '❌ Erro ao criar report. Tente novamente.', flags: 64 });
+            } else {
+                await interaction.followUp({ content: '❌ Erro ao criar report. Tente novamente.', flags: 64 });
+            }
         }
     }
 
