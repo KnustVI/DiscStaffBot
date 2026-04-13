@@ -20,18 +20,18 @@ module.exports = {
         
         const isStaff = staffRoleId && member.roles.cache.has(staffRoleId);
         
-        // Se for staff e o status for 'waiting' ou 'inactive', mudar para 'responded'
+        // Atualizar last_message_at sempre
+        db.prepare(`UPDATE reports SET last_message_at = ? WHERE id = ?`).run(Date.now(), report.id);
+        
+        // Se for staff e status for waiting/inactive, mudar para responded
         if (isStaff && (report.status === 'waiting' || report.status === 'inactive')) {
-            db.prepare(`UPDATE reports SET status = 'responded', last_message_at = ? WHERE id = ?`)
-                .run(Date.now(), report.id);
+            db.prepare(`UPDATE reports SET status = 'responded' WHERE id = ?`).run(report.id);
             
             const ReportChatSystem = require('../systems/reportChatSystem');
             const reportSystem = new ReportChatSystem(client);
-            await reportSystem.updateStatus(guild.id, report.id, 'responded');  // ← usar updateStatus
+            await reportSystem.updateStatus(guild.id, report.id, 'responded');
             
             console.log(`📌 Report ${report.id} status atualizado para 'responded' por ${message.author.tag}`);
         }
-        
-        db.prepare(`UPDATE reports SET last_message_at = ? WHERE id = ?`).run(Date.now(), report.id);
     }
 };
