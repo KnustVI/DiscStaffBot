@@ -28,13 +28,13 @@ module.exports = {
             if (interaction.isButton()) {
                 const customId = interaction.customId;
                 
-                // Botão criar report
+                // Criar report
                 if (customId === 'reportchat:create') {
                     await interaction.showModal(ReportChatFormatter.createOpenModal());
                     return;
                 }
                 
-                // Botão JOIN (entrar como staff)
+                // Entrar (staff)
                 if (customId.startsWith('join:')) {
                     await interaction.deferUpdate();
                     const reportId = customId.split(':')[1];
@@ -42,26 +42,29 @@ module.exports = {
                     return;
                 }
                 
-                // Botão CLOSE (fechar sem motivo)
-                if (customId.startsWith('close:') && !customId.includes('reason') && !customId.includes('user')) {
+                // Fechar sem motivo
+                if (customId.startsWith('close:') && !customId.includes('reason')) {
                     await interaction.deferUpdate();
                     const reportId = customId.split(':')[1];
                     await reportChatSystem.closeReport(interaction, reportId, null, null, false);
                     return;
                 }
                 
-                // Botão CLOSE_REASON (abrir modal de fechamento com motivo)
+                // Abrir modal de fechamento com motivo
                 if (customId.startsWith('close_reason:')) {
                     const reportId = customId.split(':')[1];
-                    sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'closing', { reportId }, 300000);
+                    // USAR 'dm' se for DM, senão usa guildId
+                    const guildId = interaction.guildId || 'dm';
+                    sessionManager.set(interaction.user.id, guildId, 'closing', { reportId }, 300000);
                     await interaction.showModal(ReportChatFormatter.createCloseReasonModal());
                     return;
                 }
                 
-                // Botão RATE (avaliar)
+                // Avaliar
                 if (customId.startsWith('rate:')) {
                     const reportId = customId.split(':')[1];
-                    sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'rating', { reportId }, 300000);
+                    const guildId = interaction.guildId || 'dm';
+                    sessionManager.set(interaction.user.id, guildId, 'rating', { reportId }, 300000);
                     await interaction.showModal(ReportChatFormatter.createRatingModal());
                     return;
                 }
@@ -70,6 +73,7 @@ module.exports = {
             // ==================== MODAIS ====================
             if (interaction.isModalSubmit()) {
                 const customId = interaction.customId;
+                const guildId = interaction.guildId || 'dm';
                 
                 // Modal de abertura
                 if (customId === 'reportchat:open:modal') {
@@ -87,12 +91,12 @@ module.exports = {
                 // Modal de fechamento com motivo
                 if (customId === 'reportchat:close:reason:modal') {
                     await interaction.deferReply({ flags: 64 });
-                    const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'closing');
+                    const session = sessionManager.get(interaction.user.id, guildId, 'closing');
                     if (session?.reportId) {
                         const motivo = interaction.fields.getTextInputValue('motivo');
                         const punicao = interaction.fields.getTextInputValue('punicao');
                         await reportChatSystem.closeReport(interaction, session.reportId, motivo, punicao, true);
-                        sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'closing');
+                        sessionManager.delete(interaction.user.id, guildId, 'closing');
                     }
                     return;
                 }
@@ -100,12 +104,12 @@ module.exports = {
                 // Modal de avaliação
                 if (customId === 'reportchat:rating') {
                     await interaction.deferReply({ flags: 64 });
-                    const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'rating');
+                    const session = sessionManager.get(interaction.user.id, guildId, 'rating');
                     if (session?.reportId) {
                         const nota = parseInt(interaction.fields.getTextInputValue('nota'));
                         const comentario = interaction.fields.getTextInputValue('comentario');
                         await reportChatSystem.rateReport(interaction, session.reportId, nota, comentario);
-                        sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'rating');
+                        sessionManager.delete(interaction.user.id, guildId, 'rating');
                     }
                     return;
                 }
