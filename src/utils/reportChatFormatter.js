@@ -30,54 +30,54 @@ class ReportChatFormatter {
     }
 
     static createOpenModal() {
-        const modal = new ModalBuilder()
-            .setCustomId('reportchat:open:modal')
-            .setTitle('Abrir ReportChat');
+    const modal = new ModalBuilder()
+        .setCustomId('reportchat:open:modal')
+        .setTitle('Abrir Report');
 
-        const seuNick = new TextInputBuilder()
-            .setCustomId('seu_nick')
-            .setLabel('Seu nick/ID Alderon')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: KnustVI');
-
-        const alvoNick = new TextInputBuilder()
-            .setCustomId('alvo_nick')
-            .setLabel('Nick/ID Alderon do infrator')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: LupusSaurus');
-
-        const dataHora = new TextInputBuilder()
-            .setCustomId('data_hora')
-            .setLabel('Data e hora do ocorrido')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: 09/04/2026 14:30');
-
-        const regra = new TextInputBuilder()
-            .setCustomId('regra')
-            .setLabel('Regra quebrada')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: Regra 5 - Flood');
-
-        const descricao = new TextInputBuilder()
-            .setCustomId('descricao')
-            .setLabel('Descrição do ocorrido')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
-            .setPlaceholder('Descreva detalhadamente o que aconteceu...');
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(seuNick),
-            new ActionRowBuilder().addComponents(alvoNick),
-            new ActionRowBuilder().addComponents(dataHora),
-            new ActionRowBuilder().addComponents(regra),
-            new ActionRowBuilder().addComponents(descricao)
-        );
-        return modal;
-    }
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('seu_nick')
+                .setLabel('Seu nick/ID Alderon')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setPlaceholder('Ex: KnustVI')
+        ),
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('alvo_nick')
+                .setLabel('Nick/ID do infrator')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setPlaceholder('Ex: LupusSaurus')
+        ),
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('data_hora')
+                .setLabel('Data e hora')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setPlaceholder('Ex: 09/04/2026 14:30')
+        ),
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('regra')
+                .setLabel('Regra quebrada')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setPlaceholder('Ex: Regra 5 - Flood')
+        ),
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('descricao')
+                .setLabel('Descrição')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(true)
+                .setPlaceholder('Descreva o ocorrido...')
+        )
+    );
+    return modal;
+}
 
     static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName, closedBy = null, closedReason = null) {
         const statusMap = {
@@ -200,31 +200,30 @@ class ReportChatFormatter {
     }
 
     static createCloseReasonModal() {
-        const modal = new ModalBuilder()
-            .setCustomId('reportchat:close:reason:modal')
-            .setTitle('Fechar ReportChat');
+    const modal = new ModalBuilder()
+        .setCustomId('reportchat:close:reason:modal')
+        .setTitle('Fechar Report');
 
-        const motivo = new TextInputBuilder()
-            .setCustomId('motivo')
-            .setLabel('Motivo do fechamento')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: Problema resolvido');
-
-        const punicao = new TextInputBuilder()
-            .setCustomId('punicao')
-            .setLabel('Punição aplicada (se houver)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false)
-            .setPlaceholder('Ex: Advertência, Ban, Strike');
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(motivo),
-            new ActionRowBuilder().addComponents(punicao)
-        );
-
-        return modal;
-    }
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('motivo')
+                .setLabel('Motivo')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setPlaceholder('Ex: Resolvido')
+        ),
+        new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+                .setCustomId('punicao')
+                .setLabel('Punição (opcional)')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+                .setPlaceholder('Ex: Advertência')
+        )
+    );
+    return modal;
+}
 
     static createUserCloseReasonModal() {
         const modal = new ModalBuilder()
@@ -246,27 +245,26 @@ class ReportChatFormatter {
     static createRatingModal() {
         const modal = new ModalBuilder()
             .setCustomId('reportchat:rating')
-            .setTitle('Avaliar Atendimento');
-
-        const nota = new TextInputBuilder()
-            .setCustomId('nota')
-            .setLabel('Nota (1 a 5)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setPlaceholder('Ex: 5');
-
-        const comentario = new TextInputBuilder()
-            .setCustomId('comentario')
-            .setLabel('Comentário')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(false)
-            .setPlaceholder('Deixe seu feedback...');
+            .setTitle('Avaliar');
 
         modal.addComponents(
-            new ActionRowBuilder().addComponents(nota),
-            new ActionRowBuilder().addComponents(comentario)
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('nota')
+                    .setLabel('Nota (1-5)')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('5')
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('comentario')
+                    .setLabel('Comentário')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(false)
+                    .setPlaceholder('Seu feedback...')
+            )
         );
-
         return modal;
     }
 }
