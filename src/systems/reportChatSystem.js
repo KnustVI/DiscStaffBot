@@ -133,7 +133,7 @@ class ReportChatSystem {
     }
 
     // ==================== STAFF ENTRAR ====================
-    async joinReport(interaction, reportId) {
+        async joinReport(interaction, reportId) {
         const { guild, user, member } = interaction;
         
         try {
@@ -152,6 +152,7 @@ class ReportChatSystem {
                 await thread.members.add(user.id);
             }
 
+            // Atualizar lista de staffs
             let staffs = report.staffs ? JSON.parse(report.staffs) : [];
             if (!staffs.includes(user.id)) {
                 staffs.push(user.id);
@@ -160,19 +161,33 @@ class ReportChatSystem {
 
             const staffsText = staffs.map(s => `<@${s}>`).join(', ');
             
+            // ATUALIZAR LOG - MANTENDO OS BOTÕES ORIGINAIS
             if (report.log_message_id) {
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId) {
                     const logChannel = await guild.channels.fetch(logChannelId);
                     const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                    const oldEmbed = logMessage.embeds[0];
-                    const newDesc = oldEmbed.description.replace(/- \*\*Staff:\*\* .+/, `- **Staff:** ${staffsText}`);
-                    const newEmbed = EmbedBuilder.from(oldEmbed).setDescription(newDesc);
-                    await logMessage.edit({ embeds: [newEmbed], components: logMessage.components });
+                    
+                    if (logMessage && logMessage.embeds[0]) {
+                        const oldDesc = logMessage.embeds[0].description;
+                        // Atualizar apenas a linha do Staff
+                        const newDesc = oldDesc.replace(/- \*\*Staff:\*\* .+/, `- **Staff:** ${staffsText}`);
+                        const newEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                        
+                        // IMPORTANTE: mantém os COMPONENTES (botões) originais
+                        await logMessage.edit({ 
+                            embeds: [newEmbed], 
+                            components: logMessage.components 
+                        });
+                    }
                 }
             }
             
-            await interaction.editReply({ content: `✅ Você entrou no ${reportId}`, components: [] });
+            // Resposta para o staff
+            await interaction.editReply({ 
+                content: `✅ Você entrou no ${reportId}`, 
+                components: [] 
+            });
             
         } catch (error) {
             console.error('❌ Erro ao entrar:', error);

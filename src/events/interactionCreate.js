@@ -1,21 +1,6 @@
-// src/events/interactionCreate.js
 const InteractionHandler = require('../systems/handlers');
 const ReportChatSystem = require('../systems/reportChatSystem');
 const ReportChatFormatter = require('../utils/reportChatFormatter');
-const sessionManager = require('../utils/sessionManager');
-const db = require('../database/index');
-const ConfigSystem = require('../systems/configSystem');
-
-if (!ConfigSystem.getSetting) {
-    ConfigSystem.getSetting = (guildId, key) => {
-        try {
-            const setting = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, key);
-            return setting?.value || null;
-        } catch (err) {
-            return null;
-        }
-    };
-}
 
 let handler = null;
 let reportChatSystem = null;
@@ -23,6 +8,7 @@ let reportChatSystem = null;
 module.exports = {
     name: 'interactionCreate',
     async execute(interaction, client) {
+        // Inicializar
         if (!handler) handler = new InteractionHandler(client);
         if (!reportChatSystem) reportChatSystem = new ReportChatSystem(client);
         
@@ -37,17 +23,17 @@ module.exports = {
                 return;
             }
             
-            // ==================== BOTÕES ====================
+            // ==================== REPORTCHAT - BOTÕES ====================
             if (interaction.isButton()) {
                 const customId = interaction.customId;
                 
-                // Criar report
+                // Botão criar report
                 if (customId === 'reportchat:create') {
                     await interaction.showModal(ReportChatFormatter.createOpenModal());
                     return;
                 }
                 
-                // Staff entrar
+                // Botão entrar (join:XXX)
                 if (customId.startsWith('join:')) {
                     await interaction.deferUpdate();
                     const reportId = customId.split(':')[1];
@@ -55,7 +41,7 @@ module.exports = {
                     return;
                 }
                 
-                // Fechar sem motivo (staff ou usuário)
+                // Botão fechar sem motivo (close:XXX)
                 if (customId.startsWith('close:') && !customId.includes('reason')) {
                     await interaction.deferUpdate();
                     const reportId = customId.split(':')[1];
@@ -63,26 +49,37 @@ module.exports = {
                     return;
                 }
                 
-                // Abrir modal de fechamento com motivo
+                // Botão abrir modal de fechamento com motivo (close_reason:XXX)
                 if (customId.startsWith('close_reason:')) {
                     const reportId = customId.split(':')[1];
+                    // Salvar na sessão
+                    const sessionManager = require('../utils/sessionManager');
                     sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'closing', { reportId }, 300000);
                     await interaction.showModal(ReportChatFormatter.createCloseReasonModal());
                     return;
                 }
                 
-                // Avaliar
+                // Botão avaliar (rate:XXX)
                 if (customId.startsWith('rate:')) {
                     const reportId = customId.split(':')[1];
+                    const sessionManager = require('../utils/sessionManager');
                     sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'rating', { reportId }, 300000);
                     await interaction.showModal(ReportChatFormatter.createRatingModal());
                     return;
                 }
+                
+                // Outros botões (não reportchat) - enviar para handler
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferUpdate();
+                }
+                await handler.handleComponent(interaction);
+                return;
             }
             
-            // ==================== MODAIS ====================
+            // ==================== REPORTCHAT - MODAIS ====================
             if (interaction.isModalSubmit()) {
                 const customId = interaction.customId;
+                const sessionManager = require('../utils/sessionManager');
                 
                 // Modal de abertura
                 if (customId === 'reportchat:open:modal') {
@@ -122,27 +119,35 @@ module.exports = {
                     }
                     return;
                 }
+                
+                // Outros modais
+                await handler.handleModal(interaction);
+                return;
             }
             
-            // ==================== OUTROS ====================
-            if (interaction.isButton() || interaction.isStringSelectMenu()) {
-                if (!interaction.customId?.startsWith('reportchat') && 
-                    !interaction.customId?.startsWith('join:') &&
-                    !interaction.customId?.startsWith('close:') &&
-                    !interaction.customId?.startsWith('rate:')) {
+            // ==================== OUTROS COMPONENTES ====================
+            if (interaction.isButton() || interaction.isStringSelectMenu() || 
+                interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu()) {
+                
+                if (!interaction.customId) {
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.deferUpdate();
+                        await interaction.reply({ content: '❌ Configuração inválida.', flags: 64 });
                     }
-                    await handler.handleComponent(interaction);
+                    return;
                 }
+                
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferUpdate();
+                }
+                await handler.handleComponent(interaction);
                 return;
             }
             
         } catch (error) {
-            console.error('❌ Erro:', error);
+            console.error(`❌ Erro:`, error);
             try {
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Erro. Tente novamente.', flags: 64 });
+                    await interaction.reply({ content: '❌ Ocorreu um erro. Tente novamente.', flags: 64 });
                 }
             } catch (err) {}
         }
