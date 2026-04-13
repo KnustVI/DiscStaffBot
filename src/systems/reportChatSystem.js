@@ -98,6 +98,9 @@ class ReportChatSystem {
             }
 
         async openReport(interaction, data) {
+        const logContent = ReportChatFormatter.createLogEmbed(
+            reportId, user, thread.url, [], 'waiting', null, null, null, guild.name, null, null
+        );
         const { guild, user } = interaction;
         
         // 1. RESPONDER IMEDIATAMENTE (evita timeout)

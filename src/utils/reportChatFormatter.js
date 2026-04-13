@@ -83,15 +83,14 @@ class ReportChatFormatter {
         return modal;
     }
 
-            // ==================== EMBED DO LOG (canal de logs) ====================
-        static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName) {
-
+        // ==================== EMBED DO LOG (canal de logs) ====================
+        static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName, closedBy = null, closedReason = null) {
             const statusMap = {
                 waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
                 responded: `${EMOJIS.chat || '💬'} Respondido`,
                 inactive: `${EMOJIS.Warning || '⚠️'} Inativo`,
-                closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo por ${closedBy || 'alguém'}`,
-                closed_with_reason: `${EMOJIS.Check || '✅'} Fechado! "${closedReason || 'motivo não informado'}"`
+                closed_no_reason: `${EMOJIS.lose || '🔒'} Fechado sem motivo${closedBy ? ` por ${closedBy}` : ''}`,
+                closed_with_reason: `${EMOJIS.Check || '✅'} Fechado!${closedReason ? ` "${closedReason}"` : ''}${closedBy ? ` por ${closedBy}` : ''}`
             };
 
             const statusText = statusMap[status] || status;
