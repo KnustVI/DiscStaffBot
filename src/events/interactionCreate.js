@@ -134,6 +134,9 @@ module.exports = {
                 
                 if (interaction.customId === 'reportchat:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento (staff)');
+                    // Deferir a resposta do modal
+                    await interaction.deferReply({ flags: 64 });
+                    
                     if (interaction.guildId) {
                         const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'closing_staff');
                         if (session && session.reportId) {
@@ -148,6 +151,8 @@ module.exports = {
                 
                 if (interaction.customId === 'reportchat:user:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento (usuário)');
+                    await interaction.deferReply({ flags: 64 });
+                    
                     if (interaction.guildId) {
                         const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'closing_user');
                         if (session && session.reportId) {
@@ -161,6 +166,8 @@ module.exports = {
                 
                 if (interaction.customId === 'reportchat:rating') {
                     console.log('📌 Processando modal de avaliação');
+                    await interaction.deferReply({ flags: 64 });
+                    
                     if (interaction.guildId) {
                         const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'rating');
                         if (session && session.reportId) {
