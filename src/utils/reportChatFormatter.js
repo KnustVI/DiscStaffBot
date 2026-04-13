@@ -11,11 +11,10 @@ try {
 }
 
 class ReportChatFormatter {
-    // ==================== PAINEL PRINCIPAL ====================
     static createMainPanel(guildName) {
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} Bem vindo ao ReportChat\n\nAo clicar no botão "Abrir Report" abaixo, você iniciará um novo atendimento.\n\n## ${EMOJIS.Config || '📋'} Passo a passo:\n- Preencha as informações solicitadas (Seu nick/ID Alderon, Nick/ID Alderon do infrator, data/hora e regra quebrada).\n- Descreva o ocorrido de forma clara e objetiva.\n- Sempre que possível, anexe ou envie vídeos da situação – isso acelera muito a nossa análise.\n- Nosso staff irá avaliar e retornará em breve.\n\n## ${EMOJIS.shinystar || '⭐'} Regra de ouro:\nTenha respeito pelo staff e pelos outros jogadores. Seremos respeitosos com você também. Um ambiente tranquilo ajuda todo mundo.\n\n${EMOJIS.Check || '✅'} Agradecemos por ajudar a manter o ambiente de jogo agradável!`)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} Bem vindo ao ReportChat\n\nAo clicar no botão "Abrir Report" abaixo, você iniciará um novo atendimento.\n\n## ${EMOJIS.Config || '📋'} Passo a passo:\n- Preencha as informações solicitadas\n- Descreva o ocorrido de forma clara e objetiva\n- Nosso staff irá avaliar e retornará em breve\n\n${EMOJIS.Check || '✅'} Agradecemos por ajudar a manter o ambiente de jogo agradável!`)
             .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
 
@@ -30,7 +29,6 @@ class ReportChatFormatter {
         return { embeds: [embed], components: [row] };
     }
 
-    // ==================== MODAL DE ABERTURA ====================
     static createOpenModal() {
         const modal = new ModalBuilder()
             .setCustomId('reportchat:open:modal')
@@ -81,7 +79,6 @@ class ReportChatFormatter {
         return modal;
     }
 
-    // ==================== EMBED DO LOG (canal de logs) ====================
     static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName, closedBy = null, closedReason = null) {
         const statusMap = {
             waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
@@ -130,7 +127,6 @@ class ReportChatFormatter {
         return { embeds: [embed], components: [] };
     }
 
-    // ==================== EMBED DA DM DO USUÁRIO ====================
     static createUserDmEmbed(reportId, user, guildName, threadUrl, staffs = [], status = 'waiting', closedBy = null, closedReason = null) {
         const statusMap = {
             waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
@@ -144,7 +140,7 @@ class ReportChatFormatter {
         const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
         const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
         
-        let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nEsse é o painel de informações do seu report, caso ocorra algum bug ou problema avise a equipe do servidor em questão.\n\n- **Status:** ${statusText}\n- **Staffs:** ${staffsText}`;
+        let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nPainel de informações do seu report.\n\n- **Status:** ${statusText}\n- **Staffs:** ${staffsText}`;
         
         if (closedBy) description += `\n- **Fechado por:** ${closedBy}`;
         if (closedReason) description += `\n- **Motivo:** ${closedReason}`;
@@ -182,7 +178,6 @@ class ReportChatFormatter {
         return { embeds: [embed], components: [row] };
     }
 
-    // ==================== EMBED DA THREAD ====================
     static createThreadEmbed(reportId, user, guildName, staffRoleId, status = 'waiting', customText = '') {
         const statusMap = {
             waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
@@ -197,14 +192,13 @@ class ReportChatFormatter {
 
         const embed = new EmbedBuilder()
             .setColor(isClosed ? 0xF64B4E : 0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId} ${guildName}\n## Bem vindo ao ReportChat ${EmbedFormatter.formatUser(user)}!\nLogo um staff deve te atender. Este é um chat privado com ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'} do servidor.\nCaso identifique algum bug avise a equipe do servidor.\n${customText}\n\n- **Status:** ${statusText}`)
+            .setDescription(`# ${EMOJIS.chat || '🎫'} Report /${reportId} ${guildName}\n## Bem vindo ao ReportChat ${EmbedFormatter.formatUser(user)}!\nLogo um staff deve te atender. Este é um chat privado com ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'} do servidor.\n${customText}\n\n- **Status:** ${statusText}`)
             .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
 
         return { embeds: [embed], components: [] };
     }
 
-    // ==================== MODAIS ====================
     static createCloseReasonModal() {
         const modal = new ModalBuilder()
             .setCustomId('reportchat:close:reason:modal')

@@ -7,8 +7,7 @@ const sessionManager = require('../utils/sessionManager');
 const db = require('../database/index');
 const ConfigSystem = require('../systems/configSystem');
 
-// ==================== FALLBACK PARA CONFIGSYSTEM ====================
-// Garantir que getSetting existe (caso o método original não exista)
+// Fallback para ConfigSystem.getSetting
 if (!ConfigSystem.getSetting) {
     ConfigSystem.getSetting = (guildId, key) => {
         try {
@@ -29,7 +28,6 @@ module.exports = {
     async execute(interaction, client) {
         console.log(`🔍 Interação recebida: ${interaction.customId || interaction.commandName}`);
         
-        // Inicializar handlers
         if (!handler) handler = new InteractionHandler(client);
         if (!reportChatSystem) reportChatSystem = new ReportChatSystem(client);
         
@@ -44,10 +42,9 @@ module.exports = {
                 return;
             }
             
-            // ==================== REPORTCHAT SYSTEM ====================
+            // ==================== REPORTCHAT BUTTONS ====================
             if (interaction.isButton()) {
                 
-                // Botão que ABRE o modal de criação
                 if (interaction.customId === 'reportchat:create') {
                     console.log('📌 Abrindo modal de criação');
                     const modal = ReportChatFormatter.createOpenModal();
@@ -55,7 +52,6 @@ module.exports = {
                     return;
                 }
 
-                // Botão entrar no report (STAFF no LOG)
                 if (interaction.customId?.startsWith('reportchat:join:')) {
                     console.log('📌 Staff entrando no report');
                     if (!interaction.replied && !interaction.deferred) {
@@ -66,7 +62,6 @@ module.exports = {
                     return;
                 }
 
-                // Botão fechar sem motivo (STAFF no LOG)
                 if (interaction.customId?.startsWith('reportchat:close:no-reason:')) {
                     console.log('📌 Staff fechando report sem motivo');
                     if (!interaction.replied && !interaction.deferred) {
@@ -77,26 +72,17 @@ module.exports = {
                     return;
                 }
                 
-                // Botão fechar com motivo (STAFF no LOG)
                 if (interaction.customId?.startsWith('reportchat:close:reason:')) {
                     console.log('📌 Staff abrindo modal de fechamento com motivo');
                     const reportId = interaction.customId.split(':')[3];
                     const modal = ReportChatFormatter.createCloseReasonModal();
                     await interaction.showModal(modal);
                     if (interaction.guildId) {
-                        sessionManager.set(
-                            interaction.user.id,
-                            interaction.guildId,
-                            'reportchat',
-                            'closing_staff',
-                            { reportId },
-                            300000
-                        );
+                        sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'closing_staff', { reportId }, 300000);
                     }
                     return;
                 }
                 
-                // Botão fechar sem motivo (USUÁRIO na DM)
                 if (interaction.customId?.startsWith('reportchat:user:close:no-reason:')) {
                     console.log('📌 Usuário fechando report sem motivo');
                     if (!interaction.replied && !interaction.deferred) {
@@ -107,49 +93,32 @@ module.exports = {
                     return;
                 }
                 
-                // Botão fechar com motivo (USUÁRIO na DM)
                 if (interaction.customId?.startsWith('reportchat:user:close:reason:')) {
                     console.log('📌 Usuário abrindo modal de fechamento com motivo');
                     const reportId = interaction.customId.split(':')[3];
                     const modal = ReportChatFormatter.createUserCloseReasonModal();
                     await interaction.showModal(modal);
                     if (interaction.guildId) {
-                        sessionManager.set(
-                            interaction.user.id,
-                            interaction.guildId,
-                            'reportchat',
-                            'closing_user',
-                            { reportId },
-                            300000
-                        );
+                        sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'closing_user', { reportId }, 300000);
                     }
                     return;
                 }
 
-                // Botão avaliar - abre modal
                 if (interaction.customId?.startsWith('reportchat:rate:')) {
                     console.log('📌 Abrindo modal de avaliação');
                     const reportId = interaction.customId.split(':')[2];
                     const modal = ReportChatFormatter.createRatingModal();
                     await interaction.showModal(modal);
                     if (interaction.guildId) {
-                        sessionManager.set(
-                            interaction.user.id,
-                            interaction.guildId,
-                            'reportchat',
-                            'rating',
-                            { reportId },
-                            300000
-                        );
+                        sessionManager.set(interaction.user.id, interaction.guildId, 'reportchat', 'rating', { reportId }, 300000);
                     }
                     return;
                 }
             }
 
-            // ==================== MODAIS ====================
+            // ==================== REPORTCHAT MODALS ====================
             if (interaction.isModalSubmit()) {
                 
-                // MODAL DE ABERTURA - processa os dados
                 if (interaction.customId === 'reportchat:open:modal') {
                     console.log('📌 Processando modal de abertura');
                     const data = {
@@ -163,84 +132,47 @@ module.exports = {
                     return;
                 }
                 
-                // Modal de fechamento com motivo (STAFF)
                 if (interaction.customId === 'reportchat:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento (staff)');
                     if (interaction.guildId) {
-                        const session = sessionManager.get(
-                            interaction.user.id,
-                            interaction.guildId,
-                            'reportchat',
-                            'closing_staff'
-                        );
-                    
+                        const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'closing_staff');
                         if (session && session.reportId) {
                             const motivo = interaction.fields.getTextInputValue('motivo');
                             const punicao = interaction.fields.getTextInputValue('punicao');
                             await reportChatSystem.closeReport(interaction, session.reportId, motivo, punicao, true, true);
-                            sessionManager.delete(
-                                interaction.user.id,
-                                interaction.guildId,
-                                'reportchat',
-                                'closing_staff'
-                            );
+                            sessionManager.delete(interaction.user.id, interaction.guildId, 'reportchat', 'closing_staff');
                         }
                     }
                     return;
                 }
                 
-                // Modal de fechamento com motivo (USUÁRIO)
                 if (interaction.customId === 'reportchat:user:close:reason:modal') {
                     console.log('📌 Processando modal de fechamento (usuário)');
                     if (interaction.guildId) {
-                        const session = sessionManager.get(
-                            interaction.user.id,
-                            interaction.guildId,
-                            'reportchat',
-                            'closing_user'
-                        );
-                        
+                        const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'closing_user');
                         if (session && session.reportId) {
                             const motivo = interaction.fields.getTextInputValue('motivo');
                             await reportChatSystem.closeReport(interaction, session.reportId, motivo, null, true, false);
-                            sessionManager.delete(
-                                interaction.user.id,
-                                interaction.guildId,
-                                'reportchat',
-                                'closing_user'
-                            );
+                            sessionManager.delete(interaction.user.id, interaction.guildId, 'reportchat', 'closing_user');
                         }
                     }
                     return;
                 }
                 
-                // Modal de avaliação
                 if (interaction.customId === 'reportchat:rating') {
                     console.log('📌 Processando modal de avaliação');
                     if (interaction.guildId) {
-                        const session = sessionManager.get(
-                            interaction.user.id,
-                            interaction.guildId,
-                            'reportchat',
-                            'rating'
-                        );
-                        
+                        const session = sessionManager.get(interaction.user.id, interaction.guildId, 'reportchat', 'rating');
                         if (session && session.reportId) {
                             const nota = parseInt(interaction.fields.getTextInputValue('nota'));
                             const comentario = interaction.fields.getTextInputValue('comentario');
                             await reportChatSystem.rateReport(interaction, session.reportId, nota, comentario);
-                            sessionManager.delete(
-                                interaction.user.id,
-                                interaction.guildId,
-                                'reportchat',
-                                'rating'
-                            );
+                            sessionManager.delete(interaction.user.id, interaction.guildId, 'reportchat', 'rating');
                         }
                     }
                     return;
                 }
 
-                // ==================== OUTROS MODAIS ====================
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({ content: '⏳ Processando...', flags: 64 });
                 }
@@ -248,7 +180,7 @@ module.exports = {
                 return;
             }
             
-            // ==================== COMPONENTES GERAIS ====================
+            // ==================== OUTROS COMPONENTES ====================
             if (interaction.isButton() || interaction.isStringSelectMenu() || 
                 interaction.isRoleSelectMenu() || interaction.isChannelSelectMenu()) {
                 
@@ -259,14 +191,11 @@ module.exports = {
                     return;
                 }
                 
-                // Verificar se é componente do reportchat (já tratado acima)
-                if (interaction.customId.startsWith('reportchat') || 
-                    interaction.customId.startsWith('reportchat:user')) {
+                if (interaction.customId.startsWith('reportchat')) {
                     return;
                 }
                 
                 const needsDefer = !interaction.customId.endsWith(':modal');
-                
                 if (needsDefer && !interaction.replied && !interaction.deferred) {
                     await interaction.deferUpdate();
                 }
@@ -278,7 +207,6 @@ module.exports = {
         } catch (error) {
             console.error(`❌ Erro fatal em interactionCreate:`, error);
             
-            // Tentar recuperar a interação
             try {
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({ content: '❌ Ocorreu um erro. Tente novamente.', flags: 64 });
