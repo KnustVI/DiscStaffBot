@@ -54,7 +54,7 @@ class ReportChatSystem {
             // Embed da thread
             const threadEmbed = new EmbedBuilder()
                 .setColor(0xDCA15E)
-                .setDescription(`# 🎫 Report ${reportId}\n## Bem vindo ao ReportChat ${user.toString()}!\nStaff: ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'}\n\n**Status:** Aguardando staff`)
+                .setDescription(`# 🎫 Report ${reportId}\n## Bem vindo ao ReportChat ${user.toString()}!\nStaff: ${staffRoleId ? `<@&${staffRoleId}>` : 'a staff'}`)
                 .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
             
@@ -67,10 +67,10 @@ class ReportChatSystem {
                 .setTimestamp();
             await thread.send({ embeds: [infoEmbed] });
 
-            // DM do usuário (COM botões)
+            // DM do usuário
             const dmEmbed = new EmbedBuilder()
                 .setColor(0xDCA15E)
-                .setDescription(`# 🎫 Report ${reportId}\n**Status:** Aguardando staff\n**Staff:** Nenhum`)
+                .setDescription(`# 🎫 Report ${reportId}\n**Clique nos botões abaixo para gerenciar seu report.**`)
                 .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
             
@@ -89,11 +89,11 @@ class ReportChatSystem {
             
             const dmMessage = await user.send({ embeds: [dmEmbed], components: [dmRow] }).catch(() => null);
 
-            // Log da staff (COM botões)
+            // Log da staff
             const logChannel = await guild.channels.fetch(logChannelId);
             const logEmbed = new EmbedBuilder()
                 .setColor(0xDCA15E)
-                .setDescription(`# 🎫 Report ${reportId}\n**Usuário:** ${user.tag}\n**Status:** Aguardando staff\n**Staff:** Nenhum`)
+                .setDescription(`# 🎫 Report ${reportId}\n**Usuário:** ${user.tag}\n**Clique em "Entrar" para atender.**`)
                 .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
             
@@ -119,9 +119,9 @@ class ReportChatSystem {
 
             // Salvar
             db.prepare(`
-                INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, created_at, last_message_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMessage.id, 'waiting', Date.now(), Date.now());
+                INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMessage.id, 'open', Date.now());
 
             await interaction.editReply({ content: `${reportId} criado! Acesse: ${thread.url}`, flags: 64 });
             
@@ -160,7 +160,7 @@ class ReportChatSystem {
 
             const staffsText = staffs.map(s => `<@${s}>`).join(', ');
             
-            // Atualizar LOG - MANTENDO BOTÕES
+            // Atualizar LOG - só o texto, mantém botões
             if (report.log_message_id) {
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId) {
@@ -170,7 +170,6 @@ class ReportChatSystem {
                         const oldDesc = logMessage.embeds[0].description;
                         const newDesc = oldDesc.replace(/- \*\*Staff:\*\* .+/, `- **Staff:** ${staffsText}`);
                         const newEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
-                        // MANTÉM os botões originais
                         await logMessage.edit({ embeds: [newEmbed], components: logMessage.components });
                     }
                 }
@@ -187,21 +186,10 @@ class ReportChatSystem {
     // ==================== FECHAR REPORT ====================
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         try {
-            // Buscar report apenas pelo ID
             const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
             
             if (!report) {
                 const msg = '❌ Report não encontrado.';
-                if (interaction.isModalSubmit()) {
-                    await interaction.reply({ content: msg, flags: 64 });
-                } else {
-                    await interaction.editReply({ content: msg, components: [] });
-                }
-                return;
-            }
-
-            if (report.status === 'closed') {
-                const msg = '❌ Este report já está fechado.';
                 if (interaction.isModalSubmit()) {
                     await interaction.reply({ content: msg, flags: 64 });
                 } else {
@@ -264,7 +252,7 @@ class ReportChatSystem {
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
                         .setCustomId(`rate:${report.id}`)
-                        .setLabel('Avaliar Atendimento')
+                        .setLabel('Avaliar')
                         .setStyle(ButtonStyle.Secondary)
                         .setEmoji('⭐')
                 );
