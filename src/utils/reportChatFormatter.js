@@ -242,29 +242,30 @@ class ReportChatFormatter {
         return modal;
     }
 
-    static createRatingModal() {
+        static createRatingModal() {
         const modal = new ModalBuilder()
-            .setCustomId('reportchat:rating')
-            .setTitle('Avaliar');
+            .setCustomId('reportchat:rating')  // ← IMPORTANTE: tem que ser exatamente este
+            .setTitle('Avaliar Atendimento');
+
+        const nota = new TextInputBuilder()
+            .setCustomId('nota')
+            .setLabel('Nota (1 a 5)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('Ex: 5');
+
+        const comentario = new TextInputBuilder()
+            .setCustomId('comentario')
+            .setLabel('Comentário')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+            .setPlaceholder('Deixe seu feedback...');
 
         modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('nota')
-                    .setLabel('Nota (1-5)')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setPlaceholder('5')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('comentario')
-                    .setLabel('Comentário')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setRequired(false)
-                    .setPlaceholder('Seu feedback...')
-            )
+            new ActionRowBuilder().addComponents(nota),
+            new ActionRowBuilder().addComponents(comentario)
         );
+
         return modal;
     }
 }
