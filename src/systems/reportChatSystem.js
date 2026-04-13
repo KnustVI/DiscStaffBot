@@ -69,12 +69,38 @@ class ReportChatSystem {
                 return await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: 64 });
             }
 
-            // Limpar reports órfãos antes de verificar
-            await this.limparReportsOrfaos(guild.id, user.id);
-
+            // Verificar se tem report aberto
             const existing = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND user_id = ? AND status NOT LIKE 'closed%'`).get(guild.id, user.id);
+            
             if (existing) {
-                return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Você já possui um report aberto!`, flags: 64 });
+                // Verificar se a thread ainda existe
+                let threadExists = true;
+                try {
+                    const thread = await guild.channels.fetch(existing.thread_id);
+                    if (!thread) threadExists = false;
+                } catch (error) {
+                    if (error.code === 10008) threadExists = false;
+                }
+                
+                if (!threadExists) {
+                    // Thread não existe - força limpeza
+                    db.prepare(`
+                        UPDATE reports 
+                        SET status = 'closed_no_reason', 
+                            closed_at = ?, 
+                            closed_by = 'system', 
+                            closed_reason = 'Thread deletada - recuperação automática'
+                        WHERE id = ?
+                    `).run(Date.now(), existing.id);
+                    
+                    console.log(`✅ Report ${existing.id} foi limpo automaticamente (thread deletada)`);
+                    // Continua para abrir novo report
+                } else {
+                    return await interaction.editReply({ 
+                        content: `${EMOJIS.Error || '❌'} Você já possui um report aberto: ${existing.id}\n🔗 Acesse: <#${existing.thread_id}>`, 
+                        flags: 64 
+                    });
+                }
             }
 
             const reportId = `#R${this.getNextReportId(guild.id)}`;
@@ -303,6 +329,20 @@ class ReportChatSystem {
             await interaction.editReply({ content: '❌ Erro ao avaliar report.', flags: 64 });
         }
     }
+
+        async forcarLimpezaUsuario(guildId, userId) {
+            // Fecha todos os reports abertos do usuário
+            const result = db.prepare(`
+                UPDATE reports 
+                SET status = 'closed_no_reason', 
+                    closed_at = ?, 
+                    closed_by = 'system', 
+                    closed_reason = 'Forçado - thread não encontrada'
+                WHERE guild_id = ? AND user_id = ? AND status NOT LIKE 'closed%'
+            `).run(Date.now(), guildId, userId);
+            
+            return result.changes;
+        }
 
     // ==================== ATUALIZAR STATUS ====================
     async updateStatus(guildId, reportId, newStatus) {
