@@ -3,6 +3,7 @@ const db = require('../database/index');
 const ReportChatFormatter = require('../utils/reportChatFormatter');
 const EmbedFormatter = require('../utils/embedFormatter');
 const ConfigSystem = require('./configSystem');
+const sessionManager = require('../utils/sessionManager');
 const { ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 let EMOJIS = {};
@@ -151,7 +152,6 @@ class ReportChatSystem {
                 await thread.members.add(user.id);
             }
 
-            // Atualizar lista de staffs
             let staffs = report.staffs ? JSON.parse(report.staffs) : [];
             if (!staffs.includes(user.id)) {
                 staffs.push(user.id);
@@ -160,7 +160,6 @@ class ReportChatSystem {
 
             const staffsText = staffs.map(s => `<@${s}>`).join(', ');
             
-            // Atualizar apenas o texto do LOG (manter botões)
             if (report.log_message_id) {
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId) {
@@ -184,7 +183,6 @@ class ReportChatSystem {
     // ==================== FECHAR REPORT ====================
     async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = true) {
         try {
-            // Buscar report pelo ID
             const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
             
             if (!report) {
@@ -197,7 +195,6 @@ class ReportChatSystem {
                 return;
             }
 
-            // Se já está fechado
             if (report.status === 'closed') {
                 const msg = '❌ Este report já está fechado.';
                 if (interaction.isModalSubmit()) {
@@ -221,18 +218,15 @@ class ReportChatSystem {
 
             const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
             
-            // Atualizar banco
             db.prepare(`UPDATE reports SET status = 'closed', closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
                 .run(Date.now(), interaction.user.id, motivo || null, punicao || null, report.id);
 
-            // Arquivar thread
             const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
             if (thread) {
                 await thread.setLocked(true).catch(() => {});
                 await thread.setArchived(true).catch(() => {});
             }
             
-            // Atualizar LOG (sem botões)
             if (report.log_message_id) {
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId) {
@@ -247,7 +241,6 @@ class ReportChatSystem {
                 }
             }
             
-            // Atualizar DM (com botão de avaliação)
             if (report.dm_message_id) {
                 const targetUser = await this.client.users.fetch(report.user_id);
                 const dmChannel = await targetUser.createDM();
@@ -269,7 +262,6 @@ class ReportChatSystem {
                 await dmMessage.edit({ embeds: [embed], components: [row] });
             }
             
-            // Responder
             const msg = `✅ ${report.id} fechado com sucesso!`;
             if (interaction.isModalSubmit()) {
                 await interaction.reply({ content: msg, flags: 64 });
@@ -312,6 +304,86 @@ class ReportChatSystem {
         } catch (error) {
             console.error('❌ Erro ao avaliar:', error);
             await interaction.reply({ content: '❌ Erro ao avaliar.', flags: 64 });
+        }
+    }
+
+    // ==================== INTERFACE COM INTERACTIONHANDLER ====================
+    
+    async handleComponent(interaction, action, param) {
+        const customId = interaction.customId;
+        
+        if (customId === 'reportchat:create') {
+            const modal = ReportChatFormatter.createOpenModal();
+            await interaction.showModal(modal);
+            return;
+        }
+        
+        if (customId.startsWith('join:')) {
+            await interaction.deferUpdate();
+            const reportId = customId.split(':')[1];
+            await this.joinReport(interaction, reportId);
+            return;
+        }
+        
+        if (customId.startsWith('close:') && !customId.includes('reason')) {
+            await interaction.deferUpdate();
+            const reportId = customId.split(':')[1];
+            await this.closeReport(interaction, reportId, null, null, false, true);
+            return;
+        }
+        
+        if (customId.startsWith('close_reason:')) {
+            const reportId = customId.split(':')[1];
+            sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'closing', { reportId }, 300000);
+            await interaction.showModal(ReportChatFormatter.createCloseReasonModal());
+            return;
+        }
+        
+        if (customId.startsWith('rate:')) {
+            const reportId = customId.split(':')[1];
+            sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'rating', { reportId }, 300000);
+            await interaction.showModal(ReportChatFormatter.createRatingModal());
+            return;
+        }
+    }
+    
+    async handleModal(interaction, action) {
+        const customId = interaction.customId;
+        
+        if (customId === 'reportchat:open:modal') {
+            const data = {
+                seuNick: interaction.fields.getTextInputValue('seu_nick'),
+                alvoNick: interaction.fields.getTextInputValue('alvo_nick'),
+                dataHora: interaction.fields.getTextInputValue('data_hora'),
+                regra: interaction.fields.getTextInputValue('regra'),
+                descricao: interaction.fields.getTextInputValue('descricao')
+            };
+            await this.openReport(interaction, data);
+            return;
+        }
+        
+        if (customId === 'reportchat:close:reason:modal') {
+            await interaction.deferReply({ flags: 64 });
+            const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'closing');
+            if (session?.reportId) {
+                const motivo = interaction.fields.getTextInputValue('motivo');
+                const punicao = interaction.fields.getTextInputValue('punicao');
+                await this.closeReport(interaction, session.reportId, motivo, punicao, true, true);
+                sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'closing');
+            }
+            return;
+        }
+        
+        if (customId === 'reportchat:rating') {
+            await interaction.deferReply({ flags: 64 });
+            const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'rating');
+            if (session?.reportId) {
+                const nota = parseInt(interaction.fields.getTextInputValue('nota'));
+                const comentario = interaction.fields.getTextInputValue('comentario');
+                await this.rateReport(interaction, session.reportId, nota, comentario);
+                sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'rating');
+            }
+            return;
         }
     }
 }
