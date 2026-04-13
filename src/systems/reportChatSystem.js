@@ -58,92 +58,58 @@ class ReportChatSystem {
     }
 
     // ==================== ABRIR REPORT ====================
-    async openReport(interaction, data) {
-        const { guild, user } = interaction;
-        
-        await interaction.reply({ content: '⏳ Processando...', flags: 64 });
-        
-        try {
-            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
-            if (!logChannelId) {
-                return await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: 64 });
-            }
-
-            // Verificar se tem report aberto
-            const existing = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND user_id = ? AND status NOT LIKE 'closed%'`).get(guild.id, user.id);
+            async openReport(interaction, data) {
+            const { guild, user } = interaction;
             
-            if (existing) {
-                // Verificar se a thread ainda existe
-                let threadExists = true;
-                try {
-                    const thread = await guild.channels.fetch(existing.thread_id);
-                    if (!thread) threadExists = false;
-                } catch (error) {
-                    if (error.code === 10008) threadExists = false;
+            await interaction.reply({ content: '⏳ Processando...', flags: 64 });
+            
+            try {
+                const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+                if (!logChannelId) {
+                    return await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: 64 });
                 }
+
+                const reportId = `#R${this.getNextReportId(guild.id)}`;
+                const threadName = `${reportId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
                 
-                if (!threadExists) {
-                    // Thread não existe - força limpeza
-                    db.prepare(`
-                        UPDATE reports 
-                        SET status = 'closed_no_reason', 
-                            closed_at = ?, 
-                            closed_by = 'system', 
-                            closed_reason = 'Thread deletada - recuperação automática'
-                        WHERE id = ?
-                    `).run(Date.now(), existing.id);
-                    
-                    console.log(`✅ Report ${existing.id} foi limpo automaticamente (thread deletada)`);
-                    // Continua para abrir novo report
-                } else {
-                    return await interaction.editReply({ 
-                        content: `${EMOJIS.Error || '❌'} Você já possui um report aberto: ${existing.id}\n🔗 Acesse: <#${existing.thread_id}>`, 
-                        flags: 64 
-                    });
-                }
+                const thread = await interaction.channel.threads.create({
+                    name: threadName,
+                    type: ChannelType.PrivateThread,
+                    invitable: false,
+                    reason: `ReportChat criado por ${user.tag}`
+                });
+
+                await thread.members.add(user.id);
+
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                const threadContent = ReportChatFormatter.createThreadEmbed(reportId, user, guild.name, staffRoleId);
+                const threadMessage = await thread.send(threadContent);
+                
+                const infoEmbed = new EmbedBuilder()
+                    .setColor(0xDCA15E)
+                    .setDescription(`# 📋 Informações do Report\n**Seu nick:** ${data.seuNick}\n**Alvo:** ${data.alvoNick}\n**Data/Hora:** ${data.dataHora}\n**Regra:** ${data.regra}\n\n**Descrição:**\n${data.descricao}`)
+                    .setTimestamp();
+                await thread.send({ embeds: [infoEmbed] });
+
+                const dmContent = ReportChatFormatter.createUserDmEmbed(reportId, user, guild.name, thread.url);
+                const dmMessage = await user.send(dmContent).catch(() => null);
+
+                const logChannel = await guild.channels.fetch(logChannelId);
+                const logContent = ReportChatFormatter.createLogEmbed(reportId, user, thread.url, [], 'waiting', null, null, null, guild.name);
+                const logMessage = await logChannel.send(logContent);
+
+                db.prepare(`
+                    INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, created_at, last_message_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMessage.id, 'waiting', Date.now(), Date.now());
+
+                await interaction.editReply({ content: `${reportId} criado! Acesse: ${thread.url}`, flags: 64 });
+                
+            } catch (error) {
+                console.error('❌ Erro ao criar report:', error);
+                await interaction.editReply({ content: '❌ Erro ao criar report.', flags: 64 });
             }
-
-            const reportId = `#R${this.getNextReportId(guild.id)}`;
-            const threadName = `${reportId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-            
-            const thread = await interaction.channel.threads.create({
-                name: threadName,
-                type: ChannelType.PrivateThread,
-                invitable: false,
-                reason: `ReportChat criado por ${user.tag}`
-            });
-
-            await thread.members.add(user.id);
-
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            const threadContent = ReportChatFormatter.createThreadEmbed(reportId, user, guild.name, staffRoleId);
-            const threadMessage = await thread.send(threadContent);
-            
-            const infoEmbed = new EmbedBuilder()
-                .setColor(0xDCA15E)
-                .setDescription(`# 📋 Informações do Report\n**Seu nick:** ${data.seuNick}\n**Alvo:** ${data.alvoNick}\n**Data/Hora:** ${data.dataHora}\n**Regra:** ${data.regra}\n\n**Descrição:**\n${data.descricao}`)
-                .setTimestamp();
-            await thread.send({ embeds: [infoEmbed] });
-
-            const dmContent = ReportChatFormatter.createUserDmEmbed(reportId, user, guild.name, thread.url);
-            const dmMessage = await user.send(dmContent).catch(() => null);
-
-            const logChannel = await guild.channels.fetch(logChannelId);
-            const logContent = ReportChatFormatter.createLogEmbed(reportId, user, thread.url, [], 'waiting', null, null, null, guild.name);
-            const logMessage = await logChannel.send(logContent);
-
-            db.prepare(`
-                INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, created_at, last_message_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMessage.id, 'waiting', Date.now(), Date.now());
-
-            await interaction.editReply({ content: `${reportId} criado! Acesse: ${thread.url}`, flags: 64 });
-            
-        } catch (error) {
-            console.error('❌ Erro ao criar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao criar report.', flags: 64 });
         }
-    }
 
     // ==================== STAFF ENTRAR NO REPORT ====================
     async joinReport(interaction, reportId) {
