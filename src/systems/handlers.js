@@ -41,7 +41,6 @@ class InteractionHandler {
             'config-points': configSystem,
             'config-roles': configSystem,
             'config-logs': configSystem,
-            'reportchat': reportChatSystem  // ← ADICIONAR
         };
         
         // Mapeamento de ações para métodos
@@ -80,9 +79,7 @@ class InteractionHandler {
             'config-points': 'handleComponent', 
             'config-roles': 'handleComponent',   
             'config-logs': 'handleComponent',   
-             
-            // Ticket System
-            'ticket': 'handleTicket',
+            
         };
     }
     

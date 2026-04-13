@@ -3,7 +3,6 @@ const db = require('../database/index');
 const ReportChatFormatter = require('../utils/reportChatFormatter');
 const EmbedFormatter = require('../utils/embedFormatter');
 const ConfigSystem = require('./configSystem');
-const sessionManager = require('../utils/sessionManager');
 const { ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 let EMOJIS = {};
@@ -122,7 +121,7 @@ class ReportChatSystem {
             db.prepare(`
                 INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, created_at, last_message_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMessage.id, 'open', Date.now(), Date.now());
+            `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMessage.id, 'waiting', Date.now(), Date.now());
 
             await interaction.editReply({ content: `${reportId} criado! Acesse: ${thread.url}`, flags: 64 });
             
@@ -133,7 +132,7 @@ class ReportChatSystem {
     }
 
     // ==================== STAFF ENTRAR ====================
-        async joinReport(interaction, reportId) {
+    async joinReport(interaction, reportId) {
         const { guild, user, member } = interaction;
         
         try {
@@ -161,33 +160,23 @@ class ReportChatSystem {
 
             const staffsText = staffs.map(s => `<@${s}>`).join(', ');
             
-            // ATUALIZAR LOG - MANTENDO OS BOTÕES ORIGINAIS
+            // Atualizar LOG - MANTENDO BOTÕES
             if (report.log_message_id) {
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId) {
                     const logChannel = await guild.channels.fetch(logChannelId);
                     const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                    
                     if (logMessage && logMessage.embeds[0]) {
                         const oldDesc = logMessage.embeds[0].description;
-                        // Atualizar apenas a linha do Staff
                         const newDesc = oldDesc.replace(/- \*\*Staff:\*\* .+/, `- **Staff:** ${staffsText}`);
                         const newEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
-                        
-                        // IMPORTANTE: mantém os COMPONENTES (botões) originais
-                        await logMessage.edit({ 
-                            embeds: [newEmbed], 
-                            components: logMessage.components 
-                        });
+                        // MANTÉM os botões originais
+                        await logMessage.edit({ embeds: [newEmbed], components: logMessage.components });
                     }
                 }
             }
             
-            // Resposta para o staff
-            await interaction.editReply({ 
-                content: `✅ Você entrou no ${reportId}`, 
-                components: [] 
-            });
+            await interaction.editReply({ content: `✅ Você entrou no ${reportId}`, components: [] });
             
         } catch (error) {
             console.error('❌ Erro ao entrar:', error);
@@ -196,8 +185,9 @@ class ReportChatSystem {
     }
 
     // ==================== FECHAR REPORT ====================
-    async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = true) {
+    async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         try {
+            // Buscar report apenas pelo ID
             const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
             
             if (!report) {
@@ -231,17 +221,21 @@ class ReportChatSystem {
                 return;
             }
 
+            const isStaff = interaction.member?.roles?.cache?.has(ConfigSystem.getSetting(guild.id, 'staff_role'));
             const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
             
+            // Atualizar banco
             db.prepare(`UPDATE reports SET status = 'closed', closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
                 .run(Date.now(), interaction.user.id, motivo || null, punicao || null, report.id);
 
+            // Arquivar thread
             const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
             if (thread) {
                 await thread.setLocked(true).catch(() => {});
                 await thread.setArchived(true).catch(() => {});
             }
             
+            // Atualizar LOG (sem botões)
             if (report.log_message_id) {
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId) {
@@ -249,13 +243,14 @@ class ReportChatSystem {
                     const logMessage = await logChannel.messages.fetch(report.log_message_id);
                     const embed = new EmbedBuilder()
                         .setColor(0xF64B4E)
-                        .setDescription(`# 🔒 Report Fechado\n**ID:** ${report.id}\n**Fechado por:** ${closedByName}\n**Motivo:** ${motivo || 'Sem motivo'}`)
+                        .setDescription(`# 🔒 Report Fechado\n**ID:** ${report.id}\n**Fechado por:** ${closedByName}\n**Motivo:** ${motivo || 'Sem motivo'}\n${punicao ? `**Punição:** ${punicao}` : ''}`)
                         .setFooter(EmbedFormatter.getFooter(guild.name))
                         .setTimestamp();
                     await logMessage.edit({ embeds: [embed], components: [] });
                 }
             }
             
+            // Atualizar DM (com botão de avaliação)
             if (report.dm_message_id) {
                 const targetUser = await this.client.users.fetch(report.user_id);
                 const dmChannel = await targetUser.createDM();
@@ -269,7 +264,7 @@ class ReportChatSystem {
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
                         .setCustomId(`rate:${report.id}`)
-                        .setLabel('Avaliar')
+                        .setLabel('Avaliar Atendimento')
                         .setStyle(ButtonStyle.Secondary)
                         .setEmoji('⭐')
                 );
@@ -319,86 +314,6 @@ class ReportChatSystem {
         } catch (error) {
             console.error('❌ Erro ao avaliar:', error);
             await interaction.reply({ content: '❌ Erro ao avaliar.', flags: 64 });
-        }
-    }
-
-    // ==================== INTERFACE COM INTERACTIONHANDLER ====================
-    
-    async handleComponent(interaction, action, param) {
-        const customId = interaction.customId;
-        
-        if (customId === 'reportchat:create') {
-            const modal = ReportChatFormatter.createOpenModal();
-            await interaction.showModal(modal);
-            return;
-        }
-        
-        if (customId.startsWith('join:')) {
-            await interaction.deferUpdate();
-            const reportId = customId.split(':')[1];
-            await this.joinReport(interaction, reportId);
-            return;
-        }
-        
-        if (customId.startsWith('close:') && !customId.includes('reason')) {
-            await interaction.deferUpdate();
-            const reportId = customId.split(':')[1];
-            await this.closeReport(interaction, reportId, null, null, false, true);
-            return;
-        }
-        
-        if (customId.startsWith('close_reason:')) {
-            const reportId = customId.split(':')[1];
-            sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'closing', { reportId }, 300000);
-            await interaction.showModal(ReportChatFormatter.createCloseReasonModal());
-            return;
-        }
-        
-        if (customId.startsWith('rate:')) {
-            const reportId = customId.split(':')[1];
-            sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'rating', { reportId }, 300000);
-            await interaction.showModal(ReportChatFormatter.createRatingModal());
-            return;
-        }
-    }
-    
-    async handleModal(interaction, action) {
-        const customId = interaction.customId;
-        
-        if (customId === 'reportchat:open:modal') {
-            const data = {
-                seuNick: interaction.fields.getTextInputValue('seu_nick'),
-                alvoNick: interaction.fields.getTextInputValue('alvo_nick'),
-                dataHora: interaction.fields.getTextInputValue('data_hora'),
-                regra: interaction.fields.getTextInputValue('regra'),
-                descricao: interaction.fields.getTextInputValue('descricao')
-            };
-            await this.openReport(interaction, data);
-            return;
-        }
-        
-        if (customId === 'reportchat:close:reason:modal') {
-            await interaction.deferReply({ flags: 64 });
-            const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'closing');
-            if (session?.reportId) {
-                const motivo = interaction.fields.getTextInputValue('motivo');
-                const punicao = interaction.fields.getTextInputValue('punicao');
-                await this.closeReport(interaction, session.reportId, motivo, punicao, true, true);
-                sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'closing');
-            }
-            return;
-        }
-        
-        if (customId === 'reportchat:rating') {
-            await interaction.deferReply({ flags: 64 });
-            const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'rating');
-            if (session?.reportId) {
-                const nota = parseInt(interaction.fields.getTextInputValue('nota'));
-                const comentario = interaction.fields.getTextInputValue('comentario');
-                await this.rateReport(interaction, session.reportId, nota, comentario);
-                sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'rating');
-            }
-            return;
         }
     }
 }
