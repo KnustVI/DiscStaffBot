@@ -172,11 +172,10 @@ class ReportChatSystem {
 
         async joinReport(interaction, reportId) {
             const { guild, user, member } = interaction;
-            
+
             try {
                 const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
                 
-                // Verificação segura
                 let isStaff = false;
                 if (member && staffRoleId) {
                     try {
@@ -208,43 +207,48 @@ class ReportChatSystem {
                     db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
                 }
 
-                // Buscar o targetUser
                 const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
-                if (!targetUser) {
-                    return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Usuário não encontrado.`, components: [] });
-                }
+                const threadUrl = thread.url;
 
-                // Atualizar o embed do log com os novos staffs
-                const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
-                if (logChannelId && report.log_message_id) {
-                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-                    if (logChannel) {
-                        const logMessage = await logChannel.messages.fetch(report.log_message_id).catch(() => null);
-                        if (logMessage) {
-                            const updatedLogContent = ReportChatFormatter.createLogEmbed(
-                                reportId, targetUser, thread.url, staffs, 
-                                report.status, report.punishment, report.rating, report.rating_comment, guild.name
-                            );
-                            await logMessage.edit(updatedLogContent);
+                // ==================== ATUALIZAR LOG ====================
+                if (report.log_message_id) {
+                    const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+                    if (logChannelId) {
+                        const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                        if (logChannel) {
+                            const logMessage = await logChannel.messages.fetch(report.log_message_id).catch(() => null);
+                            if (logMessage) {
+                                const logContent = ReportChatFormatter.createLogEmbed(
+                                    reportId, targetUser, threadUrl, staffs, 
+                                    report.status, report.punishment, report.rating, report.rating_comment, guild.name
+                                );
+                                await logMessage.edit({
+                                    embeds: logContent.embeds,
+                                    components: logContent.components
+                                });
+                            }
                         }
                     }
                 }
 
-                // Atualizar DM do usuário
-                if (report.dm_message_id) {
+                // ==================== ATUALIZAR DM ====================
+                if (report.dm_message_id && targetUser) {
                     const dmChannel = await targetUser.createDM().catch(() => null);
                     if (dmChannel) {
                         const dmMessage = await dmChannel.messages.fetch(report.dm_message_id).catch(() => null);
                         if (dmMessage) {
                             const dmContent = ReportChatFormatter.createUserDmEmbed(
-                                reportId, targetUser, guild.name, thread.url, staffs, report.status, report.closed_by, report.closed_reason
+                                reportId, targetUser, guild.name, threadUrl, staffs, report.status, report.closed_by, report.closed_reason
                             );
-                            await dmMessage.edit(dmContent);
+                            await dmMessage.edit({
+                                embeds: dmContent.embeds,
+                                components: dmContent.components
+                            });
                         }
                     }
                 }
 
-                // Atualizar thread
+                // ==================== ATUALIZAR THREAD ====================
                 if (report.thread_message_id && thread && !thread.archived) {
                     const threadMessage = await thread.messages.fetch(report.thread_message_id).catch(() => null);
                     if (threadMessage) {
@@ -252,7 +256,10 @@ class ReportChatSystem {
                         const threadContent = ReportChatFormatter.createThreadEmbed(
                             reportId, targetUser, guild.name, staffRoleIdSetting, report.status
                         );
-                        await threadMessage.edit(threadContent);
+                        await threadMessage.edit({
+                            embeds: threadContent.embeds,
+                            components: threadContent.components
+                        });
                     }
                 }
                 
@@ -262,12 +269,15 @@ class ReportChatSystem {
                 console.error('❌ Erro ao entrar no report:', error);
                 await interaction.editReply({ content: '❌ Erro ao entrar no report.', components: [] });
             }
-        }
+            }
+
         async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = true) {
+            const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
+            const closedByName = isStaffUser ? `Staff <@${user.id}>` : `Usuário <@${user.id}>`;
+            const closedReasonText = hasReason ? `${closedByName}: ${motivo}` : `${closedByName} (sem motivo)`;
             const { guild, user, member } = interaction;
-            
+
             try {
-                // Verificação segura de member
                 const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
                 let isStaffUser = false;
                 
@@ -275,7 +285,6 @@ class ReportChatSystem {
                     try {
                         isStaffUser = member.roles?.cache?.has(staffRoleId) || false;
                     } catch (err) {
-                        console.error('Erro ao verificar cargo:', err);
                         isStaffUser = false;
                     }
                 }
@@ -287,16 +296,61 @@ class ReportChatSystem {
                 }
 
                 const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
+                const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
                 
                 const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
                 const closedByName = isStaffUser ? `Staff <@${user.id}>` : `Usuário <@${user.id}>`;
                 const closedReasonText = hasReason ? `${closedByName}: ${motivo}` : `${closedByName} (sem motivo)`;
                 
+                // Atualizar banco
                 db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
                     .run(status, Date.now(), user.id, closedReasonText, punicao || null, reportId);
 
-                await this.updateEmbeds(guild.id, reportId);
+                // Buscar o report atualizado
+                const updatedReport = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
+                const staffs = updatedReport.staffs ? JSON.parse(updatedReport.staffs) : [];
                 
+                // ==================== ATUALIZAR LOG ====================
+                if (updatedReport.log_message_id) {
+                    const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+                    if (logChannelId) {
+                        const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                        if (logChannel) {
+                            const logMessage = await logChannel.messages.fetch(updatedReport.log_message_id).catch(() => null);
+                            if (logMessage) {
+                                const threadUrl = thread ? thread.url : '#';
+                                const logContent = ReportChatFormatter.createLogEmbed(
+                                    reportId, targetUser, threadUrl, staffs, 
+                                    status, punicao || null, updatedReport.rating, updatedReport.rating_comment, guild.name
+                                );
+                                await logMessage.edit({
+                                    embeds: logContent.embeds,
+                                    components: logContent.components
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // ==================== ATUALIZAR DM ====================
+                if (updatedReport.dm_message_id && targetUser) {
+                    const dmChannel = await targetUser.createDM().catch(() => null);
+                    if (dmChannel) {
+                        const dmMessage = await dmChannel.messages.fetch(updatedReport.dm_message_id).catch(() => null);
+                        if (dmMessage) {
+                            const threadUrl = thread ? thread.url : '#';
+                            const dmContent = ReportChatFormatter.createUserDmEmbed(
+                                reportId, targetUser, guild.name, threadUrl, staffs, status, closedByName, hasReason ? motivo : null
+                            );
+                            await dmMessage.edit({
+                                embeds: dmContent.embeds,
+                                components: dmContent.components
+                            });
+                        }
+                    }
+                }
+                
+                // ==================== ARQUIVAR THREAD ====================
                 if (thread) {
                     await thread.members.remove(report.user_id).catch(() => null);
                     await thread.setLocked(true);
@@ -310,8 +364,7 @@ class ReportChatSystem {
                 console.error('❌ Erro ao fechar report:', error);
                 await interaction.editReply({ content: '❌ Erro ao fechar report.', components: [] });
             }
-        }
-
+            }
     // Método para buscar link do report (usado no strike)
     async getReportLink(guildId, reportId) {
         const report = db.prepare(`SELECT thread_id FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);

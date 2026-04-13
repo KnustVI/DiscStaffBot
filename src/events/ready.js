@@ -1,5 +1,6 @@
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
+require('../systems/inactiveReportsJob');
 
 let handler = null;
 let isReady = false;
