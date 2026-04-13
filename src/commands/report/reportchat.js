@@ -1,5 +1,6 @@
-// src/commands/reportchat/reportchat.js
+// src/commands/report/reportchat.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const ReportChatSystem = require('../../systems/reportChatSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,9 +9,20 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
-        const reportSystem = new (require('../../systems/reportChatSystem'))(client);
-        const panel = reportSystem.getPanel(interaction.guild.name);
-        await interaction.channel.send(panel);
-        await interaction.reply({ content: '✅ Painel criado!', ephemeral: true });
+        // NÃO usar deferReply aqui! Já foi deferido no interactionCreate.js
+        // Use editReply em vez de reply
+        
+        try {
+            const reportSystem = new ReportChatSystem(client);
+            const panel = reportSystem.getPanel(interaction.guild.name);
+            await interaction.channel.send(panel);
+            
+            // Usar editReply porque já está deferido
+            await interaction.editReply({ content: '✅ Painel de ReportChat criado com sucesso!' });
+            
+        } catch (error) {
+            console.error('❌ Erro no comando reportchat:', error);
+            await interaction.editReply({ content: '❌ Erro ao criar o painel. Verifique as configurações.' });
+        }
     }
 };
