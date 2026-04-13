@@ -498,28 +498,53 @@ async updateStaffs(guildId, reportId) {
             }
         }
     async rateReport(interaction, reportId, nota, comentario) {
-        const { user } = interaction;
-        
-        try {
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ? AND status LIKE 'closed%'`).get(reportId, user.id);
-            if (!report) {
-                return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
-            }
-
-            if (report.rating) {
-                return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Este report já foi avaliado.`, flags: 64 });
-            }
-
-            db.prepare(`UPDATE reports SET rating = ?, rating_comment = ? WHERE id = ?`).run(nota, comentario, reportId);
-            await this.updateAllEmbeds(report.guild_id, reportId);
-            
-            await interaction.editReply({ content: `${EMOJIS.Check || '✅'} Avaliação registrada! Obrigado.`, flags: 64 });
-            
-        } catch (error) {
-            console.error('❌ Erro ao avaliar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao avaliar report.', flags: 64 });
+    const { user } = interaction;
+    
+    try {
+        const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ? AND status LIKE 'closed%'`).get(reportId, user.id);
+        if (!report) {
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
         }
+
+        if (report.rating) {
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Este report já foi avaliado.`, flags: 64 });
+        }
+
+        db.prepare(`UPDATE reports SET rating = ?, rating_comment = ? WHERE id = ?`).run(nota, comentario, reportId);
+
+        // Atualizar o LOG com a avaliação
+        const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
+        const guild = this.client.guilds.cache.get(report.guild_id);
+        
+        if (report.log_message_id && guild) {
+            const logChannelId = ConfigSystem.getSetting(report.guild_id, 'log_reports');
+            if (logChannelId) {
+                const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                if (logChannel) {
+                    const logMessage = await logChannel.messages.fetch(report.log_message_id).catch(() => null);
+                    if (logMessage) {
+                        const currentEmbed = logMessage.embeds[0];
+                        const oldDescription = currentEmbed.description;
+                        
+                        // Adicionar avaliação ao final da descrição
+                        const newDescription = oldDescription + `\n- **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n- **Comentário:** ${comentario || 'Nenhum'}`;
+                        
+                        const updatedEmbed = EmbedBuilder.from(currentEmbed)
+                            .setDescription(newDescription);
+                        
+                        await logMessage.edit({ embeds: [updatedEmbed], components: logMessage.components });
+                    }
+                }
+            }
+        }
+        
+        await interaction.editReply({ content: `${EMOJIS.Check || '✅'} Avaliação registrada! Obrigado.`, flags: 64 });
+        
+    } catch (error) {
+        console.error('❌ Erro ao avaliar report:', error);
+        await interaction.editReply({ content: '❌ Erro ao avaliar report.', flags: 64 });
     }
+}
 
     async getReportLink(guildId, reportId) {
         const report = db.prepare(`SELECT thread_id FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);

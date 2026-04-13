@@ -114,27 +114,22 @@ class ReportChatFormatter {
             // Botões do LOG (apenas se NÃO estiver fechado)
             if (!isClosed) {
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`reportchat:join:${reportId}`)
-                        .setLabel('Entrar no chat')
-                        .setStyle(ButtonStyle.Success)
-                        .setEmoji(EMOJIS.staff || '👋'),
-                    new ButtonBuilder()
-                        .setCustomId(`reportchat:goto:${reportId}`)
-                        .setLabel('Ir para o tópico')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setEmoji('🔗'),
-                    new ButtonBuilder()
-                        .setCustomId(`reportchat:close:no-reason:${reportId}`)
-                        .setLabel('Fechar')
-                        .setStyle(ButtonStyle.Danger)
-                        .setEmoji(EMOJIS.lose || '🔒'),
-                    new ButtonBuilder()
-                        .setCustomId(`reportchat:close:reason:${reportId}`)
-                        .setLabel('Fechar com Motivo')
-                        .setStyle(ButtonStyle.Primary)
-                        .setEmoji(EMOJIS.Note || '📝')
-                );
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:join:${reportId}`)
+                    .setLabel('Entrar no chat')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji(EMOJIS.staff || '👋'),
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:close:no-reason:${reportId}`)
+                    .setLabel('Fechar')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji(EMOJIS.lose || '🔒'),
+                new ButtonBuilder()
+                    .setCustomId(`reportchat:close:reason:${reportId}`)
+                    .setLabel('Fechar com Motivo')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji(EMOJIS.Note || '📝')
+            );
                 return { embeds: [embed], components: [row] };
             }
             
