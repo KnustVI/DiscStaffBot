@@ -21,7 +21,7 @@ function startInactiveReportsJob(client) {
                 
                 const ReportChatSystem = require('./reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
-                await reportSystem.updateAllEmbeds(report.guild_id, report.id);
+                await reportSystem.updateStatus(report.guild_id, report.id, 'inactive');
                 
                 console.log(`📌 Report ${report.id} marcado como inativo`);
             }
