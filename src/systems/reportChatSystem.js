@@ -178,38 +178,24 @@ class ReportChatSystem {
     }
 
     // ==================== FECHAR REPORT ====================
-    // src/systems/reportChatSystem.js
-// Substitua o método closeReport por este:
-
 async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = true) {
-    // Para DMs, interaction.guild pode ser null
-    const guild = interaction.guild;
-    const user = interaction.user;
-    const member = interaction.member;
-    
     try {
-        // Buscar report no banco (não depende de guild)
-        const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ? AND status NOT LIKE 'closed%'`).get(reportId, user.id);
+        // Buscar report apenas pelo ID (sem filtrar por user_id)
+        const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND status NOT LIKE 'closed%'`).get(reportId);
         
         if (!report) {
-            // Tentar buscar sem filtrar por user_id (caso staff esteja fechando)
-            const reportByStaff = db.prepare(`SELECT * FROM reports WHERE id = ? AND status NOT LIKE 'closed%'`).get(reportId);
-            if (!reportByStaff) {
-                // Se for modal, precisa responder
-                if (interaction.isModalSubmit()) {
-                    await interaction.reply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, flags: 64 });
-                } else {
-                    await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Report não encontrado.`, components: [] });
-                }
-                return;
+            const errorMsg = `${EMOJIS.Error || '❌'} Report ${reportId} não encontrado ou já está fechado.`;
+            if (interaction.isModalSubmit()) {
+                await interaction.reply({ content: errorMsg, flags: 64 });
+            } else {
+                await interaction.editReply({ content: errorMsg, components: [] });
             }
-            // Usar o report encontrado sem user_id
-            Object.assign(report, reportByStaff);
+            return;
         }
 
-        // Obter guild real do banco (já que interaction.guild pode ser null em DM)
-        const realGuild = guild || this.client.guilds.cache.get(report.guild_id);
-        if (!realGuild) {
+        // Obter guild
+        const guild = interaction.guild || this.client.guilds.cache.get(report.guild_id);
+        if (!guild) {
             const errorMsg = '❌ Servidor não encontrado.';
             if (interaction.isModalSubmit()) {
                 await interaction.reply({ content: errorMsg, flags: 64 });
@@ -219,33 +205,71 @@ async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = t
             return;
         }
 
-        const staffRoleId = ConfigSystem.getSetting(realGuild.id, 'staff_role');
-        const isStaffUser = isStaff && member?.roles?.cache?.has(staffRoleId);
-        const closedByName = isStaffUser ? `Staff ${user.tag}` : `Usuário ${user.tag}`;
+        // Verificar permissão (apenas o autor do report ou staff pode fechar)
+        const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+        const isStaffUser = isStaff && interaction.member?.roles?.cache?.has(staffRoleId);
+        const isAuthor = report.user_id === interaction.user.id;
+        
+        if (!isStaffUser && !isAuthor) {
+            const errorMsg = `${EMOJIS.Error || '❌'} Você não tem permissão para fechar este report.`;
+            if (interaction.isModalSubmit()) {
+                await interaction.reply({ content: errorMsg, flags: 64 });
+            } else {
+                await interaction.editReply({ content: errorMsg, components: [] });
+            }
+            return;
+        }
+
+        const closedByName = isStaffUser ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
         const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
         
         // Atualizar banco
         db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
-            .run(status, Date.now(), user.id, motivo || null, punicao || null, report.id);
+            .run(status, Date.now(), interaction.user.id, motivo || null, punicao || null, report.id);
 
-        const thread = await realGuild.channels.fetch(report.thread_id).catch(() => null);
+        const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
         const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
         
-        // ATUALIZAR LOG (só se tiver log_message_id e guild real)
-        if (report.log_message_id && realGuild) {
-            const logChannelId = ConfigSystem.getSetting(realGuild.id, 'log_reports');
+        // ATUALIZAR LOG (sem botões)
+        if (report.log_message_id) {
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId) {
-                const logChannel = await realGuild.channels.fetch(logChannelId).catch(() => null);
+                const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                 if (logChannel) {
                     const logMessage = await logChannel.messages.fetch(report.log_message_id).catch(() => null);
                     if (logMessage) {
                         const embed = new EmbedBuilder()
                             .setColor(0xF64B4E)
                             .setDescription(`# 🔒 Report Fechado\n**ID:** ${report.id}\n**Usuário:** ${targetUser ? EmbedFormatter.formatUser(targetUser) : 'Desconhecido'}\n**Fechado por:** ${closedByName}\n**Motivo:** ${motivo || 'Sem motivo'}\n${punicao ? `**Punição:** ${punicao}` : ''}`)
-                            .setFooter(EmbedFormatter.getFooter(realGuild.name))
+                            .setFooter(EmbedFormatter.getFooter(guild.name))
                             .setTimestamp();
                         await logMessage.edit({ embeds: [embed], components: [] });
                     }
+                }
+            }
+        }
+        
+        // ATUALIZAR DM (apenas se não for o próprio usuário fechando pela DM)
+        if (report.dm_message_id && targetUser && !interaction.channel?.isDMBased()) {
+            const dmChannel = await targetUser.createDM().catch(() => null);
+            if (dmChannel) {
+                const dmMessage = await dmChannel.messages.fetch(report.dm_message_id).catch(() => null);
+                if (dmMessage) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0xF64B4E)
+                        .setDescription(`# 🔒 Report Fechado\n**ID:** ${report.id}\n**Fechado por:** ${closedByName}\n**Motivo:** ${motivo || 'Sem motivo'}`)
+                        .setFooter(EmbedFormatter.getFooter(guild.name))
+                        .setTimestamp();
+                    
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`reportchat:rate:${report.id}`)
+                            .setLabel('Avaliar Atendimento')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('⭐')
+                    );
+                    
+                    await dmMessage.edit({ embeds: [embed], components: [row] });
                 }
             }
         }
@@ -257,20 +281,22 @@ async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = t
             await thread.setArchived(true).catch(() => {});
         }
         
-        // Responder conforme o tipo de interação
+        // Responder
+        const successMsg = `${EMOJIS.Check || '✅'} ${report.id} fechado com sucesso!`;
         if (interaction.isModalSubmit()) {
-            await interaction.reply({ content: `${EMOJIS.Check || '✅'} ${report.id} fechado com sucesso!`, flags: 64 });
+            await interaction.reply({ content: successMsg, flags: 64 });
         } else {
-            await interaction.editReply({ content: `${EMOJIS.Check || '✅'} ${report.id} fechado com sucesso!`, components: [] });
+            await interaction.editReply({ content: successMsg, components: [] });
         }
         
     } catch (error) {
         console.error('❌ Erro ao fechar report:', error);
         try {
+            const errorMsg = '❌ Erro ao fechar report.';
             if (interaction.isModalSubmit()) {
-                await interaction.reply({ content: '❌ Erro ao fechar report.', flags: 64 });
+                await interaction.reply({ content: errorMsg, flags: 64 });
             } else {
-                await interaction.editReply({ content: '❌ Erro ao fechar report.', components: [] });
+                await interaction.editReply({ content: errorMsg, components: [] });
             }
         } catch (err) {
             console.error('❌ Falha ao responder:', err);
@@ -340,6 +366,7 @@ async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = t
         };
         const newStatusText = statusMap[newStatus] || newStatus;
 
+        // Atualizar LOG - MANTENDO os botões
         if (report.log_message_id) {
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
             if (logChannelId) {
@@ -350,12 +377,14 @@ async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = t
                         const oldDesc = logMessage.embeds[0].description;
                         const newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${newStatusText}`);
                         const updatedEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                        // IMPORTANTE: mantém os componentes originais (botões)
                         await logMessage.edit({ embeds: [updatedEmbed], components: logMessage.components });
                     }
                 }
             }
         }
 
+        // Atualizar DM - MANTENDO os botões
         if (report.dm_message_id) {
             const targetUser = await this.client.users.fetch(report.user_id).catch(() => null);
             if (targetUser) {
@@ -366,6 +395,7 @@ async closeReport(interaction, reportId, motivo, punicao, hasReason, isStaff = t
                         const oldDesc = dmMessage.embeds[0].description;
                         const newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${newStatusText}`);
                         const updatedEmbed = EmbedBuilder.from(dmMessage.embeds[0]).setDescription(newDesc);
+                        // IMPORTANTE: mantém os componentes originais (botões)
                         await dmMessage.edit({ embeds: [updatedEmbed], components: dmMessage.components });
                     }
                 }
