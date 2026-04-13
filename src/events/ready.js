@@ -1,6 +1,6 @@
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
-require('../systems/inactiveReportsJob');
+const { startInactiveReportsJob } = require('../systems/inactiveReportsJob'); // ← MOVER PARA CIMA
 
 let handler = null;
 let isReady = false;
@@ -70,7 +70,6 @@ module.exports = {
         }
         
         // 4. Registrar comandos slash globalmente (se necessário)
-        // Isso pode ser movido para um arquivo deploy.js separado
         if (process.env.DEPLOY_COMMANDS === 'true') {
             try {
                 const commands = [];
@@ -101,7 +100,7 @@ module.exports = {
                     status: 'online'
                 });
                 index++;
-            }, 60000); // Rotacionar a cada minuto
+            }, 60000);
         };
         
         updatePresence();
@@ -110,7 +109,6 @@ module.exports = {
         // 6. Verificações de integridade
         console.log('\n🔍 Verificações de integridade:');
         
-        // Verificar se há comandos carregados
         const commandCount = client.commands.size;
         console.log(`   📋 ${commandCount} comandos carregados`);
         
@@ -118,7 +116,6 @@ module.exports = {
             console.warn('   ⚠️ Nenhum comando encontrado! Verifique o diretório de comandos.');
         }
         
-        // Verificar eventos carregados (acessar via client._events)
         const eventCount = Object.keys(client._events || {}).length;
         console.log(`   🎧 ${eventCount} eventos registrados`);
         
@@ -141,7 +138,7 @@ module.exports = {
         console.log(`✨ Bot pronto em ${elapsedTime}ms`);
         console.log('========================================\n');
         
-        // 8. Evento opcional para quando o bot está totalmente pronto
+        // 8. Evento opcional
         client.emit('botReady', {
             uptime: client.uptime,
             guilds: client.guilds.cache.size,
@@ -149,11 +146,18 @@ module.exports = {
             commands: commandCount
         });
         
-        // Após carregar os caches, forçar limpeza do cache de configuração
+        // 9. Iniciar job de reports inativos (AGORA está no lugar certo)
+        startInactiveReportsJob(client);
+        
+        // 10. Limpar cache de configuração
         try {
             const ConfigSystem = require('../systems/configSystem');
-            ConfigSystem.clearAllCache();
-            console.log('🗑️ Cache de configurações reiniciado');
+            if (ConfigSystem.clearAllCache) {
+                ConfigSystem.clearAllCache();
+                console.log('🗑️ Cache de configurações reiniciado');
+            } else {
+                console.log('ℹ️ Método clearAllCache não disponível');
+            }
         } catch (err) {
             console.error('❌ Erro ao limpar cache:', err);
         }
