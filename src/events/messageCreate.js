@@ -20,13 +20,14 @@ module.exports = {
         
         const isStaff = staffRoleId && member.roles.cache.has(staffRoleId);
         
+        // Se for staff e o status for 'waiting' ou 'inactive', mudar para 'responded'
         if (isStaff && (report.status === 'waiting' || report.status === 'inactive')) {
             db.prepare(`UPDATE reports SET status = 'responded', last_message_at = ? WHERE id = ?`)
                 .run(Date.now(), report.id);
             
             const ReportChatSystem = require('../systems/reportChatSystem');
             const reportSystem = new ReportChatSystem(client);
-            await reportSystem.updateAllEmbeds(guild.id, report.id);  // ← CORRIGIDO
+            await reportSystem.updateStatus(guild.id, report.id, 'responded');  // ← usar updateStatus
             
             console.log(`📌 Report ${report.id} status atualizado para 'responded' por ${message.author.tag}`);
         }

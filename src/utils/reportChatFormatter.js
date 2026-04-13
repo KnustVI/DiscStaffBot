@@ -84,6 +84,8 @@ class ReportChatFormatter {
     }
 
         // ==================== EMBED DO LOG (canal de logs) ====================
+        // src/utils/reportChatFormatter.js
+
         static createLogEmbed(reportId, user, threadUrl, staffs = [], status = 'waiting', punishment = null, rating = null, ratingComment = null, guildName, closedBy = null, closedReason = null) {
             const statusMap = {
                 waiting: `${EMOJIS.clock || '⏳'} Aguardando staff`,
@@ -97,7 +99,8 @@ class ReportChatFormatter {
             const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
             const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
             
-            let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## <@${user.id}>\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`;
+            // REMOVER o link da thread do texto
+            let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## <@${user.id}>\n- **Status:** ${statusText}\n- **Staffs:** ${staffsText}`;
             
             if (punishment) description += `\n- **Punição aplicada:** ${punishment}`;
             if (rating) description += `\n- **Avaliação:** ${'⭐'.repeat(rating)} (${rating}/5)\n- **Comentário:** ${ratingComment || 'Nenhum'}`;
@@ -116,6 +119,11 @@ class ReportChatFormatter {
                         .setLabel('Entrar no chat')
                         .setStyle(ButtonStyle.Success)
                         .setEmoji(EMOJIS.staff || '👋'),
+                    new ButtonBuilder()
+                        .setCustomId(`reportchat:goto:${reportId}`)
+                        .setLabel('Ir para o tópico')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('🔗'),
                     new ButtonBuilder()
                         .setCustomId(`reportchat:close:no-reason:${reportId}`)
                         .setLabel('Fechar')
@@ -147,7 +155,8 @@ class ReportChatFormatter {
             const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
             const isClosed = status === 'closed_no_reason' || status === 'closed_with_reason';
             
-            let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nEsse é o painel de informações do seu report, caso ocorra algum bug ou problema avise a equipe do servidor em questão.\n\n- **Status:** ${statusText}\n- **Thread:** [Clique aqui](${threadUrl})\n- **Staffs:** ${staffsText}`;
+            // REMOVER o link da thread do texto
+            let description = `# ${EMOJIS.chat || '🎫'} Report /${reportId}\n## ${guildName}\nEsse é o painel de informações do seu report, caso ocorra algum bug ou problema avise a equipe do servidor em questão.\n\n- **Status:** ${statusText}\n- **Staffs:** ${staffsText}`;
             
             if (closedBy) description += `\n- **Fechado por:** ${closedBy}`;
             if (closedReason) description += `\n- **Motivo:** ${closedReason}`;
@@ -158,7 +167,7 @@ class ReportChatFormatter {
                 .setFooter(EmbedFormatter.getFooter(guildName))
                 .setTimestamp();
 
-            // Botões da DM
+            // Botões da DM (sem link da thread)
             if (!isClosed) {
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -175,17 +184,13 @@ class ReportChatFormatter {
                 return { embeds: [embed], components: [row] };
             }
             
-            // Botão de avaliação (válido por 24h)
-            const closedAt = Date.now();
-            const canRate = closedAt - (24 * 60 * 60 * 1000);
-            
+            // Botão de avaliação
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId(`reportchat:rate:${reportId}`)
                     .setLabel('Avaliar Atendimento')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji(EMOJIS.star || '⭐')
-                    .setDisabled(Date.now() > canRate + (24 * 60 * 60 * 1000))
             );
             
             return { embeds: [embed], components: [row] };

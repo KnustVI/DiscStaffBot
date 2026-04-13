@@ -48,6 +48,24 @@ module.exports = {
                     return;
                 }
 
+                // Botão ir para o tópico
+                if (interaction.customId?.startsWith('reportchat:goto:')) {
+                    console.log('📌 Redirecionando para o tópico');
+                    const reportId = interaction.customId.split(':')[2];
+                    const report = db.prepare(`SELECT thread_id FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, interaction.guildId);
+                    if (report?.thread_id) {
+                        const thread = await interaction.guild.channels.fetch(report.thread_id).catch(() => null);
+                        if (thread) {
+                            await interaction.reply({ content: `🔗 Acesse o tópico: ${thread.url}`, flags: 64 });
+                        } else {
+                            await interaction.reply({ content: '❌ Tópico não encontrado.', flags: 64 });
+                        }
+                    } else {
+                        await interaction.reply({ content: '❌ Report não encontrado.', flags: 64 });
+                    }
+                    return;
+                }
+
                 // Botão fechar sem motivo (STAFF no LOG)
                 if (interaction.customId?.startsWith('reportchat:close:no-reason:')) {
                     console.log('📌 Staff fechando report sem motivo');
