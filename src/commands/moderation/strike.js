@@ -3,7 +3,6 @@ const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const ReportChatSystem = require('../../systems/reportChatSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -38,34 +37,26 @@ module.exports = {
                 { name: 'Ban do Jogo', value: 'rcon_ban' }
             )),
 
-            async execute(interaction, client) {
-            const startTime = Date.now();
-            const { guild, options, channel, user: staff, member: staffMember } = interaction;
-            const guildId = guild.id;
-            
-            let emojis = {};
-            try {
-                const emojisFile = require('../../database/emojis.js');
-                emojis = emojisFile.EMOJIS || {};
-            } catch (err) {
-                emojis = {};
-            }
-            
-            const targetUser = options.getUser('usuario');
-            const severity = options.getInteger('gravidade');
-            const reason = options.getString('motivo');
-            const durationStr = options.getString('duracao');
-            const discordAct = options.getString('discord_act') || 'none';
-            const jogoAct = options.getString('jogo_act') || 'none';
-            const ticketId = options.getString('ticket') || 
-                (channel.name.includes('ticket') ? channel.name.split('-')[1] || channel.name : null);
-            
-            // Buscar link do report (apenas se começar com #R)
-            let reportLink = null;
-            if (ticketId && ticketId.startsWith('#R')) {
-                const reportSystem = new ReportChatSystem(client);
-                reportLink = await reportSystem.getReportLink(guildId, ticketId);
-            }
+    async execute(interaction, client) {
+        const startTime = Date.now();
+        const { guild, options, channel, user: staff, member: staffMember } = interaction;
+        const guildId = guild.id;
+        
+        let emojis = {};
+        try {
+            const emojisFile = require('../../database/emojis.js');
+            emojis = emojisFile.EMOJIS || {};
+        } catch (err) {
+            emojis = {};
+        }
+        
+        const targetUser = options.getUser('usuario');
+        const severity = options.getInteger('gravidade');
+        const reason = options.getString('motivo');
+        const durationStr = options.getString('duracao');
+        const discordAct = options.getString('discord_act') || 'none';
+        const jogoAct = options.getString('jogo_act') || 'none';
+        const ticketId = options.getString('ticket') || null;
         
         try {
             if (!targetUser) {
@@ -177,13 +168,11 @@ module.exports = {
                 severity,
                 reason,
                 ticketId || null,
-                ticketLink,
                 pointsToLose,
                 newPoints,
                 discordAct,
                 discordActionResult,
                 guild.name
-                
             );
 
             // ==================== ENVIAR DM PARA O USUÁRIO ====================
@@ -199,19 +188,17 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        // Usar o MESMO embed unificado
                         await logChannel.send({ embeds: [unifiedEmbed] }).catch(() => null);
                     }
                 } catch (err) {}
             }
 
             // ==================== RESPOSTA NO CANAL ====================
-                await ResponseManager.success(interaction,
-            `**Strike #${strikeId} aplicado em ${targetUser.username}**
-            ${emojis.lose || '📉'}
-            ${pointsToLose} pts perdidos
-            ${emojis.star || '⭐'} Reputação: ${newPoints}/100`
-                );
+            await ResponseManager.success(interaction,
+                `**Strike #${strikeId} aplicado em ${targetUser.username}**
+                ${emojis.lose || '📉'} ${pointsToLose} pts perdidos
+                ${emojis.star || '⭐'} Reputação: ${newPoints}/100`
+            );
             
             console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} | #${strikeId} | ${Date.now() - startTime}ms`);
             
@@ -221,5 +208,5 @@ module.exports = {
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao aplicar strike. A equipe foi notificada.');
         }
-   }
-}; 
+    }
+};
