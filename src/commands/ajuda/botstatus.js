@@ -38,14 +38,13 @@ module.exports = {
             
             const dbStats = db.getStats();
             
-                        // Estatísticas de punições do servidor
+            // Estatísticas de punições do servidor
             const totalPunishments = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ?`).get(guildId)?.count || 0;
             const totalUsers = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0;
             const avgReputation = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 100;
             const recentStrikes = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND created_at > ?`).get(guildId, Date.now() - (30 * 24 * 60 * 60 * 1000))?.count || 0;
-
-            // Tickets ativos (status NÃO começa com 'closed')
-            const activeTickets = db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ? AND status NOT LIKE 'closed%'`).get(guildId)?.count || 0;
+            
+            // REMOVIDO: activeTickets (tabela não existe mais)
             
             // Verificar saúde
             const isHealthy = SystemStatus.isSystemHealthy(client, guildId);
@@ -103,7 +102,7 @@ module.exports = {
             embed.addFields(
                 { 
                     name: `${emojis.database || '🗄️'} Banco de Dados`, 
-                    value: `**Tamanho:** ${dbStats?.fileSize || 'N/A'}\n**Tabelas:** ${Object.keys(dbStats?.tables || {}).length}\n**Punições:** ${totalPunishments}\n**Tickets Ativos:** ${activeTickets}\n**${emojis.user || '👥'} Penalizados:** ${totalUsers}\n**${emojis.star || '⭐'} Média:** ${Math.round(avgReputation)}/100\n**${emojis.strike || '⚠️'} 30d:** ${recentStrikes}`,
+                    value: `**Tamanho:** ${dbStats?.fileSize || 'N/A'}\n**Tabelas:** ${Object.keys(dbStats?.tables || {}).length}\n**Punições:** ${totalPunishments}\n**${emojis.user || '👥'} Penalizados:** ${totalUsers}\n**${emojis.star || '⭐'} Média:** ${Math.round(avgReputation)}/100\n**${emojis.strike || '⚠️'} 30d:** ${recentStrikes}`,
                     inline: true 
                 },
                 { 
@@ -118,7 +117,7 @@ module.exports = {
             // Registrar atividade
             db.logActivity(guildId, user.id, 'status_command', null, {
                 command: 'botstatus', responseTime: Date.now() - startTime,
-                systemHealth: isHealthy, totalPunishments, activeTickets
+                systemHealth: isHealthy, totalPunishments
             });
             
             await ResponseManager.send(interaction, { embeds: [embed] });
