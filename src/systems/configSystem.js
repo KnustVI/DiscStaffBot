@@ -182,9 +182,10 @@ const ConfigSystem = {
             5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
         };
         
-        const modal = new ModalBuilder()
-            .setCustomId('config-points:strike:modal')
-            .setTitle('Configurar Níveis de Strike');
+        const modal = new ModalBuilder({
+        customId: 'config-points:strike:modal',
+        title: '⚙️ Níveis Strike'
+    });
         
         const fields = [
             { id: 'nivel1', label: `🟢 Nível 1 (Leve)`, value: pontos[1] },
@@ -194,44 +195,48 @@ const ConfigSystem = {
             { id: 'nivel5', label: `💀 Nível 5 (Permanente)`, value: pontos[5] }
         ];
         
-        for (const field of fields) {
-            const input = new TextInputBuilder()
-                .setCustomId(field.id)
-                .setLabel(field.label)
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setValue(field.value.toString())
-                .setPlaceholder('Ex: 10');
+            for (const field of fields) {
+            const input = new TextInputBuilder({
+                customId: field.id,
+                label: field.label,
+                style: TextInputStyle.Short,
+                required: true,
+                value: field.value.toString(),
+                placeholder: 'Ex: 10'
+            });
             modal.addComponents(new ActionRowBuilder().addComponents(input));
         }
         
         await interaction.showModal(modal);
     },
 
-    async handleLimitesModal(interaction) {
+        async handleLimitesModal(interaction) {
         const guildId = interaction.guildId;
         const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
         
-        const modal = new ModalBuilder()
-            .setCustomId('config-points:limites:modal')
-            .setTitle('Configurar Limites de Reputação');
+        const modal = new ModalBuilder({
+            customId: 'config-points:limites:modal',
+            title: '📊 Limites Reputação'
+        });
         
-        const exemplarInput = new TextInputBuilder()
-            .setCustomId('exemplar_limit')
-            .setLabel(`${EMOJIS.shinystar || '🎖️'} Limite Exemplar (50-100)`)
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setValue(exemplarLimit.toString())
-            .setPlaceholder('Ex: 95');
+        const exemplarInput = new TextInputBuilder({
+            customId: 'exemplar_limit',
+            label: '🎖️ Limite Exemplar (50-100)',
+            style: TextInputStyle.Short,
+            required: true,
+            value: exemplarLimit.toString(),
+            placeholder: 'Ex: 95'
+        });
         
-        const problematicInput = new TextInputBuilder()
-            .setCustomId('problematic_limit')
-            .setLabel(`${EMOJIS.Warning || '⚠️'} Limite Problemático (0-50)`)
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setValue(problematicLimit.toString())
-            .setPlaceholder('Ex: 30');
+        const problematicInput = new TextInputBuilder({
+            customId: 'problematic_limit',
+            label: '⚠️ Limite Problemático (0-50)',
+            style: TextInputStyle.Short,
+            required: true,
+            value: problematicLimit.toString(),
+            placeholder: 'Ex: 30'
+        });
         
         modal.addComponents(
             new ActionRowBuilder().addComponents(exemplarInput),
