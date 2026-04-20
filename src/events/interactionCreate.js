@@ -11,16 +11,13 @@ module.exports = {
     async execute(interaction, client) {
         if (!handler) handler = new InteractionHandler(client);
         
-        // Determinar guildId seguro (para DMs, usar 'dm')
+        // Safe guildId para DMs (SessionManager exige parâmetro)
         const safeGuildId = interaction.guildId || 'dm';
         
         try {
             // ==================== COMANDOS ====================
             if (interaction.isCommand()) {
-                const isEphemeral = ['config', 'strike', 'unstrike', 'repset', 'config-rep', 'config-strike'].includes(interaction.commandName);
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.deferReply({ flags: isEphemeral ? 64 : 0 });
-                }
+                // O handler já gerencia deferReply internamente
                 await handler.handleCommand(interaction);
                 return;
             }
@@ -81,6 +78,7 @@ module.exports = {
             }
 
             if (interaction.customId === 'close_modal') {
+                // Modal precisa de deferReply para processamento
                 await interaction.deferReply({ flags: 64 });
                 const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing');
                 if (session?.reportId) {
@@ -106,7 +104,7 @@ module.exports = {
                 return;
             }
             
-            // ==================== CONFIG-POINTS (BOTÕES - abre modal) ====================
+            // ==================== CONFIG-POINTS ====================
             if (interaction.customId === 'config-points:strike:modal') {
                 await ConfigSystem.handleStrikeModal(interaction);
                 return;
@@ -162,7 +160,7 @@ module.exports = {
                 return;
             }
             
-            // ==================== MODAIS DE CONFIGURAÇÃO (PROCESSAMENTO) ====================
+            // ==================== MODAIS DE CONFIGURAÇÃO ====================
             if (interaction.customId === 'config-points:strike:modal:submit') {
                 await ConfigSystem.processPointsStrikeModal(interaction);
                 return;
