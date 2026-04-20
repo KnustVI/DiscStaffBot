@@ -1,5 +1,6 @@
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
+const { startInactiveReportsJob } = require('../systems/inactiveReportsJob');
 
 let handler = null;
 let isReady = false;
@@ -7,6 +8,7 @@ let isReady = false;
 module.exports = {
     name: 'clientReady',
     once: true,
+    
     async execute(client) {
         // Evitar execução duplicada
         if (isReady) return;
@@ -22,6 +24,8 @@ module.exports = {
         console.log(`💾 Memória: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`);
         console.log('========================================\n');
         
+        startInactiveReportsJob(client);
+
         // 1. Inicializar handler central (cache)
         try {
             if (!handler) {

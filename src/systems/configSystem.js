@@ -184,7 +184,7 @@ const ConfigSystem = {
         
         const modal = new ModalBuilder()
             .setCustomId('config-points:strike:modal')
-            .setTitle(`${EMOJIS.Config || '⚙️'} Configurar Níveis de Strike`);
+            .setTitle('Configurar Níveis de Strike');
         
         const fields = [
             { id: 'nivel1', label: `🟢 Nível 1 (Leve)`, value: pontos[1] },
@@ -215,7 +215,7 @@ const ConfigSystem = {
         
         const modal = new ModalBuilder()
             .setCustomId('config-points:limites:modal')
-            .setTitle(`${EMOJIS.Rank || '📊'} Configurar Limites de Reputação`);
+            .setTitle('Configurar Limites de Reputação');
         
         const exemplarInput = new TextInputBuilder()
             .setCustomId('exemplar_limit')
@@ -515,7 +515,7 @@ const ConfigSystem = {
         const reportsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:reports')
-                .setPlaceholder(`🎫 Selecionar canal de logs de reports`)
+                .setPlaceholder(`Selecionar canal de logs de reports`)
                 .addChannelTypes(ChannelType.GuildText)
         );
         
