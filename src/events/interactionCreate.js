@@ -29,11 +29,23 @@ module.exports = {
                 return;
             }
 
+            // Botão de fechar com motivo (verifica se é staff ou usuário)
             if (interaction.customId?.startsWith('close_reason:')) {
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
+                
+                // Salvar na sessão
                 sessionManager.set(interaction.user.id, safeGuildId, 'closing', 'closing', { reportId }, 300000);
-                const modal = reportSystem.getCloseModal();
+                
+                // Verificar se quem clicou é staff (apenas se estiver em um servidor)
+                let isStaff = false;
+                if (interaction.guildId) {
+                    const staffRoleId = ConfigSystem.getSetting(interaction.guildId, 'staff_role');
+                    isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
+                }
+                
+                // Escolher o modal correto
+                const modal = isStaff ? reportSystem.getCloseModalStaff() : reportSystem.getCloseModalUser();
                 await interaction.showModal(modal);
                 return;
             }
@@ -76,9 +88,9 @@ module.exports = {
                 return;
             }
 
-            if (interaction.customId === 'close_modal') {
+            // Modal de fechamento para STAFF (com punição)
+            if (interaction.customId === 'close_modal_staff') {
                 await interaction.deferReply({ flags: 64 });
-                // CORRIGIDO: adicionado 4º parâmetro 'closing'
                 const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
                 if (session?.reportId) {
                     const reportSystem = new ReportChatSystem(client);
@@ -90,9 +102,21 @@ module.exports = {
                 return;
             }
 
+            // Modal de fechamento para USUÁRIO (apenas motivo)
+            if (interaction.customId === 'close_modal_user') {
+                await interaction.deferReply({ flags: 64 });
+                const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
+                if (session?.reportId) {
+                    const reportSystem = new ReportChatSystem(client);
+                    const motivo = interaction.fields.getTextInputValue('motivo');
+                    await reportSystem.closeReport(interaction, session.reportId, motivo, null, true);
+                    sessionManager.delete(interaction.user.id, safeGuildId, 'closing', 'closing');
+                }
+                return;
+            }
+
             if (interaction.customId === 'rating_modal') {
                 await interaction.deferReply({ flags: 64 });
-                // CORRIGIDO: adicionado 4º parâmetro 'rating'
                 const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating', 'rating');
                 if (session?.reportId) {
                     const reportSystem = new ReportChatSystem(client);
