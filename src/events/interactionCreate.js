@@ -11,6 +11,9 @@ module.exports = {
     async execute(interaction, client) {
         if (!handler) handler = new InteractionHandler(client);
         
+        // Determinar guildId seguro (para DMs, usar 'dm')
+        const safeGuildId = interaction.guildId || 'dm';
+        
         try {
             // ==================== COMANDOS ====================
             if (interaction.isCommand()) {
@@ -33,7 +36,7 @@ module.exports = {
             if (interaction.customId?.startsWith('close_reason:')) {
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'closing', { reportId }, 300000);
+                sessionManager.set(interaction.user.id, safeGuildId, 'closing', { reportId }, 300000);
                 const modal = reportSystem.getCloseModal();
                 await interaction.showModal(modal);
                 return;
@@ -42,7 +45,7 @@ module.exports = {
             if (interaction.customId?.startsWith('rate:')) {
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'rating', { reportId }, 300000);
+                sessionManager.set(interaction.user.id, safeGuildId, 'rating', { reportId }, 300000);
                 const modal = reportSystem.getRatingModal();
                 await interaction.showModal(modal);
                 return;
@@ -50,7 +53,6 @@ module.exports = {
 
             // ==================== REPORTCHAT - AÇÕES ====================
             if (interaction.customId?.startsWith('join:')) {
-                // NÃO fazer deferUpdate - deixa a interação aberta
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
                 await reportSystem.joinReport(interaction, reportId);
@@ -58,7 +60,6 @@ module.exports = {
             }
 
             if (interaction.customId?.startsWith('close:') && !interaction.customId.includes('reason')) {
-                // NÃO fazer deferUpdate - deixa a interação aberta
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
                 await reportSystem.closeReport(interaction, reportId, null, null, false);
@@ -80,28 +81,27 @@ module.exports = {
             }
 
             if (interaction.customId === 'close_modal') {
-                // Modal submit - precisa de deferReply
                 await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'closing');
+                const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing');
                 if (session?.reportId) {
                     const reportSystem = new ReportChatSystem(client);
                     const motivo = interaction.fields.getTextInputValue('motivo');
                     const punicao = interaction.fields.getTextInputValue('punicao');
                     await reportSystem.closeReport(interaction, session.reportId, motivo, punicao, true);
-                    sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'closing');
+                    sessionManager.delete(interaction.user.id, safeGuildId, 'closing');
                 }
                 return;
             }
 
             if (interaction.customId === 'rating_modal') {
                 await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'rating');
+                const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating');
                 if (session?.reportId) {
                     const reportSystem = new ReportChatSystem(client);
                     const nota = parseInt(interaction.fields.getTextInputValue('nota'));
                     const comentario = interaction.fields.getTextInputValue('comentario');
                     await reportSystem.rateReport(interaction, session.reportId, nota, comentario);
-                    sessionManager.delete(interaction.user.id, interaction.guildId || 'dm', 'rating');
+                    sessionManager.delete(interaction.user.id, safeGuildId, 'rating');
                 }
                 return;
             }
