@@ -210,21 +210,24 @@ class ReportChatSystem {
         }
     }
 
-    // ==================== STAFF ENTRAR ====================
-    
+        // ==================== STAFF ENTRAR ====================
     async joinReport(interaction, reportId) {
         const { guild, user, member, channel } = interaction;
         
         try {
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
             if (!member?.roles?.cache?.has(staffRoleId)) {
-                await channel.send({ content: `❌ ${user}, você não tem permissão para entrar em reports.` });
+                await channel.send({ content: `❌ ${user}, você não tem permissão para entrar em reports.` }).then(msg => {
+                    setTimeout(() => msg.delete().catch(() => {}), 10000);
+                });
                 return;
             }
 
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guild.id);
             if (!report) {
-                await channel.send({ content: `❌ Report ${reportId} não encontrado.` });
+                await channel.send({ content: `❌ Report ${reportId} não encontrado.` }).then(msg => {
+                    setTimeout(() => msg.delete().catch(() => {}), 10000);
+                });
                 return;
             }
 
@@ -263,114 +266,116 @@ class ReportChatSystem {
                 }
             }
 
-            await channel.send({ content: `✅ ${user} entrou no ${reportId}` });
+            // Resposta com auto-exclusão
+            const msg = await channel.send({ content: `✅ ${user} entrou no ${reportId}` });
+            setTimeout(() => msg.delete().catch(() => {}), 10000);
             
         } catch (error) {
             console.error('❌ Erro ao entrar:', error);
-            await channel.send({ content: `❌ Erro ao entrar no report ${reportId}.` });
+            const msg = await channel.send({ content: `❌ Erro ao entrar no report ${reportId}.` });
+            setTimeout(() => msg.delete().catch(() => {}), 10000);
         }
     }
 
     // ==================== FECHAR REPORT ====================
-        async closeReport(interaction, reportId, motivo, punicao, hasReason) {        
-            try {
-                const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
-                if (!report) {
-                    await interaction.channel?.send({ content: `❌ Report ${reportId} não encontrado.` });
-                    return;
-                }
-
-                // Buscar o servidor a partir do report.guild_id
-                const guild = this.client.guilds.cache.get(report.guild_id);
-                if (!guild) {
-                    await interaction.channel?.send({ content: `❌ Servidor do report ${reportId} não encontrado.` });
-                    return;
-                }
-
-                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-                const isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
-                const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
-                const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
-
-                // Atualizar banco
-                db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
-                    .run(status, Date.now(), interaction.user.id, motivo || null, punicao || null, report.id);
-
-                // Arquivar thread
-                const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
-                if (thread) {
-                    await thread.setLocked(true).catch(() => {});
-                    await thread.setArchived(true).catch(() => {});
-                }
-
-                // ATUALIZAR LOG (editando embed, REMOVENDO botões)
-                const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
-                if (logChannelId && report.log_message_id) {
-                    const logChannel = await guild.channels.fetch(logChannelId);
-                    const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                    if (logMessage && logMessage.embeds[0]) {
-                        const oldEmbed = logMessage.embeds[0];
-                        const oldDesc = oldEmbed.description;
-                        
-                        const statusText = this.getStatusText(status, closedByName, motivo);
-                        let newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${statusText}`);
-                        
-                        if (!oldDesc.includes('Motivo de fechamento')) {
-                            newDesc += `\n\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
-                        }
-                        
-                        const updatedEmbed = EmbedBuilder.from(oldEmbed)
-                            .setDescription(newDesc)
-                            .setColor(0xF64B4E);
-                        
-                        await logMessage.edit({ embeds: [updatedEmbed], components: [] });
-                    }
-                }
-
-                // ATUALIZAR DM (editando embed, ADICIONANDO botão de avaliação)
-                if (report.dm_message_id) {
-                    const targetUser = await this.client.users.fetch(report.user_id);
-                    const dmChannel = await targetUser.createDM();
-                    const dmMessage = await dmChannel.messages.fetch(report.dm_message_id);
-                    const embed = new EmbedBuilder()
-                        .setColor(0xF64B4E)
-                        .setDescription(`# 🔒 REPORTE | ${report.id} | FINALIZADO\n- **Motivo de fechamento:**\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``)
-                        .setFooter({ text: guild.name })
-                        .setTimestamp();
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`rate:${report.id}`)
-                            .setLabel('Avaliar Atendimento')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji('⭐')
-                    );
-                    await dmMessage.edit({ embeds: [embed], components: [row] });
-                }
-
-                // RESPOSTA (pode ser no canal da interação ou DM)
-                const replyTarget = interaction.channel || interaction.user;
-                await replyTarget.send({ content: `✅ ${report.id} foi fechado por ${interaction.user}.` });
-                
-            } catch (error) {
-                console.error('❌ Erro ao fechar:', error);
-                const replyTarget = interaction.channel || interaction.user;
-                await replyTarget.send({ content: `❌ Erro ao fechar o report ${reportId}.` });
+    async closeReport(interaction, reportId, motivo, punicao, hasReason) {
+        const replyTarget = interaction.channel || interaction.user;
+        
+        try {
+            const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
+            if (!report) {
+                const msg = await replyTarget.send({ content: `❌ Report ${reportId} não encontrado.` });
+                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                return;
             }
+
+            const guild = this.client.guilds.cache.get(report.guild_id);
+            if (!guild) {
+                const msg = await replyTarget.send({ content: `❌ Servidor do report ${reportId} não encontrado.` });
+                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                return;
+            }
+
+            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+            const isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
+            const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
+            const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
+
+            db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
+                .run(status, Date.now(), interaction.user.id, motivo || null, punicao || null, report.id);
+
+            const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
+            if (thread) {
+                await thread.setLocked(true).catch(() => {});
+                await thread.setArchived(true).catch(() => {});
+            }
+
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+            if (logChannelId && report.log_message_id) {
+                const logChannel = await guild.channels.fetch(logChannelId);
+                const logMessage = await logChannel.messages.fetch(report.log_message_id);
+                if (logMessage && logMessage.embeds[0]) {
+                    const oldEmbed = logMessage.embeds[0];
+                    const oldDesc = oldEmbed.description;
+                    
+                    const statusText = this.getStatusText(status, closedByName, motivo);
+                    let newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${statusText}`);
+                    
+                    if (!oldDesc.includes('Motivo de fechamento')) {
+                        newDesc += `\n\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
+                    }
+                    
+                    const updatedEmbed = EmbedBuilder.from(oldEmbed)
+                        .setDescription(newDesc)
+                        .setColor(0xF64B4E);
+                    
+                    await logMessage.edit({ embeds: [updatedEmbed], components: [] });
+                }
+            }
+
+            if (report.dm_message_id) {
+                const targetUser = await this.client.users.fetch(report.user_id);
+                const dmChannel = await targetUser.createDM();
+                const dmMessage = await dmChannel.messages.fetch(report.dm_message_id);
+                const embed = new EmbedBuilder()
+                    .setColor(0xF64B4E)
+                    .setDescription(`# 🔒 REPORTE | ${report.id} | FINALIZADO\n- **Motivo de fechamento:**\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``)
+                    .setFooter({ text: guild.name })
+                    .setTimestamp();
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`rate:${report.id}`)
+                        .setLabel('Avaliar Atendimento')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⭐')
+                );
+                await dmMessage.edit({ embeds: [embed], components: [row] });
+            }
+
+            const msg = await replyTarget.send({ content: `✅ ${report.id} foi fechado por ${interaction.user}.` });
+            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            
+        } catch (error) {
+            console.error('❌ Erro ao fechar:', error);
+            const msg = await replyTarget.send({ content: `❌ Erro ao fechar o report ${reportId}.` });
+            setTimeout(() => msg.delete().catch(() => {}), 10000);
         }
+    }
 
     // ==================== AVALIAR ====================
-    
     async rateReport(interaction, reportId, nota, comentario) {
-        const { channel } = interaction;
+        const replyTarget = interaction.channel || interaction.user;
         
         try {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ?`).get(reportId, interaction.user.id);
             if (!report) {
-                await channel.send({ content: `❌ Report ${reportId} não encontrado.` });
+                const msg = await replyTarget.send({ content: `❌ Report ${reportId} não encontrado.` });
+                setTimeout(() => msg.delete().catch(() => {}), 10000);
                 return;
             }
             if (report.rating) {
-                await channel.send({ content: `❌ Este report já foi avaliado.` });
+                const msg = await replyTarget.send({ content: `❌ Este report já foi avaliado.` });
+                setTimeout(() => msg.delete().catch(() => {}), 10000);
                 return;
             }
 
@@ -389,11 +394,13 @@ class ReportChatSystem {
                 }
             }
 
-            await channel.send({ content: `✅ Avaliação registrada! Obrigado.` });
+            const msg = await replyTarget.send({ content: `✅ Avaliação registrada! Obrigado.` });
+            setTimeout(() => msg.delete().catch(() => {}), 10000);
             
         } catch (error) {
             console.error('❌ Erro ao avaliar:', error);
-            await channel.send({ content: `❌ Erro ao avaliar report ${reportId}.` });
+            const msg = await replyTarget.send({ content: `❌ Erro ao avaliar report ${reportId}.` });
+            setTimeout(() => msg.delete().catch(() => {}), 10000);
         }
     }
 
