@@ -202,65 +202,82 @@ class ReportChatSystem {
 
     // ==================== STAFF ENTRAR ====================
     
-    async joinReport(interaction, reportId) {
-        const { guild, user, member } = interaction;
-        
-        try {
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            if (!member?.roles?.cache?.has(staffRoleId)) {
-                return await ResponseManager.error(interaction, 'Apenas staff pode entrar.');
-            }
-
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guild.id);
-            if (!report) return await ResponseManager.error(interaction, 'Report não encontrado.');
-
-            const thread = await guild.channels.fetch(report.thread_id);
-            if (thread) await thread.members.add(user.id);
-
-            // Atualizar lista de staffs
-            let staffs = report.staffs ? JSON.parse(report.staffs) : [];
-            if (!staffs.includes(user.id)) {
-                staffs.push(user.id);
-                db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
-            }
-
-            // Atualizar embed do LOG (manter botões)
-            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
-            if (logChannelId && report.log_message_id) {
-                const logChannel = await guild.channels.fetch(logChannelId);
-                const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                if (logMessage && logMessage.embeds[0]) {
-                    const oldDesc = logMessage.embeds[0].description;
-                    const staffsText = staffs.map(s => `<@${s}>`).join(', ');
-                    const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
-                    const newEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
-                    await logMessage.edit({ embeds: [newEmbed], components: logMessage.components });
-                }
-            }
-
-            await ResponseManager.success(interaction, `Você entrou no ${reportId}`);
+    // reportChatSystem.js - joinReport (CORRIGIDO)
+        async joinReport(interaction, reportId) {
+            const { guild, user, member } = interaction;
             
-        } catch (error) {
-            console.error('❌ Erro ao entrar:', error);
-            await ResponseManager.error(interaction, 'Erro ao entrar no report.');
-        }
-    }
+            try {
+                const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
+                if (!member?.roles?.cache?.has(staffRoleId)) {
+                    return await ResponseManager.error(interaction, 'Apenas staff pode entrar.');
+                }
 
+                const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guild.id);
+                if (!report) return await ResponseManager.error(interaction, 'Report não encontrado.');
+
+                const thread = await guild.channels.fetch(report.thread_id);
+                if (thread) await thread.members.add(user.id);
+
+                // Atualizar lista de staffs
+                let staffs = report.staffs ? JSON.parse(report.staffs) : [];
+                if (!staffs.includes(user.id)) {
+                    staffs.push(user.id);
+                    db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
+                }
+
+                const staffsText = staffs.map(s => `<@${s}>`).join(', ');
+                
+                // ==================== ATUALIZAR LOG (manter botões) ====================
+                const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+                if (logChannelId && report.log_message_id) {
+                    const logChannel = await guild.channels.fetch(logChannelId);
+                    const logMessage = await logChannel.messages.fetch(report.log_message_id);
+                    if (logMessage && logMessage.embeds[0]) {
+                        const oldDesc = logMessage.embeds[0].description;
+                        const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
+                        const updatedEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                        await logMessage.edit({ embeds: [updatedEmbed], components: logMessage.components });
+                    }
+                }
+
+                // ==================== ATUALIZAR DM (manter botões) ====================
+                if (report.dm_message_id) {
+                    const targetUser = await this.client.users.fetch(report.user_id);
+                    const dmChannel = await targetUser.createDM();
+                    const dmMessage = await dmChannel.messages.fetch(report.dm_message_id);
+                    if (dmMessage && dmMessage.embeds[0]) {
+                        const oldDesc = dmMessage.embeds[0].description;
+                        const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
+                        const updatedEmbed = EmbedBuilder.from(dmMessage.embeds[0]).setDescription(newDesc);
+                        await dmMessage.edit({ embeds: [updatedEmbed], components: dmMessage.components });
+                    }
+                }
+
+                await ResponseManager.success(interaction, `Você entrou no ${reportId}`);
+                
+            } catch (error) {
+                console.error('❌ Erro ao entrar:', error);
+                await ResponseManager.error(interaction, 'Erro ao entrar no report.');
+            }
+        }
     // ==================== FECHAR REPORT ====================
-    
+
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         try {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
-            if (!report) return await ResponseManager.error(interaction, 'Report não encontrado.');
+            if (!report) {
+                return await ResponseManager.error(interaction, 'Report não encontrado.');
+            }
 
             const guild = this.client.guilds.cache.get(report.guild_id);
-            if (!guild) return await ResponseManager.error(interaction, 'Servidor não encontrado.');
+            if (!guild) {
+                return await ResponseManager.error(interaction, 'Servidor não encontrado.');
+            }
 
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
             const isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
             const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
             const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
-            const statusText = this.getStatusText(status, closedByName, motivo);
 
             // Atualizar banco
             db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
@@ -273,22 +290,34 @@ class ReportChatSystem {
                 await thread.setArchived(true).catch(() => {});
             }
 
-            // Atualizar LOG (sem botões)
+            // ==================== ATUALIZAR LOG (EDITAR embed, REMOVER botões) ====================
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                if (logMessage) {
-                    const embed = new EmbedBuilder()
-                        .setColor(0xF64B4E)
-                        .setDescription(`# 🔒 REPORTE | ${report.id} | FINALIZADO\n**Usuário:** <@${report.user_id}>\n- **Motivo de fechamento:**\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\`${punicao ? `\n- **Punição aplicada:** ${punicao}` : ''}`)
-                        .setFooter({ text: guild.name })
-                        .setTimestamp();
-                    await logMessage.edit({ embeds: [embed], components: [] });
+                if (logMessage && logMessage.embeds[0]) {
+                    const oldEmbed = logMessage.embeds[0];
+                    const oldDesc = oldEmbed.description;
+                    
+                    // Atualizar status e adicionar motivo
+                    const statusText = this.getStatusText(status, closedByName, motivo);
+                    let newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${statusText}`);
+                    
+                    // Adicionar motivo de fechamento se não existir
+                    if (!oldDesc.includes('Motivo de fechamento')) {
+                        newDesc += `\n\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
+                    }
+                    
+                    const updatedEmbed = EmbedBuilder.from(oldEmbed)
+                        .setDescription(newDesc)
+                        .setColor(0xF64B4E); // Cor vermelha para fechado
+                    
+                    // REMOVER botões
+                    await logMessage.edit({ embeds: [updatedEmbed], components: [] });
                 }
             }
 
-            // Atualizar DM (com botão de avaliação)
+            // ==================== ATUALIZAR DM (COM botão de avaliação) ====================
             if (report.dm_message_id) {
                 const targetUser = await this.client.users.fetch(report.user_id);
                 const dmChannel = await targetUser.createDM();
@@ -299,11 +328,16 @@ class ReportChatSystem {
                     .setFooter({ text: guild.name })
                     .setTimestamp();
                 const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`rate:${report.id}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
+                    new ButtonBuilder()
+                        .setCustomId(`rate:${report.id}`)
+                        .setLabel('Avaliar Atendimento')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⭐')
                 );
                 await dmMessage.edit({ embeds: [embed], components: [row] });
             }
 
+            // ==================== RESPOSTA EPHEMERAL ====================
             await ResponseManager.success(interaction, `${report.id} fechado com sucesso!`);
             
         } catch (error) {
@@ -311,7 +345,6 @@ class ReportChatSystem {
             await ResponseManager.error(interaction, 'Erro ao fechar report.');
         }
     }
-
     // ==================== AVALIAR ====================
     
     async rateReport(interaction, reportId, nota, comentario) {

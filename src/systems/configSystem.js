@@ -409,17 +409,17 @@ const ConfigSystem = {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-points:strike:modal')
-                .setLabel(`${EMOJIS.strike || '🎯'} Editar Níveis de Strike`)
+                .setLabel(`Editar Níveis de Strike`)
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:limites:modal')
-                .setLabel(`${EMOJIS.Rank || '📊'} Editar Limites`)
+                .setLabel(`Editar Limites`)
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder()
                 .setCustomId('config-points:reset')
-                .setLabel(`${EMOJIS.Reset || '⚠️'} Resetar Padrão`)
+                .setLabel(`Resetar Padrão`)
                 .setStyle(ButtonStyle.Danger)
                 .setEmoji(EMOJIS.Reset || '⚠️')
         );
