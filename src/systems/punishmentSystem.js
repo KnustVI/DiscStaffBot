@@ -147,8 +147,8 @@ const PunishmentSystem = {
                 listItems.push(`╭ ${severityIcon} Strike #${p.id} | ${date}`);
                 listItems.push(`┃**Moderador:** <@${p.moderator_id}>`);
                 
-                if (p.ticket_id) {
-                    listItems.push(`┃**Ticket:** \`${p.ticket_id}\``);
+                if (p.report_id) {
+                    listItems.push(`┃**Report:** \`${p.report_id}\``);
                 }
                 
                 if (p.status === 'revoked') {
@@ -195,7 +195,7 @@ const PunishmentSystem = {
     
     // ==================== EMBEDS UNIFICADOS (DM + LOG) ====================
     
-    generateStrikeUnifiedEmbed(target, moderator, strikeId, severity, reason, ticketId, pointsLost, newPoints, discordAct, discordActionResult, guildName,ticketLink) {
+    generateStrikeUnifiedEmbed(target, moderator, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityIcon = severityIcons[severity] || '❓';
@@ -206,7 +206,7 @@ const PunishmentSystem = {
             `## ${EMOJIS.strike || '⚠️'} Punições Aplicadas`,
             this.getPunishmentActions(severity, discordAct, discordActionResult),
             `## ${EMOJIS.Note || '📝'} Motivo`,
-            ticketId ? `- **Ticket:** ${ticketLink ? `[${ticketId}](${ticketLink})` : ticketId}` : null,
+            reportId ? `- **Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}` : null,
             `\`\`\`text\n${reason}\n\`\`\``
         ].join('\n');
         
@@ -372,15 +372,15 @@ const PunishmentSystem = {
         }
         
         if (action === 'confirm') {
-            const { targetId, reason, severity, ticketId, discordAct, discordActionResult } = session;
+            const { targetId, reason, severity, reportId, discordAct, discordActionResult } = session;
             const pointsLost = this.getPointsBySeverity(severity);
             const currentRep = await this.getUserData(interaction.guildId, targetId);
             const newPoints = Math.max(0, currentRep.reputation - pointsLost);
             
-            const strikeId = this.applyPunishment(interaction.guildId, targetId, interaction.user.id, reason, severity, ticketId, pointsLost);
+            const strikeId = this.applyPunishment(interaction.guildId, targetId, interaction.user.id, reason, severity, reportId, pointsLost);
             const target = await interaction.client.users.fetch(targetId).catch(() => null);
             
-            const embed = this.generateStrikeUnifiedEmbed(target, interaction.user, strikeId, severity, reason, ticketId, pointsLost, newPoints, discordAct, discordActionResult);
+            const embed = this.generateStrikeUnifiedEmbed(target, interaction.user, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult);
             
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
             await interaction.editReply({ embeds: [embed], components: [] });
@@ -401,7 +401,7 @@ const PunishmentSystem = {
             targetId: session.targetId,
             reason,
             severity,
-            ticketId: session.ticketId,
+            reportId: session.reportId,
             pointsLost,
             discordAct: session.discordAct,
             discordActionResult: session.discordActionResult
@@ -466,14 +466,14 @@ const PunishmentSystem = {
         return pointsMap[severity] || 10;
     },
     
-    applyPunishment(guildId, targetId, moderatorId, reason, severity, ticketId, points) {
+    applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
         try {
             const trans = db.transaction(() => {
                 const uuid = require('../database/index').generateUUID();
                 const res = db.prepare(`
-                    INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, points_deducted, ticket_id, created_at, status)
+                    INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).run(uuid, guildId, targetId, moderatorId, reason, severity, points, ticketId, Date.now(), 'active');
+                `).run(uuid, guildId, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
                 
                 db.prepare(`
                     INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)

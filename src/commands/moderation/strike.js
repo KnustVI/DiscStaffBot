@@ -20,7 +20,7 @@ module.exports = {
             ))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
         .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 10m, 1h, 3d, 0 para Perm)').setRequired(true))
-        .addStringOption(opt => opt.setName('ticket').setDescription('ID do Ticket (Opcional)').setRequired(false))
+        .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false))
         .addStringOption(opt => opt.setName('discord_act').setDescription('Ação imediata no Discord')
             .addChoices(
                 { name: 'Nenhuma', value: 'none' },
@@ -56,7 +56,7 @@ module.exports = {
         const durationStr = options.getString('duracao');
         const discordAct = options.getString('discord_act') || 'none';
         const jogoAct = options.getString('jogo_act') || 'none';
-        const ticketId = options.getString('ticket') || null;
+        const reportId = options.getString('report') || null;
         
         try {
             if (!targetUser) {
@@ -118,10 +118,10 @@ module.exports = {
             const punishmentUuid = db.generateUUID();
             const strikeId = db.prepare(`
                 INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, 
-                    points_deducted, ticket_id, created_at, expires_at, status, notes)
+                    points_deducted, report_id, created_at, expires_at, status, notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(punishmentUuid, guildId, targetUser.id, staff.id, reason, severity,
-                pointsToLose, ticketId || null, Date.now(), expiresAt, 'active',
+                pointsToLose, reportId || null, Date.now(), expiresAt, 'active',
                 JSON.stringify({ discordAct, jogoAct, duration: durationStr })
             ).lastInsertRowid;
             
@@ -167,7 +167,7 @@ module.exports = {
                 strikeId,
                 severity,
                 reason,
-                ticketId || null,
+                reportId || null,
                 pointsToLose,
                 newPoints,
                 discordAct,

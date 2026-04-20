@@ -1,7 +1,3 @@
-/**
- * Schema completo do banco de dados
- */
-
 const SCHEMA = {
     // ==================== TABELA DE USUÁRIOS GLOBAL ====================
     users: `
@@ -66,7 +62,7 @@ const SCHEMA = {
             reason TEXT NOT NULL,
             severity INTEGER NOT NULL,
             points_deducted INTEGER DEFAULT 0,
-            ticket_id TEXT,
+            report_id TEXT,
             created_at INTEGER NOT NULL,
             expires_at INTEGER,
             status TEXT DEFAULT 'active',
@@ -77,33 +73,33 @@ const SCHEMA = {
         )
     `,
 
-            // ==================== REPORTS (REPORTCHAT) ====================
-        reports: `
-            CREATE TABLE IF NOT EXISTS reports (
-                id TEXT PRIMARY KEY,
-                guild_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                thread_id TEXT NOT NULL,
-                log_message_id TEXT,
-                dm_message_id TEXT,
-                thread_message_id TEXT,
-                description TEXT,
-                status TEXT DEFAULT 'waiting',
-                staffs TEXT DEFAULT '[]',
-                last_message_at INTEGER,
-                closed_by TEXT,
-                closed_reason TEXT,
-                punishment TEXT,
-                rating INTEGER,
-                rating_comment TEXT,
-                created_at INTEGER NOT NULL,
-                closed_at INTEGER,
-                FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
-                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-            )
-        `,
+    // ==================== REPORTS (REPORTCHAT) ====================
+    reports: `
+        CREATE TABLE IF NOT EXISTS reports (
+            id TEXT PRIMARY KEY,
+            guild_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            thread_id TEXT NOT NULL,
+            log_message_id TEXT,
+            dm_message_id TEXT,
+            thread_message_id TEXT,
+            description TEXT,
+            status TEXT DEFAULT 'waiting',
+            staffs TEXT DEFAULT '[]',
+            last_message_at INTEGER,
+            closed_by TEXT,
+            closed_reason TEXT,
+            punishment TEXT,
+            rating INTEGER,
+            rating_comment TEXT,
+            created_at INTEGER NOT NULL,
+            closed_at INTEGER,
+            FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+        )
+    `,
 
-        // ==================== MENSAGENS DOS REPORTS ====================
+    // ==================== MENSAGENS DOS REPORTS ====================
     report_messages: `
         CREATE TABLE IF NOT EXISTS report_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,8 +124,8 @@ const SCHEMA = {
             date TEXT NOT NULL,
             punishments_applied INTEGER DEFAULT 0,
             punishments_revoked INTEGER DEFAULT 0,
-            tickets_claimed INTEGER DEFAULT 0,
-            tickets_closed INTEGER DEFAULT 0,
+            reports_claimed INTEGER DEFAULT 0,
+            reports_closed INTEGER DEFAULT 0,
             avg_response_time INTEGER DEFAULT 0,
             avg_resolution_time INTEGER DEFAULT 0,
             satisfaction_score REAL DEFAULT 0,
@@ -194,7 +190,7 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_punishments_created ON punishments(created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_status ON punishments(status)`,
     
-        // Reports (ReportChat)
+    // Reports (ReportChat)
     `CREATE INDEX IF NOT EXISTS idx_reports_guild ON reports(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_user ON reports(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
