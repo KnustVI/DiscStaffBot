@@ -201,8 +201,6 @@ class ReportChatSystem {
     }
 
     // ==================== STAFF ENTRAR ====================
-    
-    // reportChatSystem.js - joinReport (CORRIGIDO)
         async joinReport(interaction, reportId) {
             const { guild, user, member } = interaction;
             
