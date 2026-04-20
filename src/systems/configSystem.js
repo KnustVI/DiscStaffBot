@@ -170,7 +170,12 @@ const ConfigSystem = {
 
     // ==================== CONFIG-POINTS ====================
 
-    async handleStrikeModal(interaction) {
+        async handleStrikeModal(interaction) {
+        // Verificar se é um botão (só botão pode abrir modal)
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita através de um botão.');
+        }
+        
         const guildId = interaction.guildId;
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         
@@ -183,19 +188,19 @@ const ConfigSystem = {
         };
         
         const modal = new ModalBuilder({
-        customId: 'config-points:strike:modal',
-        title: '⚙️ Níveis Strike'
-    });
+            customId: 'config-points:strike:modal',
+            title: '⚙️ Níveis Strike'
+        });
         
         const fields = [
-            { id: 'nivel1', label: `🟢 Nível 1 (Leve)`, value: pontos[1] },
-            { id: 'nivel2', label: `🟡 Nível 2 (Moderada)`, value: pontos[2] },
-            { id: 'nivel3', label: `🟠 Nível 3 (Grave)`, value: pontos[3] },
-            { id: 'nivel4', label: `🔴 Nível 4 (Severa)`, value: pontos[4] },
-            { id: 'nivel5', label: `💀 Nível 5 (Permanente)`, value: pontos[5] }
+            { id: 'nivel1', label: '🟢 Nível 1 (Leve)', value: pontos[1] },
+            { id: 'nivel2', label: '🟡 Nível 2 (Moderada)', value: pontos[2] },
+            { id: 'nivel3', label: '🟠 Nível 3 (Grave)', value: pontos[3] },
+            { id: 'nivel4', label: '🔴 Nível 4 (Severa)', value: pontos[4] },
+            { id: 'nivel5', label: '💀 Nível 5 (Perm)', value: pontos[5] }
         ];
         
-            for (const field of fields) {
+        for (const field of fields) {
             const input = new TextInputBuilder({
                 customId: field.id,
                 label: field.label,
@@ -210,7 +215,12 @@ const ConfigSystem = {
         await interaction.showModal(modal);
     },
 
-        async handleLimitesModal(interaction) {
+    async handleLimitesModal(interaction) {
+        // Verificar se é um botão (só botão pode abrir modal)
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita através de um botão.');
+        }
+        
         const guildId = interaction.guildId;
         const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
