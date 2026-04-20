@@ -255,10 +255,10 @@ class ReportChatSystem {
                 }
 
                 // ==================== RESPOSTA EPHEMERAL (não edita a mensagem original) ====================
-                await interaction.editReply({ 
-                    content: `✅ Você entrou no ${reportId}`,
-                    components: [] 
-                });
+                            await interaction.channel.send({
+                content: `✅ ${interaction.user} entrou no ${reportId}`,
+                allowedMentions: { users: false }
+            });
                 
             } catch (error) {
                 console.error('❌ Erro ao entrar:', error);
@@ -343,7 +343,10 @@ class ReportChatSystem {
             }
 
             // ==================== RESPOSTA EPHEMERAL ====================
-            await ResponseManager.success(interaction, `${report.id} fechado com sucesso!`);
+                await interaction.channel.send({
+            content: `✅ ${reportId} foi fechado por ${interaction.user}`,
+            allowedMentions: { users: false }
+        });
             
         } catch (error) {
             console.error('❌ Erro ao fechar:', error);
@@ -374,7 +377,10 @@ class ReportChatSystem {
                 }
             }
 
-            await ResponseManager.success(interaction, 'Avaliação registrada! Obrigado.');
+                    await interaction.channel.send({
+            content: `✅ Avaliação registrada! Obrigado.`,
+            allowedMentions: { users: false }
+        });
             
         } catch (error) {
             console.error('❌ Erro ao avaliar:', error);
