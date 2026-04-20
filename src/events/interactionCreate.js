@@ -11,7 +11,7 @@ module.exports = {
     async execute(interaction, client) {
         if (!handler) handler = new InteractionHandler(client);
         
-        // Safe guildId para DMs (SessionManager exige parâmetro)
+        // Safe guildId para DMs (SessionManager aceita null e converte para 'dm')
         const safeGuildId = interaction.guildId || 'dm';
         
         try {
