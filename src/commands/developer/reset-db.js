@@ -69,12 +69,12 @@ module.exports = {
             const statsBefore = {
                 reputation: db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0,
                 punishments: db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ?`).get(guildId)?.count || 0,
-                tickets: 0,
+                reports: 0,
                 feedbacks: 0
             };
             
             try {
-                statsBefore.tickets = db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ?`).get(guildId)?.count || 0;
+                statsBefore.reports = db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ?`).get(guildId)?.count || 0;
             } catch (err) {}
             
             try {
@@ -86,7 +86,7 @@ module.exports = {
                 db.prepare('DELETE FROM reputation WHERE guild_id = ?').run(guildId);
                 db.prepare('DELETE FROM punishments WHERE guild_id = ?').run(guildId);
                 
-                try { db.prepare('DELETE FROM tickets WHERE guild_id = ?').run(guildId); } catch (err) {}
+                try { db.prepare('DELETE FROM reports WHERE guild_id = ?').run(guildId); } catch (err) {}
                 try { db.prepare('DELETE FROM feedbacks WHERE guild_id = ?').run(guildId); } catch (err) {}
                 try { db.prepare('DELETE FROM activity_logs WHERE guild_id = ?').run(guildId); } catch (err) {}
                 try { db.prepare('DELETE FROM staff_analytics WHERE guild_id = ?').run(guildId); } catch (err) {}
@@ -125,7 +125,7 @@ module.exports = {
                     if (logChannel) {
                         const alertEmbed = new EmbedBuilder()
                             .setColor(0xF64B4E)
-                            .setDescription(`# ${emojis.Warning || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO\n**Desenvolvedor:** ${user.tag}\n**Servidor:** ${guild.name}\n\n**Dados removidos:**\n- Reputação: \`${statsBefore.reputation}\` registros\n- Punições: \`${statsBefore.punishments}\` registros\n- Tickets: \`${statsBefore.tickets}\` registros\n\n**ID da Transação:** \`${activityId}\``)
+                            .setDescription(`# ${emojis.Warning || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO\n**Desenvolvedor:** ${user.tag}\n**Servidor:** ${guild.name}\n\n**Dados removidos:**\n- Reputação: \`${statsBefore.reputation}\` registros\n- Punições: \`${statsBefore.punishments}\` registros\n- Reports: \`${statsBefore.reports}\` registros\n\n**ID da Transação:** \`${activityId}\``)
                             .setTimestamp();
                         await logChannel.send({ embeds: [alertEmbed] });
                     }
@@ -135,7 +135,7 @@ module.exports = {
             // 9. RESPOSTA PARA O DESENVOLVEDOR
             const successEmbed = new EmbedBuilder()
                 .setColor(0xBBF96A)
-                .setDescription(`# ${emojis.CLEAN || '🧹'} Database Resetada\nOperação concluída com sucesso em **${guild.name}**.\n\n**Registros removidos:**\n- Reputação: \`${statsBefore.reputation}\`\n- Punições: \`${statsBefore.punishments}\`\n- Tickets: \`${statsBefore.tickets}\`\n\n**Tempo de execução:** \`${Date.now() - startTime}ms\``)
+                .setDescription(`# ${emojis.CLEAN || '🧹'} Database Resetada\nOperação concluída com sucesso em **${guild.name}**.\n\n**Registros removidos:**\n- Reputação: \`${statsBefore.reputation}\`\n- Punições: \`${statsBefore.punishments}\`\n- Reports: \`${statsBefore.reports}\`\n\n**Tempo de execução:** \`${Date.now() - startTime}ms\``)
                 .setFooter({ text: `UUID: ${resetUuid.slice(0, 8)}` })
                 .setTimestamp();
             

@@ -194,16 +194,16 @@ const EmbedFormatter = {
     },
 
     /**
-     * Field de ticket
-     * @param {string} ticketId - ID do ticket
+     * Field de report
+     * @param {string} reportId - ID do report
      * @param {boolean} inline - Se deve ser inline
      * @returns {object} Field
      */
-    ticketField(ticketId, inline = true) {
-        if (!ticketId) return null;
+    reportField(reportId, inline = true) {
+        if (!reportId) return null;
         return {
-            name: `${EMOJIS.chat || '🎫'} Ticket`,
-            value: `\`${ticketId}\``,
+            name: `${EMOJIS.chat || '🎫'} Report`,
+            value: `\`${reportId}\``,
             inline
         };
     },

@@ -44,8 +44,6 @@ module.exports = {
             const avgReputation = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 100;
             const recentStrikes = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND created_at > ?`).get(guildId, Date.now() - (30 * 24 * 60 * 60 * 1000))?.count || 0;
             
-            // REMOVIDO: activeTickets (tabela não existe mais)
-            
             // Verificar saúde
             const isHealthy = SystemStatus.isSystemHealthy(client, guildId);
             const healthEmoji = isHealthy ? '🟢' : '🔴';

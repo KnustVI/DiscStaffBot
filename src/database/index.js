@@ -61,13 +61,12 @@ class DatabaseManager {
                 'settings',
                 'reputation',
                 'punishments',
-                'tickets',
-                'ticket_messages',
+                'reports',
+                'report_messages',
                 'staff_analytics',
                 'activity_logs',
                 'temporary_roles',
-                'feedbacks',
-                'reports'
+                'feedbacks'
             ];
             
             for (const table of tables) {
@@ -233,7 +232,7 @@ class DatabaseManager {
         if (!this.isConnected) return null;
         
         try {
-            const tables = ['users', 'guilds', 'punishments', 'tickets'];
+            const tables = ['users', 'guilds', 'punishments', 'reports'];
             const stats = {};
             
             for (const table of tables) {

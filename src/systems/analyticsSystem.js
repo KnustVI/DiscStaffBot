@@ -31,29 +31,29 @@ class AnalyticsSystem {
             AND date(created_at/1000, 'unixepoch', 'localtime') = ?
         `).get(guildId, userId, targetDate).count;
         
-        // Tickets assumidos (verificar se a coluna existe)
-        let ticketsClaimed = 0;
+        // Reports assumidos (verificar se a coluna existe)
+        let reportsClaimed = 0;
         try {
-            ticketsClaimed = db.prepare(`
-                SELECT COUNT(*) as count FROM tickets 
+            reportsClaimed = db.prepare(`
+                SELECT COUNT(*) as count FROM reports 
                 WHERE guild_id = ? AND claimed_by = ? 
                 AND date(claimed_at/1000, 'unixepoch', 'localtime') = ?
             `).get(guildId, userId, targetDate).count;
         } catch (err) {
             // Coluna não existe ainda
-            ticketsClaimed = 0;
+            reportsClaimed = 0;
         }
         
-        // Tickets fechados
-        let ticketsClosed = 0;
+        // Reports fechados
+        let reportsClosed = 0;
         try {
-            ticketsClosed = db.prepare(`
-                SELECT COUNT(*) as count FROM tickets 
+            reportsClosed = db.prepare(`
+                SELECT COUNT(*) as count FROM reports 
                 WHERE guild_id = ? AND closed_by = ? 
                 AND date(closed_at/1000, 'unixepoch', 'localtime') = ?
             `).get(guildId, userId, targetDate).count;
         } catch (err) {
-            ticketsClosed = 0;
+            reportsClosed = 0;
         }
         
         // Tempo médio de resposta
@@ -61,7 +61,7 @@ class AnalyticsSystem {
         try {
             const responseTimes = db.prepare(`
                 SELECT (claimed_at - created_at) as response_time 
-                FROM tickets 
+                FROM reports 
                 WHERE guild_id = ? AND claimed_by = ? AND claimed_at IS NOT NULL 
                 AND date(created_at/1000, 'unixepoch', 'localtime') = ?
             `).all(guildId, userId, targetDate);
@@ -77,27 +77,27 @@ class AnalyticsSystem {
         db.prepare(`
             INSERT INTO staff_analytics (
                 guild_id, user_id, period, date, 
-                punishments_applied, tickets_claimed, tickets_closed, 
+                punishments_applied, reports_claimed, reports_closed, 
                 avg_response_time, updated_at
             ) VALUES (?, ?, 'day', ?, ?, ?, ?, ?, ?)
             ON CONFLICT(guild_id, user_id, period, date) 
             DO UPDATE SET
                 punishments_applied = excluded.punishments_applied,
-                tickets_claimed = excluded.tickets_claimed,
-                tickets_closed = excluded.tickets_closed,
+                reports_claimed = excluded.reports_claimed,
+                reports_closed = excluded.reports_closed,
                 avg_response_time = excluded.avg_response_time,
                 updated_at = excluded.updated_at
         `).run(
             guildId, userId, targetDate,
-            punishmentsApplied, ticketsClaimed, ticketsClosed,
+            punishmentsApplied, reportsClaimed, reportsClosed,
             avgResponseTime, Date.now()
         );
         
         return {
             date: targetDate,
             punishmentsApplied,
-            ticketsClaimed,
-            ticketsClosed,
+            reportsClaimed,
+            reportsClosed,
             avgResponseTime
         };
     }
@@ -118,16 +118,16 @@ class AnalyticsSystem {
         
         const totals = {
             punishmentsApplied: 0,
-            ticketsClaimed: 0,
-            ticketsClosed: 0,
+            reportsClaimed: 0,
+            reportsClosed: 0,
             avgResponseTime: 0,
             daysWithData: 0
         };
         
         for (const day of data) {
             totals.punishmentsApplied += day.punishments_applied;
-            totals.ticketsClaimed += day.tickets_claimed;
-            totals.ticketsClosed += day.tickets_closed;
+            totals.reportsClaimed += day.reports_claimed;
+            totals.reportsClosed += day.reports_closed;
             if (day.avg_response_time !== null) {
                 totals.avgResponseTime += day.avg_response_time;
                 totals.daysWithData++;
@@ -147,7 +147,7 @@ class AnalyticsSystem {
     }
     
     static async getStaffRanking(guildId, metric = 'punishments_applied', period = 'week', limit = 10) {
-        const validMetrics = ['punishments_applied', 'tickets_claimed', 'tickets_closed'];
+        const validMetrics = ['punishments_applied', 'reports_claimed', 'reports_closed'];
         if (!validMetrics.includes(metric)) {
             throw new Error(`Métrica inválida: ${metric}`);
         }
@@ -179,7 +179,7 @@ class AnalyticsSystem {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.Rank || '📊'} Relatório de Staff\n**Staff:** <@${userId}>\n**Período:** ${period === 'week' ? '7 dias' : '30 dias'}\n\n${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}\n${EMOJIS.Ticket || '🎫'} **Tickets Assumidos:** ${report.totals.ticketsClaimed}\n${EMOJIS.Check || '✅'} **Tickets Fechados:** ${report.totals.ticketsClosed}\n⏱️ **Tempo Médio:** ${avgResponseText}`)
+            .setDescription(`# ${EMOJIS.Rank || '📊'} Relatório de Staff\n**Staff:** <@${userId}>\n**Período:** ${period === 'week' ? '7 dias' : '30 dias'}\n\n${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}\n${EMOJIS.chat || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}\n${EMOJIS.Check || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}\n⏱️ **Tempo Médio:** ${avgResponseText}`)
             .setFooter({ text: `${report.days} dias analisados` })
             .setTimestamp();
         
@@ -191,8 +191,8 @@ class AnalyticsSystem {
         
         const metricLabels = {
             punishments_applied: `${EMOJIS.strike || '⚠️'} Punições`,
-            tickets_claimed: `${EMOJIS.Ticket || '🎫'} Tickets Assumidos`,
-            tickets_closed: `${EMOJIS.Check || '✅'} Tickets Fechados`
+            reports_claimed: `${EMOJIS.chat || '🎫'} Reports Assumidos`,
+            reports_closed: `${EMOJIS.Check || '✅'} Reports Fechados`
         };
         
         const description = [

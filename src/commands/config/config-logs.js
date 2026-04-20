@@ -35,7 +35,7 @@ module.exports = {
         const logGeral = ConfigSystem.getSetting(guildId, 'log_channel');
         const logPunishments = ConfigSystem.getSetting(guildId, 'log_punishments');
         const logAutomod = ConfigSystem.getSetting(guildId, 'log_automod');
-        const logTickets = ConfigSystem.getSetting(guildId, 'log_tickets');
+        const logReports = ConfigSystem.getSetting(guildId, 'log_reports');
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
@@ -47,7 +47,7 @@ module.exports = {
                 { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.chat || '🎫'} ReportChat`, value: logTickets ? `<#${logTickets}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
+                { name: `${emojis.chat || '🎫'} ReportChat`, value: logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
             )
             .setFooter(EmbedFormatter.getFooter(guild.name))
             .setTimestamp();
@@ -73,7 +73,7 @@ module.exports = {
                 .addChannelTypes(ChannelType.GuildText)
         );
         
-        const ticketsRow = new ActionRowBuilder().addComponents(
+        const reportsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:reports')
                 .setPlaceholder(`Selecionar canal de logs de reports`)
@@ -90,7 +90,7 @@ module.exports = {
         
         await ResponseManager.send(interaction, {
             embeds: [embed],
-            components: [geralRow, punishmentsRow, automodRow, ticketsRow, buttonRow]
+            components: [geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
         });
     }
 };

@@ -116,7 +116,7 @@ class SystemStatus {
             totalUsers: db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0,
             avgReputation: db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 100,
             recentStrikes: db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND created_at > ?`).get(guildId, Date.now() - (30 * 24 * 60 * 60 * 1000))?.count || 0,
-            activeTickets: db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE guild_id = ? AND status = 'open'`).get(guildId)?.count || 0
+            activeReports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ? AND status = 'open'`).get(guildId)?.count || 0
         };
         
         // Salvar no cache
