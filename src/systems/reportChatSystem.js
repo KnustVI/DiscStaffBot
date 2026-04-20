@@ -201,6 +201,7 @@ class ReportChatSystem {
     }
 
     // ==================== STAFF ENTRAR ====================
+        // reportChatSystem.js - joinReport (CORRIGIDO)
         async joinReport(interaction, reportId) {
             const { guild, user, member } = interaction;
             
@@ -225,7 +226,7 @@ class ReportChatSystem {
 
                 const staffsText = staffs.map(s => `<@${s}>`).join(', ');
                 
-                // ==================== ATUALIZAR LOG (manter botões) ====================
+                // ==================== ATUALIZAR LOG (SOMENTE TEXTO, MANTENDO BOTÕES) ====================
                 const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
                 if (logChannelId && report.log_message_id) {
                     const logChannel = await guild.channels.fetch(logChannelId);
@@ -234,11 +235,12 @@ class ReportChatSystem {
                         const oldDesc = logMessage.embeds[0].description;
                         const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
                         const updatedEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                        // IMPORTANTE: mantém os componentes originais (botões)
                         await logMessage.edit({ embeds: [updatedEmbed], components: logMessage.components });
                     }
                 }
 
-                // ==================== ATUALIZAR DM (manter botões) ====================
+                // ==================== ATUALIZAR DM (SOMENTE TEXTO, MANTENDO BOTÕES) ====================
                 if (report.dm_message_id) {
                     const targetUser = await this.client.users.fetch(report.user_id);
                     const dmChannel = await targetUser.createDM();
@@ -247,15 +249,20 @@ class ReportChatSystem {
                         const oldDesc = dmMessage.embeds[0].description;
                         const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
                         const updatedEmbed = EmbedBuilder.from(dmMessage.embeds[0]).setDescription(newDesc);
+                        // IMPORTANTE: mantém os componentes originais (botões)
                         await dmMessage.edit({ embeds: [updatedEmbed], components: dmMessage.components });
                     }
                 }
 
-                await ResponseManager.success(interaction, `Você entrou no ${reportId}`);
+                // ==================== RESPOSTA EPHEMERAL (não edita a mensagem original) ====================
+                await interaction.editReply({ 
+                    content: `✅ Você entrou no ${reportId}`,
+                    components: [] 
+                });
                 
             } catch (error) {
                 console.error('❌ Erro ao entrar:', error);
-                await ResponseManager.error(interaction, 'Erro ao entrar no report.');
+                await interaction.editReply({ content: '❌ Erro ao entrar no report.', components: [] });
             }
         }
     // ==================== FECHAR REPORT ====================
