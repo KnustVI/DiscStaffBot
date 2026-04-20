@@ -1,5 +1,8 @@
 // src/events/interactionCreate.js
 const InteractionHandler = require('../systems/handlers');
+const ReportChatSystem = require('../systems/reportChatSystem');
+const ConfigSystem = require('../systems/configSystem');
+const sessionManager = require('../utils/sessionManager');
 
 let handler = null;
 
@@ -19,9 +22,8 @@ module.exports = {
                 return;
             }
 
-            // ==================== REPORTCHAT - BOTÕES QUE ABREM MODAL (NÃO DEFER) ====================
+            // ==================== REPORTCHAT - ABRIR MODAL ====================
             if (interaction.customId === 'open_report') {
-                const ReportChatSystem = require('../systems/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const modal = reportSystem.getOpenModal();
                 await interaction.showModal(modal);
@@ -29,10 +31,8 @@ module.exports = {
             }
 
             if (interaction.customId?.startsWith('close_reason:')) {
-                const ReportChatSystem = require('../systems/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                const sessionManager = require('../utils/sessionManager');
                 sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'closing', { reportId }, 300000);
                 const modal = reportSystem.getCloseModal();
                 await interaction.showModal(modal);
@@ -40,20 +40,17 @@ module.exports = {
             }
 
             if (interaction.customId?.startsWith('rate:')) {
-                const ReportChatSystem = require('../systems/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                const sessionManager = require('../utils/sessionManager');
                 sessionManager.set(interaction.user.id, interaction.guildId || 'dm', 'rating', { reportId }, 300000);
                 const modal = reportSystem.getRatingModal();
                 await interaction.showModal(modal);
                 return;
             }
 
-            // ==================== REPORTCHAT - BOTÕES QUE DEFER UPDATE ====================
+            // ==================== REPORTCHAT - AÇÕES ====================
             if (interaction.customId?.startsWith('join:')) {
                 await interaction.deferUpdate();
-                const ReportChatSystem = require('../systems/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
                 await reportSystem.joinReport(interaction, reportId);
@@ -62,16 +59,14 @@ module.exports = {
 
             if (interaction.customId?.startsWith('close:') && !interaction.customId.includes('reason')) {
                 await interaction.deferUpdate();
-                const ReportChatSystem = require('../systems/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
                 await reportSystem.closeReport(interaction, reportId, null, null, false);
                 return;
             }
 
-            // ==================== REPORTCHAT - MODAIS ====================
+            // ==================== MODAIS REPORTCHAT ====================
             if (interaction.customId === 'report_modal') {
-                const ReportChatSystem = require('../systems/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const data = {
                     regra: interaction.fields.getTextInputValue('regra'),
@@ -86,10 +81,8 @@ module.exports = {
 
             if (interaction.customId === 'close_modal') {
                 await interaction.deferReply({ flags: 64 });
-                const sessionManager = require('../utils/sessionManager');
                 const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'closing');
                 if (session?.reportId) {
-                    const ReportChatSystem = require('../systems/reportChatSystem');
                     const reportSystem = new ReportChatSystem(client);
                     const motivo = interaction.fields.getTextInputValue('motivo');
                     const punicao = interaction.fields.getTextInputValue('punicao');
@@ -101,10 +94,8 @@ module.exports = {
 
             if (interaction.customId === 'rating_modal') {
                 await interaction.deferReply({ flags: 64 });
-                const sessionManager = require('../utils/sessionManager');
                 const session = sessionManager.get(interaction.user.id, interaction.guildId || 'dm', 'rating');
                 if (session?.reportId) {
-                    const ReportChatSystem = require('../systems/reportChatSystem');
                     const reportSystem = new ReportChatSystem(client);
                     const nota = parseInt(interaction.fields.getTextInputValue('nota'));
                     const comentario = interaction.fields.getTextInputValue('comentario');
@@ -114,13 +105,70 @@ module.exports = {
                 return;
             }
             
-            // ==================== BOTÕES DE CONFIGURAÇÃO (config-points, config-roles, config-logs) ====================
-            // Estes botões NÃO devem ter defer, pois abrem modal
-            if (interaction.customId?.startsWith('config-points:') || 
-                interaction.customId?.startsWith('config-roles:') ||
-                interaction.customId?.startsWith('config-logs:')) {
-                // NÃO fazer defer - passa direto para o handler
-                await handler.handleComponent(interaction);
+            // ==================== CONFIG-POINTS ====================
+            if (interaction.customId === 'config-points:strike:modal') {
+                await ConfigSystem.handleStrikeModal(interaction);
+                return;
+            }
+
+            if (interaction.customId === 'config-points:limites:modal') {
+                await ConfigSystem.handleLimitesModal(interaction);
+                return;
+            }
+
+            if (interaction.customId === 'config-points:reset') {
+                await ConfigSystem.resetPoints(interaction);
+                return;
+            }
+
+            // ==================== CONFIG-ROLES ====================
+            if (interaction.customId === 'config-roles:staff') {
+                await ConfigSystem.setRole(interaction, 'staff_role');
+                return;
+            }
+            if (interaction.customId === 'config-roles:strike') {
+                await ConfigSystem.setRole(interaction, 'strike_role');
+                return;
+            }
+            if (interaction.customId === 'config-roles:exemplar') {
+                await ConfigSystem.setRole(interaction, 'role_exemplar');
+                return;
+            }
+            if (interaction.customId === 'config-roles:problematico') {
+                await ConfigSystem.setRole(interaction, 'role_problematico');
+                return;
+            }
+
+            // ==================== CONFIG-LOGS ====================
+            if (interaction.customId === 'config-logs:geral') {
+                await ConfigSystem.setLogChannel(interaction, 'log_channel');
+                return;
+            }
+            if (interaction.customId === 'config-logs:punishments') {
+                await ConfigSystem.setLogChannel(interaction, 'log_punishments');
+                return;
+            }
+            if (interaction.customId === 'config-logs:automod') {
+                await ConfigSystem.setLogChannel(interaction, 'log_automod');
+                return;
+            }
+            if (interaction.customId === 'config-logs:reports') {
+                await ConfigSystem.setLogChannel(interaction, 'log_reports');
+                return;
+            }
+            if (interaction.customId === 'config-logs:criar') {
+                await ConfigSystem.createLogChannels(interaction);
+                return;
+            }
+            
+            // ==================== MODAIS DE CONFIGURAÇÃO ====================
+            if (interaction.customId === 'config-points:strike:modal') {
+                await ConfigSystem.processPointsStrikeModal(interaction);
+                return;
+            }
+
+            if (interaction.customId === 'config-points:limites:modal') {
+                await ConfigSystem.processLimitesModal(interaction);
                 return;
             }
             

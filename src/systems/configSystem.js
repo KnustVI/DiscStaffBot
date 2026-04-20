@@ -170,93 +170,78 @@ const ConfigSystem = {
 
     // ==================== CONFIG-POINTS ====================
 
-            // configSystem.js - handleStrikeModal
-        async handleStrikeModal(interaction) {
-            // SÓ PODE ABRIR MODAL SE FOR BOTÃO
-            if (!interaction.isButton()) {
-                return await ResponseManager.error(interaction, 'Esta configuração só pode ser acessada pelo botão correspondente.');
-            }
-            
-            const guildId = interaction.guildId;
-            const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-            
-            const pontos = {
-                1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
-                2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
-                3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
-                4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
-                5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
-            };
-            
-            const modal = new ModalBuilder({
-                customId: 'config-points:strike:modal',
-                title: '⚙️ Níveis Strike'
-            });
-            
-            const fields = [
-                { id: 'nivel1', label: '🟢 Nível 1 (Leve)', value: pontos[1] },
-                { id: 'nivel2', label: '🟡 Nível 2 (Moderada)', value: pontos[2] },
-                { id: 'nivel3', label: '🟠 Nível 3 (Grave)', value: pontos[3] },
-                { id: 'nivel4', label: '🔴 Nível 4 (Severa)', value: pontos[4] },
-                { id: 'nivel5', label: '💀 Nível 5 (Perm)', value: pontos[5] }
-            ];
-            
+    async handleStrikeModal(interaction) {
+        const guildId = interaction.guildId;
+        const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
+        
+        const pontos = {
+            1: parseInt(this.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
+            2: parseInt(this.getSetting(guildId, 'strike_points_2')) || DEFAULT_POINTS[2],
+            3: parseInt(this.getSetting(guildId, 'strike_points_3')) || DEFAULT_POINTS[3],
+            4: parseInt(this.getSetting(guildId, 'strike_points_4')) || DEFAULT_POINTS[4],
+            5: parseInt(this.getSetting(guildId, 'strike_points_5')) || DEFAULT_POINTS[5]
+        };
+        
+        const modal = new ModalBuilder({
+        customId: 'config-points:strike:modal',
+        title: '⚙️ Níveis Strike'
+    });
+        
+        const fields = [
+            { id: 'nivel1', label: `🟢 Nível 1 (Leve)`, value: pontos[1] },
+            { id: 'nivel2', label: `🟡 Nível 2 (Moderada)`, value: pontos[2] },
+            { id: 'nivel3', label: `🟠 Nível 3 (Grave)`, value: pontos[3] },
+            { id: 'nivel4', label: `🔴 Nível 4 (Severa)`, value: pontos[4] },
+            { id: 'nivel5', label: `💀 Nível 5 (Permanente)`, value: pontos[5] }
+        ];
+        
             for (const field of fields) {
-                const input = new TextInputBuilder({
-                    customId: field.id,
-                    label: field.label,
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: field.value.toString(),
-                    placeholder: 'Ex: 10'
-                });
-                modal.addComponents(new ActionRowBuilder().addComponents(input));
-            }
-            
-            await interaction.showModal(modal);
-        },
+            const input = new TextInputBuilder({
+                customId: field.id,
+                label: field.label,
+                style: TextInputStyle.Short,
+                required: true,
+                value: field.value.toString(),
+                placeholder: 'Ex: 10'
+            });
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+        }
+        
+        await interaction.showModal(modal);
+    },
 
-        // configSystem.js - handleLimitesModal
-        async handleLimitesModal(interaction) {
-            // SÓ PODE ABRIR MODAL SE FOR BOTÃO
-            if (!interaction.isButton()) {
-                return await ResponseManager.error(interaction, 'Esta configuração só pode ser acessada pelo botão correspondente.');
-            }
-            
-            const guildId = interaction.guildId;
-            const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
-            const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
-            
-            const modal = new ModalBuilder({
-                customId: 'config-points:limites:modal',
-                title: '📊 Limites Reputação'
-            });
-            
-            const exemplarInput = new TextInputBuilder({
-                customId: 'exemplar_limit',
-                label: '🎖️ Limite Exemplar (50-100)',
-                style: TextInputStyle.Short,
-                required: true,
-                value: exemplarLimit.toString(),
-                placeholder: 'Ex: 95'
-            });
-            
-            const problematicInput = new TextInputBuilder({
-                customId: 'problematic_limit',
-                label: '⚠️ Limite Problemático (0-50)',
-                style: TextInputStyle.Short,
-                required: true,
-                value: problematicLimit.toString(),
-                placeholder: 'Ex: 30'
-            });
-            
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(exemplarInput),
-                new ActionRowBuilder().addComponents(problematicInput)
-            );
-            
-            await interaction.showModal(modal);
-        },
+    async handleLimitesModal(interaction) {
+        const guildId = interaction.guildId;
+        const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
+        const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
+        
+        const modal = new ModalBuilder()
+            .setCustomId('config-points:limites:modal')
+            .setTitle('Configurar Limites de Reputação');
+        
+        const exemplarInput = new TextInputBuilder()
+            .setCustomId('exemplar_limit')
+            .setLabel(`${EMOJIS.shinystar || '🎖️'} Limite Exemplar (50-100)`)
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setValue(exemplarLimit.toString())
+            .setPlaceholder('Ex: 95');
+        
+        const problematicInput = new TextInputBuilder()
+            .setCustomId('problematic_limit')
+            .setLabel(`${EMOJIS.Warning || '⚠️'} Limite Problemático (0-50)`)
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setValue(problematicLimit.toString())
+            .setPlaceholder('Ex: 30');
+        
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(exemplarInput),
+            new ActionRowBuilder().addComponents(problematicInput)
+        );
+        
+        await interaction.showModal(modal);
+    },
 
     async processPointsStrikeModal(interaction) {
         const novosPontos = {
