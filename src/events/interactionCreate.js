@@ -17,7 +17,6 @@ module.exports = {
         try {
             // ==================== COMANDOS ====================
             if (interaction.isCommand()) {
-                // O handler já gerencia deferReply internamente
                 await handler.handleCommand(interaction);
                 return;
             }
@@ -33,7 +32,7 @@ module.exports = {
             if (interaction.customId?.startsWith('close_reason:')) {
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                sessionManager.set(interaction.user.id, safeGuildId, 'closing', { reportId }, 300000);
+                sessionManager.set(interaction.user.id, safeGuildId, 'closing', 'closing', { reportId }, 300000);
                 const modal = reportSystem.getCloseModal();
                 await interaction.showModal(modal);
                 return;
@@ -42,7 +41,7 @@ module.exports = {
             if (interaction.customId?.startsWith('rate:')) {
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                sessionManager.set(interaction.user.id, safeGuildId, 'rating', { reportId }, 300000);
+                sessionManager.set(interaction.user.id, safeGuildId, 'rating', 'rating', { reportId }, 300000);
                 const modal = reportSystem.getRatingModal();
                 await interaction.showModal(modal);
                 return;
@@ -78,28 +77,29 @@ module.exports = {
             }
 
             if (interaction.customId === 'close_modal') {
-                // Modal precisa de deferReply para processamento
                 await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing');
+                // CORRIGIDO: adicionado 4º parâmetro 'closing'
+                const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
                 if (session?.reportId) {
                     const reportSystem = new ReportChatSystem(client);
                     const motivo = interaction.fields.getTextInputValue('motivo');
                     const punicao = interaction.fields.getTextInputValue('punicao');
                     await reportSystem.closeReport(interaction, session.reportId, motivo, punicao, true);
-                    sessionManager.delete(interaction.user.id, safeGuildId, 'closing');
+                    sessionManager.delete(interaction.user.id, safeGuildId, 'closing', 'closing');
                 }
                 return;
             }
 
             if (interaction.customId === 'rating_modal') {
                 await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating');
+                // CORRIGIDO: adicionado 4º parâmetro 'rating'
+                const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating', 'rating');
                 if (session?.reportId) {
                     const reportSystem = new ReportChatSystem(client);
                     const nota = parseInt(interaction.fields.getTextInputValue('nota'));
                     const comentario = interaction.fields.getTextInputValue('comentario');
                     await reportSystem.rateReport(interaction, session.reportId, nota, comentario);
-                    sessionManager.delete(interaction.user.id, safeGuildId, 'rating');
+                    sessionManager.delete(interaction.user.id, safeGuildId, 'rating', 'rating');
                 }
                 return;
             }
