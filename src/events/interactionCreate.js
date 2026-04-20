@@ -105,7 +105,7 @@ module.exports = {
                 return;
             }
             
-            // ==================== CONFIG-POINTS ====================
+            // ==================== CONFIG-POINTS (BOTÕES - abre modal) ====================
             if (interaction.customId === 'config-points:strike:modal') {
                 await ConfigSystem.handleStrikeModal(interaction);
                 return;
@@ -161,13 +161,13 @@ module.exports = {
                 return;
             }
             
-            // ==================== MODAIS DE CONFIGURAÇÃO ====================
-            if (interaction.customId === 'config-points:strike:modal') {
+                        /// ==================== MODAIS DE CONFIGURAÇÃO (PROCESSAMENTO) ====================
+            if (interaction.customId === 'config-points:strike:modal:submit') {
                 await ConfigSystem.processPointsStrikeModal(interaction);
                 return;
             }
 
-            if (interaction.customId === 'config-points:limites:modal') {
+            if (interaction.customId === 'config-points:limites:modal:submit') {
                 await ConfigSystem.processLimitesModal(interaction);
                 return;
             }
