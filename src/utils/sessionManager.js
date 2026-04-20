@@ -33,10 +33,12 @@ class SessionManager {
     }
 
     _generateKey(userId, guildId, system, action) {
-        if (!userId || !guildId || !system || !action) {
-            throw new Error(`Parâmetros obrigatórios`);
+        // Aceita guildId null/undefined e converte para 'dm'
+        const safeGuildId = guildId || 'dm';
+        if (!userId || !system || !action) {
+            throw new Error(`Parâmetros obrigatórios: userId=${userId}, system=${system}, action=${action}`);
         }
-        return `${userId}_${guildId}_${system}_${action}`;
+        return `${userId}_${safeGuildId}_${system}_${action}`;
     }
 
     _deepCopy(data) {
@@ -60,7 +62,7 @@ class SessionManager {
         const session = {
             data: this._deepCopy(data),
             expires: Date.now() + ttl,
-            metadata: { userId, guildId, system, action, createdAt: Date.now() }
+            metadata: { userId, guildId: guildId || 'dm', system, action, createdAt: Date.now() }
         };
         
         this.sessions.set(key, session);
@@ -133,9 +135,10 @@ class SessionManager {
      */
     deleteUserSessions(userId, guildId) {
         let removed = 0;
+        const safeGuildId = guildId || 'dm';
         
         for (const [key, session] of this.sessions) {
-            if (session.metadata.userId === userId && session.metadata.guildId === guildId) {
+            if (session.metadata.userId === userId && session.metadata.guildId === safeGuildId) {
                 this.sessions.delete(key);
                 removed++;
             }
