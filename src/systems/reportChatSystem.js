@@ -1,8 +1,8 @@
 // src/systems/reportChatSystem.js
 const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
-const ResponseManager = require('../utils/responseManager');
 const { ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const EmbedFormatter = require('../utils/embedFormatter');
 
 let EMOJIS = {};
 try {
@@ -65,7 +65,6 @@ class ReportChatSystem {
         return modal;
     }
 
-    // Modal para STAFF (com punição)
     getCloseModalStaff() {
         const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
         const modal = new ModalBuilder()
@@ -83,7 +82,6 @@ class ReportChatSystem {
         return modal;
     }
 
-    // Modal para USUÁRIO (apenas motivo)
     getCloseModalUser() {
         const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
         const modal = new ModalBuilder()
@@ -117,11 +115,19 @@ class ReportChatSystem {
 
     // ==================== PAINEL ====================
     
-    getPanel(guildName) {
+    getPanel(guildName, guildIcon) {
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.chat || '🎫'} Como Reportar um Jogador\n\n- **Abra um Report** – Clique no botão abaixo para abrir um report.\n- **Preencha o Formulário** – Responda o formulário enviado pelo bot.\n- **Descreva a Situação** – Explique o que aconteceu.\n- **Envie as Provas** – Inclua vídeos ou prints.\n- **Aguarde a Análise** – A equipe analisará o caso.`)
-            .setFooter({ text: guildName })
+            .setThumbnail(guildIcon)
+            .setDescription(
+                `# ${EMOJIS.chat || '🎫'} Denúncia de jogador.\n\n` +
+                `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.\n` +
+                `- **Preencha o Formulário**: Responda o formulário enviado pelo bot.\n` +
+                `- **Descreva a Situação**: Explique o que aconteceu.\n` +
+                `- **Envie as Provas**: Inclua vídeos ou prints.\n` +
+                `- **Aguarde a Análise**: A equipe analisará o caso.`
+            )
+            .setFooter(EmbedFormatter.getFooter(guildName))
             .setTimestamp();
 
         const row = new ActionRowBuilder().addComponents(
@@ -147,7 +153,7 @@ class ReportChatSystem {
             }
 
             const reportId = `#R${this.getNextId(guild.id)}`;
-            const threadName = `${reportId}-${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+            const threadName = `【${reportId}】${user.username}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
             
             const thread = await interaction.channel.threads.create({
                 name: threadName,
@@ -157,39 +163,67 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
+            // Embed da THREAD (Status e Staffs como FIELDS)
             const threadEmbed = new EmbedBuilder()
                 .setColor(0xDCA15E)
-                .setDescription(`# REPORTE | ${reportId}\nObrigado por abrir o reporte.\n\n- **Status:** ${this.getStatusText('waiting')}`)
-                .setFooter({ text: guild.name })
+                .setThumbnail(guild.iconURL())
+                .setDescription(`Obrigado por abrir o reporte.`)
+                .addFields(
+                    { name: 'Status', value: this.getStatusText('waiting'), inline: true },
+                    { name: 'Staffs', value: 'Nenhum', inline: true }
+                )
+                .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
             const threadMsg = await thread.send({ embeds: [threadEmbed] });
 
-            await thread.send([
-                `**📋 Informações do Report:**`,
-                `**Regra quebrada:** ${data.regra}`,
-                `**Quando aconteceu:** ${data.dataHora}`,
-                `**Local:** ${data.local || 'Não informado'}`,
-                `**Descrição:** ${data.descricao}`,
-                `**Termo de convivência:** ${data.termo}`
-            ].join('\n'));
+            // Embed de informações do report (NÃO ALTERAR)
+            const infoEmbed = new EmbedBuilder()
+                .setColor(0xDCA15E)
+                .setDescription(
+                    `# **${EMOJIS.chat || '📋'} Informações do Report**\n` +
+                    `**Descrição:** ${data.descricao}`
+                )
+                .addFields(
+                    EmbedFormatter.field('Regra quebrada', data.regra, false),
+                    EmbedFormatter.field('Quando aconteceu', data.dataHora, true),
+                    EmbedFormatter.field('Local', data.local || 'Não informado', true),
+                    EmbedFormatter.field('Termo de convivência', data.termo, false)
+                )
+                .setFooter(EmbedFormatter.getFooter(guild.name))
+                .setTimestamp();
+            await thread.send({ embeds: [infoEmbed] });
 
+            // DM do USUÁRIO (Status e Staffs como FIELDS)
             const dmEmbed = new EmbedBuilder()
                 .setColor(0xDCA15E)
-                .setDescription(`# REPORTE | ${reportId}\nObrigado por abrir o reporte.\n\n- **Status:** ${this.getStatusText('waiting')}`)
-                .setFooter({ text: guild.name })
+                .setThumbnail(guild.iconURL())
+                .setDescription(`Obrigado por abrir o reporte.`)
+                .addFields(
+                    { name: 'Status', value: this.getStatusText('waiting'), inline: true },
+                    { name: 'Staffs', value: 'Nenhum', inline: true }
+                )
+                .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
+            
             const dmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
             );
             const dmMessage = await user.send({ embeds: [dmEmbed], components: [dmRow] }).catch(() => null);
 
+            // LOG da STAFF (Status e Staffs como FIELDS)
             const logChannel = await guild.channels.fetch(logChannelId);
             const logEmbed = new EmbedBuilder()
                 .setColor(0xDCA15E)
-                .setDescription(`# REPORTE | ${reportId}\n**Usuário:** ${user.tag}\n- **Status:** ${this.getStatusText('waiting')}\n- **Staffs:** Nenhum`)
-                .setFooter({ text: guild.name })
+                .setThumbnail(guild.iconURL())
+                .setDescription(`**Usuário:** ${user.tag}`)
+                .addFields(
+                    { name: 'Status', value: this.getStatusText('waiting'), inline: true },
+                    { name: 'Staffs', value: 'Nenhum', inline: true }
+                )
+                .setFooter(EmbedFormatter.getFooter(guild.name))
                 .setTimestamp();
+            
             const logRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`join:${reportId}`).setLabel('Entrar no Reporte').setStyle(ButtonStyle.Success).setEmoji('👋'),
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
@@ -210,24 +244,23 @@ class ReportChatSystem {
         }
     }
 
-        // ==================== STAFF ENTRAR ====================
+    // ==================== STAFF ENTRAR ====================
+    
     async joinReport(interaction, reportId) {
         const { guild, user, member, channel } = interaction;
         
         try {
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
             if (!member?.roles?.cache?.has(staffRoleId)) {
-                await channel.send({ content: `❌ ${user}, você não tem permissão para entrar em reports.` }).then(msg => {
-                    setTimeout(() => msg.delete().catch(() => {}), 10000);
-                });
+                const msg = await channel.send({ content: `❌ ${user}, você não tem permissão para entrar em reports.` });
+                setTimeout(() => msg.delete().catch(() => {}), 10000);
                 return;
             }
 
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guild.id);
             if (!report) {
-                await channel.send({ content: `❌ Report ${reportId} não encontrado.` }).then(msg => {
-                    setTimeout(() => msg.delete().catch(() => {}), 10000);
-                });
+                const msg = await channel.send({ content: `❌ Report ${reportId} não encontrado.` });
+                setTimeout(() => msg.delete().catch(() => {}), 10000);
                 return;
             }
 
@@ -241,32 +274,60 @@ class ReportChatSystem {
             }
 
             const staffsText = staffs.map(s => `<@${s}>`).join(', ');
+            const staffEntryTime = `<t:${Math.floor(Date.now() / 1000)}:R>`;
             
+            // ATUALIZAR LOG (field Staffs)
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage && logMessage.embeds[0]) {
-                    const oldDesc = logMessage.embeds[0].description;
-                    const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
-                    const updatedEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                    const oldEmbed = logMessage.embeds[0];
+                    const fields = oldEmbed.fields;
+                    
+                    const updatedFields = fields.map(field => {
+                    if (field.name === 'Staffs') {
+                        return { 
+                            name: 'Staffs', 
+                            value: `${staffsText}\n*Entrou: ${staffEntryTime}*`, 
+                            inline: true 
+                        };
+                    }
+                    return field;
+                });
+                    
+                    const updatedEmbed = EmbedBuilder.from(oldEmbed).setFields(updatedFields);
                     await logMessage.edit({ embeds: [updatedEmbed], components: logMessage.components });
                 }
             }
 
+            // ATUALIZAR DM (field Staffs)
             if (report.dm_message_id) {
                 const targetUser = await this.client.users.fetch(report.user_id);
                 const dmChannel = await targetUser.createDM();
                 const dmMessage = await dmChannel.messages.fetch(report.dm_message_id);
                 if (dmMessage && dmMessage.embeds[0]) {
-                    const oldDesc = dmMessage.embeds[0].description;
-                    const newDesc = oldDesc.replace(/- \*\*Staffs:\*\* .+/, `- **Staffs:** ${staffsText}`);
-                    const updatedEmbed = EmbedBuilder.from(dmMessage.embeds[0]).setDescription(newDesc);
+                    const oldEmbed = dmMessage.embeds[0];
+                    const fields = oldEmbed.fields;
+                    
+                    const staffEntryTime = `<t:${Math.floor(Date.now() / 1000)}:R>`;
+                    
+                    const updatedFields = fields.map(field => {
+                    if (field.name === 'Staffs') {
+                        return { 
+                            name: 'Staffs', 
+                            value: `${staffsText}\n*Entrou: ${staffEntryTime}*`, 
+                            inline: true 
+                        };
+                    }
+                    return field;
+                });
+                    
+                    const updatedEmbed = EmbedBuilder.from(oldEmbed).setFields(updatedFields);
                     await dmMessage.edit({ embeds: [updatedEmbed], components: dmMessage.components });
                 }
             }
 
-            // Resposta com auto-exclusão
             const msg = await channel.send({ content: `✅ ${user} entrou no ${reportId}` });
             setTimeout(() => msg.delete().catch(() => {}), 10000);
             
@@ -278,6 +339,7 @@ class ReportChatSystem {
     }
 
     // ==================== FECHAR REPORT ====================
+    
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         const replyTarget = interaction.channel || interaction.user;
         
@@ -310,38 +372,61 @@ class ReportChatSystem {
                 await thread.setArchived(true).catch(() => {});
             }
 
+            // ATUALIZAR LOG (remover botões, adicionar motivo)
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage && logMessage.embeds[0]) {
                     const oldEmbed = logMessage.embeds[0];
-                    const oldDesc = oldEmbed.description;
-                    
+                    const fields = oldEmbed.fields;
                     const statusText = this.getStatusText(status, closedByName, motivo);
-                    let newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${statusText}`);
                     
-                    if (!oldDesc.includes('Motivo de fechamento')) {
+                    const updatedFields = fields.map(field => {
+                        if (field.name === 'Status') {
+                            return { name: 'Status', value: statusText, inline: true };
+                        }
+                        return field;
+                    });
+                    
+                    let newDesc = oldEmbed.description || '';
+                    if (!newDesc.includes('Motivo de fechamento')) {
                         newDesc += `\n\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
                     }
                     
                     const updatedEmbed = EmbedBuilder.from(oldEmbed)
                         .setDescription(newDesc)
+                        .setFields(updatedFields)
                         .setColor(0xF64B4E);
                     
                     await logMessage.edit({ embeds: [updatedEmbed], components: [] });
                 }
             }
 
+            // ATUALIZAR DM (adicionar botão de avaliação)
             if (report.dm_message_id) {
                 const targetUser = await this.client.users.fetch(report.user_id);
                 const dmChannel = await targetUser.createDM();
                 const dmMessage = await dmChannel.messages.fetch(report.dm_message_id);
+                
+                const fields = dmMessage.embeds[0]?.fields || [];
+                const statusText = this.getStatusText(status, closedByName, motivo);
+                
+                const updatedFields = fields.map(field => {
+                    if (field.name === 'Status') {
+                        return { name: 'Status', value: statusText, inline: true };
+                    }
+                    return field;
+                });
+                
                 const embed = new EmbedBuilder()
                     .setColor(0xF64B4E)
+                    .setThumbnail(guild.iconURL())
                     .setDescription(`# 🔒 REPORTE | ${report.id} | FINALIZADO\n- **Motivo de fechamento:**\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``)
-                    .setFooter({ text: guild.name })
+                    .setFields(updatedFields)
+                    .setFooter(EmbedFormatter.getFooter(guild.name))
                     .setTimestamp();
+                
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
                         .setCustomId(`rate:${report.id}`)
@@ -363,6 +448,7 @@ class ReportChatSystem {
     }
 
     // ==================== AVALIAR ====================
+    
     async rateReport(interaction, reportId, nota, comentario) {
         const replyTarget = interaction.channel || interaction.user;
         
@@ -387,9 +473,9 @@ class ReportChatSystem {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage && logMessage.embeds[0]) {
-                    const oldDesc = logMessage.embeds[0].description;
-                    const newDesc = oldDesc + `\n- **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n- **Comentário:** ${comentario || 'Nenhum'}`;
-                    const updatedEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                    const oldEmbed = logMessage.embeds[0];
+                    const newDesc = (oldEmbed.description || '') + `\n- **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n- **Comentário:** ${comentario || 'Nenhum'}`;
+                    const updatedEmbed = EmbedBuilder.from(oldEmbed).setDescription(newDesc);
                     await logMessage.edit({ embeds: [updatedEmbed], components: [] });
                 }
             }
@@ -416,27 +502,60 @@ class ReportChatSystem {
         const staffs = report.staffs ? JSON.parse(report.staffs) : [];
         const staffsText = staffs.length > 0 ? staffs.map(s => `<@${s}>`).join(', ') : 'Nenhum staff';
         const statusText = this.getStatusText(newStatus);
+        const lastUpdate = `<t:${Math.floor(Date.now() / 1000)}:R>`;
 
+        // ATUALIZAR LOG (field Status)
         const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
         if (logChannelId && report.log_message_id) {
             const logChannel = await guild.channels.fetch(logChannelId);
             const logMessage = await logChannel.messages.fetch(report.log_message_id);
             if (logMessage && logMessage.embeds[0]) {
-                const oldDesc = logMessage.embeds[0].description;
-                const newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${statusText}`);
-                const updatedEmbed = EmbedBuilder.from(logMessage.embeds[0]).setDescription(newDesc);
+                const oldEmbed = logMessage.embeds[0];
+                const fields = oldEmbed.fields;
+                
+                const updatedFields = fields.map(field => {
+                if (field.name === 'Status') {
+                    return { 
+                        name: 'Status', 
+                        value: `${statusText}\n*Atualizado: ${lastUpdate}*`, 
+                        inline: true 
+                    };
+                }
+                if (field.name === 'Staffs') {
+                    return { 
+                        name: 'Staffs', 
+                        value: staffsText, 
+                        inline: true 
+                    };
+                }
+                return field;
+                });
+                
+                const updatedEmbed = EmbedBuilder.from(oldEmbed).setFields(updatedFields);
                 await logMessage.edit({ embeds: [updatedEmbed], components: logMessage.components });
             }
         }
 
+        // ATUALIZAR DM (field Status)
         if (report.dm_message_id) {
             const targetUser = await this.client.users.fetch(report.user_id);
             const dmChannel = await targetUser.createDM();
             const dmMessage = await dmChannel.messages.fetch(report.dm_message_id);
             if (dmMessage && dmMessage.embeds[0]) {
-                const oldDesc = dmMessage.embeds[0].description;
-                const newDesc = oldDesc.replace(/- \*\*Status:\*\* .+/, `- **Status:** ${statusText}`);
-                const updatedEmbed = EmbedBuilder.from(dmMessage.embeds[0]).setDescription(newDesc);
+                const oldEmbed = dmMessage.embeds[0];
+                const fields = oldEmbed.fields;
+                
+                const updatedFields = fields.map(field => {
+                    if (field.name === 'Status') {
+                        return { name: 'Status', value: statusText, inline: true };
+                    }
+                    if (field.name === 'Staffs') {
+                        return { name: 'Staffs', value: staffsText, inline: true };
+                    }
+                    return field;
+                });
+                
+                const updatedEmbed = EmbedBuilder.from(oldEmbed).setFields(updatedFields);
                 await dmMessage.edit({ embeds: [updatedEmbed], components: dmMessage.components });
             }
         }

@@ -417,21 +417,30 @@ class AutoModerationSystem {
          */
         async sendLogReports(stats) {
             const ConfigSystem = require('./configSystem');
+            const testSetting = ConfigSystem.getSetting(gId, 'log_automod');
+            console.log(`🔍 [AutoMod] Canal configurado para ${gId}: ${testSetting}`);
             
             for (const [gId, data] of Object.entries(stats)) {
                 try {
                     const logChanId = ConfigSystem.getSetting(gId, 'log_automod');
-                    if (!logChanId) continue;
+                    if (!logChanId) {
+                        console.log(`⚠️ [AutoMod] Canal de log não configurado para ${gId}`);
+                        continue;
+                    }
                     
                     const channel = await this.client.channels.fetch(logChanId).catch(() => null);
-                    if (!channel) continue;
+                    if (!channel) {
+                        console.log(`⚠️ [AutoMod] Canal de log não encontrado para ${gId}`);
+                        continue;
+                    }
 
-                    // Verificar se já enviou log hoje para este servidor
+                    // REMOVER a verificação de log duplicado para teste
+                    // OU garantir que o formato da data está correto
+                    const today = new Date().toLocaleDateString('pt-BR');
                     const lastRun = ConfigSystem.getSetting(gId, 'last_automod_log');
-                    const today = new Date().toDateString();
                     
                     if (lastRun === today) {
-                        console.log(`⚠️ [AutoMod] Log já enviado hoje para ${gId}, pulando...`);
+                        console.log(`⚠️ [AutoMod] Log já enviado hoje para ${gId} (${today}), pulando...`);
                         continue;
                     }
 
@@ -460,8 +469,9 @@ class AutoModerationSystem {
                         .setTimestamp();
 
                     await channel.send({ embeds: [embed] });
+                    console.log(`✅ [AutoMod] Log enviado para ${data.guildName}`);
                     
-                    // Marcar que o log foi enviado hoje
+                    // Salvar que o log foi enviado hoje
                     ConfigSystem.setSetting(gId, 'last_automod_log', today);
                     ConfigSystem.setSetting(gId, 'last_automod_run', Date.now().toString());
 
