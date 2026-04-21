@@ -1,6 +1,8 @@
+// src/commands/developer/automod.js
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 const ResponseManager = require('../../utils/responseManager');
 const EmbedFormatter = require('../../utils/embedFormatter');
+const { AutoModerationSystem } = require('../../systems/autoModeration'); // ← CORRETO
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -37,7 +39,6 @@ module.exports = {
         }
         
         const ConfigSystem = require('../../systems/configSystem');
-        const AutoModSystem = require('../../systems/autoModeration');
         
         // ==================== TEST ====================
         if (subcommand === 'test') {
@@ -57,18 +58,17 @@ module.exports = {
                 last_log: ConfigSystem.getSetting(guildId, 'last_automod_log')
             };
             
-            // Validar cada configuração
             const issues = [];
             const warnings = [];
             
-            // Verificar se está ativado
+            // Status
             if (!checks.automod_enabled) {
                 issues.push('❌ Auto Moderação está **DESATIVADA**. Use `/automod toggle` para ativar.');
             } else {
                 warnings.push('✅ Auto Moderação está **ATIVADA**');
             }
             
-            // Verificar limites
+            // Limites
             if (!checks.limit_exemplar) {
                 issues.push('❌ Limite Exemplar não configurado. Use `/automod config limits` para configurar.');
             } else {
@@ -91,7 +91,7 @@ module.exports = {
                 }
             }
             
-            // Verificar cargos
+            // Cargos
             if (!checks.role_exemplar) {
                 issues.push('❌ Cargo Exemplar não configurado. Use `/config-roles` para configurar.');
             } else {
@@ -99,7 +99,7 @@ module.exports = {
                 if (role) {
                     warnings.push(`✅ Cargo Exemplar: ${role.name}`);
                 } else {
-                    issues.push(`❌ Cargo Exemplar (ID: ${checks.role_exemplar}) não encontrado no servidor.`);
+                    issues.push(`❌ Cargo Exemplar (ID: ${checks.role_exemplar}) não encontrado.`);
                 }
             }
             
@@ -110,11 +110,11 @@ module.exports = {
                 if (role) {
                     warnings.push(`✅ Cargo Problemático: ${role.name}`);
                 } else {
-                    issues.push(`❌ Cargo Problemático (ID: ${checks.role_problematico}) não encontrado no servidor.`);
+                    issues.push(`❌ Cargo Problemático (ID: ${checks.role_problematico}) não encontrado.`);
                 }
             }
             
-            // Verificar canal de log
+            // Canal de log
             if (!checks.log_automod) {
                 issues.push('❌ Canal de log da Auto Moderação não configurado. Use `/config-logs` para configurar.');
             } else {
@@ -122,7 +122,6 @@ module.exports = {
                 if (channel) {
                     warnings.push(`✅ Canal de log: ${channel.name}`);
                     
-                    // Verificar permissões do bot
                     const botMember = guild.members.me;
                     const permissions = channel.permissionsFor(botMember);
                     
@@ -136,28 +135,24 @@ module.exports = {
                         issues.push(`❌ Bot não tem permissão para **enviar embeds** no canal ${channel.name}.`);
                     }
                 } else {
-                    issues.push(`❌ Canal de log (ID: ${checks.log_automod}) não encontrado no servidor.`);
+                    issues.push(`❌ Canal de log (ID: ${checks.log_automod}) não encontrado.`);
                 }
             }
             
-            // Verificar última execução
+            // Última execução
             let lastRunText = 'Nunca executado';
             if (checks.last_run) {
-                const lastRunDate = new Date(parseInt(checks.last_run));
-                lastRunText = `<t:${Math.floor(lastRunDate.getTime() / 1000)}:R>`;
+                lastRunText = `<t:${Math.floor(parseInt(checks.last_run) / 1000)}:R>`;
             }
             
-            let lastLogText = 'Nunca enviado';
-            if (checks.last_log) {
-                lastLogText = checks.last_log;
-            }
+            let lastLogText = checks.last_log || 'Nunca enviado';
             
-            // Verificar estatísticas básicas
+            // Estatísticas
             const db = require('../../database/index');
             const totalUsers = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0;
             const avgRep = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(guildId)?.avg || 0;
             
-            // Montar embed
+            // Embed
             const statusColor = issues.length === 0 ? 0x00FF00 : (issues.length > 2 ? 0xFF0000 : 0xFFA500);
             const statusIcon = issues.length === 0 ? '✅' : (issues.length > 2 ? '🔴' : '⚠️');
             
@@ -175,18 +170,14 @@ module.exports = {
             }
             
             embed.addFields(
-                { name: '📊 Estatísticas', value: `👥 Usuários no sistema: ${totalUsers}\n⭐ Reputação média: ${Math.round(avgRep)}/100`, inline: true },
+                { name: '📊 Estatísticas', value: `👥 Usuários: ${totalUsers}\n⭐ Reputação média: ${Math.round(avgRep)}/100`, inline: true },
                 { name: '🕐 Última Execução', value: lastRunText, inline: true },
                 { name: '📝 Último Log', value: lastLogText, inline: true }
             );
             
-            embed.setFooter(EmbedFormatter.getFooter(guild.name))
-                .setTimestamp();
+            embed.setFooter(EmbedFormatter.getFooter(guild.name)).setTimestamp();
             
-            // Tentar executar teste rápido
-            const autoMod = new AutoModSystem(client);
-            
-            // Testar se consegue buscar o canal de log
+            // Teste de conexão
             let channelTest = '❌ Não testado';
             if (checks.log_automod) {
                 try {
@@ -195,10 +186,9 @@ module.exports = {
                         channelTest = `✅ Canal ${testChannel.name} acessível`;
                     }
                 } catch (err) {
-                    channelTest = `❌ Erro ao acessar canal: ${err.message}`;
+                    channelTest = `❌ Erro: ${err.message}`;
                 }
             }
-            
             embed.addFields({ name: '🔍 Teste de Conexão', value: channelTest, inline: false });
             
             await interaction.editReply({ embeds: [embed] });
@@ -207,24 +197,21 @@ module.exports = {
         
         // ==================== TOGGLE ====================
         if (subcommand === 'toggle') {
-            const AutoMod = require('../../systems/autoModeration');
-            const autoMod = new AutoMod(client);
+            const autoMod = new AutoModerationSystem(client);
             await autoMod.handleToggleAutoMod(interaction);
             return;
         }
         
         // ==================== CONFIG ====================
         if (subcommand === 'config') {
-            const AutoMod = require('../../systems/autoModeration');
-            const autoMod = new AutoMod(client);
+            const autoMod = new AutoModerationSystem(client);
             await autoMod.handleAutoModConfig(interaction, 'limits', guild.name);
             return;
         }
         
         // ==================== REPORT ====================
         if (subcommand === 'report') {
-            const AutoMod = require('../../systems/autoModeration');
-            const autoMod = new AutoMod(client);
+            const autoMod = new AutoModerationSystem(client);
             await autoMod.handleAutoModReport(interaction, guild.name);
             return;
         }
