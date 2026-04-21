@@ -134,6 +134,9 @@ module.exports = {
         } catch (error) {
             console.warn('   ⚠️ Banco de dados SQLite não disponível:', error.message);
         }
+
+        const autoMod = autoModeration(client);
+        console.log('🛡️ AutoModeração Worker iniciado');
         
         // 7. Logs de inicialização completos
         const elapsedTime = Date.now() - startTime;
