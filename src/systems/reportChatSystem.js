@@ -353,7 +353,8 @@ class ReportChatSystem {
             const targetUser = await this.client.users.fetch(report.user_id);
             
             // Extra: motivo na descrição
-            const extraDesc = `\n\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
+            const closedByText = `\n- **Fechado por:** ${closedByName}`;
+            const extraDesc = `\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
             
             // ATUALIZAR LOG (sem botões)
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
