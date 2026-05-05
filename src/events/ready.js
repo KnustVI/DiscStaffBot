@@ -1,6 +1,8 @@
+// src/events/ready.js
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
 const { startInactiveReportsJob } = require('../systems/inactiveReportsJob');
+const autoModeration = require('../systems/autoModeration'); // ← IMPORTANTE: adicionar esta linha
 
 let handler = null;
 let isReady = false;
@@ -135,16 +137,21 @@ module.exports = {
             console.warn('   ⚠️ Banco de dados SQLite não disponível:', error.message);
         }
 
-        const autoMod = autoModeration(client);
-        console.log('🛡️ AutoModeração Worker iniciado');
+        // 7. Iniciar AutoModeração Worker
+        try {
+            const autoMod = autoModeration(client);
+            console.log('🛡️ AutoModeração Worker iniciado');
+        } catch (error) {
+            console.error('❌ Erro ao iniciar AutoModeração:', error);
+        }
         
-        // 7. Logs de inicialização completos
+        // 8. Logs de inicialização completos
         const elapsedTime = Date.now() - startTime;
         console.log('\n========================================');
         console.log(`✨ Bot pronto em ${elapsedTime}ms`);
         console.log('========================================\n');
         
-        // 8. Evento opcional
+        // 9. Evento opcional
         client.emit('botReady', {
             uptime: client.uptime,
             guilds: client.guilds.cache.size,
