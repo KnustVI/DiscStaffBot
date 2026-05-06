@@ -48,8 +48,8 @@ const EmbedFormatter = {
      */
     getFooter(guildName, extraText = '') {
         const footerText = extraText 
-            ? `By:KnustVI • ${guildName} • ${extraText}`
-            : `By:KnustVI • ${guildName}`;
+            ? `By:KnustVI • SERVER: ${guildName} • ${extraText}`
+            : `By:KnustVI • SERVER: ${guildName}`;
         
         return {
             text: footerText,

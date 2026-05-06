@@ -6,7 +6,7 @@ const EmbedFormatter = require('../../utils/embedFormatter');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('config-points')
-        .setDescription('${emojis.Config || "⚙️"} Configura os pontos dos níveis de Strike e limites de reputação.')
+        .setDescription('⚙️ Configura os pontos dos níveis de Strike e limites de reputação.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {

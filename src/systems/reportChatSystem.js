@@ -37,7 +37,7 @@ class ReportChatSystem {
 
     // ==================== BASE EMBED (PADRÃO FIXO) ====================
     
-    createBaseEmbed(guild, reportId, user, status = 'waiting', staffs = [], extraDescription = '') {
+        createBaseEmbed(guild, reportId, user, status = 'waiting', staffs = [], extraDescription = '') {
         const statusText = this.getStatusText(status);
         const staffsText = staffs.length > 0 ? staffs.map(s => {
             const time = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
@@ -54,8 +54,18 @@ class ReportChatSystem {
             description += extraDescription;
         }
         
+        // Lógica de cores
+        let embedColor;
+        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
+            embedColor = 0xDCA15E;  // Laranja - Fechado
+        } else if (status === 'responded') {
+            embedColor = 0x57F287;  // Verde - Respondido
+        } else {
+            embedColor = 0xF64B4E;  // Vermelho - Aguardando / Inativo
+        }
+        
         const embed = new EmbedBuilder()
-            .setColor(status === 'closed_no_reason' || status === 'closed_with_reason' ? 0xF64B4E : 0xDCA15E)
+            .setColor(embedColor)
             .setThumbnail(guild.iconURL())
             .setDescription(description)
             .addFields(
@@ -68,6 +78,7 @@ class ReportChatSystem {
         
         return embed;
     }
+
 
     // ==================== MODAIS ====================
 
