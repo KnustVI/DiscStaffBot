@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, version } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, version } = require('discord.js');
 const db = require('../../database/index');
 const SystemStatus = require('../../systems/systemStatus');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
@@ -11,7 +11,8 @@ const DEVELOPER_ID = '203676076189286412';
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('botstatus')
-        .setDescription('Verifica o estado de saúde do bot e do AutoMod.'),
+        .setDescription('Verifica o estado de saúde do bot e do AutoMod.')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
         const startTime = Date.now();

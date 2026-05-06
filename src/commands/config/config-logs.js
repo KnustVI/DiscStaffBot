@@ -41,7 +41,10 @@ module.exports = {
             .setColor(0xDCA15E)
             .setDescription(
                 `# ${emojis.dashboard || '📝'} Canais de Log`,
-                'Selecione os canais abaixo:'
+                `- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`,
+                `- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`,
+                `- AutoMod recebe logs de ações tomadas pela analise diaria de atuomação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`,
+                `- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`
             )
             .addFields(
                 { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },

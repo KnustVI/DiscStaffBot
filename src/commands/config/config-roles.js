@@ -38,7 +38,7 @@ module.exports = {
         
         const embed = new EmbedBuilder()
             .setColor(0xDCA15E)
-            .setDescription(`# ${emojis.staff || '👥'} Cargos do Sistema\nSelecione os cargos abaixo:`)
+            .setDescription(`# ${emojis.staff || '👥'} Cargos do Sistema\n- É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outos cargos são opcionais.\nSelecione os cargos abaixo:`)
             .addFields(
                 { name: `${emojis.staff || '🛡️'} Staff`, value: staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
                 { name: `${emojis.strike || '⚠️'} Strike (Temporário)`, value: strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
