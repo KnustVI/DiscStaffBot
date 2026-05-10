@@ -7,6 +7,9 @@ module.exports = {
     
     async execute(interaction, client) {
         try {
+            // 🔧 IMPORTANTE: Deferir a resposta primeiro
+            await interaction.deferReply();
+            
             // Calcula o ping real
             const sent = await interaction.fetchReply();
             const ping = sent.createdTimestamp - interaction.createdTimestamp;
@@ -20,10 +23,14 @@ module.exports = {
             console.error('❌ Erro no comando ping:', error);
             
             // Fallback em caso de erro
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: '❌ Ocorreu um erro ao executar o comando ping.', flags: 64 });
-            } else if (interaction.deferred && !interaction.replied) {
-                await interaction.editReply({ content: '❌ Ocorreu um erro ao executar o comando ping.' });
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: '❌ Ocorreu um erro ao executar o comando ping.', flags: 64 });
+                } else if (interaction.deferred && !interaction.replied) {
+                    await interaction.editReply({ content: '❌ Ocorreu um erro ao executar o comando ping.' });
+                }
+            } catch (err) {
+                console.error('❌ Erro ao responder fallback:', err);
             }
         }
     }
