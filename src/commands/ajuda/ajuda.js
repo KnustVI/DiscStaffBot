@@ -29,12 +29,12 @@ module.exports = {
                 .setThumbnail(client.user.displayAvatarURL())
                 .setDescription(
                     `# ${emojis.user || '🤖'} Assistente Titan\n` +
-                    `Olá **${member.displayName}**! Sou o sistema de gestão do servidor **${guild.name}**.\n\n` +
+                    `Olá **${member.displayName}**! Sou o sistema de gestão do seu servidor **${guild.name}**.\n` +
                     `## ${emojis.Config || '⚙️'} Configuração Inicial\n` +
                     `Apenas administradores podem usar estes comandos:\n` +
                     `• **/config-logs** - Configura os canais de log (Geral, Punições, AutoMod, ReportChat)\n` +
                     `• **/config-roles** - Configura cargos (Staff é OBRIGATÓRIO!)\n` +
-                    `• **/config-points** - Configura pontos dos strikes e limites de reputação\n\n` +
+                    `• **/config-points** - Configura pontos dos strikes e limites de reputação\n` +
                     `## ${emojis.chat || '🎫'} ReportChat\n` +
                     `• **/reportchat** - Cria o painel de reports para os usuários\n` +
                     `Os usuários abrem reports via formulário, staff entra na thread e atende.\n\n` +
@@ -49,12 +49,12 @@ module.exports = {
                 .setThumbnail(client.user.displayAvatarURL())
                 .setDescription(
                     `# ${emojis.strike || '🛠️'} Moderação e Reputação\n` +
-                    `Apenas usuários com cargo STAFF podem usar:\n\n` +
+                    `Apenas usuários com cargo STAFF podem usar:\n` +
                     `## ${emojis.strike || '⚠️'} Comandos de Punição\n` +
                     `• **/strike** - Aplica punição e reduz reputação\n` +
                     `• **/unstrike** - Anula punição e restaura pontos\n` +
                     `• **/historico** - Consulta ficha completa do usuário\n` +
-                    `• **/repset** - Ajuste manual de reputação\n\n` +
+                    `• **/repset** - Ajuste manual de reputação\n` +
                     `## ${emojis.star || '⭐'} Sistema de Reputação\n` +
                     `• Máximo: 100 pontos | Mínimo: 0 pontos\n` +
                     `• Recuperação: +1 ponto/dia sem punições\n` +
@@ -72,12 +72,12 @@ module.exports = {
                     `# ${emojis.AutoMod || '🛡️'} Auto Moderação\n` +
                     `Sistema automático de gerenciamento de reputação:\n\n` +
                     `## ${emojis.Config || '⚙️'} Comandos\n` +
-                    `• **/automod test** - Verifica configurações e canal de log\n\n` +
+                    `• **/automod test** - Verifica configurações e canal de log\n` +
                     `## ${emojis.gain || '📈'} Funcionamento\n` +
                     `• Executa diariamente às 12:00\n` +
                     `• +1 ponto para quem não tem punições nas últimas 24h\n` +
                     `• Atribui/remove cargos Exemplar e Problemático automaticamente\n` +
-                    `• Envia relatório no canal de log configurado\n\n` +
+                    `• Envia relatório no canal de log configurado\n` +
                     `## ${emojis.global || '🌐'} Status\n` +
                     `• **/botstatus** - Verifica saúde do bot e sistemas\n` +
                     `• Mostra latência, memória, status do AutoMod e estatísticas\n\n` +
@@ -93,11 +93,11 @@ module.exports = {
                     .setThumbnail(client.user.displayAvatarURL())
                     .setDescription(
                         `# ${emojis.user || '🤖'} Assistente Titan\n` +
-                        `Olá **${member.displayName}**! Sou o sistema de gestão do servidor **${guild.name}**.\n\n` +
+                        `Olá **${member.displayName}**! Sou o sistema de gestão do servidor **${guild.name}**.\n` +
                         `## ${emojis.chat || '🎫'} ReportChat\n` +
                         `• Use o painel de reports para abrir uma denúncia\n` +
                         `• Staff irá atender e analisar o caso\n` +
-                        `• Você pode avaliar o atendimento ao final\n\n` +
+                        `• Você pode avaliar o atendimento ao final\n` +
                         `## ${emojis.star || '⭐'} Reputação\n` +
                         `• Sua reputação começa em 100 pontos\n` +
                         `• Infrações reduzem sua pontuação\n` +
