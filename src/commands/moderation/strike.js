@@ -194,11 +194,11 @@ module.exports = {
             }
 
             // ==================== RESPOSTA NO CANAL ====================
-            await ResponseManager.success(interaction,
-                `**Strike #${strikeId} aplicado em ${targetUser.username}**
-                ${emojis.lose || '📉'} ${pointsToLose} pts perdidos
-                ${emojis.star || '⭐'} Reputação: ${newPoints}/100`
-            );
+            await interaction.editReply({ 
+                content: `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos\n⭐ Reputação: ${newPoints}/100`,
+                embeds: [],
+                components: []
+            });
             
             console.log(`📊 [STRIKE] ${staff.tag} puniu ${targetUser.tag} | #${strikeId} | ${Date.now() - startTime}ms`);
             
