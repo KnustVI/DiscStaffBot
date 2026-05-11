@@ -1,118 +1,99 @@
-// src/commands/developer/automod.js
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+const db = require('../../database/index');
+const ResponseManager = require('../../utils/responseManager');
 const EmbedFormatter = require('../../utils/embedFormatter');
-const { AutoModerationSystem } = require('../../systems/autoModeration');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('automod')
-        .setDescription('🛡️ Executa manutenção e verifica a configuração da Auto Moderação')
+        .setName('config-logs')
+        .setDescription('📝 Configura os canais de log do sistema.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
-        const { guild } = interaction;
-        
-        await interaction.deferReply({ flags: 64 });
-        
-        const ConfigSystem = require('../../systems/configSystem');
+        const { guild, user, member } = interaction;
         const guildId = guild.id;
         
-        // ==================== EXECUTAR MANUTENÇÃO MANUAL ====================
-        const autoMod = new AutoModerationSystem(client);
-        const result = await autoMod.runManualMaintenance();
-        
-        // ==================== BUSCAR CONFIGURAÇÕES ====================
-        const isEnabled = ConfigSystem.getSetting(guildId, 'automod_enabled') === 'true';
-        const logChannelId = ConfigSystem.getSetting(guildId, 'log_automod');
-        const lastRun = ConfigSystem.getSetting(guildId, 'last_automod_run');
-        const lastLog = ConfigSystem.getSetting(guildId, 'last_automod_log');
-        
-        // Verificar canal de log
-        let channelStatus = '❌ Não configurado';
-        let channelIssues = [];
-        
-        if (logChannelId) {
-            const channel = guild.channels.cache.get(logChannelId);
-            if (!channel) {
-                channelStatus = '❌ Canal não encontrado';
-                channelIssues.push(`O canal com ID \`${logChannelId}\` não existe mais no servidor.`);
-                channelIssues.push(`**Solução:** Use \`/config-logs\` e configure um canal válido.`);
-            } else {
-                const botMember = guild.members.me;
-                const perms = channel.permissionsFor(botMember);
-                
-                const missingPerms = [];
-                if (!perms.has('ViewChannel')) missingPerms.push('👁️ Ver Canal');
-                if (!perms.has('SendMessages')) missingPerms.push('📤 Enviar Mensagens');
-                if (!perms.has('EmbedLinks')) missingPerms.push('🔗 Enviar Links/Embeds');
-                
-                if (missingPerms.length > 0) {
-                    channelStatus = `⚠️ Sem permissões em ${channel.name}`;
-                    channelIssues.push(`O bot não tem as seguintes permissões no canal ${channel.name}:`);
-                    missingPerms.forEach(p => channelIssues.push(`  - ${p}`));
-                    channelIssues.push(`**Solução:** Dê as permissões necessárias para o bot no canal.`);
-                } else {
-                    channelStatus = `✅ ${channel.name}`;
-                    
-                    // Testar envio de mensagem
-                    try {
-                        const testMsg = await channel.send({ content: '🧪 Teste de conexão do AutoMod - esta mensagem será deletada em 5 segundos.' });
-                        setTimeout(() => testMsg.delete().catch(() => {}), 5000);
-                        channelIssues.push(`✅ Teste de envio realizado com sucesso!`);
-                    } catch (err) {
-                        channelStatus = `❌ Erro ao enviar`;
-                        channelIssues.push(`Erro ao enviar mensagem de teste: ${err.message}`);
-                    }
-                }
-            }
-        } else {
-            channelIssues.push(`**Solução:** Use \`/config-logs\` e configure o canal "🛡️ AutoMod".`);
+        // Carregar emojis do servidor
+        let emojis = {};
+        try {
+            const emojisFile = require('../../database/emojis.js');
+            emojis = emojisFile.EMOJIS || {};
+        } catch (err) {
+            emojis = {};
         }
         
-        // Status da AutoMod
-        let automodStatus = isEnabled ? '✅ Ativada' : '❌ Desativada';
-        if (!isEnabled) {
-            channelIssues.push(`**Solução:** Use \`/automod toggle\` para ativar a Auto Moderação.`);
+        if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return await ResponseManager.error(interaction, 'Apenas administradores podem configurar o sistema.');
         }
         
-        // Última execução
-        let lastRunText = 'Nunca executado';
-        if (lastRun) {
-            const lastRunDate = new Date(parseInt(lastRun));
-            lastRunText = `<t:${Math.floor(lastRunDate.getTime() / 1000)}:R>`;
-        }
+        db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
+        db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
         
-        let lastLogText = lastLog || 'Nunca enviado';
+        const ConfigSystem = require('../../systems/configSystem');
         
-        // Worker status
-        const workerRunning = autoMod.isRunning;
+        // Buscar configurações atuais
+        const logGeral = ConfigSystem.getSetting(guildId, 'log_channel');
+        const logPunishments = ConfigSystem.getSetting(guildId, 'log_punishments');
+        const logAutomod = ConfigSystem.getSetting(guildId, 'log_automod');
+        const logReports = ConfigSystem.getSetting(guildId, 'log_reports');
         
-        // Montar embed
-        const hasIssues = channelIssues.length > 0 || !isEnabled;
         const embed = new EmbedBuilder()
-            .setColor(hasIssues ? 0xFFA500 : 0x00FF00)
-            .setThumbnail(guild.iconURL())
-            .setDescription(`# 🛡️ Diagnóstico da Auto Moderação\n**Servidor:** ${guild.name}`)
+            .setColor(0xDCA15E)
+            .setDescription(
+                `# ${emojis.dashboard || '📝'} Canais de Log`,
+                `- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`,
+                `- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`,
+                `- AutoMod recebe logs de ações tomadas pela analise diaria de atuomação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`,
+                `- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`
+            )
             .addFields(
-                { name: '📋 Status', value: `**AutoMod:** ${automodStatus}\n**Worker:** ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`, inline: true },
-                { name: '📺 Canal de Log', value: channelStatus, inline: true },
-                { name: '🕐 Última Execução', value: lastRunText, inline: true },
-                { name: '📝 Último Log Enviado', value: lastLogText, inline: false },
-                { name: '📊 Relatório da Execução', value: `📈 **Recuperados:** ${result.totalRepRecovered} usuários\n➕ **Cargos adicionados:** ${result.totalRolesAdded}\n➖ **Cargos removidos:** ${result.totalRolesRemoved}`, inline: false }
-            );
+                { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
+                { name: `${emojis.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
+                { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
+                { name: `${emojis.chat || '🎫'} ReportChat`, value: logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
+            )
+            .setFooter(EmbedFormatter.getFooter(guild.name))
+            .setTimestamp();
         
-        if (channelIssues.length > 0) {
-            embed.addFields({ name: '⚠️ Problemas e Soluções', value: channelIssues.join('\n'), inline: false });
-        }
+        const geralRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:geral')
+                .setPlaceholder(`Selecionar canal de logs gerais`)
+                .addChannelTypes(ChannelType.GuildText)
+        );
         
-        if (!hasIssues && result.totalRepRecovered === 0 && result.totalRolesAdded === 0 && result.totalRolesRemoved === 0) {
-            embed.addFields({ name: 'ℹ️ Informação', value: 'Nenhuma alteração foi necessária durante esta execução. O sistema está funcionando normalmente.', inline: false });
-        } else if (!hasIssues) {
-            embed.addFields({ name: '✅ Tudo Certo!', value: 'A Auto Moderação está configurada corretamente e executou a manutenção com sucesso.', inline: false });
-        }
+        const punishmentsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:punishments')
+                .setPlaceholder(`Selecionar canal de logs de punições`)
+                .addChannelTypes(ChannelType.GuildText)
+        );
         
-        embed.setFooter(EmbedFormatter.getFooter(guild.name)).setTimestamp();
+        const automodRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:automod')
+                .setPlaceholder(`Selecionar canal de logs de automoderação`)
+                .addChannelTypes(ChannelType.GuildText)
+        );
         
-        await interaction.editReply({ embeds: [embed] });
+        const reportsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:reports')
+                .setPlaceholder(`Selecionar canal de logs de reports`)
+                .addChannelTypes(ChannelType.GuildText)
+        );
+        
+        const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('config-logs:criar')
+                .setLabel('Criar Canais Automaticamente')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji(emojis.edit || '➕')
+        );
+        
+        await ResponseManager.send(interaction, {
+            embeds: [embed],
+            components: [geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
+        });
     }
 };
