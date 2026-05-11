@@ -66,6 +66,7 @@ module.exports = {
 
             // ==================== REPORTCHAT - AÇÕES ====================
             if (interaction.customId?.startsWith('join:')) {
+                // NÃO usar deferUpdate - o método já vai responder
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
                 await reportSystem.joinReport(interaction, reportId);
@@ -73,6 +74,7 @@ module.exports = {
             }
 
             if (interaction.customId?.startsWith('close:') && !interaction.customId.includes('reason')) {
+                // NÃO usar deferUpdate - o método já vai responder
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
                 await reportSystem.closeReport(interaction, reportId, null, null, false);
