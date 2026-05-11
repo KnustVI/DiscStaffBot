@@ -6,25 +6,22 @@ const { AutoModerationSystem } = require('../../systems/autoModeration');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('automod')
-        .setDescription('🛡️ Testa a configuração da Auto Moderação')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(sub => sub
-            .setName('test')
-            .setDescription('Verifica a configuração e o canal de log')
-        ),
+        .setDescription('🛡️ Executa manutenção e verifica a configuração da Auto Moderação')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
         const { guild } = interaction;
-        const subcommand = interaction.options.getSubcommand();
         
-        if (subcommand !== 'test') return;
-        
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.deferReply({ flags: 64 });
         
         const ConfigSystem = require('../../systems/configSystem');
         const guildId = guild.id;
         
-        // Buscar configurações
+        // ==================== EXECUTAR MANUTENÇÃO MANUAL ====================
+        const autoMod = new AutoModerationSystem(client);
+        const result = await autoMod.runManualMaintenance();
+        
+        // ==================== BUSCAR CONFIGURAÇÕES ====================
         const isEnabled = ConfigSystem.getSetting(guildId, 'automod_enabled') === 'true';
         const logChannelId = ConfigSystem.getSetting(guildId, 'log_automod');
         const lastRun = ConfigSystem.getSetting(guildId, 'last_automod_run');
@@ -72,24 +69,22 @@ module.exports = {
             channelIssues.push(`**Solução:** Use \`/config-logs\` e configure o canal "🛡️ AutoMod".`);
         }
         
-        // Verificar se a AutoMod está ativa
+        // Status da AutoMod
         let automodStatus = isEnabled ? '✅ Ativada' : '❌ Desativada';
         if (!isEnabled) {
             channelIssues.push(`**Solução:** Use \`/automod toggle\` para ativar a Auto Moderação.`);
         }
         
-        // Verificar última execução
+        // Última execução
         let lastRunText = 'Nunca executado';
         if (lastRun) {
             const lastRunDate = new Date(parseInt(lastRun));
             lastRunText = `<t:${Math.floor(lastRunDate.getTime() / 1000)}:R>`;
         }
         
-        // Verificar último log enviado
         let lastLogText = lastLog || 'Nunca enviado';
         
-        // Verificar se o worker está rodando
-        const autoMod = new AutoModerationSystem(client);
+        // Worker status
         const workerRunning = autoMod.isRunning;
         
         // Montar embed
@@ -102,15 +97,18 @@ module.exports = {
                 { name: '📋 Status', value: `**AutoMod:** ${automodStatus}\n**Worker:** ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`, inline: true },
                 { name: '📺 Canal de Log', value: channelStatus, inline: true },
                 { name: '🕐 Última Execução', value: lastRunText, inline: true },
-                { name: '📝 Último Log Enviado', value: lastLogText, inline: false }
+                { name: '📝 Último Log Enviado', value: lastLogText, inline: false },
+                { name: '📊 Relatório da Execução', value: `📈 **Recuperados:** ${result.totalRepRecovered} usuários\n➕ **Cargos adicionados:** ${result.totalRolesAdded}\n➖ **Cargos removidos:** ${result.totalRolesRemoved}`, inline: false }
             );
         
         if (channelIssues.length > 0) {
             embed.addFields({ name: '⚠️ Problemas e Soluções', value: channelIssues.join('\n'), inline: false });
         }
         
-        if (!hasIssues) {
-            embed.addFields({ name: '✅ Tudo Certo!', value: 'A Auto Moderação está configurada corretamente e deve enviar logs normalmente.', inline: false });
+        if (!hasIssues && result.totalRepRecovered === 0 && result.totalRolesAdded === 0 && result.totalRolesRemoved === 0) {
+            embed.addFields({ name: 'ℹ️ Informação', value: 'Nenhuma alteração foi necessária durante esta execução. O sistema está funcionando normalmente.', inline: false });
+        } else if (!hasIssues) {
+            embed.addFields({ name: '✅ Tudo Certo!', value: 'A Auto Moderação está configurada corretamente e executou a manutenção com sucesso.', inline: false });
         }
         
         embed.setFooter(EmbedFormatter.getFooter(guild.name)).setTimestamp();
