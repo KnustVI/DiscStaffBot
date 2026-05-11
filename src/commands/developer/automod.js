@@ -12,8 +12,6 @@ module.exports = {
     async execute(interaction, client) {
         const { guild } = interaction;
         
-        await interaction.deferReply({ flags: 64 });
-        
         const ConfigSystem = require('../../systems/configSystem');
         const guildId = guild.id;
         
