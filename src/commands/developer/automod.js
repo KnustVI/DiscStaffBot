@@ -19,7 +19,7 @@ module.exports = {
         
         if (subcommand !== 'test') return;
         
-        await interaction.deferReply({ flags: 64 });
+        await interaction.editReply({ embeds: [embed] });
         
         const ConfigSystem = require('../../systems/configSystem');
         const guildId = guild.id;

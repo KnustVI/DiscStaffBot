@@ -129,7 +129,7 @@ module.exports = {
                     .setDisabled(pages.length === 1)
             );
             
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [pages[currentPage]],
                 components: [row],
                 ephemeral: true

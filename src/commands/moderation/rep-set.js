@@ -135,9 +135,11 @@ module.exports = {
                 } catch (err) {}
             }
             
-            await ResponseManager.success(interaction, 
-                `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n ${emojis.status} ${currentRep} → ${newPoints} (${diffText})`
-            );
+            await interaction.editReply({ 
+            content: `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n ${emojis.status} ${currentRep} → ${newPoints} (${diffText})`,
+            embeds: [],
+            components: []
+        });
             
             console.log(`📊 [REPSET] ${staff.tag} ajustou ${target.tag} | ${diffText} pts | ${Date.now() - startTime}ms`);
             

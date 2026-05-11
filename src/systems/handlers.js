@@ -89,7 +89,15 @@ class InteractionHandler {
             return await ResponseManager.error(interaction, 'Comando não encontrado.');
         }
         
+        // Lista de comandos que devem ser ephemeral (visíveis apenas para o usuário)
+        const ephemeralCommands = ['config', 'strike', 'unstrike', 'repset', 'config-rep', 'config-strike', 'automod', 'reset-db', 'reset-reports', 'botstatus'];
+        const isEphemeral = ephemeralCommands.includes(interaction.commandName);
+        
         try {
+            // Deferir a resposta antes de executar o comando
+            await interaction.deferReply({ flags: isEphemeral ? 64 : 0 });
+            
+            // Executar o comando
             await command.execute(interaction, this.client);
         } catch (error) {
             await this.handleError(interaction, error, 'command');

@@ -132,10 +132,6 @@ module.exports = {
                 components: []
             });
             
-            await ResponseManager.success(interaction, 
-                `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`
-            );
-            
             console.log(`📊 [UNSTRIKE] ${staff.tag} anulou #${punishmentId} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
