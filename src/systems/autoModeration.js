@@ -274,6 +274,7 @@ class AutoModerationSystem {
         
         // Agendado para Meio-dia (Brasília) - Horário de Brasília
         cron.schedule('0 12 * * *', async () => {
+            console.log("🕛 [AutoMod] Executando manutenção agendada das 12:00");
             await this.executeDailyMaintenance();
         }, {
             timezone: "America/Sao_Paulo"

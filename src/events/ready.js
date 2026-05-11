@@ -140,7 +140,14 @@ module.exports = {
         // 7. Iniciar AutoModeração Worker
         try {
             const autoMod = autoModeration(client);
-            console.log('🛡️ AutoModeração Worker iniciado');
+            console.log(`🛡️ AutoMod Worker - isRunning: ${autoMod.isRunning}`);
+            // Verificar se realmente iniciou
+            if (!autoMod.isRunning) {
+                console.log('⚠️ AutoMod Worker não iniciou automaticamente, iniciando manualmente...');
+                autoMod.startWorker();
+            }
+            
+            console.log(`🛡️ AutoModeração Worker - Status: ${autoMod.isRunning ? 'Rodando' : 'Parado'}`);
         } catch (error) {
             console.error('❌ Erro ao iniciar AutoModeração:', error);
         }
