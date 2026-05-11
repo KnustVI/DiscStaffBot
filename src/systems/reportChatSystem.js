@@ -258,31 +258,27 @@ class ReportChatSystem {
             await interaction.editReply({ content: '❌ Erro ao criar report.', flags: 64 });
         }
     }
-
-    // ==================== STAFF ENTRAR ====================
     
+            // ==================== STAFF ENTRAR ====================
     async joinReport(interaction, reportId) {
         const { guild, user, member, channel } = interaction;
         
         try {
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
             if (!member?.roles?.cache?.has(staffRoleId)) {
-                const msg = await channel.send({ content: `❌ ${user}, você não tem permissão para entrar em reports.` });
-                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                await this.sendTempReply(interaction, `Você não tem permissão para entrar em reports.`, false);
                 return;
             }
 
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guild.id);
             if (!report) {
-                const msg = await channel.send({ content: `❌ Report ${reportId} não encontrado.` });
-                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
 
             const thread = await guild.channels.fetch(report.thread_id);
             if (thread) await thread.members.add(user.id);
 
-            // Atualizar staffs no banco
             let staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const existingStaff = staffs.find(s => s.id === user.id);
             if (!existingStaff) {
@@ -296,7 +292,6 @@ class ReportChatSystem {
 
             const targetUser = await this.client.users.fetch(report.user_id);
             
-            // Atualizar LOG (usando base embed)
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
                 const logChannel = await guild.channels.fetch(logChannelId);
@@ -307,7 +302,6 @@ class ReportChatSystem {
                 }
             }
 
-            // Atualizar DM
             if (report.dm_message_id) {
                 const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
@@ -316,33 +310,28 @@ class ReportChatSystem {
                 }
             }
 
-            const msg = await channel.send({ content: `✅ ${user} entrou no ${reportId}` });
-            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            await this.sendTempReply(interaction, `${user} entrou no ${reportId}`, true);
             
         } catch (error) {
             console.error('❌ Erro ao entrar:', error);
-            const msg = await channel.send({ content: `❌ Erro ao entrar no report ${reportId}.` });
-            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            await this.sendTempReply(interaction, `Erro ao entrar no report ${reportId}.`, false);
         }
     }
 
     // ==================== FECHAR REPORT ====================
-    
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         const replyTarget = interaction.channel || interaction.user;
         
         try {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
             if (!report) {
-                const msg = await replyTarget.send({ content: `❌ Report ${reportId} não encontrado.` });
-                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
 
             const guild = this.client.guilds.cache.get(report.guild_id);
             if (!guild) {
-                const msg = await replyTarget.send({ content: `❌ Servidor do report ${reportId} não encontrado.` });
-                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                await this.sendTempReply(interaction, `Servidor do report ${reportId} não encontrado.`, false);
                 return;
             }
 
@@ -363,11 +352,9 @@ class ReportChatSystem {
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
             
-            // Extra: motivo na descrição
             const closedByText = `\n- **Fechado por:** ${closedByName}`;
             const extraDesc = `\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
             
-            // ATUALIZAR LOG (sem botões)
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
                 const logChannel = await guild.channels.fetch(logChannelId);
@@ -378,7 +365,6 @@ class ReportChatSystem {
                 }
             }
 
-            // ATUALIZAR DM (com botão de avaliação)
             if (report.dm_message_id) {
                 const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
@@ -394,31 +380,25 @@ class ReportChatSystem {
                 }
             }
 
-            const msg = await replyTarget.send({ content: `✅ ${report.id} foi fechado por ${interaction.user}.` });
-            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            // Resposta temporária para o botão
+            await this.sendTempReply(interaction, `${report.id} foi fechado por ${interaction.user}.`, true);
             
         } catch (error) {
             console.error('❌ Erro ao fechar:', error);
-            const msg = await replyTarget.send({ content: `❌ Erro ao fechar o report ${reportId}.` });
-            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            await this.sendTempReply(interaction, `Erro ao fechar o report ${reportId}.`, false);
         }
     }
 
-    // ==================== AVALIAR ====================
-    
+        // ==================== AVALIAR ====================
     async rateReport(interaction, reportId, nota, comentario) {
-        const replyTarget = interaction.channel || interaction.user;
-        
         try {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ?`).get(reportId, interaction.user.id);
             if (!report) {
-                const msg = await replyTarget.send({ content: `❌ Report ${reportId} não encontrado.` });
-                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
             if (report.rating) {
-                const msg = await replyTarget.send({ content: `❌ Este report já foi avaliado.` });
-                setTimeout(() => msg.delete().catch(() => {}), 10000);
+                await this.sendTempReply(interaction, `Este report já foi avaliado.`, false);
                 return;
             }
 
@@ -428,7 +408,6 @@ class ReportChatSystem {
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
             
-            // Extra: avaliação na descrição
             const extraDesc = `\n- **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n- **Comentário:** ${comentario || 'Nenhum'}`;
             
             const logChannelId = ConfigSystem.getSetting(report.guild_id, 'log_reports');
@@ -441,16 +420,30 @@ class ReportChatSystem {
                 }
             }
 
-            const msg = await replyTarget.send({ content: `✅ Avaliação registrada! Obrigado.` });
-            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            await this.sendTempReply(interaction, `Avaliação registrada! Obrigado.`, true);
             
         } catch (error) {
             console.error('❌ Erro ao avaliar:', error);
-            const msg = await replyTarget.send({ content: `❌ Erro ao avaliar report ${reportId}.` });
-            setTimeout(() => msg.delete().catch(() => {}), 10000);
+            await this.sendTempReply(interaction, `Erro ao avaliar report ${reportId}.`, false);
         }
     }
 
+            // ==================== RESPOSTA TEMPORÁRIA ====================
+        async sendTempReply(interaction, content, success = true) {
+            const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
+            
+            // Resposta ephemeral (só o usuário vê)
+            await interaction.reply({ content: `${emoji} ${content}`, flags: 64 });
+            
+            // Deletar após 20 segundos
+            setTimeout(async () => {
+                try {
+                    await interaction.deleteReply();
+                } catch (err) {
+                    // Ignora erro se a mensagem já foi deletada
+                }
+            }, 20000);
+        }
     // ==================== ATUALIZAR STATUS ====================
     
     async updateStatus(guildId, reportId, newStatus) {
@@ -484,5 +477,6 @@ class ReportChatSystem {
         }
     }
 }
+
 
 module.exports = ReportChatSystem;
