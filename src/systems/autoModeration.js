@@ -434,14 +434,6 @@ class AutoModerationSystem {
                     continue;
                 }
 
-                const today = new Date().toLocaleDateString('pt-BR');
-                const lastRun = ConfigSystem.getSetting(gId, 'last_automod_log');
-                
-                if (lastRun === today) {
-                    console.log(`⚠️ [AutoMod] Log já enviado hoje para ${gId} (${today}), pulando...`);
-                    continue;
-                }
-
                 const embed = new EmbedBuilder()
                     .setAuthor({ name: 'Sistema de Integridade', iconURL: this.client.user.displayAvatarURL() })
                     .setDescription(`# ${EMOJIS.Check || '✅'} Manutenção Diária Concluída`)

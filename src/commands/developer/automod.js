@@ -10,7 +10,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(sub => sub
             .setName('test')
-            .setDescription('🧪 Verifica a configuração e o canal de log')
+            .setDescription('Verifica a configuração e o canal de log')
         ),
 
     async execute(interaction, client) {
