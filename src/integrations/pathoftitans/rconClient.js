@@ -1,7 +1,4 @@
-/**
- * Cliente RCON para Path of Titans
- * Funciona independente - se falhar, apenas loga erro
- */
+// src/integrations/pathoftitans/rconClient.js
 const net = require('net');
 const ErrorLogger = require('../../systems/errorLogger');
 
@@ -16,23 +13,14 @@ class PoTRconClient {
         this.pendingRequests = new Map();
     }
 
-    /**
-     * Envia comando RCON para o servidor
-     * @returns {Promise<{success: boolean, response: string, error?: string}>}
-     */
     async sendCommand(command) {
         return new Promise((resolve) => {
-            // Timeout de 5 segundos
             const timeout = setTimeout(() => {
                 if (this.socket) {
                     this.socket.destroy();
                     this.socket = null;
                 }
-                resolve({ 
-                    success: false, 
-                    response: null, 
-                    error: 'RCON: Timeout - servidor não respondeu' 
-                });
+                resolve({ success: false, response: null, error: 'RCON: Timeout' });
             }, 5000);
 
             try {
@@ -47,16 +35,9 @@ class PoTRconClient {
                     clearTimeout(timeout);
                     const response = this._parseResponse(data);
                     if (response && response.id === this.requestId) {
-                        resolve({ 
-                            success: true, 
-                            response: response.body || 'Comando executado' 
-                        });
+                        resolve({ success: true, response: response.body || 'OK' });
                     } else {
-                        resolve({ 
-                            success: false, 
-                            response: null, 
-                            error: 'RCON: Resposta inválida' 
-                        });
+                        resolve({ success: false, response: null, error: 'Invalid response' });
                     }
                     this.socket.destroy();
                     this.socket = null;
@@ -64,48 +45,45 @@ class PoTRconClient {
 
                 this.socket.on('error', (err) => {
                     clearTimeout(timeout);
-                    ErrorLogger.warn('pot_rcon', 'connection', err.message, { guildId: this.guildId });
-                    resolve({ 
-                        success: false, 
-                        response: null, 
-                        error: `RCON: ${err.message}` 
-                    });
+                    resolve({ success: false, response: null, error: err.message });
                     this.socket = null;
                 });
 
             } catch (error) {
                 clearTimeout(timeout);
                 ErrorLogger.error('pot_rcon', 'sendCommand', error, { guildId: this.guildId, command });
-                resolve({ 
-                    success: false, 
-                    response: null, 
-                    error: error.message 
-                });
+                resolve({ success: false, response: null, error: error.message });
             }
         });
     }
 
     _buildPacket(id, type, body) {
         const bodyBuffer = Buffer.from(body, 'utf8');
-        const packetLength = Buffer.byteLength(body, 'utf8') + 14;
+        // Packet length: 4 bytes for ID + 4 bytes for type + body length + 2 null bytes
+        const packetLength = 4 + 4 + bodyBuffer.length + 2;
         const buffer = Buffer.alloc(packetLength);
         
-        buffer.writeInt32LE(packetLength - 4, 0);
-        buffer.writeInt32LE(id, 4);
-        buffer.writeInt32LE(type, 8);
-        bodyBuffer.copy(buffer, 12);
-        buffer.writeInt32LE(0, packetLength - 2);
+        let offset = 0;
+        buffer.writeInt32LE(packetLength, offset); offset += 4;
+        buffer.writeInt32LE(id, offset); offset += 4;
+        buffer.writeInt32LE(type, offset); offset += 4;
+        bodyBuffer.copy(buffer, offset);
+        offset += bodyBuffer.length;
+        buffer.writeInt16LE(0, offset); // Null terminator
         
         return buffer;
     }
 
     _parseResponse(buffer) {
-        if (buffer.length < 12) return null;
-        return {
-            id: buffer.readInt32LE(4),
-            type: buffer.readInt32LE(8),
-            body: buffer.toString('utf8', 12, buffer.length - 2)
-        };
+        if (buffer.length < 14) return null;
+        
+        let offset = 0;
+        const size = buffer.readInt32LE(offset); offset += 4;
+        const id = buffer.readInt32LE(offset); offset += 4;
+        const type = buffer.readInt32LE(offset); offset += 4;
+        const body = buffer.toString('utf8', offset, buffer.length - 2);
+        
+        return { id, type, body };
     }
 
     disconnect() {

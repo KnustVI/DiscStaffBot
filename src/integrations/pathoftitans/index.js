@@ -92,6 +92,14 @@ class PathOfTitansIntegration {
             initialized: this.isInitialized
         };
     }
+
+    getPublicUrl(guildId) {
+        const config = PoTConfigSystem.getServerConfig(guildId);
+        if (!config) return null;
+        
+        return process.env.POT_GATEWAY_URL || `http://${config.server_ip}:${config.webhook_port || 8080}`;
+    }
+
 }
 
 let instance = null;
