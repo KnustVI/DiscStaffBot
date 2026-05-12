@@ -207,7 +207,16 @@ class ReportChatSystem {
             await thread.members.add(user.id);
 
             // Embed da THREAD (sem botões)
-            const threadEmbed = this.createBaseEmbed(guild, reportId, user, 'waiting', []);
+            const threadEmbed = new EmbedBuilder()
+            .setColor(0xDCA15E)
+            .setThumbnail(guild.iconURL())
+            .setDescription(
+                `# ${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}\n\n` +
+                `Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\n` +
+                `Enquanto aguarda, você pode adicionar mais informações ou provas neste chat.`
+            )
+            .setFooter(EmbedFormatter.getFooter(guild.name))
+            .setTimestamp();
             const threadMsg = await thread.send({ embeds: [threadEmbed] });
 
             // Embed de informações do report (NÃO USA base embed - é diferente)

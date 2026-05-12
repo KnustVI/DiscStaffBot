@@ -179,7 +179,67 @@ const SCHEMA = {
             reviewed_at INTEGER,
             created_at INTEGER NOT NULL
         )
-    `
+    `,
+
+    // ==================== PATH OF TITANS INTEGRATION ====================
+    pot_servers: `
+        CREATE TABLE IF NOT EXISTS pot_servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL UNIQUE,
+            server_name TEXT,
+            server_ip TEXT NOT NULL,
+            rcon_port INTEGER DEFAULT 27015,
+            rcon_password TEXT,
+            webhook_port INTEGER DEFAULT 8080,
+            api_key TEXT,
+            enabled INTEGER DEFAULT 1,
+            last_online INTEGER,
+            settings TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+    `,
+
+    pot_players: `
+        CREATE TABLE IF NOT EXISTS pot_players (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            alderon_id TEXT NOT NULL,
+            player_name TEXT NOT NULL,
+            discord_id TEXT,
+            dinosaur_type TEXT,
+            dinosaur_growth REAL DEFAULT 0,
+            last_seen INTEGER,
+            total_playtime INTEGER DEFAULT 0,
+            is_online INTEGER DEFAULT 0,
+            UNIQUE(guild_id, alderon_id)
+        )
+    `,
+
+    pot_logs: `
+        CREATE TABLE IF NOT EXISTS pot_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            event_data TEXT,
+            player_name TEXT,
+            alderon_id TEXT,
+            created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+    `,
+
+    pot_tokens: `
+        CREATE TABLE IF NOT EXISTS pot_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL UNIQUE,
+            token TEXT NOT NULL UNIQUE,
+            created_at INTEGER DEFAULT (strftime('%s', 'now')),
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            last_used INTEGER,
+            usage_count INTEGER DEFAULT 0
+        )
+    `,
+
 };
 
 // ==================== ÍNDICES ====================
@@ -216,7 +276,14 @@ const INDEXES = [
     
     // Feedbacks
     `CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status)`,
-    `CREATE INDEX IF NOT EXISTS idx_feedbacks_created ON feedbacks(created_at)`
+    `CREATE INDEX IF NOT EXISTS idx_feedbacks_created ON feedbacks(created_at)`,
+
+        // Path of Titans indexes
+    `CREATE INDEX IF NOT EXISTS idx_pot_players_guild ON pot_players(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_players_alderon ON pot_players(alderon_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_logs_guild ON pot_logs(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_logs_type ON pot_logs(event_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`
 ];
 
 module.exports = { SCHEMA, INDEXES };
