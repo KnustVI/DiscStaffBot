@@ -5,8 +5,14 @@ const path = require('node:path');
 
 const commands = [];
 
+// --- CONFIGURAÇÃO DOS SERVIDORES ---
+// Adicione aqui os IDs dos servidores onde quer registrar os comandos
+const GUILD_IDS = [
+    '430534418818400266',  // Servidor principal (KnustVI Productions)
+    '1480473937413672981'  // ← SUBSTITUA PELO ID DO NOVO SERVIDOR
+];
+
 // --- 1. LOCALIZAÇÃO DOS COMANDOS ---
-// O script assume que está na raiz e os comandos em /src/commands
 const foldersPath = path.join(__dirname, 'src', 'commands'); 
 
 if (!fs.existsSync(foldersPath)) {
@@ -20,7 +26,6 @@ const commandFolders = fs.readdirSync(foldersPath);
 for (const folder of commandFolders) {
     const commandsPath = path.join(foldersPath, folder);
     
-    // Ignora arquivos soltos na raiz da pasta commands, foca apenas em subpastas (categorias)
     if (!fs.lstatSync(commandsPath).isDirectory()) continue;
 
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -32,7 +37,6 @@ for (const folder of commandFolders) {
             const command = require(filePath);
             
             if (command && 'data' in command && 'execute' in command) {
-                // Converte o SlashCommandBuilder para o JSON que o Discord entende
                 commands.push(command.data.toJSON());
                 console.log(`\x1b[32m✅ [/${command.data.name}]\x1b[0m carregado de ${folder}/${file}`);
             } else {
@@ -51,24 +55,20 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     try {
         console.log("\n\x1b[34m[DEPLOY]\x1b[0m Iniciando atualização de comandos...");
 
-        /**
-         * PONTO DE SEGURANÇA: Limpeza de Cache
-         * Removemos comandos globais e de guilda antigos para evitar 
-         * que comandos deletados continuem aparecendo no menu do Discord.
-         */
-        
-        // Limpeza Global (Pode levar até 1h para propagar, por isso usamos Guild para testes)
-        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: [] });
+        // Limpeza Global (opcional - comentar se não quiser limpar)
+        // await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: [] });
 
-        // Registro na Guilda de Testes (Instantâneo)
-        console.log(`\x1b[34m[DEPLOY]\x1b[0m Registrando ${commands.length} comandos na Guilda: ${process.env.GUILD_ID}`);
-        
-        const data = await rest.put(
-            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-            { body: commands }
-        );
-
-        console.log(`\x1b[32m\x1b[1m✅ SUCESSO!\x1b[0m ${data.length} comandos sincronizados com o Discord.\n`);
+        // Registrar comandos para CADA servidor na lista
+        for (const guildId of GUILD_IDS) {
+            console.log(`\x1b[34m[DEPLOY]\x1b[0m Registrando ${commands.length} comandos no servidor: ${guildId}`);
+            
+            const data = await rest.put(
+                Routes.applicationGuildCommands(process.env.CLIENT_ID, guildId),
+                { body: commands }
+            );
+            
+            console.log(`\x1b[32m✅ SUCESSO!\x1b[0m ${data.length} comandos sincronizados com o servidor ${guildId}\n`);
+        }
 
     } catch (error) {
         console.error("\n\x1b[41m\x1b[37m[ERRO DE DEPLOY]\x1b[0m");
