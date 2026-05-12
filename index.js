@@ -102,4 +102,29 @@ client.login(TOKEN).catch(error => {
     process.exit(1);
 });
 
+// ==================== PATH OF TITANS INTEGRATION ====================
+// Inicialização silenciosa - não quebra o bot se falhar
+try {
+    const { getInstance } = require('./src/integrations/pathoftitans');
+    const potIntegration = getInstance(client);
+    
+    // Tentar carregar configurações salvas para cada guild
+    if (potIntegration) {
+        console.log('🎮 [PoT] Sistema de integeração carregado (modo standby)');
+        // As integrações serão ativadas quando configuradas via comando
+    }
+} catch (error) {
+    // Falha silenciosa - o bot continua funcionando
+    console.log('ℹ️ [PoT] Integração não disponível (servidor offline ou não configurado)');
+}
+
+// ==================== PATH OF TITANS GATEWAY ====================
+try {
+    const { getInstance } = require('./src/integrations/pathoftitans');
+    getInstance(client);
+    console.log('🎮 [PoT] Gateway inicializado');
+} catch (error) {
+    console.log('ℹ️ [PoT] Gateway não disponível');
+}
+
 module.exports = client;
