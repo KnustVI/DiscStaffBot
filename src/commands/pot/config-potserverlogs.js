@@ -1,4 +1,3 @@
-// src/commands/pot/config-potserverlogs.js
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
@@ -25,39 +24,27 @@ module.exports = {
         .addStringOption(opt => opt.setName('categoria').setDescription('Nome da categoria (opcional)')),
 
     async execute(interaction, client) {
-        await interaction.deferReply({ flags: 64 });
-        
         const categoryName = interaction.options.getString('categoria') || '📊 PATH OF TITANS LOGS';
         
-        // Verificar se servidor está configurado
         const config = PoTConfigSystem.getServerConfig(interaction.guildId);
         if (!config) {
-            return await interaction.editReply({
-                content: '❌ Configure o servidor primeiro com `/config-potserver set`'
-            });
+            await interaction.editReply({ content: '❌ Configure o servidor primeiro com `/config-potserver set`' });
+            return;
         }
         
-        // Verificar token
         let token = PoTTokenManager.getToken(interaction.guildId);
         if (!token) token = PoTTokenManager.generateToken(interaction.guildId);
         
-        const publicUrl = process.env.POT_GATEWAY_URL || `http://${config.server_ip}:${config.webhook_port || 8080}`;
+        const publicDomain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
 
         try {
-            // 1. Criar ou obter categoria
             let category = interaction.guild.channels.cache.find(c => c.name === categoryName && c.type === ChannelType.GuildCategory);
             if (!category) {
-                category = await interaction.guild.channels.create({ 
-                    name: categoryName, 
-                    type: ChannelType.GuildCategory 
-                });
-                await interaction.editReply({ content: `📁 Categoria "${categoryName}" criada.` });
+                category = await interaction.guild.channels.create({ name: categoryName, type: ChannelType.GuildCategory });
             }
             
             const createdChannels = [];
-            const webhookUrls = {};
             
-            // 2. Criar canais e webhooks
             for (const log of LOG_CHANNELS) {
                 let channel = interaction.guild.channels.cache.find(c => c.name === log.name && c.parentId === category.id);
                 
@@ -71,37 +58,29 @@ module.exports = {
                     createdChannels.push(log.name);
                 }
                 
-                // Criar webhook
                 const webhook = await channel.createWebhook({
-                    name: `PoT ${log.emoji} Logger`,
+                    name: `PoT ${log.name.split(' ')[0]} Logger`,
                     reason: `Webhook para logs de ${log.event}`
                 });
                 
-                webhookUrls[log.endpoint] = `${publicUrl}/${log.event}?token=${token}`;
                 PoTConfigSystem.setWebhookForEvent(interaction.guildId, log.event, webhook.url);
             }
             
-            // 3. Gerar configuração do Game.ini (em partes para não estourar limite)
-            let gameIniLines = ['[ServerWebhooks]', 'bEnabled=true', 'Format="General"', ''];
+            const gameIniLines = ['[ServerWebhooks]', 'bEnabled=true', 'Format="General"', ''];
             for (const log of LOG_CHANNELS) {
-                gameIniLines.push(`${log.endpoint}="${publicUrl}/${log.event}?token=${token}"`);
+                gameIniLines.push(`${log.endpoint}="${publicDomain}/${log.event}?token=${token}"`);
             }
             const gameIniConfig = gameIniLines.join('\n');
             
-            // 4. Criar resposta (usando campo separado para não estourar limite)
             const embed = new EmbedBuilder()
                 .setColor(0x00FF00)
-                .setTitle('📋 Canais de Log Criados')
-                .setDescription(`✅ ${createdChannels.length} canais criados na categoria "${categoryName}"`)
-                .addFields(
-                    { name: '🔑 Token Atual', value: `\`${token}\``, inline: false },
-                    { name: '📝 Próximo passo', value: 'Copie a configuração abaixo para seu `Game.ini`', inline: false }
-                )
+                .setTitle('📋 Canais de Log Configurados')
+                .setDescription(`✅ ${createdChannels.length} canais criados na categoria "${categoryName}"\n📌 ${LOG_CHANNELS.length - createdChannels.length} canais reutilizados.`)
+                .addFields({ name: '🔑 Token Atual', value: `\`${token}\``, inline: false })
                 .setTimestamp();
             
-            await interaction.editReply({ embeds: [embed], content: null });
+            await interaction.editReply({ embeds: [embed] });
             
-            // 5. Enviar a configuração do Game.ini em uma mensagem separada (para não estourar limite do embed)
             await interaction.followUp({
                 content: `📄 **Copie para seu Game.ini:**\n\`\`\`ini\n${gameIniConfig}\n\`\`\``,
                 flags: 64
@@ -110,7 +89,7 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro:', error);
             await interaction.editReply({ 
-                content: `❌ Erro: ${error.message}\n\nVerifique se o bot tem permissão de "Gerenciar Canais" e "Gerenciar Webhooks".`
+                content: `❌ Erro: ${error.message}\n\nVerifique as permissões do bot.`
             });
         }
     }

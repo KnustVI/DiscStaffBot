@@ -26,10 +26,10 @@ module.exports = {
             .setDescription('🚫 Revoga o token atual')),
 
     async execute(interaction, client) {
+        // NÃO chamar deferReply aqui! O handler já fez
         const sub = interaction.options.getSubcommand();
         const potIntegration = getInstance(client);
 
-        // SET - Configurar servidor
         if (sub === 'set') {
             const ip = interaction.options.getString('ip');
             const password = interaction.options.getString('password');
@@ -50,38 +50,27 @@ module.exports = {
                 .addFields(
                     { name: '📡 IP', value: ip, inline: true },
                     { name: '🔌 Porta RCON', value: port.toString(), inline: true },
-                    { name: '🔄 Status', value: success ? '✅ OK' : '⚠️ Offline', inline: true },
-                    { name: '🔑 Token', value: `\`${token.substring(0, 20)}...\``, inline: true }
+                    { name: '🔄 Status', value: success ? '✅ OK' : '⚠️ Offline', inline: true }
                 )
-                .setFooter({ text: `Use /config-potserver token para ver o token completo` })
+                .setFooter({ text: 'Use /config-potserver token para ver o token' })
                 .setTimestamp();
             
             await interaction.editReply({ embeds: [embed] });
         }
         
-        // TOKEN - Mostrar token
         else if (sub === 'token') {
+            // Buscar domínio público do .env (NÃO o IP da Oracle!)
+            const publicDomain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
+            
             let token = PoTTokenManager.getToken(interaction.guildId);
             if (!token) token = PoTTokenManager.generateToken(interaction.guildId);
             
-            const publicUrl = process.env.POT_GATEWAY_URL || 'http://localhost:8080';
-            
-            const embed = new EmbedBuilder()
-                .setColor(0x00AAFF)
-                .setTitle('🔑 Token do Servidor')
-                .setDescription(`\`\`\`\n${token}\n\`\`\``)
-                .addFields({
-                    name: '📋 URLs para o Game.ini',
-                    value: '```ini\n[ServerWebhooks]\nbEnabled=true\nFormat="General"\nPlayerLogin="' + publicUrl + '/login?token=' + token + '"\nPlayerKilled="' + publicUrl + '/killed?token=' + token + '"\nPlayerChat="' + publicUrl + '/chat?token=' + token + '"\n```',
-                    inline: false
-                })
-                .setFooter({ text: '⚠️ Mantenha este token em segredo!' })
-                .setTimestamp();
-            
-            await interaction.editReply({ embeds: [embed] });
+            // Enviar apenas o token primeiro
+            await interaction.editReply({
+                content: `🔑 **Seu token:**\`\`\`\n${token}\n\`\`\`\n\n📋 **URLs para o Game.ini (use seu domínio público):**\n\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="General"\nPlayerLogin="${publicDomain}/login?token=${token}"\nPlayerKilled="${publicDomain}/killed?token=${token}"\nPlayerChat="${publicDomain}/chat?token=${token}"\n\`\`\`\n⚠️ Mantenha este token em segredo!`
+            });
         }
         
-        // STATUS - Verificar status
         else if (sub === 'status') {
             const stats = potIntegration.getStats();
             const token = PoTTokenManager.getToken(interaction.guildId);
@@ -104,10 +93,12 @@ module.exports = {
             await interaction.editReply({ embeds: [embed] });
         }
         
-        // REVOKE - Revogar token
         else if (sub === 'revoke') {
             const token = PoTTokenManager.getToken(interaction.guildId);
-            if (!token) return await interaction.editReply({ content: '❌ Nenhum token ativo para revogar.' });
+            if (!token) {
+                await interaction.editReply({ content: '❌ Nenhum token ativo para revogar.' });
+                return;
+            }
             
             PoTTokenManager.revokeToken(interaction.guildId);
             const newToken = PoTTokenManager.generateToken(interaction.guildId);
