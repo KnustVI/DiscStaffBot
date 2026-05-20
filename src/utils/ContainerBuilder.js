@@ -1,9 +1,8 @@
 // /home/ubuntu/DiscStaffBot/src/utils/ContainerBuilder.js
-const { ContainerBuilder, ComponentType, ActionRowBuilder } = require('discord.js');
+const { ContainerBuilder, ComponentType, ActionRowBuilder, ButtonBuilder, ThumbnailBuilder } = require('discord.js');
 
 class ContainerBuilderWrapper {
     constructor(options = {}) {
-        // Criar o container CORRETAMENTE
         this.container = new ContainerBuilder();
         
         if (options.accentColor) this.container.setAccentColor(options.accentColor);
@@ -22,7 +21,6 @@ class ContainerBuilderWrapper {
 
     addTitle(text, level = 1) {
         const prefix = '#'.repeat(Math.min(level, 3));
-        // CORRETO: adicionar ao container, não criar componente solto
         this.container.addTextDisplayComponents({
             content: `${prefix} ${text}`,
             type: ComponentType.TextDisplay
@@ -59,9 +57,26 @@ class ContainerBuilderWrapper {
             }
         }
         
+        // REGRA CRÍTICA: Validar accessory antes de adicionar
+        let validAccessory = null;
+        if (accessory) {
+            // Verifica se é ButtonBuilder válido
+            if (accessory instanceof ButtonBuilder && accessory.toJSON) {
+                validAccessory = accessory;
+            }
+            // Verifica se é ThumbnailBuilder válido
+            else if (accessory instanceof ThumbnailBuilder && accessory.toJSON) {
+                validAccessory = accessory;
+            }
+            // Verifica se é um builder que tem método toJSON
+            else if (accessory && typeof accessory.toJSON === 'function') {
+                validAccessory = accessory;
+            }
+        }
+        
         this.container.addSectionComponents({
             components: sectionComponents,
-            accessory: accessory || undefined
+            accessory: validAccessory || undefined
         });
         this.hasContent = true;
         return this;
@@ -69,8 +84,28 @@ class ContainerBuilderWrapper {
 
     addButtonRow(buttons) {
         if (!buttons || buttons.length === 0) return this;
+        
+        // REGRA: Validar e filtrar botões inválidos
+        const validButtons = [];
+        for (const button of buttons.slice(0, 5)) {
+            if (button && button instanceof ButtonBuilder && button.toJSON) {
+                validButtons.push(button);
+            }
+        }
+        
+        if (validButtons.length === 0) return this;
+        
         const actionRow = new ActionRowBuilder();
-        buttons.slice(0, 5).forEach(button => actionRow.addComponents(button));
+        validButtons.forEach(button => actionRow.addComponents(button));
+        this.container.addActionRowComponents(actionRow);
+        this.hasContent = true;
+        return this;
+    }
+
+    addSelectMenu(selectMenu) {
+        if (!selectMenu) return this;
+        const actionRow = new ActionRowBuilder();
+        actionRow.addComponents(selectMenu);
         this.container.addActionRowComponents(actionRow);
         this.hasContent = true;
         return this;
@@ -87,7 +122,6 @@ class ContainerBuilderWrapper {
         if (!this.hasContent) {
             this.addText("⚠️ Nenhuma informação disponível");
         }
-        // CORRETO: retornar o container, não um array
         return this.container;
     }
 }

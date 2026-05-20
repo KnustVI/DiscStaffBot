@@ -44,10 +44,11 @@ module.exports = {
         builder.addText(`Selecione os cargos abaixo:`);
         builder.addSeparator();
         
-        builder.addSection([`${emojis.staff || '🛡️'} **Staff:**`, staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`]);
-        builder.addSection([`${emojis.strike || '⚠️'} **Strike (Temporário):**`, strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`]);
-        builder.addSection([`${emojis.shinystar || '✨'} **Exemplar:**`, exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`]);
-        builder.addSection([`${emojis.Warning || '⚠️'} **Problemático:**`, problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`]);
+        // CORRETO: usando addText, não addSection com dois parâmetros
+        builder.addText(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
         builder.addFooter();
         
         const staffRow = new ActionRowBuilder().addComponents(
