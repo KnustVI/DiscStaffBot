@@ -38,20 +38,14 @@ class ContainerBuilderWrapper {
         return this;
     }
 
-    addSection(texts) {
+    // MANTIDO - para quem quiser usar
+    addSection(texts, accessory = null) {
         if (!texts || texts.length === 0) return this;
-        
-        // Se texts for um array de strings, combina em um único texto
-        let combinedText = '';
-        if (Array.isArray(texts)) {
-            combinedText = texts.join(' | ');
-        } else {
-            combinedText = texts;
+        const sectionComponents = [];
+        for (const text of texts.slice(0, 3)) {
+            if (text) sectionComponents.push({ content: text, type: ComponentType.TextDisplay });
         }
-        
-        this.container.addSectionComponents({
-            components: [{ content: combinedText, type: ComponentType.TextDisplay }]
-        });
+        this.container.addSectionComponents({ components: sectionComponents, accessory: accessory || undefined });
         this.hasContent = true;
         return this;
     }
