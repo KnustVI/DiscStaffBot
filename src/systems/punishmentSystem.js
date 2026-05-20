@@ -1,8 +1,8 @@
+// /home/ubuntu/DiscStaffBot/src/systems/punishmentSystem.js
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
 const SessionManager = require('../utils/sessionManager');
-const ContainerBuilder = require('../utils/ContainerBuilder');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 
 const COLORS = {
@@ -257,7 +257,9 @@ const PunishmentSystem = {
             const container = this.generateHistoryContainer(target, history, newPage, interaction.guild.name);
             const buttons = this.generateHistoryButtons(targetId, newPage, history.totalPages);
             
-            await interaction.editReply({ components: [container.container], ...(buttons ? { components: [container.container, buttons] } : { components: [container.container] }) });
+            const replyData = container.build();
+            if (buttons) replyData.components.push(buttons);
+            await interaction.editReply(replyData);
         } catch (error) {
             console.error('❌ Erro na paginação:', error);
             await interaction.editReply({ content: '❌ Erro ao carregar página.', components: [] });
@@ -287,7 +289,7 @@ const PunishmentSystem = {
             const container = this.generateStrikeUnifiedContainer(target, interaction.user, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, interaction.guild.name, null);
             
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
-            await interaction.editReply({ components: [container.container] });
+            await interaction.editReply(container.build());
         }
     },
     
@@ -330,7 +332,9 @@ const PunishmentSystem = {
             new ButtonBuilder().setCustomId(`punishment:confirm:cancel`).setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
         );
         
-        await interaction.editReply({ components: [builder.container, row], content: null });
+        const replyData = builder.build();
+        replyData.components.push(row);
+        await interaction.editReply(replyData);
         SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_modal');
     },
     
@@ -357,7 +361,7 @@ const PunishmentSystem = {
         const target = await interaction.client.users.fetch(strike.user_id).catch(() => null);
         const container = this.generateUnstrikeUnifiedContainer(target, interaction.user, session.strikeId, reason, pointsRestored, newPoints, strike.reason, interaction.guild.name);
         
-        await interaction.editReply({ components: [container.container], content: null });
+        await interaction.editReply(container.build());
         SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_modal');
     },
     

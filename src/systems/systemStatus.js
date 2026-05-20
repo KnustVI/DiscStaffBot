@@ -1,6 +1,6 @@
+// /home/ubuntu/DiscStaffBot/src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
-const ContainerBuilder = require('../utils/ContainerBuilder');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 const os = require('os');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -13,13 +13,7 @@ try {
     EMOJIS = {};
 }
 
-const COLORS = {
-    DEFAULT: 0xDCA15E,
-    SUCCESS: 0xBBF96A,
-    WARNING: 0xFFBD59,
-    DANGER: 0xF64B4E
-};
-
+const COLORS = { DEFAULT: 0xDCA15E, SUCCESS: 0xBBF96A, WARNING: 0xFFBD59, DANGER: 0xF64B4E };
 const statsCache = new Map();
 const CACHE_TTL = 60000;
 
@@ -51,43 +45,27 @@ class SystemStatus {
     
     static async handleRefreshStatus(interaction) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
-        
         if (!status) {
-            return await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Erro ao obter status.`,
-                components: []
-            });
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Erro ao obter status.`, components: [] });
         }
         
         const builder = this.generateStatusContainer(status, interaction.guild);
-        
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('status:refresh')
-                .setLabel(`${EMOJIS.Reset || '🔄'} Atualizar`)
-                .setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('status:refresh').setLabel(`${EMOJIS.Reset || '🔄'} Atualizar`).setStyle(ButtonStyle.Secondary)
         );
         
-        await interaction.editReply({
-            components: [builder.container, row]
-        });
+        const replyData = builder.build();
+        replyData.components.push(row);
+        await interaction.editReply(replyData);
     }
     
     static async handleDetailedStatus(interaction, param) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
-        
         if (!status) {
-            return await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Erro ao obter status.`,
-                components: []
-            });
+            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Erro ao obter status.`, components: [] });
         }
-        
         const builder = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
-        
-        await interaction.editReply({
-            components: [builder.container]
-        });
+        await interaction.editReply(builder.build());
     }
     
     static generateStatusContainer(status, guild) {
@@ -100,7 +78,6 @@ class SystemStatus {
         }
         
         const builder = ContainerFormatter.createBuilder(status.guildName, accentColor);
-        
         builder.addTitle(`${EMOJIS.panel || '📊'} Status do Sistema`, 1);
         builder.addText(`**${status.guildName}** • Sistema operando normalmente`);
         builder.addSeparator();
@@ -132,7 +109,6 @@ class SystemStatus {
         else if (memoryUsage > 300) healthScore -= 10;
         
         const healthEmoji = healthScore >= 80 ? '🟢' : (healthScore >= 50 ? '🟡' : '🔴');
-        
         const builder = ContainerFormatter.createBuilder(status.guildName, COLORS.DEFAULT);
         
         builder.addTitle(`${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, 1);
@@ -158,16 +134,14 @@ class SystemStatus {
         }
         
         builder.addSection([`${healthEmoji} **Health Score: ${healthScore}/100**`, healthMessage]);
-        builder.addFooterWithExtra(`PID: ${process.pid} • ${new Date().toLocaleString('pt-BR')}`);
+        builder.addFooter();
         
         return builder;
     }
     
     static getBotStatus(client, guildId) {
         try {
-            if (!client?.isReady()) {
-                throw new Error("O Client do Discord não está pronto.");
-            }
+            if (!client?.isReady()) throw new Error("O Client do Discord não está pronto.");
             
             const uptimeMs = client.uptime || 0;
             const days = Math.floor(uptimeMs / 86400000);

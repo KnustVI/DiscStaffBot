@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter.js');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -115,9 +115,9 @@ module.exports = {
                     .setDisabled(pages.length === 1)
             );
             
-            await interaction.editReply({
-                components: [pages[currentPage].container, row]
-            });
+            const replyData = pages[currentPage].build();
+            replyData.components.push(row);
+            await interaction.editReply(replyData);
             
             const filter = (i) => i.user.id === user.id && (i.customId === 'ajuda_prev' || i.customId === 'ajuda_next');
             const collector = interaction.channel.createMessageComponentCollector({ filter, time: 120000 });
@@ -142,9 +142,9 @@ module.exports = {
                         .setDisabled(currentPage === pages.length - 1)
                 );
                 
-                await i.update({
-                    components: [pages[currentPage].container, updatedRow]
-                });
+                const newReplyData = pages[currentPage].build();
+                newReplyData.components.push(updatedRow);
+                await i.update(newReplyData);
             });
             
             collector.on('end', async () => {
@@ -153,7 +153,11 @@ module.exports = {
                     new ButtonBuilder().setCustomId('ajuda_next').setLabel('Próxima ▶').setStyle(ButtonStyle.Secondary).setDisabled(true)
                 );
                 try {
-                    await interaction.editReply({ components: [pages[currentPage]?.container, disabledRow] });
+                    const finalReplyData = pages[currentPage]?.build();
+                    if (finalReplyData) {
+                        finalReplyData.components.push(disabledRow);
+                        await interaction.editReply(finalReplyData);
+                    }
                 } catch (err) {}
             });
             

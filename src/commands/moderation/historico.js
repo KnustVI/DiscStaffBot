@@ -67,7 +67,7 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            const replyData = { components: [container.container] };
+            const replyData = container.build();
             if (components) {
                 replyData.components.push(components);
             }

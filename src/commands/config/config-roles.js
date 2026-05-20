@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, RoleSelectMenuBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter.js');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -74,8 +74,8 @@ module.exports = {
                 .setPlaceholder('Selecionar cargo Problemático')
         );
         
-        await ResponseManager.send(interaction, {
-            components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow]
-        });
+        const replyData = builder.build();
+        replyData.components.push(staffRow, strikeRow, exemplarRow, problematicoRow);
+        await ResponseManager.send(interaction, replyData);
     }
 };
