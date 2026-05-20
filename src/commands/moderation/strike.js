@@ -170,6 +170,7 @@ module.exports = {
             );
         console.log('🔍 [DEBUG] containerBuilder:', containerBuilder ? 'existe' : 'null');
         console.log('🔍 [DEBUG] containerBuilder.build:', typeof containerBuilder?.build);
+        console.log('🔍 [DEBUG] builtContainer components:', JSON.stringify(builtContainer.components?.length));
             // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {

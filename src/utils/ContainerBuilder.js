@@ -10,12 +10,12 @@ class ContainerBuilderWrapper {
         
         this.hasContent = false;
         this.serverName = options.serverName || "Servidor Desconhecido";
-        this.footerText = `[Bot by: Knust VI](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
+        this.footerText = `Desenvolvido por Knust VI e T.Mach/[Servidor de suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
     }
 
     setServerName(serverName) {
         this.serverName = serverName;
-        this.footerText = `[Bot by: Knust VI](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
+        this.footerText = `Desenvolvido por Knust VI e T.Mach/[Servidor de suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
         return this;
     }
 

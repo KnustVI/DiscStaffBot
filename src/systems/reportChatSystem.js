@@ -35,48 +35,41 @@ class ReportChatSystem {
         return statusMap[status] || status;
     }
 
-    // ==================== BASE CONTAINER ====================
+    // ==================== BASE CONTAINER (ANTIGO BASE EMBED) ====================
     
     createBaseContainer(guild, reportId, user, status = 'waiting', staffs = [], extraDescription = '') {
-    const statusText = this.getStatusText(status);
-    const staffsText = staffs.length > 0 ? staffs.map(s => {
-        const time = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
-        return `<@${s.id}> (entrou ${time})`;
-    }).join('\n') : 'Nenhum';
-    
-    let accentColor;
-    if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-        accentColor = 0xDCA15E;
-    } else if (status === 'responded') {
-        accentColor = 0x57F287;
-    } else {
-        accentColor = 0xF64B4E;
+        const statusText = this.getStatusText(status);
+        const staffsText = staffs.length > 0 ? staffs.map(s => {
+            const time = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
+            return `<@${s.id}> (entrou ${time})`;
+        }).join('\n') : 'Nenhum';
+        
+        const userinfo = `${user.tag} (${user.id})`;
+        
+        let accentColor;
+        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
+            accentColor = 0xDCA15E;
+        } else if (status === 'responded') {
+            accentColor = 0x57F287;
+        } else {
+            accentColor = 0xF64B4E;
+        }
+        
+        const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
+        
+        builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
+        builder.addText(`Report de ${user.toString()}.`);
+        if (extraDescription) builder.addText(extraDescription);
+        builder.addSeparator();
+        builder.addText(`**📊 Status:** ${statusText}`);
+        builder.addText(`**👤 Userinfo:** ${userinfo}`);
+        builder.addText(`**👥 Staffs:** ${staffsText}`);
+        builder.addFooter();
+        
+        return builder;
     }
-    
-    const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
-    
-    // HEADER
-    builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
-    if (extraDescription) builder.addText(extraDescription);
-    builder.addSeparator();
-    
-    // STATUS SECTION
-    builder.addSection([`**📊 Status:** ${statusText}`]);
-    builder.addSeparator();
-    
-    // INFORMAÇÕES PRINCIPAIS SECTION
-    builder.addSection([`**👤 Userinfo:** ${user.tag} (${user.id})`]);
-    builder.addSection([`**👥 Staffs:** ${staffsText}`]);
-    builder.addSeparator();
-    
-    // RESUMO
-    builder.addText(`Report de ${user.toString()}.`);
-    builder.addFooter();
-    
-    return builder;
-}
 
-    // ==================== MODAIS ====================
+    // ==================== MODAIS (SEM ALTERAÇÕES) ====================
 
     getOpenModal() {
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
@@ -118,6 +111,7 @@ class ReportChatSystem {
     
     getPanel(guildName, guildIcon) {
         const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
+        
         builder.addTitle(`${EMOJIS.chat || '🎫'} Denúncia de jogador`, 1);
         builder.addText([
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
@@ -136,7 +130,9 @@ class ReportChatSystem {
                 .setEmoji(EMOJIS.chat || '🎫')
         );
         
-        return { components: [builder.build(), row] };
+        const replyData = { components: [builder.build()], flags: ['IsComponentsV2'] };
+        replyData.components.push(row);
+        return replyData;
     }
 
     // ==================== ABRIR REPORT ====================
@@ -162,12 +158,14 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
+            // Container da THREAD
             const threadBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             threadBuilder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
             threadBuilder.addText(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.addFooter();
             const threadMsg = await thread.send({ components: [threadBuilder.build()], flags: ['IsComponentsV2'] });
 
+            // Container de informações do report
             const infoBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             infoBuilder.addTitle(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
             infoBuilder.addSeparator();
@@ -179,15 +177,17 @@ class ReportChatSystem {
             infoBuilder.addFooter();
             await thread.send({ components: [infoBuilder.build()], flags: ['IsComponentsV2'] });
 
+            // DM do USUÁRIO
             const dmBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
             const dmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
             );
-            const dmPayload = { components: [dmBuilder.build()], flags: ['IsComponentsV2'] };
-            dmPayload.components.push(dmRow);
-            const dmMessage = await user.send(dmPayload).catch(() => null);
+            const dmReplyData = { components: [dmBuilder.build()], flags: ['IsComponentsV2'] };
+            dmReplyData.components.push(dmRow);
+            const dmMessage = await user.send(dmReplyData).catch(() => null);
 
+            // LOG da STAFF
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
             const logRow = new ActionRowBuilder().addComponents(
@@ -195,9 +195,9 @@ class ReportChatSystem {
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
             );
-            const logPayload = { components: [logBuilder.build()], flags: ['IsComponentsV2'] };
-            logPayload.components.push(logRow);
-            const logMessage = await logChannel.send(logPayload);
+            const logReplyData = { components: [logBuilder.build()], flags: ['IsComponentsV2'] };
+            logReplyData.components.push(logRow);
+            const logMessage = await logChannel.send(logReplyData);
 
             db.prepare(`
                 INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
@@ -248,9 +248,9 @@ class ReportChatSystem {
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs);
-                    const updatedPayload = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                    updatedPayload.components.push(...logMessage.components.slice(1));
-                    await logMessage.edit(updatedPayload);
+                    const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
+                    updatedReplyData.components.push(...logMessage.components.slice(1));
+                    await logMessage.edit(updatedReplyData);
                 }
             }
 
@@ -258,9 +258,9 @@ class ReportChatSystem {
                 const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs);
-                    const updatedPayload = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                    updatedPayload.components.push(...dmMessage.components.slice(1));
-                    await dmMessage.edit(updatedPayload);
+                    const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
+                    updatedReplyData.components.push(...dmMessage.components.slice(1));
+                    await dmMessage.edit(updatedReplyData);
                 }
             }
 
@@ -323,9 +323,9 @@ class ReportChatSystem {
                     const row = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId(`rate:${report.id}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
                     );
-                    const updatedPayload = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                    updatedPayload.components.push(row);
-                    await dmMessage.edit(updatedPayload);
+                    const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
+                    updatedReplyData.components.push(row);
+                    await dmMessage.edit(updatedReplyData);
                 }
             }
 
@@ -376,6 +376,8 @@ class ReportChatSystem {
         }
     }
 
+    // ==================== RESPOSTA TEMPORÁRIA ====================
+    
     async sendTempReply(interaction, content, success = true) {
         const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
         
@@ -394,6 +396,8 @@ class ReportChatSystem {
         }, 20000);
     }
     
+    // ==================== ATUALIZAR STATUS ====================
+    
     async updateStatus(guildId, reportId, newStatus) {
         const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);
         if (!report) return;
@@ -410,9 +414,9 @@ class ReportChatSystem {
             const logMessage = await logChannel.messages.fetch(report.log_message_id);
             if (logMessage) {
                 const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, newStatus, staffs);
-                const updatedPayload = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                updatedPayload.components.push(...logMessage.components.slice(1));
-                await logMessage.edit(updatedPayload);
+                const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
+                updatedReplyData.components.push(...logMessage.components.slice(1));
+                await logMessage.edit(updatedReplyData);
             }
         }
 
@@ -420,9 +424,9 @@ class ReportChatSystem {
             const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
             if (dmMessage) {
                 const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, newStatus, staffs);
-                const updatedPayload = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                updatedPayload.components.push(...dmMessage.components.slice(1));
-                await dmMessage.edit(updatedPayload);
+                const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
+                updatedReplyData.components.push(...dmMessage.components.slice(1));
+                await dmMessage.edit(updatedReplyData);
             }
         }
     }
