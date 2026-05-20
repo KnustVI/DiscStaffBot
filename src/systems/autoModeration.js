@@ -4,7 +4,7 @@ const db = require('../database/index');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const SessionManager = require('../utils/sessionManager');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/ContainerFormatter.js');
 
 // Carregar emojis do servidor
 let EMOJIS = {};

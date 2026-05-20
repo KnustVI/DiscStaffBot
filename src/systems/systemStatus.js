@@ -2,7 +2,7 @@
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/ContainerFormatter.js');
 const os = require('os');
 
 // Carregar emojis do servidor

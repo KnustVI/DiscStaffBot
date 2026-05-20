@@ -3,7 +3,7 @@ const db = require('../database/index');
 const sessionManager = require('../utils/sessionManager');
 const ResponseManager = require('../utils/responseManager');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/ContainerFormatter.js');
 const { 
     ActionRowBuilder, 
     ModalBuilder, 

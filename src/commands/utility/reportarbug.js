@@ -3,7 +3,7 @@ const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const ContainerBuilder = require('../../utils/ContainerBuilder');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const ContainerFormatter = require('../../utils/ContainerFormatter.js');
 
 // ID Centralizado de Suporte
 const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717'; 

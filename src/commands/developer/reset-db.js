@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const ContainerFormatter = require('../../utils/ContainerFormatter.js');
 
 const DEVELOPER_ID = '203676076189286412';
 
