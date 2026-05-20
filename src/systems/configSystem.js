@@ -1,9 +1,8 @@
-// src/systems/configSystem.js
 const db = require('../database/index');
 const sessionManager = require('../utils/sessionManager');
 const ResponseManager = require('../utils/responseManager');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter.js');
+const ContainerFormatter = require('../utils/ContainerFormatter');
 const { 
     ActionRowBuilder, 
     ModalBuilder, 
@@ -16,13 +15,8 @@ const {
     RoleSelectMenuBuilder      
 } = require('discord.js');
 
-/**
- * Cache em memória
- * Chave: {guildId}_{key}
- */
 const cache = new Map();
 
-// Carregar emojis do servidor
 let EMOJIS = {};
 try {
     const emojisFile = require('../database/emojis.js');
@@ -32,13 +26,10 @@ try {
 }
 
 const ConfigSystem = {
-    // ==================== MÉTODOS BASE ====================
-
     getSetting(guildId, key) {
         try {
             const cacheKey = `${guildId}_${key}`;
             if (cache.has(cacheKey)) return cache.get(cacheKey);
-
             const row = db.prepare('SELECT value FROM settings WHERE guild_id = ? AND key = ?').get(guildId, key);
             const val = row ? row.value : null;
             cache.set(cacheKey, val);
@@ -84,13 +75,10 @@ const ConfigSystem = {
         }
     },
 
-    // ==================== HANDLER PRINCIPAL ====================
-
     async handleComponent(interaction, action, param) {
         try {
             const customId = interaction.customId;
             
-            // CONFIG-POINTS
             if (customId.startsWith('config-points:strike')) {
                 await this.handleStrikeModal(interaction);
                 return;
@@ -103,8 +91,6 @@ const ConfigSystem = {
                 await this.resetPoints(interaction);
                 return;
             }
-            
-            // CONFIG-ROLES
             if (customId === 'config-roles:staff') {
                 await this.setRole(interaction, 'staff_role');
                 return;
@@ -121,8 +107,6 @@ const ConfigSystem = {
                 await this.setRole(interaction, 'role_problematico');
                 return;
             }
-            
-            // CONFIG-LOGS
             if (customId === 'config-logs:geral') {
                 await this.setLogChannel(interaction, 'log_channel');
                 return;
@@ -168,8 +152,6 @@ const ConfigSystem = {
         }
     },
 
-    // ==================== CONFIG-POINTS ====================
-
     async handleStrikeModal(interaction) {
         if (!interaction.isButton()) {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
@@ -187,64 +169,14 @@ const ConfigSystem = {
         };
         
         const rows = [
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'nivel1',
-                    label: 'Nivel 1 (Leve)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: pontos[1].toString(),
-                    placeholder: 'Ex: 10'
-                })
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'nivel2',
-                    label: 'Nivel 2 (Moderada)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: pontos[2].toString(),
-                    placeholder: 'Ex: 10'
-                })
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'nivel3',
-                    label: 'Nivel 3 (Grave)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: pontos[3].toString(),
-                    placeholder: 'Ex: 10'
-                })
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'nivel4',
-                    label: 'Nivel 4 (Severa)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: pontos[4].toString(),
-                    placeholder: 'Ex: 10'
-                })
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'nivel5',
-                    label: 'Nivel 5 (Perm)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: pontos[5].toString(),
-                    placeholder: 'Ex: 10'
-                })
-            )
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'nivel1', label: 'Nivel 1 (Leve)', style: TextInputStyle.Short, required: true, value: pontos[1].toString(), placeholder: 'Ex: 10' })),
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'nivel2', label: 'Nivel 2 (Moderada)', style: TextInputStyle.Short, required: true, value: pontos[2].toString(), placeholder: 'Ex: 10' })),
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'nivel3', label: 'Nivel 3 (Grave)', style: TextInputStyle.Short, required: true, value: pontos[3].toString(), placeholder: 'Ex: 10' })),
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'nivel4', label: 'Nivel 4 (Severa)', style: TextInputStyle.Short, required: true, value: pontos[4].toString(), placeholder: 'Ex: 10' })),
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'nivel5', label: 'Nivel 5 (Perm)', style: TextInputStyle.Short, required: true, value: pontos[5].toString(), placeholder: 'Ex: 10' }))
         ];
         
-        const modal = new ModalBuilder({
-            customId: 'config-points:strike:modal:submit',
-            title: 'Configurar Niveis',
-            components: rows
-        });
-        
+        const modal = new ModalBuilder({ customId: 'config-points:strike:modal:submit', title: 'Configurar Niveis', components: rows });
         await interaction.showModal(modal);
     },
 
@@ -258,34 +190,11 @@ const ConfigSystem = {
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
         
         const rows = [
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'exemplar_limit',
-                    label: 'Limite Exemplar (50-100)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: exemplarLimit.toString(),
-                    placeholder: 'Ex: 95'
-                })
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder({
-                    customId: 'problematic_limit',
-                    label: 'Limite Problematico (0-50)',
-                    style: TextInputStyle.Short,
-                    required: true,
-                    value: problematicLimit.toString(),
-                    placeholder: 'Ex: 30'
-                })
-            )
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'exemplar_limit', label: 'Limite Exemplar (50-100)', style: TextInputStyle.Short, required: true, value: exemplarLimit.toString(), placeholder: 'Ex: 95' })),
+            new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'problematic_limit', label: 'Limite Problematico (0-50)', style: TextInputStyle.Short, required: true, value: problematicLimit.toString(), placeholder: 'Ex: 30' }))
         ];
         
-        const modal = new ModalBuilder({
-            customId: 'config-points:limites:modal:submit',
-            title: 'Configurar Limites',
-            components: rows
-        });
-        
+        const modal = new ModalBuilder({ customId: 'config-points:limites:modal:submit', title: 'Configurar Limites', components: rows });
         await interaction.showModal(modal);
     },
 
@@ -317,11 +226,7 @@ const ConfigSystem = {
         }
         
         this.clearCache(interaction.guildId);
-        
-        const changeMessage = changes.length > 0 
-            ? `${EMOJIS.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`
-            : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        
+        const changeMessage = changes.length > 0 ? `${EMOJIS.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}` : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
         await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
@@ -350,10 +255,7 @@ const ConfigSystem = {
         if (oldExemplar != exemplarLimit) changes.push(`🎖️ Exemplar: \`${oldExemplar || 95}\` → \`${exemplarLimit}\``);
         if (oldProblematic != problematicLimit) changes.push(`⚠️ Problemático: \`${oldProblematic || 30}\` → \`${problematicLimit}\``);
         
-        const changeMessage = changes.length > 0 
-            ? `${EMOJIS.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
-            : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        
+        const changeMessage = changes.length > 0 ? `${EMOJIS.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}` : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
         await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
@@ -382,126 +284,65 @@ const ConfigSystem = {
         
         const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
-        
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
         const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
-        
         builder.addTitle(`${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
         builder.addText(`Gerencie os valores do sistema de reputação.`);
         builder.addSeparator();
-        
-        // Níveis de Strike
         builder.addTitle(`${EMOJIS.strike || '🎯'} Níveis de Strike`, 2);
         builder.addText(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
         builder.addText(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
         builder.addText(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
         builder.addText(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
         builder.addText(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
-        
         builder.addSeparator();
-        
-        // Limites de Reputação
         builder.addTitle(`${EMOJIS.Rank || '📊'} Limites de Reputação`, 2);
         builder.addText(`${EMOJIS.shinystar || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
         builder.addText(`${EMOJIS.Warning || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
-        
         builder.addFooter();
         
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('config-points:strike:modal')
-                .setLabel(`Editar Níveis de Strike`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder()
-                .setCustomId('config-points:limites:modal')
-                .setLabel(`Editar Limites`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder()
-                .setCustomId('config-points:reset')
-                .setLabel(`Resetar Padrão`)
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(EMOJIS.Reset || '⚠️')
+            new ButtonBuilder().setCustomId('config-points:strike:modal').setLabel(`Editar Níveis de Strike`).setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-points:limites:modal').setLabel(`Editar Limites`).setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-points:reset').setLabel(`Resetar Padrão`).setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.Reset || '⚠️')
         );
         
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply({
-                content: successMessage || null,
-                components: [builder.container, row]
-            });
+            await interaction.editReply({ content: successMessage || null, components: [builder.container, row] });
         } else {
-            await interaction.update({
-                content: successMessage || null,
-                components: [builder.container, row]
-            });
+            await interaction.update({ content: successMessage || null, components: [builder.container, row] });
         }
     },
 
-    // ==================== CONFIG-ROLES ====================
-
     async refreshRolesPanel(interaction, successMessage) {
         const guildId = interaction.guildId;
-        
         const staffRole = this.getSetting(guildId, 'staff_role');
         const strikeRole = this.getSetting(guildId, 'strike_role');
         const exemplarRole = this.getSetting(guildId, 'role_exemplar');
         const problematicoRole = this.getSetting(guildId, 'role_problematico');
         
         const builder = ContainerFormatter.createBuilder(interaction.guild.name, 0xDCA15E);
-        
         builder.addTitle(`${EMOJIS.staff || '👥'} Cargos do Sistema`, 1);
         builder.addText(`Selecione os cargos abaixo:`);
         builder.addSeparator();
-        
-        builder.addSection([
-            `${EMOJIS.staff || '🛡️'} **Staff:**`,
-            staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
-        builder.addSection([
-            `${EMOJIS.strike || '⚠️'} **Strike (Temporário):**`,
-            strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
-        builder.addSection([
-            `${EMOJIS.shinystar || '✨'} **Exemplar:**`,
-            exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
-        builder.addSection([
-            `${EMOJIS.Warning || '⚠️'} **Problemático:**`,
-            problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
+        builder.addSection([`${EMOJIS.staff || '🛡️'} **Staff:**`, staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        builder.addSection([`${EMOJIS.strike || '⚠️'} **Strike (Temporário):**`, strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        builder.addSection([`${EMOJIS.shinystar || '✨'} **Exemplar:**`, exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        builder.addSection([`${EMOJIS.Warning || '⚠️'} **Problemático:**`, problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
         builder.addFooter();
         
-        const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
-        );
-        const strikeRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike')
-        );
-        const exemplarRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar')
-        );
-        const problematicoRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático')
-        );
+        const staffRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff'));
+        const strikeRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike'));
+        const exemplarRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
+        const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({
-                    content: successMessage || null,
-                    components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow]
-                });
+                await interaction.editReply({ content: successMessage || null, components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow] });
             } else {
-                await interaction.update({
-                    content: successMessage || null,
-                    components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow]
-                });
+                await interaction.update({ content: successMessage || null, components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow] });
             }
         } catch (error) {
             console.error('❌ Erro no refreshRolesPanel:', error);
@@ -522,101 +363,38 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, roleKey, selectedRoleId);
         this.clearCache(interaction.guildId);
         
-        const roleLabels = {
-            staff_role: 'Staff',
-            strike_role: 'Strike',
-            role_exemplar: 'Exemplar',
-            role_problematico: 'Problemático'
-        };
-        
+        const roleLabels = { staff_role: 'Staff', strike_role: 'Strike', role_exemplar: 'Exemplar', role_problematico: 'Problemático' };
         await this.refreshRolesPanel(interaction, `${EMOJIS.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
-    // ==================== CONFIG-LOGS ====================
-
     async refreshLogsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
-        
         const logGeral = this.getSetting(guildId, 'log_channel');
         const logPunishments = this.getSetting(guildId, 'log_punishments');
         const logAutomod = this.getSetting(guildId, 'log_automod');
         const logReports = this.getSetting(guildId, 'log_reports');
         
         const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
-        
         builder.addTitle(`${EMOJIS.dashboard || '📝'} Canais de Log`, 1);
         builder.addText(`Selecione os canais abaixo:`);
         builder.addSeparator();
-        
-        builder.addSection([
-            `${EMOJIS.global || '📜'} **Geral:**`,
-            logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
-        builder.addSection([
-            `${EMOJIS.strike || '⚖️'} **Punições:**`,
-            logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
-        builder.addSection([
-            `${EMOJIS.AutoMod || '🛡️'} **AutoMod:**`,
-            logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
-        builder.addSection([
-            `${EMOJIS.chat || '🎫'} **Reports:**`,
-            logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`
-        ]);
-        
+        builder.addSection([`${EMOJIS.global || '📜'} **Geral:**`, logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        builder.addSection([`${EMOJIS.strike || '⚖️'} **Punições:**`, logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        builder.addSection([`${EMOJIS.AutoMod || '🛡️'} **AutoMod:**`, logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        builder.addSection([`${EMOJIS.chat || '🎫'} **Reports:**`, logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`]);
         builder.addFooter();
         
-        const geralRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:geral')
-                .setPlaceholder(`Selecionar canal de logs gerais`)
-                .addChannelTypes(ChannelType.GuildText)
-        );
-        
-        const punishmentsRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:punishments')
-                .setPlaceholder(`Selecionar canal de logs de punições`)
-                .addChannelTypes(ChannelType.GuildText)
-        );
-        
-        const automodRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:automod')
-                .setPlaceholder(`Selecionar canal de logs de automoderação`)
-                .addChannelTypes(ChannelType.GuildText)
-        );
-        
-        const reportsRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:reports')
-                .setPlaceholder(`Selecionar canal de logs de reports`)
-                .addChannelTypes(ChannelType.GuildText)
-        );
-        
-        const buttonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('config-logs:criar')
-                .setLabel('Criar Canais Automaticamente')
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(EMOJIS.plusone || '➕')
-        );
+        const geralRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder(`Selecionar canal de logs gerais`).addChannelTypes(ChannelType.GuildText));
+        const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder(`Selecionar canal de logs de punições`).addChannelTypes(ChannelType.GuildText));
+        const automodRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder(`Selecionar canal de logs de automoderação`).addChannelTypes(ChannelType.GuildText));
+        const reportsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder(`Selecionar canal de logs de reports`).addChannelTypes(ChannelType.GuildText));
+        const buttonRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
         
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({
-                    content: successMessage || null,
-                    components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
-                });
+                await interaction.editReply({ content: successMessage || null, components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow] });
             } else {
-                await interaction.update({
-                    content: successMessage || null,
-                    components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
-                });
+                await interaction.update({ content: successMessage || null, components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow] });
             }
         } catch (error) {
             console.error('❌ Erro no refreshLogsPanel:', error);
@@ -679,29 +457,10 @@ const ConfigSystem = {
                 ]
             });
             
-            const geral = await guild.channels.create({
-                name: `📜 logs-gerais`,
-                type: ChannelType.GuildText,
-                parent: category.id
-            });
-            
-            const automod = await guild.channels.create({
-                name: `🛡️ logs-automod`,
-                type: ChannelType.GuildText,
-                parent: category.id
-            });
-            
-            const punishments = await guild.channels.create({
-                name: `⚖️ logs-punicoes`,
-                type: ChannelType.GuildText,
-                parent: category.id
-            });
-            
-            const reports = await guild.channels.create({
-                name: `🎫 logs-reports`,
-                type: ChannelType.GuildText,
-                parent: category.id
-            });
+            const geral = await guild.channels.create({ name: `📜 logs-gerais`, type: ChannelType.GuildText, parent: category.id });
+            const automod = await guild.channels.create({ name: `🛡️ logs-automod`, type: ChannelType.GuildText, parent: category.id });
+            const punishments = await guild.channels.create({ name: `⚖️ logs-punicoes`, type: ChannelType.GuildText, parent: category.id });
+            const reports = await guild.channels.create({ name: `🎫 logs-reports`, type: ChannelType.GuildText, parent: category.id });
             
             this.setSetting(guild.id, 'log_channel', geral.id);
             this.setSetting(guild.id, 'log_automod', automod.id);
@@ -713,12 +472,7 @@ const ConfigSystem = {
             builder.addTitle(`${EMOJIS.Check || '✅'} Canais de Log Criados`, 1);
             builder.addText(`Os seguintes canais foram criados:`);
             builder.addSeparator();
-            builder.addSection([
-                `${EMOJIS.global || '📜'} **Geral:** <#${geral.id}>`,
-                `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** <#${automod.id}>`,
-                `${EMOJIS.strike || '⚖️'} **Punições:** <#${punishments.id}>`,
-                `${EMOJIS.chat || '🎫'} **Reports:** <#${reports.id}>`
-            ]);
+            builder.addSection([`${EMOJIS.global || '📜'} **Geral:** <#${geral.id}>`, `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** <#${automod.id}>`, `${EMOJIS.strike || '⚖️'} **Punições:** <#${punishments.id}>`, `${EMOJIS.chat || '🎫'} **Reports:** <#${reports.id}>`]);
             builder.addFooter();
             
             if (interaction.deferred || interaction.replied) {
@@ -742,19 +496,11 @@ const ConfigSystem = {
     },
 
     getLogChannel(guildId, type) {
-        const channelMap = {
-            geral: 'log_channel',
-            punishments: 'log_punishments',
-            automod: 'log_automod',
-            reports: 'log_reports'
-        };
-        
+        const channelMap = { geral: 'log_channel', punishments: 'log_punishments', automod: 'log_automod', reports: 'log_reports' };
         const key = channelMap[type];
         if (!key) return null;
-        
         const channelId = this.getSetting(guildId, key);
         if (!channelId) return null;
-        
         return channelId;
     },
 

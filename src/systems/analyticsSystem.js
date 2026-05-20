@@ -1,8 +1,7 @@
 // src/systems/analyticsSystem.js
 const db = require('../database/index');
-const { EmbedBuilder } = require('discord.js');
+const ContainerFormatter = require('../utils/ContainerFormatter');
 
-// Carregar emojis do servidor
 let EMOJIS = {};
 try {
     const emojisFile = require('../database/emojis.js');
@@ -13,7 +12,6 @@ try {
 
 class AnalyticsSystem {
     
-    // Função auxiliar para data local
     static getLocalDate(date = new Date()) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -24,14 +22,12 @@ class AnalyticsSystem {
     static async updateStaffAnalytics(guildId, userId, date = null) {
         const targetDate = date || this.getLocalDate();
         
-        // Punições aplicadas
         const punishmentsApplied = db.prepare(`
             SELECT COUNT(*) as count FROM punishments 
             WHERE guild_id = ? AND moderator_id = ? 
             AND date(created_at/1000, 'unixepoch', 'localtime') = ?
         `).get(guildId, userId, targetDate).count;
         
-        // Reports assumidos (verificar se a coluna existe)
         let reportsClaimed = 0;
         try {
             reportsClaimed = db.prepare(`
@@ -40,11 +36,9 @@ class AnalyticsSystem {
                 AND date(claimed_at/1000, 'unixepoch', 'localtime') = ?
             `).get(guildId, userId, targetDate).count;
         } catch (err) {
-            // Coluna não existe ainda
             reportsClaimed = 0;
         }
         
-        // Reports fechados
         let reportsClosed = 0;
         try {
             reportsClosed = db.prepare(`
@@ -56,7 +50,6 @@ class AnalyticsSystem {
             reportsClosed = 0;
         }
         
-        // Tempo médio de resposta
         let avgResponseTime = null;
         try {
             const responseTimes = db.prepare(`
@@ -73,7 +66,6 @@ class AnalyticsSystem {
             avgResponseTime = null;
         }
         
-        // Inserir ou atualizar
         db.prepare(`
             INSERT INTO staff_analytics (
                 guild_id, user_id, period, date, 
@@ -170,23 +162,29 @@ class AnalyticsSystem {
         return ranking;
     }
     
-    static async generateStaffReportEmbed(guildId, userId, period = 'week') {
+    static async generateStaffReportContainer(guildId, userId, guildName, period = 'week') {
         const report = await this.getStaffReport(guildId, userId, period);
         
         const avgResponseText = report.totals.avgResponseTime !== null 
             ? `${report.totals.avgResponseTime}s` 
             : 'Sem dados';
         
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${EMOJIS.Rank || '📊'} Relatório de Staff\n**Staff:** <@${userId}>\n**Período:** ${period === 'week' ? '7 dias' : '30 dias'}\n\n${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}\n${EMOJIS.chat || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}\n${EMOJIS.Check || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}\n⏱️ **Tempo Médio:** ${avgResponseText}`)
-            .setFooter({ text: `${report.days} dias analisados` })
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
+        builder.addTitle(`${EMOJIS.Rank || '📊'} Relatório de Staff`, 1);
+        builder.addSeparator();
+        builder.addText(`**Staff:** <@${userId}>`);
+        builder.addText(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
+        builder.addSeparator();
+        builder.addText(`${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}`);
+        builder.addText(`${EMOJIS.chat || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
+        builder.addText(`${EMOJIS.Check || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
+        builder.addText(`⏱️ **Tempo Médio:** ${avgResponseText}`);
+        builder.addFooter(`${report.days} dias analisados`);
         
-        return embed;
+        return builder;
     }
     
-    static async generateRankingEmbed(guildId, metric = 'punishments_applied', period = 'week', limit = 10) {
+    static async generateRankingContainer(guildId, guildName, metric = 'punishments_applied', period = 'week', limit = 10) {
         const ranking = await this.getStaffRanking(guildId, metric, period, limit);
         
         const metricLabels = {
@@ -195,24 +193,22 @@ class AnalyticsSystem {
             reports_closed: `${EMOJIS.Check || '✅'} Reports Fechados`
         };
         
-        const description = [
-            `# ${EMOJIS.Leadboard || '🏆'} Ranking de Staff`,
-            `**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`,
-            `**Métrica:** ${metricLabels[metric] || metric}`,
-            ``,
-            ...ranking.map((item, index) => {
-                const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}º`));
-                return `**${medal}** <@${item.user_id}>: \`${item.total}\``;
-            })
-        ].join('\n');
+        const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
+        builder.addTitle(`${EMOJIS.Leadboard || '🏆'} Ranking de Staff`, 1);
+        builder.addSeparator();
+        builder.addText(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
+        builder.addText(`**Métrica:** ${metricLabels[metric] || metric}`);
+        builder.addSeparator();
         
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(description)
-            .setFooter({ text: `Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}` })
-            .setTimestamp();
+        for (let index = 0; index < ranking.length; index++) {
+            const item = ranking[index];
+            const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}º`));
+            builder.addText(`**${medal}** <@${item.user_id}>: \`${item.total}\``);
+        }
         
-        return embed;
+        builder.addFooter(`Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}`);
+        
+        return builder;
     }
 }
 

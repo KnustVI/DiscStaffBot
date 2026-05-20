@@ -37,7 +37,6 @@ module.exports = {
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
             
             const history = await PunishmentSystem.getUserHistory(guildId, target.id, 1);
-            const userData = await PunishmentSystem.getUserData(guildId, target.id);
             
             if (!history || history.totalRecords === 0) {
                 db.logActivity(guildId, user.id, 'history_view', target.id, { hasRecords: false });
@@ -68,10 +67,12 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            await ResponseManager.send(interaction, {
-                components: [container.container],
-                ...(components ? { components: [container.container, components] } : { components: [container.container] })
-            });
+            const replyData = { components: [container.container] };
+            if (components) {
+                replyData.components.push(components);
+            }
+            
+            await ResponseManager.send(interaction, replyData);
             
             console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);
             
