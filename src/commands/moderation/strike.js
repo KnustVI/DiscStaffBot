@@ -153,6 +153,7 @@ module.exports = {
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
             // ==================== GERAR CONTAINER UNIFICADO ====================
+            console.log('🔍 [DEBUG] Gerando container unificado...');
             const containerBuilder = PunishmentSystem.generateStrikeUnifiedContainer(
                 targetUser,
                 staff,
@@ -167,33 +168,47 @@ module.exports = {
                 guild.name,
                 null
             );
-
+        console.log('🔍 [DEBUG] containerBuilder:', containerBuilder ? 'existe' : 'null');
+        console.log('🔍 [DEBUG] containerBuilder.build:', typeof containerBuilder?.build);
             // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {
+                    const builtContainer = containerBuilder.build();
+                    console.log('🔍 [DEBUG] builtContainer:', builtContainer ? 'ok' : 'null');
+                    
                     await targetMember.send({
-                        components: [containerBuilder.build()],
+                        components: [builtContainer],
                         flags: ['IsComponentsV2']
                     }).catch(() => null);
+                    console.log('✅ [DEBUG] DM enviada para ${targetUser.tag}');
                 } catch (err) {
                     console.error('❌ Erro ao enviar DM:', err);
                 }
+            } else {
+                console.log('⚠️ [DEBUG] targetMember não encontrado, DM não enviada');
             }
+
 
             // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
+            console.log('🔍 [DEBUG] logChannelId:', logChannelId);
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                    console.log('🔍 [DEBUG] logChannel:', logChannel ? logChannel.name : 'não encontrado');
                     if (logChannel) {
+                        const builtContainer = containerBuilder.build();
                         await logChannel.send({
-                            components: [containerBuilder.build()],
+                            components: [builtContainer],
                             flags: ['IsComponentsV2']
                         }).catch(() => null);
+                        console.log('✅ [DEBUG] Log enviado para canal ${logChannel.name}');
                     }
                 } catch (err) {
                     console.error('❌ Erro ao enviar log:', err);
                 }
+            } else {
+                console.log('⚠️ [DEBUG] logChannelId não configurado');
             }
 
             // ==================== RESPOSTA NO CANAL ====================

@@ -123,32 +123,29 @@ const PunishmentSystem = {
         );
     },
     
-    generateStrikeUnifiedContainer(target, moderator, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
+   generateStrikeUnifiedContainer(target, moderator, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
+        console.log('🔍 [DEBUG] generateStrikeUnifiedContainer chamado');
+        
         const builder = ContainerFormatter.createBuilder(guildName, COLORS.DANGER);
         
-        // HEADER
         builder.addTitle(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeId}`, 1);
         builder.addSeparator();
         
-        // STATUS SECTION
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         builder.addSection([`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`]);
         builder.addSeparator();
         
-        // INFORMAÇÕES PRINCIPAIS
         builder.addText(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
         builder.addText(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
         builder.addText(`**📉 Pontos subtraídos:** -${pointsLost}`);
         builder.addText(`**⭐ Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
         builder.addSeparator();
         
-        // MOTIVO
         builder.addTitle(`${EMOJIS.Note || '📝'} Motivo`, 2);
         if (reportId) builder.addText(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
         builder.addText(`\`\`\`text\n${reason}\n\`\`\``);
         
-        // AÇÕES APLICADAS (se houver)
         const actions = this.getPunishmentActions(severity, discordAct, discordActionResult);
         if (actions && actions !== '- 📝 **Apenas Registro:** Nenhuma ação automática aplicada') {
             builder.addSeparator();
@@ -159,6 +156,8 @@ const PunishmentSystem = {
         }
         
         builder.addFooter();
+        
+        console.log('🔍 [DEBUG] Builder retornado com sucesso');
         return builder;
     },
     
