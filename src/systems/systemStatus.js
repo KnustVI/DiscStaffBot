@@ -1,7 +1,9 @@
+// src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
+const ContainerBuilder = require('../utils/ContainerBuilder');
+const ContainerFormatter = require('../utils/ContainerFormatter');
 const os = require('os');
-const { EmbedBuilder } = require('discord.js');
 
 // Carregar emojis do servidor
 let EMOJIS = {};
@@ -12,7 +14,7 @@ try {
     EMOJIS = {};
 }
 
-// Cores padrão do sistema
+// Cores padrão do sistema (para accentColor do Container)
 const COLORS = {
     DEFAULT: 0xDCA15E,
     SUCCESS: 0xBBF96A,
@@ -22,7 +24,7 @@ const COLORS = {
 
 // Cache para estatísticas
 const statsCache = new Map();
-const CACHE_TTL = 60000; // 1 minuto
+const CACHE_TTL = 60000;
 
 class SystemStatus {
     
@@ -62,7 +64,7 @@ class SystemStatus {
             });
         }
         
-        const embed = this.generateStatusEmbed(status, interaction.guild);
+        const container = this.generateStatusContainer(status, interaction.guild);
         
         const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
         const row = new ActionRowBuilder().addComponents(
@@ -73,8 +75,7 @@ class SystemStatus {
         );
         
         await interaction.editReply({
-            embeds: [embed],
-            components: [row]
+            components: [container.container, row]
         });
     }
     
@@ -88,29 +89,23 @@ class SystemStatus {
             });
         }
         
-        const detailedEmbed = this.generateDetailedStatusEmbed(status, interaction.client, interaction.guild);
+        const detailedContainer = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
         
         await interaction.editReply({
-            embeds: [detailedEmbed],
-            components: []
+            components: [detailedContainer.container]
         });
     }
     
     // ==================== ESTATÍSTICAS COM CACHE ====================
     
-    /**
-     * Busca estatísticas de punições com cache
-     */
     static async getPunishmentStats(guildId) {
         const db = require('../database/index');
         
-        // Verificar cache
         const cached = statsCache.get(guildId);
         if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
             return cached.data;
         }
         
-        // Buscar do banco
         const stats = {
             totalPunishments: db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ?`).get(guildId)?.count || 0,
             totalUsers: db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0,
@@ -119,15 +114,11 @@ class SystemStatus {
             activeReports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ? AND status = 'open'`).get(guildId)?.count || 0
         };
         
-        // Salvar no cache
         statsCache.set(guildId, { data: stats, timestamp: Date.now() });
         
         return stats;
     }
     
-    /**
-     * Limpa o cache de estatísticas
-     */
     static clearStatsCache(guildId = null) {
         if (guildId) {
             statsCache.delete(guildId);
@@ -137,45 +128,57 @@ class SystemStatus {
         console.log('🗑️ [SystemStatus] Cache de estatísticas limpo');
     }
     
-    // ==================== GERADORES DE UI ====================
+    // ==================== GERADORES DE UI (CONTAINER) ====================
     
-    static generateStatusEmbed(status, guild) {
-        let color = COLORS.DEFAULT;
+    static generateStatusContainer(status, guild) {
+        let accentColor = COLORS.DEFAULT;
         if (status.ping !== "Calculando...") {
             const pingValue = parseInt(status.ping);
-            if (pingValue < 100) color = COLORS.SUCCESS;
-            else if (pingValue > 200) color = COLORS.DANGER;
-            else if (pingValue > 100) color = COLORS.WARNING;
+            if (pingValue < 100) accentColor = COLORS.SUCCESS;
+            else if (pingValue > 200) accentColor = COLORS.DANGER;
+            else if (pingValue > 100) accentColor = COLORS.WARNING;
         }
         
-        const embed = new EmbedBuilder()
-            .setAuthor({ name: `${EMOJIS.panel || '📊'} Status do Sistema`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
-            .setColor(color)
-            .setDescription(`**${status.guildName}** • Sistema operacional normalmente`)
-            .addFields(
-                {
-                    name: `${EMOJIS.Bot || '🤖'} Bot`,
-                    value: `**Uptime:** ${status.uptime}\n**Latência:** ${status.ping}\n**Memória:** ${status.memory}`,
-                    inline: true
-                },
-                {
-                    name: `${EMOJIS.Rank || '📈'} Estatísticas`,
-                    value: `**Servidores:** ${status.totalGuilds}\n**Usuários:** ${status.totalUsers.toLocaleString()}\n**Logs:** ${status.logChannel}`,
-                    inline: true
-                },
-                {
-                    name: `${EMOJIS.AutoMod || '🛡️'} Auto Moderação`,
-                    value: `**Próxima Execução:** ${status.nextAutoModTS ? `<t:${status.nextAutoModTS}:R>` : 'N/A'}\n**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:R>` : 'Nunca'}`,
-                    inline: false
-                }
-            )
-            .setFooter({ text: `Sistema Robin • ${status.guildName}`, iconURL: 'https://i.ibb.co/PvBbXgw7/Asset-9.png' })
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(status.guildName, accentColor);
         
-        return embed;
+        // Título
+        builder.addTitle(`${EMOJIS.panel || '📊'} Status do Sistema`, 1);
+        builder.addText(`**${status.guildName}** • Sistema operando normalmente`);
+        builder.addSeparator();
+        
+        // Seção Bot
+        builder.addSection([
+            `**🤖 Bot**`,
+            `📊 Uptime: ${status.uptime}`,
+            `📡 Latência: ${status.ping}`,
+            `💾 Memória: ${status.memory}`
+        ]);
+        
+        // Seção Estatísticas
+        builder.addSection([
+            `**📈 Estatísticas**`,
+            `🌐 Servidores: ${status.totalGuilds}`,
+            `👥 Usuários: ${status.totalUsers.toLocaleString()}`,
+            `📝 Logs: ${status.logChannel}`
+        ]);
+        
+        // Seção Auto Moderação
+        const nextRunText = status.nextAutoModTS ? `⏰ Próxima: <t:${status.nextAutoModTS}:R>` : '❌ N/A';
+        const lastRunText = status.lastRunTS ? `🕐 Última: <t:${status.lastRunTS}:R>` : '❌ Nunca';
+        
+        builder.addSection([
+            `**🛡️ Auto Moderação**`,
+            nextRunText,
+            lastRunText
+        ]);
+        
+        // Footer
+        builder.addFooter();
+        
+        return builder;
     }
     
-    static generateDetailedStatusEmbed(status, client, guild) {
+    static generateDetailedStatusContainer(status, client, guild) {
         const cpuUsage = os.loadavg()[0];
         const totalCores = os.cpus().length;
         const platform = os.platform();
@@ -193,40 +196,73 @@ class SystemStatus {
         
         const healthEmoji = healthScore >= 80 ? '🟢' : (healthScore >= 50 ? '🟡' : '🔴');
         
-        const embed = new EmbedBuilder()
-            .setAuthor({ name: `${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, iconURL: client.user?.displayAvatarURL() })
-            .setColor(COLORS.DEFAULT)
-            .addFields(
-                {
-                    name: `${EMOJIS.Bot || '🤖'} Bot`,
-                    value: `**Uptime:** ${status.uptime}\n**Latência:** ${status.ping}\n**Memória:** ${status.memory}\n**Node:** ${nodeVersion}\n**DJS:** v${discordVersion}`,
-                    inline: true
-                },
-                {
-                    name: `${EMOJIS.stack || '💻'} Sistema`,
-                    value: `**OS:** ${platform}\n**CPU:** ${totalCores} cores\n**Load:** ${cpuUsage.toFixed(2)}\n**Arquitetura:** ${os.arch()}`,
-                    inline: true
-                },
-                {
-                    name: `${EMOJIS.global || '📊'} Métricas`,
-                    value: `**Servidores:** ${status.totalGuilds}\n**Usuários:** ${status.totalUsers.toLocaleString()}\n**Canais:** ${client.channels.cache.size}\n**Emojis:** ${client.emojis.cache.size}`,
-                    inline: true
-                },
-                {
-                    name: `${EMOJIS.AutoMod || '🛡️'} Auto Moderação`,
-                    value: `**Próxima Execução:** ${status.nextAutoModTS ? `<t:${status.nextAutoModTS}:F>` : 'N/A'}\n**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:F>` : 'Nunca'}\n**Logs:** ${status.logChannel}`,
-                    inline: false
-                },
-                {
-                    name: `${healthEmoji} Health Score`,
-                    value: `**${healthScore}/100**\n${this.getHealthRecommendations(healthScore, pingValue, memoryUsage)}`,
-                    inline: false
-                }
-            )
-            .setFooter({ text: `PID: ${process.pid} • ${new Date().toLocaleString('pt-BR')}`, iconURL: client.user?.displayAvatarURL() })
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(status.guildName, COLORS.DEFAULT);
         
-        return embed;
+        // Título
+        builder.addTitle(`${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, 1);
+        builder.addSeparator();
+        
+        // Seção Bot
+        builder.addSection([
+            `**🤖 Bot**`,
+            `⏱️ Uptime: ${status.uptime}`,
+            `📡 Latência: ${status.ping}`,
+            `💾 Memória: ${status.memory}`,
+            `🟢 Node: ${nodeVersion}`,
+            `📦 DJS: v${discordVersion}`
+        ]);
+        
+        // Seção Sistema
+        builder.addSection([
+            `**💻 Sistema**`,
+            `🖥️ OS: ${platform}`,
+            `🧠 CPU: ${totalCores} cores`,
+            `⚙️ Load: ${cpuUsage.toFixed(2)}`,
+            `🏛️ Arquitetura: ${os.arch()}`
+        ]);
+        
+        // Seção Métricas
+        builder.addSection([
+            `**📊 Métricas**`,
+            `🌐 Servidores: ${status.totalGuilds}`,
+            `👥 Usuários: ${status.totalUsers.toLocaleString()}`,
+            `💬 Canais: ${client.channels.cache.size}`,
+            `😀 Emojis: ${client.emojis.cache.size}`
+        ]);
+        
+        // Seção Auto Moderação
+        const nextRunFull = status.nextAutoModTS ? `<t:${status.nextAutoModTS}:F>` : 'N/A';
+        const lastRunFull = status.lastRunTS ? `<t:${status.lastRunTS}:F>` : 'Nunca';
+        
+        builder.addSection([
+            `**🛡️ Auto Moderação**`,
+            `⏰ Próxima: ${nextRunFull}`,
+            `🕐 Última: ${lastRunFull}`,
+            `📝 Logs: ${status.logChannel}`
+        ]);
+        
+        // Seção Health Score
+        let healthMessage = '';
+        if (healthScore >= 80) {
+            healthMessage = `${EMOJIS.Check || '✅'} Sistema saudável. Nenhuma ação necessária.`;
+        } else if (healthScore >= 50) {
+            let recommendations = [];
+            if (pingValue > 100) recommendations.push('• Latência elevada, verifique a conexão');
+            if (memoryUsage > 300) recommendations.push('• Consumo de memória alto, reinicie o bot');
+            healthMessage = `${EMOJIS.Warning || '⚠️'} Recomendações:\n${recommendations.join('\n')}`;
+        } else {
+            healthMessage = `${EMOJIS.DANGER || '🔴'} **AÇÃO URGENTE:**\n• Reinicie o bot imediatamente\n• Verifique os logs\n• Escale recursos do servidor`;
+        }
+        
+        builder.addSection([
+            `${healthEmoji} **Health Score: ${healthScore}/100**`,
+            healthMessage
+        ]);
+        
+        // Footer com informações extras
+        builder.addFooterWithExtra(`PID: ${process.pid} • ${new Date().toLocaleString('pt-BR')}`);
+        
+        return builder;
     }
     
     static getHealthRecommendations(healthScore, ping, memory) {

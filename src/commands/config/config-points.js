@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+// src/commands/config/config-points.js
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const EmbedFormatter = require('../../utils/embedFormatter');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,7 +14,6 @@ module.exports = {
         const { guild, user, member } = interaction;
         const guildId = guild.id;
         
-        // Carregar emojis do servidor
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -31,7 +31,6 @@ module.exports = {
         
         const ConfigSystem = require('../../systems/configSystem');
         
-        // Buscar valores atuais
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         const points = {
             1: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_1')) || DEFAULT_POINTS[1],
@@ -47,28 +46,31 @@ module.exports = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
-        const description = [
-            `# ${emojis.Config || '⚙️'} Configuração de Pontos e Limites`,
-            `Gerencie os valores do sistema de reputação.`,
-            `## ${emojis.strike || '🎯'} Níveis de Strike`,
-            `${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``,
-            `${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``,
-            `${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``,
-            `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
-            `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
-            `## ${emojis.Rank || '📊'} Limites de Reputação`,
-            `- **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
-            `- **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
-            `## ${emojis.Note || '📝'} Valores Padrão`,
-            `- **Strike:** 10 | 25 | 40 | 60 | 100`,
-            `- **Limites:** Exemplar > 95 | Problemático <30`
-        ].join('\n');
+        const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
+        builder.addTitle(`${emojis.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
+        builder.addText(`Gerencie os valores do sistema de reputação.`);
+        builder.addSeparator();
         
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(description)
-            .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
+        builder.addTitle(`${emojis.strike || '🎯'} Níveis de Strike`, 2);
+        builder.addText(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
+        builder.addText(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
+        builder.addText(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
+        builder.addText(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
+        builder.addText(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
+        
+        builder.addSeparator();
+        
+        builder.addTitle(`${emojis.Rank || '📊'} Limites de Reputação`, 2);
+        builder.addText(`- **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
+        builder.addText(`- **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
+        
+        builder.addSeparator();
+        
+        builder.addTitle(`${emojis.Note || '📝'} Valores Padrão`, 2);
+        builder.addText(`- **Strike:** 10 | 25 | 40 | 60 | 100`);
+        builder.addText(`- **Limites:** Exemplar > 95 | Problemático <30`);
+        
+        builder.addFooter();
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -88,6 +90,8 @@ module.exports = {
                 .setEmoji(emojis.Reset || '⚠️')
         );
         
-        await ResponseManager.send(interaction, { embeds: [embed], components: [row] });
+        await ResponseManager.send(interaction, {
+            components: [builder.container, row]
+        });
     }
 };

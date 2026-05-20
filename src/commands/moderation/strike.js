@@ -1,4 +1,5 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+// src/commands/moderation/strike.js
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
@@ -39,7 +40,7 @@ module.exports = {
 
     async execute(interaction, client) {
         const startTime = Date.now();
-        const { guild, options, channel, user: staff, member: staffMember } = interaction;
+        const { guild, options, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
         
         let emojis = {};
@@ -63,7 +64,6 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
             }
             
-            // Garantir registros no banco
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureUser(targetUser.id, targetUser.username, targetUser.discriminator, targetUser.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
@@ -71,7 +71,6 @@ module.exports = {
             const ConfigSystem = require('../../systems/configSystem');
             const PunishmentSystem = require('../../systems/punishmentSystem');
             
-            // Buscar pontos configurados para o nível (customizável via /config-strike)
             const pointsMap = {
                 1: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_1')) || 10,
                 2: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_2')) || 25,
@@ -81,7 +80,6 @@ module.exports = {
             };
             const pointsToLose = pointsMap[severity] || 10;
             
-            // Validar hierarquia
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(targetUser.id).catch(() => null);
@@ -100,13 +98,11 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
             
-            // Obter reputação atual
             const currentRep = ConfigSystem.getSetting(guildId, `rep_${targetUser.id}`) || 
                 db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, targetUser.id)?.points || 100;
             
             const newPoints = Math.max(0, currentRep - pointsToLose);
             
-            // Calcular expiração
             let expiresAt = null;
             let durationMs = 0;
             if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
@@ -114,7 +110,6 @@ module.exports = {
                 if (durationMs > 0) expiresAt = Date.now() + durationMs;
             }
             
-            // Aplicar punição
             const punishmentUuid = db.generateUUID();
             const strikeId = db.prepare(`
                 INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, 
@@ -125,11 +120,9 @@ module.exports = {
                 JSON.stringify({ discordAct, jogoAct, duration: durationStr })
             ).lastInsertRowid;
             
-            // Atualizar reputação
             db.prepare(`UPDATE reputation SET points = ?, updated_at = ?, updated_by = ?
                 WHERE guild_id = ? AND user_id = ?`).run(newPoints, Date.now(), staff.id, guildId, targetUser.id);
             
-            // Aplicar ações do Discord
             let discordActionResult = null;
             if (discordAct !== 'none' && targetMember) {
                 try {
@@ -152,7 +145,6 @@ module.exports = {
                 }
             }
             
-            // Registrar atividade
             db.logActivity(guildId, staff.id, 'strike', targetUser.id, {
                 command: 'strike', punishmentId: strikeId, severity, pointsLost: pointsToLose,
                 oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct
@@ -160,8 +152,8 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // ==================== GERAR EMBED UNIFICADO ====================
-            const unifiedEmbed = PunishmentSystem.generateStrikeUnifiedEmbed(
+            // Container unificado
+            const container = PunishmentSystem.generateStrikeUnifiedContainer(
                 targetUser,
                 staff,
                 strikeId,
@@ -172,31 +164,28 @@ module.exports = {
                 newPoints,
                 discordAct,
                 discordActionResult,
-                guild.name
+                guild.name,
+                null
             );
 
-            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {
-                    await targetMember.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                    await targetMember.send(container.build()).catch(() => null);
                 } catch (err) {}
             }
 
-            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        await logChannel.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                        await logChannel.send(container.build()).catch(() => null);
                     }
                 } catch (err) {}
             }
 
-            // ==================== RESPOSTA NO CANAL ====================
             await interaction.editReply({ 
                 content: `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos\n⭐ Reputação: ${newPoints}/100`,
-                embeds: [],
                 components: []
             });
             

@@ -1,6 +1,8 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+// src/commands/developer/reset-reports.js
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
-const ResponseManager = require('../../utils/responseManager');
+const ResponseManager = require('../../utils/responseManager.js');
+const ContainerFormatter = require('../../utils/ContainerFormatter.js');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -28,40 +30,36 @@ module.exports = {
             emojis = {};
         }
         
-        // Verificar se é o desenvolvedor
         if (user.id !== DEVELOPER_ID) {
             db.logActivity(guildId, user.id, 'reset_reports_denied', null, {
                 command: 'reset-reports',
                 reason: 'Usuário não autorizado'
             });
             
-            const deniedEmbed = new EmbedBuilder()
-                .setColor(0xF64B4E)
-                .setDescription(`# ${emojis.Error || '❌'} Acesso Negado\nEste comando é restrito ao desenvolvedor do bot.`)
-                .setTimestamp();
+            const deniedBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
+            deniedBuilder.addTitle(`${emojis.Error || '❌'} Acesso Negado`, 1);
+            deniedBuilder.addText('Este comando é restrito ao desenvolvedor do bot.');
+            deniedBuilder.addFooter();
             
-            return await ResponseManager.send(interaction, { embeds: [deniedEmbed] });
+            return await ResponseManager.send(interaction, deniedBuilder.build());
         }
         
-        // Validar confirmação
         if (confirmacao !== 'LIMPAR REPORTS') {
-            const cancelEmbed = new EmbedBuilder()
-                .setColor(0xFFBD59)
-                .setDescription(`# ${emojis.Warning || '⚠️'} Ação Cancelada\nDigite exatamente **"LIMPAR REPORTS"** para confirmar.\n\n**Você digitou:** \`${confirmacao}\``)
-                .setTimestamp();
+            const cancelBuilder = ContainerFormatter.createBuilder(guild.name, 0xFFBD59);
+            cancelBuilder.addTitle(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
+            cancelBuilder.addText(`Digite exatamente **"LIMPAR REPORTS"** para confirmar.\n\n**Você digitou:** \`${confirmacao}\``);
+            cancelBuilder.addFooter();
             
-            return await ResponseManager.send(interaction, { embeds: [cancelEmbed] });
+            return await ResponseManager.send(interaction, cancelBuilder.build());
         }
         
         try {
-            // Buscar estatísticas antes da limpeza
             const statsBefore = {
                 reports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ?`).get(guildId)?.count || 0,
                 openReports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'`).get(guildId)?.count || 0,
                 closedReports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ? AND status LIKE 'closed%'`).get(guildId)?.count || 0
             };
             
-            // Fechar threads abertas antes de deletar
             const openReports = db.prepare(`SELECT thread_id FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'`).all(guildId);
             for (const report of openReports) {
                 if (report.thread_id) {
@@ -75,13 +73,9 @@ module.exports = {
                 }
             }
             
-            // Deletar todos os reports do servidor
             db.prepare(`DELETE FROM reports WHERE guild_id = ?`).run(guildId);
-            
-            // Resetar a sequência de ID (recriar a tabela)
             db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reports'`).run();
             
-            // Registrar atividade
             const resetUuid = db.generateUUID();
             db.logActivity(guildId, user.id, 'reset_reports', null, {
                 command: 'reset-reports',
@@ -90,45 +84,57 @@ module.exports = {
                 responseTime: Date.now() - startTime
             });
             
-            // Notificação no canal de logs
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/configSystem.js');
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const alertEmbed = new EmbedBuilder()
-                            .setColor(0xF64B4E)
-                            .setDescription(`# ${emojis.Warning || '⚠️'} REPORTS RESETADOS\n**Desenvolvedor:** ${user.tag}\n**Servidor:** ${guild.name}\n\n**Reports removidos:**\n- Total: \`${statsBefore.reports}\`\n- Abertos: \`${statsBefore.openReports}\`\n- Fechados: \`${statsBefore.closedReports}\``)
-                            .setTimestamp();
-                        await logChannel.send({ embeds: [alertEmbed] });
+                        const alertBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
+                        alertBuilder.addTitle(`${emojis.Warning || '⚠️'} REPORTS RESETADOS`, 1);
+                        alertBuilder.addSeparator();
+                        alertBuilder.addText(`**Desenvolvedor:** ${user.tag}`);
+                        alertBuilder.addText(`**Servidor:** ${guild.name}`);
+                        alertBuilder.addSeparator();
+                        alertBuilder.addText(`**Reports removidos:**`);
+                        alertBuilder.addText(`- Total: \`${statsBefore.reports}\``);
+                        alertBuilder.addText(`- Abertos: \`${statsBefore.openReports}\``);
+                        alertBuilder.addText(`- Fechados: \`${statsBefore.closedReports}\``);
+                        alertBuilder.addFooter();
+                        await logChannel.send(alertBuilder.build());
                     }
                 } catch (err) {}
             }
             
-            // Resposta de sucesso
-            const successEmbed = new EmbedBuilder()
-                .setColor(0xBBF96A)
-                .setDescription(`# ${emojis.CLEAN || '🧹'} Reports Resetados\nOperação concluída com sucesso em **${guild.name}**.\n\n**Registros removidos:**\n- Total: \`${statsBefore.reports}\`\n- Abertos: \`${statsBefore.openReports}\`\n- Fechados: \`${statsBefore.closedReports}\`\n\n**Contagem reiniciada:** O próximo report será **#R1**`)
-                .setFooter({ text: `UUID: ${resetUuid.slice(0, 8)}` })
-                .setTimestamp();
+            const successBuilder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
+            successBuilder.addTitle(`${emojis.CLEAN || '🧹'} Reports Resetados`, 1);
+            successBuilder.addSeparator();
+            successBuilder.addText(`Operação concluída com sucesso em **${guild.name}**.`);
+            successBuilder.addSeparator();
+            successBuilder.addText(`**Registros removidos:**`);
+            successBuilder.addText(`- Total: \`${statsBefore.reports}\``);
+            successBuilder.addText(`- Abertos: \`${statsBefore.openReports}\``);
+            successBuilder.addText(`- Fechados: \`${statsBefore.closedReports}\``);
+            successBuilder.addSeparator();
+            successBuilder.addText(`**Contagem reiniciada:** O próximo report será **#R1**`);
+            successBuilder.addFooter(`UUID: ${resetUuid.slice(0, 8)}`);
             
-            await ResponseManager.send(interaction, { embeds: [successEmbed] });
+            await ResponseManager.send(interaction, successBuilder.build());
             
             console.log(`📊 [RESET-REPORTS] ${user.tag} resetou reports de ${guild.name} | ${statsBefore.reports} removidos`);
             
         } catch (error) {
             console.error('❌ Erro no reset-reports:', error);
             
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/errorLogger.js');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            const errorEmbed = new EmbedBuilder()
-                .setColor(0xF64B4E)
-                .setDescription(`# ${emojis.Error || '❌'} Erro ao Resetar\nOcorreu um erro ao resetar os reports.\n\n**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``)
-                .setTimestamp();
+            const errorBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
+            errorBuilder.addTitle(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
+            errorBuilder.addText(`Ocorreu um erro ao resetar os reports.\n\n**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
+            errorBuilder.addFooter();
             
-            await ResponseManager.send(interaction, { embeds: [errorEmbed] });
+            await ResponseManager.send(interaction, errorBuilder.build());
         }
     }
 };

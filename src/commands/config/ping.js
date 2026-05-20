@@ -1,3 +1,4 @@
+// src/commands/utility/ping.js
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
@@ -7,14 +8,11 @@ module.exports = {
     
     async execute(interaction, client) {
         try {
-            // 🔧 IMPORTANTE: Deferir a resposta primeiro
             await interaction.deferReply();
             
-            // Calcula o ping real
             const sent = await interaction.fetchReply();
             const ping = sent.createdTimestamp - interaction.createdTimestamp;
             
-            // Resposta com informações de latência
             await interaction.editReply({ 
                 content: `🏓 Pong!\n📡 Latência: ${ping}ms\n💻 API: ${Math.round(client.ws.ping)}ms` 
             });
@@ -22,7 +20,6 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro no comando ping:', error);
             
-            // Fallback em caso de erro
             try {
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({ content: '❌ Ocorreu um erro ao executar o comando ping.', flags: 64 });

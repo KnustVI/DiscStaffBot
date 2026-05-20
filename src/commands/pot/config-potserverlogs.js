@@ -1,6 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+// src/commands/pot/config-potserverlogs.js
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
+const ContainerBuilder = require('../../utils/ContainerBuilder');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 const LOG_CHANNELS = [
     { name: '📥 login', event: 'login', endpoint: 'PlayerLogin' },
@@ -72,14 +75,20 @@ module.exports = {
             }
             const gameIniConfig = gameIniLines.join('\n');
             
-            const embed = new EmbedBuilder()
-                .setColor(0x00FF00)
-                .setTitle('📋 Canais de Log Configurados')
-                .setDescription(`✅ ${createdChannels.length} canais criados na categoria "${categoryName}"\n📌 ${LOG_CHANNELS.length - createdChannels.length} canais reutilizados.`)
-                .addFields({ name: '🔑 Token Atual', value: `\`${token}\``, inline: false })
-                .setTimestamp();
+            // Container de sucesso
+            const builder = ContainerFormatter.createBuilder(interaction.guild.name, 0x00FF00);
+            builder.addTitle('📋 Canais de Log Configurados', 1);
+            builder.addSeparator();
+            builder.addText(`✅ ${createdChannels.length} canais criados na categoria "${categoryName}"`);
+            builder.addText(`📌 ${LOG_CHANNELS.length - createdChannels.length} canais reutilizados.`);
+            builder.addSeparator();
+            builder.addSection([
+                `🔑 **Token Atual:**`,
+                `\`${token}\``
+            ]);
+            builder.addFooter();
             
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply(builder.build());
             
             await interaction.followUp({
                 content: `📄 **Copie para seu Game.ini:**\n\`\`\`ini\n${gameIniConfig}\n\`\`\``,

@@ -10,7 +10,7 @@ module.exports = {
 
     async execute(interaction, client) {
         const reportSystem = new ReportChatSystem(client);
-        const panel = reportSystem.getPanel(interaction.guild.name);
+        const panel = reportSystem.getPanel(interaction.guild.name, interaction.guild.iconURL());
         await interaction.channel.send(panel);
         await interaction.reply({ content: '✅ Painel de ReportChat criado!', ephemeral: true });
     }
