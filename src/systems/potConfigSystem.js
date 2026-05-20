@@ -12,7 +12,7 @@
  */
 const db = require('../database/index');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/ContainerFormatter.js');
 
 // Carregar emojis
 let EMOJIS = {};

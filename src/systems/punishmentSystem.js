@@ -4,7 +4,7 @@ const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
 const SessionManager = require('../utils/sessionManager');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/ContainerFormatter.js');
 
 // Cores padrão do sistema
 const COLORS = {

@@ -3,7 +3,7 @@ const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
 const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/ContainerFormatter.js');
 
 let EMOJIS = {};
 try {
