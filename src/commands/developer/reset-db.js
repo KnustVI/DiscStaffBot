@@ -1,4 +1,4 @@
-// src/commands/developer/reset-db.js
+// /home/ubuntu/DiscStaffBot/src/commands/developer/reset-db.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');

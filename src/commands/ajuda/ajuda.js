@@ -93,7 +93,7 @@ module.exports = {
                 simpleBuilder.addText(`• Comportamento exemplar mantém pontos altos`);
                 simpleBuilder.addFooter();
                 
-                await ResponseManager.send(interaction, simpleBuilder.build());
+                await ResponseManager.send(interaction, { components: [simpleBuilder.build()], flags: ['IsComponentsV2'] });
                 console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (usuário comum)`);
                 return;
             }
@@ -107,9 +107,11 @@ module.exports = {
                 new ButtonBuilder().setCustomId('ajuda_next').setLabel('Próxima ▶').setStyle(ButtonStyle.Secondary).setDisabled(pages.length === 1)
             );
             
-            const replyData = pages[currentPage].build();
-            replyData.components.push(row);
-            await interaction.editReply(replyData);
+            // CORRETO: Criar o payload explicitamente
+            await interaction.editReply({
+                components: [pages[currentPage].build(), row],
+                flags: ['IsComponentsV2']
+            });
             
             const filter = (i) => i.user.id === user.id && (i.customId === 'ajuda_prev' || i.customId === 'ajuda_next');
             const collector = interaction.channel.createMessageComponentCollector({ filter, time: 120000 });
@@ -126,9 +128,10 @@ module.exports = {
                     new ButtonBuilder().setCustomId('ajuda_next').setLabel('Próxima ▶').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === pages.length - 1)
                 );
                 
-                const newReplyData = pages[currentPage].build();
-                newReplyData.components.push(updatedRow);
-                await i.update(newReplyData);
+                await i.update({
+                    components: [pages[currentPage].build(), updatedRow],
+                    flags: ['IsComponentsV2']
+                });
             });
             
             collector.on('end', async () => {
@@ -137,11 +140,10 @@ module.exports = {
                     new ButtonBuilder().setCustomId('ajuda_next').setLabel('Próxima ▶').setStyle(ButtonStyle.Secondary).setDisabled(true)
                 );
                 try {
-                    const finalReplyData = pages[currentPage]?.build();
-                    if (finalReplyData) {
-                        finalReplyData.components.push(disabledRow);
-                        await interaction.editReply(finalReplyData);
-                    }
+                    await interaction.editReply({
+                        components: [pages[currentPage]?.build(), disabledRow],
+                        flags: ['IsComponentsV2']
+                    });
                 } catch (err) {}
             });
             
