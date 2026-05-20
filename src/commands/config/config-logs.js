@@ -54,28 +54,28 @@ module.exports = {
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:geral')
-                .setPlaceholder(`Selecionar canal de logs gerais`)
+                .setPlaceholder('Selecionar canal de logs gerais')
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const punishmentsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:punishments')
-                .setPlaceholder(`Selecionar canal de logs de punições`)
+                .setPlaceholder('Selecionar canal de logs de punições')
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const automodRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:automod')
-                .setPlaceholder(`Selecionar canal de logs de automoderação`)
+                .setPlaceholder('Selecionar canal de logs de automoderação')
                 .addChannelTypes(ChannelType.GuildText)
         );
         
         const reportsRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:reports')
-                .setPlaceholder(`Selecionar canal de logs de reports`)
+                .setPlaceholder('Selecionar canal de logs de reports')
                 .addChannelTypes(ChannelType.GuildText)
         );
         
@@ -87,8 +87,10 @@ module.exports = {
                 .setEmoji(emojis.edit || '➕')
         );
         
-        const replyData = builder.build();
-        replyData.components.push(geralRow, punishmentsRow, automodRow, reportsRow, buttonRow);
-        await ResponseManager.send(interaction, replyData);
+        // CORREÇÃO: Criar o payload completo
+        const payload = builder.build();
+        payload.components.push(geralRow, punishmentsRow, automodRow, reportsRow, buttonRow);
+        
+        await ResponseManager.send(interaction, payload);
     }
 };

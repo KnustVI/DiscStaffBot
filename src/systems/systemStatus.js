@@ -1,4 +1,4 @@
-// /home/ubuntu/DiscStaffBot/src/systems/systemStatus.js
+// src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
 const ContainerFormatter = require('../utils/ContainerFormatter');
@@ -192,6 +192,19 @@ class SystemStatus {
             console.error('❌ Erro ao obter status:', err);
             return null;
         }
+    }
+    
+    // ==================== MÉTODO ADICIONADO ====================
+    
+    static isSystemHealthy(client, guildId) {
+        const status = this.getBotStatus(client, guildId);
+        if (!status) return false;
+        
+        const pingValue = status.ping !== "Calculando..." ? parseInt(status.ping) : 100;
+        const isPingOk = pingValue < 200;
+        const isMemoryOk = status.memoryRaw < 500;
+        
+        return isPingOk && isMemoryOk;
     }
 }
 

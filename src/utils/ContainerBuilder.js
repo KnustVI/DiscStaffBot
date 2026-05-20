@@ -38,13 +38,16 @@ class ContainerBuilderWrapper {
         return this;
     }
 
-    addSection(texts, accessory = null) {
+    // CORRIGIDO: Aceita apenas um array de textos, sem accessory
+    addSection(texts) {
         if (!texts || texts.length === 0) return this;
         const sectionComponents = [];
         for (const text of texts.slice(0, 3)) {
-            if (text) sectionComponents.push({ content: text, type: ComponentType.TextDisplay });
+            if (text) {
+                sectionComponents.push({ content: text, type: ComponentType.TextDisplay });
+            }
         }
-        this.container.addSectionComponents({ components: sectionComponents, accessory: accessory || undefined });
+        this.container.addSectionComponents({ components: sectionComponents });
         this.hasContent = true;
         return this;
     }
@@ -66,7 +69,9 @@ class ContainerBuilderWrapper {
     }
 
     build() {
-        if (!this.hasContent) this.addText("⚠️ Nenhuma informação disponível");
+        if (!this.hasContent) {
+            this.addText("⚠️ Nenhuma informação disponível");
+        }
         return { flags: ['IsComponentsV2'], components: [this.container] };
     }
 
