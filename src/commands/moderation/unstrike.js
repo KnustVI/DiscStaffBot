@@ -1,9 +1,8 @@
-// src/commands/moderation/unstrike.js
+// /home/ubuntu/DiscStaffBot/src/commands/moderation/unstrike.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -103,7 +102,10 @@ module.exports = {
 
             if (targetUser) {
                 try {
-                    await targetUser.send(container.build()).catch(() => null);
+                    await targetUser.send({
+                        components: [container.build()],
+                        flags: ['IsComponentsV2']
+                    }).catch(() => null);
                 } catch (err) {}
             }
 
@@ -112,7 +114,10 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        await logChannel.send(container.build()).catch(() => null);
+                        await logChannel.send({
+                            components: [container.build()],
+                            flags: ['IsComponentsV2']
+                        }).catch(() => null);
                     }
                 } catch (err) {}
             }
