@@ -38,7 +38,6 @@ module.exports = {
         
         const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
         
-        // HEADER
         builder.addTitle(`${emojis.dashboard || '📝'} Canais de Log`, 1);
         builder.addText(`- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`);
         builder.addText(`- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`);
@@ -46,7 +45,6 @@ module.exports = {
         builder.addText(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
         builder.addSeparator();
         
-        // CANAIS (cada um em sua própria Section)
         builder.addSection([`${emojis.global || '📜'} **Geral:**`, logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.strike || '⚖️'} **Punições:**`, logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.Config || '🛡️'} **AutoMod:**`, logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`]);
@@ -69,9 +67,9 @@ module.exports = {
             new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(emojis.edit || '➕')
         );
         
-        const replyData = builder.build();
-        replyData.components.push(geralRow, punishmentsRow, automodRow, reportsRow, buttonRow);
-        
-        await ResponseManager.send(interaction, replyData);
+        await interaction.editReply({
+            components: [builder.build(), geralRow, punishmentsRow, automodRow, reportsRow, buttonRow],
+            flags: ['IsComponentsV2']
+        });
     }
 };

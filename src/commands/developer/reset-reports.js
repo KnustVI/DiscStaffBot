@@ -41,7 +41,11 @@ module.exports = {
             deniedBuilder.addText('Este comando é restrito ao desenvolvedor do bot.');
             deniedBuilder.addFooter();
             
-            return await ResponseManager.send(interaction, deniedBuilder.build());
+            await interaction.editReply({
+                components: [deniedBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
+            return;
         }
         
         if (confirmacao !== 'LIMPAR REPORTS') {
@@ -50,7 +54,11 @@ module.exports = {
             cancelBuilder.addText(`Digite exatamente **"LIMPAR REPORTS"** para confirmar.\n\n**Você digitou:** \`${confirmacao}\``);
             cancelBuilder.addFooter();
             
-            return await ResponseManager.send(interaction, cancelBuilder.build());
+            await interaction.editReply({
+                components: [cancelBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
+            return;
         }
         
         try {
@@ -101,7 +109,10 @@ module.exports = {
                         alertBuilder.addText(`- Abertos: \`${statsBefore.openReports}\``);
                         alertBuilder.addText(`- Fechados: \`${statsBefore.closedReports}\``);
                         alertBuilder.addFooter();
-                        await logChannel.send(alertBuilder.build());
+                        await logChannel.send({
+                            components: [alertBuilder.build()],
+                            flags: ['IsComponentsV2']
+                        });
                     }
                 } catch (err) {}
             }
@@ -119,7 +130,10 @@ module.exports = {
             successBuilder.addText(`**Contagem reiniciada:** O próximo report será **#R1**`);
             successBuilder.addFooter(`UUID: ${resetUuid.slice(0, 8)}`);
             
-            await ResponseManager.send(interaction, successBuilder.build());
+            await interaction.editReply({
+                components: [successBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
             
             console.log(`📊 [RESET-REPORTS] ${user.tag} resetou reports de ${guild.name} | ${statsBefore.reports} removidos`);
             
@@ -134,7 +148,10 @@ module.exports = {
             errorBuilder.addText(`Ocorreu um erro ao resetar os reports.\n\n**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
             errorBuilder.addFooter();
             
-            await ResponseManager.send(interaction, errorBuilder.build());
+            await interaction.editReply({
+                components: [errorBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
         }
     }
 };

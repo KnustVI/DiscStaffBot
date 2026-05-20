@@ -49,12 +49,9 @@ module.exports = {
         
         const builder = ContainerFormatter.createBuilder(guild.name, hasIssues ? 0xFFA500 : 0x00FF00);
         
-        // HEADER
         builder.addTitle('🛡️ Diagnóstico da Auto Moderação', 1);
         builder.addText(`**Servidor:** ${guild.name}`);
         builder.addSeparator();
-        
-        // STATUS
         builder.addText(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
         builder.addText(`📺 **Canal de Log:** ${channelStatus}`);
         builder.addText(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
@@ -69,6 +66,9 @@ module.exports = {
         
         builder.addFooter();
         
-        await interaction.editReply(builder.build());
+        await interaction.editReply({
+            components: [builder.build()],
+            flags: ['IsComponentsV2']
+        });
     }
 };

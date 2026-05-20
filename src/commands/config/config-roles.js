@@ -38,14 +38,12 @@ module.exports = {
         
         const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
         
-        // HEADER
         builder.addTitle(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
         builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
         builder.addSeparator();
         builder.addText(`Selecione os cargos abaixo:`);
         builder.addSeparator();
         
-        // CARGOS (cada um em sua própria Section)
         builder.addSection([`${emojis.staff || '🛡️'} **Staff:**`, staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.strike || '⚠️'} **Strike (Temporário):**`, strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.shinystar || '✨'} **Exemplar:**`, exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`]);
@@ -65,9 +63,9 @@ module.exports = {
             new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático')
         );
         
-        const replyData = builder.build();
-        replyData.components.push(staffRow, strikeRow, exemplarRow, problematicoRow);
-        
-        await ResponseManager.send(interaction, replyData);
+        await interaction.editReply({
+            components: [builder.build(), staffRow, strikeRow, exemplarRow, problematicoRow],
+            flags: ['IsComponentsV2']
+        });
     }
 };
