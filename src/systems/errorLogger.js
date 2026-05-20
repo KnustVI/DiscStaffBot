@@ -1,3 +1,4 @@
+// /home/ubuntu/DiscStaffBot/src/systems/errorLogger.js
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');

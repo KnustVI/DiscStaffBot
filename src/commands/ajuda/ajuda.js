@@ -1,4 +1,4 @@
-// src/commands/utility/ajuda.js
+// /home/ubuntu/DiscStaffBot/src/commands/utility/ajuda.js
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
@@ -38,6 +38,7 @@ module.exports = {
             page1Builder.addTitle(`${emojis.chat || '🎫'} ReportChat`, 2);
             page1Builder.addText(`• **/reportchat** - Cria o painel de reports para os usuários`);
             page1Builder.addText(`Os usuários abrem reports via formulário, staff entra na thread e atende.`);
+            page1Builder.addFooter();
             
             // Página 2 - Moderação e Reputação
             const page2Builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
@@ -54,6 +55,7 @@ module.exports = {
             page2Builder.addText(`• Máximo: 100 pontos | Mínimo: 0 pontos`);
             page2Builder.addText(`• Recuperação: +1 ponto/dia sem punições`);
             page2Builder.addText(`• Perda: conforme configuração de strikes`);
+            page2Builder.addFooter();
 
             // Página 3 - AutoMod e Status
             const page3Builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
@@ -72,6 +74,7 @@ module.exports = {
             page3Builder.addTitle(`${emojis.global || '🌐'} Status`, 2);
             page3Builder.addText(`• **/botstatus** - Verifica saúde do bot e sistemas`);
             page3Builder.addText(`• Mostra latência, memória, status do AutoMod e estatísticas`);
+            page3Builder.addFooter();
             
             // Se não for admin, mostrar apenas a página 1 (simplificada)
             if (!isAdmin) {
@@ -88,6 +91,7 @@ module.exports = {
                 simpleBuilder.addText(`• Sua reputação começa em 100 pontos`);
                 simpleBuilder.addText(`• Infrações reduzem sua pontuação`);
                 simpleBuilder.addText(`• Comportamento exemplar mantém pontos altos`);
+                simpleBuilder.addFooter();
                 
                 await ResponseManager.send(interaction, simpleBuilder.build());
                 console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (usuário comum)`);
@@ -99,16 +103,8 @@ module.exports = {
             let currentPage = 0;
             
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('ajuda_prev')
-                    .setLabel('◀ Anterior')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(true),
-                new ButtonBuilder()
-                    .setCustomId('ajuda_next')
-                    .setLabel('Próxima ▶')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setDisabled(pages.length === 1)
+                new ButtonBuilder().setCustomId('ajuda_prev').setLabel('◀ Anterior').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                new ButtonBuilder().setCustomId('ajuda_next').setLabel('Próxima ▶').setStyle(ButtonStyle.Secondary).setDisabled(pages.length === 1)
             );
             
             const replyData = pages[currentPage].build();
@@ -126,16 +122,8 @@ module.exports = {
                 }
                 
                 const updatedRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('ajuda_prev')
-                        .setLabel('◀ Anterior')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setDisabled(currentPage === 0),
-                    new ButtonBuilder()
-                        .setCustomId('ajuda_next')
-                        .setLabel('Próxima ▶')
-                        .setStyle(ButtonStyle.Secondary)
-                        .setDisabled(currentPage === pages.length - 1)
+                    new ButtonBuilder().setCustomId('ajuda_prev').setLabel('◀ Anterior').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === 0),
+                    new ButtonBuilder().setCustomId('ajuda_next').setLabel('Próxima ▶').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === pages.length - 1)
                 );
                 
                 const newReplyData = pages[currentPage].build();

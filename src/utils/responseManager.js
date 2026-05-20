@@ -1,4 +1,9 @@
 // /home/ubuntu/DiscStaffBot/src/utils/responseManager.js
+/**
+ * ResponseManager - Centraliza respostas
+ * Usa propriedades nativas do Discord como fonte da verdade
+ * Adaptado para suportar Components V2 (Container)
+ */
 class ResponseManager {
     constructor() {
         this.processing = new Set();
@@ -18,69 +23,89 @@ class ResponseManager {
     }
 
     async send(interaction, options = {}) {
+        // 🔒 Previne race condition
         if (this.processing.has(interaction.id)) {
             console.warn(`[ResponseManager] ⚠️ Ignorado: ${interaction.id}`);
             return null;
         }
         this.processing.add(interaction.id);
 
-        try {
-            // CORREÇÃO: Se for um ContainerBuilder (tem o método build e é um container)
-            let payload = options;
-            if (options && typeof options.build === 'function') {
-                const container = options.build();
-                payload = { flags: ['IsComponentsV2'], components: [container] };
-            }
-            
-            // Se já é um payload com components (Container V2)
-            if (payload.components && !payload.embeds) {
-                if (!payload.flags) payload.flags = ['IsComponentsV2'];
-                
+        // ============ ADAPTAÇÃO PARA CONTAINER ============
+        // Detecta se é um payload de Container V2 (tem flags e components)
+        if (options.flags && options.components) {
+            try {
                 if (interaction.replied) {
-                    return await interaction.followUp(payload);
+                    return await interaction.followUp(options);
                 }
                 if (interaction.deferred) {
-                    return await interaction.editReply(payload);
+                    return await interaction.editReply(options);
                 }
                 if (this._isComponent(interaction)) {
-                    return await interaction.update(payload);
+                    return await interaction.update(options);
                 }
-                return await interaction.reply(payload);
+                return await interaction.reply(options);
+            } catch (error) {
+                console.error(`[ResponseManager] ❌ Erro (Container):`, {
+                    id: interaction.id,
+                    error: error.message
+                });
+                try {
+                    return await interaction.followUp({ content: '❌ Ocorreu um erro.', ephemeral: true });
+                } catch (fallbackError) {
+                    return null;
+                }
+            } finally {
+                this.processing.delete(interaction.id);
             }
+        }
 
-            // Payload padrão (content, embeds)
-            const { content, embeds = [], ephemeral = false } = payload;
-            const replyOptions = { content, embeds };
-            if (ephemeral) replyOptions.flags = 64;
+        // ============ PAYLOAD PADRÃO (embeds, content) ============
+        const { content, embeds = [], components = [], ephemeral = false } = options;
 
+        try {
             if (interaction.replied) {
-                return await interaction.followUp(replyOptions);
+                return await interaction.followUp({ content, embeds, components, ephemeral });
             }
+            
             if (interaction.deferred) {
-                return await interaction.editReply(replyOptions);
+                return await interaction.editReply({ content, embeds, components });
             }
+            
             if (this._isComponent(interaction)) {
-                return await interaction.update(replyOptions);
+                return await interaction.update({ content, embeds, components });
             }
-            return await interaction.reply(replyOptions);
+            
+            return await interaction.reply({ content, embeds, components, ephemeral });
 
         } catch (error) {
-            console.error(`[ResponseManager] ❌ Erro:`, { id: interaction.id, error: error.message });
+            console.error(`[ResponseManager] ❌ Erro:`, {
+                id: interaction.id,
+                error: error.message
+            });
+            
             try {
-                return await interaction.followUp({ content: '❌ Ocorreu um erro.', flags: 64 });
+                return await interaction.followUp({ 
+                    content: '❌ Ocorreu um erro.', 
+                    ephemeral: true 
+                });
             } catch (fallbackError) {
+                console.error(`[ResponseManager] ❌ Fallback falhou:`, fallbackError.message);
                 return null;
             }
         } finally {
+            // ✅ Libera imediatamente após finalizar
             this.processing.delete(interaction.id);
         }
     }
 
     async defer(interaction, ephemeral = false) {
-        if (interaction.replied || interaction.deferred) return false;
+        if (interaction.replied || interaction.deferred) {
+            return false;
+        }
+
         try {
             if (interaction.isCommand()) {
-                await interaction.deferReply({ flags: ephemeral ? 64 : 0 });
+                await interaction.deferReply({ ephemeral });
             } else if (this._isComponent(interaction)) {
                 await interaction.deferUpdate();
             } else {
@@ -94,15 +119,20 @@ class ResponseManager {
     }
 
     async success(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `✅ ${message}`, flags: 64, ...opts });
+        return this.send(interaction, { content: `✅ ${message}`, ephemeral: true, ...opts });
     }
 
     async error(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `❌ ${message}`, flags: 64, ...opts });
+        return this.send(interaction, { content: `❌ ${message}`, ephemeral: true, ...opts });
     }
 
     async warning(interaction, message, opts = {}) {
         return this.send(interaction, { content: `⚠️ ${message}`, ...opts });
+    }
+
+    async updateComponents(interaction, components, opts = {}) {
+        const { embeds = [], content } = opts;
+        return this.send(interaction, { content, embeds, components });
     }
 }
 

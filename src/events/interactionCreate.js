@@ -1,4 +1,4 @@
-// src/events/interactionCreate.js
+// /home/ubuntu/DiscStaffBot/src/events/interactionCreate.js
 const InteractionHandler = require('../systems/handlers');
 const ReportChatSystem = require('../systems/reportChatSystem');
 const ConfigSystem = require('../systems/configSystem');

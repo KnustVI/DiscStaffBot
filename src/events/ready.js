@@ -1,4 +1,4 @@
-// src/events/ready.js
+// /home/ubuntu/DiscStaffBot/src/events/ready.js
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
 const { startInactiveReportsJob } = require('../systems/inactiveReportsJob');

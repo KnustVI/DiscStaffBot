@@ -1,4 +1,4 @@
-// src/events/messageCreate.js
+// /home/ubuntu/DiscStaffBot/src/events/messageCreate.js
 const ConfigSystem = require('../systems/configSystem');
 const db = require('../database/index');
 
