@@ -98,8 +98,7 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
             
-            const currentRep = ConfigSystem.getSetting(guildId, `rep_${targetUser.id}`) || 
-                db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, targetUser.id)?.points || 100;
+            const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, targetUser.id)?.points || 100;
             
             const newPoints = Math.max(0, currentRep - pointsToLose);
             
@@ -120,8 +119,11 @@ module.exports = {
                 JSON.stringify({ discordAct, jogoAct, duration: durationStr })
             ).lastInsertRowid;
             
-            db.prepare(`UPDATE reputation SET points = ?, updated_at = ?, updated_by = ?
-                WHERE guild_id = ? AND user_id = ?`).run(newPoints, Date.now(), staff.id, guildId, targetUser.id);
+            // ATUALIZAR REPUTAÇÃO
+            db.prepare(`
+                INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
+                ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
+            `).run(guildId, targetUser.id, pointsToLose);
             
             let discordActionResult = null;
             if (discordAct !== 'none' && targetMember) {
@@ -153,7 +155,6 @@ module.exports = {
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
             // ==================== GERAR CONTAINER UNIFICADO ====================
-            console.log('🔍 [DEBUG] Gerando container unificado...');
             const containerBuilder = PunishmentSystem.generateStrikeUnifiedContainer(
                 targetUser,
                 staff,
@@ -168,48 +169,35 @@ module.exports = {
                 guild.name,
                 null
             );
-        console.log('🔍 [DEBUG] containerBuilder:', containerBuilder ? 'existe' : 'null');
-        console.log('🔍 [DEBUG] containerBuilder.build:', typeof containerBuilder?.build);
-        console.log('🔍 [DEBUG] builtContainer components:', JSON.stringify(builtContainer.components?.length));
+
             // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {
                     const builtContainer = containerBuilder.build();
-                    console.log('🔍 [DEBUG] builtContainer:', builtContainer ? 'ok' : 'null');
-                    
                     await targetMember.send({
                         components: [builtContainer],
                         flags: ['IsComponentsV2']
                     }).catch(() => null);
-                    console.log('✅ [DEBUG] DM enviada para ${targetUser.tag}');
                 } catch (err) {
                     console.error('❌ Erro ao enviar DM:', err);
                 }
-            } else {
-                console.log('⚠️ [DEBUG] targetMember não encontrado, DM não enviada');
             }
-
 
             // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
-            console.log('🔍 [DEBUG] logChannelId:', logChannelId);
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-                    console.log('🔍 [DEBUG] logChannel:', logChannel ? logChannel.name : 'não encontrado');
                     if (logChannel) {
                         const builtContainer = containerBuilder.build();
                         await logChannel.send({
                             components: [builtContainer],
                             flags: ['IsComponentsV2']
                         }).catch(() => null);
-                        console.log('✅ [DEBUG] Log enviado para canal ${logChannel.name}');
                     }
                 } catch (err) {
                     console.error('❌ Erro ao enviar log:', err);
                 }
-            } else {
-                console.log('⚠️ [DEBUG] logChannelId não configurado');
             }
 
             // ==================== RESPOSTA NO CANAL ====================

@@ -88,8 +88,8 @@ module.exports = {
             
             const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
             
-            // Container unificado
-            const container = PunishmentSystem.generateUnstrikeUnifiedContainer(
+            // ==================== GERAR CONTAINER UNIFICADO ====================
+            const containerBuilder = PunishmentSystem.generateUnstrikeUnifiedContainer(
                 targetUser,
                 staff,
                 punishmentId,
@@ -100,28 +100,37 @@ module.exports = {
                 guild.name
             );
 
+            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetUser) {
                 try {
+                    const builtContainer = containerBuilder.build();
                     await targetUser.send({
-                        components: [container.build()],
+                        components: [builtContainer],
                         flags: ['IsComponentsV2']
                     }).catch(() => null);
-                } catch (err) {}
+                } catch (err) {
+                    console.error('❌ Erro ao enviar DM:', err);
+                }
             }
 
+            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
+                        const builtContainer = containerBuilder.build();
                         await logChannel.send({
-                            components: [container.build()],
+                            components: [builtContainer],
                             flags: ['IsComponentsV2']
                         }).catch(() => null);
                     }
-                } catch (err) {}
+                } catch (err) {
+                    console.error('❌ Erro ao enviar log:', err);
+                }
             }
 
+            // ==================== RESPOSTA NO CANAL ====================
             await interaction.editReply({ 
                 content: `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
                 components: []
