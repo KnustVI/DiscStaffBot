@@ -1,7 +1,7 @@
+// /home/ubuntu/DiscStaffBot/src/systems/configSystem.js
 const db = require('../database/index');
 const sessionManager = require('../utils/sessionManager');
 const ResponseManager = require('../utils/responseManager');
-const ContainerBuilder = require('../utils/ContainerBuilder');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 const { 
     ActionRowBuilder, 
@@ -309,10 +309,13 @@ const ConfigSystem = {
             new ButtonBuilder().setCustomId('config-points:reset').setLabel(`Resetar Padrão`).setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.Reset || '⚠️')
         );
         
+        const replyData = builder.build();
+        replyData.components.push(row);
+        
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply({ content: successMessage || null, components: [builder.container, row] });
+            await interaction.editReply({ content: successMessage || null, ...replyData });
         } else {
-            await interaction.update({ content: successMessage || null, components: [builder.container, row] });
+            await interaction.update({ content: successMessage || null, ...replyData });
         }
     },
 
@@ -338,11 +341,14 @@ const ConfigSystem = {
         const exemplarRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
         const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
+        const replyData = builder.build();
+        replyData.components.push(staffRow, strikeRow, exemplarRow, problematicoRow);
+        
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: successMessage || null, components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow] });
+                await interaction.editReply({ content: successMessage || null, ...replyData });
             } else {
-                await interaction.update({ content: successMessage || null, components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow] });
+                await interaction.update({ content: successMessage || null, ...replyData });
             }
         } catch (error) {
             console.error('❌ Erro no refreshRolesPanel:', error);
@@ -390,11 +396,14 @@ const ConfigSystem = {
         const reportsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder(`Selecionar canal de logs de reports`).addChannelTypes(ChannelType.GuildText));
         const buttonRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
         
+        const replyData = builder.build();
+        replyData.components.push(geralRow, punishmentsRow, automodRow, reportsRow, buttonRow);
+        
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: successMessage || null, components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow] });
+                await interaction.editReply({ content: successMessage || null, ...replyData });
             } else {
-                await interaction.update({ content: successMessage || null, components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow] });
+                await interaction.update({ content: successMessage || null, ...replyData });
             }
         } catch (error) {
             console.error('❌ Erro no refreshLogsPanel:', error);
@@ -475,10 +484,12 @@ const ConfigSystem = {
             builder.addSection([`${EMOJIS.global || '📜'} **Geral:** <#${geral.id}>`, `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** <#${automod.id}>`, `${EMOJIS.strike || '⚖️'} **Punições:** <#${punishments.id}>`, `${EMOJIS.chat || '🎫'} **Reports:** <#${reports.id}>`]);
             builder.addFooter();
             
+            const replyData = builder.build();
+            
             if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ components: [builder.container] });
+                await interaction.editReply(replyData);
             } else {
-                await interaction.reply({ components: [builder.container], flags: 64 });
+                await interaction.reply({ ...replyData, flags: 64 });
             }
             
         } catch (error) {

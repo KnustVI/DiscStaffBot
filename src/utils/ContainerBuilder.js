@@ -1,12 +1,13 @@
 // /home/ubuntu/DiscStaffBot/src/utils/ContainerBuilder.js
-const { Container, TextDisplay, Section, Separator, ActionRow } = require('discord.js');
+const { ContainerBuilder, ComponentType, ActionRowBuilder } = require('discord.js');
 
-class ContainerBuilder {
+class ContainerBuilderWrapper {
     constructor(options = {}) {
-        this.container = new Container({
-            accentColor: options.accentColor || null,
-            spoiler: options.spoiler || false
-        });
+        this.container = new ContainerBuilder({ components: [] });
+        
+        if (options.accentColor) this.container.setAccentColor(options.accentColor);
+        if (options.spoiler) this.container.setSpoiler(options.spoiler);
+        
         this.hasContent = false;
         this.serverName = options.serverName || "Servidor Desconhecido";
         this.footerText = `[Bot by: Knust VI](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
@@ -20,73 +21,58 @@ class ContainerBuilder {
 
     addTitle(text, level = 1) {
         const prefix = '#'.repeat(Math.min(level, 3));
-        this.container.addComponents(new TextDisplay(`${prefix} ${text}`));
+        this.container.addTextDisplayComponents({ content: `${prefix} ${text}`, type: ComponentType.TextDisplay });
         this.hasContent = true;
         return this;
     }
 
     addText(text) {
-        this.container.addComponents(new TextDisplay(text));
+        this.container.addTextDisplayComponents({ content: text, type: ComponentType.TextDisplay });
         this.hasContent = true;
         return this;
     }
 
-    addSeparator(spacing = 'small') {
-        this.container.addComponents(new Separator({ spacing }));
+    addSeparator() {
+        this.container.addSeparatorComponents({});
         this.hasContent = true;
         return this;
     }
 
     addSection(texts, accessory = null) {
         if (!texts || texts.length === 0) return this;
-        const firstText = new TextDisplay(texts[0]);
-        const section = new Section(firstText, { accessory });
-        for (let i = 1; i < Math.min(texts.length, 3); i++) {
-            if (texts[i]) section.addComponents(new TextDisplay(texts[i]));
+        const sectionComponents = [];
+        for (const text of texts.slice(0, 3)) {
+            if (text) sectionComponents.push({ content: text, type: ComponentType.TextDisplay });
         }
-        this.container.addComponents(section);
+        this.container.addSectionComponents({ components: sectionComponents, accessory: accessory || undefined });
         this.hasContent = true;
         return this;
     }
 
     addButtonRow(buttons) {
         if (!buttons || buttons.length === 0) return this;
-        const actionRow = new ActionRow();
+        const actionRow = new ActionRowBuilder();
         buttons.slice(0, 5).forEach(button => actionRow.addComponents(button));
-        this.container.addComponents(actionRow);
-        this.hasContent = true;
-        return this;
-    }
-
-    addSelectMenu(selectMenu) {
-        const actionRow = new ActionRow();
-        actionRow.addComponents(selectMenu);
-        this.container.addComponents(actionRow);
+        this.container.addActionRowComponents(actionRow);
         this.hasContent = true;
         return this;
     }
 
     addFooter(customText = null) {
-        this.addSeparator('small');
+        this.addSeparator();
         const footerContent = customText ? `${customText}\n\n${this.footerText}` : this.footerText;
         this.addText(`*${footerContent}*`);
         return this;
     }
 
-    addFooterWithExtra(extraInfo) {
-        this.addSeparator('small');
-        this.addText(`*${extraInfo}\n\n${this.footerText}*`);
-        return this;
-    }
-
     build() {
         if (!this.hasContent) this.addText("⚠️ Nenhuma informação disponível");
-        return { components: [this.container] };
+        return { flags: ['IsComponentsV2'], components: [this.container] };
     }
 
-    toJSON() {
-        return this.build();
+    getContainer() {
+        return this.container;
     }
 }
 
-module.exports = ContainerBuilder;
+module.exports = ContainerBuilderWrapper;

@@ -1,7 +1,7 @@
+// /home/ubuntu/DiscStaffBot/src/systems/reportChatSystem.js
 const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
 const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const ContainerBuilder = require('../utils/ContainerBuilder');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 
 let EMOJIS = {};
@@ -116,17 +116,20 @@ class ReportChatSystem {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('open_report').setLabel('Reportar Jogador').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.chat || '🎫')
         );
-        return { components: [builder.container, row] };
+        
+        const replyData = builder.build();
+        replyData.components.push(row);
+        return replyData;
     }
 
     async openReport(interaction, data) {
         const { guild, user } = interaction;
-        await interaction.reply({ content: '⏳ Criando report...', flags: 64 });
+        await interaction.editReply({ content: '⏳ Criando report...' });
         
         try {
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (!logChannelId) {
-                return await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: 64 });
+                return await interaction.editReply({ content: '❌ Canal de logs não configurado!' });
             }
 
             const reportId = `#R${this.getNextId(guild.id)}`;
@@ -162,7 +165,9 @@ class ReportChatSystem {
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
             );
-            const dmMessage = await user.send({ components: [dmBuilder.container, dmRow] }).catch(() => null);
+            const dmReplyData = dmBuilder.build();
+            dmReplyData.components.push(dmRow);
+            const dmMessage = await user.send(dmReplyData).catch(() => null);
 
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
@@ -171,18 +176,20 @@ class ReportChatSystem {
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
             );
-            const logMessage = await logChannel.send({ components: [logBuilder.container, logRow] });
+            const logReplyData = logBuilder.build();
+            logReplyData.components.push(logRow);
+            const logMessage = await logChannel.send(logReplyData);
 
             db.prepare(`
                 INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
 
-            await interaction.editReply({ content: `✅ ${reportId} criado! ${thread.url}`, flags: 64 });
+            await interaction.editReply({ content: `✅ ${reportId} criado! ${thread.url}` });
             
         } catch (error) {
             console.error('❌ Erro ao criar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao criar report.', flags: 64 });
+            await interaction.editReply({ content: '❌ Erro ao criar report.' });
         }
     }
     
@@ -220,7 +227,9 @@ class ReportChatSystem {
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs);
-                    await logMessage.edit({ components: [updatedBuilder.container, ...logMessage.components.slice(1)] });
+                    const updatedReplyData = updatedBuilder.build();
+                    updatedReplyData.components = logMessage.components.slice(1);
+                    await logMessage.edit(updatedReplyData);
                 }
             }
 
@@ -228,7 +237,9 @@ class ReportChatSystem {
                 const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs);
-                    await dmMessage.edit({ components: [updatedBuilder.container, ...dmMessage.components.slice(1)] });
+                    const updatedReplyData = updatedBuilder.build();
+                    updatedReplyData.components = dmMessage.components.slice(1);
+                    await dmMessage.edit(updatedReplyData);
                 }
             }
 
@@ -278,7 +289,7 @@ class ReportChatSystem {
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, status, staffs, extraDesc);
-                    await logMessage.edit({ components: [updatedBuilder.container] });
+                    await logMessage.edit(updatedBuilder.build());
                 }
             }
 
@@ -289,7 +300,9 @@ class ReportChatSystem {
                     const row = new ActionRowBuilder().addComponents(
                         new ButtonBuilder().setCustomId(`rate:${report.id}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
                     );
-                    await dmMessage.edit({ components: [updatedBuilder.container, row] });
+                    const updatedReplyData = updatedBuilder.build();
+                    updatedReplyData.components.push(row);
+                    await dmMessage.edit(updatedReplyData);
                 }
             }
 
@@ -326,7 +339,7 @@ class ReportChatSystem {
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs, extraDesc);
-                    await logMessage.edit({ components: [updatedBuilder.container] });
+                    await logMessage.edit(updatedBuilder.build());
                 }
             }
 
@@ -340,9 +353,19 @@ class ReportChatSystem {
 
     async sendTempReply(interaction, content, success = true) {
         const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
-        await interaction.reply({ content: `${emoji} ${content}`, flags: 64 });
+        
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({ content: `${emoji} ${content}` });
+        } else {
+            await interaction.reply({ content: `${emoji} ${content}`, flags: 64 });
+        }
+        
         setTimeout(async () => {
-            try { await interaction.deleteReply(); } catch (err) {}
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.deleteReply();
+                }
+            } catch (err) {}
         }, 20000);
     }
     
@@ -362,7 +385,9 @@ class ReportChatSystem {
             const logMessage = await logChannel.messages.fetch(report.log_message_id);
             if (logMessage) {
                 const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, newStatus, staffs);
-                await logMessage.edit({ components: [updatedBuilder.container, ...logMessage.components.slice(1)] });
+                const updatedReplyData = updatedBuilder.build();
+                updatedReplyData.components = logMessage.components.slice(1);
+                await logMessage.edit(updatedReplyData);
             }
         }
 
@@ -370,7 +395,9 @@ class ReportChatSystem {
             const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
             if (dmMessage) {
                 const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, newStatus, staffs);
-                await dmMessage.edit({ components: [updatedBuilder.container, ...dmMessage.components.slice(1)] });
+                const updatedReplyData = updatedBuilder.build();
+                updatedReplyData.components = dmMessage.components.slice(1);
+                await dmMessage.edit(updatedReplyData);
             }
         }
     }

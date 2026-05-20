@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter.js');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -90,8 +90,8 @@ module.exports = {
                 .setEmoji(emojis.Reset || '⚠️')
         );
         
-        await ResponseManager.send(interaction, {
-            components: [builder.container, row]
-        });
+        const replyData = builder.build();
+        replyData.components.push(row);
+        await ResponseManager.send(interaction, replyData);
     }
 };

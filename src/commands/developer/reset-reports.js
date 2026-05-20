@@ -1,8 +1,8 @@
 // src/commands/developer/reset-reports.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
-const ResponseManager = require('../../utils/responseManager.js');
-const ContainerFormatter = require('../../utils/ContainerFormatter.js');
+const ResponseManager = require('../../utils/responseManager');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -84,7 +84,7 @@ module.exports = {
                 responseTime: Date.now() - startTime
             });
             
-            const ConfigSystem = require('../../systems/configSystem.js');
+            const ConfigSystem = require('../../systems/configSystem');
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
             if (logChannelId) {
                 try {
@@ -126,7 +126,7 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro no reset-reports:', error);
             
-            const ErrorLogger = require('../../systems/errorLogger.js');
+            const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
             const errorBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
