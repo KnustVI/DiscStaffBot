@@ -1,3 +1,4 @@
+// /home/ubuntu/DiscStaffBot/src/utils/ContainerBuilder.js
 const { Container, TextDisplay, Section, Separator, ActionRow } = require('discord.js');
 
 class ContainerBuilder {
@@ -57,10 +58,24 @@ class ContainerBuilder {
         return this;
     }
 
+    addSelectMenu(selectMenu) {
+        const actionRow = new ActionRow();
+        actionRow.addComponents(selectMenu);
+        this.container.addComponents(actionRow);
+        this.hasContent = true;
+        return this;
+    }
+
     addFooter(customText = null) {
         this.addSeparator('small');
         const footerContent = customText ? `${customText}\n\n${this.footerText}` : this.footerText;
         this.addText(`*${footerContent}*`);
+        return this;
+    }
+
+    addFooterWithExtra(extraInfo) {
+        this.addSeparator('small');
+        this.addText(`*${extraInfo}\n\n${this.footerText}*`);
         return this;
     }
 
