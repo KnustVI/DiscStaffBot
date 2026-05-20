@@ -65,8 +65,12 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
+            // CORRETO: componentes em array, flags incluídas
+            const componentsArray = [container.build()];
+            if (buttons) componentsArray.push(buttons);
+            
             await interaction.editReply({
-                components: [container.build(), buttons].filter(Boolean),
+                components: componentsArray,
                 flags: ['IsComponentsV2']
             });
             

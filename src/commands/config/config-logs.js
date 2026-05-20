@@ -45,10 +45,11 @@ module.exports = {
         builder.addText(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
         builder.addSeparator();
         
-        builder.addSection([`${emojis.global || '📜'} **Geral:**`, logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`]);
-        builder.addSection([`${emojis.strike || '⚖️'} **Punições:**`, logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`]);
-        builder.addSection([`${emojis.Config || '🛡️'} **AutoMod:**`, logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`]);
-        builder.addSection([`${emojis.chat || '🎫'} **ReportChat:**`, logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`]);
+        // CORRETO: usando addText, não addSection com dois parâmetros
+        builder.addText(`${emojis.global || '📜'} **Geral:** ${logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.strike || '⚖️'} **Punições:** ${logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.Config || '🛡️'} **AutoMod:** ${logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.chat || '🎫'} **ReportChat:** ${logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`}`);
         builder.addFooter();
         
         const geralRow = new ActionRowBuilder().addComponents(

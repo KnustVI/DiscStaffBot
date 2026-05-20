@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/commands/utility/botstatus.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, version } = require('discord.js');
 const db = require('../../database/index');
 const SystemStatus = require('../../systems/systemStatus');
 const AnalyticsSystem = require('../../systems/analyticsSystem');

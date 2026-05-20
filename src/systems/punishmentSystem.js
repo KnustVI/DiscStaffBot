@@ -66,26 +66,27 @@ const PunishmentSystem = {
         else if (history.reputation < 30) accentColor = COLORS.DANGER;
         else if (history.reputation < 50) accentColor = COLORS.WARNING;
         
+        const repEmoji = history.reputation >= 90 ? '🌟' : 
+                        history.reputation >= 70 ? '⭐' : 
+                        history.reputation >= 50 ? '👍' : '⚠️';
+        
         const builder = ContainerFormatter.createBuilder(guildName, accentColor);
         
         // HEADER
         builder.addTitle(`${EMOJIS.History || '📋'} HISTÓRICO`, 1);
+        builder.addText(`Consulta detalhada do sistema de reputação e punições.`);
         builder.addSeparator();
         
-        // STATUS SECTION
-        const repEmoji = history.reputation >= 90 ? '🌟' : 
-                        history.reputation >= 70 ? '⭐' : 
-                        history.reputation >= 50 ? '👍' : '⚠️';
-        builder.addSection([`${repEmoji} **Reputação:** ${history.reputation}/100`]);
-        builder.addSeparator();
-        
-        // INFORMAÇÕES PRINCIPAIS
+        // USUÁRIO
         builder.addText(`**👤 ${target.username}** (${target.id})`);
-        builder.addText(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         builder.addSeparator();
         
-        // HISTÓRICO (usando addText para múltiplas linhas)
+        // REPUTAÇÃO E TOTAL DE PUNIÇÕES
+        builder.addText(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
+        builder.addText(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
+        
         if (history.punishments.length > 0) {
+            builder.addSeparator();
             builder.addTitle('Registros', 2);
             for (const p of history.punishments) {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
