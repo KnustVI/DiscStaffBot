@@ -82,11 +82,19 @@ module.exports = {
         builder.addText(`**Servidor:** ${guild.name}`);
         builder.addSeparator();
         
-        builder.addSection([`📋 **Status:**`, `AutoMod: ${automodStatus}\nWorker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`]);
+        // CORRIGIDO: usar apenas um texto por section ou usar addText
+        builder.addSection([`📋 **Status:**`]);
+        builder.addText(`AutoMod: ${automodStatus}`);
+        builder.addText(`Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
+        
         builder.addSection([`📺 **Canal de Log:**`, channelStatus]);
         builder.addSection([`🕐 **Última Execução:**`, lastRunText]);
         builder.addSection([`📝 **Último Log Enviado:**`, lastLogText]);
-        builder.addSection([`📊 **Relatório da Execução:**`, `📈 Recuperados: ${result.totalRepRecovered} usuários\n➕ Cargos adicionados: ${result.totalRolesAdded}\n➖ Cargos removidos: ${result.totalRolesRemoved}`]);
+        
+        builder.addSection([`📊 **Relatório da Execução:**`]);
+        builder.addText(`📈 Recuperados: ${result.totalRepRecovered} usuários`);
+        builder.addText(`➕ Cargos adicionados: ${result.totalRolesAdded}`);
+        builder.addText(`➖ Cargos removidos: ${result.totalRolesRemoved}`);
         
         if (channelIssues.length > 0) {
             builder.addSeparator();

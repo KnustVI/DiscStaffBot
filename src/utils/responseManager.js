@@ -1,6 +1,6 @@
+// /home/ubuntu/DiscStaffBot/src/utils/responseManager.js
 /**
  * ResponseManager - Centraliza respostas
- * Usa propriedades nativas do Discord como fonte da verdade
  */
 class ResponseManager {
     constructor() {
@@ -21,29 +21,45 @@ class ResponseManager {
     }
 
     async send(interaction, options = {}) {
-        // 🔒 Previne race condition
         if (this.processing.has(interaction.id)) {
             console.warn(`[ResponseManager] ⚠️ Ignorado: ${interaction.id}`);
             return null;
         }
         this.processing.add(interaction.id);
 
-        const { content, embeds = [], components = [], ephemeral = false } = options;
-
         try {
+            // CORREÇÃO: Detecta se é um payload de Container V2
+            if (options.flags && options.components) {
+                if (interaction.replied) {
+                    return await interaction.followUp(options);
+                }
+                if (interaction.deferred) {
+                    return await interaction.editReply(options);
+                }
+                if (this._isComponent(interaction)) {
+                    return await interaction.update(options);
+                }
+                return await interaction.reply(options);
+            }
+
+            // Payload padrão (content, embeds, components)
+            const { content, embeds = [], components = [], ephemeral = false, flags } = options;
+            const replyOptions = { content, embeds, components };
+            if (ephemeral || flags === 64) replyOptions.flags = 64;
+
             if (interaction.replied) {
-                return await interaction.followUp({ content, embeds, components, ephemeral });
+                return await interaction.followUp(replyOptions);
             }
             
             if (interaction.deferred) {
-                return await interaction.editReply({ content, embeds, components });
+                return await interaction.editReply(replyOptions);
             }
             
             if (this._isComponent(interaction)) {
-                return await interaction.update({ content, embeds, components });
+                return await interaction.update(replyOptions);
             }
             
-            return await interaction.reply({ content, embeds, components, ephemeral });
+            return await interaction.reply(replyOptions);
 
         } catch (error) {
             console.error(`[ResponseManager] ❌ Erro:`, {
@@ -54,17 +70,13 @@ class ResponseManager {
             try {
                 return await interaction.followUp({ 
                     content: '❌ Ocorreu um erro.', 
-                    ephemeral: true 
+                    flags: 64
                 });
             } catch (fallbackError) {
-                console.error(`[ResponseManager] ❌ Fallback falhou:`, {
-                    id: interaction.id,
-                    error: fallbackError.message
-                });
+                console.error(`[ResponseManager] ❌ Fallback falhou:`, fallbackError.message);
                 return null;
             }
         } finally {
-            // ✅ Libera imediatamente após finalizar
             this.processing.delete(interaction.id);
         }
     }
@@ -76,7 +88,7 @@ class ResponseManager {
 
         try {
             if (interaction.isCommand()) {
-                await interaction.deferReply({ ephemeral });
+                await interaction.deferReply({ flags: ephemeral ? 64 : 0 });
             } else if (this._isComponent(interaction)) {
                 await interaction.deferUpdate();
             } else {
@@ -90,11 +102,11 @@ class ResponseManager {
     }
 
     async success(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `✅ ${message}`, ephemeral: true, ...opts });
+        return this.send(interaction, { content: `✅ ${message}`, flags: 64, ...opts });
     }
 
     async error(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `❌ ${message}`, ephemeral: true, ...opts });
+        return this.send(interaction, { content: `❌ ${message}`, flags: 64, ...opts });
     }
 
     async warning(interaction, message, opts = {}) {
@@ -105,18 +117,6 @@ class ResponseManager {
         const { embeds = [], content } = opts;
         return this.send(interaction, { content, embeds, components });
     }
-
-    static async defer(interaction, ephemeral = false) {
-    if (interaction.replied || interaction.deferred) {
-        return;
-    }
-    
-    if (interaction.isCommand()) {
-        await interaction.deferReply({ flags: ephemeral ? 64 : 0 });
-    } else if (interaction.isButton() || interaction.isAnySelectMenu()) {
-        await interaction.deferUpdate();
-    }
-}
 }
 
 module.exports = new ResponseManager();
