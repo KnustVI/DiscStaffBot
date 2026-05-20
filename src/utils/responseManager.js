@@ -1,7 +1,4 @@
 // /home/ubuntu/DiscStaffBot/src/utils/responseManager.js
-/**
- * ResponseManager - Centraliza respostas
- */
 class ResponseManager {
     constructor() {
         this.processing = new Set();
@@ -28,52 +25,50 @@ class ResponseManager {
         this.processing.add(interaction.id);
 
         try {
-            // CORREÇÃO: Detecta se é um payload de Container V2
-            if (options.flags && options.components) {
+            // CORREÇÃO: Se for um ContainerBuilder (tem o método build e é um container)
+            let payload = options;
+            if (options && typeof options.build === 'function') {
+                const container = options.build();
+                payload = { flags: ['IsComponentsV2'], components: [container] };
+            }
+            
+            // Se já é um payload com components (Container V2)
+            if (payload.components && !payload.embeds) {
+                if (!payload.flags) payload.flags = ['IsComponentsV2'];
+                
                 if (interaction.replied) {
-                    return await interaction.followUp(options);
+                    return await interaction.followUp(payload);
                 }
                 if (interaction.deferred) {
-                    return await interaction.editReply(options);
+                    return await interaction.editReply(payload);
                 }
                 if (this._isComponent(interaction)) {
-                    return await interaction.update(options);
+                    return await interaction.update(payload);
                 }
-                return await interaction.reply(options);
+                return await interaction.reply(payload);
             }
 
-            // Payload padrão (content, embeds, components)
-            const { content, embeds = [], components = [], ephemeral = false, flags } = options;
-            const replyOptions = { content, embeds, components };
-            if (ephemeral || flags === 64) replyOptions.flags = 64;
+            // Payload padrão (content, embeds)
+            const { content, embeds = [], ephemeral = false } = payload;
+            const replyOptions = { content, embeds };
+            if (ephemeral) replyOptions.flags = 64;
 
             if (interaction.replied) {
                 return await interaction.followUp(replyOptions);
             }
-            
             if (interaction.deferred) {
                 return await interaction.editReply(replyOptions);
             }
-            
             if (this._isComponent(interaction)) {
                 return await interaction.update(replyOptions);
             }
-            
             return await interaction.reply(replyOptions);
 
         } catch (error) {
-            console.error(`[ResponseManager] ❌ Erro:`, {
-                id: interaction.id,
-                error: error.message
-            });
-            
+            console.error(`[ResponseManager] ❌ Erro:`, { id: interaction.id, error: error.message });
             try {
-                return await interaction.followUp({ 
-                    content: '❌ Ocorreu um erro.', 
-                    flags: 64
-                });
+                return await interaction.followUp({ content: '❌ Ocorreu um erro.', flags: 64 });
             } catch (fallbackError) {
-                console.error(`[ResponseManager] ❌ Fallback falhou:`, fallbackError.message);
                 return null;
             }
         } finally {
@@ -82,10 +77,7 @@ class ResponseManager {
     }
 
     async defer(interaction, ephemeral = false) {
-        if (interaction.replied || interaction.deferred) {
-            return false;
-        }
-
+        if (interaction.replied || interaction.deferred) return false;
         try {
             if (interaction.isCommand()) {
                 await interaction.deferReply({ flags: ephemeral ? 64 : 0 });
@@ -111,11 +103,6 @@ class ResponseManager {
 
     async warning(interaction, message, opts = {}) {
         return this.send(interaction, { content: `⚠️ ${message}`, ...opts });
-    }
-
-    async updateComponents(interaction, components, opts = {}) {
-        const { embeds = [], content } = opts;
-        return this.send(interaction, { content, embeds, components });
     }
 }
 

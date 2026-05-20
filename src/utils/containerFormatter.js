@@ -1,9 +1,10 @@
 // /home/ubuntu/DiscStaffBot/src/utils/ContainerFormatter.js
 const ContainerBuilderWrapper = require('./ContainerBuilder');
+const { MessageFlags } = require('discord.js');
 
 class ContainerFormatter {
     static getFooter(serverName) {
-        return `Servidor atual: ${serverName}\nDesenvolvido por Knust VI | [Servidor de Suporte](https://discord.gg/8YCEkZQkZP)`;
+        return `[Bot by: Knust VI](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${serverName}`;
     }
 
     static createBuilder(serverName, accentColor = null) {
