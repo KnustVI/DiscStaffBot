@@ -152,8 +152,8 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // Container unificado
-            const container = PunishmentSystem.generateStrikeUnifiedContainer(
+            // ==================== GERAR CONTAINER UNIFICADO ====================
+            const containerBuilder = PunishmentSystem.generateStrikeUnifiedContainer(
                 targetUser,
                 staff,
                 strikeId,
@@ -168,28 +168,35 @@ module.exports = {
                 null
             );
 
+            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {
                     await targetMember.send({
-                        components: [container.build()],
+                        components: [containerBuilder.build()],
                         flags: ['IsComponentsV2']
                     }).catch(() => null);
-                } catch (err) {}
+                } catch (err) {
+                    console.error('❌ Erro ao enviar DM:', err);
+                }
             }
 
+            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
                         await logChannel.send({
-                            components: [container.build()],
+                            components: [containerBuilder.build()],
                             flags: ['IsComponentsV2']
                         }).catch(() => null);
                     }
-                } catch (err) {}
+                } catch (err) {
+                    console.error('❌ Erro ao enviar log:', err);
+                }
             }
 
+            // ==================== RESPOSTA NO CANAL ====================
             await interaction.editReply({ 
                 content: `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos\n⭐ Reputação: ${newPoints}/100`,
                 components: []

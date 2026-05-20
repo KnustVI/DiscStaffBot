@@ -340,14 +340,16 @@ const ConfigSystem = {
         
         // HEADER
         builder.addTitle(`${EMOJIS.staff || '👥'} Cargos do Sistema`, 1);
+        builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
+        builder.addSeparator();
         builder.addText(`Selecione os cargos abaixo:`);
         builder.addSeparator();
         
-        // CARGOS (cada um em sua própria Section - organização clara)
-        builder.addSection([`${EMOJIS.staff || '🛡️'} **Staff:**`, staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
-        builder.addSection([`${EMOJIS.strike || '⚠️'} **Strike (Temporário):**`, strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
-        builder.addSection([`${EMOJIS.shinystar || '✨'} **Exemplar:**`, exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
-        builder.addSection([`${EMOJIS.Warning || '⚠️'} **Problemático:**`, problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        // CORRETO: usando addText em vez de addSection com dois parâmetros
+        builder.addText(`${EMOJIS.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.addText(`${EMOJIS.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.addText(`${EMOJIS.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.addText(`${EMOJIS.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
         builder.addFooter();
         
         // SELECTS (ActionRows separados)
@@ -356,9 +358,9 @@ const ConfigSystem = {
         const exemplarRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
         const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
+        // CORRETO: NÃO usar content, apenas components + flags
         const replyData = { components: [builder.build()], flags: ['IsComponentsV2'] };
         replyData.components.push(staffRow, strikeRow, exemplarRow, problematicoRow);
-        if (successMessage) replyData.content = successMessage;
         
         try {
             if (interaction.deferred || interaction.replied) {
@@ -400,17 +402,17 @@ const ConfigSystem = {
         
         // HEADER
         builder.addTitle(`${EMOJIS.dashboard || '📝'} Canais de Log`, 1);
-        builder.addText(`- Geral recebe logs de alterações de configuração`);
-        builder.addText(`- Punições recebe logs relacionados a strikes e ações disciplinares`);
-        builder.addText(`- AutoMod recebe logs da análise diária de automação`);
-        builder.addText(`- ReportChat recebe logs de reports dos usuários`);
+        builder.addText(`- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`);
+        builder.addText(`- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`);
+        builder.addText(`- AutoMod recebe logs de ações tomadas pela analise diaria de automação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`);
+        builder.addText(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
         builder.addSeparator();
         
-        // CANAIS (cada um em sua própria Section)
-        builder.addSection([`${EMOJIS.global || '📜'} **Geral:**`, logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`]);
-        builder.addSection([`${EMOJIS.strike || '⚖️'} **Punições:**`, logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`]);
-        builder.addSection([`${EMOJIS.AutoMod || '🛡️'} **AutoMod:**`, logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`]);
-        builder.addSection([`${EMOJIS.chat || '🎫'} **ReportChat:**`, logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`]);
+        // CORRETO: usando addText em vez de addSection com dois parâmetros
+        builder.addText(`${EMOJIS.global || '📜'} **Geral:** ${logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.addText(`${EMOJIS.strike || '⚖️'} **Punições:** ${logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.addText(`${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.addText(`${EMOJIS.chat || '🎫'} **ReportChat:** ${logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
         builder.addFooter();
         
         // SELECTS E BOTÕES
@@ -420,9 +422,9 @@ const ConfigSystem = {
         const reportsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder(`Selecionar canal de logs de reports`).addChannelTypes(ChannelType.GuildText));
         const buttonRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
         
+        // CORRETO: NÃO usar content, apenas components + flags
         const replyData = { components: [builder.build()], flags: ['IsComponentsV2'] };
         replyData.components.push(geralRow, punishmentsRow, automodRow, reportsRow, buttonRow);
-        if (successMessage) replyData.content = successMessage;
         
         try {
             if (interaction.deferred || interaction.replied) {
