@@ -1,4 +1,4 @@
-// src/commands/moderation/repset.js
+// /home/ubuntu/DiscStaffBot/src/commands/moderation/repset.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
@@ -76,24 +76,23 @@ module.exports = {
             const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
             
-            // Container principal
             const builder = ContainerFormatter.createBuilder(guild.name, isGain ? 0x00FF00 : 0xFF0000);
             builder.addTitle(`${titleIcon} ${titleText}`, 1);
             builder.addSeparator();
-            builder.addSection([
-                `${emojis.Note || '📝'} **Motivo:**`,
-                `\`\`\`text\n${reason}\n\`\`\``
-            ]);
+            builder.addText(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
             builder.addSeparator();
-            builder.addSection([`${emojis.user || '👤'} **Usuário:**`, `${target.tag}\n\`${target.id}\``]);
-            builder.addSection([`${emojis.staff || '👮'} **Responsável:**`, `${staff.tag}\n\`${staff.id}\``]);
-            builder.addSection([`${titleIcon} **Mudança:**`, `${diffText} pts (${currentRep} → ${newPoints})`]);
-            builder.addSection([`${emojis.star || '⭐'} **Nova Reputação:**`, `${newPoints}/100`]);
+            builder.addText(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
+            builder.addText(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
+            builder.addText(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+            builder.addText(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
             builder.addFooter();
             
             if (targetMember) {
                 try {
-                    await targetMember.send(builder.build()).catch(() => null);
+                    await targetMember.send({
+                        components: [builder.build()],
+                        flags: ['IsComponentsV2']
+                    }).catch(() => null);
                 } catch (err) {}
             }
             
@@ -105,17 +104,17 @@ module.exports = {
                         const logBuilder = ContainerFormatter.createBuilder(guild.name, isGain ? 0x00FF00 : 0xFF0000);
                         logBuilder.addTitle(`${titleIcon} ${titleText}`, 1);
                         logBuilder.addSeparator();
-                        logBuilder.addSection([
-                            `${emojis.Note || '📝'} **Motivo:**`,
-                            `\`\`\`text\n${reason}\n\`\`\``
-                        ]);
+                        logBuilder.addText(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
                         logBuilder.addSeparator();
-                        logBuilder.addSection([`${emojis.user || '👤'} **Usuário:**`, `${target.tag}\n\`${target.id}\``]);
-                        logBuilder.addSection([`${emojis.staff || '👮'} **Responsável:**`, `${staff.tag}\n\`${staff.id}\``]);
-                        logBuilder.addSection([`${titleIcon} **Mudança:**`, `${diffText} pts (${currentRep} → ${newPoints})`]);
-                        logBuilder.addSection([`${emojis.star || '⭐'} **Nova Reputação:**`, `${newPoints}/100`]);
+                        logBuilder.addText(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
+                        logBuilder.addText(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
+                        logBuilder.addText(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+                        logBuilder.addText(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
                         logBuilder.addFooter();
-                        await logChannel.send(logBuilder.build()).catch(() => null);
+                        await logChannel.send({
+                            components: [logBuilder.build()],
+                            flags: ['IsComponentsV2']
+                        }).catch(() => null);
                     }
                 } catch (err) {}
             }

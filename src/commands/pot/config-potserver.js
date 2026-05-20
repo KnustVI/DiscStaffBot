@@ -1,4 +1,4 @@
-// src/commands/pot/config-potserver.js
+// /home/ubuntu/DiscStaffBot/src/commands/pot/config-potserver.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getInstance } = require('../../integrations/pathoftitans');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
@@ -47,12 +47,15 @@ module.exports = {
             const builder = ContainerFormatter.createBuilder(interaction.guild.name, success ? 0x00FF00 : 0xFFA500);
             builder.addTitle('🎮 Path of Titans - Configuração', 1);
             builder.addSeparator();
-            builder.addSection([`📡 **IP:**`, ip]);
-            builder.addSection([`🔌 **Porta RCON:**`, port.toString()]);
-            builder.addSection([`🔄 **Status:**`, success ? '✅ OK' : '⚠️ Offline']);
+            builder.addText(`📡 **IP:** ${ip}`);
+            builder.addText(`🔌 **Porta RCON:** ${port}`);
+            builder.addText(`🔄 **Status:** ${success ? '✅ OK' : '⚠️ Offline'}`);
             builder.addFooter('Use /config-potserver token para ver o token');
             
-            await interaction.editReply(builder.build());
+            await interaction.editReply({
+                components: [builder.build()],
+                flags: ['IsComponentsV2']
+            });
         }
         
         else if (sub === 'token') {
@@ -74,17 +77,20 @@ module.exports = {
             const builder = ContainerFormatter.createBuilder(interaction.guild.name, 0x00AAFF);
             builder.addTitle('🎮 Status da Integração', 1);
             builder.addSeparator();
-            builder.addSection([`🔒 **Gateway:**`, stats.gatewayRunning ? '✅ Rodando' : '❌ Parado']);
-            builder.addSection([`🔑 **Token:**`, token ? '✅ Ativo' : '❌ Não gerado']);
-            builder.addSection([`📊 **Usos:**`, `${tokenStats.usage_count || 0} requisições`]);
+            builder.addText(`🔒 **Gateway:** ${stats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
+            builder.addText(`🔑 **Token:** ${token ? '✅ Ativo' : '❌ Não gerado'}`);
+            builder.addText(`📊 **Usos:** ${tokenStats.usage_count || 0} requisições`);
             
             if (tokenStats.last_used) {
-                builder.addSection([`🕐 **Último uso:**`, `<t:${Math.floor(tokenStats.last_used / 1000)}:R>`]);
+                builder.addText(`🕐 **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
             }
             
             builder.addFooter();
             
-            await interaction.editReply(builder.build());
+            await interaction.editReply({
+                components: [builder.build()],
+                flags: ['IsComponentsV2']
+            });
         }
         
         else if (sub === 'revoke') {

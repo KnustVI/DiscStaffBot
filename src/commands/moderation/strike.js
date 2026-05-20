@@ -1,4 +1,4 @@
-// src/commands/moderation/strike.js
+// /home/ubuntu/DiscStaffBot/src/commands/moderation/strike.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
@@ -170,7 +170,10 @@ module.exports = {
 
             if (targetMember) {
                 try {
-                    await targetMember.send(container.build()).catch(() => null);
+                    await targetMember.send({
+                        components: [container.build()],
+                        flags: ['IsComponentsV2']
+                    }).catch(() => null);
                 } catch (err) {}
             }
 
@@ -179,7 +182,10 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        await logChannel.send(container.build()).catch(() => null);
+                        await logChannel.send({
+                            components: [container.build()],
+                            flags: ['IsComponentsV2']
+                        }).catch(() => null);
                     }
                 } catch (err) {}
             }

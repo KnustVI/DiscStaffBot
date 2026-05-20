@@ -41,7 +41,11 @@ module.exports = {
             if (!history || history.totalRecords === 0) {
                 db.logActivity(guildId, user.id, 'history_view', target.id, { hasRecords: false });
                 const builder = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
-                return await ResponseManager.send(interaction, { components: [builder.build()], flags: ['IsComponentsV2'] });
+                await interaction.editReply({
+                    components: [builder.build()],
+                    flags: ['IsComponentsV2']
+                });
+                return;
             }
             
             sessionManager.set(user.id, guildId, 'history', 'view', {
@@ -61,10 +65,10 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            const replyData = { components: [container.build()], flags: ['IsComponentsV2'] };
-            if (buttons) replyData.components.push(buttons);
-            
-            await ResponseManager.send(interaction, replyData);
+            await interaction.editReply({
+                components: [container.build(), buttons].filter(Boolean),
+                flags: ['IsComponentsV2']
+            });
             
             console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);
             

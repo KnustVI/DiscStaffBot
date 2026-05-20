@@ -1,4 +1,4 @@
-// src/commands/report/reportchat.js
+// /home/ubuntu/DiscStaffBot/src/commands/report/reportchat.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const ReportChatSystem = require('../../systems/reportChatSystem');
 
@@ -11,7 +11,8 @@ module.exports = {
     async execute(interaction, client) {
         const reportSystem = new ReportChatSystem(client);
         const panel = reportSystem.getPanel(interaction.guild.name, interaction.guild.iconURL());
+        
         await interaction.channel.send(panel);
-        await interaction.reply({ content: '✅ Painel de ReportChat criado!', ephemeral: true });
+        await interaction.reply({ content: '✅ Painel de ReportChat criado!', flags: 64 });
     }
 };

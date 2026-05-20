@@ -1,12 +1,10 @@
-// src/commands/report/reportarbug.js
+// /home/ubuntu/DiscStaffBot/src/commands/utility/reportarbug.js
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerBuilder = require('../../utils/ContainerBuilder');
 const ContainerFormatter = require('../../utils/ContainerFormatter');
 
-// ID Centralizado de Suporte
-const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717'; 
+const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717';
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -73,35 +71,22 @@ module.exports = {
             const tipoIcon = tipo === 'BUG' ? emojis.Error || '🐛' : emojis.How || '💡';
             const tipoColor = tipo === 'BUG' ? 0xF64B4E : 0x3B82F6;
             
-            // Container para o desenvolvedor
             const devBuilder = ContainerFormatter.createBuilder(guild.name, tipoColor);
             devBuilder.addTitle(`${tipoIcon} Feedback: ${tipo}`, 1);
             devBuilder.addSeparator();
-            devBuilder.addSection([
-                `${emojis.user || '👤'} **Enviado por:**`,
-                `${user.tag}\n\`${user.id}\``
-            ]);
-            devBuilder.addSection([
-                `${emojis.serverguild || '🌐'} **Servidor:**`,
-                `${guild.name}\n\`${guild.id}\``
-            ]);
-            devBuilder.addSection([
-                `${emojis.Rank || '👥'} **Cargo:**`,
-                member?.roles.highest ? `${member.roles.highest.name}` : 'Sem cargo'
-            ]);
-            devBuilder.addSection([
-                `${emojis.Note || '📝'} **Mensagem:**`,
-                `\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``
-            ]);
-            devBuilder.addSection([
-                `${emojis.ID || '🆔'} **ID do Feedback:**`,
-                `\`${feedbackUuid}\``
-            ]);
+            devBuilder.addText(`${emojis.user || '👤'} **Enviado por:** ${user.tag} \`${user.id}\``);
+            devBuilder.addText(`${emojis.serverguild || '🌐'} **Servidor:** ${guild.name} \`${guild.id}\``);
+            devBuilder.addText(`${emojis.Rank || '👥'} **Cargo:** ${member?.roles.highest ? member.roles.highest.name : 'Sem cargo'}`);
+            devBuilder.addText(`${emojis.Note || '📝'} **Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``);
+            devBuilder.addText(`${emojis.ID || '🆔'} **ID do Feedback:** \`${feedbackUuid}\``);
             devBuilder.addFooter(`ID: ${feedbackUuid.slice(0, 8)}`);
             
             let sentMessage = null;
             try {
-                sentMessage = await devChannel.send(devBuilder.build());
+                sentMessage = await devChannel.send({
+                    components: [devBuilder.build()],
+                    flags: ['IsComponentsV2']
+                });
             } catch (err) {
                 console.error('❌ Erro ao enviar feedback:', err);
                 db.logActivity(guildId, user.id, 'feedback_send_error', null, {
@@ -126,21 +111,17 @@ module.exports = {
                 }
             } catch (err) {}
             
-            // Container de resposta para o usuário
             const responseBuilder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
             responseBuilder.addTitle(`${tipoIcon} ${tipo === 'BUG' ? 'Bug Reportado' : 'Sugestão Enviada'}`, 1);
             responseBuilder.addSeparator();
-            responseBuilder.addSection([
-                `${emojis.Note || '📝'} **Resumo da Mensagem:**`,
-                `\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``
-            ]);
-            responseBuilder.addSection([
-                `${emojis.ID || '🆔'} **ID do Feedback:**`,
-                `\`${feedbackUuid.slice(0, 8)}...\``
-            ]);
+            responseBuilder.addText(`${emojis.Note || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
+            responseBuilder.addText(`${emojis.ID || '🆔'} **ID do Feedback:** \`${feedbackUuid.slice(0, 8)}...\``);
             responseBuilder.addFooter(`Obrigado por contribuir!`);
             
-            await ResponseManager.send(interaction, responseBuilder.build());
+            await interaction.editReply({
+                components: [responseBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
             
             const ConfigSystem = require('../../systems/configSystem');
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
@@ -164,17 +145,14 @@ module.exports = {
             const errorBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
             errorBuilder.addTitle(`${emojis.Error || '❌'} Erro ao Enviar Feedback`, 1);
             errorBuilder.addSeparator();
-            errorBuilder.addSection([
-                `**Tipo:**`,
-                tipo
-            ]);
-            errorBuilder.addSection([
-                `**Código do Erro:**`,
-                `\`${error.message?.slice(0, 50) || 'Desconhecido'}\``
-            ]);
+            errorBuilder.addText(`**Tipo:** ${tipo}`);
+            errorBuilder.addText(`**Código do Erro:** \`${error.message?.slice(0, 50) || 'Desconhecido'}\``);
             errorBuilder.addFooter('Caso persista, contate um administrador.');
             
-            await ResponseManager.send(interaction, errorBuilder.build());
+            await interaction.editReply({
+                components: [errorBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
         }
     }
 };
