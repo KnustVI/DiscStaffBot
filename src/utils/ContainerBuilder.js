@@ -38,16 +38,20 @@ class ContainerBuilderWrapper {
         return this;
     }
 
-    // CORRIGIDO: Aceita apenas um array de textos, sem accessory
     addSection(texts) {
         if (!texts || texts.length === 0) return this;
-        const sectionComponents = [];
-        for (const text of texts.slice(0, 3)) {
-            if (text) {
-                sectionComponents.push({ content: text, type: ComponentType.TextDisplay });
-            }
+        
+        // Se texts for um array de strings, combina em um único texto
+        let combinedText = '';
+        if (Array.isArray(texts)) {
+            combinedText = texts.join(' | ');
+        } else {
+            combinedText = texts;
         }
-        this.container.addSectionComponents({ components: sectionComponents });
+        
+        this.container.addSectionComponents({
+            components: [{ content: combinedText, type: ComponentType.TextDisplay }]
+        });
         this.hasContent = true;
         return this;
     }
