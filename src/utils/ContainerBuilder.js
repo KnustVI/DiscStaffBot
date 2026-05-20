@@ -1,8 +1,9 @@
 // /home/ubuntu/DiscStaffBot/src/utils/ContainerBuilder.js
 const { ContainerBuilder, ComponentType, ActionRowBuilder } = require('discord.js');
 
-class ContainerBuilderUtil {
+class ContainerBuilderWrapper {
     constructor(options = {}) {
+        // Criar o container CORRETAMENTE
         this.container = new ContainerBuilder();
         
         if (options.accentColor) this.container.setAccentColor(options.accentColor);
@@ -21,6 +22,7 @@ class ContainerBuilderUtil {
 
     addTitle(text, level = 1) {
         const prefix = '#'.repeat(Math.min(level, 3));
+        // CORRETO: adicionar ao container, não criar componente solto
         this.container.addTextDisplayComponents({
             content: `${prefix} ${text}`,
             type: ComponentType.TextDisplay
@@ -44,15 +46,24 @@ class ContainerBuilderUtil {
         return this;
     }
 
-    addField(label, value, inline = false) {
-        const prefix = inline ? '' : '\n';
-        this.addText(`${prefix}**${label}:** ${value}`);
-        return this;
-    }
-
-    addSection(title, content) {
-        this.addTitle(title, 2);
-        this.addText(content);
+    addSection(texts, accessory = null) {
+        if (!texts || texts.length === 0) return this;
+        
+        const sectionComponents = [];
+        for (const text of texts.slice(0, 3)) {
+            if (text) {
+                sectionComponents.push({
+                    content: text,
+                    type: ComponentType.TextDisplay
+                });
+            }
+        }
+        
+        this.container.addSectionComponents({
+            components: sectionComponents,
+            accessory: accessory || undefined
+        });
+        this.hasContent = true;
         return this;
     }
 
@@ -76,8 +87,9 @@ class ContainerBuilderUtil {
         if (!this.hasContent) {
             this.addText("⚠️ Nenhuma informação disponível");
         }
+        // CORRETO: retornar o container, não um array
         return this.container;
     }
 }
 
-module.exports = ContainerBuilderUtil;
+module.exports = ContainerBuilderWrapper;

@@ -1,6 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/utils/ContainerFormatter.js
 const ContainerBuilderWrapper = require('./ContainerBuilder');
-const { MessageFlags } = require('discord.js');
 
 class ContainerFormatter {
     static getFooter(serverName) {

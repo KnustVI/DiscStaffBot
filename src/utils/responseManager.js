@@ -25,25 +25,28 @@ class ResponseManager {
         this.processing.add(interaction.id);
 
         try {
-            // CORREÇÃO: Garantir que o payload de Container V2 tenha o formato correto
             let payload = options;
             
             // Se for um builder (tem build()), chama build()
             if (options && typeof options.build === 'function') {
-                payload = options.build();
+                payload = { components: [options.build()], flags: ['IsComponentsV2'] };
             }
             
-            // Se for payload de Container V2 (tem flags e components)
+            // Se for um Container (tem toJSON ou é um builder)
+            if (payload && payload.toJSON && typeof payload.toJSON === 'function') {
+                payload = { components: [payload], flags: ['IsComponentsV2'] };
+            }
+            
+            // Se já tem components mas não tem flags, pode ser container solto
+            if (payload.components && !payload.flags) {
+                // Verifica se o primeiro componente é um ContainerBuilder
+                if (payload.components[0] && payload.components[0].toJSON) {
+                    payload = { components: [payload.components[0]], flags: ['IsComponentsV2'] };
+                }
+            }
+            
+            // Payload de Container V2
             if (payload.flags && payload.components) {
-                // Garantir que components é um array
-                if (!Array.isArray(payload.components)) {
-                    payload.components = [payload.components];
-                }
-                // Garantir que a flag está no formato correto
-                if (!payload.flags.includes('IsComponentsV2')) {
-                    payload.flags = ['IsComponentsV2'];
-                }
-                
                 if (interaction.replied) {
                     return await interaction.followUp(payload);
                 }
@@ -56,7 +59,7 @@ class ResponseManager {
                 return await interaction.reply(payload);
             }
 
-            // Payload padrão (content, embeds)
+            // Payload padrão
             const { content, embeds = [], components = [], ephemeral = false } = payload;
             const replyOptions = { content, embeds, components };
             if (ephemeral) replyOptions.flags = 64;
