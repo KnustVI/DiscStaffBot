@@ -30,6 +30,7 @@ module.exports = {
             emojis = {};
         }
         
+        // ==================== VERIFICAÇÃO DE ACESSO ====================
         if (user.id !== DEVELOPER_ID) {
             db.logActivity(guildId, user.id, 'reset_reports_denied', null, {
                 command: 'reset-reports',
@@ -48,6 +49,7 @@ module.exports = {
             return;
         }
         
+        // ==================== CONFIRMAÇÃO ====================
         if (confirmacao !== 'LIMPAR REPORTS') {
             const cancelBuilder = ContainerFormatter.createBuilder(guild.name, 0xFFBD59);
             cancelBuilder.addTitle(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
@@ -61,6 +63,7 @@ module.exports = {
             return;
         }
         
+        // ==================== EXECUÇÃO DA LIMPEZA ====================
         try {
             const statsBefore = {
                 reports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ?`).get(guildId)?.count || 0,
@@ -68,6 +71,7 @@ module.exports = {
                 closedReports: db.prepare(`SELECT COUNT(*) as count FROM reports WHERE guild_id = ? AND status LIKE 'closed%'`).get(guildId)?.count || 0
             };
             
+            // ==================== FECHAR THREADS ABERTAS ====================
             const openReports = db.prepare(`SELECT thread_id FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'`).all(guildId);
             for (const report of openReports) {
                 if (report.thread_id) {
@@ -81,6 +85,7 @@ module.exports = {
                 }
             }
             
+            // ==================== DELETAR REPORTS ====================
             db.prepare(`DELETE FROM reports WHERE guild_id = ?`).run(guildId);
             db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reports'`).run();
             
@@ -92,6 +97,7 @@ module.exports = {
                 responseTime: Date.now() - startTime
             });
             
+            // ==================== NOTIFICAÇÃO NO CANAL DE LOG ====================
             const ConfigSystem = require('../../systems/configSystem');
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
             if (logChannelId) {
@@ -109,6 +115,7 @@ module.exports = {
                         alertBuilder.addText(`- Abertos: \`${statsBefore.openReports}\``);
                         alertBuilder.addText(`- Fechados: \`${statsBefore.closedReports}\``);
                         alertBuilder.addFooter();
+                        
                         await logChannel.send({
                             components: [alertBuilder.build()],
                             flags: ['IsComponentsV2']
@@ -117,6 +124,7 @@ module.exports = {
                 } catch (err) {}
             }
             
+            // ==================== RESPOSTA DE SUCESSO ====================
             const successBuilder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
             successBuilder.addTitle(`${emojis.CLEAN || '🧹'} Reports Resetados`, 1);
             successBuilder.addSeparator();

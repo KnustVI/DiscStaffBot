@@ -54,6 +54,7 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Você não pode anular punições de um cargo superior.');
             }
             
+            // ==================== PONTOS A RESTAURAR ====================
             const pointsMap = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
             const pointsToRestore = pointsMap[punishment.severity] || 10;
             
@@ -61,12 +62,17 @@ module.exports = {
                 .get(guildId, punishment.user_id)?.points || 100;
             const newPoints = Math.min(100, currentRep + pointsToRestore);
             
+            // ==================== ATUALIZAR PUNIÇÃO ====================
             db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
                 WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishmentId, guildId);
             
-            db.prepare(`UPDATE reputation SET points = ?, updated_at = ?, updated_by = ?
-                WHERE guild_id = ? AND user_id = ?`).run(newPoints, Date.now(), staff.id, guildId, punishment.user_id);
+            // ==================== RESTAURAR REPUTAÇÃO ====================
+            db.prepare(`
+                UPDATE reputation SET points = MIN(100, points + ?)
+                WHERE guild_id = ? AND user_id = ?
+            `).run(pointsToRestore, guildId, punishment.user_id);
             
+            // ==================== REMOVER CARGO DE STRIKE ====================
             const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
             if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
                 try {
@@ -74,12 +80,14 @@ module.exports = {
                 } catch (err) {}
             }
             
+            // ==================== REMOVER TIMEOUT ====================
             if (targetMember?.communicationDisabledUntilTimestamp) {
                 try {
                     await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
                 } catch (err) {}
             }
             
+            // ==================== LOGS ====================
             db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
                 command: 'unstrike', punishmentId, pointsRestored: pointsToRestore, oldPoints: currentRep, newPoints
             });
