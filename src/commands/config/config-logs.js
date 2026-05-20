@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+// src/commands/config/config-logs.js
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const EmbedFormatter = require('../../utils/embedFormatter');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,7 +14,6 @@ module.exports = {
         const { guild, user, member } = interaction;
         const guildId = guild.id;
         
-        // Carregar emojis do servidor
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -31,29 +31,25 @@ module.exports = {
         
         const ConfigSystem = require('../../systems/configSystem');
         
-        // Buscar configurações atuais
         const logGeral = ConfigSystem.getSetting(guildId, 'log_channel');
         const logPunishments = ConfigSystem.getSetting(guildId, 'log_punishments');
         const logAutomod = ConfigSystem.getSetting(guildId, 'log_automod');
         const logReports = ConfigSystem.getSetting(guildId, 'log_reports');
         
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(
-                `# ${emojis.dashboard || '📝'} Canais de Log`,
-                `- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`,
-                `- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`,
-                `- AutoMod recebe logs de ações tomadas pela analise diaria de atuomação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`,
-                `- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`
-            )
-            .addFields(
-                { name: `${emojis.global || '📜'} Geral`, value: logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.strike || '⚖️'} Punições`, value: logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.Config || '🛡️'} AutoMod`, value: logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.chat || '🎫'} ReportChat`, value: logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
-            )
-            .setFooter(EmbedFormatter.getFooter(guild.name))
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
+        builder.addTitle(`${emojis.dashboard || '📝'} Canais de Log`, 1);
+        builder.addText(`- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`);
+        builder.addText(`- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`);
+        builder.addText(`- AutoMod recebe logs de ações tomadas pela analise diaria de automação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`);
+        builder.addText(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
+        builder.addSeparator();
+        
+        builder.addSection([`${emojis.global || '📜'} **Geral:**`, logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`]);
+        builder.addSection([`${emojis.strike || '⚖️'} **Punições:**`, logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`]);
+        builder.addSection([`${emojis.Config || '🛡️'} **AutoMod:**`, logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`]);
+        builder.addSection([`${emojis.chat || '🎫'} **ReportChat:**`, logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`]);
+        
+        builder.addFooter();
         
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
@@ -92,8 +88,7 @@ module.exports = {
         );
         
         await ResponseManager.send(interaction, {
-            embeds: [embed],
-            components: [geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
+            components: [builder.container, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow]
         });
     }
 };

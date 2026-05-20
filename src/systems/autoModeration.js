@@ -1,8 +1,10 @@
+// src/systems/autoModeration.js
 const cron = require('node-cron');
 const db = require('../database/index');
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const SessionManager = require('../utils/sessionManager');
-const EmbedFormatter = require('../utils/embedFormatter');
+const ContainerBuilder = require('../utils/ContainerBuilder');
+const ContainerFormatter = require('../utils/ContainerFormatter');
 
 // Carregar emojis do servidor
 let EMOJIS = {};
@@ -15,10 +17,10 @@ try {
 
 // Cores padrão do sistema
 const COLORS = {
-    DEFAULT: 0xDCA15E,      // Cor padrão
-    SUCCESS: 0x00FF00,      // Verde para sucesso
-    DANGER: 0xFF0000,       // Vermelho para perigo
-    WARNING: 0xFFA500       // Laranja para avisos
+    DEFAULT: 0xDCA15E,
+    SUCCESS: 0x00FF00,
+    DANGER: 0xFF0000,
+    WARNING: 0xFFA500
 };
 
 class AutoModerationSystem {
@@ -36,10 +38,6 @@ class AutoModerationSystem {
 
     // ==================== MÉTODOS PARA HANDLER CENTRAL ====================
 
-    /**
-     * Handler para componentes (botões e selects)
-     * Chamado pelo InteractionHandler quando customId começa com "automod:"
-     */
     async handleComponent(interaction, action, param) {
         try {
             switch (action) {
@@ -67,10 +65,6 @@ class AutoModerationSystem {
         }
     }
 
-    /**
-     * Handler para modais
-     * Chamado pelo InteractionHandler quando modal começa com "automod:"
-     */
     async handleModal(interaction, action) {
         try {
             switch (action) {
@@ -92,9 +86,6 @@ class AutoModerationSystem {
         }
     }
 
-    /**
-     * Alterna o estado da auto moderação
-     */
     async handleToggleAutoMod(interaction) {
         const ConfigSystem = require('./configSystem');
         const current = ConfigSystem.getSetting(interaction.guildId, 'automod_enabled') === 'true';
@@ -102,29 +93,21 @@ class AutoModerationSystem {
         
         ConfigSystem.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
         
-        const embed = new EmbedBuilder()
-            .setColor(COLORS.DEFAULT)
-            .setTitle(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`)
-            .setDescription(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`)
-            .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(interaction.guild.name, COLORS.DEFAULT);
+        builder.addTitle(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`, 1);
+        builder.addText(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`);
+        builder.addFooter(`Solicitado por ${interaction.user.tag}`);
         
         await interaction.editReply({
-            embeds: [embed],
-            components: []
+            components: [builder.container],
+            content: null
         });
     }
 
-    /**
-     * Configura limites da auto moderação
-     */
-    async handleAutoModConfig(interaction, param, guildName) {
+    async handleAutoModConfig(interaction, param) {
         const ConfigSystem = require('./configSystem');
         
         if (param === 'limits') {
-            // Abrir modal para configurar limites
-            const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-            
             const modal = new ModalBuilder()
                 .setCustomId('automod:limits')
                 .setTitle(`${EMOJIS.Config || '⚙️'} Configurar Limites`);
@@ -150,41 +133,53 @@ class AutoModerationSystem {
             
             await interaction.showModal(modal);
         } else {
-            // Mostrar configurações atuais
             const exemplarLimit = ConfigSystem.getSetting(interaction.guildId, 'limit_exemplar') || '95';
             const problematicLimit = ConfigSystem.getSetting(interaction.guildId, 'limit_problematico') || '30';
             const isEnabled = ConfigSystem.getSetting(interaction.guildId, 'automod_enabled') === 'true';
             
-            const embed = new EmbedBuilder()
-                .setColor(COLORS.DEFAULT)
-                .setTitle(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`)
-                .addFields(
-                    { name: `${EMOJIS.Status || '📊'} Status`, value: isEnabled ? `${EMOJIS.Check || '✅'} Ativado` : `${EMOJIS.Error || '❌'} Desativado`, inline: true },
-                    { name: `${EMOJIS.shinystar || '🎖️'} Limite Exemplar`, value: `${exemplarLimit} pontos`, inline: true },
-                    { name: `${EMOJIS.Warning || '⚠️'} Limite Problemático`, value: `${problematicLimit} pontos`, inline: true },
-                    { name: `${EMOJIS.gain || '📈'} Recuperação Diária`, value: '+1 ponto para quem não tem punições nas últimas 24h', inline: false },
-                    { name: `${EMOJIS.Reset || '🔄'} Atualização`, value: 'Diariamente às 12:00', inline: true }
-                )
-                .setTimestamp();
-                embed.setFooter(EmbedFormatter.getFooter(guildName));
+            const builder = ContainerFormatter.createBuilder(interaction.guild.name, COLORS.DEFAULT);
+            builder.addTitle(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`, 1);
+            builder.addSeparator();
+            
+            builder.addSection([
+                `${EMOJIS.Status || '📊'} **Status:**`,
+                isEnabled ? `${EMOJIS.Check || '✅'} Ativado` : `${EMOJIS.Error || '❌'} Desativado`
+            ]);
+            
+            builder.addSection([
+                `${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:**`,
+                `${exemplarLimit} pontos`
+            ]);
+            
+            builder.addSection([
+                `${EMOJIS.Warning || '⚠️'} **Limite Problemático:**`,
+                `${problematicLimit} pontos`
+            ]);
+            
+            builder.addSection([
+                `${EMOJIS.gain || '📈'} **Recuperação Diária:**`,
+                `+1 ponto para quem não tem punições nas últimas 24h`
+            ]);
+            
+            builder.addSection([
+                `${EMOJIS.Reset || '🔄'} **Atualização:**`,
+                `Diariamente às 12:00`
+            ]);
+            
+            builder.addFooter();
             
             await interaction.editReply({
-                embeds: [embed],
-                components: []
+                components: [builder.container]
             });
         }
     }
 
-    /**
-     * Processa modal de configuração de limites
-     */
     async processLimitConfigModal(interaction) {
         const ConfigSystem = require('./configSystem');
         
         const exemplarLimit = interaction.fields.getTextInputValue('exemplar_limit');
         const problematicLimit = interaction.fields.getTextInputValue('problematic_limit');
         
-        // Validações
         const exLimit = parseInt(exemplarLimit);
         const probLimit = parseInt(problematicLimit);
         
@@ -209,70 +204,85 @@ class AutoModerationSystem {
             });
         }
         
-        // Salvar configurações
         ConfigSystem.setSetting(interaction.guildId, 'limit_exemplar', exLimit.toString());
         ConfigSystem.setSetting(interaction.guildId, 'limit_problematico', probLimit.toString());
         
-        const embed = new EmbedBuilder()
-            .setColor(COLORS.SUCCESS)
-            .setTitle(`${EMOJIS.Check || '✅'} Configurações Atualizadas`)
-            .addFields(
-                { name: `${EMOJIS.shinystar || '🎖️'} Limite Exemplar`, value: `${exLimit} pontos`, inline: true },
-                { name: `${EMOJIS.Warning || '⚠️'} Limite Problemático`, value: `${probLimit} pontos`, inline: true }
-            )
-            .setFooter({ text: `Solicitado por ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(interaction.guild.name, COLORS.SUCCESS);
+        builder.addTitle(`${EMOJIS.Check || '✅'} Configurações Atualizadas`, 1);
+        builder.addSeparator();
+        builder.addSection([
+            `${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:**`,
+            `${exLimit} pontos`
+        ]);
+        builder.addSection([
+            `${EMOJIS.Warning || '⚠️'} **Limite Problemático:**`,
+            `${probLimit} pontos`
+        ]);
+        builder.addFooter(`Solicitado por ${interaction.user.tag}`);
         
         await interaction.editReply({
-            embeds: [embed],
-            components: []
+            components: [builder.container],
+            content: null
         });
     }
 
-    /**
-     * Gera relatório da auto moderação
-     */
-    async handleAutoModReport(interaction, guildName) {
+    async handleAutoModReport(interaction) {
         const ConfigSystem = require('./configSystem');
         
-        // Buscar estatísticas
         const totalUsers = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(interaction.guildId);
         const avgRep = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(interaction.guildId);
         const exemplars = db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ? AND points >= ?`).get(interaction.guildId, ConfigSystem.getSetting(interaction.guildId, 'limit_exemplar') || 95);
         const problematic = db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ? AND points <= ?`).get(interaction.guildId, ConfigSystem.getSetting(interaction.guildId, 'limit_problematico') || 30);
         
-        const embed = new EmbedBuilder()
-            .setColor(COLORS.DEFAULT)
-            .setTitle(`${EMOJIS.Rank || '📊'} Relatório de Auto Moderação`)
-            .addFields(
-                { name: `${EMOJIS.user || '👥'} Total de Usuários`, value: `\`${totalUsers?.count || 0}\``, inline: true },
-                { name: `${EMOJIS.star || '⭐'} Reputação Média`, value: `\`${Math.round(avgRep?.avg || 0)}/100\``, inline: true },
-                { name: `${EMOJIS.shinystar || '🎖️'} Usuários Exemplares`, value: `\`${exemplars?.count || 0}\``, inline: true },
-                { name: `${EMOJIS.Warning || '⚠️'} Usuários Problemáticos`, value: `\`${problematic?.count || 0}\``, inline: true },
-                { name: `${EMOJIS.Date || '🕒'} Última Execução`, value: this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado', inline: true },
-                { name: `${EMOJIS.gain || '📈'} Total Recuperado`, value: `\`${this.stats.totalRepRecovered}\` pontos`, inline: true }
-            )
-            .setTimestamp();
-            embed.setFooter(EmbedFormatter.getFooter(guildName));
+        const builder = ContainerFormatter.createBuilder(interaction.guild.name, COLORS.DEFAULT);
+        builder.addTitle(`${EMOJIS.Rank || '📊'} Relatório de Auto Moderação`, 1);
+        builder.addSeparator();
+        
+        builder.addSection([
+            `${EMOJIS.user || '👥'} **Total de Usuários:**`,
+            `\`${totalUsers?.count || 0}\``
+        ]);
+        
+        builder.addSection([
+            `${EMOJIS.star || '⭐'} **Reputação Média:**`,
+            `\`${Math.round(avgRep?.avg || 0)}/100\``
+        ]);
+        
+        builder.addSection([
+            `${EMOJIS.shinystar || '🎖️'} **Usuários Exemplares:**`,
+            `\`${exemplars?.count || 0}\``
+        ]);
+        
+        builder.addSection([
+            `${EMOJIS.Warning || '⚠️'} **Usuários Problemáticos:**`,
+            `\`${problematic?.count || 0}\``
+        ]);
+        
+        builder.addSection([
+            `${EMOJIS.Date || '🕒'} **Última Execução:**`,
+            this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado'
+        ]);
+        
+        builder.addSection([
+            `${EMOJIS.gain || '📈'} **Total Recuperado:**`,
+            `\`${this.stats.totalRepRecovered}\` pontos`
+        ]);
+        
+        builder.addFooter();
         
         await interaction.editReply({
-            embeds: [embed],
-            components: []
+            components: [builder.container]
         });
     }
 
     // ==================== FUNÇÕES DE NEGÓCIO ====================
 
-    /**
-     * Inicia o worker de auto moderação agendado
-     */
     startWorker() {
         if (this.isRunning) {
             console.log('⚠️ [AutoMod] Worker já está rodando');
             return;
         }
         
-        // Agendado para Meio-dia (Brasília) - Horário de Brasília
         cron.schedule('0 12 * * *', async () => {
             console.log("🕛 [AutoMod] Executando manutenção agendada das 12:00");
             await this.executeDailyMaintenance();
@@ -284,19 +294,14 @@ class AutoModerationSystem {
         console.log("🛡️ [AutoMod] Worker iniciado - Agendado para 12:00 (Brasília)");
     }
 
-    /**
-     * Executa a manutenção diária (pode ser chamada manualmente também)
-     */
     async executeDailyMaintenance() {
+        if (this.isProcessing) {
+            console.log('⚠️ [AutoMod] Manutenção já em andamento, ignorando...');
+            return;
+        }
         
-        // Evitar execução simultânea
-            if (this.isProcessing) {
-                console.log('⚠️ [AutoMod] Manutenção já em andamento, ignorando...');
-                return;
-            }
-    
-    this.isProcessing = true;
-
+        this.isProcessing = true;
+        
         console.log("🛡️ [AutoMod] Iniciando processamento de integridade diária...");
         this.stats.lastRun = Date.now();
         
@@ -306,8 +311,7 @@ class AutoModerationSystem {
         let totalRolesAdded = 0;
         let totalRolesRemoved = 0;
 
-        // --- 1. RECUPERAÇÃO DE REPUTAÇÃO (SQL PURO) ---
-        // Aumenta 1 ponto de quem não teve punições nas últimas 24h
+        // --- 1. RECUPERAÇÃO DE REPUTAÇÃO ---
         try {
             const result = db.prepare(`
                 UPDATE reputation 
@@ -329,7 +333,6 @@ class AutoModerationSystem {
 
         // --- 2. GERENCIAMENTO DINÂMICO DE CARGOS ---
         try {
-            // Buscamos apenas quem está nos extremos (Exemplares ou Problemáticos)
             const users = db.prepare(`SELECT * FROM reputation WHERE points >= 90 OR points <= 40`).all();
 
             for (const userData of users) {
@@ -352,13 +355,12 @@ class AutoModerationSystem {
                     const member = await guild.members.fetch(uId).catch(() => null);
                     if (!member) continue;
 
-                    // Definições de Configuração
                     const roleExId = ConfigSystem.getSetting(gId, 'role_exemplar');
                     const roleProbId = ConfigSystem.getSetting(gId, 'role_problematico');
                     const limitEx = parseInt(ConfigSystem.getSetting(gId, 'limit_exemplar')) || 95;
                     const limitProb = parseInt(ConfigSystem.getSetting(gId, 'limit_problematico')) || 30;
 
-                    // A) Lógica de Cargo Exemplar (Recompensa)
+                    // Cargo Exemplar
                     if (roleExId) {
                         const hasEx = member.roles.cache.has(roleExId);
                         if (rep >= limitEx && !hasEx) {
@@ -367,17 +369,15 @@ class AutoModerationSystem {
                             stats[gId].exemplarAdded++;
                             totalRolesAdded++;
                             
-                            // DM de notificação
                             await member.send(`${EMOJIS.shinystar || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar e você recebeu um cargo especial!`).catch(() => null);
                         } else if (rep < (limitEx - 5) && hasEx) {
-                            // Margem de erro de 5 pontos para não ficar tirando/ponto o tempo todo
                             await member.roles.remove(roleExId).catch(() => null);
                             stats[gId].removed++;
                             totalRolesRemoved++;
                         }
                     }
 
-                    // B) Lógica de Cargo Problemático (Aviso)
+                    // Cargo Problemático
                     if (roleProbId) {
                         const hasProb = member.roles.cache.has(roleProbId);
                         if (rep <= limitProb && !hasProb) {
@@ -386,7 +386,6 @@ class AutoModerationSystem {
                             stats[gId].problematicAdded++;
                             totalRolesAdded++;
                             
-                            // DM de aviso
                             await member.send(`${EMOJIS.Warning || '⚠️'} Sua reputação em **${guild.name}** atingiu um nível crítico. Melhore sua conduta para evitar sanções severas!`).catch(() => null);
                         } else if (rep > 50 && hasProb) {
                             await member.roles.remove(roleProbId).catch(() => null);
@@ -402,67 +401,57 @@ class AutoModerationSystem {
             console.error('❌ [AutoMod] Erro no gerenciamento de cargos:', err);
         }
 
-        // Atualizar estatísticas
         this.stats.totalRepRecovered += totalRepRecovered;
         this.stats.totalRolesAdded += totalRolesAdded;
         this.stats.totalRolesRemoved += totalRolesRemoved;
 
-        // --- 3. RELATÓRIOS NOS CANAIS DE LOG ---
         await this.sendLogReports(stats);
         
         console.log(`✅ [AutoMod] Manutenção concluída - Recuperados: ${totalRepRecovered} | Cargos: +${totalRolesAdded} / -${totalRolesRemoved}`);
+        
+        this.isProcessing = false;
     }
 
-        /**
-     * Envia relatórios para os canais de log
-     */
     async sendLogReports(stats) {
         const ConfigSystem = require('./configSystem');
         
         for (const [gId, data] of Object.entries(stats)) {
             try {
                 const logChanId = ConfigSystem.getSetting(gId, 'log_automod');
-                console.log(`🔍 [AutoMod] Canal configurado para ${gId}: ${logChanId}`);
                 
                 if (!logChanId) {
-                    console.log(`⚠️ [AutoMod] Canal de log não configurado para ${gId}`);
                     continue;
                 }
                 
                 const channel = await this.client.channels.fetch(logChanId).catch(() => null);
                 if (!channel) {
-                    console.log(`⚠️ [AutoMod] Canal de log não encontrado para ${gId}`);
                     continue;
                 }
 
-                const embed = new EmbedBuilder()
-                    .setAuthor({ name: 'Sistema de Integridade', iconURL: this.client.user.displayAvatarURL() })
-                    .setDescription(`# ${EMOJIS.Check || '✅'} Manutenção Diária Concluída`)
-                    .setColor(COLORS.DEFAULT)
-                    .addFields(
-                        { 
-                            name: `${EMOJIS.gain || '📈'} Recuperação`, 
-                            value: `Usuários sem infrações recentes receberam **+1pt**.`, 
-                            inline: false 
-                        },
-                        { 
-                            name: `${EMOJIS.Leadboard || '🎭'} Alterações de Cargos`, 
-                            value: `\`${data.added}\` Atribuídos\n\`${data.removed}\` Removidos`, 
-                            inline: true 
-                        },
-                        { 
-                            name: `${EMOJIS.Rank || '📊'} Detalhes`, 
-                            value: `${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0}\n${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`, 
-                            inline: true 
-                        }
-                    )
-                    .setFooter(EmbedFormatter.getFooter(data.guildName))
-                    .setTimestamp();
+                const builder = ContainerFormatter.createBuilder(data.guildName, COLORS.DEFAULT);
+                builder.addTitle(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`, 1);
+                builder.addSeparator();
+                
+                builder.addSection([
+                    `${EMOJIS.gain || '📈'} **Recuperação:**`,
+                    `Usuários sem infrações recentes receberam **+1pt**.`
+                ]);
+                
+                builder.addSection([
+                    `${EMOJIS.Leadboard || '🎭'} **Alterações de Cargos:**`,
+                    `\`${data.added}\` Atribuídos\n\`${data.removed}\` Removidos`
+                ]);
+                
+                builder.addSection([
+                    `${EMOJIS.Rank || '📊'} **Detalhes:**`,
+                    `${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0}\n${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`
+                ]);
+                
+                builder.addFooter();
 
-                await channel.send({ embeds: [embed] });
+                await channel.send({ components: [builder.container] });
                 console.log(`✅ [AutoMod] Log enviado para ${data.guildName}`);
                 
-                ConfigSystem.setSetting(gId, 'last_automod_log', today);
                 ConfigSystem.setSetting(gId, 'last_automod_run', Date.now().toString());
 
             } catch (e) {
@@ -471,9 +460,6 @@ class AutoModerationSystem {
         }
     }
 
-    /**
-     * Obtém estatísticas atuais do sistema
-     */
     getStats() {
         return {
             ...this.stats,
@@ -482,9 +468,6 @@ class AutoModerationSystem {
         };
     }
 
-    /**
-     * Executa manutenção manualmente (para testes)
-     */
     async runManualMaintenance() {
         console.log("🛡️ [AutoMod] Execução manual solicitada");
         await this.executeDailyMaintenance();
@@ -492,20 +475,16 @@ class AutoModerationSystem {
     }
 }
 
-// Exporta a função de inicialização (mantém compatibilidade)
 module.exports = (client) => {
     const autoMod = new AutoModerationSystem(client);
     autoMod.startWorker();
     return autoMod;
 };
 
-// Exporta a classe para uso no handler central
 module.exports.AutoModerationSystem = AutoModerationSystem;
 
-// Exporta um objeto com os métodos principais para compatibilidade com o handler
 module.exports.handler = {
     handleComponent: async (interaction, action, param) => {
-        // Criar uma instância temporária se necessário
         const tempInstance = new AutoModerationSystem(global.client);
         return tempInstance.handleComponent(interaction, action, param);
     },

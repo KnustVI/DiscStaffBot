@@ -1,8 +1,9 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+// src/commands/moderation/repset.js
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const EmbedFormatter = require('../../utils/embedFormatter');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -39,7 +40,6 @@ module.exports = {
             
             const ConfigSystem = require('../../systems/configSystem');
             
-            // Validar hierarquia
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(target.id).catch(() => null);
@@ -73,73 +73,57 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // Gerar embed
-            const color = isGain ? 0x00FF00 : 0xFF0000;
             const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
             
-            const description = [
-                `# ${titleIcon} ${titleText}`,
-                `## ${emojis.Note || '📝'} Motivo`,
+            // Container principal
+            const builder = ContainerFormatter.createBuilder(guild.name, isGain ? 0x00FF00 : 0xFF0000);
+            builder.addTitle(`${titleIcon} ${titleText}`, 1);
+            builder.addSeparator();
+            builder.addSection([
+                `${emojis.Note || '📝'} **Motivo:**`,
                 `\`\`\`text\n${reason}\n\`\`\``
-            ].join('\n');
+            ]);
+            builder.addSeparator();
+            builder.addSection([`${emojis.user || '👤'} **Usuário:**`, `${target.tag}\n\`${target.id}\``]);
+            builder.addSection([`${emojis.staff || '👮'} **Responsável:**`, `${staff.tag}\n\`${staff.id}\``]);
+            builder.addSection([`${titleIcon} **Mudança:**`, `${diffText} pts (${currentRep} → ${newPoints})`]);
+            builder.addSection([`${emojis.star || '⭐'} **Nova Reputação:**`, `${newPoints}/100`]);
+            builder.addFooter();
             
-            const embed = new EmbedBuilder()
-                .setColor(color)
-                .setDescription(description)
-                .setTimestamp();
-
-                // Fields com formatação padronizada
-            embed.addFields(
-                { 
-                    name: `${emojis.user || '👤'} Usuário:`, 
-                    value: EmbedFormatter.formatUser(target, targetMember),
-                    inline: true 
-                },
-                { 
-                    name: `${emojis.staff || '👮'} Responsável:`, 
-                    value: EmbedFormatter.formatUser(staff, staffMember),
-                    inline: true 
-                },
-                { 
-                    name: `${isGain ? '📈' : '📉'} Mudança:`, 
-                    value: `${diffText} pts (${currentRep} → ${newPoints})`,
-                    inline: true 
-                },
-                { 
-                    name: `${emojis.star || '⭐'} Nova Reputação:`, 
-                    value: `${newPoints}/100`,
-                    inline: true 
-                }
-            );
-
-            embed.setFooter(EmbedFormatter.getFooter(guild.name));
-            
-            // Enviar DM
             if (targetMember) {
                 try {
-                    await targetMember.send({ embeds: [embed] }).catch(() => null);
+                    await targetMember.send(builder.build()).catch(() => null);
                 } catch (err) {}
             }
             
-            // Enviar log
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logEmbed = new EmbedBuilder(embed.toJSON());
-                        logEmbed.setDescription(description + `\n\n## 👮 Responsável\n<@${staff.id}>`);
-                        await logChannel.send({ embeds: [logEmbed] }).catch(() => null);
+                        const logBuilder = ContainerFormatter.createBuilder(guild.name, isGain ? 0x00FF00 : 0xFF0000);
+                        logBuilder.addTitle(`${titleIcon} ${titleText}`, 1);
+                        logBuilder.addSeparator();
+                        logBuilder.addSection([
+                            `${emojis.Note || '📝'} **Motivo:**`,
+                            `\`\`\`text\n${reason}\n\`\`\``
+                        ]);
+                        logBuilder.addSeparator();
+                        logBuilder.addSection([`${emojis.user || '👤'} **Usuário:**`, `${target.tag}\n\`${target.id}\``]);
+                        logBuilder.addSection([`${emojis.staff || '👮'} **Responsável:**`, `${staff.tag}\n\`${staff.id}\``]);
+                        logBuilder.addSection([`${titleIcon} **Mudança:**`, `${diffText} pts (${currentRep} → ${newPoints})`]);
+                        logBuilder.addSection([`${emojis.star || '⭐'} **Nova Reputação:**`, `${newPoints}/100`]);
+                        logBuilder.addFooter();
+                        await logChannel.send(logBuilder.build()).catch(() => null);
                     }
                 } catch (err) {}
             }
             
             await interaction.editReply({ 
-            content: `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n ${emojis.status} ${currentRep} → ${newPoints} (${diffText})`,
-            embeds: [],
-            components: []
-        });
+                content: `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n${emojis.status} ${currentRep} → ${newPoints} (${diffText})`,
+                components: []
+            });
             
             console.log(`📊 [REPSET] ${staff.tag} ajustou ${target.tag} | ${diffText} pts | ${Date.now() - startTime}ms`);
             

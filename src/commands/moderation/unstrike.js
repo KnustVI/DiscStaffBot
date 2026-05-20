@@ -1,8 +1,9 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+// src/commands/moderation/unstrike.js
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
-const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -33,7 +34,6 @@ module.exports = {
             const ConfigSystem = require('../../systems/configSystem');
             const PunishmentSystem = require('../../systems/punishmentSystem');
             
-            // Buscar punição
             const punishment = db.prepare(`
                 SELECT * FROM punishments WHERE id = ? AND guild_id = ? AND status = 'active'
             `).get(punishmentId, guildId);
@@ -42,7 +42,6 @@ module.exports = {
                 return await ResponseManager.error(interaction, `Punição #${punishmentId} não encontrada ou já anulada.`);
             }
             
-            // Validar hierarquia
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
@@ -63,15 +62,12 @@ module.exports = {
                 .get(guildId, punishment.user_id)?.points || 100;
             const newPoints = Math.min(100, currentRep + pointsToRestore);
             
-            // Atualizar punição
             db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
                 WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishmentId, guildId);
             
-            // Restaurar reputação
             db.prepare(`UPDATE reputation SET points = ?, updated_at = ?, updated_by = ?
                 WHERE guild_id = ? AND user_id = ?`).run(newPoints, Date.now(), staff.id, guildId, punishment.user_id);
             
-            // Remover cargo de strike
             const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
             if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
                 try {
@@ -79,14 +75,12 @@ module.exports = {
                 } catch (err) {}
             }
             
-            // Remover timeout
             if (targetMember?.communicationDisabledUntilTimestamp) {
                 try {
                     await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
                 } catch (err) {}
             }
             
-            // Registrar atividade
             db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
                 command: 'unstrike', punishmentId, pointsRestored: pointsToRestore, oldPoints: currentRep, newPoints
             });
@@ -95,40 +89,36 @@ module.exports = {
             
             const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
             
-            // ==================== GERAR EMBED UNIFICADO ====================
-            const unifiedEmbed = PunishmentSystem.generateUnstrikeUnifiedEmbed(
+            // Container unificado
+            const container = PunishmentSystem.generateUnstrikeUnifiedContainer(
                 targetUser,
                 staff,
                 punishmentId,
                 reason,
                 pointsToRestore,
                 newPoints,
-                punishment.reason
+                punishment.reason,
+                guild.name
             );
 
-            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetUser) {
                 try {
-                    await targetUser.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                    await targetUser.send(container.build()).catch(() => null);
                 } catch (err) {}
             }
 
-            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        // Usar o MESMO embed unificado
-                        await logChannel.send({ embeds: [unifiedEmbed] }).catch(() => null);
+                        await logChannel.send(container.build()).catch(() => null);
                     }
                 } catch (err) {}
             }
 
-            // ==================== RESPOSTA NO CANAL ====================
             await interaction.editReply({ 
                 content: `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
-                embeds: [],
                 components: []
             });
             

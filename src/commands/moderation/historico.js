@@ -1,10 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+// src/commands/moderation/historico.js
+const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const EmbedFormatter = require('../../utils/embedFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -46,32 +46,18 @@ module.exports = {
                                 (history?.reputation || 100) >= 70 ? '⭐' : 
                                 (history?.reputation || 100) >= 50 ? '🌟' : '⚠️';
                 
-                const description = [
-                    `# ${emojis.History || '📋'} HISTÓRICO DE ${target.username.toUpperCase()}`,
-                    `## ${repEmoji} Reputação Atual: **${history?.reputation || 100}/100** pontos`,
-                    `## ${emojis.strike || '⚠️'} Punições: **0**`,
-                    `\`\`\`\nNenhuma punição registrada.\n\`\`\``
-                ].join('\n');
+                const builder = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
                 
-                const embed = new EmbedBuilder()
-                    .setColor(0xDCA15E)
-                    .setDescription(description)
-                    .setThumbnail(target.displayAvatarURL())
-                    .setTimestamp();
-
-                     embed.setFooter(EmbedFormatter.getFooter(guild.name));
-                
-                return await ResponseManager.send(interaction, { embeds: [embed] });
+                return await ResponseManager.send(interaction, builder.build());
             }
             
-            // Criar sessão com isolamento total
             sessionManager.set(user.id, guildId, 'history', 'view', {
                 targetId: target.id,
                 currentPage: 1,
                 totalPages: history.totalPages
             }, 600000);
             
-            const embed = PunishmentSystem.generateHistoryEmbed(target, history, 1);
+            const container = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
             const components = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
             
             db.logActivity(guildId, user.id, 'history_view', target.id, {
@@ -82,11 +68,9 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            embed.setFooter({ text: `Página 1 de ${history.totalPages} • Total: ${history.totalRecords} registros` });
-            
             await ResponseManager.send(interaction, {
-                embeds: [embed],
-                components: components ? [components] : []
+                components: [container.container],
+                ...(components ? { components: [container.container, components] } : { components: [container.container] })
             });
             
             console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);

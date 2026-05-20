@@ -1,7 +1,8 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, RoleSelectMenuBuilder } = require('discord.js');
+// src/commands/config/config-roles.js
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, RoleSelectMenuBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const EmbedFormatter = require('../../utils/embedFormatter');
+const ContainerFormatter = require('../../utils/ContainerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,7 +14,6 @@ module.exports = {
         const { guild, user, member } = interaction;
         const guildId = guild.id;
         
-        // Carregar emojis do servidor
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
@@ -36,17 +36,19 @@ module.exports = {
         const exemplarRole = ConfigSystem.getSetting(guildId, 'role_exemplar');
         const problematicoRole = ConfigSystem.getSetting(guildId, 'role_problematico');
         
-        const embed = new EmbedBuilder()
-            .setColor(0xDCA15E)
-            .setDescription(`# ${emojis.staff || '👥'} Cargos do Sistema\n- É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outos cargos são opcionais.\nSelecione os cargos abaixo:`)
-            .addFields(
-                { name: `${emojis.staff || '🛡️'} Staff`, value: staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.strike || '⚠️'} Strike (Temporário)`, value: strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.shinystar || '✨'} Exemplar`, value: exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true },
-                { name: `${emojis.Warning || '⚠️'} Problemático`, value: problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`, inline: true }
-            )
-            .setFooter(EmbedFormatter.getFooter(guild.name))
-            .setTimestamp();
+        const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
+        builder.addTitle(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
+        builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
+        builder.addSeparator();
+        builder.addText(`Selecione os cargos abaixo:`);
+        builder.addSeparator();
+        
+        builder.addSection([`${emojis.staff || '🛡️'} **Staff:**`, staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`]);
+        builder.addSection([`${emojis.strike || '⚠️'} **Strike (Temporário):**`, strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`]);
+        builder.addSection([`${emojis.shinystar || '✨'} **Exemplar:**`, exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`]);
+        builder.addSection([`${emojis.Warning || '⚠️'} **Problemático:**`, problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`]);
+        
+        builder.addFooter();
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder()
@@ -73,8 +75,7 @@ module.exports = {
         );
         
         await ResponseManager.send(interaction, {
-            embeds: [embed],
-            components: [staffRow, strikeRow, exemplarRow, problematicoRow]
+            components: [builder.container, staffRow, strikeRow, exemplarRow, problematicoRow]
         });
     }
 };
