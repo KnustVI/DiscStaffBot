@@ -3,7 +3,7 @@ const ContainerBuilderWrapper = require('./ContainerBuilder');
 
 class ContainerFormatter {
     static getFooter(serverName) {
-        return `[Bot by: Knust VI](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${serverName}`;
+        return `Servidor atual: ${serverName}\nDesenvolvido por Knust VI | [Servidor de Suporte](https://discord.gg/8YCEkZQkZP)`;
     }
 
     static createBuilder(serverName, accentColor = null) {
