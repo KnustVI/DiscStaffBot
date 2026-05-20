@@ -30,6 +30,7 @@ module.exports = {
             emojis = {};
         }
         
+        // ==================== VERIFICAÇÃO DE ACESSO ====================
         if (user.id !== DEVELOPER_ID) {
             db.logActivity(guildId, user.id, 'reset_db_denied', null, { 
                 command: 'reset-db',
@@ -53,6 +54,7 @@ module.exports = {
             return;
         }
         
+        // ==================== CONFIRMAÇÃO ====================
         if (confirmacao !== 'LIMPAR TUDO') {
             const cancelBuilder = ContainerFormatter.createBuilder(guild.name, 0xFFBD59);
             cancelBuilder.addTitle(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
@@ -68,6 +70,7 @@ module.exports = {
             return;
         }
         
+        // ==================== EXECUÇÃO DA LIMPEZA ====================
         try {
             const ConfigSystem = require('../../systems/configSystem');
             
@@ -110,6 +113,7 @@ module.exports = {
                 responseTime: Date.now() - startTime
             });
             
+            // ==================== NOTIFICAÇÃO NO CANAL DE LOG ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
             if (logChannelId) {
                 try {
@@ -128,6 +132,7 @@ module.exports = {
                         alertBuilder.addSeparator();
                         alertBuilder.addText(`**ID da Transação:** \`${activityId}\``);
                         alertBuilder.addFooter();
+                        
                         await logChannel.send({
                             components: [alertBuilder.build()],
                             flags: ['IsComponentsV2']
@@ -136,6 +141,7 @@ module.exports = {
                 } catch (err) {}
             }
             
+            // ==================== RESPOSTA DE SUCESSO ====================
             const successBuilder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
             successBuilder.addTitle(`${emojis.CLEAN || '🧹'} Database Resetada`, 1);
             successBuilder.addSeparator();

@@ -98,10 +98,11 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
             
+            // ==================== PONTOS ATUAIS ====================
             const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, targetUser.id)?.points || 100;
-            
             const newPoints = Math.max(0, currentRep - pointsToLose);
             
+            // ==================== EXPIRAÇÃO ====================
             let expiresAt = null;
             let durationMs = 0;
             if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
@@ -109,22 +110,22 @@ module.exports = {
                 if (durationMs > 0) expiresAt = Date.now() + durationMs;
             }
             
-            const punishmentUuid = db.generateUUID();
-            const strikeId = db.prepare(`
-                INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, 
-                    points_deducted, report_id, created_at, expires_at, status, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(punishmentUuid, guildId, targetUser.id, staff.id, reason, severity,
-                pointsToLose, reportId || null, Date.now(), expiresAt, 'active',
-                JSON.stringify({ discordAct, jogoAct, duration: durationStr })
-            ).lastInsertRowid;
+            // ==================== APLICAR PUNIÇÃO USANDO applyPunishment ====================
+            const strikeId = PunishmentSystem.applyPunishment(
+                guildId, 
+                targetUser.id, 
+                staff.id, 
+                reason, 
+                severity, 
+                reportId || null, 
+                pointsToLose
+            );
             
-            // ATUALIZAR REPUTAÇÃO
-            db.prepare(`
-                INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
-                ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
-            `).run(guildId, targetUser.id, pointsToLose);
+            if (!strikeId) {
+                return await ResponseManager.error(interaction, 'Erro ao aplicar punição no banco de dados.');
+            }
             
+            // ==================== AÇÕES DO DISCORD ====================
             let discordActionResult = null;
             if (discordAct !== 'none' && targetMember) {
                 try {
@@ -147,6 +148,7 @@ module.exports = {
                 }
             }
             
+            // ==================== LOGS ====================
             db.logActivity(guildId, staff.id, 'strike', targetUser.id, {
                 command: 'strike', punishmentId: strikeId, severity, pointsLost: pointsToLose,
                 oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct
