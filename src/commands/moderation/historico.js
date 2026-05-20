@@ -1,4 +1,4 @@
-// src/commands/moderation/historico.js
+// /home/ubuntu/DiscStaffBot/src/commands/moderation/historico.js
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
@@ -40,14 +40,8 @@ module.exports = {
             
             if (!history || history.totalRecords === 0) {
                 db.logActivity(guildId, user.id, 'history_view', target.id, { hasRecords: false });
-                
-                const repEmoji = (history?.reputation || 100) >= 90 ? '✨' : 
-                                (history?.reputation || 100) >= 70 ? '⭐' : 
-                                (history?.reputation || 100) >= 50 ? '🌟' : '⚠️';
-                
                 const builder = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
-                
-                return await ResponseManager.send(interaction, builder.build());
+                return await ResponseManager.send(interaction, { components: [builder.build()], flags: ['IsComponentsV2'] });
             }
             
             sessionManager.set(user.id, guildId, 'history', 'view', {
@@ -57,7 +51,7 @@ module.exports = {
             }, 600000);
             
             const container = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
-            const components = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
+            const buttons = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
             
             db.logActivity(guildId, user.id, 'history_view', target.id, {
                 totalRecords: history.totalRecords, reputation: history.reputation
@@ -67,10 +61,8 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            const replyData = container.build();
-            if (components) {
-                replyData.components.push(components);
-            }
+            const replyData = { components: [container.build()], flags: ['IsComponentsV2'] };
+            if (buttons) replyData.components.push(buttons);
             
             await ResponseManager.send(interaction, replyData);
             

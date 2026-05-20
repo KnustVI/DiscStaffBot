@@ -1,7 +1,7 @@
 // /home/ubuntu/DiscStaffBot/src/utils/ContainerBuilder.js
-const { ContainerBuilder, ComponentType, ActionRowBuilder, TextDisplayBuilder, SeparatorBuilder, SectionBuilder } = require('discord.js');
+const { ContainerBuilder, ComponentType, ActionRowBuilder } = require('discord.js');
 
-class ContainerBuilderWrapper {
+class ContainerBuilderUtil {
     constructor(options = {}) {
         this.container = new ContainerBuilder();
         
@@ -21,46 +21,38 @@ class ContainerBuilderWrapper {
 
     addTitle(text, level = 1) {
         const prefix = '#'.repeat(Math.min(level, 3));
-        this.container.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(`${prefix} ${text}`).setType(ComponentType.TextDisplay)
-        );
+        this.container.addTextDisplayComponents({
+            content: `${prefix} ${text}`,
+            type: ComponentType.TextDisplay
+        });
         this.hasContent = true;
         return this;
     }
 
     addText(text) {
-        this.container.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(text).setType(ComponentType.TextDisplay)
-        );
+        this.container.addTextDisplayComponents({
+            content: text,
+            type: ComponentType.TextDisplay
+        });
         this.hasContent = true;
         return this;
     }
 
     addSeparator() {
-        this.container.addSeparatorComponents(new SeparatorBuilder());
+        this.container.addSeparatorComponents({});
         this.hasContent = true;
         return this;
     }
 
-    addSection(texts, accessory = null) {
-        if (!texts || texts.length === 0) return this;
-        
-        const section = new SectionBuilder();
-        
-        if (texts[0]) {
-            section.addComponents(new TextDisplayBuilder().setContent(texts[0]));
-        }
-        
-        for (let i = 1; i < Math.min(texts.length, 3); i++) {
-            if (texts[i]) {
-                section.addComponents(new TextDisplayBuilder().setContent(texts[i]));
-            }
-        }
-        
-        if (accessory) section.setAccessory(accessory);
-        
-        this.container.addSectionComponents(section);
-        this.hasContent = true;
+    addField(label, value, inline = false) {
+        const prefix = inline ? '' : '\n';
+        this.addText(`${prefix}**${label}:** ${value}`);
+        return this;
+    }
+
+    addSection(title, content) {
+        this.addTitle(title, 2);
+        this.addText(content);
         return this;
     }
 
@@ -88,4 +80,4 @@ class ContainerBuilderWrapper {
     }
 }
 
-module.exports = ContainerBuilderWrapper;
+module.exports = ContainerBuilderUtil;
