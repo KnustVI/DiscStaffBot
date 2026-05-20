@@ -1,4 +1,4 @@
-// src/commands/developer/automod.js
+// /home/ubuntu/DiscStaffBot/src/commands/developer/automod.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const ContainerFormatter = require('../../utils/ContainerFormatter');
 const { AutoModerationSystem } = require('../../systems/autoModeration');
@@ -21,7 +21,6 @@ module.exports = {
         const isEnabled = ConfigSystem.getSetting(guildId, 'automod_enabled') === 'true';
         const logChannelId = ConfigSystem.getSetting(guildId, 'log_automod');
         const lastRun = ConfigSystem.getSetting(guildId, 'last_automod_run');
-        const lastLog = ConfigSystem.getSetting(guildId, 'last_automod_log');
         
         let channelStatus = '❌ Não configurado';
         let channelIssues = [];
@@ -30,83 +29,42 @@ module.exports = {
             const channel = guild.channels.cache.get(logChannelId);
             if (!channel) {
                 channelStatus = '❌ Canal não encontrado';
-                channelIssues.push(`O canal com ID \`${logChannelId}\` não existe mais no servidor.`);
-                channelIssues.push(`**Solução:** Use \`/config-logs\` e configure um canal válido.`);
+                channelIssues.push(`Canal com ID \`${logChannelId}\` não existe.`);
             } else {
                 const botMember = guild.members.me;
                 const perms = channel.permissionsFor(botMember);
                 
-                const missingPerms = [];
-                if (!perms.has('ViewChannel')) missingPerms.push('👁️ Ver Canal');
-                if (!perms.has('SendMessages')) missingPerms.push('📤 Enviar Mensagens');
-                if (!perms.has('EmbedLinks')) missingPerms.push('🔗 Enviar Links/Embeds');
-                
-                if (missingPerms.length > 0) {
+                if (!perms.has('ViewChannel') || !perms.has('SendMessages')) {
                     channelStatus = `⚠️ Sem permissões em ${channel.name}`;
-                    channelIssues.push(`O bot não tem as seguintes permissões no canal ${channel.name}:`);
-                    missingPerms.forEach(p => channelIssues.push(`  - ${p}`));
-                    channelIssues.push(`**Solução:** Dê as permissões necessárias para o bot no canal.`);
+                    channelIssues.push(`Configure permissões do bot no canal ${channel.name}.`);
                 } else {
                     channelStatus = `✅ ${channel.name}`;
-                    try {
-                        const testMsg = await channel.send({ content: '🧪 Teste de conexão do AutoMod - esta mensagem será deletada em 5 segundos.' });
-                        setTimeout(() => testMsg.delete().catch(() => {}), 5000);
-                        channelIssues.push(`✅ Teste de envio realizado com sucesso!`);
-                    } catch (err) {
-                        channelStatus = `❌ Erro ao enviar`;
-                        channelIssues.push(`Erro ao enviar mensagem de teste: ${err.message}`);
-                    }
                 }
             }
-        } else {
-            channelIssues.push(`**Solução:** Use \`/config-logs\` e configure o canal "🛡️ AutoMod".`);
         }
         
-        let automodStatus = isEnabled ? '✅ Ativada' : '❌ Desativada';
-        if (!isEnabled) {
-            channelIssues.push(`**Solução:** Use \`/automod toggle\` para ativar a Auto Moderação.`);
-        }
-        
-        let lastRunText = 'Nunca executado';
-        if (lastRun) {
-            const lastRunDate = new Date(parseInt(lastRun));
-            lastRunText = `<t:${Math.floor(lastRunDate.getTime() / 1000)}:R>`;
-        }
-        
-        let lastLogText = lastLog || 'Nunca enviado';
+        const automodStatus = isEnabled ? '✅ Ativada' : '❌ Desativada';
         const workerRunning = autoMod.isRunning;
         const hasIssues = channelIssues.length > 0 || !isEnabled;
         
         const builder = ContainerFormatter.createBuilder(guild.name, hasIssues ? 0xFFA500 : 0x00FF00);
+        
+        // HEADER
         builder.addTitle('🛡️ Diagnóstico da Auto Moderação', 1);
         builder.addText(`**Servidor:** ${guild.name}`);
         builder.addSeparator();
         
-        // ADAPTAÇÃO: usando addText em vez de addSection
+        // STATUS
         builder.addText(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
         builder.addText(`📺 **Canal de Log:** ${channelStatus}`);
-        builder.addText(`🕐 **Última Execução:** ${lastRunText}`);
-        builder.addText(`📝 **Último Log Enviado:** ${lastLogText}`);
-        builder.addSeparator();
-        builder.addText(`📊 **Relatório da Execução:**`);
-        builder.addText(`   📈 Recuperados: ${result.totalRepRecovered} usuários`);
-        builder.addText(`   ➕ Cargos adicionados: ${result.totalRolesAdded}`);
-        builder.addText(`   ➖ Cargos removidos: ${result.totalRolesRemoved}`);
+        builder.addText(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
         
         if (channelIssues.length > 0) {
             builder.addSeparator();
-            builder.addTitle('⚠️ Problemas e Soluções', 2);
+            builder.addTitle('⚠️ Problemas', 2);
             for (const issue of channelIssues) {
                 builder.addText(issue);
             }
-        }
-        
-        if (!hasIssues && result.totalRepRecovered === 0 && result.totalRolesAdded === 0 && result.totalRolesRemoved === 0) {
-            builder.addSeparator();
-            builder.addText('ℹ️ Nenhuma alteração foi necessária durante esta execução. O sistema está funcionando normalmente.');
-        } else if (!hasIssues) {
-            builder.addSeparator();
-            builder.addText('✅ A Auto Moderação está configurada corretamente e executou a manutenção com sucesso.');
         }
         
         builder.addFooter();

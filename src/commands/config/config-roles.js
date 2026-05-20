@@ -1,4 +1,4 @@
-// src/commands/config/config-roles.js
+// /home/ubuntu/DiscStaffBot/src/commands/config/config-roles.js
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, RoleSelectMenuBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
@@ -37,45 +37,37 @@ module.exports = {
         const problematicoRole = ConfigSystem.getSetting(guildId, 'role_problematico');
         
         const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
+        
+        // HEADER
         builder.addTitle(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
         builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
         builder.addSeparator();
         builder.addText(`Selecione os cargos abaixo:`);
         builder.addSeparator();
         
+        // CARGOS (cada um em sua própria Section)
         builder.addSection([`${emojis.staff || '🛡️'} **Staff:**`, staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.strike || '⚠️'} **Strike (Temporário):**`, strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.shinystar || '✨'} **Exemplar:**`, exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`]);
         builder.addSection([`${emojis.Warning || '⚠️'} **Problemático:**`, problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`]);
-        
         builder.addFooter();
         
         const staffRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config-roles:staff')
-                .setPlaceholder('Selecionar cargo de Staff')
+            new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
         );
-        
         const strikeRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config-roles:strike')
-                .setPlaceholder('Selecionar cargo de Strike')
+            new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike')
         );
-        
         const exemplarRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config-roles:exemplar')
-                .setPlaceholder('Selecionar cargo Exemplar')
+            new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar')
         );
-        
         const problematicoRow = new ActionRowBuilder().addComponents(
-            new RoleSelectMenuBuilder()
-                .setCustomId('config-roles:problematico')
-                .setPlaceholder('Selecionar cargo Problemático')
+            new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático')
         );
         
         const replyData = builder.build();
         replyData.components.push(staffRow, strikeRow, exemplarRow, problematicoRow);
+        
         await ResponseManager.send(interaction, replyData);
     }
 };

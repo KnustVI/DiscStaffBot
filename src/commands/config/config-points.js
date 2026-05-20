@@ -1,4 +1,4 @@
-// src/commands/config/config-points.js
+// /home/ubuntu/DiscStaffBot/src/commands/config/config-points.js
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
@@ -47,51 +47,42 @@ module.exports = {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
         const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
+        
+        // HEADER
         builder.addTitle(`${emojis.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
         builder.addText(`Gerencie os valores do sistema de reputação.`);
         builder.addSeparator();
         
+        // NÍVEIS DE STRIKE
         builder.addTitle(`${emojis.strike || '🎯'} Níveis de Strike`, 2);
         builder.addText(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
         builder.addText(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
         builder.addText(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
         builder.addText(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
         builder.addText(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
-        
         builder.addSeparator();
         
+        // LIMITES DE REPUTAÇÃO
         builder.addTitle(`${emojis.Rank || '📊'} Limites de Reputação`, 2);
         builder.addText(`- **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
         builder.addText(`- **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
-        
         builder.addSeparator();
         
+        // VALORES PADRÃO
         builder.addTitle(`${emojis.Note || '📝'} Valores Padrão`, 2);
         builder.addText(`- **Strike:** 10 | 25 | 40 | 60 | 100`);
         builder.addText(`- **Limites:** Exemplar > 95 | Problemático <30`);
-        
         builder.addFooter();
         
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('config-points:strike:modal')
-                .setLabel(` Editar Níveis de Strike`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(emojis.edit || '✏️'),
-            new ButtonBuilder()
-                .setCustomId('config-points:limites:modal')
-                .setLabel(`Editar Limites`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji(emojis.edit || '✏️'),
-            new ButtonBuilder()
-                .setCustomId('config-points:reset')
-                .setLabel(`Resetar Padrão`)
-                .setStyle(ButtonStyle.Danger)
-                .setEmoji(emojis.Reset || '⚠️')
+            new ButtonBuilder().setCustomId('config-points:strike:modal').setLabel(` Editar Níveis de Strike`).setStyle(ButtonStyle.Secondary).setEmoji(emojis.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-points:limites:modal').setLabel(`Editar Limites`).setStyle(ButtonStyle.Secondary).setEmoji(emojis.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-points:reset').setLabel(`Resetar Padrão`).setStyle(ButtonStyle.Danger).setEmoji(emojis.Reset || '⚠️')
         );
         
         const replyData = builder.build();
         replyData.components.push(row);
+        
         await ResponseManager.send(interaction, replyData);
     }
 };
