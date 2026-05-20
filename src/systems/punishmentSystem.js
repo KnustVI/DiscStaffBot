@@ -1,4 +1,3 @@
-cat > /home/ubuntu/DiscStaffBot/src/systems/punishmentSystem.js << 'EOF'
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
@@ -424,4 +423,3 @@ const PunishmentSystem = {
 };
 
 module.exports = PunishmentSystem;
-EOF

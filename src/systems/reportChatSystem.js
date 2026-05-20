@@ -1,9 +1,8 @@
-// src/systems/reportChatSystem.js
 const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
 const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const ContainerBuilder = require('../utils/ContainerBuilder');
-const ContainerFormatter = require('../utils/ContainerFormatter.js');
+const ContainerFormatter = require('../utils/ContainerFormatter');
 
 let EMOJIS = {};
 try {
@@ -36,8 +35,6 @@ class ReportChatSystem {
         return statusMap[status] || status;
     }
 
-    // ==================== BASE CONTAINER (PADRÃO FIXO) ====================
-    
     createBaseContainer(guild, reportId, user, status = 'waiting', staffs = [], extraDescription = '') {
         const statusText = this.getStatusText(status);
         const staffsText = staffs.length > 0 ? staffs.map(s => {
@@ -47,127 +44,65 @@ class ReportChatSystem {
         
         const userinfo = `${user.tag} (${user.id})`;
         
-        // Determinar cor baseada no status
         let accentColor;
         if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-            accentColor = 0xDCA15E;  // Laranja - Fechado
+            accentColor = 0xDCA15E;
         } else if (status === 'responded') {
-            accentColor = 0x57F287;  // Verde - Respondido
+            accentColor = 0x57F287;
         } else {
-            accentColor = 0xF64B4E;  // Vermelho - Aguardando / Inativo
+            accentColor = 0xF64B4E;
         }
         
         const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
-        
-        // Título e descrição
         builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
         builder.addText(`Report de ${user.toString()}.`);
-        
-        if (extraDescription) {
-            builder.addText(extraDescription);
-        }
-        
+        if (extraDescription) builder.addText(extraDescription);
         builder.addSeparator();
-        
-        // Campos de informação
-        builder.addSection([
-            `**📊 Status**`,
-            statusText
-        ]);
-        
-        builder.addSection([
-            `**👤 Userinfo**`,
-            userinfo
-        ]);
-        
-        builder.addSection([
-            `**👥 Staffs**`,
-            staffsText
-        ]);
-        
-        // Footer
+        builder.addSection([`**📊 Status**`, statusText]);
+        builder.addSection([`**👤 Userinfo**`, userinfo]);
+        builder.addSection([`**👥 Staffs**`, staffsText]);
         builder.addFooter();
-        
         return builder;
     }
 
-    // ==================== MODAIS ====================
-
     getOpenModal() {
-        const modal = new ModalBuilder()
-            .setCustomId('report_modal')
-            .setTitle('Abrir Report');
-
+        const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
         modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('regra').setLabel('Qual a regra quebrada?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Regra 5 - Flood')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('data_hora').setLabel('Quando aconteceu?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 09/04/2026 14:30')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('local').setLabel('Qual local do mapa?').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Floresta Central')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('descricao').setLabel('Descreva a quebra de regra').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Descreva detalhadamente...')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('termo').setLabel('Termo de boa convivência').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Declaro que as informações são verdadeiras...')
-            )
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('regra').setLabel('Qual a regra quebrada?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Regra 5 - Flood')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('data_hora').setLabel('Quando aconteceu?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 09/04/2026 14:30')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('local').setLabel('Qual local do mapa?').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Floresta Central')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('descricao').setLabel('Descreva a quebra de regra').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Descreva detalhadamente...')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('termo').setLabel('Termo de boa convivência').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Declaro que as informações são verdadeiras...'))
         );
         return modal;
     }
 
     getCloseModalStaff() {
-        const modal = new ModalBuilder()
-            .setCustomId('close_modal_staff')
-            .setTitle('Fechar Report (Staff)');
-
+        const modal = new ModalBuilder().setCustomId('close_modal_staff').setTitle('Fechar Report (Staff)');
         modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('motivo').setLabel('Qual motivo do fechamento?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Resolvido')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('punicao').setLabel('Punição aplicada (opcional)').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Advertência, Strike, Ban')
-            )
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('motivo').setLabel('Qual motivo do fechamento?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Resolvido')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('punicao').setLabel('Punição aplicada (opcional)').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Advertência, Strike, Ban'))
         );
         return modal;
     }
 
     getCloseModalUser() {
-        const modal = new ModalBuilder()
-            .setCustomId('close_modal_user')
-            .setTitle('Fechar Report');
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('motivo').setLabel('Qual motivo do fechamento?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Problema resolvido')
-            )
-        );
+        const modal = new ModalBuilder().setCustomId('close_modal_user').setTitle('Fechar Report');
+        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('motivo').setLabel('Qual motivo do fechamento?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Problema resolvido')));
         return modal;
     }
 
     getRatingModal() {
-        const modal = new ModalBuilder()
-            .setCustomId('rating_modal')
-            .setTitle('Avaliar Atendimento');
-
+        const modal = new ModalBuilder().setCustomId('rating_modal').setTitle('Avaliar Atendimento');
         modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('nota').setLabel('Qual nota você dá para o atendimento? (1-5)').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 5')
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder().setCustomId('comentario').setLabel('Observação adicional?').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('Seu feedback...')
-            )
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nota').setLabel('Qual nota você dá para o atendimento? (1-5)').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 5')),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('comentario').setLabel('Observação adicional?').setStyle(TextInputStyle.Paragraph).setRequired(false).setPlaceholder('Seu feedback...'))
         );
         return modal;
     }
 
-    // ==================== PAINEL ====================
-    
     getPanel(guildName, guildIcon) {
         const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
-        
         builder.addTitle(`${EMOJIS.chat || '🎫'} Denúncia de jogador`, 1);
         builder.addText([
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
@@ -179,18 +114,11 @@ class ReportChatSystem {
         builder.addFooter();
 
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_report')
-                .setLabel('Reportar Jogador')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji(EMOJIS.chat || '🎫')
+            new ButtonBuilder().setCustomId('open_report').setLabel('Reportar Jogador').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.chat || '🎫')
         );
-        
         return { components: [builder.container, row] };
     }
 
-    // ==================== ABRIR REPORT ====================
-    
     async openReport(interaction, data) {
         const { guild, user } = interaction;
         await interaction.reply({ content: '⏳ Criando report...', flags: 64 });
@@ -202,7 +130,7 @@ class ReportChatSystem {
             }
 
             const reportId = `#R${this.getNextId(guild.id)}`;
-            const threadName = `【${reportId}】report-${user.username}`.toLowerCase().replace(/[^a-z0-9#-]/g, '-');
+            const threadName = `【${reportId}】report-${user.username}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
             
             const thread = await interaction.channel.threads.create({
                 name: threadName,
@@ -212,43 +140,23 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
-            // Container da THREAD (sem botões)
             const threadBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             threadBuilder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
             threadBuilder.addText(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.addFooter();
-            
             const threadMsg = await thread.send(threadBuilder.build());
 
-            // Container de informações do report
             const infoBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             infoBuilder.addTitle(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
             infoBuilder.addSeparator();
-            infoBuilder.addSection([
-                `**📝 Regra quebrada**`,
-                data.regra
-            ]);
-            infoBuilder.addSection([
-                `**⏰ Quando aconteceu**`,
-                data.dataHora
-            ]);
-            infoBuilder.addSection([
-                `**📍 Local**`,
-                data.local || 'Não informado'
-            ]);
-            infoBuilder.addSection([
-                `**📋 Descrição**`,
-                data.descricao
-            ]);
-            infoBuilder.addSection([
-                `**⚖️ Termo de convivência**`,
-                data.termo
-            ]);
+            infoBuilder.addSection([`**📝 Regra quebrada**`, data.regra]);
+            infoBuilder.addSection([`**⏰ Quando aconteceu**`, data.dataHora]);
+            infoBuilder.addSection([`**📍 Local**`, data.local || 'Não informado']);
+            infoBuilder.addSection([`**📋 Descrição**`, data.descricao]);
+            infoBuilder.addSection([`**⚖️ Termo de convivência**`, data.termo]);
             infoBuilder.addFooter();
-            
             await thread.send(infoBuilder.build());
 
-            // DM do USUÁRIO (com botões)
             const dmBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
             const dmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
@@ -256,7 +164,6 @@ class ReportChatSystem {
             );
             const dmMessage = await user.send({ components: [dmBuilder.container, dmRow] }).catch(() => null);
 
-            // LOG da STAFF (com botões)
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
             const logRow = new ActionRowBuilder().addComponents(
@@ -266,7 +173,6 @@ class ReportChatSystem {
             );
             const logMessage = await logChannel.send({ components: [logBuilder.container, logRow] });
 
-            // Salvar no banco
             db.prepare(`
                 INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -280,10 +186,8 @@ class ReportChatSystem {
         }
     }
     
-    // ==================== STAFF ENTRAR ====================
-    
     async joinReport(interaction, reportId) {
-        const { guild, user, member, channel } = interaction;
+        const { guild, user, member } = interaction;
         
         try {
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
@@ -304,11 +208,7 @@ class ReportChatSystem {
             let staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const existingStaff = staffs.find(s => s.id === user.id);
             if (!existingStaff) {
-                staffs.push({
-                    id: user.id,
-                    name: user.tag,
-                    timestamp: Date.now()
-                });
+                staffs.push({ id: user.id, name: user.tag, timestamp: Date.now() });
                 db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
             }
 
@@ -340,11 +240,7 @@ class ReportChatSystem {
         }
     }
 
-    // ==================== FECHAR REPORT ====================
-    
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
-        const replyTarget = interaction.channel || interaction.user;
-        
         try {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
             if (!report) {
@@ -374,8 +270,6 @@ class ReportChatSystem {
 
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
-            
-            const closedByText = `\n- **Fechado por:** ${closedByName}`;
             const extraDesc = `\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
             
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
@@ -393,11 +287,7 @@ class ReportChatSystem {
                 if (dmMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, status, staffs, extraDesc);
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`rate:${report.id}`)
-                            .setLabel('Avaliar Atendimento')
-                            .setStyle(ButtonStyle.Secondary)
-                            .setEmoji('⭐')
+                        new ButtonBuilder().setCustomId(`rate:${report.id}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
                     );
                     await dmMessage.edit({ components: [updatedBuilder.container, row] });
                 }
@@ -411,8 +301,6 @@ class ReportChatSystem {
         }
     }
 
-    // ==================== AVALIAR ====================
-    
     async rateReport(interaction, reportId, nota, comentario) {
         try {
             const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ?`).get(reportId, interaction.user.id);
@@ -430,7 +318,6 @@ class ReportChatSystem {
             const guild = this.client.guilds.cache.get(report.guild_id);
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
-            
             const extraDesc = `\n- **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n- **Comentário:** ${comentario || 'Nenhum'}`;
             
             const logChannelId = ConfigSystem.getSetting(report.guild_id, 'log_reports');
@@ -451,23 +338,13 @@ class ReportChatSystem {
         }
     }
 
-    // ==================== RESPOSTA TEMPORÁRIA ====================
-    
     async sendTempReply(interaction, content, success = true) {
         const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
-        
         await interaction.reply({ content: `${emoji} ${content}`, flags: 64 });
-        
         setTimeout(async () => {
-            try {
-                await interaction.deleteReply();
-            } catch (err) {
-                // Ignora erro se a mensagem já foi deletada
-            }
+            try { await interaction.deleteReply(); } catch (err) {}
         }, 20000);
     }
-    
-    // ==================== ATUALIZAR STATUS ====================
     
     async updateStatus(guildId, reportId, newStatus) {
         const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);

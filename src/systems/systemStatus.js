@@ -1,4 +1,3 @@
-// /home/ubuntu/DiscStaffBot/src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
 const ContainerBuilder = require('../utils/ContainerBuilder');
