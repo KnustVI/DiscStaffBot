@@ -46,7 +46,11 @@ module.exports = {
             deniedBuilder.addText(`**ID Autorizado:** \`${DEVELOPER_ID}\``);
             deniedBuilder.addFooter('Caso necessário, contate o desenvolvedor.');
             
-            return await ResponseManager.send(interaction, deniedBuilder.build());
+            await interaction.editReply({
+                components: [deniedBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
+            return;
         }
         
         if (confirmacao !== 'LIMPAR TUDO') {
@@ -57,7 +61,11 @@ module.exports = {
             cancelBuilder.addText(`**Você digitou:** \`${confirmacao}\``);
             cancelBuilder.addFooter();
             
-            return await ResponseManager.send(interaction, cancelBuilder.build());
+            await interaction.editReply({
+                components: [cancelBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
+            return;
         }
         
         try {
@@ -120,7 +128,10 @@ module.exports = {
                         alertBuilder.addSeparator();
                         alertBuilder.addText(`**ID da Transação:** \`${activityId}\``);
                         alertBuilder.addFooter();
-                        await logChannel.send(alertBuilder.build());
+                        await logChannel.send({
+                            components: [alertBuilder.build()],
+                            flags: ['IsComponentsV2']
+                        });
                     }
                 } catch (err) {}
             }
@@ -138,7 +149,10 @@ module.exports = {
             successBuilder.addText(`**Tempo de execução:** \`${Date.now() - startTime}ms\``);
             successBuilder.addFooter(`UUID: ${resetUuid.slice(0, 8)}`);
             
-            await ResponseManager.send(interaction, successBuilder.build());
+            await interaction.editReply({
+                components: [successBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
             
             console.log(`📊 [RESET-DB] ${user.tag} resetou ${guild.name} | ${Date.now() - startTime}ms`);
             
@@ -159,7 +173,10 @@ module.exports = {
             errorBuilder.addText(`**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
             errorBuilder.addFooter('Contate o suporte imediatamente.');
             
-            await ResponseManager.send(interaction, errorBuilder.build());
+            await interaction.editReply({
+                components: [errorBuilder.build()],
+                flags: ['IsComponentsV2']
+            });
         }
     }
 };

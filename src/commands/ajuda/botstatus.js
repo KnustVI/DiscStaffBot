@@ -70,11 +70,8 @@ module.exports = {
             
             const builder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             
-            // HEADER
             builder.addTitle(`${emojis.panel || '🖥️'} Painel de Controle do Bot`, 1);
             builder.addSeparator();
-            
-            // STATUS GLOBAL
             builder.addTitle(`${emojis.global || '🌐'} Status Global`, 2);
             builder.addText(`Servidores: ${status.totalGuilds}`);
             builder.addText(`Usuários: ${status.totalUsers.toLocaleString('pt-BR')}`);
@@ -82,7 +79,6 @@ module.exports = {
             builder.addText(`Latência: ${status.ping}`);
             builder.addSeparator();
             
-            // HARDWARE (apenas para dev)
             if (isDeveloper) {
                 builder.addTitle(`${emojis.stack || '📦'} Hardware & Sistema`, 2);
                 builder.addText(`RAM: ${status.memory}`);
@@ -92,7 +88,6 @@ module.exports = {
                 builder.addSeparator();
             }
             
-            // BANCO DE DADOS
             builder.addTitle(`${emojis.database || '🗄️'} Banco de Dados`, 2);
             builder.addText(`Tamanho: ${dbStats?.fileSize || 'N/A'}`);
             builder.addText(`Tabelas: ${Object.keys(dbStats?.tables || {}).length}`);
@@ -102,7 +97,6 @@ module.exports = {
             builder.addText(`${emojis.strike || '⚠️'} 30d: ${recentStrikes}`);
             builder.addSeparator();
             
-            // AUTO MOD
             builder.addTitle(`${emojis.AutoMod || '🛡️'} Sistema AutoMod`, 2);
             builder.addText(`Próximo Ciclo: <t:${status.nextAutoModTS}:R>`);
             builder.addText(`Última Execução: ${status.lastRunTS ? `<t:${status.lastRunTS}:f>` : 'Nenhum registro'}`);
@@ -115,7 +109,10 @@ module.exports = {
                 systemHealth: isHealthy, totalPunishments
             });
             
-            await ResponseManager.send(interaction, builder.build());
+            await interaction.editReply({
+                components: [builder.build()],
+                flags: ['IsComponentsV2']
+            });
             
             console.log(`📊 [BOTSTATUS] ${user.tag} em ${guild.name} | ${Date.now() - startTime}ms`);
 
