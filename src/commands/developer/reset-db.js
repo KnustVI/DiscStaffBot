@@ -30,7 +30,6 @@ module.exports = {
             emojis = {};
         }
         
-        // ==================== VERIFICAÇÃO DE ACESSO ====================
         if (user.id !== DEVELOPER_ID) {
             db.logActivity(guildId, user.id, 'reset_db_denied', null, { 
                 command: 'reset-db',
@@ -54,7 +53,6 @@ module.exports = {
             return;
         }
         
-        // ==================== CONFIRMAÇÃO ====================
         if (confirmacao !== 'LIMPAR TUDO') {
             const cancelBuilder = ContainerFormatter.createBuilder(guild.name, 0xFFBD59);
             cancelBuilder.addTitle(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
@@ -70,7 +68,6 @@ module.exports = {
             return;
         }
         
-        // ==================== EXECUÇÃO DA LIMPEZA ====================
         try {
             const ConfigSystem = require('../../systems/configSystem');
             
@@ -89,6 +86,7 @@ module.exports = {
                 statsBefore.feedbacks = db.prepare(`SELECT COUNT(*) as count FROM feedbacks WHERE guild_id = ?`).get(guildId)?.count || 0;
             } catch (err) {}
             
+            // ==================== TRANSAÇÃO COM RESET DOS CONTADORES ====================
             const clearDB = db.transaction(() => {
                 db.prepare('DELETE FROM reputation WHERE guild_id = ?').run(guildId);
                 db.prepare('DELETE FROM punishments WHERE guild_id = ?').run(guildId);
@@ -96,6 +94,12 @@ module.exports = {
                 try { db.prepare('DELETE FROM feedbacks WHERE guild_id = ?').run(guildId); } catch (err) {}
                 try { db.prepare('DELETE FROM activity_logs WHERE guild_id = ?').run(guildId); } catch (err) {}
                 try { db.prepare('DELETE FROM staff_analytics WHERE guild_id = ?').run(guildId); } catch (err) {}
+                
+                // Resetar os contadores de ID (sqlite_sequence)
+                try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'punishments'`).run(); } catch (err) {}
+                try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reports'`).run(); } catch (err) {}
+                try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reputation'`).run(); } catch (err) {}
+                try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'feedbacks'`).run(); } catch (err) {}
             });
             
             clearDB();
@@ -113,7 +117,6 @@ module.exports = {
                 responseTime: Date.now() - startTime
             });
             
-            // ==================== NOTIFICAÇÃO NO CANAL DE LOG ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_channel');
             if (logChannelId) {
                 try {
@@ -141,7 +144,6 @@ module.exports = {
                 } catch (err) {}
             }
             
-            // ==================== RESPOSTA DE SUCESSO ====================
             const successBuilder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
             successBuilder.addTitle(`${emojis.CLEAN || '🧹'} Database Resetada`, 1);
             successBuilder.addSeparator();

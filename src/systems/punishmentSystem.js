@@ -4,6 +4,7 @@ const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
 const SessionManager = require('../utils/sessionManager');
 const ContainerFormatter = require('../utils/ContainerFormatter');
+const SequenceManager = require('../database/sequences');
 
 const COLORS = {
     DEFAULT: 0xDCA15E,
@@ -14,7 +15,7 @@ const COLORS = {
 
 const PunishmentSystem = {
     
-    // ==================== FUNÇÕES DE BUSCA E BANCO (SEM ALTERAÇÕES) ====================
+    // ==================== FUNÇÕES DE BUSCA E BANCO ====================
     
     async getUserHistory(guildId, userId, page = 1) {
         try {
@@ -61,6 +62,10 @@ const PunishmentSystem = {
             return { reputation: 100, lastPunishments: [], totalStrikes: 0 };
         }
     },
+
+    getNextStrikeNumber(guildId) {
+        return SequenceManager.getNextValue(guildId, 'punishments');
+    },
     
     // ==================== GERADORES DE UI (CONTAINER) ====================
     
@@ -89,7 +94,9 @@ const PunishmentSystem = {
             for (const p of history.punishments) {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
                 const severityIcon = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'][p.severity] || '❓';
-                builder.addText(`${severityIcon} Strike #${p.id} | ${date}`);
+                // CORRIGIDO: usar strike_number em vez de id
+                const strikeNum = p.strike_number || p.id;
+                builder.addText(`${severityIcon} Strike #${strikeNum} | ${date}`);
                 builder.addText(`┃ Moderador: <@${p.moderator_id}>`);
                 if (p.report_id) builder.addText(`┃ Report: \`${p.report_id}\``);
                 if (p.status === 'revoked') builder.addText(`┃ Status: ✅ Anulado`);
@@ -121,13 +128,13 @@ const PunishmentSystem = {
         );
     },
     
-    generateStrikeUnifiedContainer(target, moderator, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
+    generateStrikeUnifiedContainer(target, moderator, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         
         const builder = ContainerFormatter.createBuilder(guildName, COLORS.DANGER);
         
-        builder.addTitle(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeId}`, 1);
+        builder.addTitle(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
         builder.addSeparator();
         builder.addText(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
         builder.addSeparator();
@@ -154,10 +161,10 @@ const PunishmentSystem = {
         return builder;
     },
     
-    generateUnstrikeUnifiedContainer(target, moderator, strikeId, reason, pointsRestored, newPoints, originalReason, guildName) {
+    generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName) {
         const builder = ContainerFormatter.createBuilder(guildName, COLORS.SUCCESS);
         
-        builder.addTitle(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeId}`, 1);
+        builder.addTitle(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`, 1);
         builder.addSeparator();
         builder.addText(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
         builder.addText(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
@@ -212,7 +219,7 @@ const PunishmentSystem = {
         return actions.join('\n');
     },
     
-    // ==================== MÉTODOS PARA HANDLER CENTRAL (SEM ALTERAÇÕES) ====================
+    // ==================== MÉTODOS PARA HANDLER CENTRAL ====================
     
     async handleComponent(interaction, action, param) {
         try {
@@ -286,10 +293,10 @@ const PunishmentSystem = {
             const currentRep = await this.getUserData(interaction.guildId, targetId);
             const newPoints = Math.max(0, currentRep.reputation - pointsLost);
             
-            const strikeId = this.applyPunishment(interaction.guildId, targetId, interaction.user.id, reason, severity, reportId, pointsLost);
+            const strikeNumber = this.applyPunishment(interaction.guildId, targetId, interaction.user.id, reason, severity, reportId, pointsLost);
             const target = await interaction.client.users.fetch(targetId).catch(() => null);
             
-            const container = this.generateStrikeUnifiedContainer(target, interaction.user, strikeId, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, interaction.guild.name, null);
+            const container = this.generateStrikeUnifiedContainer(target, interaction.user, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, interaction.guild.name, null);
             
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
             await interaction.editReply({ components: [container.build()], flags: ['IsComponentsV2'] });
@@ -346,7 +353,9 @@ const PunishmentSystem = {
         }
         
         const reason = interaction.fields.getTextInputValue('reason');
-        const strike = db.prepare(`SELECT * FROM punishments WHERE id = ? AND guild_id = ?`).get(session.strikeId, interaction.guildId);
+        const strikeNumber = session.strikeId;
+        
+        const strike = db.prepare(`SELECT * FROM punishments WHERE guild_id = ? AND strike_number = ?`).get(interaction.guildId, strikeNumber);
         
         if (!strike) {
             return await interaction.editReply({ content: '❌ Strike não encontrado.', flags: 64 });
@@ -356,18 +365,18 @@ const PunishmentSystem = {
         const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(interaction.guildId, strike.user_id)?.points || 100;
         const newPoints = Math.min(100, currentRep + pointsRestored);
         
-        db.prepare(`DELETE FROM punishments WHERE id = ? AND guild_id = ?`).run(session.strikeId, interaction.guildId);
+        db.prepare(`DELETE FROM punishments WHERE guild_id = ? AND strike_number = ?`).run(interaction.guildId, strikeNumber);
         db.prepare(`UPDATE reputation SET points = ? WHERE guild_id = ? AND user_id = ?`).run(newPoints, interaction.guildId, strike.user_id);
         
         const target = await interaction.client.users.fetch(strike.user_id).catch(() => null);
-        const container = this.generateUnstrikeUnifiedContainer(target, interaction.user, session.strikeId, reason, pointsRestored, newPoints, strike.reason, interaction.guild.name);
+        const container = this.generateUnstrikeUnifiedContainer(target, interaction.user, strikeNumber, reason, pointsRestored, newPoints, strike.reason, interaction.guild.name);
         
         await interaction.editReply({ components: [container.build()], flags: ['IsComponentsV2'] });
         SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_modal');
     },
     
-    // ==================== MÉTODOS DE NEGÓCIO (SEM ALTERAÇÕES) ====================
-    
+    // ==================== MÉTODOS DE NEGÓCIO ====================
+
     parseDuration(durationStr) {
         if (!durationStr || ['0', 'perm'].includes(durationStr.toLowerCase())) return 0;
         const timeValue = parseInt(durationStr);
@@ -384,18 +393,21 @@ const PunishmentSystem = {
     applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
         try {
             const trans = db.transaction(() => {
+                // Gerar strike_number sequencial por servidor usando SequenceManager
+                const strikeNumber = this.getNextStrikeNumber(guildId);
                 const uuid = require('../database/index').generateUUID();
-                const res = db.prepare(`
-                    INSERT INTO punishments (uuid, guild_id, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).run(uuid, guildId, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
+                
+                db.prepare(`
+                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(uuid, guildId, strikeNumber, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
                 
                 db.prepare(`
                     INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
                     ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
                 `).run(guildId, targetId, points);
                 
-                return res.lastInsertRowid;
+                return strikeNumber;
             });
             return trans();
         } catch (error) {

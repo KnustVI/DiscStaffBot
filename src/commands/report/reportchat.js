@@ -9,10 +9,17 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
+        
         const reportSystem = new ReportChatSystem(client);
         const panel = reportSystem.getPanel(interaction.guild.name, interaction.guild.iconURL());
         
+        // Enviar o painel no canal (fora da interação)
         await interaction.channel.send(panel);
-        await interaction.reply({ content: '✅ Painel de ReportChat criado!', flags: 64 });
+        
+        // Responder a interação com confirmação (usando editReply porque já está deferido)
+        await interaction.editReply({ 
+            content: '✅ Painel de ReportChat criado!',
+            components: []
+        });
     }
 };
