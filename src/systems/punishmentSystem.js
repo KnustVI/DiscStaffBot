@@ -64,7 +64,9 @@ const PunishmentSystem = {
     },
 
     getNextStrikeNumber(guildId) {
-        return SequenceManager.getNextValue(guildId, 'punishments');
+        const nextValue = SequenceManager.getNextValue(guildId, 'punishments');
+        console.log(`🔍 [DEBUG] getNextStrikeNumber - próximo valor para ${guildId}: ${nextValue}`);
+        return nextValue;
     },
     
     // ==================== GERADORES DE UI (CONTAINER) ====================
@@ -133,6 +135,9 @@ const PunishmentSystem = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         
         const builder = ContainerFormatter.createBuilder(guildName, COLORS.DANGER);
+        
+        // CORREÇÃO: garantir que strikeNumber está sendo usado
+        console.log(`🔍 [DEBUG] generateStrikeUnifiedContainer - strikeNumber recebido: ${strikeNumber}`);
         
         builder.addTitle(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
         builder.addSeparator();
@@ -391,10 +396,10 @@ const PunishmentSystem = {
     },
     
     applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
-    try {
+        try {
             const trans = db.transaction(() => {
                 const strikeNumber = this.getNextStrikeNumber(guildId);
-                console.log(`🔍 [DEBUG] Novo strike_number para ${guildId}: ${strikeNumber}`);
+                console.log(`🔍 [DEBUG] applyPunishment - strikeNumber gerado: ${strikeNumber}`);
                 
                 const uuid = require('../database/index').generateUUID();
                 
