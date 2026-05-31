@@ -398,15 +398,27 @@ const PunishmentSystem = {
     applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
         try {
             const trans = db.transaction(() => {
-                const strikeNumber = this.getNextStrikeNumber(guildId);
-                console.log(`🔍 [DEBUG] applyPunishment - strikeNumber gerado: ${strikeNumber}`);
+                // Calcular próximo strike_number
+                const maxStrike = db.prepare(`
+                    SELECT MAX(strike_number) as max FROM punishments WHERE guild_id = ?
+                `).get(guildId);
+                const strikeNumber = (maxStrike?.max || 0) + 1;
+                
+                console.log(`🔍 [DEBUG] strikeNumber calculado: ${strikeNumber}`);
                 
                 const uuid = require('../database/index').generateUUID();
                 
-                db.prepare(`
+                // Log da query
+                console.log(`🔍 [DEBUG] Inserindo strike_number: ${strikeNumber}`);
+                
+                const result = db.prepare(`
                     INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(uuid, guildId, strikeNumber, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
+                
+                // Verificar se salvou
+                const saved = db.prepare(`SELECT strike_number FROM punishments WHERE uuid = ?`).get(uuid);
+                console.log(`🔍 [DEBUG] strike_number salvo no banco: ${saved?.strike_number}`);
                 
                 db.prepare(`
                     INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
