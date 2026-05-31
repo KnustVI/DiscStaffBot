@@ -391,10 +391,11 @@ const PunishmentSystem = {
     },
     
     applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
-        try {
+    try {
             const trans = db.transaction(() => {
-                // Gerar strike_number sequencial por servidor usando SequenceManager
                 const strikeNumber = this.getNextStrikeNumber(guildId);
+                console.log(`🔍 [DEBUG] Novo strike_number para ${guildId}: ${strikeNumber}`);
+                
                 const uuid = require('../database/index').generateUUID();
                 
                 db.prepare(`
