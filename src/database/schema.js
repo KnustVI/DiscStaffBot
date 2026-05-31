@@ -55,9 +55,9 @@ const SCHEMA = {
     // ==================== PUNIÇÕES (STRIKES) - ID POR SERVIDOR ====================
     punishments: `
         CREATE TABLE IF NOT EXISTS punishments (
-            guild_id TEXT NOT NULL,
-            strike_number INTEGER NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             uuid TEXT UNIQUE NOT NULL,
+            guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             moderator_id TEXT NOT NULL,
             reason TEXT NOT NULL,
@@ -71,7 +71,7 @@ const SCHEMA = {
             revoked_reason TEXT,
             revoked_at INTEGER,
             notes TEXT,
-            PRIMARY KEY (guild_id, strike_number)
+            strike_number INTEGER DEFAULT 0
         )
     `,
 
