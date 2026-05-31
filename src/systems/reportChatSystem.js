@@ -3,6 +3,7 @@ const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
 const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const ContainerFormatter = require('../utils/ContainerFormatter');
+const SequenceManager = require('../database/sequences');
 
 let EMOJIS = {};
 try {
@@ -18,10 +19,7 @@ class ReportChatSystem {
     }
 
     getNextId(guildId) {
-        const last = db.prepare(`SELECT id FROM reports WHERE guild_id = ? ORDER BY created_at DESC LIMIT 1`).get(guildId);
-        if (!last) return 1;
-        const num = parseInt(last.id.replace('#R', ''));
-        return isNaN(num) ? 1 : num + 1;
+        return SequenceManager.getNextValue(guildId, 'reports');
     }
 
     getStatusText(status, closedBy = null, closedReason = null) {
@@ -35,9 +33,9 @@ class ReportChatSystem {
         return statusMap[status] || status;
     }
 
-    // ==================== BASE CONTAINER (ANTIGO BASE EMBED) ====================
+    // ==================== BASE CONTAINER ====================
     
-    createBaseContainer(guild, reportId, user, status = 'waiting', staffs = [], extraDescription = '') {
+    createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
         const statusText = this.getStatusText(status);
         const staffsText = staffs.length > 0 ? staffs.map(s => {
             const time = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
@@ -45,6 +43,7 @@ class ReportChatSystem {
         }).join('\n') : 'Nenhum';
         
         const userinfo = `${user.tag} (${user.id})`;
+        const reportId = `#R${reportNumber}`;
         
         let accentColor;
         if (status === 'closed_no_reason' || status === 'closed_with_reason') {
@@ -69,7 +68,7 @@ class ReportChatSystem {
         return builder;
     }
 
-    // ==================== MODAIS (SEM ALTERAÇÕES) ====================
+    // ==================== MODAIS ====================
 
     getOpenModal() {
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
@@ -147,7 +146,8 @@ class ReportChatSystem {
                 return await interaction.editReply({ content: '❌ Canal de logs não configurado!' });
             }
 
-            const reportId = `#R${this.getNextId(guild.id)}`;
+            const reportNumber = this.getNextId(guild.id);
+            const reportId = `#R${reportNumber}`;
             const threadName = `【${reportId}】report-${user.username}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
             
             const thread = await interaction.channel.threads.create({
@@ -178,7 +178,7 @@ class ReportChatSystem {
             await thread.send({ components: [infoBuilder.build()], flags: ['IsComponentsV2'] });
 
             // DM do USUÁRIO
-            const dmBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
+            const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             const dmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
                 new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
@@ -189,7 +189,7 @@ class ReportChatSystem {
 
             // LOG da STAFF
             const logChannel = await guild.channels.fetch(logChannelId);
-            const logBuilder = this.createBaseContainer(guild, reportId, user, 'waiting', []);
+            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             const logRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`join:${reportId}`).setLabel('Entrar no Reporte').setStyle(ButtonStyle.Success).setEmoji('👋'),
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
@@ -199,10 +199,11 @@ class ReportChatSystem {
             logReplyData.components.push(logRow);
             const logMessage = await logChannel.send(logReplyData);
 
+            // Inserir no banco com report_number
             db.prepare(`
-                INSERT INTO reports (id, guild_id, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
+                INSERT INTO reports (guild_id, report_number, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(reportId, guild.id, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
+            `).run(guild.id, reportNumber, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
 
             await interaction.editReply({ content: `✅ ${reportId} criado! ${thread.url}` });
             
@@ -224,7 +225,9 @@ class ReportChatSystem {
                 return;
             }
 
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guild.id);
+            // Buscar pelo report_id (#R1, #R2...)
+            const reportNumber = parseInt(reportId.replace('#R', ''));
+            const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guild.id, reportNumber);
             if (!report) {
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
@@ -237,7 +240,7 @@ class ReportChatSystem {
             const existingStaff = staffs.find(s => s.id === user.id);
             if (!existingStaff) {
                 staffs.push({ id: user.id, name: user.tag, timestamp: Date.now() });
-                db.prepare(`UPDATE reports SET staffs = ? WHERE id = ?`).run(JSON.stringify(staffs), reportId);
+                db.prepare(`UPDATE reports SET staffs = ? WHERE guild_id = ? AND report_number = ?`).run(JSON.stringify(staffs), guild.id, reportNumber);
             }
 
             const targetUser = await this.client.users.fetch(report.user_id);
@@ -247,7 +250,7 @@ class ReportChatSystem {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs);
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                     const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
                     updatedReplyData.components.push(...logMessage.components.slice(1));
                     await logMessage.edit(updatedReplyData);
@@ -257,7 +260,7 @@ class ReportChatSystem {
             if (report.dm_message_id) {
                 const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs);
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                     const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
                     updatedReplyData.components.push(...dmMessage.components.slice(1));
                     await dmMessage.edit(updatedReplyData);
@@ -276,7 +279,8 @@ class ReportChatSystem {
     
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         try {
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ?`).get(reportId);
+            const reportNumber = parseInt(reportId.replace('#R', ''));
+            const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(interaction.guildId, reportNumber);
             if (!report) {
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
@@ -293,8 +297,8 @@ class ReportChatSystem {
             const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
             const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
 
-            db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE id = ?`)
-                .run(status, Date.now(), interaction.user.id, motivo || null, punicao || null, report.id);
+            db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE guild_id = ? AND report_number = ?`)
+                .run(status, Date.now(), interaction.user.id, motivo || null, punicao || null, guild.id, reportNumber);
 
             const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
             if (thread) {
@@ -311,7 +315,7 @@ class ReportChatSystem {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, status, staffs, extraDesc);
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
                     await logMessage.edit({ components: [updatedBuilder.build()], flags: ['IsComponentsV2'] });
                 }
             }
@@ -319,9 +323,9 @@ class ReportChatSystem {
             if (report.dm_message_id) {
                 const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, status, staffs, extraDesc);
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
                     const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId(`rate:${report.id}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
+                        new ButtonBuilder().setCustomId(`rate:${reportId}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
                     );
                     const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
                     updatedReplyData.components.push(row);
@@ -329,7 +333,7 @@ class ReportChatSystem {
                 }
             }
 
-            await this.sendTempReply(interaction, `${report.id} foi fechado por ${interaction.user}.`, true);
+            await this.sendTempReply(interaction, `${reportId} foi fechado por ${interaction.user}.`, true);
             
         } catch (error) {
             console.error('❌ Erro ao fechar:', error);
@@ -341,7 +345,8 @@ class ReportChatSystem {
     
     async rateReport(interaction, reportId, nota, comentario) {
         try {
-            const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND user_id = ?`).get(reportId, interaction.user.id);
+            const reportNumber = parseInt(reportId.replace('#R', ''));
+            const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ? AND user_id = ?`).get(interaction.guildId, reportNumber, interaction.user.id);
             if (!report) {
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
@@ -351,7 +356,7 @@ class ReportChatSystem {
                 return;
             }
 
-            db.prepare(`UPDATE reports SET rating = ?, rating_comment = ? WHERE id = ?`).run(nota, comentario, reportId);
+            db.prepare(`UPDATE reports SET rating = ?, rating_comment = ? WHERE guild_id = ? AND report_number = ?`).run(nota, comentario, interaction.guildId, reportNumber);
 
             const guild = this.client.guilds.cache.get(report.guild_id);
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
@@ -363,7 +368,7 @@ class ReportChatSystem {
                 const logChannel = await guild.channels.fetch(logChannelId);
                 const logMessage = await logChannel.messages.fetch(report.log_message_id);
                 if (logMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, report.status, staffs, extraDesc);
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, extraDesc);
                     await logMessage.edit({ components: [updatedBuilder.build()], flags: ['IsComponentsV2'] });
                 }
             }
@@ -399,7 +404,8 @@ class ReportChatSystem {
     // ==================== ATUALIZAR STATUS ====================
     
     async updateStatus(guildId, reportId, newStatus) {
-        const report = db.prepare(`SELECT * FROM reports WHERE id = ? AND guild_id = ?`).get(reportId, guildId);
+        const reportNumber = parseInt(reportId.replace('#R', ''));
+        const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
         if (!report) return;
 
         const guild = this.client.guilds.cache.get(guildId);
@@ -413,7 +419,7 @@ class ReportChatSystem {
             const logChannel = await guild.channels.fetch(logChannelId);
             const logMessage = await logChannel.messages.fetch(report.log_message_id);
             if (logMessage) {
-                const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, newStatus, staffs);
+                const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs);
                 const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
                 updatedReplyData.components.push(...logMessage.components.slice(1));
                 await logMessage.edit(updatedReplyData);
@@ -423,7 +429,7 @@ class ReportChatSystem {
         if (report.dm_message_id) {
             const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
             if (dmMessage) {
-                const updatedBuilder = this.createBaseContainer(guild, report.id, targetUser, newStatus, staffs);
+                const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs);
                 const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
                 updatedReplyData.components.push(...dmMessage.components.slice(1));
                 await dmMessage.edit(updatedReplyData);

@@ -1,3 +1,5 @@
+// /home/ubuntu/DiscStaffBot/src/database/schema.js
+
 const SCHEMA = {
     // ==================== TABELA DE USUÁRIOS GLOBAL ====================
     users: `
@@ -40,23 +42,22 @@ const SCHEMA = {
     // ==================== REPUTAÇÃO DOS USUÁRIOS ====================
     reputation: `
         CREATE TABLE IF NOT EXISTS reputation (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             points INTEGER DEFAULT 100,
             rank TEXT DEFAULT 'normal',
             updated_at INTEGER DEFAULT (strftime('%s', 'now')),
             updated_by TEXT,
-            UNIQUE(guild_id, user_id)
+            PRIMARY KEY (guild_id, user_id)
         )
     `,
 
-    // ==================== PUNIÇÕES (STRIKES) ====================
+    // ==================== PUNIÇÕES (STRIKES) - ID POR SERVIDOR ====================
     punishments: `
         CREATE TABLE IF NOT EXISTS punishments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL,
             guild_id TEXT NOT NULL,
+            strike_number INTEGER NOT NULL,
+            uuid TEXT UNIQUE NOT NULL,
             user_id TEXT NOT NULL,
             moderator_id TEXT NOT NULL,
             reason TEXT NOT NULL,
@@ -69,15 +70,17 @@ const SCHEMA = {
             revoked_by TEXT,
             revoked_reason TEXT,
             revoked_at INTEGER,
-            notes TEXT
+            notes TEXT,
+            PRIMARY KEY (guild_id, strike_number)
         )
     `,
 
-    // ==================== REPORTS (REPORTCHAT) ====================
+    // ==================== REPORTS (REPORTCHAT) - ID POR SERVIDOR ====================
     reports: `
         CREATE TABLE IF NOT EXISTS reports (
-            id TEXT PRIMARY KEY,
             guild_id TEXT NOT NULL,
+            report_number INTEGER NOT NULL,
+            report_id TEXT GENERATED ALWAYS AS ('#R' || report_number) STORED,
             user_id TEXT NOT NULL,
             thread_id TEXT NOT NULL,
             log_message_id TEXT,
@@ -94,6 +97,7 @@ const SCHEMA = {
             rating_comment TEXT,
             created_at INTEGER NOT NULL,
             closed_at INTEGER,
+            PRIMARY KEY (guild_id, report_number),
             FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
         )
@@ -103,14 +107,15 @@ const SCHEMA = {
     report_messages: `
         CREATE TABLE IF NOT EXISTS report_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            report_id TEXT NOT NULL,
+            guild_id TEXT NOT NULL,
+            report_number INTEGER NOT NULL,
             message_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             content TEXT,
             attachments TEXT,
             created_at INTEGER NOT NULL,
             is_staff_reply INTEGER DEFAULT 0,
-            FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+            FOREIGN KEY (guild_id, report_number) REFERENCES reports(guild_id, report_number) ON DELETE CASCADE
         )
     `,
 
@@ -157,7 +162,8 @@ const SCHEMA = {
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             role_id TEXT NOT NULL,
-            punishment_id INTEGER,
+            punishment_guild_id TEXT,
+            punishment_number INTEGER,
             expires_at INTEGER NOT NULL,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
@@ -178,6 +184,16 @@ const SCHEMA = {
             reviewed_by TEXT,
             reviewed_at INTEGER,
             created_at INTEGER NOT NULL
+        )
+    `,
+
+    // ==================== SEQUÊNCIAS POR SERVIDOR ====================
+    sequences: `
+        CREATE TABLE IF NOT EXISTS sequences (
+            guild_id TEXT NOT NULL,
+            table_name TEXT NOT NULL,
+            next_value INTEGER DEFAULT 1,
+            PRIMARY KEY (guild_id, table_name)
         )
     `,
 
@@ -239,7 +255,6 @@ const SCHEMA = {
             usage_count INTEGER DEFAULT 0
         )
     `,
-
 };
 
 // ==================== ÍNDICES ====================
@@ -255,7 +270,6 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_reports_user ON reports(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_last_message ON reports(last_message_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_reports_guild_status ON reports(guild_id, status)`,
     
     // Reputation
     `CREATE INDEX IF NOT EXISTS idx_reputation_guild_user ON reputation(guild_id, user_id)`,
@@ -278,12 +292,15 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status)`,
     `CREATE INDEX IF NOT EXISTS idx_feedbacks_created ON feedbacks(created_at)`,
 
-        // Path of Titans indexes
+    // Path of Titans indexes
     `CREATE INDEX IF NOT EXISTS idx_pot_players_guild ON pot_players(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_players_alderon ON pot_players(alderon_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_guild ON pot_logs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_type ON pot_logs(event_type)`,
-    `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`
+    `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,
+    
+    // Sequences
+    `CREATE INDEX IF NOT EXISTS idx_sequences_guild ON sequences(guild_id)`
 ];
 
 module.exports = { SCHEMA, INDEXES };
