@@ -81,8 +81,11 @@ module.exports = {
                 return;
             }
 
-            // ==================== MODAIS REPORTCHAT ====================
+            // ==================== MODAIS REPORTCHAT (COM DEFER) ====================
+            
+            // Modal de abertura do report
             if (interaction.customId === 'report_modal') {
+                await interaction.deferReply({ flags: 64 });
                 const reportSystem = new ReportChatSystem(client);
                 const data = {
                     regra: interaction.fields.getTextInputValue('regra'),
@@ -122,6 +125,7 @@ module.exports = {
                 return;
             }
 
+            // Modal de avaliação (rating)
             if (interaction.customId === 'rating_modal') {
                 await interaction.deferReply({ flags: 64 });
                 const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating', 'rating');
@@ -213,7 +217,7 @@ module.exports = {
                 return;
             }
             
-            // ==================== MODAIS ====================
+            // ==================== MODAIS (GENÉRICO) ====================
             if (interaction.isModalSubmit()) {
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.deferReply({ flags: 64 });
