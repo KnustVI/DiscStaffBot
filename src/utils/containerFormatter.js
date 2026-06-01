@@ -2,16 +2,17 @@ const ContainerBuilderWrapper = require('./ContainerBuilder');
 const { ButtonBuilder, ButtonStyle } = require('discord.js');
 
 class ContainerFormatter {
-    // Método principal
+    // ========== MÉTODO PRINCIPAL (NOVO) ==========
     static create(serverName, color = null) {
         return new ContainerBuilderWrapper({ serverName, accentColor: color });
     }
 
-    // Alias para compatibilidade
+    // ========== MANTIDO PARA COMPATIBILIDADE ==========
     static createBuilder(serverName, accentColor = null) {
         return this.create(serverName, accentColor);
     }
 
+    // ========== CORES ==========
     static colors = {
         success: 0xBBF96A,
         error: 0xF64B4E,
@@ -19,10 +20,12 @@ class ContainerFormatter {
         info: 0xDCA15E
     };
 
+    // ========== FOOTER ==========
     static getFooter(serverName) {
         return `Desenvolvido por Knust VI e T.Mach/[Servidor de suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${serverName}`;
     }
 
+    // ========== HELPERS ==========
     static field(label, value, code = false) {
         return `**${label}:** ${code ? `\`${value}\`` : value}`;
     }
