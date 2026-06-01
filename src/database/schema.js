@@ -90,13 +90,15 @@ const SCHEMA = {
             status TEXT DEFAULT 'waiting',
             staffs TEXT DEFAULT '[]',
             last_message_at INTEGER,
+            last_reply_by TEXT,
+            last_reply_at INTEGER,
             closed_by TEXT,
             closed_reason TEXT,
+            closed_at INTEGER,
             punishment TEXT,
             rating INTEGER,
             rating_comment TEXT,
             created_at INTEGER NOT NULL,
-            closed_at INTEGER,
             PRIMARY KEY (guild_id, report_number),
             FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
@@ -264,12 +266,19 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_punishments_moderator ON punishments(moderator_id)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_created ON punishments(created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_punishments_status ON punishments(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_punishments_strike_number ON punishments(guild_id, strike_number)`,
     
     // Reports (ReportChat)
     `CREATE INDEX IF NOT EXISTS idx_reports_guild ON reports(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_user ON reports(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`,
     `CREATE INDEX IF NOT EXISTS idx_reports_last_message ON reports(last_message_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_reports_last_reply ON reports(last_reply_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_reports_closed ON reports(closed_at)`,
+    
+    // Report Messages
+    `CREATE INDEX IF NOT EXISTS idx_report_messages_guild ON report_messages(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_report_messages_created ON report_messages(created_at)`,
     
     // Reputation
     `CREATE INDEX IF NOT EXISTS idx_reputation_guild_user ON reputation(guild_id, user_id)`,
