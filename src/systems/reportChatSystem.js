@@ -80,62 +80,67 @@ class ReportChatSystem {
     const reportIdDisplay = `#R${reportNumber}`;
     
     // ==================== 1. HEADER COM THUMBNAIL E INFORMAÇÕES ====================
-    // Adicionar thumbnail do usuário como accessory da section
-    const thumbnailUrl = user.displayAvatarURL({ size: 64 });
-    const thumbnail = new ThumbnailBuilder().setMedia(thumbnailUrl);  
-    
-    builder.addSection([
-        `# REPORTE | ${reportIdDisplay} │ ${user.toString()}`,
-        `${EMOJIS.user || '👤'} **Userinfo:** ${user.tag} (\`${user.id}\`)`
-        `Servidor atual: ${serverName}`
-    ], thumbnail);
-    
-    builder.addSeparator();
+        const thumbnailUrl = user.displayAvatarURL({ size: 64 });
+        const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
+
+        builder.addSection([
+            `# REPORTE | ${reportIdDisplay} │ ${user.toString()}`,
+            `${EMOJIS.user || '👤'} **Userinfo:** ${user.tag} (\`${user.id}\`)`
+        ], thumbnail);
     
     // ==================== 2. STATUS COM BOTÃO DE LINK ====================
-    let statusText = '';
-    let closedByName = null;
-    let closedAt = null;
-    let closedReason = reportInfo?.closed_reason || null;
-    let punishment = reportInfo?.punishment || null;
-    
-    if (reportInfo && reportInfo.closed_by) {
-        try {
-            const closedUser = this.client.users.cache.get(reportInfo.closed_by);
-            closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
-            closedAt = reportInfo.closed_at;
-        } catch (err) {
-            closedByName = `Usuário (${reportInfo.closed_by})`;
+        let statusText = '';
+        let closedByName = null;
+        let closedAt = null;
+        let closedReason = reportInfo?.closed_reason || null;
+        let punishment = reportInfo?.punishment || null;
+
+        if (reportInfo && reportInfo.closed_by) {
+            try {
+                const closedUser = this.client.users.cache.get(reportInfo.closed_by);
+                closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
+                closedAt = reportInfo.closed_at;
+            } catch (err) {
+                closedByName = `Usuário (${reportInfo.closed_by})`;
+            }
         }
-    }
-    
-    const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
-    
-    if (status === 'closed_with_reason') {
-        statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
-    } else if (status === 'closed_no_reason') {
-        statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
-    } else if (status === 'waiting') {
-        statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
-    } else if (status === 'responded') {
-        statusText = `### 📊 Status:\n💬 **Respondido**`;
-    } else if (status === 'inactive') {
-        statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
-    }
-    
-    // Botão de link para o tópico (se existir)
-    let linkButton = null;
-    if (reportInfo?.thread_id) {
-        const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
-        linkButton = new ButtonBuilder()
-            .setLabel('Ir para o chat')
-            .setStyle(ButtonStyle.Link)
-            .setURL(threadLink)
-            .setEmoji('🔗');
-    }
-    
-    builder.addSection([statusText], linkButton);
-    builder.addSeparator();
+
+        const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
+
+        // Montar o texto do status baseado no status atual
+        if (status === 'closed_with_reason') {
+            statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
+        } else if (status === 'closed_no_reason') {
+            statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
+        } else if (status === 'waiting') {
+            statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
+        } else if (status === 'responded') {
+            statusText = `### 📊 Status:\n💬 **Respondido**`;
+        } else if (status === 'inactive') {
+            statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
+        }
+
+        // Criar o botão de link (se existir thread_id)
+        let linkButton = null;
+        if (reportInfo?.thread_id) {
+            const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
+            linkButton = new ButtonBuilder()
+                .setLabel('Ir para o chat')
+                .setStyle(ButtonStyle.Link)
+                .setURL(threadLink)
+                .setEmoji('🔗');
+        }
+
+        // Adicionar a Section com status e botão
+        if (linkButton) {
+            // Com botão - usa Section com accessory
+            builder.addSection([statusText], linkButton);
+        } else {
+            // Sem botão - usa apenas texto
+            builder.addText(statusText);
+        }
+
+        builder.addSeparator();
     
     // ==================== 3. MOTIVO ====================
     if (closedReason) {
