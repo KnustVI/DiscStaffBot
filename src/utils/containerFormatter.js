@@ -2,18 +2,16 @@ const ContainerBuilderWrapper = require('./ContainerBuilder');
 const { ButtonBuilder, ButtonStyle } = require('discord.js');
 
 class ContainerFormatter {
-    // ========== MÉTODO PRINCIPAL ==========
+    // Método principal
     static create(serverName, color = null) {
         return new ContainerBuilderWrapper({ serverName, accentColor: color });
     }
 
-    // ========== ALIAS PARA COMPATIBILIDADE (NÃO REMOVER!) ==========
-    // Mantém compatibilidade com código antigo que usa createBuilder
+    // Alias para compatibilidade
     static createBuilder(serverName, accentColor = null) {
         return this.create(serverName, accentColor);
     }
 
-    // ========== CORES CONTEXTUAIS ==========
     static colors = {
         success: 0xBBF96A,
         error: 0xF64B4E,
@@ -21,13 +19,20 @@ class ContainerFormatter {
         info: 0xDCA15E
     };
 
-    // ========== HELPERS ==========
+    static getFooter(serverName) {
+        return `Desenvolvido por Knust VI e T.Mach/[Servidor de suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${serverName}`;
+    }
+
     static field(label, value, code = false) {
         return `**${label}:** ${code ? `\`${value}\`` : value}`;
     }
 
     static pagination(page, total, records) {
         return `📄 Página ${page}/${total} • ${records} registros`;
+    }
+
+    static getHistoryFooter(page, totalPages, totalRecords) {
+        return this.pagination(page, totalPages, totalRecords);
     }
 
     static button(id, label, style = 'primary', url = null) {
@@ -43,14 +48,6 @@ class ContainerFormatter {
             this.button(`${prefix}_next`, '▶️', 'secondary').setDisabled(page === total),
             this.button(`${prefix}_last`, '⏭️', 'secondary').setDisabled(page === total)
         ];
-    }
-
-    static getFooter(serverName) {
-        return `Desenvolvido por Knust VI e T.Mach/[Suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${serverName}`;
-    }
-
-    static getHistoryFooter(page, totalPages, totalRecords) {
-        return this.pagination(page, totalPages, totalRecords);
     }
 }
 
