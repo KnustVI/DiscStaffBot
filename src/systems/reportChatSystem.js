@@ -18,8 +18,16 @@ class ReportChatSystem {
         this.client = client;
     }
 
-    getNextId(guildId) {
-        return SequenceManager.getNextValue(guildId, 'reports');
+        getNextId(guildId) {
+        // Buscar o último report_number para este servidor
+        const last = db.prepare(`
+            SELECT report_number FROM reports 
+            WHERE guild_id = ? 
+            ORDER BY created_at DESC LIMIT 1
+        `).get(guildId);
+        
+        if (!last) return 1;
+        return last.report_number + 1;
     }
 
     getStatusText(status, closedBy = null, closedReason = null) {
