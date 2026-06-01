@@ -1,5 +1,7 @@
-// /home/ubuntu/DiscStaffBot/src/utils/ContainerBuilder.js
-const { ContainerBuilder, ComponentType, ActionRowBuilder, ButtonBuilder, ThumbnailBuilder } = require('discord.js');
+const { 
+    ContainerBuilder, ComponentType, ActionRowBuilder, 
+    ButtonBuilder, ThumbnailBuilder, MediaGalleryBuilder, MediaItemBuilder
+} = require('discord.js');
 
 class ContainerBuilderWrapper {
     constructor(options = {}) {
@@ -107,6 +109,19 @@ class ContainerBuilderWrapper {
         const actionRow = new ActionRowBuilder();
         actionRow.addComponents(selectMenu);
         this.container.addActionRowComponents(actionRow);
+        this.hasContent = true;
+        return this;
+    }
+
+        addMediaGallery(imageUrls) {
+        if (!imageUrls || imageUrls.length === 0) return this;
+        
+        const gallery = new MediaGalleryBuilder();
+        for (const url of imageUrls.slice(0, 10)) {
+            gallery.addMediaItems(new MediaItemBuilder().setUrl(url));
+        }
+        
+        this.container.addMediaGalleryComponents(gallery);
         this.hasContent = true;
         return this;
     }
