@@ -1,142 +1,85 @@
-const { 
-    ContainerBuilder, ComponentType, ActionRowBuilder, 
-    ButtonBuilder, ThumbnailBuilder, MediaGalleryBuilder, MediaItemBuilder
+const {
+    ContainerBuilder, ActionRowBuilder, ButtonBuilder, SectionBuilder,
+    TextDisplayBuilder, SeparatorBuilder, MediaGalleryBuilder,
+    MediaItemBuilder, ThumbnailBuilder
 } = require('discord.js');
 
 class ContainerBuilderWrapper {
     constructor(options = {}) {
         this.container = new ContainerBuilder();
-        
+        this.components = []; // Array simples para rastrear
         if (options.accentColor) this.container.setAccentColor(options.accentColor);
-        if (options.spoiler) this.container.setSpoiler(options.spoiler);
         
-        this.hasContent = false;
-        this.serverName = options.serverName || "Servidor Desconhecido";
-        this.footerText = `Desenvolvido por Knust VI e T.Mach/[Servidor de suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
+        this.serverName = options.serverName || "Servidor";
+        this.footerText = `Desenvolvido por Knust VI e T.Mach\n[Suporte](https://discord.gg/sEpW8tQ8tT)\nServidor: ${this.serverName}`;
     }
 
-    setServerName(serverName) {
-        this.serverName = serverName;
-        this.footerText = `Desenvolvido por Knust VI e T.Mach/[Servidor de suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${this.serverName}`;
+    // ========== MÉTODOS PRINCIPAIS (Fluentes) ==========
+
+    title(text, level = 1) {
+        this.components.push(new TextDisplayBuilder().setContent('#'.repeat(Math.min(level, 3)) + ' ' + text));
         return this;
     }
 
-    addTitle(text, level = 1) {
-        const prefix = '#'.repeat(Math.min(level, 3));
-        this.container.addTextDisplayComponents({
-            content: `${prefix} ${text}`,
-            type: ComponentType.TextDisplay
-        });
-        this.hasContent = true;
+    text(content) {
+        this.components.push(new TextDisplayBuilder().setContent(content));
         return this;
     }
 
-    addText(text) {
-        this.container.addTextDisplayComponents({
-            content: text,
-            type: ComponentType.TextDisplay
-        });
-        this.hasContent = true;
+    line() {
+        this.components.push(new SeparatorBuilder());
         return this;
     }
 
-    addSeparator() {
-        this.container.addSeparatorComponents({});
-        this.hasContent = true;
+    // Section: texto + thumbnail/botão
+    section(text, accessory = null) {
+        const section = new SectionBuilder().setText(new TextDisplayBuilder().setContent(text));
+        if (accessory) section.setAccessory(accessory);
+        this.components.push(section);
         return this;
     }
 
-    addSection(texts, accessory = null) {
-        if (!texts || texts.length === 0) return this;
-        
-        const sectionComponents = [];
-        for (const text of texts.slice(0, 3)) {
-            if (text) {
-                sectionComponents.push({
-                    content: text,
-                    type: ComponentType.TextDisplay
-                });
-            }
+    // Botões: aceita array ou múltiplos argumentos
+    buttons(...btns) {
+        const buttons = btns.flat().filter(b => b instanceof ButtonBuilder).slice(0, 5);
+        if (buttons.length) {
+            const row = new ActionRowBuilder();
+            buttons.forEach(b => row.addComponents(b));
+            this.components.push(row);
         }
-        
-        // REGRA CRÍTICA: Validar accessory antes de adicionar
-        let validAccessory = null;
-        if (accessory) {
-            // Verifica se é ButtonBuilder válido
-            if (accessory instanceof ButtonBuilder && accessory.toJSON) {
-                validAccessory = accessory;
-            }
-            // Verifica se é ThumbnailBuilder válido
-            else if (accessory instanceof ThumbnailBuilder && accessory.toJSON) {
-                validAccessory = accessory;
-            }
-            // Verifica se é um builder que tem método toJSON
-            else if (accessory && typeof accessory.toJSON === 'function') {
-                validAccessory = accessory;
-            }
+        return this;
+    }
+
+    // Menu de seleção (qualquer tipo)
+    menu(selectMenu) {
+        if (selectMenu && typeof selectMenu.toJSON === 'function') {
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+            this.components.push(row);
         }
-        
-        this.container.addSectionComponents({
-            components: sectionComponents,
-            accessory: validAccessory || undefined
-        });
-        this.hasContent = true;
         return this;
     }
 
-    addButtonRow(buttons) {
-        if (!buttons || buttons.length === 0) return this;
-        
-        // REGRA: Validar e filtrar botões inválidos
-        const validButtons = [];
-        for (const button of buttons.slice(0, 5)) {
-            if (button && button instanceof ButtonBuilder && button.toJSON) {
-                validButtons.push(button);
-            }
+    // Galeria de imagens/vídeos
+    gallery(urls) {
+        if (urls?.length) {
+            const gallery = new MediaGalleryBuilder();
+            urls.slice(0, 10).forEach(url => gallery.addMediaItems(new MediaItemBuilder().setUrl(url)));
+            this.components.push(gallery);
         }
-        
-        if (validButtons.length === 0) return this;
-        
-        const actionRow = new ActionRowBuilder();
-        validButtons.forEach(button => actionRow.addComponents(button));
-        this.container.addActionRowComponents(actionRow);
-        this.hasContent = true;
         return this;
     }
 
-    addSelectMenu(selectMenu) {
-        if (!selectMenu) return this;
-        const actionRow = new ActionRowBuilder();
-        actionRow.addComponents(selectMenu);
-        this.container.addActionRowComponents(actionRow);
-        this.hasContent = true;
+    // Rodapé automático
+    footer(custom = null) {
+        if (this.components.length) this.line();
+        this.text(`> ${custom || this.footerText}`);
         return this;
     }
 
-        addMediaGallery(imageUrls) {
-        if (!imageUrls || imageUrls.length === 0) return this;
-        
-        const gallery = new MediaGalleryBuilder();
-        for (const url of imageUrls.slice(0, 10)) {
-            gallery.addMediaItems(new MediaItemBuilder().setUrl(url));
-        }
-        
-        this.container.addMediaGalleryComponents(gallery);
-        this.hasContent = true;
-        return this;
-    }
-
-    addFooter(customText = null) {
-        this.addSeparator();
-        const footerContent = customText ? `${customText}\n\n${this.footerText}` : this.footerText;
-        this.addText(`*${footerContent}*`);
-        return this;
-    }
-
+    // Constrói e retorna o container
     build() {
-        if (!this.hasContent) {
-            this.addText("⚠️ Nenhuma informação disponível");
-        }
+        if (!this.components.length) this.text("⚠️ Sem informações");
+        this.components.forEach(c => this.container.addComponents(c));
         return this.container;
     }
 }

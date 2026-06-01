@@ -9,9 +9,7 @@ const {
     ModalBuilder, 
     TextInputBuilder, 
     TextInputStyle,
-    ThumbnailBuilder,
-    MediaGalleryBuilder,
-    MediaItemBuilder
+    ThumbnailBuilder
 } = require('discord.js');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 
@@ -67,85 +65,73 @@ class ReportChatSystem {
     `).get(guild.id, reportNumber);
     
     // Determinar a cor baseada no status
-    let accentColor;
+    let color;
     if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-        accentColor = 0xDCA15E;  // Laranja
+        color = ContainerFormatter.colors.info;
     } else if (status === 'responded') {
-        accentColor = 0x57F287;  // Verde
+        color = ContainerFormatter.colors.success;
     } else {
-        accentColor = 0xF64B4E;  // Vermelho
+        color = ContainerFormatter.colors.error;
     }
     
-    const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
+    const builder = ContainerFormatter.create(guild.name, color);
     const reportIdDisplay = `#R${reportNumber}`;
     
-    // ==================== 1. HEADER COM THUMBNAIL E INFORMAÇÕES ====================
-        const thumbnailUrl = user.displayAvatarURL({ size: 64 });
-        const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
-
-        builder.addSection([
-            `# REPORTE | ${reportIdDisplay} │ ${user.toString()}`,
-            `${EMOJIS.user || '👤'} **Userinfo:** ${user.tag} (\`${user.id}\`)`
-        ], thumbnail);
+    // ==================== 1. HEADER COM THUMBNAIL ====================
+    const thumbnailUrl = user.displayAvatarURL({ size: 64 });
+    const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
     
-    // ==================== 2. STATUS COM BOTÃO DE LINK ====================
-        let statusText = '';
-        let closedByName = null;
-        let closedAt = null;
-        let closedReason = reportInfo?.closed_reason || null;
-        let punishment = reportInfo?.punishment || null;
-
-        if (reportInfo && reportInfo.closed_by) {
-            try {
-                const closedUser = this.client.users.cache.get(reportInfo.closed_by);
-                closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
-                closedAt = reportInfo.closed_at;
-            } catch (err) {
-                closedByName = `Usuário (${reportInfo.closed_by})`;
-            }
+    builder.section(
+        `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n${ContainerFormatter.field('Userinfo', `${user.tag} (${user.id}`)}`,
+        thumbnail
+    );
+    builder.line();
+    
+    // ==================== 2. STATUS ====================
+    let statusText = '';
+    let closedByName = null;
+    let closedAt = null;
+    let closedReason = reportInfo?.closed_reason || null;
+    let punishment = reportInfo?.punishment || null;
+    
+    if (reportInfo && reportInfo.closed_by) {
+        try {
+            const closedUser = this.client.users.cache.get(reportInfo.closed_by);
+            closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
+            closedAt = reportInfo.closed_at;
+        } catch (err) {
+            closedByName = `Usuário (${reportInfo.closed_by})`;
         }
-
-        const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
-
-        // Montar o texto do status baseado no status atual
-        if (status === 'closed_with_reason') {
-            statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
-        } else if (status === 'closed_no_reason') {
-            statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
-        } else if (status === 'waiting') {
-            statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
-        } else if (status === 'responded') {
-            statusText = `### 📊 Status:\n💬 **Respondido**`;
-        } else if (status === 'inactive') {
-            statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
-        }
-
-        // Criar o botão de link (se existir thread_id)
-        let linkButton = null;
-        if (reportInfo?.thread_id) {
-            const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
-            linkButton = new ButtonBuilder()
-                .setLabel('Ir para o chat')
-                .setStyle(ButtonStyle.Link)
-                .setURL(threadLink)
-                .setEmoji('🔗');
-        }
-
-        // Adicionar a Section com status e botão
-        if (linkButton) {
-            // Com botão - usa Section com accessory
-            builder.addSection([statusText], linkButton);
-        } else {
-            // Sem botão - usa apenas texto
-            builder.addText(statusText);
-        }
-
-        builder.addSeparator();
+    }
+    
+    const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
+    
+    if (status === 'closed_with_reason') {
+        statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
+    } else if (status === 'closed_no_reason') {
+        statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
+    } else if (status === 'waiting') {
+        statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
+    } else if (status === 'responded') {
+        statusText = `### 📊 Status:\n💬 **Respondido**`;
+    } else if (status === 'inactive') {
+        statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
+    }
+    
+    // Criar botão de link se existir thread
+    if (reportInfo?.thread_id) {
+        const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
+        const linkButton = ContainerFormatter.button(`link_${reportNumber}`, '🔗 Ir para o chat', 'link', threadLink);
+        builder.section(statusText, linkButton);
+    } else {
+        builder.text(statusText);
+    }
+    builder.line();
     
     // ==================== 3. MOTIVO ====================
     if (closedReason) {
-        builder.addText(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
-        builder.addSeparator();
+        builder.text(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
+        builder.line();
     }
     
     // ==================== 4. STAFFS ====================
@@ -155,8 +141,8 @@ class ReportChatSystem {
             const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
             staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
         }
-        builder.addText(staffsText);
-        builder.addSeparator();
+        builder.text(staffsText);
+        builder.line();
     }
     
     // ==================== 5. AVALIAÇÃO ====================
@@ -167,16 +153,11 @@ class ReportChatSystem {
             ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
         }
         ratingText += `# ${stars}`;
-        builder.addText(ratingText);
-        builder.addSeparator();
+        builder.text(ratingText);
+        builder.line();
     }
     
-    // ==================== 6. MEDIA GALLERY (BANNER) ====================
-    // Adicionar a imagem/gif do banner
-    const bannerUrl = 'https://i.ibb.co/BVZw03QN/Bannhers-Texto-APOGEU.gif';
-    builder.addMediaGallery([bannerUrl]);
-    
-        return builder;
+    return builder;
 }
 
     getOpenModal() {
