@@ -82,7 +82,7 @@ class ReportChatSystem {
     // ==================== 1. HEADER COM THUMBNAIL E INFORMAÇÕES ====================
     // Adicionar thumbnail do usuário como accessory da section
     const thumbnailUrl = user.displayAvatarURL({ size: 64 });
-    const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
+    const thumbnail = new ThumbnailBuilder().setMedia(thumbnailUrl);  
     
     builder.addSection([
         `# REPORTE | ${reportIdDisplay} │ ${user.toString()}`,
