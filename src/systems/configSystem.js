@@ -270,9 +270,9 @@ const ConfigSystem = {
         await this.refreshPointsPanel(interaction, `${EMOJIS.Check || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name);
     },
 
-    // ==================== MÉTODOS ADAPTADOS PARA CONTAINER ====================
+    // ==================== MÉTODOS ADAPTADOS PARA CONTAINER (NOVOS MÉTODOS) ====================
 
-        async refreshPointsPanel(interaction, successMessage, guildName) {
+    async refreshPointsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         
@@ -289,29 +289,25 @@ const ConfigSystem = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
-        const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
+        const builder = ContainerFormatter.create(guildName, 0xDCA15E);
         
-        // HEADER
-        builder.addTitle(`${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
-        builder.addText(`Gerencie os valores do sistema de reputação.`);
-        builder.addSeparator();
+        builder.title(`${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
+        builder.text(`Gerencie os valores do sistema de reputação.`);
+        builder.line();
         
-        // NÍVEIS DE STRIKE (usando addText para lista, não Section)
-        builder.addTitle(`${EMOJIS.strike || '🎯'} Níveis de Strike`, 2);
-        builder.addText(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
-        builder.addText(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
-        builder.addText(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
-        builder.addText(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
-        builder.addText(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
-        builder.addSeparator();
+        builder.title(`${EMOJIS.strike || '🎯'} Níveis de Strike`, 2);
+        builder.text(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
+        builder.text(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
+        builder.text(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
+        builder.text(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
+        builder.text(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
+        builder.line();
         
-        // LIMITES DE REPUTAÇÃO
-        builder.addTitle(`${EMOJIS.Rank || '📊'} Limites de Reputação`, 2);
-        builder.addText(`${EMOJIS.shinystar || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
-        builder.addText(`${EMOJIS.Warning || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
-        builder.addFooter();
+        builder.title(`${EMOJIS.Rank || '📊'} Limites de Reputação`, 2);
+        builder.text(`${EMOJIS.shinystar || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
+        builder.text(`${EMOJIS.Warning || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
+        builder.footer();
         
-        // BOTÕES (ActionRow)
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('config-points:strike:modal').setLabel(`Editar Níveis de Strike`).setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder().setCustomId('config-points:limites:modal').setLabel(`Editar Limites`).setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
@@ -336,29 +332,25 @@ const ConfigSystem = {
         const exemplarRole = this.getSetting(guildId, 'role_exemplar');
         const problematicoRole = this.getSetting(guildId, 'role_problematico');
         
-        const builder = ContainerFormatter.createBuilder(interaction.guild.name, 0xDCA15E);
+        const builder = ContainerFormatter.create(interaction.guild.name, 0xDCA15E);
         
-        // HEADER
-        builder.addTitle(`${EMOJIS.staff || '👥'} Cargos do Sistema`, 1);
-        builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
-        builder.addSeparator();
-        builder.addText(`Selecione os cargos abaixo:`);
-        builder.addSeparator();
+        builder.title(`${EMOJIS.staff || '👥'} Cargos do Sistema`, 1);
+        builder.text(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
+        builder.line();
+        builder.text(`Selecione os cargos abaixo:`);
+        builder.line();
         
-        // CORRETO: usando addText em vez de addSection com dois parâmetros
-        builder.addText(`${EMOJIS.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addText(`${EMOJIS.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addText(`${EMOJIS.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addText(`${EMOJIS.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addFooter();
+        builder.text(`${EMOJIS.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.text(`${EMOJIS.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.text(`${EMOJIS.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.text(`${EMOJIS.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.footer();
         
-        // SELECTS (ActionRows separados)
         const staffRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff'));
         const strikeRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike'));
         const exemplarRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
         const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
-        // CORRETO: NÃO usar content, apenas components + flags
         const replyData = { components: [builder.build()], flags: ['IsComponentsV2'] };
         replyData.components.push(staffRow, strikeRow, exemplarRow, problematicoRow);
         
@@ -398,31 +390,27 @@ const ConfigSystem = {
         const logAutomod = this.getSetting(guildId, 'log_automod');
         const logReports = this.getSetting(guildId, 'log_reports');
         
-        const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
+        const builder = ContainerFormatter.create(guildName, 0xDCA15E);
         
-        // HEADER
-        builder.addTitle(`${EMOJIS.dashboard || '📝'} Canais de Log`, 1);
-        builder.addText(`- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`);
-        builder.addText(`- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`);
-        builder.addText(`- AutoMod recebe logs de ações tomadas pela analise diaria de automação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`);
-        builder.addText(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
-        builder.addSeparator();
+        builder.title(`${EMOJIS.dashboard || '📝'} Canais de Log`, 1);
+        builder.text(`- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`);
+        builder.text(`- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`);
+        builder.text(`- AutoMod recebe logs de ações tomadas pela analise diaria de automação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`);
+        builder.text(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
+        builder.line();
         
-        // CORRETO: usando addText em vez de addSection com dois parâmetros
-        builder.addText(`${EMOJIS.global || '📜'} **Geral:** ${logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addText(`${EMOJIS.strike || '⚖️'} **Punições:** ${logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addText(`${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addText(`${EMOJIS.chat || '🎫'} **ReportChat:** ${logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
-        builder.addFooter();
+        builder.text(`${EMOJIS.global || '📜'} **Geral:** ${logGeral ? `<#${logGeral}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.text(`${EMOJIS.strike || '⚖️'} **Punições:** ${logPunishments ? `<#${logPunishments}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.text(`${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${logAutomod ? `<#${logAutomod}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.text(`${EMOJIS.chat || '🎫'} **ReportChat:** ${logReports ? `<#${logReports}>` : `${EMOJIS.Error || '❌'} Não definido`}`);
+        builder.footer();
         
-        // SELECTS E BOTÕES
         const geralRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder(`Selecionar canal de logs gerais`).addChannelTypes(ChannelType.GuildText));
         const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder(`Selecionar canal de logs de punições`).addChannelTypes(ChannelType.GuildText));
         const automodRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder(`Selecionar canal de logs de automoderação`).addChannelTypes(ChannelType.GuildText));
         const reportsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder(`Selecionar canal de logs de reports`).addChannelTypes(ChannelType.GuildText));
         const buttonRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
         
-        // CORRETO: NÃO usar content, apenas components + flags
         const replyData = { components: [builder.build()], flags: ['IsComponentsV2'] };
         replyData.components.push(geralRow, punishmentsRow, automodRow, reportsRow, buttonRow);
         
@@ -436,7 +424,6 @@ const ConfigSystem = {
             console.error('❌ Erro no refreshLogsPanel:', error);
         }
     },
-
 
     async setLogChannel(interaction, channelKey) {
         const selectedChannelId = interaction.values[0];
@@ -505,19 +492,16 @@ const ConfigSystem = {
             this.setSetting(guild.id, 'log_reports', reports.id);
             this.clearCache(guild.id);
             
-            const builder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
+            const builder = ContainerFormatter.create(guild.name, ContainerFormatter.colors.success);
             
-            // HEADER
-            builder.addTitle(`${EMOJIS.Check || '✅'} Canais de Log Criados`, 1);
-            builder.addText(`Os seguintes canais foram criados:`);
-            builder.addSeparator();
-            
-            // CANAIS CRIADOS (cada um em sua própria linha)
-            builder.addText(`${EMOJIS.global || '📜'} **Geral:** <#${geral.id}>`);
-            builder.addText(`${EMOJIS.AutoMod || '🛡️'} **AutoMod:** <#${automod.id}>`);
-            builder.addText(`${EMOJIS.strike || '⚖️'} **Punições:** <#${punishments.id}>`);
-            builder.addText(`${EMOJIS.chat || '🎫'} **Reports:** <#${reports.id}>`);
-            builder.addFooter();
+            builder.title(`${EMOJIS.Check || '✅'} Canais de Log Criados`, 1);
+            builder.text(`Os seguintes canais foram criados:`);
+            builder.line();
+            builder.text(`${EMOJIS.global || '📜'} **Geral:** <#${geral.id}>`);
+            builder.text(`${EMOJIS.AutoMod || '🛡️'} **AutoMod:** <#${automod.id}>`);
+            builder.text(`${EMOJIS.strike || '⚖️'} **Punições:** <#${punishments.id}>`);
+            builder.text(`${EMOJIS.chat || '🎫'} **Reports:** <#${reports.id}>`);
+            builder.footer();
             
             const replyData = { components: [builder.build()], flags: ['IsComponentsV2'] };
             

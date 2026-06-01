@@ -98,11 +98,9 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
             
-            // ==================== PONTOS ATUAIS ====================
             const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, targetUser.id)?.points || 100;
             const newPoints = Math.max(0, currentRep - pointsToLose);
             
-            // ==================== EXPIRAÇÃO ====================
             let expiresAt = null;
             let durationMs = 0;
             if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
@@ -110,7 +108,6 @@ module.exports = {
                 if (durationMs > 0) expiresAt = Date.now() + durationMs;
             }
             
-            // ==================== APLICAR PUNIÇÃO USANDO applyPunishment ====================
             const strikeId = PunishmentSystem.applyPunishment(
                 guildId, 
                 targetUser.id, 
@@ -125,7 +122,6 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Erro ao aplicar punição no banco de dados.');
             }
             
-            // ==================== AÇÕES DO DISCORD ====================
             let discordActionResult = null;
             if (discordAct !== 'none' && targetMember) {
                 try {
@@ -148,7 +144,6 @@ module.exports = {
                 }
             }
             
-            // ==================== LOGS ====================
             db.logActivity(guildId, staff.id, 'strike', targetUser.id, {
                 command: 'strike', punishmentId: strikeId, severity, pointsLost: pointsToLose,
                 oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct
@@ -156,7 +151,6 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            // ==================== GERAR CONTAINER UNIFICADO ====================
             const containerBuilder = PunishmentSystem.generateStrikeUnifiedContainer(
                 targetUser,
                 staff,
@@ -172,7 +166,6 @@ module.exports = {
                 null
             );
 
-            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetMember) {
                 try {
                     const builtContainer = containerBuilder.build();
@@ -185,7 +178,6 @@ module.exports = {
                 }
             }
 
-            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
@@ -202,7 +194,6 @@ module.exports = {
                 }
             }
 
-            // ==================== RESPOSTA NO CANAL ====================
             await interaction.editReply({ 
                 content: `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**\n📉 ${pointsToLose} pts perdidos\n⭐ Reputação: ${newPoints}/100`,
                 components: []

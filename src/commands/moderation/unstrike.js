@@ -54,7 +54,6 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Você não pode anular punições de um cargo superior.');
             }
             
-            // ==================== PONTOS A RESTAURAR ====================
             const pointsMap = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
             const pointsToRestore = pointsMap[punishment.severity] || 10;
             
@@ -62,17 +61,14 @@ module.exports = {
                 .get(guildId, punishment.user_id)?.points || 100;
             const newPoints = Math.min(100, currentRep + pointsToRestore);
             
-            // ==================== ATUALIZAR PUNIÇÃO ====================
             db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
                 WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishmentId, guildId);
             
-            // ==================== RESTAURAR REPUTAÇÃO ====================
             db.prepare(`
                 UPDATE reputation SET points = MIN(100, points + ?)
                 WHERE guild_id = ? AND user_id = ?
             `).run(pointsToRestore, guildId, punishment.user_id);
             
-            // ==================== REMOVER CARGO DE STRIKE ====================
             const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
             if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
                 try {
@@ -80,14 +76,12 @@ module.exports = {
                 } catch (err) {}
             }
             
-            // ==================== REMOVER TIMEOUT ====================
             if (targetMember?.communicationDisabledUntilTimestamp) {
                 try {
                     await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
                 } catch (err) {}
             }
             
-            // ==================== LOGS ====================
             db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
                 command: 'unstrike', punishmentId, pointsRestored: pointsToRestore, oldPoints: currentRep, newPoints
             });
@@ -96,7 +90,6 @@ module.exports = {
             
             const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
             
-            // ==================== GERAR CONTAINER UNIFICADO ====================
             const containerBuilder = PunishmentSystem.generateUnstrikeUnifiedContainer(
                 targetUser,
                 staff,
@@ -108,7 +101,6 @@ module.exports = {
                 guild.name
             );
 
-            // ==================== ENVIAR DM PARA O USUÁRIO ====================
             if (targetUser) {
                 try {
                     const builtContainer = containerBuilder.build();
@@ -121,7 +113,6 @@ module.exports = {
                 }
             }
 
-            // ==================== ENVIAR LOG PARA O CANAL ====================
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
@@ -138,7 +129,6 @@ module.exports = {
                 }
             }
 
-            // ==================== RESPOSTA NO CANAL ====================
             await interaction.editReply({ 
                 content: `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
                 components: []
