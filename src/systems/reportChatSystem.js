@@ -56,109 +56,116 @@ class ReportChatSystem {
         return baseStatus;
     }
 
-        createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
-    // Buscar informações adicionais do report
-    const reportInfo = db.prepare(`
-        SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment, thread_id
-        FROM reports 
-        WHERE guild_id = ? AND report_number = ?
-    `).get(guild.id, reportNumber);
-    
-    // Determinar a cor baseada no status
-    let color;
-    if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-        color = ContainerFormatter.colors.info;
-    } else if (status === 'responded') {
-        color = ContainerFormatter.colors.success;
-    } else {
-        color = ContainerFormatter.colors.error;
-    }
-    
-    const builder = ContainerFormatter.create(guild.name, color);
-    const reportIdDisplay = `#R${reportNumber}`;
-    
-    // ==================== 1. HEADER COM THUMBNAIL ====================
-    const thumbnailUrl = user.displayAvatarURL({ size: 64 });
-    const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
-    
-    builder.section(
-        `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n${ContainerFormatter.field('Userinfo', `${user.tag} (${user.id}`)}`,
-        thumbnail
-    );
-    builder.line();
-    
-    // ==================== 2. STATUS ====================
-    let statusText = '';
-    let closedByName = null;
-    let closedAt = null;
-    let closedReason = reportInfo?.closed_reason || null;
-    let punishment = reportInfo?.punishment || null;
-    
-    if (reportInfo && reportInfo.closed_by) {
-        try {
-            const closedUser = this.client.users.cache.get(reportInfo.closed_by);
-            closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
-            closedAt = reportInfo.closed_at;
-        } catch (err) {
-            closedByName = `Usuário (${reportInfo.closed_by})`;
+    // ==================== BASE CONTAINER ====================
+
+    createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
+        // Buscar informações adicionais do report
+        const reportInfo = db.prepare(`
+            SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment, thread_id
+            FROM reports 
+            WHERE guild_id = ? AND report_number = ?
+        `).get(guild.id, reportNumber);
+        
+        // Determinar a cor baseada no status
+        let color;
+        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
+            color = ContainerFormatter.colors.info;
+        } else if (status === 'responded') {
+            color = ContainerFormatter.colors.success;
+        } else {
+            color = ContainerFormatter.colors.error;
         }
-    }
-    
-    const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
-    
-    if (status === 'closed_with_reason') {
-        statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
-    } else if (status === 'closed_no_reason') {
-        statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
-    } else if (status === 'waiting') {
-        statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
-    } else if (status === 'responded') {
-        statusText = `### 📊 Status:\n💬 **Respondido**`;
-    } else if (status === 'inactive') {
-        statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
-    }
-    
-    // Criar botão de link se existir thread
-    if (reportInfo?.thread_id) {
-        const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
-        const linkButton = ContainerFormatter.button(`link_${reportNumber}`, '🔗 Ir para o chat', 'link', threadLink);
-        builder.section(statusText, linkButton);
-    } else {
-        builder.text(statusText);
-    }
-    builder.line();
-    
-    // ==================== 3. MOTIVO ====================
-    if (closedReason) {
-        builder.text(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
+        
+        const builder = ContainerFormatter.create(guild.name, color);
+        const reportIdDisplay = `#R${reportNumber}`;
+        
+        // ==================== 1. HEADER COM THUMBNAIL ====================
+        const thumbnailUrl = user.displayAvatarURL({ size: 64 });
+        const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
+        
+        builder.section(
+            `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n${ContainerFormatter.field('Userinfo', `${user.tag} (${user.id})`)}`,
+            thumbnail
+        );
         builder.line();
-    }
-    
-    // ==================== 4. STAFFS ====================
-    if (staffs && staffs.length > 0) {
-        let staffsText = `### 👥 Staffs:\n`;
-        for (const s of staffs) {
-            const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
-            staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
+        
+        // ==================== 2. STATUS ====================
+        let statusText = '';
+        let closedByName = null;
+        let closedAt = null;
+        let closedReason = reportInfo?.closed_reason || null;
+        let punishment = reportInfo?.punishment || null;
+        
+        if (reportInfo && reportInfo.closed_by) {
+            try {
+                const closedUser = this.client.users.cache.get(reportInfo.closed_by);
+                closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
+                closedAt = reportInfo.closed_at;
+            } catch (err) {
+                closedByName = `Usuário (${reportInfo.closed_by})`;
+            }
         }
-        builder.text(staffsText);
-        builder.line();
-    }
-    
-    // ==================== 5. AVALIAÇÃO ====================
-    if (reportInfo?.rating && reportInfo.rating > 0) {
-        const stars = '⭐'.repeat(reportInfo.rating);
-        let ratingText = `### Avaliação: ${reportInfo.rating}/5\n`;
-        if (reportInfo.rating_comment) {
-            ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
+        
+        const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
+        
+        if (status === 'closed_with_reason') {
+            statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
+        } else if (status === 'closed_no_reason') {
+            statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
+        } else if (status === 'waiting') {
+            statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
+        } else if (status === 'responded') {
+            statusText = `### 📊 Status:\n💬 **Respondido**`;
+        } else if (status === 'inactive') {
+            statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
         }
-        ratingText += `# ${stars}`;
-        builder.text(ratingText);
+        
+        // Criar botão de link se existir thread
+        if (reportInfo?.thread_id) {
+            const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
+            const linkButton = ContainerFormatter.button(`link_${reportNumber}`, '🔗 Ir para o chat', 'link', threadLink);
+            builder.section(statusText, linkButton);
+        } else {
+            builder.text(statusText);
+        }
         builder.line();
+        
+        // ==================== 3. MOTIVO ====================
+        if (closedReason) {
+            builder.text(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
+            builder.line();
+        }
+        
+        // ==================== 4. STAFFS ====================
+        if (staffs && staffs.length > 0) {
+            let staffsText = `### 👥 Staffs:\n`;
+            for (const s of staffs) {
+                const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
+                staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
+            }
+            builder.text(staffsText);
+            builder.line();
+        }
+        
+        // ==================== 5. AVALIAÇÃO ====================
+        if (reportInfo?.rating && reportInfo.rating > 0) {
+            const stars = '⭐'.repeat(reportInfo.rating);
+            let ratingText = `### Avaliação: ${reportInfo.rating}/5\n`;
+            if (reportInfo.rating_comment) {
+                ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
+            }
+            ratingText += `# ${stars}`;
+            builder.text(ratingText);
+            builder.line();
+        }
+        
+        // ==================== 6. FOOTER ====================
+        builder.footer();
+        
+        return builder;
     }
-    
-    return builder;
-}
+
+    // ==================== MODAIS ====================
 
     getOpenModal() {
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
@@ -196,18 +203,20 @@ class ReportChatSystem {
         return modal;
     }
 
+    // ==================== PAINEL ====================
+    
     getPanel(guildName, guildIcon) {
-        const builder = ContainerFormatter.createBuilder(guildName, 0xDCA15E);
+        const builder = ContainerFormatter.create(guildName, 0xDCA15E);
         
-        builder.addTitle(`${EMOJIS.chat || '🎫'} Denúncia de jogador`, 1);
-        builder.addText([
+        builder.title(`${EMOJIS.chat || '🎫'} Denúncia de jogador`, 1);
+        builder.text([
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
             `- **Preencha o Formulário**: Responda o formulário enviado pelo bot.`,
             `- **Descreva a Situação**: Explique o que aconteceu.`,
             `- **Envie as Provas**: Inclua vídeos ou prints.`,
             `- **Aguarde a Análise**: A equipe analisará o caso.`
         ].join('\n'));
-        builder.addFooter();
+        builder.footer();
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -222,6 +231,8 @@ class ReportChatSystem {
         return replyData;
     }
 
+    // ==================== ABRIR REPORT ====================
+    
     async openReport(interaction, data) {
         const { guild, user } = interaction;
         await interaction.editReply({ content: '⏳ Criando report...' });
@@ -244,52 +255,46 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
-            const threadBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
-            threadBuilder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
-            threadBuilder.addText(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
-            threadBuilder.addFooter();
+            // ==================== CONTAINER DA THREAD ====================
+            const threadBuilder = ContainerFormatter.create(guild.name, 0xDCA15E);
+            threadBuilder.title(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
+            threadBuilder.text(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
+            threadBuilder.footer();
             const threadMsg = await thread.send({ components: [threadBuilder.build()], flags: ['IsComponentsV2'] });
 
-            const infoBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
-            infoBuilder.addTitle(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
-            infoBuilder.addSeparator();
-            infoBuilder.addText(`**📝 Regra quebrada:** ${data.regra}`);
-            infoBuilder.addText(`**⏰ Quando aconteceu:** ${data.dataHora}`);
-            infoBuilder.addText(`**📍 Local:** ${data.local || 'Não informado'}`);
-            infoBuilder.addText(`**📋 Descrição:** ${data.descricao}`);
-            infoBuilder.addText(`**⚖️ Termo de convivência:** ${data.termo}`);
-            infoBuilder.addFooter();
+            // ==================== CONTAINER DE INFORMAÇÕES ====================
+            const infoBuilder = ContainerFormatter.create(guild.name, 0xDCA15E);
+            infoBuilder.title(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
+            infoBuilder.line();
+            infoBuilder.text(`**📝 Regra quebrada:** ${data.regra}`);
+            infoBuilder.text(`**⏰ Quando aconteceu:** ${data.dataHora}`);
+            infoBuilder.text(`**📍 Local:** ${data.local || 'Não informado'}`);
+            infoBuilder.text(`**📋 Descrição:** ${data.descricao}`);
+            infoBuilder.text(`**⚖️ Termo de convivência:** ${data.termo}`);
+            infoBuilder.footer();
             await thread.send({ components: [infoBuilder.build()], flags: ['IsComponentsV2'] });
 
-            // DM do USUÁRIO (COM GUILD_ID NO CUSTOMID)
+            // ==================== DM DO USUÁRIO ====================
             const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
-            const dmRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`close:${guild.id}:${reportNumber}`)
-                    .setLabel('Fechar')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('🔒'),
-                new ButtonBuilder()
-                    .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
-                    .setLabel('Fechar com Motivo')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('📝')
-            );
+            const closeButton = ContainerFormatter.button(`close:${guild.id}:${reportNumber}`, 'Fechar', 'danger');
+            const closeReasonButton = ContainerFormatter.button(`close_reason:${guild.id}:${reportNumber}`, 'Fechar com Motivo', 'primary');
+            
             const dmReplyData = { components: [dmBuilder.build()], flags: ['IsComponentsV2'] };
-            dmReplyData.components.push(dmRow);
+            dmReplyData.components.push(new ActionRowBuilder().addComponents(closeButton, closeReasonButton));
             const dmMessage = await user.send(dmReplyData).catch(() => null);
 
+            // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
-            const logRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`join:${reportId}`).setLabel('Entrar no Reporte').setStyle(ButtonStyle.Success).setEmoji('👋'),
-                new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
-                new ButtonBuilder().setCustomId(`close_reason:${reportId}`).setLabel('Fechar com Motivo').setStyle(ButtonStyle.Primary).setEmoji('📝')
-            );
+            const joinButton = ContainerFormatter.button(`join:${reportId}`, 'Entrar no Reporte', 'success');
+            const logCloseButton = ContainerFormatter.button(`close:${reportId}`, 'Fechar', 'danger');
+            const logCloseReasonButton = ContainerFormatter.button(`close_reason:${reportId}`, 'Fechar com Motivo', 'primary');
+            
             const logReplyData = { components: [logBuilder.build()], flags: ['IsComponentsV2'] };
-            logReplyData.components.push(logRow);
+            logReplyData.components.push(new ActionRowBuilder().addComponents(joinButton, logCloseButton, logCloseReasonButton));
             const logMessage = await logChannel.send(logReplyData);
 
+            // ==================== SALVAR NO BANCO ====================
             db.prepare(`
                 INSERT INTO reports (guild_id, report_number, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -302,6 +307,8 @@ class ReportChatSystem {
             await interaction.editReply({ content: '❌ Erro ao criar report.' });
         }
     }
+    
+    // ==================== STAFF ENTRAR ====================
     
     async joinReport(interaction, reportId) {
         const { guild, user, member } = interaction;
@@ -362,6 +369,8 @@ class ReportChatSystem {
         }
     }
 
+    // ==================== FECHAR REPORT ====================
+    
     async closeReport(interaction, reportNumber, motivo, punicao, hasReason, guildId = null) {
         try {
             const targetGuildId = guildId || interaction.guildId;
@@ -409,6 +418,7 @@ class ReportChatSystem {
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
             
+            // Extra description com motivo de fechamento
             let extraDesc = `\n\n🔒 **Fechado por:** ${closedByMention}\n📅 **Data:** <t:${Math.floor(closedAt / 1000)}:F>`;
             if (motivo) extraDesc += `\n📝 **Motivo:** ${motivo}`;
             
@@ -429,15 +439,9 @@ class ReportChatSystem {
                     const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                     if (dmMessage) {
                         const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
-                        const row = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId(`rate:${guild.id}:${reportNumber}`)
-                                .setLabel('Avaliar Atendimento')
-                                .setStyle(ButtonStyle.Secondary)
-                                .setEmoji('⭐')
-                        );
+                        const rateButton = ContainerFormatter.button(`rate:${guild.id}:${reportNumber}`, 'Avaliar Atendimento', 'secondary');
                         const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                        updatedReplyData.components.push(row);
+                        updatedReplyData.components.push(new ActionRowBuilder().addComponents(rateButton));
                         await dmMessage.edit(updatedReplyData);
                     }
                 } catch (err) {}
@@ -451,6 +455,8 @@ class ReportChatSystem {
         }
     }
 
+    // ==================== AVALIAR ====================
+    
     async rateReport(interaction, reportNumber, nota, comentario, guildId = null) {
         try {
             const targetGuildId = guildId || interaction.guildId;
@@ -504,6 +510,8 @@ class ReportChatSystem {
         }
     }
 
+    // ==================== RESPOSTA TEMPORÁRIA ====================
+    
     async sendTempReply(interaction, content, success = true) {
         const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
         
@@ -521,6 +529,8 @@ class ReportChatSystem {
             } catch (err) {}
         }, 20000);
     }
+    
+    // ==================== ATUALIZAR STATUS ====================
     
     async updateStatus(guildId, reportId, newStatus) {
         const reportNumber = parseInt(reportId.replace('#R', ''));

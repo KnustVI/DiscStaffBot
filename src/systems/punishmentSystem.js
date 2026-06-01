@@ -81,34 +81,33 @@ const PunishmentSystem = {
                         history.reputation >= 70 ? '⭐' : 
                         history.reputation >= 50 ? '👍' : '⚠️';
         
-        const builder = ContainerFormatter.createBuilder(guildName, accentColor);
+        const builder = ContainerFormatter.create(guildName, accentColor);
         
-        builder.addTitle(`${EMOJIS.History || '📋'} HISTÓRICO`, 1);
-        builder.addText(`Consulta detalhada do sistema de reputação e punições.`);
-        builder.addSeparator();
-        builder.addText(`**👤 ${target.username}** (\`${target.id}\`)`);
-        builder.addSeparator();
-        builder.addText(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
-        builder.addText(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
+        builder.title(`${EMOJIS.History || '📋'} HISTÓRICO`, 1);
+        builder.text(`Consulta detalhada do sistema de reputação e punições.`);
+        builder.line();
+        builder.text(`**👤 ${target.username}** (\`${target.id}\`)`);
+        builder.line();
+        builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
+        builder.text(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         
         if (history.punishments.length > 0) {
-            builder.addSeparator();
+            builder.line();
             for (const p of history.punishments) {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
                 const severityIcon = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'][p.severity] || '❓';
-                // CORRIGIDO: usar strike_number em vez de id
                 const strikeNum = p.strike_number || p.id;
-                builder.addText(`${severityIcon} Strike #${strikeNum} | ${date}`);
-                builder.addText(`┃ Moderador: <@${p.moderator_id}>`);
-                if (p.report_id) builder.addText(`┃ Report: \`${p.report_id}\``);
-                if (p.status === 'revoked') builder.addText(`┃ Status: ✅ Anulado`);
-                builder.addText(`┗━━━━━━━━━━━━━━━━━━━━`);
+                builder.text(`${severityIcon} Strike #${strikeNum} | ${date}`);
+                builder.text(`┃ Moderador: <@${p.moderator_id}>`);
+                if (p.report_id) builder.text(`┃ Report: \`${p.report_id}\``);
+                if (p.status === 'revoked') builder.text(`┃ Status: ✅ Anulado`);
+                builder.text(`┗━━━━━━━━━━━━━━━━━━━━`);
             }
         } else {
-            builder.addText(`\`\`\`\nNenhuma punição registrada.\n\`\`\``);
+            builder.text(`\`\`\`\nNenhuma punição registrada.\n\`\`\``);
         }
         
-        builder.addFooter(ContainerFormatter.getHistoryFooter(page, history.totalPages, history.totalRecords));
+        builder.footer(ContainerFormatter.pagination(page, history.totalPages, history.totalRecords));
         
         return builder;
     },
@@ -134,54 +133,53 @@ const PunishmentSystem = {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         
-        const builder = ContainerFormatter.createBuilder(guildName, COLORS.DANGER);
+        const builder = ContainerFormatter.create(guildName, COLORS.DANGER);
         
-        // CORREÇÃO: garantir que strikeNumber está sendo usado
         console.log(`🔍 [DEBUG] generateStrikeUnifiedContainer - strikeNumber recebido: ${strikeNumber}`);
         
-        builder.addTitle(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
-        builder.addSeparator();
-        builder.addText(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
-        builder.addSeparator();
-        builder.addText(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
-        builder.addText(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
-        builder.addText(`**📉 Pontos subtraídos:** -${pointsLost}`);
-        builder.addText(`**⭐ Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
-        builder.addSeparator();
-        builder.addText(`**📝 Motivo:**`);
-        if (reportId) builder.addText(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
-        builder.addText(`\`\`\`text\n${reason}\n\`\`\``);
+        builder.title(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
+        builder.line();
+        builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
+        builder.line();
+        builder.text(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
+        builder.text(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
+        builder.text(`**📉 Pontos subtraídos:** -${pointsLost}`);
+        builder.text(`**⭐ Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
+        builder.line();
+        builder.text(`**📝 Motivo:**`);
+        if (reportId) builder.text(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
+        builder.text(`\`\`\`text\n${reason}\n\`\`\``);
         
         const actions = this.getPunishmentActions(severity, discordAct, discordActionResult);
         if (actions && actions !== '- 📝 **Apenas Registro:** Nenhuma ação automática aplicada') {
-            builder.addSeparator();
-            builder.addText(`**⚠️ Ações Aplicadas:**`);
+            builder.line();
+            builder.text(`**⚠️ Ações Aplicadas:**`);
             for (const action of actions.split('\n')) {
-                if (action.trim()) builder.addText(action);
+                if (action.trim()) builder.text(action);
             }
         }
         
-        builder.addFooter();
+        builder.footer();
         
         return builder;
     },
     
     generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName) {
-        const builder = ContainerFormatter.createBuilder(guildName, COLORS.SUCCESS);
+        const builder = ContainerFormatter.create(guildName, COLORS.SUCCESS);
         
-        builder.addTitle(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`, 1);
-        builder.addSeparator();
-        builder.addText(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
-        builder.addText(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
-        builder.addText(`**📈 Pontos restaurados:** +${pointsRestored}`);
-        builder.addText(`**⭐ Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
-        builder.addSeparator();
-        builder.addText(`**📝 Punição Original:**`);
-        builder.addText(`\`\`\`text\n${originalReason}\n\`\`\``);
-        builder.addSeparator();
-        builder.addText(`**📝 Motivo da Anulação:**`);
-        builder.addText(`\`\`\`text\n${reason}\n\`\`\``);
-        builder.addFooter();
+        builder.title(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`, 1);
+        builder.line();
+        builder.text(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
+        builder.text(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
+        builder.text(`**📈 Pontos restaurados:** +${pointsRestored}`);
+        builder.text(`**⭐ Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
+        builder.line();
+        builder.text(`**📝 Punição Original:**`);
+        builder.text(`\`\`\`text\n${originalReason}\n\`\`\``);
+        builder.line();
+        builder.text(`**📝 Motivo da Anulação:**`);
+        builder.text(`\`\`\`text\n${reason}\n\`\`\``);
+        builder.footer();
         
         return builder;
     },
@@ -331,14 +329,14 @@ const PunishmentSystem = {
         const target = await interaction.client.users.fetch(session.targetId).catch(() => null);
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
-        const builder = ContainerFormatter.createBuilder(interaction.guild.name, COLORS.WARNING);
-        builder.addTitle(`${EMOJIS.Warning || '⚠️'} Confirmar Aplicação de Strike`, 1);
-        builder.addSeparator();
-        builder.addText(`**👤 Usuário:** ${target?.tag || session.targetId}`);
-        builder.addText(`**⚠️ Severidade:** ${severityNames[severity]}`);
-        builder.addText(`**📝 Motivo:** ${reason}`);
-        builder.addText(`**📉 Pontos a perder:** -${pointsLost}`);
-        builder.addFooter();
+        const builder = ContainerFormatter.create(interaction.guild.name, COLORS.WARNING);
+        builder.title(`${EMOJIS.Warning || '⚠️'} Confirmar Aplicação de Strike`, 1);
+        builder.line();
+        builder.text(`**👤 Usuário:** ${target?.tag || session.targetId}`);
+        builder.text(`**⚠️ Severidade:** ${severityNames[severity]}`);
+        builder.text(`**📝 Motivo:** ${reason}`);
+        builder.text(`**📉 Pontos a perder:** -${pointsLost}`);
+        builder.footer();
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`punishment:confirm:confirm`).setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
@@ -398,7 +396,6 @@ const PunishmentSystem = {
     applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
         try {
             const trans = db.transaction(() => {
-                // Calcular próximo strike_number
                 const maxStrike = db.prepare(`
                     SELECT MAX(strike_number) as max FROM punishments WHERE guild_id = ?
                 `).get(guildId);
@@ -408,15 +405,13 @@ const PunishmentSystem = {
                 
                 const uuid = require('../database/index').generateUUID();
                 
-                // Log da query
                 console.log(`🔍 [DEBUG] Inserindo strike_number: ${strikeNumber}`);
                 
-                const result = db.prepare(`
+                db.prepare(`
                     INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(uuid, guildId, strikeNumber, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
                 
-                // Verificar se salvou
                 const saved = db.prepare(`SELECT strike_number FROM punishments WHERE uuid = ?`).get(uuid);
                 console.log(`🔍 [DEBUG] strike_number salvo no banco: ${saved?.strike_number}`);
                 

@@ -76,16 +76,16 @@ module.exports = {
             const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
             
-            const builder = ContainerFormatter.createBuilder(guild.name, isGain ? 0x00FF00 : 0xFF0000);
-            builder.addTitle(`${titleIcon} ${titleText}`, 1);
-            builder.addSeparator();
-            builder.addText(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
-            builder.addSeparator();
-            builder.addText(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
-            builder.addText(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
-            builder.addText(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
-            builder.addText(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-            builder.addFooter();
+            const builder = ContainerFormatter.create(guild.name, isGain ? 0x00FF00 : 0xFF0000);
+            builder.title(`${titleIcon} ${titleText}`, 1);
+            builder.line();
+            builder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
+            builder.line();
+            builder.text(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
+            builder.text(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
+            builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+            builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
+            builder.footer();
             
             if (targetMember) {
                 try {
@@ -101,16 +101,16 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logBuilder = ContainerFormatter.createBuilder(guild.name, isGain ? 0x00FF00 : 0xFF0000);
-                        logBuilder.addTitle(`${titleIcon} ${titleText}`, 1);
-                        logBuilder.addSeparator();
-                        logBuilder.addText(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
-                        logBuilder.addSeparator();
-                        logBuilder.addText(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
-                        logBuilder.addText(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
-                        logBuilder.addText(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
-                        logBuilder.addText(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-                        logBuilder.addFooter();
+                        const logBuilder = ContainerFormatter.create(guild.name, isGain ? 0x00FF00 : 0xFF0000);
+                        logBuilder.title(`${titleIcon} ${titleText}`, 1);
+                        logBuilder.line();
+                        logBuilder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
+                        logBuilder.line();
+                        logBuilder.text(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
+                        logBuilder.text(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
+                        logBuilder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+                        logBuilder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
+                        logBuilder.footer();
                         await logChannel.send({
                             components: [logBuilder.build()],
                             flags: ['IsComponentsV2']

@@ -39,13 +39,13 @@ module.exports = {
                 userTag: user.tag
             });
             
-            const deniedBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
-            deniedBuilder.addTitle(`${emojis.Error || '❌'} Acesso Negado`, 1);
-            deniedBuilder.addText('Este comando é restrito ao desenvolvedor do bot.');
-            deniedBuilder.addSeparator();
-            deniedBuilder.addText(`**Seu ID:** \`${user.id}\``);
-            deniedBuilder.addText(`**ID Autorizado:** \`${DEVELOPER_ID}\``);
-            deniedBuilder.addFooter('Caso necessário, contate o desenvolvedor.');
+            const deniedBuilder = ContainerFormatter.create(guild.name, 0xF64B4E);
+            deniedBuilder.title(`${emojis.Error || '❌'} Acesso Negado`, 1);
+            deniedBuilder.text('Este comando é restrito ao desenvolvedor do bot.');
+            deniedBuilder.line();
+            deniedBuilder.text(`**Seu ID:** \`${user.id}\``);
+            deniedBuilder.text(`**ID Autorizado:** \`${DEVELOPER_ID}\``);
+            deniedBuilder.footer('Caso necessário, contate o desenvolvedor.');
             
             await interaction.editReply({
                 components: [deniedBuilder.build()],
@@ -55,12 +55,12 @@ module.exports = {
         }
         
         if (confirmacao !== 'LIMPAR TUDO') {
-            const cancelBuilder = ContainerFormatter.createBuilder(guild.name, 0xFFBD59);
-            cancelBuilder.addTitle(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
-            cancelBuilder.addText(`Digite exatamente **"LIMPAR TUDO"** para confirmar a limpeza.`);
-            cancelBuilder.addSeparator();
-            cancelBuilder.addText(`**Você digitou:** \`${confirmacao}\``);
-            cancelBuilder.addFooter();
+            const cancelBuilder = ContainerFormatter.create(guild.name, 0xFFBD59);
+            cancelBuilder.title(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
+            cancelBuilder.text(`Digite exatamente **"LIMPAR TUDO"** para confirmar a limpeza.`);
+            cancelBuilder.line();
+            cancelBuilder.text(`**Você digitou:** \`${confirmacao}\``);
+            cancelBuilder.footer();
             
             await interaction.editReply({
                 components: [cancelBuilder.build()],
@@ -87,7 +87,6 @@ module.exports = {
                 statsBefore.feedbacks = db.prepare(`SELECT COUNT(*) as count FROM feedbacks WHERE guild_id = ?`).get(guildId)?.count || 0;
             } catch (err) {}
             
-            // ==================== TRANSAÇÃO COM RESET DOS CONTADORES ====================
             const clearDB = db.transaction(() => {
                 db.prepare('DELETE FROM reputation WHERE guild_id = ?').run(guildId);
                 db.prepare('DELETE FROM punishments WHERE guild_id = ?').run(guildId);
@@ -96,7 +95,6 @@ module.exports = {
                 try { db.prepare('DELETE FROM activity_logs WHERE guild_id = ?').run(guildId); } catch (err) {}
                 try { db.prepare('DELETE FROM staff_analytics WHERE guild_id = ?').run(guildId); } catch (err) {}
                 
-                // Resetar os contadores de ID (sqlite_sequence)
                 try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'punishments'`).run(); } catch (err) {}
                 try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reports'`).run(); } catch (err) {}
                 try { db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reputation'`).run(); } catch (err) {}
@@ -104,11 +102,7 @@ module.exports = {
             });
             
             clearDB();
-            
-            // ==================== RESETAR SEQUÊNCIAS ====================
-            // Resetar as sequências de IDs por servidor
             SequenceManager.resetAllSequences(guildId);
-            
             ConfigSystem.clearCache(guildId);
             
             try {
@@ -128,19 +122,19 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const alertBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
-                        alertBuilder.addTitle(`${emojis.Warning || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`, 1);
-                        alertBuilder.addSeparator();
-                        alertBuilder.addText(`**Desenvolvedor:** ${user.tag}`);
-                        alertBuilder.addText(`**Servidor:** ${guild.name}`);
-                        alertBuilder.addSeparator();
-                        alertBuilder.addText(`**Dados removidos:**`);
-                        alertBuilder.addText(`- Reputação: \`${statsBefore.reputation}\` registros`);
-                        alertBuilder.addText(`- Punições: \`${statsBefore.punishments}\` registros`);
-                        alertBuilder.addText(`- Reports: \`${statsBefore.reports}\` registros`);
-                        alertBuilder.addSeparator();
-                        alertBuilder.addText(`**ID da Transação:** \`${activityId}\``);
-                        alertBuilder.addFooter();
+                        const alertBuilder = ContainerFormatter.create(guild.name, 0xF64B4E);
+                        alertBuilder.title(`${emojis.Warning || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`, 1);
+                        alertBuilder.line();
+                        alertBuilder.text(`**Desenvolvedor:** ${user.tag}`);
+                        alertBuilder.text(`**Servidor:** ${guild.name}`);
+                        alertBuilder.line();
+                        alertBuilder.text(`**Dados removidos:**`);
+                        alertBuilder.text(`- Reputação: \`${statsBefore.reputation}\` registros`);
+                        alertBuilder.text(`- Punições: \`${statsBefore.punishments}\` registros`);
+                        alertBuilder.text(`- Reports: \`${statsBefore.reports}\` registros`);
+                        alertBuilder.line();
+                        alertBuilder.text(`**ID da Transação:** \`${activityId}\``);
+                        alertBuilder.footer();
                         
                         await logChannel.send({
                             components: [alertBuilder.build()],
@@ -150,18 +144,18 @@ module.exports = {
                 } catch (err) {}
             }
             
-            const successBuilder = ContainerFormatter.createBuilder(guild.name, 0xBBF96A);
-            successBuilder.addTitle(`${emojis.CLEAN || '🧹'} Database Resetada`, 1);
-            successBuilder.addSeparator();
-            successBuilder.addText(`Operação concluída com sucesso em **${guild.name}**.`);
-            successBuilder.addSeparator();
-            successBuilder.addText(`**Registros removidos:**`);
-            successBuilder.addText(`- Reputação: \`${statsBefore.reputation}\``);
-            successBuilder.addText(`- Punições: \`${statsBefore.punishments}\``);
-            successBuilder.addText(`- Reports: \`${statsBefore.reports}\``);
-            successBuilder.addSeparator();
-            successBuilder.addText(`**Tempo de execução:** \`${Date.now() - startTime}ms\``);
-            successBuilder.addFooter(`UUID: ${resetUuid.slice(0, 8)}`);
+            const successBuilder = ContainerFormatter.create(guild.name, 0xBBF96A);
+            successBuilder.title(`${emojis.CLEAN || '🧹'} Database Resetada`, 1);
+            successBuilder.line();
+            successBuilder.text(`Operação concluída com sucesso em **${guild.name}**.`);
+            successBuilder.line();
+            successBuilder.text(`**Registros removidos:**`);
+            successBuilder.text(`- Reputação: \`${statsBefore.reputation}\``);
+            successBuilder.text(`- Punições: \`${statsBefore.punishments}\``);
+            successBuilder.text(`- Reports: \`${statsBefore.reports}\``);
+            successBuilder.line();
+            successBuilder.text(`**Tempo de execução:** \`${Date.now() - startTime}ms\``);
+            successBuilder.footer(`UUID: ${resetUuid.slice(0, 8)}`);
             
             await interaction.editReply({
                 components: [successBuilder.build()],
@@ -180,12 +174,12 @@ module.exports = {
                 command: 'reset-db', error: error.message
             });
             
-            const errorBuilder = ContainerFormatter.createBuilder(guild.name, 0xF64B4E);
-            errorBuilder.addTitle(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
-            errorBuilder.addText(`Ocorreu um erro crítico. O banco de dados pode estar inconsistente.`);
-            errorBuilder.addSeparator();
-            errorBuilder.addText(`**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
-            errorBuilder.addFooter('Contate o suporte imediatamente.');
+            const errorBuilder = ContainerFormatter.create(guild.name, 0xF64B4E);
+            errorBuilder.title(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
+            errorBuilder.text(`Ocorreu um erro crítico. O banco de dados pode estar inconsistente.`);
+            errorBuilder.line();
+            errorBuilder.text(`**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
+            errorBuilder.footer('Contate o suporte imediatamente.');
             
             await interaction.editReply({
                 components: [errorBuilder.build()],

@@ -47,24 +47,24 @@ module.exports = {
         const workerRunning = autoMod.isRunning;
         const hasIssues = channelIssues.length > 0 || !isEnabled;
         
-        const builder = ContainerFormatter.createBuilder(guild.name, hasIssues ? 0xFFA500 : 0x00FF00);
+        const builder = ContainerFormatter.create(guild.name, hasIssues ? 0xFFA500 : 0x00FF00);
         
-        builder.addTitle('🛡️ Diagnóstico da Auto Moderação', 1);
-        builder.addText(`**Servidor:** ${guild.name}`);
-        builder.addSeparator();
-        builder.addText(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
-        builder.addText(`📺 **Canal de Log:** ${channelStatus}`);
-        builder.addText(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
+        builder.title('🛡️ Diagnóstico da Auto Moderação', 1);
+        builder.text(`**Servidor:** ${guild.name}`);
+        builder.line();
+        builder.text(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
+        builder.text(`📺 **Canal de Log:** ${channelStatus}`);
+        builder.text(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
         
         if (channelIssues.length > 0) {
-            builder.addSeparator();
-            builder.addTitle('⚠️ Problemas', 2);
+            builder.line();
+            builder.title('⚠️ Problemas', 2);
             for (const issue of channelIssues) {
-                builder.addText(issue);
+                builder.text(issue);
             }
         }
         
-        builder.addFooter();
+        builder.footer();
         
         await interaction.editReply({
             components: [builder.build()],
