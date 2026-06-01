@@ -81,8 +81,7 @@ class ReportChatSystem {
         
         // ==================== 1. HEADER COM THUMBNAIL ====================
         const thumbnailUrl = user.displayAvatarURL({ size: 64 });
-        const thumbnail = new ThumbnailBuilder();
-        thumbnail.setMedia(thumbnailUrl);
+        const thumbnail = new ThumbnailBuilder().setMedia(thumbnailUrl);
         
         builder.section(
             `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n${ContainerFormatter.field('Userinfo', `${user.tag} (${user.id})`)}`,
