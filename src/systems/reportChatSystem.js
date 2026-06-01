@@ -59,42 +59,44 @@ class ReportChatSystem {
     }
 
         createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
-    // Buscar informações adicionais do report
-    const reportInfo = db.prepare(`
-        SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment, thread_id
-        FROM reports 
-        WHERE guild_id = ? AND report_number = ?
-    `).get(guild.id, reportNumber);
-    
-    // Determinar a cor baseada no status
-    let accentColor;
-    if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-        accentColor = 0xDCA15E;  // Laranja
-    } else if (status === 'responded') {
-        accentColor = 0x57F287;  // Verde
-    } else {
-        accentColor = 0xF64B4E;  // Vermelho
-    }
-    
-    const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
-    const reportIdDisplay = `#R${reportNumber}`;
-    
-    // ==================== 1. HEADER COM THUMBNAIL E INFORMAÇÕES ====================
+        // Buscar informações adicionais do report
+        const reportInfo = db.prepare(`
+            SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment, thread_id
+            FROM reports 
+            WHERE guild_id = ? AND report_number = ?
+        `).get(guild.id, reportNumber);
+        
+        // Determinar a cor baseada no status
+        let accentColor;
+        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
+            accentColor = 0xDCA15E;
+        } else if (status === 'responded') {
+            accentColor = 0x57F287;
+        } else {
+            accentColor = 0xF64B4E;
+        }
+        
+        const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
+        const reportIdDisplay = `#R${reportNumber}`;
+        
+        // ==================== 1. HEADER COM THUMBNAIL ====================
         const thumbnailUrl = user.displayAvatarURL({ size: 64 });
         const thumbnail = new ThumbnailBuilder().setUrl(thumbnailUrl);
-
+        
         builder.addSection([
             `# REPORTE | ${reportIdDisplay} │ ${user.toString()}`,
             `${EMOJIS.user || '👤'} **Userinfo:** ${user.tag} (\`${user.id}\`)`
         ], thumbnail);
-    
-    // ==================== 2. STATUS COM BOTÃO DE LINK ====================
+        
+        builder.addSeparator();
+        
+        // ==================== 2. STATUS COM BOTÃO ====================
         let statusText = '';
         let closedByName = null;
         let closedAt = null;
         let closedReason = reportInfo?.closed_reason || null;
         let punishment = reportInfo?.punishment || null;
-
+        
         if (reportInfo && reportInfo.closed_by) {
             try {
                 const closedUser = this.client.users.cache.get(reportInfo.closed_by);
@@ -104,10 +106,9 @@ class ReportChatSystem {
                 closedByName = `Usuário (${reportInfo.closed_by})`;
             }
         }
-
+        
         const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
-
-        // Montar o texto do status baseado no status atual
+        
         if (status === 'closed_with_reason') {
             statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
         } else if (status === 'closed_no_reason') {
@@ -119,8 +120,8 @@ class ReportChatSystem {
         } else if (status === 'inactive') {
             statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
         }
-
-        // Criar o botão de link (se existir thread_id)
+        
+        // Criar botão de link se existir thread
         let linkButton = null;
         if (reportInfo?.thread_id) {
             const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
@@ -130,54 +131,48 @@ class ReportChatSystem {
                 .setURL(threadLink)
                 .setEmoji('🔗');
         }
-
-        // Adicionar a Section com status e botão
+        
+        // Adicionar status com ou sem botão
         if (linkButton) {
-            // Com botão - usa Section com accessory
             builder.addSection([statusText], linkButton);
         } else {
-            // Sem botão - usa apenas texto
             builder.addText(statusText);
         }
+        builder.addSeparator();
+        
+        // ==================== 3. MOTIVO ====================
+        if (closedReason) {
+            builder.addText(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
+            builder.addSeparator();
+        }
+        
+        // ==================== 4. STAFFS ====================
+        if (staffs && staffs.length > 0) {
+            let staffsText = `### 👥 Staffs:\n`;
+            for (const s of staffs) {
+                const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
+                staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
+            }
+            builder.addText(staffsText);
+            builder.addSeparator();
+        }
+        
+        // ==================== 5. AVALIAÇÃO ====================
+        if (reportInfo?.rating && reportInfo.rating > 0) {
+            const stars = '⭐'.repeat(reportInfo.rating);
+            let ratingText = `### Avaliação: ${reportInfo.rating}/5\n`;
+            if (reportInfo.rating_comment) {
+                ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
+            }
+            ratingText += `# ${stars}`;
+            builder.addText(ratingText);
+            builder.addSeparator();
+        }
 
-        builder.addSeparator();
-    
-    // ==================== 3. MOTIVO ====================
-    if (closedReason) {
-        builder.addText(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
-        builder.addSeparator();
-    }
-    
-    // ==================== 4. STAFFS ====================
-    if (staffs && staffs.length > 0) {
-        let staffsText = `### 👥 Staffs:\n`;
-        for (const s of staffs) {
-            const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
-            staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
-        }
-        builder.addText(staffsText);
-        builder.addSeparator();
-    }
-    
-    // ==================== 5. AVALIAÇÃO ====================
-    if (reportInfo?.rating && reportInfo.rating > 0) {
-        const stars = '⭐'.repeat(reportInfo.rating);
-        let ratingText = `### Avaliação: ${reportInfo.rating}/5\n`;
-        if (reportInfo.rating_comment) {
-            ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
-        }
-        ratingText += `# ${stars}`;
-        builder.addText(ratingText);
-        builder.addSeparator();
-    }
-    
-    // ==================== 6. MEDIA GALLERY (BANNER) ====================
-    // Adicionar a imagem/gif do banner
-    const bannerUrl = 'https://i.ibb.co/BVZw03QN/Bannhers-Texto-APOGEU.gif';
-    builder.addMediaGallery([bannerUrl]);
-    
+        builder.addText(`servername: ${guild.name}`);
+        
         return builder;
-}
+    }
 
     getOpenModal() {
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
