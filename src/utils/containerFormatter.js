@@ -41,6 +41,18 @@ class ContainerFormatter {
             this.button(`${prefix}_last`, '⏭️', 'secondary').setDisabled(page === total)
         ];
     }
-}
+    // Mantido para compatibilidade com código antigo
+        static getFooter(serverName) {
+            return `Desenvolvido por Knust VI e T.Mach/[Suporte](https://discord.gg/sEpW8tQ8tT)\nServidor atual: ${serverName}`;
+        }
 
-module.exports = ContainerFormatter;
+        static getHistoryFooter(page, totalPages, totalRecords) {
+            return this.pagination(page, totalPages, totalRecords);
+        }
+
+        static createBuilder(serverName, accentColor = null) {
+            return this.create(serverName, accentColor);
+        }
+    }
+
+    module.exports = ContainerFormatter;
