@@ -47,77 +47,146 @@ class ReportChatSystem {
         return baseStatus;
     }
 
-    createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
-        const reportInfo = db.prepare(`
-            SELECT last_reply_by, last_reply_at, closed_by, closed_at 
-            FROM reports 
-            WHERE guild_id = ? AND report_number = ?
-        `).get(guild.id, reportNumber);
-        
-        let statusText = '';
-        
-        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-            let closedByName = 'Desconhecido';
+        createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
+            // Buscar informações adicionais do report
+            const reportInfo = db.prepare(`
+                SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment
+                FROM reports 
+                WHERE guild_id = ? AND report_number = ?
+            `).get(guild.id, reportNumber);
+            
+            // Determinar a cor baseada no status
+            let accentColor;
+            if (status === 'closed_no_reason' || status === 'closed_with_reason') {
+                accentColor = 0xDCA15E;  // Laranja
+            } else if (status === 'responded') {
+                accentColor = 0x57F287;  // Verde
+            } else {
+                accentColor = 0xF64B4E;  // Vermelho
+            }
+            
+            const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
+            const reportIdDisplay = `#R${reportNumber}`;
+            
+            // ==================== 1. TÍTULO ====================
+            builder.addTitle(`${EMOJIS.chat || '📋'} REPORTE | ${reportIdDisplay}`, 1);
+            builder.addText(`Report de ${user.toString()}.`);
+            builder.addSeparator();
+            
+            // ==================== 2. USERINFO ====================
+            builder.addText(`${EMOJIS.user || '👤'} **Userinfo:** ${user.tag} (\`${user.id}\`)`);
+            builder.addSeparator();
+            
+            // ==================== 3. STATUS (LÓGICA PRINCIPAL) ====================
+            builder.addText(`${EMOJIS.Status || '📊'} **Status:**`);
+            
+            // 3.1 Buscar informações de quem fechou (se houver)
+            let closedByName = null;
             let closedAt = null;
+            let closedReason = reportInfo?.closed_reason || null;
+            let punishment = reportInfo?.punishment || null;
             
             if (reportInfo && reportInfo.closed_by) {
                 try {
                     const closedUser = this.client.users.cache.get(reportInfo.closed_by);
-                    closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido (${reportInfo.closed_by})`;
+                    closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido`;
                     closedAt = reportInfo.closed_at;
                 } catch (err) {
                     closedByName = `Usuário (${reportInfo.closed_by})`;
                 }
             }
             
-            statusText = this.getStatusText(status, closedByName, null, closedAt);
-        } else {
-            statusText = this.getStatusText(status);
+            const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
             
+            // 3.2 Buscar informações da última resposta
+            let lastReplyInfo = null;
             if (reportInfo && reportInfo.last_reply_at) {
                 const lastReplyTime = `<t:${Math.floor(reportInfo.last_reply_at / 1000)}:R>`;
                 const isStaffReply = reportInfo.last_reply_by?.startsWith('staff:');
                 
                 if (isStaffReply) {
                     const staffId = reportInfo.last_reply_by.replace('staff:', '');
-                    statusText += `\n┗━━ **Última resposta:** <@${staffId}> ${lastReplyTime}`;
+                    lastReplyInfo = `<@${staffId}> ${lastReplyTime}`;
                 } else if (reportInfo.last_reply_by?.startsWith('user:')) {
                     const userId = reportInfo.last_reply_by.replace('user:', '');
-                    statusText += `\n┗━━ **Última resposta:** <@${userId}> ${lastReplyTime}`;
+                    lastReplyInfo = `<@${userId}> ${lastReplyTime}`;
                 }
             }
+            
+            // 3.3 Lógica de status por tipo
+            if (status === 'closed_with_reason') {
+                // FECHADO COM MOTIVO
+                builder.addText(`✅ **Concluído por:** ${closedByName} ${closedTime}`);
+                if (closedReason) {
+                    builder.addText(`┗━━ ${EMOJIS.Note || '📝'} **Motivo:** ${closedReason}`);
+                }
+                if (punishment) {
+                    builder.addText(`┗━━ ${EMOJIS.strike || '⚠️'} **Punição aplicada:** ${punishment}`);
+                }
+            } 
+            else if (status === 'closed_no_reason') {
+                // FECHADO SEM MOTIVO
+                builder.addText(`🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`);
+            }
+            else if (status === 'waiting') {
+                // AGUARDANDO STAFF
+                builder.addText(`⏳ **Aguardando staff**`);
+                if (lastReplyInfo) {
+                    builder.addText(`┗━━ ${EMOJIS.chat || '💬'} **Última resposta:** ${lastReplyInfo}`);
+                }
+            }
+            else if (status === 'responded') {
+                // RESPONDIDO (staff respondeu)
+                builder.addText(`💬 **Respondido**`);
+                if (lastReplyInfo) {
+                    builder.addText(`┗━━ ${EMOJIS.staff || '👮'} **Última resposta:** ${lastReplyInfo}`);
+                }
+            }
+            else if (status === 'inactive') {
+                // INATIVO
+                builder.addText(`⚠️ **Inativo** (4h sem mensagens)`);
+            }
+            
+            builder.addSeparator();
+            
+            // ==================== 4. STAFFS ====================
+            if (staffs && staffs.length > 0) {
+                builder.addText(`${EMOJIS.staff || '👥'} **Staffs:**`);
+                for (const s of staffs) {
+                    const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
+                    builder.addText(`<@${s.id}> (entrou ${entryTime})`);
+                }
+            } else {
+                builder.addText(`${EMOJIS.staff || '👥'} **Staffs:** Nenhum staff atendeu ainda.`);
+            }
+            builder.addSeparator();
+            
+            // ==================== 5. AVALIAÇÃO (se houver) ====================
+            if (reportInfo?.rating && reportInfo.rating > 0) {
+                builder.addText(`${EMOJIS.star || '⭐'} **Avaliação:** ${'⭐'.repeat(reportInfo.rating)} (${reportInfo.rating}/5)`);
+                if (reportInfo.rating_comment) {
+                    builder.addText(`${EMOJIS.Note || '💬'} **Comentário:** ${reportInfo.rating_comment}`);
+                }
+                builder.addSeparator();
+            }
+            
+            // ==================== 6. LINK DO TÓPICO ====================
+            if (reportInfo?.thread_id) {
+                builder.addText(`${EMOJIS.link || '🔗'} **Link do tópico:** <#${reportInfo.thread_id}>`);
+                builder.addSeparator();
+            }
+            
+            // ==================== 7. EXTRA (se houver) ====================
+            if (extraDescription) {
+                builder.addText(extraDescription);
+                builder.addSeparator();
+            }
+            
+            // ==================== 8. FOOTER ====================
+            builder.addFooter();
+            
+            return builder;
         }
-        
-        const staffsText = staffs.length > 0 ? staffs.map(s => {
-            const time = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
-            return `<@${s.id}> (entrou ${time})`;
-        }).join('\n') : 'Nenhum';
-        
-        const userinfo = `${user.tag} (${user.id})`;
-        const reportIdDisplay = `#R${reportNumber}`;
-        
-        let accentColor;
-        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
-            accentColor = 0xDCA15E;
-        } else if (status === 'responded') {
-            accentColor = 0x57F287;
-        } else {
-            accentColor = 0xF64B4E;
-        }
-        
-        const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
-        
-        builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportIdDisplay}`, 1);
-        builder.addText(`Report de ${user.toString()}.`);
-        if (extraDescription) builder.addText(extraDescription);
-        builder.addSeparator();
-        builder.addText(`**📊 Status:**\n${statusText}`);
-        builder.addText(`**👤 Userinfo:** ${userinfo}`);
-        builder.addText(`**👥 Staffs:** ${staffsText}`);
-        builder.addFooter();
-        
-        return builder;
-    }
 
     getOpenModal() {
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
