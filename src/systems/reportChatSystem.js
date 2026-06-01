@@ -76,6 +76,7 @@ class ReportChatSystem {
     builder.addSection([
         `# REPORTE | ${reportIdDisplay} │ ${user.toString()}`,
         `${EMOJIS.user || '👤'} **Userinfo:** ${user.tag} (\`${user.id}\`)`
+        `Servidor atual: ${serverName}`
     ], thumbnail);
     
     builder.addSeparator();
