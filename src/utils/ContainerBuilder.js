@@ -71,7 +71,22 @@ class ContainerBuilderWrapper {
 
     build() {
         if (!this.components.length) this.text("⚠️ Sem informações");
-        this.container.addComponents(...this.components);
+        
+        // Adiciona cada componente ao ContainerBuilder nativo
+        for (const component of this.components) {
+            if (component instanceof TextDisplayBuilder) {
+                this.container.addTextDisplayComponents(component);
+            } else if (component instanceof SeparatorBuilder) {
+                this.container.addSeparatorComponents(component);
+            } else if (component instanceof SectionBuilder) {
+                this.container.addSectionComponents(component);
+            } else if (component instanceof ActionRowBuilder) {
+                this.container.addActionRowComponents(component);
+            } else if (component instanceof MediaGalleryBuilder) {
+                this.container.addMediaGalleryComponents(component);
+            }
+        }
+        
         return this.container;
     }
 }
