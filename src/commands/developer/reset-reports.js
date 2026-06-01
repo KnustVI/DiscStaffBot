@@ -85,9 +85,27 @@ module.exports = {
                 }
             }
             
-            // ==================== DELETAR REPORTS ====================
+            // ==================== DELETAR NA ORDEM CORRETA ====================
+            // 1. Primeiro deletar mensagens dos reports (dependência)
+            try {
+                db.prepare(`DELETE FROM report_messages WHERE guild_id = ?`).run(guildId);
+            } catch (err) {
+                console.log('⚠️ Tabela report_messages não existe ou erro:', err.message);
+            }
+            
+            // 2. Depois deletar os reports (principal)
             db.prepare(`DELETE FROM reports WHERE guild_id = ?`).run(guildId);
-            db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reports'`).run();
+            
+            // 3. Resetar a sequência
+            try {
+                db.prepare(`DELETE FROM sqlite_sequence WHERE name = 'reports'`).run();
+            } catch (err) {}
+            
+            // 4. Resetar sequência do SequenceManager
+            try {
+                const SequenceManager = require('../../database/sequences');
+                SequenceManager.resetAllSequences(guildId);
+            } catch (err) {}
             
             const resetUuid = db.generateUUID();
             db.logActivity(guildId, user.id, 'reset_reports', null, {
