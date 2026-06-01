@@ -30,28 +30,80 @@ class ReportChatSystem {
         return last.report_number + 1;
     }
 
-    getStatusText(status, closedBy = null, closedReason = null) {
-        const statusMap = {
-            waiting: '⏳ Aguardando staff',
-            responded: '💬 Respondido',
-            inactive: '⚠️ Inativo',
-            closed_no_reason: `🔒 Fechado sem motivo${closedBy ? ` por ${closedBy}` : ''}`,
-            closed_with_reason: `✅ Fechado!${closedReason ? ` "${closedReason}"` : ''}${closedBy ? ` por ${closedBy}` : ''}`
-        };
-        return statusMap[status] || status;
+    getStatusText(status, closedBy = null, closedReason = null, closedAt = null) {
+    const statusMap = {
+        waiting: '⏳ Aguardando staff',
+        responded: '💬 Respondido',
+        inactive: '⚠️ Inativo',
+        closed_no_reason: `🔒 Fechado`,
+        closed_with_reason: `✅ Concluído`
+    };
+    
+    let baseStatus = statusMap[status] || status;
+    
+    // Adicionar informação de quem fechou e quando (apenas para status fechado)
+    if ((status === 'closed_no_reason' || status === 'closed_with_reason') && closedBy) {
+        const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
+        baseStatus = `${baseStatus} por ${closedBy} ${closedTime}`.trim();
     }
+    
+    return baseStatus;
+}
 
     // ==================== BASE CONTAINER ====================
-    
+
     createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
-        const statusText = this.getStatusText(status);
+        // Buscar informações do report (incluindo dados de fechamento)
+        const reportInfo = db.prepare(`
+            SELECT last_reply_by, last_reply_at, closed_by, closed_at 
+            FROM reports 
+            WHERE guild_id = ? AND report_number = ?
+        `).get(guild.id, reportNumber);
+        
+        let statusText = '';
+        
+        // Verificar se é status fechado
+        if (status === 'closed_no_reason' || status === 'closed_with_reason') {
+            let closedByName = 'Desconhecido';
+            let closedAt = null;
+            
+            if (reportInfo && reportInfo.closed_by) {
+                try {
+                    const closedUser = this.client.users.cache.get(reportInfo.closed_by);
+                    closedByName = closedUser ? closedUser.toString() : `Usuário desconhecido (${reportInfo.closed_by})`;
+                    closedAt = reportInfo.closed_at;
+                } catch (err) {
+                    closedByName = `Usuário (${reportInfo.closed_by})`;
+                }
+            }
+            
+            statusText = this.getStatusText(status, closedByName, null, closedAt);
+        } else {
+            // Status normal (waiting, responded, inactive)
+            statusText = this.getStatusText(status);
+            
+            // Adicionar informação de última resposta se disponível
+            if (reportInfo && reportInfo.last_reply_at) {
+                const lastReplyTime = `<t:${Math.floor(reportInfo.last_reply_at / 1000)}:R>`;
+                const isStaffReply = reportInfo.last_reply_by?.startsWith('staff:');
+                
+                if (isStaffReply) {
+                    const staffId = reportInfo.last_reply_by.replace('staff:', '');
+                    statusText += `\n┗━━ **Última resposta:** <@${staffId}> ${lastReplyTime}`;
+                } else if (reportInfo.last_reply_by?.startsWith('user:')) {
+                    const userId = reportInfo.last_reply_by.replace('user:', '');
+                    statusText += `\n┗━━ **Última resposta:** <@${userId}> ${lastReplyTime}`;
+                }
+            }
+        }
+        
         const staffsText = staffs.length > 0 ? staffs.map(s => {
             const time = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
             return `<@${s.id}> (entrou ${time})`;
         }).join('\n') : 'Nenhum';
         
         const userinfo = `${user.tag} (${user.id})`;
-        const reportId = `#R${reportNumber}`;
+        const reportIdDisplay = `#R${reportNumber}`;
         
         let accentColor;
         if (status === 'closed_no_reason' || status === 'closed_with_reason') {
@@ -64,11 +116,14 @@ class ReportChatSystem {
         
         const builder = ContainerFormatter.createBuilder(guild.name, accentColor);
         
-        builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
+        builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportIdDisplay}`, 1);
         builder.addText(`Report de ${user.toString()}.`);
+        
+        // Adicionar motivo de fechamento se existir (apenas no extraDescription)
         if (extraDescription) builder.addText(extraDescription);
+        
         builder.addSeparator();
-        builder.addText(`**📊 Status:** ${statusText}`);
+        builder.addText(`**📊 Status:**\n${statusText}`);
         builder.addText(`**👤 Userinfo:** ${userinfo}`);
         builder.addText(`**👥 Staffs:** ${staffsText}`);
         builder.addFooter();
@@ -288,7 +343,11 @@ class ReportChatSystem {
     async closeReport(interaction, reportId, motivo, punicao, hasReason) {
         try {
             const reportNumber = parseInt(reportId.replace('#R', ''));
-            const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(interaction.guildId, reportNumber);
+            const report = db.prepare(`
+                SELECT * FROM reports 
+                WHERE guild_id = ? AND report_number = ?
+            `).get(interaction.guildId, reportNumber);
+            
             if (!report) {
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
@@ -302,43 +361,62 @@ class ReportChatSystem {
 
             const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
             const isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
+            const closedByMention = interaction.user.toString();
             const closedByName = isStaff ? `Staff ${interaction.user.tag}` : `Usuário ${interaction.user.tag}`;
             const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
+            const closedAt = Date.now();
 
-            db.prepare(`UPDATE reports SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? WHERE guild_id = ? AND report_number = ?`)
-                .run(status, Date.now(), interaction.user.id, motivo || null, punicao || null, guild.id, reportNumber);
+            db.prepare(`
+                UPDATE reports 
+                SET status = ?, closed_at = ?, closed_by = ?, closed_reason = ?, punishment = ? 
+                WHERE guild_id = ? AND report_number = ?
+            `).run(status, closedAt, interaction.user.id, motivo || null, punicao || null, guild.id, reportNumber);
 
             const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
             if (thread) {
+                await thread.send({
+                    content: `🔒 Report fechado por ${closedByMention}`
+                }).catch(() => {});
                 await thread.setLocked(true).catch(() => {});
                 await thread.setArchived(true).catch(() => {});
             }
 
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
-            const extraDesc = `\n## 📝 Motivo de fechamento:\n\`\`\`text\n${motivo || 'Sem motivo'}\n\`\`\``;
+            
+            // Extra description com motivo de fechamento (se houver)
+            let extraDesc = `\n\n🔒 **Fechado por:** ${closedByMention}\n📅 **Data:** <t:${Math.floor(closedAt / 1000)}:F>`;
+            if (motivo) extraDesc += `\n📝 **Motivo:** ${motivo}`;
             
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
-                const logChannel = await guild.channels.fetch(logChannelId);
-                const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                if (logMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
-                    await logMessage.edit({ components: [updatedBuilder.build()], flags: ['IsComponentsV2'] });
-                }
+                try {
+                    const logChannel = await guild.channels.fetch(logChannelId);
+                    const logMessage = await logChannel.messages.fetch(report.log_message_id);
+                    if (logMessage) {
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
+                        await logMessage.edit({ components: [updatedBuilder.build()], flags: ['IsComponentsV2'] });
+                    }
+                } catch (err) {}
             }
 
             if (report.dm_message_id) {
-                const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
-                if (dmMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
-                    const row = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder().setCustomId(`rate:${reportId}`).setLabel('Avaliar Atendimento').setStyle(ButtonStyle.Secondary).setEmoji('⭐')
-                    );
-                    const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
-                    updatedReplyData.components.push(row);
-                    await dmMessage.edit(updatedReplyData);
-                }
+                try {
+                    const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
+                    if (dmMessage) {
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
+                        const row = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`rate:${reportId}`)
+                                .setLabel('Avaliar Atendimento')
+                                .setStyle(ButtonStyle.Secondary)
+                                .setEmoji('⭐')
+                        );
+                        const updatedReplyData = { components: [updatedBuilder.build()], flags: ['IsComponentsV2'] };
+                        updatedReplyData.components.push(row);
+                        await dmMessage.edit(updatedReplyData);
+                    }
+                } catch (err) {}
             }
 
             await this.sendTempReply(interaction, `${reportId} foi fechado por ${interaction.user}.`, true);
@@ -354,31 +432,45 @@ class ReportChatSystem {
     async rateReport(interaction, reportId, nota, comentario) {
         try {
             const reportNumber = parseInt(reportId.replace('#R', ''));
-            const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ? AND user_id = ?`).get(interaction.guildId, reportNumber, interaction.user.id);
+            
+            // Buscar o report usando guild_id e report_number
+            const report = db.prepare(`
+                SELECT * FROM reports 
+                WHERE guild_id = ? AND report_number = ? AND user_id = ?
+            `).get(interaction.guildId, reportNumber, interaction.user.id);
+            
             if (!report) {
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
+            
             if (report.rating) {
                 await this.sendTempReply(interaction, `Este report já foi avaliado.`, false);
                 return;
             }
 
-            db.prepare(`UPDATE reports SET rating = ?, rating_comment = ? WHERE guild_id = ? AND report_number = ?`).run(nota, comentario, interaction.guildId, reportNumber);
+            // Atualizar avaliação
+            db.prepare(`
+                UPDATE reports 
+                SET rating = ?, rating_comment = ? 
+                WHERE guild_id = ? AND report_number = ?
+            `).run(nota, comentario, interaction.guildId, reportNumber);
 
             const guild = this.client.guilds.cache.get(report.guild_id);
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
-            const extraDesc = `\n- **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n- **Comentário:** ${comentario || 'Nenhum'}`;
+            const extraDesc = `\n\n⭐ **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n💬 **Comentário:** ${comentario || 'Nenhum'}`;
             
             const logChannelId = ConfigSystem.getSetting(report.guild_id, 'log_reports');
             if (logChannelId && report.log_message_id && guild) {
-                const logChannel = await guild.channels.fetch(logChannelId);
-                const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                if (logMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, extraDesc);
-                    await logMessage.edit({ components: [updatedBuilder.build()], flags: ['IsComponentsV2'] });
-                }
+                try {
+                    const logChannel = await guild.channels.fetch(logChannelId);
+                    const logMessage = await logChannel.messages.fetch(report.log_message_id);
+                    if (logMessage) {
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, extraDesc);
+                        await logMessage.edit({ components: [updatedBuilder.build()], flags: ['IsComponentsV2'] });
+                    }
+                } catch (err) {}
             }
 
             await this.sendTempReply(interaction, `Avaliação registrada! Obrigado.`, true);
