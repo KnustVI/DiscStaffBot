@@ -37,19 +37,21 @@ module.exports = {
             // Botão de fechar com motivo (verifica se é staff ou usuário)
             if (interaction.customId?.startsWith('close_reason:')) {
                 const reportSystem = new ReportChatSystem(client);
-                const reportId = interaction.customId.split(':')[1];
+                const reportId = interaction.customId.split(':')[1]; // ex: "#R2"
                 
-                // Salvar na sessão
-                sessionManager.set(interaction.user.id, safeGuildId, 'closing', 'closing', { reportId }, 300000);
+                // Extrair o número do report (remover #R)
+                const reportNumber = parseInt(reportId.replace('#R', ''));
                 
-                // Verificar se quem clicou é staff (apenas se estiver em um servidor)
+                // Salvar na sessão com o número
+                sessionManager.set(interaction.user.id, safeGuildId, 'closing', 'closing', { reportNumber, reportId }, 300000);
+                
+                // Verificar se quem clicou é staff
                 let isStaff = false;
                 if (interaction.guildId) {
                     const staffRoleId = ConfigSystem.getSetting(interaction.guildId, 'staff_role');
                     isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
                 }
                 
-                // Escolher o modal correto
                 const modal = isStaff ? reportSystem.getCloseModalStaff() : reportSystem.getCloseModalUser();
                 await interaction.showModal(modal);
                 return;
@@ -58,11 +60,14 @@ module.exports = {
             if (interaction.customId?.startsWith('rate:')) {
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                sessionManager.set(interaction.user.id, safeGuildId, 'rating', 'rating', { reportId }, 300000);
+                const reportNumber = parseInt(reportId.replace('#R', ''));
+                
+                sessionManager.set(interaction.user.id, safeGuildId, 'rating', 'rating', { reportNumber, reportId }, 300000);
                 const modal = reportSystem.getRatingModal();
                 await interaction.showModal(modal);
                 return;
             }
+
 
             // ==================== REPORTCHAT - AÇÕES ====================
             if (interaction.customId?.startsWith('join:')) {
@@ -74,10 +79,10 @@ module.exports = {
             }
 
             if (interaction.customId?.startsWith('close:') && !interaction.customId.includes('reason')) {
-                // NÃO usar deferUpdate - o método já vai responder
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = interaction.customId.split(':')[1];
-                await reportSystem.closeReport(interaction, reportId, null, null, false);
+                const reportNumber = parseInt(reportId.replace('#R', ''));
+                await reportSystem.closeReport(interaction, reportNumber, null, null, false);
                 return;
             }
 
@@ -99,45 +104,45 @@ module.exports = {
             }
 
             // Modal de fechamento para STAFF (com punição)
-            if (interaction.customId === 'close_modal_staff') {
-                await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
-                if (session?.reportId) {
-                    const reportSystem = new ReportChatSystem(client);
-                    const motivo = interaction.fields.getTextInputValue('motivo');
-                    const punicao = interaction.fields.getTextInputValue('punicao');
-                    await reportSystem.closeReport(interaction, session.reportId, motivo, punicao, true);
-                    sessionManager.delete(interaction.user.id, safeGuildId, 'closing', 'closing');
+                if (interaction.customId === 'close_modal_staff') {
+                    await interaction.deferReply({ flags: 64 });
+                    const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
+                    if (session?.reportNumber) {
+                        const reportSystem = new ReportChatSystem(client);
+                        const motivo = interaction.fields.getTextInputValue('motivo');
+                        const punicao = interaction.fields.getTextInputValue('punicao');
+                        await reportSystem.closeReport(interaction, session.reportNumber, motivo, punicao, true);
+                        sessionManager.delete(interaction.user.id, safeGuildId, 'closing', 'closing');
+                    }
+                    return;
                 }
-                return;
-            }
 
             // Modal de fechamento para USUÁRIO (apenas motivo)
-            if (interaction.customId === 'close_modal_user') {
-                await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
-                if (session?.reportId) {
-                    const reportSystem = new ReportChatSystem(client);
-                    const motivo = interaction.fields.getTextInputValue('motivo');
-                    await reportSystem.closeReport(interaction, session.reportId, motivo, null, true);
-                    sessionManager.delete(interaction.user.id, safeGuildId, 'closing', 'closing');
-                }
-                return;
-            }
+                if (interaction.customId === 'close_modal_user') {
+                        await interaction.deferReply({ flags: 64 });
+                        const session = sessionManager.get(interaction.user.id, safeGuildId, 'closing', 'closing');
+                        if (session?.reportNumber) {
+                            const reportSystem = new ReportChatSystem(client);
+                            const motivo = interaction.fields.getTextInputValue('motivo');
+                            await reportSystem.closeReport(interaction, session.reportNumber, motivo, null, true);
+                            sessionManager.delete(interaction.user.id, safeGuildId, 'closing', 'closing');
+                        }
+                        return;
+                    }
 
             // Modal de avaliação (rating)
-            if (interaction.customId === 'rating_modal') {
-                await interaction.deferReply({ flags: 64 });
-                const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating', 'rating');
-                if (session?.reportId) {
-                    const reportSystem = new ReportChatSystem(client);
-                    const nota = parseInt(interaction.fields.getTextInputValue('nota'));
-                    const comentario = interaction.fields.getTextInputValue('comentario');
-                    await reportSystem.rateReport(interaction, session.reportId, nota, comentario);
-                    sessionManager.delete(interaction.user.id, safeGuildId, 'rating', 'rating');
+                if (interaction.customId === 'rating_modal') {
+                    await interaction.deferReply({ flags: 64 });
+                    const session = sessionManager.get(interaction.user.id, safeGuildId, 'rating', 'rating');
+                    if (session?.reportNumber) {
+                        const reportSystem = new ReportChatSystem(client);
+                        const nota = parseInt(interaction.fields.getTextInputValue('nota'));
+                        const comentario = interaction.fields.getTextInputValue('comentario');
+                        await reportSystem.rateReport(interaction, session.reportNumber, nota, comentario);
+                        sessionManager.delete(interaction.user.id, safeGuildId, 'rating', 'rating');
+                    }
+                    return;
                 }
-                return;
-            }
             
             // ==================== CONFIG-POINTS ====================
             if (interaction.customId === 'config-points:strike:modal') {

@@ -3,7 +3,6 @@ const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
 const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const ContainerFormatter = require('../utils/ContainerFormatter');
-const SequenceManager = require('../database/sequences');
 
 let EMOJIS = {};
 try {
@@ -18,8 +17,7 @@ class ReportChatSystem {
         this.client = client;
     }
 
-        getNextId(guildId) {
-        // Buscar o último report_number para este servidor
+    getNextId(guildId) {
         const last = db.prepare(`
             SELECT report_number FROM reports 
             WHERE guild_id = ? 
@@ -31,29 +29,27 @@ class ReportChatSystem {
     }
 
     getStatusText(status, closedBy = null, closedReason = null, closedAt = null) {
-    const statusMap = {
-        waiting: '⏳ Aguardando staff',
-        responded: '💬 Respondido',
-        inactive: '⚠️ Inativo',
-        closed_no_reason: `🔒 Fechado`,
-        closed_with_reason: `✅ Concluído`
-    };
-    
-    let baseStatus = statusMap[status] || status;
-    
-    // Adicionar informação de quem fechou e quando (apenas para status fechado)
-    if ((status === 'closed_no_reason' || status === 'closed_with_reason') && closedBy) {
-        const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
-        baseStatus = `${baseStatus} por ${closedBy} ${closedTime}`.trim();
+        const statusMap = {
+            waiting: '⏳ Aguardando staff',
+            responded: '💬 Respondido',
+            inactive: '⚠️ Inativo',
+            closed_no_reason: '🔒 Fechado',
+            closed_with_reason: '✅ Concluído'
+        };
+        
+        let baseStatus = statusMap[status] || status;
+        
+        if ((status === 'closed_no_reason' || status === 'closed_with_reason') && closedBy) {
+            const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
+            baseStatus = `${baseStatus} por ${closedBy} ${closedTime}`.trim();
+        }
+        
+        return baseStatus;
     }
-    
-    return baseStatus;
-}
 
     // ==================== BASE CONTAINER ====================
 
     createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
-        // Buscar informações do report (incluindo dados de fechamento)
         const reportInfo = db.prepare(`
             SELECT last_reply_by, last_reply_at, closed_by, closed_at 
             FROM reports 
@@ -62,7 +58,6 @@ class ReportChatSystem {
         
         let statusText = '';
         
-        // Verificar se é status fechado
         if (status === 'closed_no_reason' || status === 'closed_with_reason') {
             let closedByName = 'Desconhecido';
             let closedAt = null;
@@ -79,10 +74,8 @@ class ReportChatSystem {
             
             statusText = this.getStatusText(status, closedByName, null, closedAt);
         } else {
-            // Status normal (waiting, responded, inactive)
             statusText = this.getStatusText(status);
             
-            // Adicionar informação de última resposta se disponível
             if (reportInfo && reportInfo.last_reply_at) {
                 const lastReplyTime = `<t:${Math.floor(reportInfo.last_reply_at / 1000)}:R>`;
                 const isStaffReply = reportInfo.last_reply_by?.startsWith('staff:');
@@ -119,7 +112,6 @@ class ReportChatSystem {
         builder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportIdDisplay}`, 1);
         builder.addText(`Report de ${user.toString()}.`);
         
-        // Adicionar motivo de fechamento se existir (apenas no extraDescription)
         if (extraDescription) builder.addText(extraDescription);
         
         builder.addSeparator();
@@ -221,14 +213,12 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
-            // Container da THREAD
             const threadBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             threadBuilder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
             threadBuilder.addText(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.addFooter();
             const threadMsg = await thread.send({ components: [threadBuilder.build()], flags: ['IsComponentsV2'] });
 
-            // Container de informações do report
             const infoBuilder = ContainerFormatter.createBuilder(guild.name, 0xDCA15E);
             infoBuilder.addTitle(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
             infoBuilder.addSeparator();
@@ -240,7 +230,6 @@ class ReportChatSystem {
             infoBuilder.addFooter();
             await thread.send({ components: [infoBuilder.build()], flags: ['IsComponentsV2'] });
 
-            // DM do USUÁRIO
             const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             const dmRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`close:${reportId}`).setLabel('Fechar').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
@@ -250,7 +239,6 @@ class ReportChatSystem {
             dmReplyData.components.push(dmRow);
             const dmMessage = await user.send(dmReplyData).catch(() => null);
 
-            // LOG da STAFF
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             const logRow = new ActionRowBuilder().addComponents(
@@ -262,7 +250,6 @@ class ReportChatSystem {
             logReplyData.components.push(logRow);
             const logMessage = await logChannel.send(logReplyData);
 
-            // Inserir no banco com report_number
             db.prepare(`
                 INSERT INTO reports (guild_id, report_number, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -288,7 +275,6 @@ class ReportChatSystem {
                 return;
             }
 
-            // Buscar pelo report_id (#R1, #R2...)
             const reportNumber = parseInt(reportId.replace('#R', ''));
             const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guild.id, reportNumber);
             if (!report) {
@@ -340,20 +326,22 @@ class ReportChatSystem {
 
     // ==================== FECHAR REPORT ====================
     
-    async closeReport(interaction, reportId, motivo, punicao, hasReason) {
+    async closeReport(interaction, reportNumber, motivo, punicao, hasReason) {
         try {
-            const reportNumber = parseInt(reportId.replace('#R', ''));
             const report = db.prepare(`
                 SELECT * FROM reports 
                 WHERE guild_id = ? AND report_number = ?
             `).get(interaction.guildId, reportNumber);
             
             if (!report) {
+                const reportId = `#R${reportNumber}`;
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
-
+            
+            const reportId = `#R${reportNumber}`;
             const guild = this.client.guilds.cache.get(report.guild_id);
+            
             if (!guild) {
                 await this.sendTempReply(interaction, `Servidor do report ${reportId} não encontrado.`, false);
                 return;
@@ -384,7 +372,6 @@ class ReportChatSystem {
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
             
-            // Extra description com motivo de fechamento (se houver)
             let extraDesc = `\n\n🔒 **Fechado por:** ${closedByMention}\n📅 **Data:** <t:${Math.floor(closedAt / 1000)}:F>`;
             if (motivo) extraDesc += `\n📝 **Motivo:** ${motivo}`;
             
@@ -423,33 +410,32 @@ class ReportChatSystem {
             
         } catch (error) {
             console.error('❌ Erro ao fechar:', error);
-            await this.sendTempReply(interaction, `Erro ao fechar o report ${reportId}.`, false);
+            await this.sendTempReply(interaction, `Erro ao fechar o report #${reportNumber}.`, false);
         }
     }
 
     // ==================== AVALIAR ====================
     
-    async rateReport(interaction, reportId, nota, comentario) {
+    async rateReport(interaction, reportNumber, nota, comentario) {
         try {
-            const reportNumber = parseInt(reportId.replace('#R', ''));
-            
-            // Buscar o report usando guild_id e report_number
             const report = db.prepare(`
                 SELECT * FROM reports 
                 WHERE guild_id = ? AND report_number = ? AND user_id = ?
             `).get(interaction.guildId, reportNumber, interaction.user.id);
             
             if (!report) {
+                const reportId = `#R${reportNumber}`;
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
+            
+            const reportId = `#R${reportNumber}`;
             
             if (report.rating) {
                 await this.sendTempReply(interaction, `Este report já foi avaliado.`, false);
                 return;
             }
 
-            // Atualizar avaliação
             db.prepare(`
                 UPDATE reports 
                 SET rating = ?, rating_comment = ? 
@@ -477,7 +463,7 @@ class ReportChatSystem {
             
         } catch (error) {
             console.error('❌ Erro ao avaliar:', error);
-            await this.sendTempReply(interaction, `Erro ao avaliar report ${reportId}.`, false);
+            await this.sendTempReply(interaction, `Erro ao avaliar report #${reportNumber}.`, false);
         }
     }
 
