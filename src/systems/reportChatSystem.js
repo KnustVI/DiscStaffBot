@@ -1,7 +1,18 @@
 // /home/ubuntu/DiscStaffBot/src/systems/reportChatSystem.js
 const db = require('../database/index');
 const ConfigSystem = require('./configSystem');
-const { ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { 
+    ChannelType, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    ModalBuilder, 
+    TextInputBuilder, 
+    TextInputStyle,
+    ThumbnailBuilder,
+    MediaGalleryBuilder,
+    MediaItemBuilder
+} = require('discord.js');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 
 let EMOJIS = {};
