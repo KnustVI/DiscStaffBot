@@ -32,6 +32,10 @@ class ContainerFormatter {
         return url ? btn.setURL(url) : btn.setCustomId(id);
     }
 
+    static thumbnail(url) {
+        return new ThumbnailBuilder().setUrl(url);
+    }
+
     // Botões de navegação
     static navButtons(prefix, page, total) {
         return [
