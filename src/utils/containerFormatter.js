@@ -33,8 +33,12 @@ class ContainerFormatter {
     }
 
     static thumbnail(url) {
-        return new ThumbnailBuilder().setUrl(url);
-    }
+        const { ComponentType } = require('discord.js');
+        return {
+            type: ComponentType.Thumbnail,
+            url: url
+        };
+    }   
 
     // Botões de navegação
     static navButtons(prefix, page, total) {
