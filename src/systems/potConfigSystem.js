@@ -218,25 +218,25 @@ class PoTConfigSystem {
         
         const builder = ContainerFormatter.create(guildName, stats.enabled ? ContainerFormatter.colors.success : ContainerFormatter.colors.info);
         
-        builder.title(`${EMOJIS.Config || '⚙️'} Configuração Path of Titans`, 1);
-        builder.text(`Status da integração com o servidor PoT.`);
-        builder.line();
+        builder.addTitle(`${EMOJIS.Config || '⚙️'} Configuração Path of Titans`, 1);
+        builder.addText(`Status da integração com o servidor PoT.`);
+        builder.addSeparator();
         
-        builder.text(`${EMOJIS.Status || '📊'} **Status:** ${stats.enabled ? `${EMOJIS.Check || '✅'} Conectado` : `${EMOJIS.Error || '❌'} Desconectado`}`);
+        builder.addText(`${EMOJIS.Status || '📊'} **Status:** ${stats.enabled ? `${EMOJIS.Check || '✅'} Conectado` : `${EMOJIS.Error || '❌'} Desconectado`}`);
         
         if (config) {
-            builder.text(`${EMOJIS.global || '🌐'} **Servidor:** ${config.server_ip || `${EMOJIS.Error || '❌'} Não configurado`}`);
-            builder.text(`${EMOJIS.Config || '🔌'} **Portas:** RCON: ${config.rcon_port || 'N/A'} | Webhook: ${config.webhook_port || 'N/A'}`);
-            builder.text(`${EMOJIS.dashboard || '📝'} **Canal de Log:** ${logChannel ? `<#${logChannel}>` : `${EMOJIS.Error || '❌'} Não configurado`}`);
+            builder.addText(`${EMOJIS.global || '🌐'} **Servidor:** ${config.server_ip || `${EMOJIS.Error || '❌'} Não configurado`}`);
+            builder.addText(`${EMOJIS.Config || '🔌'} **Portas:** RCON: ${config.rcon_port || 'N/A'} | Webhook: ${config.webhook_port || 'N/A'}`);
+            builder.addText(`${EMOJIS.dashboard || '📝'} **Canal de Log:** ${logChannel ? `<#${logChannel}>` : `${EMOJIS.Error || '❌'} Não configurado`}`);
             
             const webhooks = this.getAllWebhookConfigs(guildId);
-            builder.text(`${EMOJIS.link || '🔗'} **Webhooks Configurados:** ${Object.keys(webhooks).length} evento(s)`);
-            builder.text(`${EMOJIS.rcon || '🖥️'} **RCON:** ${stats.has_rcon ? `${EMOJIS.Check || '✅'} Configurado` : `${EMOJIS.Error || '❌'} Não configurado`}`);
+            builder.addText(`${EMOJIS.link || '🔗'} **Webhooks Configurados:** ${Object.keys(webhooks).length} evento(s)`);
+            builder.addText(`${EMOJIS.rcon || '🖥️'} **RCON:** ${stats.has_rcon ? `${EMOJIS.Check || '✅'} Configurado` : `${EMOJIS.Error || '❌'} Não configurado`}`);
         } else {
-            builder.text(`\`\`\`\nNenhuma configuração encontrada. Use /pot-config para configurar.\n\`\`\``);
+            builder.addText(`\`\`\`\nNenhuma configuração encontrada. Use /pot-config para configurar.\n\`\`\``);
         }
         
-        builder.footer();
+        builder.addFooter();
         
         return builder;
     }
@@ -251,13 +251,12 @@ class PoTConfigSystem {
         const webhooks = this.getAllWebhookConfigs(guildId);
         
         const builder = ContainerFormatter.create(guildName, ContainerFormatter.colors.info);
-        
-        builder.title(`${EMOJIS.link || '🔗'} Webhooks Configurados`, 1);
-        builder.text(`Eventos que estão enviando dados para o bot.`);
-        builder.line();
+        builder.addTitle(`${EMOJIS.link || '🔗'} Webhooks Configurados`, 1);
+        builder.addText(`Eventos que estão enviando dados para o bot.`);
+        builder.addSeparator();
         
         if (Object.keys(webhooks).length === 0) {
-            builder.text(`\`\`\`\nNenhum webhook configurado.\n\`\`\``);
+            builder.addText(`\`\`\`\nNenhum webhook configurado.\n\`\`\``);
         } else {
             const eventIcons = {
                 PlayerLogin: '🔐',
@@ -273,11 +272,11 @@ class PoTConfigSystem {
             
             for (const [event, url] of Object.entries(webhooks)) {
                 const icon = eventIcons[event] || '📡';
-                builder.text(`${icon} **${event}:** ${url.length > 60 ? url.substring(0, 57) + '...' : url}`);
+                builder.addText(`${icon} **${event}:** ${url.length > 60 ? url.substring(0, 57) + '...' : url}`);
             }
         }
         
-        builder.footer();
+        builder.addFooter();
         
         return builder;
     }
@@ -294,23 +293,23 @@ class PoTConfigSystem {
         
         const builder = ContainerFormatter.create(guildName, ContainerFormatter.colors.info);
         
-        builder.title(`${EMOJIS.Config || '📝'} Endpoints para Game.ini`, 1);
-        builder.text(`Copie estas URLs para o arquivo \`Game.ini\` do seu servidor.`);
-        builder.line();
+        builder.addTitle(`${EMOJIS.Config || '📝'} Endpoints para Game.ini`, 1);
+        builder.addText(`Copie estas URLs para o arquivo \`Game.ini\` do seu servidor.`);
+        builder.addSeparator();
         
         if (Object.keys(endpoints).length === 0) {
-            builder.text(`\`\`\`\nConfigure o servidor PoT primeiro usando /pot-config\n\`\`\``);
+            builder.addText(`\`\`\`\nConfigure o servidor PoT primeiro usando /pot-config\n\`\`\``);
         } else {
-            builder.text(`\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="Discord"\n`);
+            builder.addText(`\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="Discord"\n`);
             
             for (const [event, url] of Object.entries(endpoints)) {
-                builder.text(`${event}="${url}"`);
+                builder.addText(`${event}="${url}"`);
             }
             
-            builder.text(`\`\`\``);
+            builder.addText(`\`\`\``);
         }
         
-        builder.footer();
+        builder.addFooter();
         
         return builder;
     }

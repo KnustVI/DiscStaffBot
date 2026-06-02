@@ -70,39 +70,39 @@ module.exports = {
             
             const builder = ContainerFormatter.create(guild.name, 0xDCA15E);
             
-            builder.title(`${emojis.panel || '🖥️'} Painel de Controle do Bot`, 1);
-            builder.line();
-            builder.title(`${emojis.global || '🌐'} Status Global`, 2);
-            builder.text(`Servidores: ${status.totalGuilds}`);
-            builder.text(`Usuários: ${status.totalUsers.toLocaleString('pt-BR')}`);
-            builder.text(`Uptime: ${status.uptime}`);
-            builder.text(`Latência: ${status.ping}`);
-            builder.line();
+            builder.addTitle(`${emojis.panel || '🖥️'} Painel de Controle do Bot`, 1);
+            builder.addSeparator();
+            builder.addTitle(`${emojis.global || '🌐'} Status Global`, 2);
+            builder.addText(`Servidores: ${status.totalGuilds}`);
+            builder.addText(`Usuários: ${status.totalUsers.toLocaleString('pt-BR')}`);
+            builder.addText(`Uptime: ${status.uptime}`);
+            builder.addText(`Latência: ${status.ping}`);
+            builder.addSeparator();
             
             if (isDeveloper) {
-                builder.title(`${emojis.stack || '📦'} Hardware & Sistema`, 2);
-                builder.text(`RAM: ${status.memory}`);
-                builder.text(`Node: ${process.version}`);
-                builder.text(`DJS: v${version}`);
-                builder.text(`CPU Load: ${status.cpuLoad?.toFixed(2) || 'N/A'}`);
-                builder.line();
+                builder.addTitle(`${emojis.stack || '📦'} Hardware & Sistema`, 2);
+                builder.addText(`RAM: ${status.memory}`);
+                builder.addText(`Node: ${process.version}`);
+                builder.addText(`DJS: v${version}`);
+                builder.addText(`CPU Load: ${status.cpuLoad?.toFixed(2) || 'N/A'}`);
+                builder.addSeparator();
             }
             
-            builder.title(`${emojis.database || '🗄️'} Banco de Dados`, 2);
-            builder.text(`Tamanho: ${dbStats?.fileSize || 'N/A'}`);
-            builder.text(`Tabelas: ${Object.keys(dbStats?.tables || {}).length}`);
-            builder.text(`Punições: ${totalPunishments}`);
-            builder.text(`${emojis.user || '👥'} Penalizados: ${totalUsers}`);
-            builder.text(`${emojis.star || '⭐'} Média: ${Math.round(avgReputation)}/100`);
-            builder.text(`${emojis.strike || '⚠️'} 30d: ${recentStrikes}`);
-            builder.line();
+            builder.addTitle(`${emojis.database || '🗄️'} Banco de Dados`, 2);
+            builder.addText(`Tamanho: ${dbStats?.fileSize || 'N/A'}`);
+            builder.addText(`Tabelas: ${Object.keys(dbStats?.tables || {}).length}`);
+            builder.addText(`Punições: ${totalPunishments}`);
+            builder.addText(`${emojis.user || '👥'} Penalizados: ${totalUsers}`);
+            builder.addText(`${emojis.star || '⭐'} Média: ${Math.round(avgReputation)}/100`);
+            builder.addText(`${emojis.strike || '⚠️'} 30d: ${recentStrikes}`);
+            builder.addSeparator();
             
-            builder.title(`${emojis.AutoMod || '🛡️'} Sistema AutoMod`, 2);
-            builder.text(`Próximo Ciclo: <t:${status.nextAutoModTS}:R>`);
-            builder.text(`Última Execução: ${status.lastRunTS ? `<t:${status.lastRunTS}:f>` : 'Nenhum registro'}`);
-            builder.text(`Logs: ${lastLogLink}`);
-            builder.text(`Health: ${healthEmoji} ${healthStatus}`);
-            builder.footer();
+            builder.addTitle(`${emojis.AutoMod || '🛡️'} Sistema AutoMod`, 2);
+            builder.addText(`Próximo Ciclo: <t:${status.nextAutoModTS}:R>`);
+            builder.addText(`Última Execução: ${status.lastRunTS ? `<t:${status.lastRunTS}:f>` : 'Nenhum registro'}`);
+            builder.addText(`Logs: ${lastLogLink}`);
+            builder.addText(`Health: ${healthEmoji} ${healthStatus}`);
+            builder.addFooter();
             
             db.logActivity(guildId, user.id, 'status_command', null, {
                 command: 'botstatus', responseTime: Date.now() - startTime,

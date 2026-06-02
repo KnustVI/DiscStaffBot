@@ -170,16 +170,16 @@ class AnalyticsSystem {
             : 'Sem dados';
         
         const builder = ContainerFormatter.create(guildName, 0xDCA15E);
-        builder.title(`${EMOJIS.Rank || '📊'} Relatório de Staff`, 1);
-        builder.line();
-        builder.text(`**Staff:** <@${userId}>`);
-        builder.text(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
-        builder.line();
-        builder.text(`${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}`);
-        builder.text(`${EMOJIS.chat || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
-        builder.text(`${EMOJIS.Check || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
-        builder.text(`⏱️ **Tempo Médio:** ${avgResponseText}`);
-        builder.footer(`${report.days} dias analisados`);
+        builder.addTitle(`${EMOJIS.Rank || '📊'} Relatório de Staff`, 1);
+        builder.addSeparator();
+        builder.addText(`**Staff:** <@${userId}>`);
+        builder.addText(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
+        builder.addSeparator();
+        builder.addText(`${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}`);
+        builder.addText(`${EMOJIS.chat || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
+        builder.addText(`${EMOJIS.Check || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
+        builder.addText(`⏱️ **Tempo Médio:** ${avgResponseText}`);
+        builder.addFooter(`${report.days} dias analisados`);
         
         return builder;
     }
@@ -194,19 +194,19 @@ class AnalyticsSystem {
         };
         
         const builder = ContainerFormatter.create(guildName, 0xDCA15E);
-        builder.title(`${EMOJIS.Leadboard || '🏆'} Ranking de Staff`, 1);
-        builder.line();
-        builder.text(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
-        builder.text(`**Métrica:** ${metricLabels[metric] || metric}`);
-        builder.line();
+        builder.addTitle(`${EMOJIS.Leadboard || '🏆'} Ranking de Staff`, 1);
+        builder.addSeparator();
+        builder.addText(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
+        builder.addText(`**Métrica:** ${metricLabels[metric] || metric}`);
+        builder.addSeparator();
         
         for (let index = 0; index < ranking.length; index++) {
             const item = ranking[index];
             const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}º`));
-            builder.text(`**${medal}** <@${item.user_id}>: \`${item.total}\``);
+            builder.addText(`**${medal}** <@${item.user_id}>: \`${item.total}\``);
         }
         
-        builder.footer(`Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}`);
+        builder.addFooter(`Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}`);
         
         return builder;
     }

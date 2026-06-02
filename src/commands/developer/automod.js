@@ -49,22 +49,22 @@ module.exports = {
         
         const builder = ContainerFormatter.create(guild.name, hasIssues ? 0xFFA500 : 0x00FF00);
         
-        builder.title('🛡️ Diagnóstico da Auto Moderação', 1);
-        builder.text(`**Servidor:** ${guild.name}`);
-        builder.line();
-        builder.text(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
-        builder.text(`📺 **Canal de Log:** ${channelStatus}`);
-        builder.text(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
+        builder.addTitle('🛡️ Diagnóstico da Auto Moderação', 1);
+        builder.addText(`**Servidor:** ${guild.name}`);
+        builder.addSeparator();
+        builder.addText(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
+        builder.addText(`📺 **Canal de Log:** ${channelStatus}`);
+        builder.addText(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
         
         if (channelIssues.length > 0) {
-            builder.line();
-            builder.title('⚠️ Problemas', 2);
+            builder.addSeparator();
+            builder.addTitle('⚠️ Problemas', 2);
             for (const issue of channelIssues) {
-                builder.text(issue);
+                builder.addText(issue);
             }
         }
         
-        builder.footer();
+        builder.addFooter();
         
         await interaction.editReply({
             components: [builder.build()],

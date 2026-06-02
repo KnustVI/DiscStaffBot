@@ -38,17 +38,17 @@ module.exports = {
         
         const builder = ContainerFormatter.create(guild.name, 0xDCA15E);
         
-        builder.title(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
-        builder.text(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
-        builder.line();
-        builder.text(`Selecione os cargos abaixo:`);
-        builder.line();
+        builder.addTitle(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
+        builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
+        builder.addSeparator();
+        builder.addText(`Selecione os cargos abaixo:`);
+        builder.addSeparator();
         
-        builder.text(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.footer();
+        builder.addText(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addText(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.addFooter();
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
