@@ -1,19 +1,19 @@
-// ContainerFormatter.js - VERSÃO ATUALIZADA (mantendo sua estrutura)
-
-const { ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+// /home/ubuntu/DiscStaffBot/src/utils/ContainerFormatter.js
 const { AdvancedContainerBuilder, ButtonHelper, ThumbnailHelper } = require('./containerBuilder');
+const { ButtonBuilder, ButtonStyle } = require('discord.js');
 
 class ContainerFormatter {
-    static create(serverName, color = null) {
-        // Agora retorna o AdvancedContainerBuilder em vez do antigo ContainerBuilderWrapper
-        return new AdvancedContainerBuilder({ serverName, accentColor: color });
+    static create(serverName, accentColor = null) {
+        // ✅ CORRETO: Retorna a instância do builder, não o build()
+        return new AdvancedContainerBuilder({ serverName, accentColor });
     }
 
     static colors = {
         success: 0x57F287,
         error: 0xED4245,
         warning: 0xFEE75C,
-        info: 0x5865F2
+        info: 0x5865F2,
+        primary: 0x5865F2
     };
 
     static field(label, value, code = false) {
@@ -25,40 +25,33 @@ class ContainerFormatter {
     }
 
     static button(id, label, style = 'primary', url = null) {
-        const styles = { primary: 1, secondary: 2, success: 3, danger: 4, link: 5 };
-        const btn = new ButtonBuilder().setLabel(label).setStyle(styles[style] || 1);
+        const styles = { primary: ButtonStyle.Primary, secondary: ButtonStyle.Secondary, success: ButtonStyle.Success, danger: ButtonStyle.Danger, link: ButtonStyle.Link };
+        const btn = new ButtonBuilder().setLabel(label).setStyle(styles[style] || ButtonStyle.Primary);
         return url ? btn.setURL(url) : btn.setCustomId(id);
     }
 
     static thumbnail(url) {
-        // Agora usa o ThumbnailHelper
         return ThumbnailHelper.create(url);
     }
 
     static navButtons(prefix, page, total) {
-        // Agora usa o ButtonHelper.pagination
         return ButtonHelper.pagination(prefix, page, total);
     }
 
-    // NOVO: Método para criar container de relatório (baseado na sua imagem)
     static createReportContainer(data) {
         const builder = this.create(data.serverName || "Servidor", this.colors.info);
         
         builder.addTitle(`REPORT #${data.id || "RID"} | "mention"`);
         builder.addText(`"${data.userInfo || "userinfo"}"`);
         builder.addSeparator();
-        
-        // Status row
         builder.addStatusRow(
             data.status || "✅ Concluído por: @staff há 57 segundos",
             data.punishment || "Nenhuma",
             data.reason || "Resolvido"
         );
-        
         builder.addSeparator();
         builder.addText(`**Staffs:**\n${data.staffs || "@staff (entrou há 26 minutos)"}`);
         
-        // Rating com estrelas
         const stars = '★'.repeat(data.rating || 5) + '☆'.repeat(5 - (data.rating || 5));
         builder.addText(`**Avaliação:** ${data.rating || 5}/5 ${stars}`);
         
@@ -72,7 +65,7 @@ class ContainerFormatter {
         
         builder.addFooter();
         
-        return builder;
+        return builder; // ✅ Retorna o builder, não o build()
     }
 }
 
