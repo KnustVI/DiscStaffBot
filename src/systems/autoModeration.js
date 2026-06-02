@@ -3,7 +3,7 @@ const cron = require('node-cron');
 const db = require('../database/index');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const SessionManager = require('../utils/sessionManager');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/containerFormatter');
 
 let EMOJIS = {};
 try {

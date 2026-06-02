@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const ContainerFormatter = require('../../utils/containerFormatter');
 
 const LOG_CHANNELS = [
     { name: '📥 login', event: 'login', endpoint: 'PlayerLogin' },
