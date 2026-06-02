@@ -9,7 +9,6 @@ const {
     ModalBuilder, 
     TextInputBuilder, 
     TextInputStyle,
-    ComponentType,
     MessageFlags,
 } = require('discord.js');
 const ContainerFormatter = require('../utils/ContainerFormatter');
@@ -59,7 +58,7 @@ class ReportChatSystem {
 
     // ==================== BASE CONTAINER ====================
 
-    createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], extraDescription = '') {
+    createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = []) {
         // Buscar informações adicionais do report
         const reportInfo = db.prepare(`
             SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment, thread_id
@@ -151,11 +150,11 @@ class ReportChatSystem {
         // ==================== 5. AVALIAÇÃO ====================
         if (reportInfo?.rating && reportInfo.rating > 0) {
             const stars = '⭐'.repeat(reportInfo.rating);
-            let ratingText = `### Avaliação: ${reportInfo.rating}/5\n`;
+            let ratingText = `### ⭐ Avaliação: ${reportInfo.rating}/5\n`;
             if (reportInfo.rating_comment) {
                 ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
             }
-            ratingText += `# ${stars}`;
+            ratingText += `${stars}`;
             builder.addText(ratingText);
             builder.addSeparator();
         }
@@ -226,10 +225,10 @@ class ReportChatSystem {
             .setStyle(ButtonStyle.Primary)
             .setEmoji(EMOJIS.chat || '🎫');
         
-        // ✅ Container + botão separadamente
+        // Container + botão separadamente
         return {
             components: [builder.build(), new ActionRowBuilder().addComponents(reportButton)],
-            flags: MessageFlags.IsComponentsV2
+            flags: [MessageFlags.IsComponentsV2]
         };
     }
 
@@ -238,16 +237,15 @@ class ReportChatSystem {
     async openReport(interaction, data) {
         const { guild, user } = interaction;
         
-        // ✅ Removido content com mensagem temporária
         await interaction.editReply({ 
             content: '⏳ Criando report...',
-            flags: MessageFlags.Ephemeral
+            flags: [MessageFlags.Ephemeral]
         });
         
         try {
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (!logChannelId) {
-                await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: MessageFlags.Ephemeral });
+                await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -269,10 +267,9 @@ class ReportChatSystem {
             threadBuilder.addText(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.addFooter();
             
-            // ✅ Flags corrigida
             const threadMsg = await thread.send({ 
                 components: [threadBuilder.build()], 
-                flags: MessageFlags.IsComponentsV2 
+                flags: [MessageFlags.IsComponentsV2] 
             });
 
             // ==================== CONTAINER DE INFORMAÇÕES ====================
@@ -288,13 +285,12 @@ class ReportChatSystem {
             
             await thread.send({ 
                 components: [infoBuilder.build()], 
-                flags: MessageFlags.IsComponentsV2 
+                flags: [MessageFlags.IsComponentsV2] 
             });
 
             // ==================== DM DO USUÁRIO ====================
             const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             
-            // ✅ Botões usando addButtons
             const closeButton = new ButtonBuilder()
                 .setCustomId(`close:${guild.id}:${reportNumber}`)
                 .setLabel('Fechar')
@@ -309,14 +305,13 @@ class ReportChatSystem {
             
             const dmMessage = await user.send({ 
                 components: [dmBuilder.build()], 
-                flags: MessageFlags.IsComponentsV2 
+                flags: [MessageFlags.IsComponentsV2] 
             }).catch(() => null);
 
             // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             
-            // ✅ Botões usando addButtons
             const joinButton = new ButtonBuilder()
                 .setCustomId(`join:${reportId}`)
                 .setLabel('Entrar no Reporte')
@@ -336,7 +331,7 @@ class ReportChatSystem {
             
             const logMessage = await logChannel.send({ 
                 components: [logBuilder.build()], 
-                flags: MessageFlags.IsComponentsV2 
+                flags: [MessageFlags.IsComponentsV2] 
             });
 
             // ==================== SALVAR NO BANCO ====================
@@ -345,15 +340,14 @@ class ReportChatSystem {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(guild.id, reportNumber, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
 
-            // ✅ Resposta final sem content + components misturados
             await interaction.editReply({ 
                 content: `✅ ${reportId} criado! ${thread.url}`,
-                flags: MessageFlags.Ephemeral
+                flags: [MessageFlags.Ephemeral]
             });
             
         } catch (error) {
             console.error('❌ Erro ao criar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao criar report.', flags: MessageFlags.Ephemeral });
+            await interaction.editReply({ content: '❌ Erro ao criar report.', flags: [MessageFlags.Ephemeral] });
         }
     }
     
@@ -395,13 +389,13 @@ class ReportChatSystem {
                 if (logMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                     
-                    // ✅ Preservar botões existentes - extrair dos componentes originais
+                    // Extrair componentes existentes (botões) que não são o container principal
                     const existingComponents = logMessage.components;
-                    const buttonsToPreserve = existingComponents.slice(1); // Pular o primeiro container
+                    const buttonsToPreserve = existingComponents.slice(1);
                     
                     await logMessage.edit({ 
                         components: [updatedBuilder.build(), ...buttonsToPreserve],
-                        flags: MessageFlags.IsComponentsV2 
+                        flags: [MessageFlags.IsComponentsV2] 
                     });
                 }
             }
@@ -415,7 +409,7 @@ class ReportChatSystem {
                     
                     await dmMessage.edit({ 
                         components: [updatedBuilder.build(), ...buttonsToPreserve],
-                        flags: MessageFlags.IsComponentsV2 
+                        flags: [MessageFlags.IsComponentsV2] 
                     });
                 }
             }
@@ -486,7 +480,7 @@ class ReportChatSystem {
                         const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs);
                         await logMessage.edit({ 
                             components: [updatedBuilder.build()], 
-                            flags: MessageFlags.IsComponentsV2 
+                            flags: [MessageFlags.IsComponentsV2] 
                         });
                     }
                 } catch (err) {}
@@ -498,7 +492,6 @@ class ReportChatSystem {
                     if (dmMessage) {
                         const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs);
                         
-                        // ✅ Botão de avaliação usando addButtons
                         const rateButton = new ButtonBuilder()
                             .setCustomId(`rate:${guild.id}:${reportNumber}`)
                             .setLabel('Avaliar Atendimento')
@@ -508,7 +501,7 @@ class ReportChatSystem {
                         
                         await dmMessage.edit({ 
                             components: [updatedBuilder.build()], 
-                            flags: MessageFlags.IsComponentsV2 
+                            flags: [MessageFlags.IsComponentsV2] 
                         });
                     }
                 } catch (err) {}
@@ -565,7 +558,7 @@ class ReportChatSystem {
                         const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                         await logMessage.edit({ 
                             components: [updatedBuilder.build()], 
-                            flags: MessageFlags.IsComponentsV2 
+                            flags: [MessageFlags.IsComponentsV2] 
                         });
                     }
                 } catch (err) {}
@@ -584,16 +577,15 @@ class ReportChatSystem {
     async sendTempReply(interaction, content, success = true) {
         const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
         
+        const replyOptions = { 
+            content: `${emoji} ${content}`, 
+            flags: [MessageFlags.Ephemeral, MessageFlags.IsComponentsV2]
+        };
+        
         if (interaction.replied || interaction.deferred) {
-            await interaction.editReply({ 
-                content: `${emoji} ${content}`,
-                flags: MessageFlags.Ephemeral
-            });
+            await interaction.editReply(replyOptions);
         } else {
-            await interaction.reply({ 
-                content: `${emoji} ${content}`, 
-                flags: MessageFlags.Ephemeral 
-            });
+            await interaction.reply(replyOptions);
         }
         
         setTimeout(async () => {
@@ -629,7 +621,7 @@ class ReportChatSystem {
                 
                 await logMessage.edit({ 
                     components: [updatedBuilder.build(), ...buttonsToPreserve],
-                    flags: MessageFlags.IsComponentsV2 
+                    flags: [MessageFlags.IsComponentsV2] 
                 });
             }
         }
@@ -643,7 +635,7 @@ class ReportChatSystem {
                 
                 await dmMessage.edit({ 
                     components: [updatedBuilder.build(), ...buttonsToPreserve],
-                    flags: MessageFlags.IsComponentsV2 
+                    flags: [MessageFlags.IsComponentsV2] 
                 });
             }
         }
