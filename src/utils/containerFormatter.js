@@ -1,13 +1,11 @@
-const { ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const ContainerBuilderWrapper = require('./ContainerBuilder');
 
 class ContainerFormatter {
-    // Cria builder pronto
     static create(serverName, color = null) {
         return new ContainerBuilderWrapper({ serverName, accentColor: color });
     }
 
-    // Cores prontas
     static colors = {
         success: 0x57F287,
         error: 0xED4245,
@@ -15,17 +13,14 @@ class ContainerFormatter {
         info: 0x5865F2
     };
 
-    // Campo label: valor
     static field(label, value, code = false) {
         return `**${label}:** ${code ? `\`${value}\`` : value}`;
     }
 
-    // Rodapé de paginação
     static pagination(page, total, records) {
         return `📄 Página ${page}/${total} • ${records} registros`;
     }
 
-    // Botão rápido
     static button(id, label, style = 'primary', url = null) {
         const styles = { primary: 1, secondary: 2, success: 3, danger: 4, link: 5 };
         const btn = new ButtonBuilder().setLabel(label).setStyle(styles[style] || 1);
@@ -33,14 +28,21 @@ class ContainerFormatter {
     }
 
     static thumbnail(url) {
-        const { ComponentType } = require('discord.js');
         return {
-            type: ComponentType.Thumbnail,
+            type: ComponentType.Thumbnail,  // ✅ Importado corretamente
             url: url
         };
-    }   
+    }
 
-    // Botões de navegação
+    static linkButton(label, url) {
+        return {
+            type: 2,  // ComponentType.Button
+            style: 5,  // ButtonStyle.Link
+            label: label,
+            url: url
+        };
+    }
+
     static navButtons(prefix, page, total) {
         return [
             this.button(`${prefix}_first`, '⏮️', 'secondary').setDisabled(page === 1),

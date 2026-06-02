@@ -1,7 +1,7 @@
 const {
     ContainerBuilder, ActionRowBuilder, ButtonBuilder, SectionBuilder,
     TextDisplayBuilder, SeparatorBuilder, MediaGalleryBuilder,
-    MediaItemBuilder, ThumbnailBuilder
+    MediaItemBuilder
 } = require('discord.js');
 
 class ContainerBuilderWrapper {
@@ -31,8 +31,7 @@ class ContainerBuilderWrapper {
 
     section(text, accessory = null) {
         const textDisplay = new TextDisplayBuilder().setContent(text);
-        const section = new SectionBuilder().addComponents(textDisplay);
-        //                                   ^^^^^^^^^^^^^^ Correto!
+        const section = new SectionBuilder().setText(textDisplay);
         if (accessory) section.setAccessory(accessory);
         this.components.push(section);
         return this;
@@ -73,8 +72,7 @@ class ContainerBuilderWrapper {
 
     build() {
         if (!this.components.length) this.text("⚠️ Sem informações");
-        
-        // Adiciona cada componente ao ContainerBuilder nativo
+    
         for (const component of this.components) {
             if (component instanceof TextDisplayBuilder) {
                 this.container.addTextDisplayComponents(component);
