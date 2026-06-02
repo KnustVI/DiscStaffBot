@@ -10,7 +10,7 @@
  * - URLs dos endpoints
  */
 const db = require('../database/index');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/containerFormatter.js');
 
 let EMOJIS = {};
 try {
