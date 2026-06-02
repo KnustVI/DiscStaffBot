@@ -1,6 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/commands/developer/automod.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const ContainerFormatter = require('../../utils/containerFormatter');
 const { AutoModerationSystem } = require('../../systems/autoModeration');
 
 module.exports = {

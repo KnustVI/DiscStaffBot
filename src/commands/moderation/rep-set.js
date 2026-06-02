@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const ContainerFormatter = require('../../utils/containerFormatter');
 
 module.exports = {
     data: new SlashCommandBuilder()

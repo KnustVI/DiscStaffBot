@@ -1,7 +1,7 @@
 // src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/containerFormatter');
 const os = require('os');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 

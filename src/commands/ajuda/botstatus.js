@@ -4,7 +4,7 @@ const db = require('../../database/index');
 const SystemStatus = require('../../systems/systemStatus');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const ContainerFormatter = require('../../utils/containerFormatter');
 
 const DEVELOPER_ID = '203676076189286412';
 
