@@ -30,7 +30,9 @@ class ContainerBuilderWrapper {
     }
 
     section(text, accessory = null) {
-        const section = new SectionBuilder().setText(new TextDisplayBuilder().setContent(text));
+        const textDisplay = new TextDisplayBuilder().setContent(text);
+        const section = new SectionBuilder().addComponents(textDisplay);
+        //                                   ^^^^^^^^^^^^^^ Correto!
         if (accessory) section.setAccessory(accessory);
         this.components.push(section);
         return this;
