@@ -82,7 +82,7 @@ class ReportChatSystem {
         
         // ==================== 1. HEADER COM THUMBNAIL ====================
         const thumbnail = ContainerFormatter.thumbnail(user.displayAvatarURL({ size: 64 }));
-        builder.section(
+        builder.addSection(
             `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n${ContainerFormatter.field('Userinfo', `${user.tag} (${user.id})`)}`,
             thumbnail
         );
@@ -121,22 +121,20 @@ class ReportChatSystem {
         // Criar botão de link se existir thread
         if (reportInfo?.thread_id) {
             const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
-            const linkButton = {
-                type: ComponentType.Button,
-                style: ButtonStyle.Link,
-                label: '🔗 Ir para o chat',
-                url: threadLink
-            };
-            builder.section(statusText, linkButton);
+            const linkButton = new ButtonBuilder()
+                .setURL(threadLink)
+                .setLabel('🔗 Ir para o chat')
+                .setStyle(ButtonStyle.Link);
+            builder.addSection(statusText, linkButton);
         } else {
-            builder.text(statusText);
+            builder.addText(statusText);
         }
-        builder.line();
+        builder.addSeparator();
         
         // ==================== 3. MOTIVO ====================
         if (closedReason) {
-            builder.text(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
-            builder.line();
+            builder.addText(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
+            builder.addSeparator();
         }
         
         // ==================== 4. STAFFS ====================
@@ -146,8 +144,8 @@ class ReportChatSystem {
                 const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
                 staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
             }
-            builder.text(staffsText);
-            builder.line();
+            builder.addText(staffsText);
+            builder.addSeparator();
         }
         
         // ==================== 5. AVALIAÇÃO ====================
@@ -158,12 +156,12 @@ class ReportChatSystem {
                 ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
             }
             ratingText += `# ${stars}`;
-            builder.text(ratingText);
-            builder.line();
+            builder.addText(ratingText);
+            builder.addSeparator();
         }
         
         // ==================== 6. FOOTER ====================
-        builder.footer();
+        builder.addFooter();
         
         return builder;
     }
@@ -211,15 +209,15 @@ class ReportChatSystem {
     getPanel(guildName, guildIcon) {
         const builder = ContainerFormatter.create(guildName, 0xDCA15E);
         
-        builder.title(`${EMOJIS.chat || '🎫'} Denúncia de jogador`, 1);
-        builder.text([
+        builder.addTitle(`${EMOJIS.chat || '🎫'} Denúncia de jogador`, 1);
+        builder.addText([
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
             `- **Preencha o Formulário**: Responda o formulário enviado pelo bot.`,
             `- **Descreva a Situação**: Explique o que aconteceu.`,
             `- **Envie as Provas**: Inclua vídeos ou prints.`,
             `- **Aguarde a Análise**: A equipe analisará o caso.`
         ].join('\n'));
-        builder.footer();
+        builder.addFooter();
 
         // Botão do painel usando ButtonBuilder
         const reportButton = new ButtonBuilder()
@@ -267,9 +265,9 @@ class ReportChatSystem {
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = ContainerFormatter.create(guild.name, 0xDCA15E);
-            threadBuilder.title(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
-            threadBuilder.text(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
-            threadBuilder.footer();
+            threadBuilder.addTitle(`${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`, 1);
+            threadBuilder.addText(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
+            threadBuilder.addFooter();
             
             // ✅ Flags corrigida
             const threadMsg = await thread.send({ 
@@ -279,14 +277,14 @@ class ReportChatSystem {
 
             // ==================== CONTAINER DE INFORMAÇÕES ====================
             const infoBuilder = ContainerFormatter.create(guild.name, 0xDCA15E);
-            infoBuilder.title(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
-            infoBuilder.line();
-            infoBuilder.text(`**📝 Regra quebrada:** ${data.regra}`);
-            infoBuilder.text(`**⏰ Quando aconteceu:** ${data.dataHora}`);
-            infoBuilder.text(`**📍 Local:** ${data.local || 'Não informado'}`);
-            infoBuilder.text(`**📋 Descrição:** ${data.descricao}`);
-            infoBuilder.text(`**⚖️ Termo de convivência:** ${data.termo}`);
-            infoBuilder.footer();
+            infoBuilder.addTitle(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
+            infoBuilder.addSeparator();
+            infoBuilder.addText(`**📝 Regra quebrada:** ${data.regra}`);
+            infoBuilder.addText(`**⏰ Quando aconteceu:** ${data.dataHora}`);
+            infoBuilder.addText(`**📍 Local:** ${data.local || 'Não informado'}`);
+            infoBuilder.addText(`**📋 Descrição:** ${data.descricao}`);
+            infoBuilder.addText(`**⚖️ Termo de convivência:** ${data.termo}`);
+            infoBuilder.addFooter();
             
             await thread.send({ 
                 components: [infoBuilder.build()], 
@@ -296,7 +294,7 @@ class ReportChatSystem {
             // ==================== DM DO USUÁRIO ====================
             const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             
-            // ✅ Botões dentro do Container usando .buttons()
+            // ✅ Botões usando addButtons
             const closeButton = new ButtonBuilder()
                 .setCustomId(`close:${guild.id}:${reportNumber}`)
                 .setLabel('Fechar')
@@ -307,7 +305,7 @@ class ReportChatSystem {
                 .setLabel('Fechar com Motivo')
                 .setStyle(ButtonStyle.Primary);
             
-            dmBuilder.buttons(closeButton, closeReasonButton);
+            dmBuilder.addButtons(closeButton, closeReasonButton);
             
             const dmMessage = await user.send({ 
                 components: [dmBuilder.build()], 
@@ -318,7 +316,7 @@ class ReportChatSystem {
             const logChannel = await guild.channels.fetch(logChannelId);
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
             
-            // ✅ Botões no log
+            // ✅ Botões usando addButtons
             const joinButton = new ButtonBuilder()
                 .setCustomId(`join:${reportId}`)
                 .setLabel('Entrar no Reporte')
@@ -334,7 +332,7 @@ class ReportChatSystem {
                 .setLabel('Fechar com Motivo')
                 .setStyle(ButtonStyle.Primary);
             
-            logBuilder.buttons(joinButton, logCloseButton, logCloseReasonButton);
+            logBuilder.addButtons(joinButton, logCloseButton, logCloseReasonButton);
             
             const logMessage = await logChannel.send({ 
                 components: [logBuilder.build()], 
@@ -397,7 +395,7 @@ class ReportChatSystem {
                 if (logMessage) {
                     const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                     
-                    // ✅ Preservar botões existentes
+                    // ✅ Preservar botões existentes - extrair dos componentes originais
                     const existingComponents = logMessage.components;
                     const buttonsToPreserve = existingComponents.slice(1); // Pular o primeiro container
                     
@@ -479,17 +477,13 @@ class ReportChatSystem {
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
             
-            // Extra description com motivo de fechamento
-            let extraDesc = `\n\n🔒 **Fechado por:** ${closedByMention}\n📅 **Data:** <t:${Math.floor(closedAt / 1000)}:F>`;
-            if (motivo) extraDesc += `\n📝 **Motivo:** ${motivo}`;
-            
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId);
                     const logMessage = await logChannel.messages.fetch(report.log_message_id);
                     if (logMessage) {
-                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs);
                         await logMessage.edit({ 
                             components: [updatedBuilder.build()], 
                             flags: MessageFlags.IsComponentsV2 
@@ -502,15 +496,15 @@ class ReportChatSystem {
                 try {
                     const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                     if (dmMessage) {
-                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, extraDesc);
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs);
                         
-                        // ✅ Botão de avaliação dentro do Container
+                        // ✅ Botão de avaliação usando addButtons
                         const rateButton = new ButtonBuilder()
                             .setCustomId(`rate:${guild.id}:${reportNumber}`)
                             .setLabel('Avaliar Atendimento')
                             .setStyle(ButtonStyle.Secondary);
                         
-                        updatedBuilder.buttons(rateButton);
+                        updatedBuilder.addButtons(rateButton);
                         
                         await dmMessage.edit({ 
                             components: [updatedBuilder.build()], 
@@ -561,7 +555,6 @@ class ReportChatSystem {
             const guild = this.client.guilds.cache.get(report.guild_id);
             const staffs = report.staffs ? JSON.parse(report.staffs) : [];
             const targetUser = await this.client.users.fetch(report.user_id);
-            const extraDesc = `\n\n⭐ **Avaliação:** ${'⭐'.repeat(nota)} (${nota}/5)\n💬 **Comentário:** ${comentario || 'Nenhum'}`;
             
             const logChannelId = ConfigSystem.getSetting(report.guild_id, 'log_reports');
             if (logChannelId && report.log_message_id && guild) {
@@ -569,7 +562,7 @@ class ReportChatSystem {
                     const logChannel = await guild.channels.fetch(logChannelId);
                     const logMessage = await logChannel.messages.fetch(report.log_message_id);
                     if (logMessage) {
-                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, extraDesc);
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                         await logMessage.edit({ 
                             components: [updatedBuilder.build()], 
                             flags: MessageFlags.IsComponentsV2 
