@@ -1,6 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/systems/analyticsSystem.js
 const db = require('../database/index');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/containerFormatter');
 
 let EMOJIS = {};
 try {
