@@ -29,16 +29,7 @@ class ContainerFormatter {
 
     static thumbnail(url) {
         return {
-            type: ComponentType.Thumbnail,  // ✅ Importado corretamente
-            url: url
-        };
-    }
-
-    static linkButton(label, url) {
-        return {
-            type: 2,  // ComponentType.Button
-            style: 5,  // ButtonStyle.Link
-            label: label,
+            type: ComponentType.Thumbnail,
             url: url
         };
     }

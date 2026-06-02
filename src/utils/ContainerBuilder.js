@@ -1,7 +1,7 @@
 const {
     ContainerBuilder, ActionRowBuilder, ButtonBuilder, SectionBuilder,
     TextDisplayBuilder, SeparatorBuilder, MediaGalleryBuilder,
-    MediaItemBuilder
+    MediaItemBuilder, ComponentType
 } = require('discord.js');
 
 class ContainerBuilderWrapper {
@@ -29,13 +29,29 @@ class ContainerBuilderWrapper {
         return this;
     }
 
-    // ✅ CORREÇÃO DEFINITIVA - USA addTextDisplayComponents
+    // ✅ CORRETO - Usando addTextDisplayComponents e addAccessoryComponents
     section(text, accessory = null) {
         const textDisplay = new TextDisplayBuilder().setContent(text);
-        const section = new SectionBuilder().addTextDisplayComponents(textDisplay);
-        //                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
-        //                                      Este é o método correto!
-        if (accessory) section.setAccessory(accessory);
+        const section = new SectionBuilder()
+            .addTextDisplayComponents(textDisplay);
+        
+        if (accessory) {
+            // Accessory pode ser Thumbnail (objeto) ou ButtonBuilder
+            if (accessory.type === ComponentType.Thumbnail || accessory.type === 11) {
+                // Para thumbnail, precisamos criar um componente de imagem
+                const thumbnailComponent = {
+                    type: ComponentType.Thumbnail,
+                    url: accessory.url
+                };
+                section.addAccessoryComponents(thumbnailComponent);
+            } else if (accessory instanceof ButtonBuilder) {
+                section.addAccessoryComponents(accessory);
+            } else if (accessory.type === 2) {
+                // Botão em formato objeto
+                section.addAccessoryComponents(accessory);
+            }
+        }
+        
         this.components.push(section);
         return this;
     }
