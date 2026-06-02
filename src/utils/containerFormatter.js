@@ -1,10 +1,8 @@
-// /home/ubuntu/DiscStaffBot/src/utils/ContainerFormatter.js
 const { AdvancedContainerBuilder, ButtonHelper, ThumbnailHelper } = require('./containerBuilder');
 const { ButtonBuilder, ButtonStyle } = require('discord.js');
 
 class ContainerFormatter {
     static create(serverName, accentColor = null) {
-        // ✅ CORRETO: Retorna a instância do builder, não o build()
         return new AdvancedContainerBuilder({ serverName, accentColor });
     }
 
@@ -25,7 +23,13 @@ class ContainerFormatter {
     }
 
     static button(id, label, style = 'primary', url = null) {
-        const styles = { primary: ButtonStyle.Primary, secondary: ButtonStyle.Secondary, success: ButtonStyle.Success, danger: ButtonStyle.Danger, link: ButtonStyle.Link };
+        const styles = { 
+            primary: ButtonStyle.Primary, 
+            secondary: ButtonStyle.Secondary, 
+            success: ButtonStyle.Success, 
+            danger: ButtonStyle.Danger, 
+            link: ButtonStyle.Link 
+        };
         const btn = new ButtonBuilder().setLabel(label).setStyle(styles[style] || ButtonStyle.Primary);
         return url ? btn.setURL(url) : btn.setCustomId(id);
     }
@@ -65,7 +69,7 @@ class ContainerFormatter {
         
         builder.addFooter();
         
-        return builder; // ✅ Retorna o builder, não o build()
+        return builder;
     }
 }
 

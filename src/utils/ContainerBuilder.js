@@ -1,4 +1,3 @@
-// containerBuilder.js
 const {
     ContainerBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder,
     SectionBuilder, TextDisplayBuilder, SeparatorBuilder, MediaGalleryBuilder,
@@ -22,7 +21,6 @@ class AdvancedContainerBuilder {
         this.showFooter = options.showFooter !== false;
     }
 
-    // Adicionar título
     addTitle(text, level = 1) {
         const prefix = '#'.repeat(Math.min(level, 3));
         const textDisplay = new TextDisplayBuilder()
@@ -31,7 +29,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar texto simples
     addText(content) {
         const textDisplay = new TextDisplayBuilder()
             .setContent(content);
@@ -39,34 +36,25 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar separador
     addSeparator() {
         this.separators.push(new SeparatorBuilder());
         return this;
     }
 
-    // Adicionar Section com texto e accessory (thumbnail ou botão)
     addSection(text, accessory = null, accessoryPosition = 'right') {
         const textDisplay = new TextDisplayBuilder().setContent(text);
         const section = new SectionBuilder()
             .addTextDisplayComponents(textDisplay);
         
         if (accessory) {
-            // Para thumbnail (imagem)
             if (accessory.type === 'thumbnail' || accessory.url) {
                 const thumbnailComponent = {
                     type: ComponentType.Thumbnail,
                     url: accessory.url || accessory
                 };
-                if (accessoryPosition === 'left') {
-                    section.addAccessoryComponents(thumbnailComponent);
-                } else {
-                    section.addAccessoryComponents(thumbnailComponent);
-                }
+                section.addAccessoryComponents(thumbnailComponent);
             }
-            // Para botão
             else if (accessory instanceof ButtonBuilder) {
-                // Botões em Section precisam estar em ActionRow dentro da Section
                 const buttonRow = new ActionRowBuilder().addComponents(accessory);
                 section.addAccessoryComponents(buttonRow);
             }
@@ -76,7 +64,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar Section com dois textos lado a lado
     addSplitSection(leftText, rightText, leftAccessory = null, rightAccessory = null) {
         const leftDisplay = new TextDisplayBuilder().setContent(leftText);
         const rightDisplay = new TextDisplayBuilder().setContent(rightText);
@@ -112,21 +99,17 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar Section com múltiplos componentes
     addMultiColumnSection(columns) {
-        // columns: array de {text, accessory, accessoryPosition}
         const textDisplays = columns.map(col => 
             new TextDisplayBuilder().setContent(col.text)
         );
         
         const section = new SectionBuilder();
         
-        // Adicionar todos os textos
         textDisplays.forEach(textDisplay => {
             section.addTextDisplayComponents(textDisplay);
         });
         
-        // Adicionar accessories
         columns.forEach(col => {
             if (col.accessory) {
                 if (col.accessory.type === 'thumbnail' || col.accessory.url) {
@@ -145,7 +128,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar botões (em ActionRow fora das Sections)
     addButtons(...buttons) {
         const flatButtons = buttons.flat().filter(b => b instanceof ButtonBuilder);
         
@@ -159,7 +141,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar Select Menu
     addSelectMenu(selectMenu) {
         if (selectMenu instanceof StringSelectMenuBuilder) {
             const row = new ActionRowBuilder().addComponents(selectMenu);
@@ -168,7 +149,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar ActionRow personalizada
     addActionRow(row) {
         if (row instanceof ActionRowBuilder) {
             this.actionRows.push(row);
@@ -176,7 +156,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar galeria de mídia
     addGallery(imageUrls, title = null) {
         if (imageUrls && imageUrls.length > 0) {
             const gallery = new MediaGalleryBuilder();
@@ -194,27 +173,22 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar campo formatado (para dados como no exemplo do relatório)
     addField(label, value, inline = false) {
         const fieldText = inline ? `**${label}:** ${value}` : `**${label}:**\n${value}`;
         return this.addText(fieldText);
     }
 
-    // Adicionar linha de status (como no exemplo)
     addStatusRow(status, punishment, reason) {
         const section = new SectionBuilder();
         
-        // Status com emoji
         const statusText = new TextDisplayBuilder()
             .setContent(`**Status:**\n${status}`);
         section.addTextDisplayComponents(statusText);
         
-        // Punição
         const punishmentText = new TextDisplayBuilder()
             .setContent(`**Punição aplicada:**\n${punishment}`);
         section.addTextDisplayComponents(punishmentText);
         
-        // Motivo
         const reasonText = new TextDisplayBuilder()
             .setContent(`**Motivo:**\n${reason}`);
         section.addTextDisplayComponents(reasonText);
@@ -223,7 +197,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar avaliação com estrelas
     addRating(rating, comment = null) {
         const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
         
@@ -243,7 +216,6 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Adicionar footer
     addFooter(customText = null) {
         if (this.showFooter) {
             const footerText = customText || 
@@ -255,30 +227,23 @@ class AdvancedContainerBuilder {
         return this;
     }
 
-    // Build do container final
     build() {
-        // Adicionar todos os componentes ao container na ordem correta
-        // 1. TextDisplays
         for (const textDisplay of this.textDisplays) {
             this.container.addTextDisplayComponents(textDisplay);
         }
         
-        // 2. Separators
         for (const separator of this.separators) {
             this.container.addSeparatorComponents(separator);
         }
         
-        // 3. Sections
         for (const section of this.sections) {
             this.container.addSectionComponents(section);
         }
         
-        // 4. MediaGalleries
         for (const gallery of this.mediaGalleries) {
             this.container.addMediaGalleryComponents(gallery);
         }
         
-        // 5. ActionRows (buttons e selects)
         for (const row of this.actionRows) {
             this.container.addActionRowComponents(row);
         }
@@ -287,7 +252,6 @@ class AdvancedContainerBuilder {
     }
 }
 
-// Helper para criar thumbnails
 class ThumbnailHelper {
     static create(url) {
         return {
@@ -304,13 +268,12 @@ class ThumbnailHelper {
     }
 }
 
-// Helper para botões (simplificado)
 class ButtonHelper {
     static primary(customId, label, disabled = false) {
         return new ButtonBuilder()
             .setCustomId(customId)
             .setLabel(label)
-            .setStyle(ComponentType.Button.Primary)
+            .setStyle(ButtonStyle.Primary)
             .setDisabled(disabled);
     }
     
@@ -318,7 +281,7 @@ class ButtonHelper {
         return new ButtonBuilder()
             .setCustomId(customId)
             .setLabel(label)
-            .setStyle(ComponentType.Button.Secondary)
+            .setStyle(ButtonStyle.Secondary)
             .setDisabled(disabled);
     }
     
@@ -326,7 +289,7 @@ class ButtonHelper {
         return new ButtonBuilder()
             .setCustomId(customId)
             .setLabel(label)
-            .setStyle(ComponentType.Button.Success)
+            .setStyle(ButtonStyle.Success)
             .setDisabled(disabled);
     }
     
@@ -334,7 +297,7 @@ class ButtonHelper {
         return new ButtonBuilder()
             .setCustomId(customId)
             .setLabel(label)
-            .setStyle(ComponentType.Button.Danger)
+            .setStyle(ButtonStyle.Danger)
             .setDisabled(disabled);
     }
     
@@ -342,7 +305,7 @@ class ButtonHelper {
         return new ButtonBuilder()
             .setURL(url)
             .setLabel(label)
-            .setStyle(ComponentType.Button.Link);
+            .setStyle(ButtonStyle.Link);
     }
     
     static pagination(prefix, currentPage, totalPages) {
@@ -361,98 +324,8 @@ class ButtonHelper {
     }
 }
 
-// Formatter para criar containers rapidamente
-class ContainerFormatter {
-    static create(serverName, accentColor = null) {
-        return new AdvancedContainerBuilder({ serverName, accentColor });
-    }
-    
-    static colors = {
-        success: 0x57F287,
-        error: 0xED4245,
-        warning: 0xFEE75C,
-        info: 0x5865F2,
-        primary: 0x5865F2
-    };
-    
-    // Criar container para relatório (baseado na imagem)
-    static createReportContainer(data) {
-        const builder = this.create(data.serverName || "Servidor", this.colors.primary);
-        
-        builder.addTitle(`REPORT #${data.id || "RID"} | "mention"`);
-        builder.addText(`"${data.userInfo || "userinfo"}"`);
-        builder.addSeparator();
-        
-        builder.addStatusRow(
-            data.status || "✅ Concluído por: @staff há 57 segundos",
-            data.punishment || "Nenhuma",
-            data.reason || "Resolvido"
-        );
-        
-        builder.addSeparator();
-        
-        builder.addText(`**Staffs:**\n${data.staffs || "@staff (entrou há 26 minutos)"}`);
-        
-        builder.addRating(data.rating || 5, data.comment || null);
-        
-        if (data.image) {
-            builder.addSection("", ThumbnailHelper.create(data.image));
-        }
-        
-        builder.addFooter();
-        
-        return builder;
-    }
-    
-    // Criar container para lista paginada
-    static createPaginatedContainer(items, page, itemsPerPage, title, serverName) {
-        const start = (page - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-        const pageItems = items.slice(start, end);
-        const totalPages = Math.ceil(items.length / itemsPerPage);
-        
-        const builder = this.create(serverName, this.colors.info);
-        
-        builder.addTitle(title);
-        builder.addSeparator();
-        
-        pageItems.forEach(item => {
-            if (item.inline) {
-                builder.addSplitSection(
-                    `**${item.name}:** ${item.value}`,
-                    item.secondary ? `**${item.secondary.name}:** ${item.secondary.value}` : ''
-                );
-            } else {
-                builder.addField(item.name, item.value);
-                builder.addSeparator();
-            }
-        });
-        
-        builder.addSeparator();
-        builder.addText(`📄 Página ${page}/${totalPages} • ${items.length} registros`);
-        
-        return { builder, totalPages };
-    }
-    
-    // Criar container com botões de navegação
-    static createWithNavigation(items, page, itemsPerPage, title, prefix, serverName) {
-        const { builder, totalPages } = this.createPaginatedContainer(
-            items, page, itemsPerPage, title, serverName
-        );
-        
-        const navButtons = ButtonHelper.pagination(prefix, page, totalPages);
-        
-        if (navButtons.length > 0) {
-            builder.addButtons(navButtons);
-        }
-        
-        return builder;
-    }
-}
-
 module.exports = {
     AdvancedContainerBuilder,
-    ContainerFormatter,
     ButtonHelper,
     ThumbnailHelper
 };
