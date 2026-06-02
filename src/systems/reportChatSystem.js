@@ -9,7 +9,7 @@ const {
     ModalBuilder, 
     TextInputBuilder, 
     TextInputStyle,
-    ThumbnailBuilder
+    ComponentType,
 } = require('discord.js');
 const ContainerFormatter = require('../utils/ContainerFormatter');
 
@@ -82,7 +82,7 @@ class ReportChatSystem {
         // ==================== 1. HEADER COM THUMBNAIL ====================
         const thumbnailUrl = user.displayAvatarURL({ size: 64 });
             const thumbnail = {
-            type: 11,
+            type: ComponentType.Thumbnail,
             url: thumbnailUrl
         };
         
