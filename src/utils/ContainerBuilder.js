@@ -29,9 +29,12 @@ class ContainerBuilderWrapper {
         return this;
     }
 
+    // ✅ CORREÇÃO DEFINITIVA - USA addTextDisplayComponents
     section(text, accessory = null) {
         const textDisplay = new TextDisplayBuilder().setContent(text);
-        const section = new SectionBuilder().setText(textDisplay);
+        const section = new SectionBuilder().addTextDisplayComponents(textDisplay);
+        //                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        //                                      Este é o método correto!
         if (accessory) section.setAccessory(accessory);
         this.components.push(section);
         return this;
@@ -72,7 +75,7 @@ class ContainerBuilderWrapper {
 
     build() {
         if (!this.components.length) this.text("⚠️ Sem informações");
-    
+        
         for (const component of this.components) {
             if (component instanceof TextDisplayBuilder) {
                 this.container.addTextDisplayComponents(component);

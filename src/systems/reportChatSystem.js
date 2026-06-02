@@ -91,7 +91,6 @@ class ReportChatSystem {
             `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n${ContainerFormatter.field('Userinfo', `${user.tag} (${user.id})`)}`,
             thumbnail
         );
-        builder.line();
         
         // ==================== 2. STATUS ====================
         let statusText = '';
