@@ -3,7 +3,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
 const SessionManager = require('../utils/sessionManager');
-const ContainerFormatter = require('../utils/ContainerFormatter');
+const ContainerFormatter = require('../utils/containerFormatter.js');
 const SequenceManager = require('../database/sequences');
 
 const COLORS = {
