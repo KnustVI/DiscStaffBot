@@ -137,7 +137,6 @@ class PaginationBuilder {
         
         // Se tiver rodapé e não foi adicionado ainda
         if (footer && !builder._hasFooter) {
-            // Verifica se o builder já tem footer (marcador interno)
             builder.footer(footer.replace('{page}', `${index + 1}/${total}`));
         }
         
@@ -183,8 +182,12 @@ class PaginationBuilder {
             payload.flags = payload.flags | MessageFlags.Ephemeral;
         }
 
-        // Envia a mensagem inicial
-        await interaction.reply(payload);
+        // ✅ CORREÇÃO: Verifica se a interação já está deferida
+        if (interaction.deferred) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.reply(payload);
+        }
 
         // Configura o coletor
         const filter = (i) => {
@@ -245,7 +248,6 @@ class PaginationBuilder {
      * Verifica se o builder já tem footer
      */
     _hasFooter() {
-        // Marcador interno que pode ser definido
         return this._footerAdded || false;
     }
 }

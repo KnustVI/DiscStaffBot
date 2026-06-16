@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/commands/utility/ajuda.js
-const { SlashCommandBuilder, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
@@ -122,7 +122,7 @@ module.exports = {
             // ----------------------------------------------------------------
             if (!isAdmin) {
                 const page = buildPageUserSimple(member.displayName, guild.name, emojis);
-                await interaction.reply(page.build());
+                await interaction.editReply(page.build());
                 console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (usuário comum)`);
                 return;
             }
@@ -153,7 +153,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ Erro no ajuda:', error);
-            await interaction.reply({
+            await interaction.editReply({
                 content: '❌ Erro ao gerar guia de ajuda. Tente novamente.',
                 flags: MessageFlags.Ephemeral
             });
