@@ -323,7 +323,7 @@ const ConfigSystem = {
         const replyData = {
             components: [...components, row],
             flags,
-            
+            ...(successMessage ? { content: successMessage } : {}),
         };
         
         if (interaction.deferred || interaction.replied) {
@@ -367,7 +367,7 @@ const ConfigSystem = {
         const replyData = {
             components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow],
             flags,
-            
+            ...(successMessage ? { content: successMessage } : {}),
         };
         
         try {
@@ -437,7 +437,7 @@ const ConfigSystem = {
         const replyData = {
             components: [...components, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow],
             flags,
-            
+            ...(successMessage ? { content: successMessage } : {}),
         };
         
         try {
