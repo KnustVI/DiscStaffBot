@@ -76,6 +76,7 @@ class PaginationBuilder {
     /**
      * Gera os botões de navegação para a página atual
      * @param {string} customIdPrefix - Prefixo para os IDs dos botões
+     * @param {number} totalPages - Total de páginas
      * @returns {ActionRowBuilder}
      */
     _buildNavRow(customIdPrefix, totalPages) {
@@ -91,7 +92,6 @@ class PaginationBuilder {
                 .setLabel(next.label)
                 .setStyle(next.style)
                 .setDisabled(this.currentPage === totalPages - 1),
-            // Adiciona um indicador de página
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_page_${this.currentPage}`)
                 .setLabel(`📄 ${this.currentPage + 1}/${totalPages}`)
@@ -102,6 +102,8 @@ class PaginationBuilder {
 
     /**
      * Gera os botões desabilitados (fim do coletor)
+     * @param {string} customIdPrefix - Prefixo para os IDs dos botões
+     * @returns {ActionRowBuilder}
      */
     _buildDisabledNavRow(customIdPrefix) {
         return new ActionRowBuilder().addComponents(
@@ -135,8 +137,7 @@ class PaginationBuilder {
         const total = this.pages.length;
         const footer = customFooter || page.footer || this.footerText;
         
-        // Se tiver rodapé e não foi adicionado ainda
-        if (footer && !builder._hasFooter) {
+        if (footer) {
             builder.footer(footer.replace('{page}', `${index + 1}/${total}`));
         }
         
@@ -174,19 +175,23 @@ class PaginationBuilder {
         const footer = options.footer || this.footerText;
         const ephemeral = options.ephemeral || false;
 
-        // Payload inicial
+        // Payload inicial (SEM content para compatibilidade com Components V2)
         const payload = this._buildPayload(0, customIdPrefix, footer);
         
-        // Se for ephemeral, adiciona a flag
         if (ephemeral) {
             payload.flags = payload.flags | MessageFlags.Ephemeral;
         }
 
-        // ✅ CORREÇÃO: Verifica se a interação já está deferida
-        if (interaction.deferred) {
-            await interaction.editReply(payload);
-        } else {
-            await interaction.reply(payload);
+        // Envia a mensagem inicial verificando se já está deferida
+        try {
+            if (interaction.deferred) {
+                await interaction.editReply(payload);
+            } else {
+                await interaction.reply(payload);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao enviar resposta inicial da paginação:', error);
+            throw error;
         }
 
         // Configura o coletor
@@ -202,21 +207,29 @@ class PaginationBuilder {
         });
 
         this.collector.on('collect', async (i) => {
-            // DeferUpdate é obrigatório para responder ao clique
-            await i.deferUpdate();
+            try {
+                // Verifica se a interação ainda é válida
+                if (!i.isRepliable()) {
+                    console.warn('⚠️ Interação não pode ser respondida');
+                    return;
+                }
 
-            const isPrev = i.customId.startsWith(`${customIdPrefix}_prev_`);
-            const isNext = i.customId.startsWith(`${customIdPrefix}_next_`);
+                await i.deferUpdate();
 
-            if (isPrev) {
-                this.currentPage = Math.max(0, this.currentPage - 1);
-            } else if (isNext) {
-                this.currentPage = Math.min(this.pages.length - 1, this.currentPage + 1);
+                const isPrev = i.customId.startsWith(`${customIdPrefix}_prev_`);
+                const isNext = i.customId.startsWith(`${customIdPrefix}_next_`);
+
+                if (isPrev) {
+                    this.currentPage = Math.max(0, this.currentPage - 1);
+                } else if (isNext) {
+                    this.currentPage = Math.min(this.pages.length - 1, this.currentPage + 1);
+                }
+
+                const newPayload = this._buildPayload(this.currentPage, customIdPrefix, footer);
+                await i.editReply(newPayload);
+            } catch (error) {
+                console.error('❌ Erro no coletor de paginação:', error);
             }
-
-            // Atualiza a mensagem
-            const newPayload = this._buildPayload(this.currentPage, customIdPrefix, footer);
-            await i.editReply(newPayload);
         });
 
         this.collector.on('end', async () => {
@@ -228,7 +241,7 @@ class PaginationBuilder {
                     flags,
                 });
             } catch (err) {
-                // Interação pode ter expirado
+                // Interação pode ter expirado, ignorar
             }
         });
 
@@ -245,10 +258,42 @@ class PaginationBuilder {
     }
 
     /**
-     * Verifica se o builder já tem footer
+     * Reseta a paginação para a primeira página
      */
-    _hasFooter() {
-        return this._footerAdded || false;
+    reset() {
+        this.currentPage = 0;
+    }
+
+    /**
+     * Retorna o número total de páginas
+     * @returns {number}
+     */
+    getTotalPages() {
+        return this.pages.length;
+    }
+
+    /**
+     * Retorna a página atual
+     * @returns {number}
+     */
+    getCurrentPage() {
+        return this.currentPage;
+    }
+
+    /**
+     * Verifica se há próxima página
+     * @returns {boolean}
+     */
+    hasNext() {
+        return this.currentPage < this.pages.length - 1;
+    }
+
+    /**
+     * Verifica se há página anterior
+     * @returns {boolean}
+     */
+    hasPrev() {
+        return this.currentPage > 0;
     }
 }
 
