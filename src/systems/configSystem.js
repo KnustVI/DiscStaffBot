@@ -451,59 +451,95 @@ const ConfigSystem = {
 
     async refreshLogsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
-        const logGeral       = this.getSetting(guildId, 'log_channel');
+        const logGeral = this.getSetting(guildId, 'log_channel');
         const logPunishments = this.getSetting(guildId, 'log_punishments');
-        const logAutomod     = this.getSetting(guildId, 'log_automod');
-        const logReports     = this.getSetting(guildId, 'log_reports');
+        const logAutomod = this.getSetting(guildId, 'log_automod');
+        const logReports = this.getSetting(guildId, 'log_reports');
 
         const fmt = (channelId) => channelId
             ? `<#${channelId}>`
             : `${EMOJIS.Error || '❌'} Não definido`;
-        
+
+        // ✅ UM ÚNICO CONTAINER com todo o conteúdo textual
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
             .title(`${EMOJIS.dashboard || '📝'} Canais de Log`)
+            // Geral
             .block([
                 '**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.',
                 `${EMOJIS.global  || '📜'} **Geral:** ${fmt(logGeral)}`,
             ])
-            .build();
-
-        const geralRow       = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais').addChannelTypes(ChannelType.GuildText));
-        
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .block([
+            .separator()
+            // Punições
+            .block([
                 '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
                 `${EMOJIS.strike  || '⚖️'} **Punições:** ${fmt(logPunishments)}`,
-                 ])
-        .build();
-        const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder('Selecionar canal de logs de punições').addChannelTypes(ChannelType.GuildText))
-
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .block([
+            ])
+            .separator()
+            // AutoMod
+            .block([
                 '**AutoMod** — recebe logs de ações tomadas pela análise diária de automação do bot, responsável por dar e remover cargos e enviar alertas de players problemáticos.',
                 `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`,
-                                 ])
-        .build();
-        const automodRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder('Selecionar canal de logs de automoderação').addChannelTypes(ChannelType.GuildText));
-
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .block([
+            ])
+            .separator()
+            // ReportChat
+            .block([
                 '**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
                 `${EMOJIS.chat    || '🎫'} **ReportChat:** ${fmt(logReports)}`,
             ])
-            .separator()
             .footer(guildName)
             .build();
-            
-        const reportsRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder('Selecionar canal de logs de reports').addChannelTypes(ChannelType.GuildText));
-        const buttonRow      = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
-        
-        // ✅ SEM content no payload V2
+
+        // ✅ ActionRows com os Select Menus (cada um abaixo do bloco correspondente)
+        const geralRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:geral')
+                .setPlaceholder('Selecionar canal de logs gerais')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+
+        const punishmentsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:punishments')
+                .setPlaceholder('Selecionar canal de logs de punições')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+
+        const automodRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:automod')
+                .setPlaceholder('Selecionar canal de logs de automoderação')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+
+        const reportsRow = new ActionRowBuilder().addComponents(
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:reports')
+                .setPlaceholder('Selecionar canal de logs de reports')
+                .addChannelTypes(ChannelType.GuildText)
+        );
+
+        // Botão para criar canais automaticamente
+        const buttonRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('config-logs:criar')
+                .setLabel('Criar Canais Automaticamente')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji(EMOJIS.plusone || '➕')
+        );
+
+        // ✅ Payload com todos os componentes na ordem correta
         const replyData = {
-            components: [...components, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow],
+            components: [
+                ...components,       // Container com todo o conteúdo textual
+                geralRow,            // Select Menu 1
+                punishmentsRow,      // Select Menu 2
+                automodRow,          // Select Menu 3
+                reportsRow,          // Select Menu 4
+                buttonRow            // Botão
+            ],
             flags,
         };
-        
+
         try {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply(replyData);
