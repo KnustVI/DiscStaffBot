@@ -118,13 +118,4 @@ try {
     console.log('ℹ️ [PoT] Integração não disponível (servidor offline ou não configurado)');
 }
 
-// ==================== PATH OF TITANS GATEWAY ====================
-try {
-    const { getInstance } = require('./src/integrations/pathoftitans');
-    getInstance(client);
-    console.log('🎮 [PoT] Gateway inicializado');
-} catch (error) {
-    console.log('ℹ️ [PoT] Gateway não disponível');
-}
-
 module.exports = client;
