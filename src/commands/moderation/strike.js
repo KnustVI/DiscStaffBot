@@ -166,12 +166,13 @@ module.exports = {
                 null
             );
 
+            const { components, flags } = containerBuilder.build();
+
             if (targetMember) {
                 try {
-                    const builtContainer = containerBuilder.build();
                     await targetMember.send({
-                        components: [builtContainer],
-                        flags: ['IsComponentsV2']
+                        components,
+                        flags: [flags]
                     }).catch(() => null);
                 } catch (err) {
                     console.error('❌ Erro ao enviar DM:', err);
@@ -183,10 +184,9 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const builtContainer = containerBuilder.build();
                         await logChannel.send({
-                            components: [builtContainer],
-                            flags: ['IsComponentsV2']
+                            components,
+                            flags: [flags]
                         }).catch(() => null);
                     }
                 } catch (err) {

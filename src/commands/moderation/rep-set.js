@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const ContainerFormatter = require('../../utils/containerFormatter');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -76,22 +76,24 @@ module.exports = {
             const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
             
-            const builder = ContainerFormatter.create(guild.name, isGain ? 0x00FF00 : 0xFF0000);
-            builder.addTitle(`${titleIcon} ${titleText}`, 1);
-            builder.addSeparator();
-            builder.addText(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
-            builder.addSeparator();
-            builder.addText(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
-            builder.addText(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
-            builder.addText(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
-            builder.addText(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-            builder.addFooter();
+            const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
+            builder.title(`${titleIcon} ${titleText}`, 1);
+            builder.separator();
+            builder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
+            builder.separator();
+            builder.text(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
+            builder.text(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
+            builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+            builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
+            builder.footer();
+            
+            const { components, flags } = builder.build();
             
             if (targetMember) {
                 try {
                     await targetMember.send({
-                        components: [builder.build()],
-                        flags: ['IsComponentsV2']
+                        components,
+                        flags: [flags]
                     }).catch(() => null);
                 } catch (err) {}
             }
@@ -101,19 +103,21 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logBuilder = ContainerFormatter.create(guild.name, isGain ? 0x00FF00 : 0xFF0000);
-                        logBuilder.addTitle(`${titleIcon} ${titleText}`, 1);
-                        logBuilder.addSeparator();
-                        logBuilder.addText(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
-                        logBuilder.addSeparator();
-                        logBuilder.addText(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
-                        logBuilder.addText(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
-                        logBuilder.addText(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
-                        logBuilder.addText(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-                        logBuilder.addFooter();
+                        const logBuilder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
+                        logBuilder.title(`${titleIcon} ${titleText}`, 1);
+                        logBuilder.separator();
+                        logBuilder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
+                        logBuilder.separator();
+                        logBuilder.text(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
+                        logBuilder.text(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
+                        logBuilder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+                        logBuilder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
+                        logBuilder.footer();
+                        
+                        const { components: logComponents, flags: logFlags } = logBuilder.build();
                         await logChannel.send({
-                            components: [logBuilder.build()],
-                            flags: ['IsComponentsV2']
+                            components: logComponents,
+                            flags: [logFlags]
                         }).catch(() => null);
                     }
                 } catch (err) {}

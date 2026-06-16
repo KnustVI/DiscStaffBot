@@ -38,12 +38,15 @@ module.exports = {
             
             const history = await PunishmentSystem.getUserHistory(guildId, target.id, 1);
             
+            // Gerar container usando o PunishmentSystem (que já foi atualizado)
+            const container = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
+            const { components, flags } = container.build();
+            
             if (!history || history.totalRecords === 0) {
                 db.logActivity(guildId, user.id, 'history_view', target.id, { hasRecords: false });
-                const builder = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
                 await interaction.editReply({
-                    components: [builder.build()],
-                    flags: ['IsComponentsV2']
+                    components,
+                    flags: [flags]
                 });
                 return;
             }
@@ -54,7 +57,6 @@ module.exports = {
                 totalPages: history.totalPages
             }, 600000);
             
-            const container = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
             const buttons = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
             
             db.logActivity(guildId, user.id, 'history_view', target.id, {
@@ -65,12 +67,12 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
-            const componentsArray = [container.build()];
+            const componentsArray = [components[0]];
             if (buttons) componentsArray.push(buttons);
             
             await interaction.editReply({
                 components: componentsArray,
-                flags: ['IsComponentsV2']
+                flags: [flags]
             });
             
             console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);

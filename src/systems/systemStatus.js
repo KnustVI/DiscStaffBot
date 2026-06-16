@@ -1,7 +1,7 @@
 // src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
-const ContainerFormatter = require('../utils/containerFormatter');
+const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 const os = require('os');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
@@ -54,7 +54,8 @@ class SystemStatus {
             new ButtonBuilder().setCustomId('status:refresh').setLabel(`${EMOJIS.Reset || '🔄'} Atualizar`).setStyle(ButtonStyle.Secondary)
         );
         
-        const replyData = builder.build();
+        const { components, flags } = builder.build();
+        const replyData = { components, flags: [flags] };
         replyData.components.push(row);
         await interaction.editReply(replyData);
     }
@@ -65,7 +66,8 @@ class SystemStatus {
             return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Erro ao obter status.`, components: [] });
         }
         const builder = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
-        await interaction.editReply(builder.build());
+        const { components, flags } = builder.build();
+        await interaction.editReply({ components, flags: [flags] });
     }
     
     static generateStatusContainer(status, guild) {
@@ -77,17 +79,18 @@ class SystemStatus {
             else if (pingValue > 100) accentColor = COLORS.WARNING;
         }
         
-        const builder = ContainerFormatter.createBuilder(status.guildName, accentColor);
-        builder.addTitle(`${EMOJIS.panel || '📊'} Status do Sistema`, 1);
-        builder.addText(`**${status.guildName}** • Sistema operando normalmente`);
-        builder.addSeparator();
-        builder.addSection([`**🤖 Bot**`, `📊 Uptime: ${status.uptime}`, `📡 Latência: ${status.ping}`, `💾 Memória: ${status.memory}`]);
-        builder.addSection([`**📈 Estatísticas**`, `🌐 Servidores: ${status.totalGuilds}`, `👥 Usuários: ${status.totalUsers.toLocaleString()}`, `📝 Logs: ${status.logChannel}`]);
-        
+        const builder = new AdvancedContainerBuilder({ accentColor });
+        builder.title(`${EMOJIS.panel || '📊'} Status do Sistema`, 1);
+        builder.text(`**${status.guildName}** • Sistema operando normalmente`);
+        builder.separator();
+        builder.text(`**🤖 Bot**\n📊 Uptime: ${status.uptime}\n📡 Latência: ${status.ping}\n💾 Memória: ${status.memory}`);
+        builder.separator();
+        builder.text(`**📈 Estatísticas**\n🌐 Servidores: ${status.totalGuilds}\n👥 Usuários: ${status.totalUsers.toLocaleString()}\n📝 Logs: ${status.logChannel}`);
+        builder.separator();
         const nextRunText = status.nextAutoModTS ? `⏰ Próxima: <t:${status.nextAutoModTS}:R>` : '❌ N/A';
         const lastRunText = status.lastRunTS ? `🕐 Última: <t:${status.lastRunTS}:R>` : '❌ Nunca';
-        builder.addSection([`**🛡️ Auto Moderação**`, nextRunText, lastRunText]);
-        builder.addFooter();
+        builder.text(`**🛡️ Auto Moderação**\n${nextRunText}\n${lastRunText}`);
+        builder.footer();
         
         return builder;
     }
@@ -109,17 +112,20 @@ class SystemStatus {
         else if (memoryUsage > 300) healthScore -= 10;
         
         const healthEmoji = healthScore >= 80 ? '🟢' : (healthScore >= 50 ? '🟡' : '🔴');
-        const builder = ContainerFormatter.createBuilder(status.guildName, COLORS.DEFAULT);
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         
-        builder.addTitle(`${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, 1);
-        builder.addSeparator();
-        builder.addSection([`**🤖 Bot**`, `⏱️ Uptime: ${status.uptime}`, `📡 Latência: ${status.ping}`, `💾 Memória: ${status.memory}`, `🟢 Node: ${nodeVersion}`, `📦 DJS: v${discordVersion}`]);
-        builder.addSection([`**💻 Sistema**`, `🖥️ OS: ${platform}`, `🧠 CPU: ${totalCores} cores`, `⚙️ Load: ${cpuUsage.toFixed(2)}`, `🏛️ Arquitetura: ${os.arch()}`]);
-        builder.addSection([`**📊 Métricas**`, `🌐 Servidores: ${status.totalGuilds}`, `👥 Usuários: ${status.totalUsers.toLocaleString()}`, `💬 Canais: ${client.channels.cache.size}`, `😀 Emojis: ${client.emojis.cache.size}`]);
-        
+        builder.title(`${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, 1);
+        builder.separator();
+        builder.text(`**🤖 Bot**\n⏱️ Uptime: ${status.uptime}\n📡 Latência: ${status.ping}\n💾 Memória: ${status.memory}\n🟢 Node: ${nodeVersion}\n📦 DJS: v${discordVersion}`);
+        builder.separator();
+        builder.text(`**💻 Sistema**\n🖥️ OS: ${platform}\n🧠 CPU: ${totalCores} cores\n⚙️ Load: ${cpuUsage.toFixed(2)}\n🏛️ Arquitetura: ${os.arch()}`);
+        builder.separator();
+        builder.text(`**📊 Métricas**\n🌐 Servidores: ${status.totalGuilds}\n👥 Usuários: ${status.totalUsers.toLocaleString()}\n💬 Canais: ${client.channels.cache.size}\n😀 Emojis: ${client.emojis.cache.size}`);
+        builder.separator();
         const nextRunFull = status.nextAutoModTS ? `<t:${status.nextAutoModTS}:F>` : 'N/A';
         const lastRunFull = status.lastRunTS ? `<t:${status.lastRunTS}:F>` : 'Nunca';
-        builder.addSection([`**🛡️ Auto Moderação**`, `⏰ Próxima: ${nextRunFull}`, `🕐 Última: ${lastRunFull}`, `📝 Logs: ${status.logChannel}`]);
+        builder.text(`**🛡️ Auto Moderação**\n⏰ Próxima: ${nextRunFull}\n🕐 Última: ${lastRunFull}\n📝 Logs: ${status.logChannel}`);
+        builder.separator();
         
         let healthMessage = '';
         if (healthScore >= 80) {
@@ -133,8 +139,8 @@ class SystemStatus {
             healthMessage = `${EMOJIS.DANGER || '🔴'} **AÇÃO URGENTE:**\n• Reinicie o bot imediatamente\n• Verifique os logs\n• Escale recursos do servidor`;
         }
         
-        builder.addSection([`${healthEmoji} **Health Score: ${healthScore}/100**`, healthMessage]);
-        builder.addFooter();
+        builder.text(`${healthEmoji} **Health Score: ${healthScore}/100**\n${healthMessage}`);
+        builder.footer();
         
         return builder;
     }

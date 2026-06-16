@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, RoleSelectMenuBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/containerFormatter');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -36,19 +36,21 @@ module.exports = {
         const exemplarRole = ConfigSystem.getSetting(guildId, 'role_exemplar');
         const problematicoRole = ConfigSystem.getSetting(guildId, 'role_problematico');
         
-        const builder = ContainerFormatter.create(guild.name, 0xDCA15E);
+        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
         
-        builder.addTitle(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
-        builder.addText(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
-        builder.addSeparator();
-        builder.addText(`Selecione os cargos abaixo:`);
-        builder.addSeparator();
+        builder.title(`${emojis.staff || '👥'} Cargos do Sistema`, 1);
+        builder.text(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.`);
+        builder.separator();
+        builder.text(`Selecione os cargos abaixo:`);
+        builder.separator();
         
-        builder.addText(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.addText(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.addText(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.addText(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.addFooter();
+        builder.text(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.text(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.text(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.text(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.footer();
+        
+        const { components, flags } = builder.build();
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
@@ -64,8 +66,8 @@ module.exports = {
         );
         
         await interaction.editReply({
-            components: [builder.build(), staffRow, strikeRow, exemplarRow, problematicoRow],
-            flags: ['IsComponentsV2']
+            components: [components[0], staffRow, strikeRow, exemplarRow, problematicoRow],
+            flags: [flags]
         });
     }
 };

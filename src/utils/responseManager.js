@@ -17,6 +17,57 @@ class ResponseManager {
         return interaction.isButton() || this._isSelectMenu(interaction);
     }
 
+    /**
+     * Detecta e converte corretamente builders para o formato de envio
+     */
+    _normalizePayload(payload) {
+        // Se já tem components e flags, está pronto
+        if (payload.components && payload.flags !== undefined) {
+            return payload;
+        }
+
+        // Se é um AdvancedContainerBuilder (tem build() e retorna { components, flags })
+        if (payload && typeof payload.build === 'function') {
+            const result = payload.build();
+            // Se build() retornou { components, flags }
+            if (result && result.components && result.flags !== undefined) {
+                return result;
+            }
+            // Se build() retornou apenas o container (fallback)
+            if (result && result.toJSON) {
+                return { components: [result], flags: ['IsComponentsV2'] };
+            }
+            // Se result é um array de componentes
+            if (Array.isArray(result)) {
+                return { components: result, flags: ['IsComponentsV2'] };
+            }
+            // Fallback: construir manualmente
+            return { components: [result], flags: ['IsComponentsV2'] };
+        }
+
+        // Se é um ContainerBuilder (tem toJSON)
+        if (payload && payload.toJSON && typeof payload.toJSON === 'function') {
+            return { components: [payload], flags: ['IsComponentsV2'] };
+        }
+
+        // Se é um array de componentes (ex: [container, row])
+        if (Array.isArray(payload)) {
+            return { components: payload, flags: ['IsComponentsV2'] };
+        }
+
+        // Se tem components mas não flags, pode ser container solto
+        if (payload && payload.components && Array.isArray(payload.components)) {
+            if (payload.components[0] && payload.components[0].toJSON) {
+                return { components: payload.components, flags: ['IsComponentsV2'] };
+            }
+            // Já tem components, adiciona flags
+            return { ...payload, flags: payload.flags || ['IsComponentsV2'] };
+        }
+
+        // Payload padrão (content, embeds, etc)
+        return payload;
+    }
+
     async send(interaction, options = {}) {
         if (this.processing.has(interaction.id)) {
             console.warn(`[ResponseManager] ⚠️ Ignorado: ${interaction.id}`);
@@ -25,27 +76,10 @@ class ResponseManager {
         this.processing.add(interaction.id);
 
         try {
-            let payload = options;
-            
-            // Se for um builder (tem build()), chama build()
-            if (options && typeof options.build === 'function') {
-                payload = { components: [options.build()], flags: ['IsComponentsV2'] };
-            }
-            
-            // Se for um Container (tem toJSON ou é um builder)
-            if (payload && payload.toJSON && typeof payload.toJSON === 'function') {
-                payload = { components: [payload], flags: ['IsComponentsV2'] };
-            }
-            
-            // Se já tem components mas não tem flags, pode ser container solto
-            if (payload.components && !payload.flags) {
-                // Verifica se o primeiro componente é um ContainerBuilder
-                if (payload.components[0] && payload.components[0].toJSON) {
-                    payload = { components: [payload.components[0]], flags: ['IsComponentsV2'] };
-                }
-            }
-            
-            // Payload de Container V2
+            // Normaliza o payload
+            let payload = this._normalizePayload(options);
+
+            // Se payload tem flags e components, é Components V2
             if (payload.flags && payload.components) {
                 if (interaction.replied) {
                     return await interaction.followUp(payload);
