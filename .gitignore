@@ -12,6 +12,13 @@ yarn.lock
 
 # Environment
 .env
+database.db
+database.sqlite
+node_modules/
+
+database.db
+database.sqlite
+node_modules/
 .env.local
 .env.*.local
 
@@ -33,3 +40,4 @@ Thumbs.db
 # Build
 dist/
 build/
+
