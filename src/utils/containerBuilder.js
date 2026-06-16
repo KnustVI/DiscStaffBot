@@ -1,331 +1,454 @@
+'use strict';
+
+/**
+ * containerBuilder.js
+ *
+ * API simples para construção de interfaces Components V2 do Discord.
+ * Compatível com Discord.js 14.26.4 (API Components V2).
+ *
+ * Uso:
+ *   const { AdvancedContainerBuilder } = require('./containerBuilder');
+ *
+ *   const builder = new AdvancedContainerBuilder({ accentColor: 0xED4245 });
+ *   builder
+ *     .title('STRIKE #15')
+ *     .section('**Usuário:** Fulano', AdvancedContainerBuilder.thumbnail(avatarUrl))
+ *     .separator()
+ *     .block(['🛡️ Moderador: Staff', '📉 Pontos: -10'])
+ *     .separator()
+ *     .footer('Gerado automaticamente');
+ *
+ *   const payload = builder.build();
+ *   // payload = { components: [ContainerBuilder], flags: MessageFlags.IsComponentsV2 }
+ */
+
 const {
-    ContainerBuilder, ActionRowBuilder, ButtonBuilder, StringSelectMenuBuilder,
-    SectionBuilder, TextDisplayBuilder, SeparatorBuilder, MediaGalleryBuilder,
-    MediaItemBuilder, ComponentType
+    ContainerBuilder,
+    SectionBuilder,
+    TextDisplayBuilder,
+    ThumbnailBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags,
 } = require('discord.js');
 
+// ---------------------------------------------------------------------------
+// Tipos de acessório (usados internamente para diferenciar thumbnail x button)
+// ---------------------------------------------------------------------------
+const ACCESSORY_TYPE = Object.freeze({
+    THUMBNAIL: 'thumbnail',
+    BUTTON: 'button',
+});
+
+// ---------------------------------------------------------------------------
+// Classe principal
+// ---------------------------------------------------------------------------
 class AdvancedContainerBuilder {
+    /**
+     * @param {object} [options]
+     * @param {number} [options.accentColor] - Cor de destaque do container (ex: 0xED4245)
+     */
     constructor(options = {}) {
-        this.container = new ContainerBuilder();
-        this.sections = [];
-        this.actionRows = [];
-        this.textDisplays = [];
-        this.separators = [];
-        this.mediaGalleries = [];
-        
-        if (options.accentColor) {
-            this.container.setAccentColor(options.accentColor);
-        }
-        
-        this.serverName = options.serverName || "Servidor";
-        this.showFooter = options.showFooter !== false;
+        this._accentColor = options.accentColor ?? null;
+
+        /**
+         * Lista única de componentes na ordem de inserção.
+         * Cada entrada é um objeto interno que será convertido no build().
+         *
+         * @type {Array<{ kind: string, payload: * }>}
+         */
+        this.components = [];
     }
 
-    addTitle(text, level = 1) {
-        const prefix = '#'.repeat(Math.min(level, 3));
-        const textDisplay = new TextDisplayBuilder()
-            .setContent(`${prefix} ${text}`);
-        this.textDisplays.push(textDisplay);
-        return this;
-    }
+    // -----------------------------------------------------------------------
+    // Métodos de construção (chainable)
+    // -----------------------------------------------------------------------
 
-    addText(content) {
-        const textDisplay = new TextDisplayBuilder()
-            .setContent(content);
-        this.textDisplays.push(textDisplay);
-        return this;
-    }
-
-    addSeparator() {
-        this.separators.push(new SeparatorBuilder());
-        return this;
-    }
-
-    addSection(text, accessory = null, accessoryPosition = 'right') {
-        const textDisplay = new TextDisplayBuilder().setContent(text);
-        const section = new SectionBuilder()
-            .addTextDisplayComponents(textDisplay);
-        
-        if (accessory) {
-            if (accessory.type === 'thumbnail' || accessory.url) {
-                const thumbnailComponent = {
-                    type: ComponentType.Thumbnail,
-                    url: accessory.url || accessory
-                };
-                section.addAccessoryComponents(thumbnailComponent);
-            }
-            else if (accessory instanceof ButtonBuilder) {
-                const buttonRow = new ActionRowBuilder().addComponents(accessory);
-                section.addAccessoryComponents(buttonRow);
-            }
-        }
-        
-        this.sections.push(section);
-        return this;
-    }
-
-    addSplitSection(leftText, rightText, leftAccessory = null, rightAccessory = null) {
-        const leftDisplay = new TextDisplayBuilder().setContent(leftText);
-        const rightDisplay = new TextDisplayBuilder().setContent(rightText);
-        
-        const section = new SectionBuilder()
-            .addTextDisplayComponents(leftDisplay, rightDisplay);
-        
-        if (leftAccessory) {
-            if (leftAccessory.type === 'thumbnail' || leftAccessory.url) {
-                section.addAccessoryComponents({
-                    type: ComponentType.Thumbnail,
-                    url: leftAccessory.url || leftAccessory
-                });
-            } else if (leftAccessory instanceof ButtonBuilder) {
-                const row = new ActionRowBuilder().addComponents(leftAccessory);
-                section.addAccessoryComponents(row);
-            }
-        }
-        
-        if (rightAccessory) {
-            if (rightAccessory.type === 'thumbnail' || rightAccessory.url) {
-                section.addAccessoryComponents({
-                    type: ComponentType.Thumbnail,
-                    url: rightAccessory.url || rightAccessory
-                });
-            } else if (rightAccessory instanceof ButtonBuilder) {
-                const row = new ActionRowBuilder().addComponents(rightAccessory);
-                section.addAccessoryComponents(row);
-            }
-        }
-        
-        this.sections.push(section);
-        return this;
-    }
-
-    addMultiColumnSection(columns) {
-        const textDisplays = columns.map(col => 
-            new TextDisplayBuilder().setContent(col.text)
-        );
-        
-        const section = new SectionBuilder();
-        
-        textDisplays.forEach(textDisplay => {
-            section.addTextDisplayComponents(textDisplay);
+    /**
+     * Adiciona um título via TextDisplay com markdown de heading.
+     *
+     * @param {string} text   - Texto do título
+     * @param {number} [level=1] - Nível do heading (1 = #, 2 = ##, 3 = ###)
+     * @returns {this}
+     */
+    title(text, level = 1) {
+        const clampedLevel = Math.min(Math.max(Math.floor(level), 1), 3);
+        const prefix = '#'.repeat(clampedLevel);
+        this.components.push({
+            kind: 'textDisplay',
+            payload: `${prefix} ${text}`,
         });
-        
-        columns.forEach(col => {
-            if (col.accessory) {
-                if (col.accessory.type === 'thumbnail' || col.accessory.url) {
-                    section.addAccessoryComponents({
-                        type: ComponentType.Thumbnail,
-                        url: col.accessory.url || col.accessory
-                    });
-                } else if (col.accessory instanceof ButtonBuilder) {
-                    const row = new ActionRowBuilder().addComponents(col.accessory);
-                    section.addAccessoryComponents(row);
-                }
-            }
+        return this;
+    }
+
+    /**
+     * Adiciona um bloco de texto simples via TextDisplay.
+     *
+     * @param {string} content - Conteúdo em markdown
+     * @returns {this}
+     */
+    text(content) {
+        this.components.push({
+            kind: 'textDisplay',
+            payload: String(content),
         });
-        
-        this.sections.push(section);
         return this;
     }
 
-    addButtons(...buttons) {
-        const flatButtons = buttons.flat().filter(b => b instanceof ButtonBuilder);
-        
-        for (let i = 0; i < flatButtons.length; i += 5) {
-            const row = new ActionRowBuilder();
-            const batch = flatButtons.slice(i, i + 5);
-            batch.forEach(btn => row.addComponents(btn));
-            this.actionRows.push(row);
+    /**
+     * Adiciona um bloco de linhas como um único TextDisplay.
+     * As linhas são unidas por quebra de linha.
+     *
+     * @param {string[]} lines - Array de strings
+     * @returns {this}
+     */
+    block(lines) {
+        if (!Array.isArray(lines) || lines.length === 0) {
+            throw new TypeError('block() requer um array não vazio de strings.');
         }
-        
+        this.components.push({
+            kind: 'textDisplay',
+            payload: lines.join('\n'),
+        });
         return this;
     }
 
-    addSelectMenu(selectMenu) {
-        if (selectMenu instanceof StringSelectMenuBuilder) {
-            const row = new ActionRowBuilder().addComponents(selectMenu);
-            this.actionRows.push(row);
+    /**
+     * Adiciona um separador visual entre componentes.
+     *
+     * @param {object} [options]
+     * @param {boolean} [options.divider=true]    - Exibe linha divisória
+     * @param {'Small'|'Large'} [options.spacing='Small'] - Tamanho do espaçamento
+     * @returns {this}
+     */
+    separator(options = {}) {
+        this.components.push({
+            kind: 'separator',
+            payload: {
+                divider: options.divider !== undefined ? Boolean(options.divider) : true,
+                spacing: options.spacing === 'Large'
+                    ? SeparatorSpacingSize.Large
+                    : SeparatorSpacingSize.Small,
+            },
+        });
+        return this;
+    }
+
+    /**
+     * Adiciona uma Section com texto e acessório opcional (thumbnail ou botão).
+     *
+     * O acessório deve ser criado via os helpers estáticos:
+     *   - AdvancedContainerBuilder.thumbnail(url)
+     *   - AdvancedContainerBuilder.linkButton(label, url)
+     *   - AdvancedContainerBuilder.primaryButton(customId, label)
+     *   - AdvancedContainerBuilder.secondaryButton(customId, label)
+     *   - AdvancedContainerBuilder.successButton(customId, label)
+     *   - AdvancedContainerBuilder.dangerButton(customId, label)
+     *
+     * Ou pode ser passado null para uma section sem acessório.
+     *
+     * @param {string} text            - Texto da section (suporta markdown)
+     * @param {object|null} [accessory=null] - Acessório criado pelos helpers estáticos
+     * @returns {this}
+     */
+    section(text, accessory = null) {
+        this.components.push({
+            kind: 'section',
+            payload: {
+                text: String(text),
+                accessory: accessory ?? null,
+            },
+        });
+        return this;
+    }
+
+    /**
+     * Adiciona uma galeria de imagens (MediaGallery).
+     * Suporta até 10 URLs.
+     *
+     * @param {string[]} imageUrls - Array de URLs de imagem
+     * @returns {this}
+     */
+    gallery(imageUrls) {
+        if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
+            throw new TypeError('gallery() requer um array não vazio de URLs.');
         }
-        return this;
-    }
-
-    addActionRow(row) {
-        if (row instanceof ActionRowBuilder) {
-            this.actionRows.push(row);
+        if (imageUrls.length > 10) {
+            throw new RangeError('gallery() suporta no máximo 10 imagens por galeria.');
         }
+        this.components.push({
+            kind: 'gallery',
+            payload: imageUrls.map(String),
+        });
         return this;
     }
 
-    addGallery(imageUrls, title = null) {
-        if (imageUrls && imageUrls.length > 0) {
-            const gallery = new MediaGalleryBuilder();
-            
-            if (title) {
-                gallery.setTitle(title);
-            }
-            
-            imageUrls.slice(0, 10).forEach(url => {
-                gallery.addMediaItems(new MediaItemBuilder().setUrl(url));
-            });
-            
-            this.mediaGalleries.push(gallery);
+    /**
+     * Adiciona uma linha de botões via ActionRow.
+     * Aceita ButtonBuilder criados pelos helpers estáticos ou diretamente.
+     *
+     * @param {...ButtonBuilder} buttons - Um ou mais botões
+     * @returns {this}
+     */
+    buttons(...buttons) {
+        const flat = buttons.flat();
+        if (flat.length === 0) {
+            throw new TypeError('buttons() requer pelo menos um botão.');
         }
-        return this;
-    }
-
-    addField(label, value, inline = false) {
-        const fieldText = inline ? `**${label}:** ${value}` : `**${label}:**\n${value}`;
-        return this.addText(fieldText);
-    }
-
-    addStatusRow(status, punishment, reason) {
-        const section = new SectionBuilder();
-        
-        const statusText = new TextDisplayBuilder()
-            .setContent(`**Status:**\n${status}`);
-        section.addTextDisplayComponents(statusText);
-        
-        const punishmentText = new TextDisplayBuilder()
-            .setContent(`**Punição aplicada:**\n${punishment}`);
-        section.addTextDisplayComponents(punishmentText);
-        
-        const reasonText = new TextDisplayBuilder()
-            .setContent(`**Motivo:**\n${reason}`);
-        section.addTextDisplayComponents(reasonText);
-        
-        this.sections.push(section);
-        return this;
-    }
-
-    addRating(rating, comment = null) {
-        const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
-        
-        const section = new SectionBuilder();
-        
-        const ratingText = new TextDisplayBuilder()
-            .setContent(`**Avaliação:** ${rating}/5 ${stars}`);
-        section.addTextDisplayComponents(ratingText);
-        
-        if (comment) {
-            const commentText = new TextDisplayBuilder()
-                .setContent(`**Comentário:**\n${comment}`);
-            section.addTextDisplayComponents(commentText);
+        if (flat.length > 5) {
+            throw new RangeError('buttons() suporta no máximo 5 botões por ActionRow.');
         }
-        
-        this.sections.push(section);
+        this.components.push({
+            kind: 'actionRow',
+            payload: flat,
+        });
         return this;
     }
 
-    addFooter(customText = null) {
-        if (this.showFooter) {
-            const footerText = customText || 
-                `Desenvolvido por Knust VI e T.Mach\n[Suporte](https://discord.gg/sEpW8tQ8tT)\nServidor: ${this.serverName}`;
-            
-            this.addSeparator();
-            this.addText(`> ${footerText}`);
-        }
+    /**
+     * Adiciona um rodapé como TextDisplay em itálico.
+     *
+     * @param {string} text - Texto do rodapé
+     * @returns {this}
+     */
+    footer(text) {
+        this.components.push({
+            kind: 'textDisplay',
+            payload: `-# ${text}`,
+        });
         return this;
     }
 
+    // -----------------------------------------------------------------------
+    // Build
+    // -----------------------------------------------------------------------
+
+    /**
+     * Serializa todos os componentes em um ContainerBuilder do Discord.js
+     * e retorna o payload pronto para uso em interaction.reply() ou channel.send().
+     *
+     * @returns {{ components: ContainerBuilder[], flags: number }}
+     */
     build() {
-        for (const textDisplay of this.textDisplays) {
-            this.container.addTextDisplayComponents(textDisplay);
-        }
-        
-        for (const separator of this.separators) {
-            this.container.addSeparatorComponents(separator);
-        }
-        
-        for (const section of this.sections) {
-            this.container.addSectionComponents(section);
-        }
-        
-        for (const gallery of this.mediaGalleries) {
-            this.container.addMediaGalleryComponents(gallery);
-        }
-        
-        for (const row of this.actionRows) {
-            this.container.addActionRowComponents(row);
-        }
-        
-        return this.container;
-    }
-}
+        const container = new ContainerBuilder();
 
-class ThumbnailHelper {
-    static create(url) {
+        if (this._accentColor !== null) {
+            container.setAccentColor(this._accentColor);
+        }
+
+        for (const entry of this.components) {
+            switch (entry.kind) {
+
+                case 'textDisplay': {
+                    container.addTextDisplayComponents(
+                        new TextDisplayBuilder().setContent(entry.payload),
+                    );
+                    break;
+                }
+
+                case 'separator': {
+                    container.addSeparatorComponents(
+                        new SeparatorBuilder()
+                            .setDivider(entry.payload.divider)
+                            .setSpacing(entry.payload.spacing),
+                    );
+                    break;
+                }
+
+                case 'section': {
+                    const section = new SectionBuilder()
+                        .addTextDisplayComponents(
+                            new TextDisplayBuilder().setContent(entry.payload.text),
+                        );
+
+                    const acc = entry.payload.accessory;
+                    if (acc !== null) {
+                        if (acc._accessoryType === ACCESSORY_TYPE.THUMBNAIL) {
+                            section.setThumbnailAccessory(acc._builder);
+                        } else if (acc._accessoryType === ACCESSORY_TYPE.BUTTON) {
+                            section.setButtonAccessory(acc._builder);
+                        }
+                    }
+
+                    container.addSectionComponents(section);
+                    break;
+                }
+
+                case 'gallery': {
+                    const items = entry.payload.map(
+                        (url) => new MediaGalleryItemBuilder().setURL(url),
+                    );
+                    container.addMediaGalleryComponents(
+                        new MediaGalleryBuilder().addItems(...items),
+                    );
+                    break;
+                }
+
+                case 'actionRow': {
+                    const row = new ActionRowBuilder().setComponents(...entry.payload);
+                    container.addActionRowComponents(row);
+                    break;
+                }
+
+                default:
+                    throw new Error(`Tipo de componente desconhecido: "${entry.kind}"`);
+            }
+        }
+
         return {
-            type: ComponentType.Thumbnail,
-            url: url
+            components: [container],
+            flags: MessageFlags.IsComponentsV2,
         };
     }
-    
-    static fromEmoji(emojiId, animated = false) {
-        return {
-            type: ComponentType.Thumbnail,
-            url: `https://cdn.discordapp.com/emojis/${emojiId}.${animated ? 'gif' : 'png'}`
-        };
-    }
-}
 
-class ButtonHelper {
-    static primary(customId, label, disabled = false) {
-        return new ButtonBuilder()
-            .setCustomId(customId)
-            .setLabel(label)
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(disabled);
+    // -----------------------------------------------------------------------
+    // Helpers estáticos — acessórios para section()
+    // -----------------------------------------------------------------------
+
+    /**
+     * Cria um acessório Thumbnail para uso em section().
+     *
+     * @param {string} url         - URL da imagem
+     * @param {string} [altText=''] - Texto alternativo (acessibilidade)
+     * @returns {{ _accessoryType: string, _builder: ThumbnailBuilder }}
+     */
+    static thumbnail(url, altText = '') {
+        const builder = new ThumbnailBuilder().setURL(String(url));
+        if (altText) {
+            builder.setDescription(String(altText));
+        }
+        return { _accessoryType: ACCESSORY_TYPE.THUMBNAIL, _builder: builder };
     }
-    
-    static secondary(customId, label, disabled = false) {
+
+    /**
+     * Cria um botão de link (URL) para uso em section() ou buttons().
+     *
+     * @param {string} label - Texto do botão
+     * @param {string} url   - URL de destino
+     * @returns {ButtonBuilder}
+     */
+    static linkButton(label, url) {
         return new ButtonBuilder()
-            .setCustomId(customId)
-            .setLabel(label)
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(disabled);
-    }
-    
-    static success(customId, label, disabled = false) {
-        return new ButtonBuilder()
-            .setCustomId(customId)
-            .setLabel(label)
-            .setStyle(ButtonStyle.Success)
-            .setDisabled(disabled);
-    }
-    
-    static danger(customId, label, disabled = false) {
-        return new ButtonBuilder()
-            .setCustomId(customId)
-            .setLabel(label)
-            .setStyle(ButtonStyle.Danger)
-            .setDisabled(disabled);
-    }
-    
-    static link(url, label) {
-        return new ButtonBuilder()
-            .setURL(url)
-            .setLabel(label)
+            .setLabel(String(label))
+            .setURL(String(url))
             .setStyle(ButtonStyle.Link);
     }
-    
-    static pagination(prefix, currentPage, totalPages) {
-        const buttons = [];
-        
-        if (totalPages > 1) {
-            buttons.push(
-                this.secondary(`${prefix}_first`, '⏮️', currentPage === 1),
-                this.secondary(`${prefix}_prev`, '◀️', currentPage === 1),
-                this.secondary(`${prefix}_next`, '▶️', currentPage === totalPages),
-                this.secondary(`${prefix}_last`, '⏭️', currentPage === totalPages)
-            );
+
+    /**
+     * Cria um botão primário (azul) para uso em section() ou buttons().
+     *
+     * @param {string} customId - ID personalizado do botão
+     * @param {string} label    - Texto do botão
+     * @returns {ButtonBuilder}
+     */
+    static primaryButton(customId, label) {
+        return new ButtonBuilder()
+            .setCustomId(String(customId))
+            .setLabel(String(label))
+            .setStyle(ButtonStyle.Primary);
+    }
+
+    /**
+     * Cria um botão secundário (cinza) para uso em section() ou buttons().
+     *
+     * @param {string} customId - ID personalizado do botão
+     * @param {string} label    - Texto do botão
+     * @returns {ButtonBuilder}
+     */
+    static secondaryButton(customId, label) {
+        return new ButtonBuilder()
+            .setCustomId(String(customId))
+            .setLabel(String(label))
+            .setStyle(ButtonStyle.Secondary);
+    }
+
+    /**
+     * Cria um botão de sucesso (verde) para uso em section() ou buttons().
+     *
+     * @param {string} customId - ID personalizado do botão
+     * @param {string} label    - Texto do botão
+     * @returns {ButtonBuilder}
+     */
+    static successButton(customId, label) {
+        return new ButtonBuilder()
+            .setCustomId(String(customId))
+            .setLabel(String(label))
+            .setStyle(ButtonStyle.Success);
+    }
+
+    /**
+     * Cria um botão de perigo (vermelho) para uso em section() ou buttons().
+     *
+     * @param {string} customId - ID personalizado do botão
+     * @param {string} label    - Texto do botão
+     * @returns {ButtonBuilder}
+     */
+    static dangerButton(customId, label) {
+        return new ButtonBuilder()
+            .setCustomId(String(customId))
+            .setLabel(String(label))
+            .setStyle(ButtonStyle.Danger);
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper estático para montar acessório de botão a partir de um ButtonBuilder
+    // (uso interno: permite passar qualquer ButtonBuilder diretamente na section)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Encapsula um ButtonBuilder como acessório de section.
+     * Útil quando o botão já foi criado com os helpers estáticos
+     * e precisa ser passado como acessório:
+     *
+     *   section('texto', AdvancedContainerBuilder.buttonAccessory(
+     *       AdvancedContainerBuilder.linkButton('Ver', 'https://...')
+     *   ))
+     *
+     * Nota: linkButton(), primaryButton() etc. já retornam ButtonBuilder
+     * diretamente e podem ser passados como acessório sem este wrapper —
+     * o builder detecta automaticamente qualquer ButtonBuilder.
+     *
+     * @param {ButtonBuilder} buttonBuilder
+     * @returns {{ _accessoryType: string, _builder: ButtonBuilder }}
+     */
+    static buttonAccessory(buttonBuilder) {
+        if (!(buttonBuilder instanceof ButtonBuilder)) {
+            throw new TypeError('buttonAccessory() requer uma instância de ButtonBuilder.');
         }
-        
-        return buttons;
+        return { _accessoryType: ACCESSORY_TYPE.BUTTON, _builder: buttonBuilder };
     }
 }
 
-module.exports = {
-    AdvancedContainerBuilder,
-    ButtonHelper,
-    ThumbnailHelper
+// ---------------------------------------------------------------------------
+// Patch interno: permite passar ButtonBuilder diretamente como acessório
+// em section() sem precisar do wrapper buttonAccessory().
+// Se o valor tiver _accessoryType já definido, é usado como está.
+// Se for uma instância de ButtonBuilder sem _accessoryType, é encapsulado.
+// ---------------------------------------------------------------------------
+const _originalSectionProto = AdvancedContainerBuilder.prototype.section;
+AdvancedContainerBuilder.prototype.section = function section(text, accessory = null) {
+    let normalizedAccessory = accessory;
+
+    if (
+        accessory !== null &&
+        accessory instanceof ButtonBuilder &&
+        !accessory._accessoryType
+    ) {
+        normalizedAccessory = {
+            _accessoryType: ACCESSORY_TYPE.BUTTON,
+            _builder: accessory,
+        };
+    }
+
+    return _originalSectionProto.call(this, text, normalizedAccessory);
 };
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+module.exports = { AdvancedContainerBuilder };
