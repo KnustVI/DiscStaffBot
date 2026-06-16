@@ -48,9 +48,8 @@ module.exports = {
         ])
         .separator()
         .section(
-            `# ${emojis.dashboard || '📝'} Canais de Log`,
-            `Aqui serão configuras todas as logs relacionadas ao sistema de moderação. Recomendamos criar canais separados para cada categoria de log para melhor organização e controle de permissões, caso prefira clique no botão abaixo para que ele crie automaticamente para você!`,
-            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))  // ← tamanho aqui
+            `# ${emojis.dashboard || '📝'} Canais de Log\n\nAqui serão configuradas todas as logs relacionadas ao sistema de moderação. Recomendamos criar canais separados para cada categoria de log para melhor organização e controle de permissões, caso prefira clique no botão abaixo para que ele crie automaticamente para você!`,
+            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
         )
             .text('**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.')
             .text(`${emojis.global || '📜'} **Geral:** ${fmt(logGeral)}`)
