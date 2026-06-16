@@ -36,41 +36,78 @@ module.exports = {
         const logAutomod = ConfigSystem.getSetting(guildId, 'log_automod');
         const logReports = ConfigSystem.getSetting(guildId, 'log_reports');
         
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-        
-        builder.title(`${emojis.dashboard || '📝'} Canais de Log`, 1);
-        builder.text(`- Geral recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.`);
-        builder.text(`- Punições recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.`);
-        builder.text(`- AutoMod recebe logs de ações tomadas pela analise diaria de automação do bot, responsavel por dar e remover cargos de bom comportamento e de enviar alertas de players problemáticos.`);
-        builder.text(`- ReportChat recebe logs de reports feitos pelos usuários através do sistema de ReportChat. É onde vai ficar o painel de atendimento dos seus staffs`);
-        builder.separator();
-        
-        builder.text(`${emojis.global || '📜'} **Geral:** ${logGeral ? `<#${logGeral}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.strike || '⚖️'} **Punições:** ${logPunishments ? `<#${logPunishments}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.Config || '🛡️'} **AutoMod:** ${logAutomod ? `<#${logAutomod}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.chat || '🎫'} **ReportChat:** ${logReports ? `<#${logReports}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.footer();
-        
-        const { components, flags } = builder.build();
-        
+        const fmt = (channelId) => channelId
+            ? `<#${channelId}>`
+            : `${emojis.Error || '❌'} Não definido`;
+
+        // ✅ Container único com todas as informações
+        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+            .title(`${emojis.dashboard || '📝'} Canais de Log`)
+            // Seção 1: Geral
+            .text('**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.')
+            .text(`${emojis.global || '📜'} **Geral:** ${fmt(logGeral)}`)
+            .separator()
+            // Seção 2: Punições
+            .text('**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.')
+            .text(`${emojis.strike || '⚖️'} **Punições:** ${fmt(logPunishments)}`)
+            .separator()
+            // Seção 3: AutoMod
+            .text('**AutoMod** — recebe logs de ações tomadas pela análise diária de automação do bot, responsável por dar e remover cargos e enviar alertas de players problemáticos.')
+            .text(`${emojis.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`)
+            .separator()
+            // Seção 4: ReportChat
+            .text('**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.')
+            .text(`${emojis.chat || '🎫'} **ReportChat:** ${fmt(logReports)}`)
+            .footer(guild.name)
+            .build();
+
+        // ✅ ActionRows com os Select Menus (cada um abaixo do bloco correspondente)
         const geralRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais').addChannelTypes(ChannelType.GuildText)
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:geral')
+                .setPlaceholder('Selecionar canal de logs gerais')
+                .addChannelTypes(ChannelType.GuildText)
         );
+
         const punishmentsRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder('Selecionar canal de logs de punições').addChannelTypes(ChannelType.GuildText)
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:punishments')
+                .setPlaceholder('Selecionar canal de logs de punições')
+                .addChannelTypes(ChannelType.GuildText)
         );
+
         const automodRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder('Selecionar canal de logs de automoderação').addChannelTypes(ChannelType.GuildText)
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:automod')
+                .setPlaceholder('Selecionar canal de logs de automoderação')
+                .addChannelTypes(ChannelType.GuildText)
         );
+
         const reportsRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder('Selecionar canal de logs de reports').addChannelTypes(ChannelType.GuildText)
+            new ChannelSelectMenuBuilder()
+                .setCustomId('config-logs:reports')
+                .setPlaceholder('Selecionar canal de logs de reports')
+                .addChannelTypes(ChannelType.GuildText)
         );
+
         const buttonRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(emojis.edit || '➕')
+            new ButtonBuilder()
+                .setCustomId('config-logs:criar')
+                .setLabel('Criar Canais Automaticamente')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji(emojis.plusone || '➕')
         );
-        
+
+        // ✅ Todos os componentes juntos na ordem correta
         await interaction.editReply({
-            components: [components[0], geralRow, punishmentsRow, automodRow, reportsRow, buttonRow],
+            components: [
+                ...components,      // Container com todas as informações
+                geralRow,           // Select Menu 1
+                punishmentsRow,     // Select Menu 2
+                automodRow,         // Select Menu 3
+                reportsRow,         // Select Menu 4
+                buttonRow           // Botão
+            ],
             flags: [flags]
         });
     }
