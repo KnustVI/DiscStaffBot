@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
-const ContainerFormatter = require('../../utils/containerFormatter');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 const LOG_CHANNELS = [
     { name: '📥 login', event: 'login', endpoint: 'PlayerLogin' },
@@ -74,18 +74,19 @@ module.exports = {
             }
             const gameIniConfig = gameIniLines.join('\n');
             
-            const builder = ContainerFormatter.createBuilder(interaction.guild.name, 0x00FF00);
-            builder.addTitle('📋 Canais de Log Configurados', 1);
-            builder.addSeparator();
-            builder.addText(`✅ ${createdChannels.length} canais criados na categoria "${categoryName}"`);
-            builder.addText(`📌 ${LOG_CHANNELS.length - createdChannels.length} canais reutilizados.`);
-            builder.addSeparator();
-            builder.addText(`🔑 **Token Atual:** \`${token}\``);
-            builder.addFooter();
+            const builder = new AdvancedContainerBuilder({ accentColor: 0x00FF00 });
+            builder.title('📋 Canais de Log Configurados', 1);
+            builder.separator();
+            builder.text(`✅ ${createdChannels.length} canais criados na categoria "${categoryName}"`);
+            builder.text(`📌 ${LOG_CHANNELS.length - createdChannels.length} canais reutilizados.`);
+            builder.separator();
+            builder.text(`🔑 **Token Atual:** \`${token}\``);
+            builder.footer();
             
+            const { components, flags } = builder.build();
             await interaction.editReply({
-                components: [builder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
             
             await interaction.followUp({

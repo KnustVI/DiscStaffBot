@@ -3,7 +3,7 @@ const cron = require('node-cron');
 const db = require('../database/index');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const SessionManager = require('../utils/sessionManager');
-const ContainerFormatter = require('../utils/containerFormatter');
+const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
@@ -88,12 +88,13 @@ class AutoModerationSystem {
         
         ConfigSystem.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
         
-        const builder = ContainerFormatter.create(interaction.guild.name, COLORS.DEFAULT);
-        builder.addTitle(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`, 1);
-        builder.addText(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`);
-        builder.addFooter(`Solicitado por ${interaction.user.tag}`);
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.title(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`, 1);
+        builder.text(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`);
+        builder.footer(`Solicitado por ${interaction.user.tag}`);
         
-        await interaction.editReply({ components: [builder.build()], flags: ['IsComponentsV2'] });
+        const { components, flags } = builder.build();
+        await interaction.editReply({ components, flags: [flags] });
     }
 
     async handleAutoModConfig(interaction, param) {
@@ -129,17 +130,18 @@ class AutoModerationSystem {
             const problematicLimit = ConfigSystem.getSetting(interaction.guildId, 'limit_problematico') || '30';
             const isEnabled = ConfigSystem.getSetting(interaction.guildId, 'automod_enabled') === 'true';
             
-            const builder = ContainerFormatter.create(interaction.guild.name, COLORS.DEFAULT);
-            builder.addTitle(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`, 1);
-            builder.addSeparator();
-            builder.addText(`${EMOJIS.Status || '📊'} **Status:** ${isEnabled ? `${EMOJIS.Check || '✅'} Ativado` : `${EMOJIS.Error || '❌'} Desativado`}`);
-            builder.addText(`${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:** ${exemplarLimit} pontos`);
-            builder.addText(`${EMOJIS.Warning || '⚠️'} **Limite Problemático:** ${problematicLimit} pontos`);
-            builder.addText(`${EMOJIS.gain || '📈'} **Recuperação Diária:** +1 ponto para quem não tem punições nas últimas 24h`);
-            builder.addText(`${EMOJIS.Reset || '🔄'} **Atualização:** Diariamente às 12:00`);
-            builder.addFooter();
+            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            builder.title(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`, 1);
+            builder.separator();
+            builder.text(`${EMOJIS.Status || '📊'} **Status:** ${isEnabled ? `${EMOJIS.Check || '✅'} Ativado` : `${EMOJIS.Error || '❌'} Desativado`}`);
+            builder.text(`${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:** ${exemplarLimit} pontos`);
+            builder.text(`${EMOJIS.Warning || '⚠️'} **Limite Problemático:** ${problematicLimit} pontos`);
+            builder.text(`${EMOJIS.gain || '📈'} **Recuperação Diária:** +1 ponto para quem não tem punições nas últimas 24h`);
+            builder.text(`${EMOJIS.Reset || '🔄'} **Atualização:** Diariamente às 12:00`);
+            builder.footer();
             
-            await interaction.editReply({ components: [builder.build()], flags: ['IsComponentsV2'] });
+            const { components, flags } = builder.build();
+            await interaction.editReply({ components, flags: [flags] });
         }
     }
 
@@ -176,14 +178,15 @@ class AutoModerationSystem {
         ConfigSystem.setSetting(interaction.guildId, 'limit_exemplar', exLimit.toString());
         ConfigSystem.setSetting(interaction.guildId, 'limit_problematico', probLimit.toString());
         
-        const builder = ContainerFormatter.create(interaction.guild.name, COLORS.SUCCESS);
-        builder.addTitle(`${EMOJIS.Check || '✅'} Configurações Atualizadas`, 1);
-        builder.addSeparator();
-        builder.addText(`${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:** ${exLimit} pontos`);
-        builder.addText(`${EMOJIS.Warning || '⚠️'} **Limite Problemático:** ${probLimit} pontos`);
-        builder.addFooter(`Solicitado por ${interaction.user.tag}`);
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
+        builder.title(`${EMOJIS.Check || '✅'} Configurações Atualizadas`, 1);
+        builder.separator();
+        builder.text(`${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:** ${exLimit} pontos`);
+        builder.text(`${EMOJIS.Warning || '⚠️'} **Limite Problemático:** ${probLimit} pontos`);
+        builder.footer(`Solicitado por ${interaction.user.tag}`);
         
-        await interaction.editReply({ components: [builder.build()], flags: ['IsComponentsV2'] });
+        const { components, flags } = builder.build();
+        await interaction.editReply({ components, flags: [flags] });
     }
 
     async handleAutoModReport(interaction) {
@@ -194,18 +197,19 @@ class AutoModerationSystem {
         const exemplars = db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ? AND points >= ?`).get(interaction.guildId, ConfigSystem.getSetting(interaction.guildId, 'limit_exemplar') || 95);
         const problematic = db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ? AND points <= ?`).get(interaction.guildId, ConfigSystem.getSetting(interaction.guildId, 'limit_problematico') || 30);
         
-        const builder = ContainerFormatter.create(interaction.guild.name, COLORS.DEFAULT);
-        builder.addTitle(`${EMOJIS.Rank || '📊'} Relatório de Auto Moderação`, 1);
-        builder.addSeparator();
-        builder.addText(`${EMOJIS.user || '👥'} **Total de Usuários:** \`${totalUsers?.count || 0}\``);
-        builder.addText(`${EMOJIS.star || '⭐'} **Reputação Média:** \`${Math.round(avgRep?.avg || 0)}/100\``);
-        builder.addText(`${EMOJIS.shinystar || '🎖️'} **Usuários Exemplares:** \`${exemplars?.count || 0}\``);
-        builder.addText(`${EMOJIS.Warning || '⚠️'} **Usuários Problemáticos:** \`${problematic?.count || 0}\``);
-        builder.addText(`${EMOJIS.Date || '🕒'} **Última Execução:** ${this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado'}`);
-        builder.addText(`${EMOJIS.gain || '📈'} **Total Recuperado:** \`${this.stats.totalRepRecovered}\` pontos`);
-        builder.addFooter();
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.title(`${EMOJIS.Rank || '📊'} Relatório de Auto Moderação`, 1);
+        builder.separator();
+        builder.text(`${EMOJIS.user || '👥'} **Total de Usuários:** \`${totalUsers?.count || 0}\``);
+        builder.text(`${EMOJIS.star || '⭐'} **Reputação Média:** \`${Math.round(avgRep?.avg || 0)}/100\``);
+        builder.text(`${EMOJIS.shinystar || '🎖️'} **Usuários Exemplares:** \`${exemplars?.count || 0}\``);
+        builder.text(`${EMOJIS.Warning || '⚠️'} **Usuários Problemáticos:** \`${problematic?.count || 0}\``);
+        builder.text(`${EMOJIS.Date || '🕒'} **Última Execução:** ${this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado'}`);
+        builder.text(`${EMOJIS.gain || '📈'} **Total Recuperado:** \`${this.stats.totalRepRecovered}\` pontos`);
+        builder.footer();
         
-        await interaction.editReply({ components: [builder.build()], flags: ['IsComponentsV2'] });
+        const { components, flags } = builder.build();
+        await interaction.editReply({ components, flags: [flags] });
     }
 
     startWorker() {
@@ -335,15 +339,16 @@ class AutoModerationSystem {
                 const channel = await this.client.channels.fetch(logChanId).catch(() => null);
                 if (!channel) continue;
 
-                const builder = ContainerFormatter.create(data.guildName, COLORS.DEFAULT);
-                builder.addTitle(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`, 1);
-                builder.addSeparator();
-                builder.addText(`${EMOJIS.gain || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+1pt**.`);
-                builder.addText(`${EMOJIS.Leadboard || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
-                builder.addText(`${EMOJIS.Rank || '📊'} **Detalhes:** ${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
-                builder.addFooter();
+                const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+                builder.title(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`, 1);
+                builder.separator();
+                builder.text(`${EMOJIS.gain || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+1pt**.`);
+                builder.text(`${EMOJIS.Leadboard || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
+                builder.text(`${EMOJIS.Rank || '📊'} **Detalhes:** ${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
+                builder.footer();
 
-                await channel.send({ components: [builder.build()], flags: ['IsComponentsV2'] });
+                const { components, flags } = builder.build();
+                await channel.send({ components, flags: [flags] });
                 console.log(`✅ [AutoMod] Log enviado para ${data.guildName}`);
                 ConfigSystem.setSetting(gId, 'last_automod_run', Date.now().toString());
             } catch (e) {

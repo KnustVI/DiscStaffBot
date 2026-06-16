@@ -10,7 +10,7 @@
  * - URLs dos endpoints
  */
 const db = require('../database/index');
-const ContainerFormatter = require('../utils/containerFormatter.js');
+const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
@@ -209,34 +209,35 @@ class PoTConfigSystem {
      * Gera um container com o status da configuração do PoT
      * @param {string} guildId - ID do servidor Discord
      * @param {string} guildName - Nome do servidor
-     * @returns {ContainerBuilderWrapper} Builder configurado
+     * @returns {AdvancedContainerBuilder} Builder configurado
      */
     static getStatusContainer(guildId, guildName) {
         const config = this.getServerConfig(guildId);
         const stats = this.getStats(guildId);
         const logChannel = this.getLogChannel(guildId);
         
-        const builder = ContainerFormatter.create(guildName, stats.enabled ? ContainerFormatter.colors.success : ContainerFormatter.colors.info);
+        const accentColor = stats.enabled ? 0x57F287 : 0x5865F2;
+        const builder = new AdvancedContainerBuilder({ accentColor });
         
-        builder.addTitle(`${EMOJIS.Config || '⚙️'} Configuração Path of Titans`, 1);
-        builder.addText(`Status da integração com o servidor PoT.`);
-        builder.addSeparator();
+        builder.title(`${EMOJIS.Config || '⚙️'} Configuração Path of Titans`, 1);
+        builder.text(`Status da integração com o servidor PoT.`);
+        builder.separator();
         
-        builder.addText(`${EMOJIS.Status || '📊'} **Status:** ${stats.enabled ? `${EMOJIS.Check || '✅'} Conectado` : `${EMOJIS.Error || '❌'} Desconectado`}`);
+        builder.text(`${EMOJIS.Status || '📊'} **Status:** ${stats.enabled ? `${EMOJIS.Check || '✅'} Conectado` : `${EMOJIS.Error || '❌'} Desconectado`}`);
         
         if (config) {
-            builder.addText(`${EMOJIS.global || '🌐'} **Servidor:** ${config.server_ip || `${EMOJIS.Error || '❌'} Não configurado`}`);
-            builder.addText(`${EMOJIS.Config || '🔌'} **Portas:** RCON: ${config.rcon_port || 'N/A'} | Webhook: ${config.webhook_port || 'N/A'}`);
-            builder.addText(`${EMOJIS.dashboard || '📝'} **Canal de Log:** ${logChannel ? `<#${logChannel}>` : `${EMOJIS.Error || '❌'} Não configurado`}`);
+            builder.text(`${EMOJIS.global || '🌐'} **Servidor:** ${config.server_ip || `${EMOJIS.Error || '❌'} Não configurado`}`);
+            builder.text(`${EMOJIS.Config || '🔌'} **Portas:** RCON: ${config.rcon_port || 'N/A'} | Webhook: ${config.webhook_port || 'N/A'}`);
+            builder.text(`${EMOJIS.dashboard || '📝'} **Canal de Log:** ${logChannel ? `<#${logChannel}>` : `${EMOJIS.Error || '❌'} Não configurado`}`);
             
             const webhooks = this.getAllWebhookConfigs(guildId);
-            builder.addText(`${EMOJIS.link || '🔗'} **Webhooks Configurados:** ${Object.keys(webhooks).length} evento(s)`);
-            builder.addText(`${EMOJIS.rcon || '🖥️'} **RCON:** ${stats.has_rcon ? `${EMOJIS.Check || '✅'} Configurado` : `${EMOJIS.Error || '❌'} Não configurado`}`);
+            builder.text(`${EMOJIS.link || '🔗'} **Webhooks Configurados:** ${Object.keys(webhooks).length} evento(s)`);
+            builder.text(`${EMOJIS.rcon || '🖥️'} **RCON:** ${stats.has_rcon ? `${EMOJIS.Check || '✅'} Configurado` : `${EMOJIS.Error || '❌'} Não configurado`}`);
         } else {
-            builder.addText(`\`\`\`\nNenhuma configuração encontrada. Use /pot-config para configurar.\n\`\`\``);
+            builder.text(`\`\`\`\nNenhuma configuração encontrada. Use /pot-config para configurar.\n\`\`\``);
         }
         
-        builder.addFooter();
+        builder.footer();
         
         return builder;
     }
@@ -245,18 +246,18 @@ class PoTConfigSystem {
      * Gera um container com a lista de webhooks configurados
      * @param {string} guildId - ID do servidor Discord
      * @param {string} guildName - Nome do servidor
-     * @returns {ContainerBuilderWrapper} Builder configurado
+     * @returns {AdvancedContainerBuilder} Builder configurado
      */
     static getWebhooksContainer(guildId, guildName) {
         const webhooks = this.getAllWebhookConfigs(guildId);
         
-        const builder = ContainerFormatter.create(guildName, ContainerFormatter.colors.info);
-        builder.addTitle(`${EMOJIS.link || '🔗'} Webhooks Configurados`, 1);
-        builder.addText(`Eventos que estão enviando dados para o bot.`);
-        builder.addSeparator();
+        const builder = new AdvancedContainerBuilder({ accentColor: 0x5865F2 });
+        builder.title(`${EMOJIS.link || '🔗'} Webhooks Configurados`, 1);
+        builder.text(`Eventos que estão enviando dados para o bot.`);
+        builder.separator();
         
         if (Object.keys(webhooks).length === 0) {
-            builder.addText(`\`\`\`\nNenhum webhook configurado.\n\`\`\``);
+            builder.text(`\`\`\`\nNenhum webhook configurado.\n\`\`\``);
         } else {
             const eventIcons = {
                 PlayerLogin: '🔐',
@@ -272,11 +273,11 @@ class PoTConfigSystem {
             
             for (const [event, url] of Object.entries(webhooks)) {
                 const icon = eventIcons[event] || '📡';
-                builder.addText(`${icon} **${event}:** ${url.length > 60 ? url.substring(0, 57) + '...' : url}`);
+                builder.text(`${icon} **${event}:** ${url.length > 60 ? url.substring(0, 57) + '...' : url}`);
             }
         }
         
-        builder.addFooter();
+        builder.footer();
         
         return builder;
     }
@@ -285,31 +286,31 @@ class PoTConfigSystem {
      * Gera um container com as URLs dos endpoints para o Game.ini
      * @param {string} guildId - ID do servidor Discord
      * @param {string} guildName - Nome do servidor
-     * @returns {ContainerBuilderWrapper} Builder configurado
+     * @returns {AdvancedContainerBuilder} Builder configurado
      */
     static getEndpointsContainer(guildId, guildName) {
         const endpoints = this.getAllEndpointUrls(guildId);
         const config = this.getServerConfig(guildId);
         
-        const builder = ContainerFormatter.create(guildName, ContainerFormatter.colors.info);
+        const builder = new AdvancedContainerBuilder({ accentColor: 0x5865F2 });
         
-        builder.addTitle(`${EMOJIS.Config || '📝'} Endpoints para Game.ini`, 1);
-        builder.addText(`Copie estas URLs para o arquivo \`Game.ini\` do seu servidor.`);
-        builder.addSeparator();
+        builder.title(`${EMOJIS.Config || '📝'} Endpoints para Game.ini`, 1);
+        builder.text(`Copie estas URLs para o arquivo \`Game.ini\` do seu servidor.`);
+        builder.separator();
         
         if (Object.keys(endpoints).length === 0) {
-            builder.addText(`\`\`\`\nConfigure o servidor PoT primeiro usando /pot-config\n\`\`\``);
+            builder.text(`\`\`\`\nConfigure o servidor PoT primeiro usando /pot-config\n\`\`\``);
         } else {
-            builder.addText(`\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="Discord"\n`);
+            builder.text(`\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="Discord"\n`);
             
             for (const [event, url] of Object.entries(endpoints)) {
-                builder.addText(`${event}="${url}"`);
+                builder.text(`${event}="${url}"`);
             }
             
-            builder.addText(`\`\`\``);
+            builder.text(`\`\`\``);
         }
         
-        builder.addFooter();
+        builder.footer();
         
         return builder;
     }

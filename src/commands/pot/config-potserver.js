@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { getInstance } = require('../../integrations/pathoftitans');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
-const ContainerFormatter = require('../../utils/containerFormatter');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -44,17 +44,18 @@ module.exports = {
             
             const success = await potIntegration.initializeForGuild(interaction.guildId, config);
             
-            const builder = ContainerFormatter.createBuilder(interaction.guild.name, success ? 0x00FF00 : 0xFFA500);
-            builder.addTitle('🎮 Path of Titans - Configuração', 1);
-            builder.addSeparator();
-            builder.addText(`📡 **IP:** ${ip}`);
-            builder.addText(`🔌 **Porta RCON:** ${port}`);
-            builder.addText(`🔄 **Status:** ${success ? '✅ OK' : '⚠️ Offline'}`);
-            builder.addFooter('Use /config-potserver token para ver o token');
+            const builder = new AdvancedContainerBuilder({ accentColor: success ? 0x00FF00 : 0xFFA500 });
+            builder.title('🎮 Path of Titans - Configuração', 1);
+            builder.separator();
+            builder.text(`📡 **IP:** ${ip}`);
+            builder.text(`🔌 **Porta RCON:** ${port}`);
+            builder.text(`🔄 **Status:** ${success ? '✅ OK' : '⚠️ Offline'}`);
+            builder.footer('Use /config-potserver token para ver o token');
             
+            const { components, flags } = builder.build();
             await interaction.editReply({
-                components: [builder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
         }
         
@@ -74,22 +75,23 @@ module.exports = {
             const token = PoTTokenManager.getToken(interaction.guildId);
             const tokenStats = PoTTokenManager.getTokenStats(interaction.guildId);
             
-            const builder = ContainerFormatter.createBuilder(interaction.guild.name, 0x00AAFF);
-            builder.addTitle('🎮 Status da Integração', 1);
-            builder.addSeparator();
-            builder.addText(`🔒 **Gateway:** ${stats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
-            builder.addText(`🔑 **Token:** ${token ? '✅ Ativo' : '❌ Não gerado'}`);
-            builder.addText(`📊 **Usos:** ${tokenStats.usage_count || 0} requisições`);
+            const builder = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
+            builder.title('🎮 Status da Integração', 1);
+            builder.separator();
+            builder.text(`🔒 **Gateway:** ${stats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
+            builder.text(`🔑 **Token:** ${token ? '✅ Ativo' : '❌ Não gerado'}`);
+            builder.text(`📊 **Usos:** ${tokenStats.usage_count || 0} requisições`);
             
             if (tokenStats.last_used) {
-                builder.addText(`🕐 **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
+                builder.text(`🕐 **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
             }
             
-            builder.addFooter();
+            builder.footer();
             
+            const { components, flags } = builder.build();
             await interaction.editReply({
-                components: [builder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
         }
         

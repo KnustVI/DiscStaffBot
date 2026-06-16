@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -46,26 +46,28 @@ module.exports = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
-        const builder = ContainerFormatter.create(guild.name, 0xDCA15E);
+        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
         
-        builder.addTitle(`${emojis.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
-        builder.addText(`Gerencie os valores do sistema de reputação.`);
-        builder.addSeparator();
-        builder.addTitle(`${emojis.strike || '🎯'} Níveis de Strike`, 2);
-        builder.addText(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
-        builder.addText(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
-        builder.addText(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
-        builder.addText(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
-        builder.addText(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
-        builder.addSeparator();
-        builder.addTitle(`${emojis.Rank || '📊'} Limites de Reputação`, 2);
-        builder.addText(`- **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
-        builder.addText(`- **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
-        builder.addSeparator();
-        builder.addTitle(`${emojis.Note || '📝'} Valores Padrão`, 2);
-        builder.addText(`- **Strike:** 10 | 25 | 40 | 60 | 100`);
-        builder.addText(`- **Limites:** Exemplar > 95 | Problemático <30`);
-        builder.addFooter();
+        builder.title(`${emojis.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
+        builder.text(`Gerencie os valores do sistema de reputação.`);
+        builder.separator();
+        builder.title(`${emojis.strike || '🎯'} Níveis de Strike`, 2);
+        builder.text(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
+        builder.text(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
+        builder.text(`${severityIcons[3]} **Nível 3 (${severityNames[3]}):** \`${points[3]} pontos\``);
+        builder.text(`${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``);
+        builder.text(`${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``);
+        builder.separator();
+        builder.title(`${emojis.Rank || '📊'} Limites de Reputação`, 2);
+        builder.text(`- **Exemplar:** Acima de \`${exemplarLimit}\` pontos`);
+        builder.text(`- **Problemático:** Abaixo de \`${problematicLimit}\` pontos`);
+        builder.separator();
+        builder.title(`${emojis.Note || '📝'} Valores Padrão`, 2);
+        builder.text(`- **Strike:** 10 | 25 | 40 | 60 | 100`);
+        builder.text(`- **Limites:** Exemplar > 95 | Problemático <30`);
+        builder.footer();
+        
+        const { components, flags } = builder.build();
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('config-points:strike:modal').setLabel(` Editar Níveis de Strike`).setStyle(ButtonStyle.Secondary).setEmoji(emojis.edit || '✏️'),
@@ -74,8 +76,8 @@ module.exports = {
         );
         
         await interaction.editReply({
-            components: [builder.build(), row],
-            flags: ['IsComponentsV2']
+            components: [components[0], row],
+            flags: [flags]
         });
     }
 };

@@ -1,5 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/commands/config/ping.js
 const { SlashCommandBuilder } = require('discord.js');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -11,8 +12,37 @@ module.exports = {
             // O handler já fez deferReply, então usamos editReply
             const ping = client.ws.ping;
             
+            // Criar container com AdvancedContainerBuilder
+            const builder = new AdvancedContainerBuilder({ accentColor: 0x57F287 });
+            
+            // Determinar cor baseada na latência
+            let statusEmoji = '🟢';
+            let statusText = 'Excelente';
+            if (ping > 200) {
+                builder.accentColor = 0xED4245;
+                statusEmoji = '🔴';
+                statusText = 'Crítico';
+            } else if (ping > 100) {
+                builder.accentColor = 0xFEE75C;
+                statusEmoji = '🟡';
+                statusText = 'Moderado';
+            }
+            
+            builder.title('🏓 Pong!', 1);
+            builder.separator();
+            builder.text(`📡 **Latência:** \`${ping}ms\``);
+            builder.text(`💻 **API:** \`${Math.round(client.ws.ping)}ms\``);
+            builder.text(`📊 **Status:** ${statusEmoji} ${statusText}`);
+            builder.separator();
+            builder.text(`🤖 **Bot:** ${client.user?.tag || 'Desconhecido'}`);
+            builder.text(`📅 **Uptime:** ${Math.floor(client.uptime / 1000 / 60)} minutos`);
+            builder.footer(`Solicitado por ${interaction.user.tag}`);
+            
+            const { components, flags } = builder.build();
+            
             await interaction.editReply({ 
-                content: `🏓 Pong!\n📡 Latência: ${ping}ms\n💻 API: ${Math.round(client.ws.ping)}ms`
+                components,
+                flags: [flags]
             });
             
         } catch (error) {

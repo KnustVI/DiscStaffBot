@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const ContainerFormatter = require('../../utils/ContainerFormatter');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -36,27 +36,29 @@ module.exports = {
                 reason: 'Usuário não autorizado'
             });
             
-            const deniedBuilder = ContainerFormatter.create(guild.name, 0xF64B4E);
-            deniedBuilder.addTitle(`${emojis.Error || '❌'} Acesso Negado`, 1);
-            deniedBuilder.addText('Este comando é restrito ao desenvolvedor do bot.');
-            deniedBuilder.addFooter();
+            const deniedBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            deniedBuilder.title(`${emojis.Error || '❌'} Acesso Negado`, 1);
+            deniedBuilder.text('Este comando é restrito ao desenvolvedor do bot.');
+            deniedBuilder.footer();
             
+            const { components, flags } = deniedBuilder.build();
             await interaction.editReply({
-                components: [deniedBuilder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
             return;
         }
         
         if (confirmacao !== 'LIMPAR REPORTS') {
-            const cancelBuilder = ContainerFormatter.create(guild.name, 0xFFBD59);
-            cancelBuilder.addTitle(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
-            cancelBuilder.addText(`Digite exatamente **"LIMPAR REPORTS"** para confirmar.\n\n**Você digitou:** \`${confirmacao}\``);
-            cancelBuilder.addFooter();
+            const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
+            cancelBuilder.title(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
+            cancelBuilder.text(`Digite exatamente **"LIMPAR REPORTS"** para confirmar.\n\n**Você digitou:** \`${confirmacao}\``);
+            cancelBuilder.footer();
             
+            const { components, flags } = cancelBuilder.build();
             await interaction.editReply({
-                components: [cancelBuilder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
             return;
         }
@@ -112,42 +114,44 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const alertBuilder = ContainerFormatter.create(guild.name, 0xF64B4E);
-                        alertBuilder.addTitle(`${emojis.Warning || '⚠️'} REPORTS RESETADOS`, 1);
-                        alertBuilder.addSeparator();
-                        alertBuilder.addText(`**Desenvolvedor:** ${user.tag}`);
-                        alertBuilder.addText(`**Servidor:** ${guild.name}`);
-                        alertBuilder.addSeparator();
-                        alertBuilder.addText(`**Reports removidos:**`);
-                        alertBuilder.addText(`- Total: \`${statsBefore.reports}\``);
-                        alertBuilder.addText(`- Abertos: \`${statsBefore.openReports}\``);
-                        alertBuilder.addText(`- Fechados: \`${statsBefore.closedReports}\``);
-                        alertBuilder.addFooter();
+                        const alertBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+                        alertBuilder.title(`${emojis.Warning || '⚠️'} REPORTS RESETADOS`, 1);
+                        alertBuilder.separator();
+                        alertBuilder.text(`**Desenvolvedor:** ${user.tag}`);
+                        alertBuilder.text(`**Servidor:** ${guild.name}`);
+                        alertBuilder.separator();
+                        alertBuilder.text(`**Reports removidos:**`);
+                        alertBuilder.text(`- Total: \`${statsBefore.reports}\``);
+                        alertBuilder.text(`- Abertos: \`${statsBefore.openReports}\``);
+                        alertBuilder.text(`- Fechados: \`${statsBefore.closedReports}\``);
+                        alertBuilder.footer();
                         
+                        const { components, flags } = alertBuilder.build();
                         await logChannel.send({
-                            components: [alertBuilder.build()],
-                            flags: ['IsComponentsV2']
+                            components,
+                            flags: [flags]
                         });
                     }
                 } catch (err) {}
             }
             
-            const successBuilder = ContainerFormatter.create(guild.name, 0xBBF96A);
-            successBuilder.addTitle(`${emojis.CLEAN || '🧹'} Reports Resetados`, 1);
-            successBuilder.addSeparator();
-            successBuilder.addText(`Operação concluída com sucesso em **${guild.name}**.`);
-            successBuilder.addSeparator();
-            successBuilder.addText(`**Registros removidos:**`);
-            successBuilder.addText(`- Total: \`${statsBefore.reports}\``);
-            successBuilder.addText(`- Abertos: \`${statsBefore.openReports}\``);
-            successBuilder.addText(`- Fechados: \`${statsBefore.closedReports}\``);
-            successBuilder.addSeparator();
-            successBuilder.addText(`**Contagem reiniciada:** O próximo report será **#R1**`);
-            successBuilder.addFooter(`UUID: ${resetUuid.slice(0, 8)}`);
+            const successBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
+            successBuilder.title(`${emojis.CLEAN || '🧹'} Reports Resetados`, 1);
+            successBuilder.separator();
+            successBuilder.text(`Operação concluída com sucesso em **${guild.name}**.`);
+            successBuilder.separator();
+            successBuilder.text(`**Registros removidos:**`);
+            successBuilder.text(`- Total: \`${statsBefore.reports}\``);
+            successBuilder.text(`- Abertos: \`${statsBefore.openReports}\``);
+            successBuilder.text(`- Fechados: \`${statsBefore.closedReports}\``);
+            successBuilder.separator();
+            successBuilder.text(`**Contagem reiniciada:** O próximo report será **#R1**`);
+            successBuilder.footer(`UUID: ${resetUuid.slice(0, 8)}`);
             
+            const { components, flags } = successBuilder.build();
             await interaction.editReply({
-                components: [successBuilder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
             
             console.log(`📊 [RESET-REPORTS] ${user.tag} resetou reports de ${guild.name} | ${statsBefore.reports} removidos`);
@@ -158,14 +162,15 @@ module.exports = {
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            const errorBuilder = ContainerFormatter.create(guild.name, 0xF64B4E);
-            errorBuilder.addTitle(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
-            errorBuilder.addText(`Ocorreu um erro ao resetar os reports.\n\n**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
-            errorBuilder.addFooter();
+            const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            errorBuilder.title(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
+            errorBuilder.text(`Ocorreu um erro ao resetar os reports.\n\n**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
+            errorBuilder.footer();
             
+            const { components, flags } = errorBuilder.build();
             await interaction.editReply({
-                components: [errorBuilder.build()],
-                flags: ['IsComponentsV2']
+                components,
+                flags: [flags]
             });
         }
     }
