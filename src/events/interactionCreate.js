@@ -19,10 +19,6 @@ module.exports = {
                 return;
             }
 
-            if (interaction.customId === 'ajuda_prev' || interaction.customId === 'ajuda_next') {
-                return;
-            }
-
             // ==================== REPORTCHAT - ABRIR MODAL ====================
             if (interaction.customId === 'open_report') {
                 const reportSystem = new ReportChatSystem(client);
