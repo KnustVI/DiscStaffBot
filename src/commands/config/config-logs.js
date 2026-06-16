@@ -42,6 +42,7 @@ module.exports = {
 
         // ✅ Container único com todas as informações
         const externalImage = 'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png';
+        const serverIcon = guild.iconURL({ size: 128 }) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
         .section(
                 '**Imagem Externa**',
