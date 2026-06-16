@@ -41,28 +41,16 @@ module.exports = {
             : `${emojis.Error || '❌'} Não definido`;
 
         // ✅ Container único com todas as informações
-        const externalImage = 'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png';
-        const serverIcon = guild.iconURL({ size: 128 }) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
+        const iconURL = guild.iconURL({ size: 64}) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .section(
-                '**Imagem Externa**',
-                AdvancedContainerBuilder.thumbnail(externalImage)
-            )
-        .section(
-            '**Staff:**\nAdministradores e Moderadores',
-            AdvancedContainerBuilder.thumbnail(client.user.displayAvatarURL({ size: 128 }))
-        )
-            .section(
-            `**${guild.name}**`,
-            AdvancedContainerBuilder.thumbnail(serverIcon)
-        )
+        .gallery([
+        'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png',
+        ])
         .separator()
         .section(
-            `${emojis.dashboard || '📝'} Canais de Log`,
-            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 64}))  // ← tamanho aqui
+            `# ${emojis.dashboard || '📝'} Canais de Log`,
+            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))  // ← tamanho aqui
         )
-        .title(`${emojis.dashboard || '📝'} Canais de Log`)
-            // Seção 1: Geral
             .text('**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.')
             .text(`${emojis.global || '📜'} **Geral:** ${fmt(logGeral)}`)
             .separator()
