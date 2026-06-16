@@ -217,19 +217,32 @@ const ConfigSystem = {
             }
         }
         
+        let hasChanges = false;
         for (let i = 1; i <= 5; i++) {
             const valorAntigo = this.getSetting(interaction.guildId, `strike_points_${i}`);
             if (valorAntigo !== novosPontos[i].toString()) {
                 this.setSetting(interaction.guildId, `strike_points_${i}`, novosPontos[i].toString());
                 changes.push(`${severityIcons[i]} Nível ${i} (${severityNames[i]}): \`${valorAntigo || 'padrão'}\` → \`${novosPontos[i]}\``);
+                hasChanges = true;
             }
         }
         
         this.clearCache(interaction.guildId);
-        const changeMessage = changes.length > 0
-            ? `${EMOJIS.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`
-            : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
+        
+        // ✅ Mostrar mensagem via followUp (não no payload V2)
+        if (hasChanges) {
+            await interaction.followUp({
+                content: `${EMOJIS.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`,
+                flags: 64
+            });
+        } else {
+            await interaction.followUp({
+                content: `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`,
+                flags: 64
+            });
+        }
+        
+        await this.refreshPointsPanel(interaction, null, interaction.guild.name);
     },
 
     async processLimitesModal(interaction) {
@@ -257,10 +270,20 @@ const ConfigSystem = {
         if (oldExemplar != exemplarLimit) changes.push(`🎖️ Exemplar: \`${oldExemplar || 95}\` → \`${exemplarLimit}\``);
         if (oldProblematic != problematicLimit) changes.push(`⚠️ Problemático: \`${oldProblematic || 30}\` → \`${problematicLimit}\``);
         
-        const changeMessage = changes.length > 0
-            ? `${EMOJIS.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
-            : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
+        // ✅ Mostrar mensagem via followUp
+        if (changes.length > 0) {
+            await interaction.followUp({
+                content: `${EMOJIS.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`,
+                flags: 64
+            });
+        } else {
+            await interaction.followUp({
+                content: `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`,
+                flags: 64
+            });
+        }
+        
+        await this.refreshPointsPanel(interaction, null, interaction.guild.name);
     },
 
     async resetPoints(interaction) {
@@ -271,7 +294,14 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'limit_exemplar', '95');
         this.setSetting(interaction.guildId, 'limit_problematico', '30');
         this.clearCache(interaction.guildId);
-        await this.refreshPointsPanel(interaction, `${EMOJIS.Check || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name);
+        
+        // ✅ Mostrar mensagem via followUp
+        await interaction.followUp({
+            content: `${EMOJIS.Check || '✅'} Todos os valores foram resetados para o padrão!`,
+            flags: 64
+        });
+        
+        await this.refreshPointsPanel(interaction, null, interaction.guild.name);
     },
 
     // ==================== PAINÉIS ====================
@@ -320,10 +350,10 @@ const ConfigSystem = {
             new ButtonBuilder().setCustomId('config-points:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.Reset || '⚠️')
         );
         
+        // ✅ SEM content no payload V2
         const replyData = {
             components: [...components, row],
             flags,
-            ...(successMessage ? { content: successMessage } : {}),
         };
         
         if (interaction.deferred || interaction.replied) {
@@ -364,10 +394,10 @@ const ConfigSystem = {
         const exemplarRow    = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
         const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
+        // ✅ SEM content no payload V2
         const replyData = {
             components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow],
             flags,
-            ...(successMessage ? { content: successMessage } : {}),
         };
         
         try {
@@ -382,6 +412,15 @@ const ConfigSystem = {
     },
 
     async setRole(interaction, roleKey) {
+        // ✅ DeferUpdate para componentes
+        if (interaction.isButton() || interaction.isAnySelectMenu()) {
+            try {
+                await interaction.deferUpdate();
+            } catch (err) {
+                // Já pode estar deferido
+            }
+        }
+        
         const selectedRoleId = interaction.values[0];
         if (!selectedRoleId) {
             return await ResponseManager.error(interaction, `${EMOJIS.Error || '❌'} Nenhum cargo selecionado.`);
@@ -396,7 +435,18 @@ const ConfigSystem = {
         this.clearCache(interaction.guildId);
         
         const roleLabels = { staff_role: 'Staff', strike_role: 'Strike', role_exemplar: 'Exemplar', role_problematico: 'Problemático' };
-        await this.refreshRolesPanel(interaction, `${EMOJIS.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
+        
+        // ✅ Mostrar mensagem via followUp
+        try {
+            await interaction.followUp({
+                content: `${EMOJIS.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`,
+                flags: 64
+            });
+        } catch (err) {
+            console.log(`📝 Sucesso: ${roleLabels[roleKey]} alterado`);
+        }
+        
+        await this.refreshRolesPanel(interaction);
     },
 
     async refreshLogsPanel(interaction, successMessage, guildName) {
@@ -414,30 +464,44 @@ const ConfigSystem = {
             .title(`${EMOJIS.dashboard || '📝'} Canais de Log`)
             .block([
                 '**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.',
-                '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
-                '**AutoMod** — recebe logs de ações tomadas pela análise diária de automação do bot, responsável por dar e remover cargos e enviar alertas de players problemáticos.',
-                '**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
-            ])
-            .separator()
-            .block([
                 `${EMOJIS.global  || '📜'} **Geral:** ${fmt(logGeral)}`,
+            ])
+            .build();
+
+        const geralRow       = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais').addChannelTypes(ChannelType.GuildText));
+        
+        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+        .block([
+                '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
                 `${EMOJIS.strike  || '⚖️'} **Punições:** ${fmt(logPunishments)}`,
+                 ])
+        .build();
+        const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder('Selecionar canal de logs de punições').addChannelTypes(ChannelType.GuildText))
+
+        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+        .block([
+                '**AutoMod** — recebe logs de ações tomadas pela análise diária de automação do bot, responsável por dar e remover cargos e enviar alertas de players problemáticos.',
                 `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`,
+                                 ])
+        .build();
+        const automodRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder('Selecionar canal de logs de automoderação').addChannelTypes(ChannelType.GuildText));
+
+        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+        .block([
+                '**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
                 `${EMOJIS.chat    || '🎫'} **ReportChat:** ${fmt(logReports)}`,
             ])
+            .separator()
             .footer(guildName)
             .build();
-        
-        const geralRow       = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais').addChannelTypes(ChannelType.GuildText));
-        const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder('Selecionar canal de logs de punições').addChannelTypes(ChannelType.GuildText));
-        const automodRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder('Selecionar canal de logs de automoderação').addChannelTypes(ChannelType.GuildText));
+            
         const reportsRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder('Selecionar canal de logs de reports').addChannelTypes(ChannelType.GuildText));
         const buttonRow      = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
         
+        // ✅ SEM content no payload V2
         const replyData = {
             components: [...components, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow],
             flags,
-            ...(successMessage ? { content: successMessage } : {}),
         };
         
         try {
@@ -452,6 +516,15 @@ const ConfigSystem = {
     },
 
     async setLogChannel(interaction, channelKey) {
+        // ✅ DeferUpdate para componentes
+        if (interaction.isButton() || interaction.isAnySelectMenu()) {
+            try {
+                await interaction.deferUpdate();
+            } catch (err) {
+                // Já pode estar deferido
+            }
+        }
+        
         const selectedChannelId = interaction.values[0];
         if (!selectedChannelId) {
             return await ResponseManager.error(interaction, 'Nenhum canal selecionado.');
@@ -472,7 +545,17 @@ const ConfigSystem = {
             log_reports:      `${EMOJIS.chat    || '🎫'} Canal de logs de reports`,
         };
         
-        await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
+        // ✅ Mostrar mensagem via followUp
+        try {
+            await interaction.followUp({
+                content: `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`,
+                flags: 64
+            });
+        } catch (err) {
+            console.log(`📝 Sucesso: ${channelLabels[channelKey]} alterado`);
+        }
+        
+        await this.refreshLogsPanel(interaction, null, interaction.guild.name);
     },
 
     async createLogChannels(interaction) {
@@ -519,7 +602,7 @@ const ConfigSystem = {
             this.setSetting(guild.id, 'log_reports',      reports.id);
             this.clearCache(guild.id);
             
-            const replyData = new AdvancedContainerBuilder({ accentColor: 0x57F287 })
+            const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0x57F287 })
                 .title(`${EMOJIS.Check || '✅'} Canais de Log Criados`)
                 .text('Os seguintes canais foram criados:')
                 .separator()
@@ -531,6 +614,9 @@ const ConfigSystem = {
                 ])
                 .footer(guild.name)
                 .build();
+            
+            // ✅ SEM content no payload V2
+            const replyData = { components, flags };
             
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply(replyData);
