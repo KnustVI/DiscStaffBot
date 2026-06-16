@@ -41,8 +41,14 @@ module.exports = {
             : `${emojis.Error || '❌'} Não definido`;
 
         // ✅ Container único com todas as informações
+        const iconURL = guild.iconURL({ size: 128 }) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-            .title(`${emojis.dashboard || '📝'} Canais de Log`)
+        .gallery([
+        'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png',
+        iconURL
+        ])
+        .separator()
+        .title(`${emojis.dashboard || '📝'} Canais de Log`)
             // Seção 1: Geral
             .text('**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.')
             .text(`${emojis.global || '📜'} **Geral:** ${fmt(logGeral)}`)
