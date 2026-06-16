@@ -41,11 +41,20 @@ module.exports = {
             : `${emojis.Error || '❌'} Não definido`;
 
         // ✅ Container único com todas as informações
-        const iconURL = guild.iconURL({ size: 64}) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
+        const externalImage = 'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .gallery([
-        'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png',
-        ])
+        .section(
+                '**Imagem Externa**',
+                AdvancedContainerBuilder.thumbnail(externalImage)
+            )
+        .section(
+            '**Staff:**\nAdministradores e Moderadores',
+            AdvancedContainerBuilder.thumbnail(client.user.displayAvatarURL({ size: 128 }))
+        )
+            .section(
+            `**${guild.name}**`,
+            AdvancedContainerBuilder.thumbnail(serverIcon)
+        )
         .separator()
         .section(
             `${emojis.dashboard || '📝'} Canais de Log`,
