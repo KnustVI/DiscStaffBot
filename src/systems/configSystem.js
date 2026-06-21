@@ -412,7 +412,7 @@ const ConfigSystem = {
             : `${EMOJIS.Error || '❌'} Não definido`;
         
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-            .title(`${EMOJIS.dashboard || '📝'} Canais de Log`)
+            .title(`${EMOJIS.dashboard || '🪵'} Canais de Log`)
             .block([
                 '**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.',
                 '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
@@ -424,7 +424,7 @@ const ConfigSystem = {
                 `${EMOJIS.global  || '📜'} **Geral:** ${fmt(logGeral)}`,
                 `${EMOJIS.strike  || '⚖️'} **Punições:** ${fmt(logPunishments)}`,
                 `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`,
-                `${EMOJIS.chat    || '🎫'} **ReportChat:** ${fmt(logReports)}`,
+                `${EMOJIS.chat    || '🚩'} **ReportChat:** ${fmt(logReports)}`,
             ])
             .footer(guildName)
             .build();
@@ -470,7 +470,7 @@ const ConfigSystem = {
             log_channel:      `${EMOJIS.global  || '📜'} Canal de logs gerais`,
             log_punishments:  `${EMOJIS.strike  || '⚖️'} Canal de logs de punições`,
             log_automod:      `${EMOJIS.AutoMod || '🛡️'} Canal de logs de automoderação`,
-            log_reports:      `${EMOJIS.chat    || '🎫'} Canal de logs de reports`,
+            log_reports:      `${EMOJIS.chat    || '🚩'} Canal de logs de reports`,
         };
         
         await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
@@ -511,7 +511,7 @@ const ConfigSystem = {
             }
             
             const category = await guild.channels.create({
-                name: '📊 LOGS DO SISTEMA',
+                name: '░░🪵 LOGS DO SISTEMA ░░░░░░░░',
                 type: ChannelType.GuildCategory,
                 permissionOverwrites: [
                     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -522,7 +522,7 @@ const ConfigSystem = {
             const geral       = await guild.channels.create({ name: '📜 logs-gerais',   type: ChannelType.GuildText, parent: category.id });
             const automod     = await guild.channels.create({ name: '🛡️ logs-automod',  type: ChannelType.GuildText, parent: category.id });
             const punishments = await guild.channels.create({ name: '⚖️ logs-punicoes', type: ChannelType.GuildText, parent: category.id });
-            const reports     = await guild.channels.create({ name: '🎫 logs-reports',  type: ChannelType.GuildText, parent: category.id });
+            const reports     = await guild.channels.create({ name: '🚩 logs-reports',  type: ChannelType.GuildText, parent: category.id });
             
             this.setSetting(guild.id, 'log_channel',      geral.id);
             this.setSetting(guild.id, 'log_automod',      automod.id);
