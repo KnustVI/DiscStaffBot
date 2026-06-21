@@ -1,9 +1,9 @@
 // /home/ubuntu/DiscStaffBot/src/events/ready.js
-const InteractionHandler = require('./src/systems/handlers');
+const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
-const { startInactiveReportsJob } = require('./src/systems/inactiveReportsJob');
+const { startInactiveReportsJob } = require('../systems/inactiveReportsJob');
 // REMOVA esta linha que importa o módulo, vamos usar apenas quando necessário
-// const autoModeration = require('./src/systems/autoModeration');
+// const autoModeration = require('../systems/autoModeration');
 
 let handler = null;
 let isReady = false;
