@@ -19,6 +19,16 @@ module.exports = {
                 return;
             }
 
+            // ==================== PAGINAÇÃO (PaginationBuilder) ====================
+            // Os botões de paginação (`pag_<timestamp>_<userId>_prev_X`, `_next_X`, `_page_X`)
+            // possuem seu próprio InteractionCollector criado em PaginationBuilder.start().
+            // Esse collector já chama i.deferUpdate() e i.editReply() internamente.
+            // Por isso, NÃO podemos interceptar/deferir esses customIds aqui,
+            // ou a segunda tentativa de ack causa "Unknown interaction" (10062).
+            if (interaction.customId?.startsWith('pag_')) {
+                return;
+            }
+
             // ==================== REPORTCHAT - ABRIR MODAL ====================
             if (interaction.customId === 'open_report') {
                 const reportSystem = new ReportChatSystem(client);

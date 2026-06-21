@@ -1,7 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/commands/utility/ajuda.js
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { SlashCommandBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const db = require('../../database/index');
-const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 
@@ -105,6 +104,9 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
 
+        // Nota: handlers.js → handleCommand() já chama interaction.deferReply()
+        // antes de invocar execute(), então a interação já está deferida aqui.
+
         // Carrega emojis customizados
         let emojis = {};
         try {
@@ -136,7 +138,6 @@ module.exports = {
                 footerText: `${guild.name} • Página {page}`,
             });
 
-            // Adiciona as páginas
             pagination
                 .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis))
                 .addPage(() => buildPageModeration(emojis))
@@ -146,17 +147,33 @@ module.exports = {
                     next: { label: 'Próxima ▶', style: ButtonStyle.Primary },
                 });
 
-            // Inicia a paginação
             await pagination.start(interaction);
 
             console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (admin)`);
 
         } catch (error) {
             console.error('❌ Erro no ajuda:', error);
-            await interaction.editReply({
-                content: '❌ Erro ao gerar guia de ajuda. Tente novamente.',
-                flags: MessageFlags.Ephemeral
-            });
+
+            // -----------------------------------------------------------------
+            // IMPORTANTE: nunca enviar `content` numa mensagem que já foi
+            // marcada com MessageFlags.IsComponentsV2 (a resposta da
+            // paginação já pode ter sido enviada nesse formato). Por isso o
+            // fallback de erro usa o próprio AdvancedContainerBuilder em vez
+            // de um editReply({ content }) cru.
+            // -----------------------------------------------------------------
+            try {
+                const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                    .text('❌ Erro ao gerar guia de ajuda. Tente novamente.')
+                    .build();
+
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply(errorPayload);
+                } else {
+                    await interaction.reply({ ...errorPayload, flags: errorPayload.flags | MessageFlags.Ephemeral });
+                }
+            } catch (err) {
+                console.error('❌ Erro ao responder fallback de erro:', err);
+            }
         }
     },
 };

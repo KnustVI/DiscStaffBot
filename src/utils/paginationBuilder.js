@@ -175,9 +175,12 @@ class PaginationBuilder {
         const footer = options.footer || this.footerText;
         const ephemeral = options.ephemeral || false;
 
-        // Payload inicial (SEM content para compatibilidade com Components V2)
+        // Payload inicial.
+        // IMPORTANTE: nunca incluir `content` junto de MessageFlags.IsComponentsV2 —
+        // o Discord rejeita com "MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2".
+        // Toda informação visível deve estar dentro do próprio Container (title/text/footer).
         const payload = this._buildPayload(0, customIdPrefix, footer);
-        
+
         if (ephemeral) {
             payload.flags = payload.flags | MessageFlags.Ephemeral;
         }
@@ -186,6 +189,8 @@ class PaginationBuilder {
         try {
             if (interaction.deferred) {
                 await interaction.editReply(payload);
+            } else if (interaction.replied) {
+                await interaction.followUp(payload);
             } else {
                 await interaction.reply(payload);
             }
@@ -214,7 +219,14 @@ class PaginationBuilder {
                     return;
                 }
 
-                await i.deferUpdate();
+                // Defesa contra dupla resposta: só deferimos se a interação ainda
+                // não tiver sido respondida/deferida por nenhum outro handler
+                // (ex: um bloco genérico no interactionCreate.js capturando o
+                // mesmo customId antes deste collector). Tentar deferUpdate()
+                // duas vezes na mesma interação gera "Unknown interaction" (10062).
+                if (!i.deferred && !i.replied) {
+                    await i.deferUpdate();
+                }
 
                 const isPrev = i.customId.startsWith(`${customIdPrefix}_prev_`);
                 const isNext = i.customId.startsWith(`${customIdPrefix}_next_`);

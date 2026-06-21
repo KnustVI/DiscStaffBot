@@ -1,4 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/utils/responseManager.js
+const { MessageFlags } = require('discord.js');
+
 class ResponseManager {
     constructor() {
         this.processing = new Set();
@@ -18,7 +20,12 @@ class ResponseManager {
     }
 
     /**
-     * Detecta e converte corretamente builders para o formato de envio
+     * Detecta e converte corretamente builders para o formato de envio.
+     *
+     * IMPORTANTE: MessageFlags.IsComponentsV2 é um valor NUMÉRICO (bitfield).
+     * Nunca usar a string 'IsComponentsV2' — isso silenciosamente gera um
+     * payload de flags inválido e pode causar comportamento inconsistente
+     * nas respostas (incluindo falhas que parecem "interação expirada").
      */
     _normalizePayload(payload) {
         // Se já tem components e flags, está pronto
@@ -35,33 +42,33 @@ class ResponseManager {
             }
             // Se build() retornou apenas o container (fallback)
             if (result && result.toJSON) {
-                return { components: [result], flags: ['IsComponentsV2'] };
+                return { components: [result], flags: MessageFlags.IsComponentsV2 };
             }
             // Se result é um array de componentes
             if (Array.isArray(result)) {
-                return { components: result, flags: ['IsComponentsV2'] };
+                return { components: result, flags: MessageFlags.IsComponentsV2 };
             }
             // Fallback: construir manualmente
-            return { components: [result], flags: ['IsComponentsV2'] };
+            return { components: [result], flags: MessageFlags.IsComponentsV2 };
         }
 
         // Se é um ContainerBuilder (tem toJSON)
         if (payload && payload.toJSON && typeof payload.toJSON === 'function') {
-            return { components: [payload], flags: ['IsComponentsV2'] };
+            return { components: [payload], flags: MessageFlags.IsComponentsV2 };
         }
 
         // Se é um array de componentes (ex: [container, row])
         if (Array.isArray(payload)) {
-            return { components: payload, flags: ['IsComponentsV2'] };
+            return { components: payload, flags: MessageFlags.IsComponentsV2 };
         }
 
         // Se tem components mas não flags, pode ser container solto
         if (payload && payload.components && Array.isArray(payload.components)) {
             if (payload.components[0] && payload.components[0].toJSON) {
-                return { components: payload.components, flags: ['IsComponentsV2'] };
+                return { components: payload.components, flags: MessageFlags.IsComponentsV2 };
             }
             // Já tem components, adiciona flags
-            return { ...payload, flags: payload.flags || ['IsComponentsV2'] };
+            return { ...payload, flags: payload.flags ?? MessageFlags.IsComponentsV2 };
         }
 
         // Payload padrão (content, embeds, etc)
@@ -79,24 +86,36 @@ class ResponseManager {
             // Normaliza o payload
             let payload = this._normalizePayload(options);
 
-            // Se payload tem flags e components, é Components V2
-            if (payload.flags && payload.components) {
+            // Se payload tem flags e components, é Components V2.
+            // REGRA DO DISCORD: uma mensagem com MessageFlags.IsComponentsV2
+            // NUNCA pode incluir `content` ou `embeds` — isso é rejeitado com
+            // "MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2". Por isso,
+            // ao detectar Components V2, removemos esses campos legados
+            // explicitamente, mesmo que tenham vindo por engano em `opts`.
+            if (payload.components && payload.flags !== undefined) {
+                const { content, embeds, ...safePayload } = payload;
+                if (content !== undefined || embeds !== undefined) {
+                    console.warn(
+                        `[ResponseManager] ⚠️ 'content'/'embeds' removidos de um payload Components V2 (interaction ${interaction.id})`
+                    );
+                }
+
                 if (interaction.replied) {
-                    return await interaction.followUp(payload);
+                    return await interaction.followUp(safePayload);
                 }
                 if (interaction.deferred) {
-                    return await interaction.editReply(payload);
+                    return await interaction.editReply(safePayload);
                 }
                 if (this._isComponent(interaction)) {
-                    return await interaction.update(payload);
+                    return await interaction.update(safePayload);
                 }
-                return await interaction.reply(payload);
+                return await interaction.reply(safePayload);
             }
 
-            // Payload padrão
+            // Payload padrão (legado: content, embeds, components clássicos)
             const { content, embeds = [], components = [], ephemeral = false } = payload;
             const replyOptions = { content, embeds, components };
-            if (ephemeral) replyOptions.flags = 64;
+            if (ephemeral) replyOptions.flags = MessageFlags.Ephemeral;
 
             if (interaction.replied) {
                 return await interaction.followUp(replyOptions);
@@ -112,7 +131,7 @@ class ResponseManager {
         } catch (error) {
             console.error(`[ResponseManager] ❌ Erro:`, { id: interaction.id, error: error.message });
             try {
-                return await interaction.followUp({ content: '❌ Ocorreu um erro.', flags: 64 });
+                return await interaction.followUp({ content: '❌ Ocorreu um erro.', flags: MessageFlags.Ephemeral });
             } catch (fallbackError) {
                 return null;
             }
@@ -125,7 +144,7 @@ class ResponseManager {
         if (interaction.replied || interaction.deferred) return false;
         try {
             if (interaction.isCommand()) {
-                await interaction.deferReply({ flags: ephemeral ? 64 : 0 });
+                await interaction.deferReply({ flags: ephemeral ? MessageFlags.Ephemeral : undefined });
             } else if (this._isComponent(interaction)) {
                 await interaction.deferUpdate();
             } else {
@@ -139,11 +158,11 @@ class ResponseManager {
     }
 
     async success(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `✅ ${message}`, flags: 64, ...opts });
+        return this.send(interaction, { content: `✅ ${message}`, flags: MessageFlags.Ephemeral, ...opts });
     }
 
     async error(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `❌ ${message}`, flags: 64, ...opts });
+        return this.send(interaction, { content: `❌ ${message}`, flags: MessageFlags.Ephemeral, ...opts });
     }
 
     async warning(interaction, message, opts = {}) {
