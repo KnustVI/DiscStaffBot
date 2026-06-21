@@ -63,110 +63,122 @@ class PoTGatewayServer {
         });
 
         // ==================== ENDPOINTS ====================
-        
+        //
+        // IMPORTANTE: as URLs geradas em potConfigSystem.js (getAllEndpointUrls)
+        // usam o prefixo "/pot/..." (ex: ${baseUrl}/pot/login), pois é isso
+        // que vai no Game.ini do servidor. Por isso TODAS as rotas abaixo
+        // precisam nascer sob o prefixo /pot — caso contrário o Express
+        // responde 404 para toda requisição do jogo e nenhum evento chega
+        // ao Discord. Usamos um Router dedicado para manter isso em um
+        // único lugar e evitar repetir "/pot" em cada rota manualmente.
+        const potRouter = express.Router();
+
         // Login / Logout / Leave
-        this.app.post('/login', async (req, res) => {
+        potRouter.post('/login', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'login', req.body);
             res.json({ status: 'ok', event: 'login' });
         });
 
         // Player Damage
-        this.app.post('/damaged', async (req, res) => {
+        potRouter.post('/damaged', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'damaged', req.body);
             res.json({ status: 'ok', event: 'damaged' });
         });
 
         // Player Killed
-        this.app.post('/killed', async (req, res) => {
+        potRouter.post('/killed', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'killed', req.body);
             res.json({ status: 'ok', event: 'killed' });
         });
 
         // Group
-        this.app.post('/group', async (req, res) => {
+        potRouter.post('/group', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'group', req.body);
             res.json({ status: 'ok', event: 'group' });
         });
 
         // Nest
-        this.app.post('/nest', async (req, res) => {
+        potRouter.post('/nest', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'nest', req.body);
             res.json({ status: 'ok', event: 'nest' });
         });
 
         // Quest
-        this.app.post('/quest', async (req, res) => {
+        potRouter.post('/quest', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'quest', req.body);
             res.json({ status: 'ok', event: 'quest' });
         });
 
         // Respawn
-        this.app.post('/respawn', async (req, res) => {
+        potRouter.post('/respawn', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'respawn', req.body);
             res.json({ status: 'ok', event: 'respawn' });
         });
 
         // Waystone
-        this.app.post('/waystone', async (req, res) => {
+        potRouter.post('/waystone', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'waystone', req.body);
             res.json({ status: 'ok', event: 'waystone' });
         });
 
         // Chat
-        this.app.post('/chat', async (req, res) => {
+        potRouter.post('/chat', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'chat', req.body);
             res.json({ status: 'ok', event: 'chat' });
         });
 
         // Player Command
-        this.app.post('/command', async (req, res) => {
+        potRouter.post('/command', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'command', req.body);
             res.json({ status: 'ok', event: 'command' });
         });
 
         // Admin Command
-        this.app.post('/admin_command', async (req, res) => {
+        potRouter.post('/admin_command', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'admin_command', req.body);
             res.json({ status: 'ok', event: 'admin_command' });
         });
 
         // Admin Spectate
-        this.app.post('/spectate', async (req, res) => {
+        potRouter.post('/spectate', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'spectate', req.body);
             res.json({ status: 'ok', event: 'spectate' });
         });
 
         // Server Events
-        this.app.post('/server', async (req, res) => {
+        potRouter.post('/server', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'server', req.body);
             res.json({ status: 'ok', event: 'server' });
         });
 
         // Error/Alert
-        this.app.post('/error', async (req, res) => {
+        potRouter.post('/error', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'error', req.body);
             res.json({ status: 'ok', event: 'error' });
         });
 
         // Hack
-        this.app.post('/hack', async (req, res) => {
+        potRouter.post('/hack', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'hack', req.body);
             res.json({ status: 'ok', event: 'hack' });
         });
 
         // Purchase
-        this.app.post('/purchase', async (req, res) => {
+        potRouter.post('/purchase', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'purchase', req.body);
             res.json({ status: 'ok', event: 'purchase' });
         });
 
         // Profanity
-        this.app.post('/profanity', async (req, res) => {
+        potRouter.post('/profanity', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'profanity', req.body);
             res.json({ status: 'ok', event: 'profanity' });
         });
 
-        // Health check
+        // Monta todas as rotas acima sob o prefixo /pot
+        this.app.use('/pot', potRouter);
+
+        // Health check (fora do prefixo /pot — é público e usado por monitoramento)
         this.app.get('/health', (req, res) => {
             res.json({ 
                 status: 'alive', 
@@ -180,7 +192,7 @@ class PoTGatewayServer {
             res.json({
                 name: 'PoT Discord Gateway',
                 version: '1.0.0',
-                endpoints: ['/login', '/killed', '/chat', '/group', '/nest', '/quest', '/respawn', '/waystone', '/command', '/admin_command', '/spectate', '/server', '/error', '/hack', '/purchase', '/profanity'],
+                endpoints: ['/pot/login', '/pot/killed', '/pot/chat', '/pot/group', '/pot/nest', '/pot/quest', '/pot/respawn', '/pot/waystone', '/pot/command', '/pot/admin_command', '/pot/spectate', '/pot/server', '/pot/error', '/pot/hack', '/pot/purchase', '/pot/profanity'],
                 docs: 'Use /config-potserverlogs to setup channels'
             });
         });

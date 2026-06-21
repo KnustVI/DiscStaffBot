@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/commands/pot/config-potserverlogs.js
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
@@ -68,9 +68,13 @@ module.exports = {
                 PoTConfigSystem.setWebhookForEvent(interaction.guildId, log.event, webhook.url);
             }
             
+            // IMPORTANTE: as rotas reais do gatewayServer.js vivem sob o
+            // prefixo /pot (ex: /pot/login, /pot/killed). As URLs do
+            // Game.ini precisam bater exatamente com isso, ou o servidor
+            // do jogo recebe 404 e nenhum log chega ao Discord.
             const gameIniLines = ['[ServerWebhooks]', 'bEnabled=true', 'Format="General"', ''];
             for (const log of LOG_CHANNELS) {
-                gameIniLines.push(`${log.endpoint}="${publicDomain}/${log.event}?token=${token}"`);
+                gameIniLines.push(`${log.endpoint}="${publicDomain}/pot/${log.event}?token=${token}"`);
             }
             const gameIniConfig = gameIniLines.join('\n');
             
@@ -83,15 +87,12 @@ module.exports = {
             builder.text(`🔑 **Token Atual:** \`${token}\``);
             builder.footer();
             
-            const { components, flags } = builder.build();
-            await interaction.editReply({
-                components,
-                flags: [flags]
-            });
+            // build() já retorna { components, flags } prontos para spread.
+            await interaction.editReply(builder.build());
             
             await interaction.followUp({
                 content: `📄 **Copie para seu Game.ini:**\n\`\`\`ini\n${gameIniConfig}\n\`\`\``,
-                flags: 64
+                flags: MessageFlags.Ephemeral
             });
             
         } catch (error) {

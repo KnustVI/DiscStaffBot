@@ -2,6 +2,7 @@
 const PoTGatewayServer = require('./gatewayServer');
 const PoTRconClient = require('./rconClient');
 const PoTTokenManager = require('./tokenManager');
+const PoTConfigSystem = require('../../systems/potConfigSystem');
 const ErrorLogger = require('../../systems/errorLogger');
 const db = require('../../database/index');
 

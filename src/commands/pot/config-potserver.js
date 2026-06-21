@@ -52,11 +52,9 @@ module.exports = {
             builder.text(`🔄 **Status:** ${success ? '✅ OK' : '⚠️ Offline'}`);
             builder.footer('Use /config-potserver token para ver o token');
             
-            const { components, flags } = builder.build();
-            await interaction.editReply({
-                components,
-                flags: [flags]
-            });
+            // build() já retorna { components, flags } prontos para spread.
+            // flags é um número (bitfield), não deve ser envolvido em array.
+            await interaction.editReply(builder.build());
         }
         
         else if (sub === 'token') {
@@ -66,7 +64,7 @@ module.exports = {
             if (!token) token = PoTTokenManager.generateToken(interaction.guildId);
             
             await interaction.editReply({
-                content: `🔑 **Seu token:**\`\`\`\n${token}\n\`\`\`\n\n📋 **URLs para o Game.ini (use seu domínio público):**\n\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="General"\nPlayerLogin="${publicDomain}/login?token=${token}"\nPlayerKilled="${publicDomain}/killed?token=${token}"\nPlayerChat="${publicDomain}/chat?token=${token}"\n\`\`\`\n⚠️ Mantenha este token em segredo!`
+                content: `🔑 **Seu token:**\`\`\`\n${token}\n\`\`\`\n\n📋 **URLs para o Game.ini (use seu domínio público):**\n\`\`\`ini\n[ServerWebhooks]\nbEnabled=true\nFormat="General"\nPlayerLogin="${publicDomain}/pot/login?token=${token}"\nPlayerKilled="${publicDomain}/pot/killed?token=${token}"\nPlayerChat="${publicDomain}/pot/chat?token=${token}"\n\`\`\`\n⚠️ Mantenha este token em segredo!`
             });
         }
         
@@ -88,11 +86,7 @@ module.exports = {
             
             builder.footer();
             
-            const { components, flags } = builder.build();
-            await interaction.editReply({
-                components,
-                flags: [flags]
-            });
+            await interaction.editReply(builder.build());
         }
         
         else if (sub === 'revoke') {
