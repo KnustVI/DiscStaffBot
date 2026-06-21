@@ -497,12 +497,6 @@ const ConfigSystem = {
             }
             
             if (!interaction.deferred && !interaction.replied) {
-                // IMPORTANTE: esta resposta inicial precisa já nascer como
-                // Components V2. Se usássemos { content: '...', flags: 64 }
-                // aqui, a mensagem ficaria marcada como "legada" no Discord,
-                // e o editReply final (com o Container) seria rejeitado com
-                // MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2 — uma
-                // interação não pode trocar de formato no meio do caminho.
                 const loadingPayload = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
                     .text(`${EMOJIS.clock || '⏳'} Criando canais de log...`)
                     .build();

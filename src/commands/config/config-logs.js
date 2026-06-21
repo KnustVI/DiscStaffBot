@@ -41,14 +41,28 @@ module.exports = {
             : `${emojis.Error || '❌'} Não definido`;
 
         // ✅ Container único com todas as informações
+        const path = require('path');
+        const { AttachmentBuilder } = require('discord.js');
+        // CARREGAR IMAGENS DA PASTA ASSETS
+        const imagesPath = path.join(__dirname, '..', '..', 'assets', 'images');
+
+        // Criar attachments para cada imagem que você vai usar
+        const bannerAttachment = new AttachmentBuilder(
+            path.join(imagesPath, 'TITLE CONGIF LOGS DC.png'),
+            { name: 'TITLE CONGIF LOGS DC.png' }
+        );
+
         const iconURL = guild.iconURL({ size: 64}) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+        
         .gallery([
-        'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png',
+        'attachment://TITLE CONGIF LOGS DC.png',
         ])
         .separator()
         .section(
-            `# ${emojis.dashboard || '📝'} Canais de Log\n\nAqui serão configuradas todas as logs relacionadas ao sistema de moderação. Recomendamos criar canais separados para cada categoria de log para melhor organização e controle de permissões, caso prefira clique no botão abaixo para que ele crie automaticamente para você!`,
+            `Aqui serão configuradas todas as logs relacionadas ao sistema do ***Titan's Pass***. 
+            \n Recomendamos criar canais separados para cada categoria de log para melhor organização e controle de permissões, caso prefira clique no botão abaixo para que ele crie automaticamente para você!
+            \n Os canais criados podem ter o nome alterado a sua maneira ou deletados, isso não afetará o funcionamento do sistema, desde que o canal correto seja selecionado no menu abaixo, para receber as logs.`,
             AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
         )
             .text('**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.')
