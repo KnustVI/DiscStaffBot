@@ -48,6 +48,7 @@ module.exports = {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
 
         const bannerUrl = imageManager.getUrl('title_ajuda');
+        const bannerAttachment = imageManager.getAttachment('title_ajuda');
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
         
         builder.gallery([bannerUrl])
@@ -78,7 +79,8 @@ module.exports = {
         
         await interaction.editReply({
             components: [components[0], row],
-            flags: [flags]
+            flags: [flags],
+            files: [bannerAttachment]
         });
     }
 };

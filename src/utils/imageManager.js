@@ -127,7 +127,7 @@ class ImageManager {
     }
 }
 
-    // ============================================
+        // ============================================
         // USAR IMAGENS DO GERENCIADOR
         // ============================================
         // Pegar o attachment da imagem
@@ -146,6 +146,14 @@ class ImageManager {
         // const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
         //     .gallery(galeriaUrls) // ← Usar múltiplas imagens
         //     .gallery([bannerUrl]) // ← Ou usar uma única
+
+        // ENVIAR COM O ATTACHMENT
+        // await interaction.editReply({
+        // components,
+        // flags: [flags],
+        // files: [bannerAttachment]
+        // });
+        // ============================================
 
 // Exportar uma instância única (Singleton)
 module.exports = new ImageManager();

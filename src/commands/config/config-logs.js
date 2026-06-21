@@ -43,6 +43,7 @@ module.exports = {
 
         // ✅ Container único com todas as informações
         const bannerUrl = imageManager.getUrl('title_config_logs_dc');
+        const bannerAttachment = imageManager.getAttachment('title_config_logs_dc');
         const iconURL = guild.iconURL({ size: 64}) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
         
@@ -118,7 +119,8 @@ module.exports = {
                 reportsRow,         // Select Menu 4
                 buttonRow           // Botão
             ],
-            flags: [flags]
+            flags: [flags],
+            files: [bannerAttachment]
         });
     }
 };

@@ -38,6 +38,7 @@ module.exports = {
         const problematicoRole = ConfigSystem.getSetting(guildId, 'role_problematico');
 
         const bannerUrl = imageManager.getUrl('title_config_roles');
+        const bannerAttachment = imageManager.getAttachment('title_config_roles');
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
         
         builder.gallery([bannerUrl]);
@@ -73,7 +74,8 @@ module.exports = {
         
         await interaction.editReply({
             components: [components[0], staffRow, strikeRow, exemplarRow, problematicoRow],
-            flags: [flags]
+            flags: [flags],
+            files: [bannerAttachment]
         });
     }
 };
