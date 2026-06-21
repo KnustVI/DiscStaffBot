@@ -20,28 +20,17 @@ const COLORS = {
     WARNING: 0xFFA500
 };
 
-// Singleton para evitar múltiplas instâncias
-let instance = null;
-
 class AutoModerationSystem {
     constructor(client) {
-        // Se já existe uma instância, retorna ela
-        if (instance) {
-            return instance;
-        }
-        
         this.client = client;
         this.isRunning = false;
         this.isProcessing = false;
-        this.workerInitialized = false;
         this.stats = {
             lastRun: null,
             totalRepRecovered: 0,
             totalRolesAdded: 0,
             totalRolesRemoved: 0
         };
-        
-        instance = this;
     }
 
     async handleComponent(interaction, action, param) {
@@ -224,14 +213,10 @@ class AutoModerationSystem {
     }
 
     startWorker() {
-        // Verifica se o worker já foi iniciado
-        if (this.isRunning || this.workerInitialized) {
+        if (this.isRunning) {
             console.log('⚠️ [AutoMod] Worker já está rodando');
             return;
         }
-        
-        // Marca como inicializado antes de agendar
-        this.workerInitialized = true;
         
         cron.schedule('0 12 * * *', async () => {
             console.log("🕛 [AutoMod] Executando manutenção agendada das 12:00");
@@ -383,52 +368,33 @@ class AutoModerationSystem {
     }
 }
 
-// Função principal para exportar o módulo
-function initializeAutoModeration(client) {
-    // Verifica se já existe uma instância global
-    if (!global.autoModInstance) {
-        global.autoModInstance = new AutoModerationSystem(client);
-        global.autoModInstance.startWorker();
-        console.log('🛡️ [AutoMod] Sistema inicializado pela primeira vez');
-    } else {
-        console.log('🛡️ [AutoMod] Sistema já estava inicializado, reutilizando instância existente');
-    }
-    return global.autoModInstance;
-}
+module.exports = (client) => {
+    const autoMod = new AutoModerationSystem(client);
+    autoMod.startWorker();
+    return autoMod;
+};
 
-module.exports = initializeAutoModeration;
 module.exports.AutoModerationSystem = AutoModerationSystem;
 
-// Handler para comandos/componentes
 module.exports.handler = {
     handleComponent: async (interaction, action, param) => {
-        if (!global.autoModInstance) {
-            throw new Error('AutoModerationSystem não foi inicializado');
-        }
-        return global.autoModInstance.handleComponent(interaction, action, param);
+        const tempInstance = new AutoModerationSystem(global.client);
+        return tempInstance.handleComponent(interaction, action, param);
     },
     handleModal: async (interaction, action) => {
-        if (!global.autoModInstance) {
-            throw new Error('AutoModerationSystem não foi inicializado');
-        }
-        return global.autoModInstance.handleModal(interaction, action);
+        const tempInstance = new AutoModerationSystem(global.client);
+        return tempInstance.handleModal(interaction, action);
     },
     handleToggleAutoMod: async (interaction) => {
-        if (!global.autoModInstance) {
-            throw new Error('AutoModerationSystem não foi inicializado');
-        }
-        return global.autoModInstance.handleToggleAutoMod(interaction);
+        const tempInstance = new AutoModerationSystem(global.client);
+        return tempInstance.handleToggleAutoMod(interaction);
     },
     handleAutoModReport: async (interaction) => {
-        if (!global.autoModInstance) {
-            throw new Error('AutoModerationSystem não foi inicializado');
-        }
-        return global.autoModInstance.handleAutoModReport(interaction);
+        const tempInstance = new AutoModerationSystem(global.client);
+        return tempInstance.handleAutoModReport(interaction);
     },
     handleAutoModConfig: async (interaction, param) => {
-        if (!global.autoModInstance) {
-            throw new Error('AutoModerationSystem não foi inicializado');
-        }
-        return global.autoModInstance.handleAutoModConfig(interaction, param);
+        const tempInstance = new AutoModerationSystem(global.client);
+        return tempInstance.handleAutoModConfig(interaction, param);
     }
 };
