@@ -3,6 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ChannelSelec
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -41,23 +42,11 @@ module.exports = {
             : `${emojis.Error || '❌'} Não definido`;
 
         // ✅ Container único com todas as informações
-        const path = require('path');
-        const { AttachmentBuilder } = require('discord.js');
-        // CARREGAR IMAGENS DA PASTA ASSETS
-        const imagesPath = path.join(__dirname, '..', '..', 'assets', 'images');
-
-        // Criar attachments para cada imagem que você vai usar
-        const bannerAttachment = new AttachmentBuilder(
-            path.join(imagesPath, 'TITLE CONGIF LOGS DC.png'),
-            { name: 'TITLE CONGIF LOGS DC.png' }
-        );
-
+        const bannerUrl = imageManager.getUrl('title_config_logs_dc');
         const iconURL = guild.iconURL({ size: 64}) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
         
-        .gallery([
-        'attachment://TITLE CONGIF LOGS DC.png',
-        ])
+        .gallery([bannerUrl])
         .separator()
         .section(
             `Aqui serão configuradas todas as logs relacionadas ao sistema do ***Titan's Pass***. 

@@ -3,6 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilde
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -45,12 +46,12 @@ module.exports = {
         
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        
+
+        const bannerUrl = imageManager.getUrl('title_ajuda');
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
         
+        builder.gallery([bannerUrl])
         builder.title(`${emojis.Config || '⚙️'} Configuração de Pontos e Limites`, 1);
-        builder.text(`Gerencie os valores do sistema de reputação.`);
-        builder.separator();
         builder.title(`${emojis.strike || '🎯'} Níveis de Strike`, 2);
         builder.text(`${severityIcons[1]} **Nível 1 (${severityNames[1]}):** \`${points[1]} pontos\``);
         builder.text(`${severityIcons[2]} **Nível 2 (${severityNames[2]}):** \`${points[2]} pontos\``);
@@ -65,7 +66,7 @@ module.exports = {
         builder.title(`${emojis.Note || '📝'} Valores Padrão`, 2);
         builder.text(`- **Strike:** 10 | 25 | 40 | 60 | 100`);
         builder.text(`- **Limites:** Exemplar > 95 | Problemático <30`);
-        builder.footer();
+        builder.footer(guild.name);
         
         const { components, flags } = builder.build();
         
