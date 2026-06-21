@@ -14,14 +14,11 @@ class InteractionHandler {
         this.client = client;
         
         // Inicializar autoModeration com o client
-        let autoModeration;
-        if (typeof autoModerationModule === 'function') {
-            const result = autoModerationModule(client);
-            autoModeration = result;
-        } else if (autoModerationModule.AutoModerationSystem) {
-            autoModeration = new autoModerationModule.AutoModerationSystem(client);
+         const autoModeration = global.autoModInstance || null;
+        if (!autoModeration) {
+            console.warn('⚠️ [Handler] AutoMod não disponível (será inicializado pelo ready.js)');
         } else {
-            autoModeration = autoModerationModule;
+            console.log('✅ [Handler] AutoMod referenciado com sucesso');
         }
 
         // Inicializar errorLogger

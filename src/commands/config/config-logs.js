@@ -45,7 +45,6 @@ module.exports = {
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
         .gallery([
         'https://i.ibb.co/ZzHB3j9L/MINI-BANNER-DE-TEXO-13.png',
-        'https://cdn.discordapp.com/icons/430534418818400266/6437a4980c5fcae96f36cd4d5455e13c.webp?size=128'
         ])
         .separator()
         .section(

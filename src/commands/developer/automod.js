@@ -1,7 +1,8 @@
 // /home/ubuntu/DiscStaffBot/src/commands/developer/automod.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
-const { AutoModerationSystem } = require('../../systems/autoModeration');
+// REMOVER esta importação:
+// const { AutoModerationSystem } = require('../../systems/autoModeration');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -15,7 +16,30 @@ module.exports = {
         const ConfigSystem = require('../../systems/configSystem');
         const guildId = guild.id;
         
-        const autoMod = new AutoModerationSystem(client);
+        const autoMod = global.autoModInstance;
+        
+        if (!autoMod) {
+            // Se não existir, tenta inicializar (fallback)
+            try {
+                const autoModeration = require('../../systems/autoModeration');
+                const newInstance = autoModeration(client);
+                if (newInstance) {
+                    await interaction.deferReply({ flags: 64 });
+                    return await interaction.editReply({
+                        content: '⚠️ Sistema de Auto Moderação foi inicializado agora. Execute o comando novamente para ver o diagnóstico.',
+                        flags: 64
+                    });
+                }
+            } catch (error) {
+                await interaction.deferReply({ flags: 64 });
+                return await interaction.editReply({
+                    content: '❌ Erro ao inicializar o sistema de Auto Moderação. Verifique os logs.',
+                    flags: 64
+                });
+            }
+        }
+        
+        // Executar manutenção manual usando a instância global
         const result = await autoMod.runManualMaintenance();
         
         const isEnabled = ConfigSystem.getSetting(guildId, 'automod_enabled') === 'true';

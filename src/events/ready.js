@@ -2,8 +2,7 @@
 const InteractionHandler = require('../systems/handlers');
 const { ActivityType } = require('discord.js');
 const { startInactiveReportsJob } = require('../systems/inactiveReportsJob');
-const autoModeration = require('../systems/autoModeration'); // ← IMPORTANTE: adicionar esta linha
-
+const autoModeration = require('../systems/autoModeration');
 let handler = null;
 let isReady = false;
 
@@ -140,16 +139,21 @@ module.exports = {
         // 7. Iniciar AutoModeração Worker
         try {
             const autoMod = autoModeration(client);
-            console.log(`🛡️ AutoMod Worker - isRunning: ${autoMod.isRunning}`);
-            // Verificar se realmente iniciou
+            
+            // Log do status
+            console.log(`🛡️ [AutoMod] Sistema inicializado`);
+            console.log(`🛡️ [AutoMod] Status: ${autoMod.isRunning ? '✅ Rodando' : '❌ Parado'}`);
+            console.log(`🛡️ [AutoMod] Worker: ${autoMod.isRunning ? 'Ativo' : 'Inativo'}`);
+            
+            // Verificação extra de segurança
             if (!autoMod.isRunning) {
-                console.log('⚠️ AutoMod Worker não iniciou automaticamente, iniciando manualmente...');
+                console.warn('⚠️ [AutoMod] Worker não está rodando, tentando iniciar...');
                 autoMod.startWorker();
+                console.log(`🛡️ [AutoMod] Worker iniciado manualmente: ${autoMod.isRunning ? '✅ Sucesso' : '❌ Falha'}`);
             }
             
-            console.log(`🛡️ AutoModeração Worker - Status: ${autoMod.isRunning ? 'Rodando' : 'Parado'}`);
         } catch (error) {
-            console.error('❌ Erro ao iniciar AutoModeração:', error);
+            console.error('❌ [AutoMod] Erro ao iniciar sistema:', error);
         }
         
         // 8. Logs de inicialização completos
