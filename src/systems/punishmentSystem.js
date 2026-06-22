@@ -134,12 +134,13 @@ const PunishmentSystem = {
         // ── Cabeçalho com avatar do usuário (thumbnail) ──────────────────────
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `# ${target.username}\n(\`${target.id}\`)`,
-            AdvancedContainerBuilder.thumbnail(avatar),
+            `## ${target.toString()}
+            \n ${target.username} (\`${target.id}\`)`,
+            AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
 
         builder.separator();
-        builder.text(`Server: ${guildName}`);
+        builder.text(`**Server: ${guildName}`);
         builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
         builder.text(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         

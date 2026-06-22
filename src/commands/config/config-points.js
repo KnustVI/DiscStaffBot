@@ -1,9 +1,9 @@
 // /home/ubuntu/DiscStaffBot/src/commands/config/config-points.js
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
-const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
-const imageManager = require('../../utils/imageManager');
+const ResponseManager = require('../../utils/responseManager.js');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder.js');
+const imageManager = require('../../utils/imageManager.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -30,7 +30,7 @@ module.exports = {
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
         db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
         
-        const ConfigSystem = require('../../systems/configSystem');
+        const ConfigSystem = require('../../systems/configSystem.js');
         
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         const points = {
