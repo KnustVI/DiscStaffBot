@@ -48,14 +48,12 @@ module.exports = {
             \n Os cargos de Exemplar e Problemático são opcionais, mas podem ser usados para destacar membros que se destacam positivamente ou negativamente na comunidade, respectivamente. 
             \n Recomendamos configurar esses cargos para melhor organização e controle dentro do servidor.`);
         builder.separator();
-        builder.text(`Selecione os cargos abaixo:`);
-        builder.separator();
-        
+        builder.title(`Selecione os cargos abaixo:`);
         builder.text(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
         builder.text(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
         builder.text(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
         builder.text(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.footer(guild.name);
+        builder.footer(`Server: ${guild.name}`);
         
         const { components, flags } = builder.build();
         

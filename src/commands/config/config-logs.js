@@ -69,7 +69,7 @@ module.exports = {
             // Seção 4: ReportChat
             .text('**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.')
             .text(`${emojis.chat || '🎫'} **ReportChat:** ${fmt(logReports)}`)
-            .footer(guild.name)
+            .footer(`Server: ${guild.name}`)
             .build();
 
         // ✅ ActionRows com os Select Menus (cada um abaixo do bloco correspondente)

@@ -67,7 +67,7 @@ module.exports = {
         builder.title(`${emojis.Note || '📝'} Valores Padrão`, 2);
         builder.text(`- **Strike:** 10 | 25 | 40 | 60 | 100`);
         builder.text(`- **Limites:** Exemplar > 95 | Problemático <30`);
-        builder.footer(guild.name);
+        builder.footer(`Server: ${guild.name}`);
         
         const { components, flags } = builder.build();
         

@@ -88,7 +88,7 @@ module.exports = {
             }
         }
         
-        builder.footer();
+        builder.footer(`Server: ${guild.name}`);
         
         const { components, flags } = builder.build();
         

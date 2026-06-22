@@ -25,6 +25,26 @@ class PaginationBuilder {
             prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
             next: { label: 'Próxima ▶', style: ButtonStyle.Secondary },
         };
+
+        // ── NOVO: arquivos (attachments) a serem enviados em TODA mensagem
+        // da paginação (ex: banner de título referenciado via attachment://
+        // dentro do container). O Discord exige que o attachment seja
+        // reenviado em cada editReply para a referência continuar válida,
+        // então guardamos aqui e reutilizamos em toda transição de página. ──
+        this.files = [];
+    }
+
+    /**
+     * NOVO: Define os arquivos (AttachmentBuilder[]) que devem acompanhar
+     * TODAS as mensagens desta paginação (ex: banner de título referenciado
+     * via attachment:// dentro do container).
+     *
+     * @param {Array} files - Array de AttachmentBuilder (ou compatível)
+     * @returns {this}
+     */
+    setFiles(files) {
+        this.files = Array.isArray(files) ? files.filter(Boolean) : (files ? [files] : []);
+        return this;
     }
 
     /**
@@ -154,10 +174,20 @@ class PaginationBuilder {
     _buildPayload(index, customIdPrefix, customFooter = null) {
         const { components, flags } = this._buildPage(index, customFooter);
         const navRow = this._buildNavRow(customIdPrefix, this.pages.length);
-        return {
+        const payload = {
             components: [...components, navRow],
             flags,
         };
+
+        // ── NOVO: reanexa os arquivos (banner etc) em toda transição de
+        // página. Necessário porque editReply não preserva attachments
+        // anteriores automaticamente quando o payload de components é
+        // substituído. ────────────────────────────────────────────────────
+        if (this.files.length > 0) {
+            payload.files = this.files;
+        }
+
+        return payload;
     }
 
     /**
@@ -167,6 +197,7 @@ class PaginationBuilder {
      * @param {string} [options.customIdPrefix] - Prefixo para IDs dos botões (auto-gerado se não especificado)
      * @param {string} [options.footer] - Rodapé padrão
      * @param {boolean} [options.ephemeral] - Se a mensagem deve ser efêmera
+     * @param {Array} [options.files] - NOVO: Attachments a enviar (alternativa a setFiles())
      * @returns {Promise<Object>} - O payload final para resposta
      */
     async start(interaction, options = {}) {
@@ -174,6 +205,11 @@ class PaginationBuilder {
         const customIdPrefix = options.customIdPrefix || `pag_${Date.now()}_${interaction.user.id}`;
         const footer = options.footer || this.footerText;
         const ephemeral = options.ephemeral || false;
+
+        // NOVO: permite passar files também via options de start(), não só setFiles()
+        if (options.files) {
+            this.setFiles(options.files);
+        }
 
         // Payload inicial.
         // IMPORTANTE: nunca incluir `content` junto de MessageFlags.IsComponentsV2 —
@@ -248,10 +284,17 @@ class PaginationBuilder {
             try {
                 const { components, flags } = this._buildPage(this.currentPage);
                 const disabledRow = this._buildDisabledNavRow(customIdPrefix);
-                await interaction.editReply({
+
+                // NOVO: reanexa os arquivos também na mensagem final (collector expirado)
+                const finalPayload = {
                     components: [...components, disabledRow],
                     flags,
-                });
+                };
+                if (this.files.length > 0) {
+                    finalPayload.files = this.files;
+                }
+
+                await interaction.editReply(finalPayload);
             } catch (err) {
                 // Interação pode ter expirado, ignorar
             }

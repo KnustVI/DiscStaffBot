@@ -1,10 +1,11 @@
 // /home/ubuntu/DiscStaffBot/src/commands/moderation/historico.js
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
-const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const { PaginationBuilder } = require('../../utils/paginationBuilder');
+const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -17,66 +18,66 @@ module.exports = {
         const { guild, user, options } = interaction;
         const guildId = guild.id;
         const target = options.getUser('usuario');
-        
-        let emojis = {};
-        try {
-            const emojisFile = require('../../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
-        } catch (err) {}
-        
+
         try {
             if (!target) {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
             }
-            
+
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
             db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
-            
+
             const ConfigSystem = require('../../systems/configSystem');
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
-            
-            const history = await PunishmentSystem.getUserHistory(guildId, target.id, 1);
-            
-            // Gerar container usando o PunishmentSystem (que já foi atualizado)
-            const container = PunishmentSystem.generateHistoryContainer(target, history, 1, guild.name);
-            const { components, flags } = container.build();
-            
-            if (!history || history.totalRecords === 0) {
-                db.logActivity(guildId, user.id, 'history_view', target.id, { hasRecords: false });
-                await interaction.editReply({
-                    components,
-                    flags: [flags]
-                });
-                return;
-            }
-            
-            sessionManager.set(user.id, guildId, 'history', 'view', {
-                targetId: target.id,
-                currentPage: 1,
-                totalPages: history.totalPages
-            }, 600000);
-            
-            const buttons = PunishmentSystem.generateHistoryButtons(target.id, 1, history.totalPages);
-            
+
+            // ── Monta TODAS as páginas de uma vez (igual ao /ajuda) ─────────────
+            const { pages, totalPages, totalRecords, reputation } =
+                await PunishmentSystem.buildHistoryPages(target, guildId, guild.name);
+
             db.logActivity(guildId, user.id, 'history_view', target.id, {
-                totalRecords: history.totalRecords, reputation: history.reputation
+                totalRecords,
+                reputation,
+                hasRecords: totalRecords > 0,
             });
-            
+
             if (staffRoleId && interaction.member.roles.cache.has(staffRoleId)) {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
-            
-            const componentsArray = [components[0]];
-            if (buttons) componentsArray.push(buttons);
-            
-            await interaction.editReply({
-                components: componentsArray,
-                flags: [flags]
+
+            // ── Banner de título: busca o attachment UMA vez (reutilizado em
+            // toda a navegação, já que generateHistoryContainer só referencia
+            // a URL attachment://, não o arquivo em si) ──────────────────────
+            const bannerAttachment = imageManager.getAttachment('title_historico_de_jogador');
+
+            // ── Sem registros: envia só a página única, sem botões de navegação ──
+            if (totalPages <= 1) {
+                const payload = pages[0]().build();
+                if (bannerAttachment) payload.files = [bannerAttachment];
+                await interaction.editReply(payload);
+                console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);
+                return;
+            }
+
+            // ── Paginação via PaginationBuilder, mesmo padrão do /ajuda ──────────
+            const pagination = new PaginationBuilder({
+                accentColor: 0xDCA15E,
+                timeout: 120000,
+                footerText: `${guild.name} • Total: ${totalRecords} registros • Página {page}`,
             });
-            
+
+            pagination
+                .addPages(...pages)
+                .setFiles(bannerAttachment ? [bannerAttachment] : [])
+                .setButtons({
+                    prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
+                    next: { label: 'Próxima ▶', style: ButtonStyle.Primary },
+                });
+
+            await pagination.start(interaction);
+
             console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);
-            
+
         } catch (error) {
             console.error('❌ Erro no historico:', error);
             const ErrorLogger = require('../../systems/errorLogger');

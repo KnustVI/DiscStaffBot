@@ -3,13 +3,25 @@ const { SlashCommandBuilder, ButtonStyle, MessageFlags } = require('discord.js')
 const db = require('../../database/index');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
+const imageManager = require('../../utils/imageManager');
 
 // ---------------------------------------------------------------------------
 // Fábrica de páginas
 // ---------------------------------------------------------------------------
+// Cada página recebe `bannerUrl` e, se existir, adiciona o banner de título
+// via gallery() — mesmo padrão usado em generateHistoryContainer (punishmentSystem.js).
+// O attachment correspondente (arquivo de fato) é buscado uma única vez em
+// execute() e reaplicado em toda transição de página pelo PaginationBuilder.
 
-function buildPageWelcome(displayName, guildName, emojis) {
-    return new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+function buildPageWelcome(displayName, guildName, emojis, bannerUrl) {
+    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+
+    if (bannerUrl) {
+        builder.gallery([bannerUrl]);
+        builder.separator();
+    }
+
+    return builder
         .title(`${emojis.user || '🤖'} Assistente Titan`)
         .text(`Olá **${displayName}**! Sou o sistema de gestão do seu servidor **${guildName}**.`)
         .separator()
@@ -28,8 +40,15 @@ function buildPageWelcome(displayName, guildName, emojis) {
         ]);
 }
 
-function buildPageModeration(emojis) {
-    return new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+function buildPageModeration(emojis, bannerUrl) {
+    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+
+    if (bannerUrl) {
+        builder.gallery([bannerUrl]);
+        builder.separator();
+    }
+
+    return builder
         .title(`${emojis.strike || '🛠️'} Moderação e Reputação`)
         .text('Apenas usuários com cargo **STAFF** podem usar:')
         .separator()
@@ -49,8 +68,15 @@ function buildPageModeration(emojis) {
         ]);
 }
 
-function buildPageAutomod(emojis) {
-    return new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+function buildPageAutomod(emojis, bannerUrl) {
+    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+
+    if (bannerUrl) {
+        builder.gallery([bannerUrl]);
+        builder.separator();
+    }
+
+    return builder
         .title(`${emojis.AutoMod || '🛡️'} Auto Moderação`)
         .text('Sistema automático de gerenciamento de reputação:')
         .separator()
@@ -72,8 +98,15 @@ function buildPageAutomod(emojis) {
         ]);
 }
 
-function buildPageUserSimple(displayName, guildName, emojis) {
-    return new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+function buildPageUserSimple(displayName, guildName, emojis, bannerUrl) {
+    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+
+    if (bannerUrl) {
+        builder.gallery([bannerUrl]);
+        builder.separator();
+    }
+
+    return builder
         .title(`${emojis.user || '🤖'} Assistente Titan`)
         .text(`Olá **${displayName}**! Sou o sistema de gestão do servidor **${guildName}**.`)
         .separator()
@@ -119,12 +152,18 @@ module.exports = {
 
             const isAdmin = member.permissions.has('Administrator');
 
+            // ── Banner de título: busca URL (pra referenciar no container)
+            const bannerUrl = imageManager.getUrl('title_ajuda');
+            const bannerAttachment = imageManager.getAttachment('title_ajuda');
+
             // ----------------------------------------------------------------
             // Usuário comum - Mensagem única
             // ----------------------------------------------------------------
             if (!isAdmin) {
-                const page = buildPageUserSimple(member.displayName, guild.name, emojis);
-                await interaction.editReply(page.build());
+                const page = buildPageUserSimple(member.displayName, guild.name, emojis, bannerUrl);
+                const payload = page.build();
+                if (bannerAttachment) payload.files = [bannerAttachment];
+                await interaction.editReply(payload);
                 console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (usuário comum)`);
                 return;
             }
@@ -139,9 +178,10 @@ module.exports = {
             });
 
             pagination
-                .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis))
-                .addPage(() => buildPageModeration(emojis))
-                .addPage(() => buildPageAutomod(emojis))
+                .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis, bannerUrl))
+                .addPage(() => buildPageModeration(emojis, bannerUrl))
+                .addPage(() => buildPageAutomod(emojis, bannerUrl))
+                .setFiles(bannerAttachment ? [bannerAttachment] : [])
                 .setButtons({
                     prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
                     next: { label: 'Próxima ▶', style: ButtonStyle.Primary },
@@ -154,13 +194,6 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro no ajuda:', error);
 
-            // -----------------------------------------------------------------
-            // IMPORTANTE: nunca enviar `content` numa mensagem que já foi
-            // marcada com MessageFlags.IsComponentsV2 (a resposta da
-            // paginação já pode ter sido enviada nesse formato). Por isso o
-            // fallback de erro usa o próprio AdvancedContainerBuilder em vez
-            // de um editReply({ content }) cru.
-            // -----------------------------------------------------------------
             try {
                 const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
                     .text('❌ Erro ao gerar guia de ajuda. Tente novamente.')

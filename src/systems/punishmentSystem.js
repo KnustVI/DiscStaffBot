@@ -3,8 +3,12 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
 const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { PaginationBuilder } = require('../utils/paginationBuilder');
 const SessionManager = require('../utils/sessionManager');
 const SequenceManager = require('../database/sequences');
+// ✅ CORRIGIDO: estava '../../utils/imageManager' (subia uma pasta a mais).
+// punishmentSystem.js está em src/systems/, então o caminho correto é '../utils/imageManager'.
+const imageManager = require('../utils/imageManager');
 
 const COLORS = {
     DEFAULT: 0xDCA15E,
@@ -27,7 +31,7 @@ const PunishmentSystem = {
 
             const total = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND user_id = ?`).get(guildId, userId);
             const totalRecords = total.count;
-            const totalPages = Math.ceil(totalRecords / limit);
+            const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
 
             const punishments = db.prepare(`
                 SELECT * FROM punishments 
@@ -39,7 +43,7 @@ const PunishmentSystem = {
             return { reputation: points, punishments, totalRecords, totalPages };
         } catch (error) {
             console.error('❌ Erro ao buscar histórico:', error);
-            return { reputation: 100, punishments: [], totalRecords: 0, totalPages: 0 };
+            return { reputation: 100, punishments: [], totalRecords: 0, totalPages: 1 };
         }
     },
     
@@ -65,13 +69,50 @@ const PunishmentSystem = {
 
     getNextStrikeNumber(guildId) {
         const nextValue = SequenceManager.getNextValue(guildId, 'punishments');
-        console.log(`🔍 [DEBUG] getNextStrikeNumber - próximo valor para ${guildId}: ${nextValue}`);
         return nextValue;
     },
     
     // ==================== GERADORES DE UI (CONTAINER) ====================
-    
-    generateHistoryContainer(target, history, page, guildName) {
+
+    /**
+     * Busca todos os dados necessários e monta TODAS as páginas do histórico
+     * de uma vez (necessário porque PaginationBuilder.addPage recebe uma
+     * função síncrona que retorna um AdvancedContainerBuilder já pronto).
+     *
+     * @param {object} target   - User do discord.js
+     * @param {string} guildId
+     * @param {string} guildName
+     * @returns {Promise<{ pages: Function[], totalPages: number, totalRecords: number, reputation: number }>}
+     */
+    async buildHistoryPages(target, guildId, guildName) {
+        // Primeiro busca a página 1 só para saber o totalPages/reputation/totalRecords
+        const first = await this.getUserHistory(guildId, target.id, 1);
+        const totalPages = first.totalPages;
+
+        // Busca os dados de todas as páginas de uma vez (poucas páginas, é OK)
+        const allPagesData = [first];
+        for (let p = 2; p <= totalPages; p++) {
+            allPagesData.push(await this.getUserHistory(guildId, target.id, p));
+        }
+
+        const pageFactories = allPagesData.map((historyData) =>
+            () => this.generateHistoryContainer(target, historyData, guildName),
+        );
+
+        return {
+            pages: pageFactories,
+            totalPages,
+            totalRecords: first.totalRecords,
+            reputation: first.reputation,
+        };
+    },
+
+    /**
+     * Monta o container de uma única página do histórico.
+     * Não inclui mais footer com paginação manual — isso agora é
+     * responsabilidade do PaginationBuilder (footerText com {page}).
+     */
+    generateHistoryContainer(target, history, guildName) {
         let accentColor = COLORS.DEFAULT;
         if (history.reputation > 70) accentColor = COLORS.SUCCESS;
         else if (history.reputation < 30) accentColor = COLORS.DANGER;
@@ -80,14 +121,25 @@ const PunishmentSystem = {
         const repEmoji = history.reputation >= 90 ? '🌟' : 
                         history.reputation >= 70 ? '⭐' : 
                         history.reputation >= 50 ? '👍' : '⚠️';
-        
+
         const builder = new AdvancedContainerBuilder({ accentColor });
-        
-        builder.title(`${EMOJIS.History || '📋'} HISTÓRICO`, 1);
-        builder.text(`Consulta detalhada do sistema de reputação e punições.`);
+
+        // ── Banner (gallery) — só adiciona se a imagem existir de fato ──────
+        const bannerUrl = imageManager.getUrl('title_historico_de_jogador');
+        if (bannerUrl) {
+            builder.gallery([bannerUrl]);
+            builder.separator();
+        }
+
+        // ── Cabeçalho com avatar do usuário (thumbnail) ──────────────────────
+        const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `# ${target.username}\n(\`${target.id}\`)`,
+            AdvancedContainerBuilder.thumbnail(avatar),
+        );
+
         builder.separator();
-        builder.text(`**👤 ${target.username}** (\`${target.id}\`)`);
-        builder.separator();
+        builder.text(`Server: ${guildName}`);
         builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
         builder.text(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         
@@ -101,17 +153,21 @@ const PunishmentSystem = {
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);
                 if (p.report_id) builder.text(`┃ Report: \`${p.report_id}\``);
                 if (p.status === 'revoked') builder.text(`┃ Status: ✅ Anulado`);
-                builder.text(`┗━━━━━━━━━━━━━━━━━━━━`);
+                builder.separator();
             }
         } else {
             builder.text(`\`\`\`\nNenhuma punição registrada.\n\`\`\``);
         }
         
-        builder.footer(`Página ${page}/${history.totalPages} • Total: ${history.totalRecords} registros`);
+        // Nota: o footer com "Página X/Y" é adicionado automaticamente pelo
+        // PaginationBuilder via footerText (substitui {page}). Não chamamos
+        // builder.footer() aqui para não duplicar.
         
         return builder;
     },
-    
+
+    // ⚠️ MANTIDO por compatibilidade com qualquer chamada externa antiga.
+    // Não é mais usado pelo fluxo principal de /historico (ver buildHistoryPages).
     generateHistoryButtons(targetId, currentPage, totalPages) {
         if (totalPages <= 1) return null;
         
@@ -134,10 +190,14 @@ const PunishmentSystem = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DANGER });
-        
-        console.log(`🔍 [DEBUG] generateStrikeUnifiedContainer - strikeNumber recebido: ${strikeNumber}`);
-        
-        builder.title(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
+
+        // ── Avatar do usuário punido como thumbnail no título ────────────────
+        const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `# ${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`,
+            AdvancedContainerBuilder.thumbnail(targetAvatar),
+        );
+
         builder.separator();
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
         builder.separator();
@@ -159,15 +219,20 @@ const PunishmentSystem = {
             }
         }
         
-        builder.footer();
+        builder.footer(`${guildName || ''}`.trim());
         
         return builder;
     },
     
     generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
-        
-        builder.title(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`, 1);
+
+        const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `# ${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`,
+            AdvancedContainerBuilder.thumbnail(targetAvatar),
+        );
+
         builder.separator();
         builder.text(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
         builder.text(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
@@ -179,7 +244,7 @@ const PunishmentSystem = {
         builder.separator();
         builder.text(`**📝 Motivo da Anulação:**`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
-        builder.footer();
+        builder.footer(`${guildName || ''}`.trim());
         
         return builder;
     },
@@ -228,9 +293,6 @@ const PunishmentSystem = {
         try {
             const [subAction, targetId, page] = param ? param.split(':') : [];
             switch (action) {
-                case 'history':
-                    await this.handleHistoryPagination(interaction, subAction, targetId, parseInt(page));
-                    break;
                 case 'confirm':
                     await this.handleStrikeConfirmation(interaction, subAction);
                     break;
@@ -260,25 +322,11 @@ const PunishmentSystem = {
             await interaction.editReply({ content: '❌ Ocorreu um erro.', flags: 64 });
         }
     },
-    
-    async handleHistoryPagination(interaction, direction, targetId, newPage) {
-        try {
-            const target = await interaction.client.users.fetch(targetId).catch(() => null);
-            if (!target) return await interaction.editReply({ content: '❌ Usuário não encontrado.', components: [] });
-            
-            const history = await this.getUserHistory(interaction.guildId, targetId, newPage);
-            const container = this.generateHistoryContainer(target, history, newPage, interaction.guild.name);
-            const buttons = this.generateHistoryButtons(targetId, newPage, history.totalPages);
-            
-            const { components, flags } = container.build();
-            const replyData = { components, flags: [flags] };
-            if (buttons) replyData.components.push(buttons);
-            await interaction.editReply(replyData);
-        } catch (error) {
-            console.error('❌ Erro na paginação:', error);
-            await interaction.editReply({ content: '❌ Erro ao carregar página.', components: [] });
-        }
-    },
+
+    // ⚠️ NOTA: handleHistoryPagination foi REMOVIDO. A paginação do /historico
+    // agora é feita inteiramente pelo PaginationBuilder (mesmo padrão do
+    // /ajuda), que já cria seu próprio collector de botões e não passa mais
+    // pelo handler central de componentes. Veja historico.js.
     
     async handleStrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending');
@@ -338,7 +386,7 @@ const PunishmentSystem = {
         builder.text(`**⚠️ Severidade:** ${severityNames[severity]}`);
         builder.text(`**📝 Motivo:** ${reason}`);
         builder.text(`**📉 Pontos a perder:** -${pointsLost}`);
-        builder.footer();
+        builder.footer('Confirme ou cancele abaixo');
         
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`punishment:confirm:confirm`).setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
@@ -405,19 +453,12 @@ const PunishmentSystem = {
                 `).get(guildId);
                 const strikeNumber = (maxStrike?.max || 0) + 1;
                 
-                console.log(`🔍 [DEBUG] strikeNumber calculado: ${strikeNumber}`);
-                
                 const uuid = require('../database/index').generateUUID();
-                
-                console.log(`🔍 [DEBUG] Inserindo strike_number: ${strikeNumber}`);
                 
                 db.prepare(`
                     INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(uuid, guildId, strikeNumber, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
-                
-                const saved = db.prepare(`SELECT strike_number FROM punishments WHERE uuid = ?`).get(uuid);
-                console.log(`🔍 [DEBUG] strike_number salvo no banco: ${saved?.strike_number}`);
                 
                 db.prepare(`
                     INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
