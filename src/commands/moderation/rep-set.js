@@ -11,7 +11,7 @@ const imageManager = require('../../utils/imageManager');
 // ---------------------------------------------------------------------------
 
 function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis }) {
-    const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
+    const titleIcon = isGain ? `${emojis.gain || '📈'}` : `${emojis.lose || '📉'}`;
     const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
     const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
@@ -41,7 +41,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     );
     builder.separator();
 
-    builder.title(`${titleIcon} ${titleText}`, 1);
+    builder.text(`## ${titleIcon} ${titleText}`, 1);
     builder.separator();
     builder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
     builder.separator();
