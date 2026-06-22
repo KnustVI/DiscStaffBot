@@ -128,15 +128,9 @@ const PunishmentSystem = {
             builder.gallery([bannerUrl]);
             builder.separator();
         }
-
-        // ── Cabeçalho com avatar do usuário (thumbnail) ──────────────────────
-        // ✅ CORRIGIDO: section() aceita (text, accessory) — apenas 2 argumentos.
-        // Antes havia 3 argumentos passados (texto, texto, thumbnail) e a
-        // variável usada era 'targetAvatar' (inexistente, nunca declarada
-        // nesta função — o nome correto é 'avatar', declarado abaixo).
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${target.toString()}\n${target.username} (\`${target.id}\`)`,
+            `# ${target.toString()}\n${target.username}\n(\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(avatar),
         );
 
@@ -200,9 +194,6 @@ const PunishmentSystem = {
             builder.separator();
         }
 
-        builder.title(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
-        builder.separator();
-
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
@@ -218,10 +209,10 @@ const PunishmentSystem = {
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
+        builder.title(`${EMOJIS.lose || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
-        builder.separator();
-        builder.text(`**📉 Pontos subtraídos:** -${pointsLost}`);
-        builder.text(`**⭐ Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
+        builder.text(`**${EMOJIS.lose || '❌'} Pontos subtraídos:** -${pointsLost}`);
+        builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
         builder.separator();
         builder.text(`**📝 Motivo:**`);
         if (reportId) builder.text(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
@@ -251,13 +242,10 @@ const PunishmentSystem = {
             builder.separator();
         }
 
-        builder.title(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`, 1);
-        builder.separator();
-
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${moderator.toString()}\n${moderator.username} (\`${moderator.id}\`)`,
+            `## STAFF RESPONSAVEL\n${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
         );
         builder.separator();
@@ -265,12 +253,13 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${target?.toString() || 'Desconhecido'}\n${target?.username || '?'} (\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${target?.toString() || 'Desconhecido'}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
-        builder.text(`**📈 Pontos restaurados:** +${pointsRestored}`);
-        builder.text(`**⭐ Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
+        builder.title(`✅ STRIKE ANULADO | ***#${strikeNumber}***`, 1);
+        builder.text(`**${EMOJIS.gain || '✅'} Pontos restaurados:** +${pointsRestored}`);
+        builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
         builder.separator();
         builder.text(`**📝 Punição Original:**`);
         builder.text(`\`\`\`text\n${originalReason}\n\`\`\``);

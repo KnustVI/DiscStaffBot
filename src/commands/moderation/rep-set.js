@@ -4,6 +4,53 @@ const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const imageManager = require('../../utils/imageManager');
+
+// ---------------------------------------------------------------------------
+// Montagem visual — separada para reaproveitar entre DM e canal de log
+// ---------------------------------------------------------------------------
+
+function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis }) {
+    const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
+    const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
+
+    const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
+
+    // ── Banner de título — pré-configurado para 'TITLE REPSET.png'.
+    // Só adiciona se o arquivo existir de fato em assets/images; até lá,
+    // o container funciona normalmente sem banner. ─────────────────────────
+    const bannerUrl = imageManager.getUrl('title_repset');
+    if (bannerUrl) {
+        builder.gallery([bannerUrl]);
+        builder.separator();
+    }
+
+    // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────────
+    const staffAvatar = staff.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    builder.section(
+        `## STAFF RESPONSAVEL\n${staff.toString()}\n${staff.username}\n(\`${staff.id}\`)`,
+        AdvancedContainerBuilder.thumbnail(staffAvatar),
+    );
+    builder.separator();
+
+    // ── Apresentação padrão: Usuário alvo do ajuste ──────────────────────────
+    const targetAvatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    builder.section(
+        `## JOGADOR\n${target.toString()}\n${target.username}\n(\`${target.id}\`)`,
+        AdvancedContainerBuilder.thumbnail(targetAvatar),
+    );
+    builder.separator();
+
+    builder.title(`${titleIcon} ${titleText}`, 1);
+    builder.separator();
+    builder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
+    builder.separator();
+    builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
+    builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
+    builder.footer(`Server: ${guild.name}`);
+
+    return builder;
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -75,60 +122,68 @@ module.exports = {
             
             const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
-            
-            const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
-            builder.title(`${titleIcon} ${titleText}`, 1);
-            builder.separator();
-            builder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
-            builder.separator();
-            builder.text(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
-            builder.text(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
-            builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
-            builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-            builder.footer();
-            
-            const { components, flags } = builder.build();
-            
+
+            const containerBuilder = buildRepSetContainer({
+                target, staff, reason, diffText, currentRep, newPoints, isGain, emojis,
+            });
+            const { components, flags } = containerBuilder.build();
+
+            // ── Banner de título: attachment buscado uma vez, reenviado em
+            // toda mensagem que usa este container (DM e canal de log) ────────
+            const bannerAttachment = imageManager.getAttachment('title_repset');
+            const filesPayload = bannerAttachment ? [bannerAttachment] : [];
+
+            // ── DM do usuário — captura o resultado REAL do envio (não engole
+            // o erro), mesmo padrão aplicado em /strike e /unstrike. ───────────
+            let dmDelivered = false;
             if (targetMember) {
                 try {
-                    await targetMember.send({
-                        components,
-                        flags: [flags]
-                    }).catch(() => null);
-                } catch (err) {}
+                    await targetMember.send({ components, flags: [flags], files: filesPayload });
+                    dmDelivered = true;
+                } catch (err) {
+                    // Erro 50007 = "Cannot send messages to this user" → DMs bloqueadas/fechadas.
+                    dmDelivered = false;
+                    console.warn(`⚠️ [REPSET] Não foi possível enviar DM para ${target.tag}: ${err.message}`);
+                }
             }
             
+            // ── Log no canal configurado (log_punishments) ──────────────────────
+            let logSent = false;
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const logBuilder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
-                        logBuilder.title(`${titleIcon} ${titleText}`, 1);
-                        logBuilder.separator();
-                        logBuilder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
-                        logBuilder.separator();
-                        logBuilder.text(`${emojis.user || '👤'} **Usuário:** ${target.tag} \`${target.id}\``);
-                        logBuilder.text(`${emojis.staff || '👮'} **Responsável:** ${staff.tag} \`${staff.id}\``);
-                        logBuilder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
-                        logBuilder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-                        logBuilder.footer();
-                        
-                        const { components: logComponents, flags: logFlags } = logBuilder.build();
-                        await logChannel.send({
-                            components: logComponents,
-                            flags: [logFlags]
-                        }).catch(() => null);
+                        await logChannel.send({ components, flags: [flags], files: filesPayload });
+                        logSent = true;
+                    } else {
+                        console.warn(`⚠️ [REPSET] Canal de log de punições (${logChannelId}) não encontrado/acessível.`);
                     }
-                } catch (err) {}
+                } catch (err) {
+                    console.error('❌ Erro ao enviar log de ajuste de reputação:', err);
+                }
+            } else {
+                console.warn(`⚠️ [REPSET] Canal de log de punições não configurado para a guild ${guildId}.`);
             }
-            
+
+            // ── Monta o aviso para o staff que ajustou a reputação ──────────────
+            const dmStatusMsg = dmDelivered
+                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do ajuste.`;
+
+            const summaryLines = [
+                `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**`,
+                `${emojis.status || '📊'} ${currentRep} → ${newPoints} (${diffText})`,
+                dmStatusMsg,
+            ];
+            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+
             await interaction.editReply({ 
-                content: `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**\n${emojis.status} ${currentRep} → ${newPoints} (${diffText})`,
+                content: summaryLines.join('\n'),
                 components: []
             });
             
-            console.log(`📊 [REPSET] ${staff.tag} ajustou ${target.tag} | ${diffText} pts | ${Date.now() - startTime}ms`);
+            console.log(`📊 [REPSET] ${staff.tag} ajustou ${target.tag} | ${diffText} pts | DM:${dmDelivered} | Log:${logSent} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
             console.error('❌ Erro no repset:', error);

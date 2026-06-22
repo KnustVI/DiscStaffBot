@@ -109,40 +109,58 @@ module.exports = {
             const bannerAttachment = imageManager.getAttachment('title_strike_removido');
             const filesPayload = bannerAttachment ? [bannerAttachment] : [];
 
+            // ── DM do usuário — captura o resultado REAL do envio (não engole
+            // o erro), para sabermos se a DM foi entregue de fato e avisar o
+            // staff corretamente. Mesmo padrão aplicado no /strike. ────────────
+            let dmDelivered = false;
             if (targetUser) {
                 try {
-                    await targetUser.send({
-                        components,
-                        flags: [flags],
-                        files: filesPayload
-                    }).catch(() => null);
+                    await targetUser.send({ components, flags: [flags], files: filesPayload });
+                    dmDelivered = true;
                 } catch (err) {
-                    console.error('❌ Erro ao enviar DM:', err);
+                    // Erro 50007 = "Cannot send messages to this user" → DMs bloqueadas/fechadas.
+                    dmDelivered = false;
+                    console.warn(`⚠️ [UNSTRIKE] Não foi possível enviar DM para ${targetUser.tag}: ${err.message}`);
                 }
             }
 
+            // ── Log no canal configurado (log_punishments) ──────────────────────
+            let logSent = false;
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
             if (logChannelId) {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        await logChannel.send({
-                            components,
-                            flags: [flags],
-                            files: filesPayload
-                        }).catch(() => null);
+                        await logChannel.send({ components, flags: [flags], files: filesPayload });
+                        logSent = true;
+                    } else {
+                        console.warn(`⚠️ [UNSTRIKE] Canal de log de punições (${logChannelId}) não encontrado/acessível.`);
                     }
                 } catch (err) {
-                    console.error('❌ Erro ao enviar log:', err);
+                    console.error('❌ Erro ao enviar log de anulação no canal:', err);
                 }
+            } else {
+                console.warn(`⚠️ [UNSTRIKE] Canal de log de punições não configurado para a guild ${guildId}.`);
             }
 
+            // ── Monta o aviso para o staff que anulou o strike ──────────────────
+            const dmStatusMsg = dmDelivered
+                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
+
+            const summaryLines = [
+                `✅ **Strike #${punishmentId} anulado!**`,
+                `📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
+                dmStatusMsg,
+            ];
+            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+
             await interaction.editReply({ 
-                content: `✅ **Strike #${punishmentId} anulado!**\n📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
+                content: summaryLines.join('\n'),
                 components: []
             });
             
-            console.log(`📊 [UNSTRIKE] ${staff.tag} anulou #${punishmentId} | ${Date.now() - startTime}ms`);
+            console.log(`📊 [UNSTRIKE] ${staff.tag} anulou #${punishmentId} | DM:${dmDelivered} | Log:${logSent} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
             console.error('❌ Erro no unstrike:', error);
