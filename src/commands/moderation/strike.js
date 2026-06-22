@@ -4,6 +4,7 @@ const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -175,6 +176,11 @@ module.exports = {
 
             const { components, flags } = containerBuilder.build();
 
+            // ── Banner de título: attachment buscado uma vez, reenviado em
+            // toda mensagem que usa este container (DM e canal de log) ────────
+            const bannerAttachment = imageManager.getAttachment('title_strike');
+            const filesPayload = bannerAttachment ? [bannerAttachment] : [];
+
             // ── DM do usuário — captura o resultado REAL do envio (não engole
             // o erro), para sabermos se a DM foi entregue de fato e avisar o
             // staff corretamente. Discord não tem "verificar antes de enviar":
@@ -182,7 +188,7 @@ module.exports = {
             let dmDelivered = false;
             if (targetMember) {
                 try {
-                    await targetMember.send({ components, flags: [flags] });
+                    await targetMember.send({ components, flags: [flags], files: filesPayload });
                     dmDelivered = true;
                 } catch (err) {
                     // Erro 50007 = "Cannot send messages to this user" → DMs bloqueadas/fechadas.
@@ -198,7 +204,7 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        await logChannel.send({ components, flags: [flags] });
+                        await logChannel.send({ components, flags: [flags], files: filesPayload });
                         logSent = true;
                     } else {
                         console.warn(`⚠️ [STRIKE] Canal de log de punições (${logChannelId}) não encontrado/acessível.`);

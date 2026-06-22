@@ -6,8 +6,6 @@ const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 const { PaginationBuilder } = require('../utils/paginationBuilder');
 const SessionManager = require('../utils/sessionManager');
 const SequenceManager = require('../database/sequences');
-// ✅ CORRIGIDO: estava '../../utils/imageManager' (subia uma pasta a mais).
-// punishmentSystem.js está em src/systems/, então o caminho correto é '../utils/imageManager'.
 const imageManager = require('../utils/imageManager');
 
 const COLORS = {
@@ -132,15 +130,18 @@ const PunishmentSystem = {
         }
 
         // ── Cabeçalho com avatar do usuário (thumbnail) ──────────────────────
+        // ✅ CORRIGIDO: section() aceita (text, accessory) — apenas 2 argumentos.
+        // Antes havia 3 argumentos passados (texto, texto, thumbnail) e a
+        // variável usada era 'targetAvatar' (inexistente, nunca declarada
+        // nesta função — o nome correto é 'avatar', declarado abaixo).
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${target.toString()}
-            \n ${target.username} (\`${target.id}\`)`,
-            AdvancedContainerBuilder.thumbnail(targetAvatar),
+            `## ${target.toString()}\n${target.username} (\`${target.id}\`)`,
+            AdvancedContainerBuilder.thumbnail(avatar),
         );
 
         builder.separator();
-        builder.text(`**Server: ${guildName}`);
+        builder.text(`**Server:** ${guildName}`);
         builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
         builder.text(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         
@@ -199,21 +200,22 @@ const PunishmentSystem = {
             builder.separator();
         }
 
-        // ── Avatar do usuário punido como thumbnail no título ────────────────
-        const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        builder.section(
-            `## ${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`,
-            `${target.toString()}
-            \n ${target.username} (\`${target.id}\`)`,
-            AdvancedContainerBuilder.thumbnail(targetAvatar),
-        );
+        builder.title(`${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`, 1);
         builder.separator();
+
+        // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## Moderador Responsável pela Punição`,
-            `${moderator.toString()}
-            \n ${moderator.username} (\`${moderator.id}\`)`,
+            `## ${moderator.toString()}\n${moderator.username} (\`${moderator.id}\`)`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
+        );
+        builder.separator();
+
+        // ── Apresentação padrão: Usuário alvo da punição ─────────────────────
+        const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `## ${target?.toString() || 'Desconhecido'}\n${target?.username || '?'} (\`${target?.id || '?'}\`)`,
+            AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
@@ -248,20 +250,23 @@ const PunishmentSystem = {
             builder.gallery([bannerUrl]);
             builder.separator();
         }
-        const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        builder.section(
-            `## ${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`,
-             `${target.toString()}
-            \n ${target.username} (\`${target.id}\`)`,
-            AdvancedContainerBuilder.thumbnail(targetAvatar),
-        );
+
+        builder.title(`${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`, 1);
         builder.separator();
+
+        // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## Moderador Responsável pela Anulação`,
-            `${moderator.toString()}
-            \n ${moderator.username} (\`${moderator.id}\`)`,
+            `## ${moderator.toString()}\n${moderator.username} (\`${moderator.id}\`)`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
+        );
+        builder.separator();
+
+        // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
+        const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `## ${target?.toString() || 'Desconhecido'}\n${target?.username || '?'} (\`${target?.id || '?'}\`)`,
+            AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
         builder.text(`**📈 Pontos restaurados:** +${pointsRestored}`);
