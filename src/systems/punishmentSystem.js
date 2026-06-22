@@ -191,18 +191,32 @@ const PunishmentSystem = {
         
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DANGER });
 
+        // ── Banner de título — só adiciona se a imagem existir de fato ──────
+        const bannerUrl = imageManager.getUrl('title_strike');
+        if (bannerUrl) {
+            builder.gallery([bannerUrl]);
+            builder.separator();
+        }
+
         // ── Avatar do usuário punido como thumbnail no título ────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `# ${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`,
+            `## ${EMOJIS.lose || '❌'} STRIKE! | #${strikeNumber}`,
+            `${target.toString()}
+            \n ${target.username} (\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
-
+        builder.separator();
+        const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `## Moderador Responsável pela Punição`,
+            `${moderator.toString()}
+            \n ${moderator.username} (\`${moderator.id}\`)`,
+            AdvancedContainerBuilder.thumbnail(moderatorAvatar),
+        );
         builder.separator();
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
         builder.separator();
-        builder.text(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
-        builder.text(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
         builder.text(`**📉 Pontos subtraídos:** -${pointsLost}`);
         builder.text(`**⭐ Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
         builder.separator();
@@ -227,15 +241,28 @@ const PunishmentSystem = {
     generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
 
+        // ── Banner de título — só adiciona se a imagem existir de fato ──────
+        const bannerUrl = imageManager.getUrl('title_strike_removido');
+        if (bannerUrl) {
+            builder.gallery([bannerUrl]);
+            builder.separator();
+        }
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `# ${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`,
+            `## ${EMOJIS.gain || '✅'} STRIKE ANULADO | #${strikeNumber}`,
+             `${target.toString()}
+            \n ${target.username} (\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
-
         builder.separator();
-        builder.text(`**👤 Usuário:** ${target?.tag || 'Desconhecido'} (\`${target?.id || '?'}\`)`);
-        builder.text(`**🛡️ Moderador:** ${moderator.tag} (\`${moderator.id}\`)`);
+        const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        builder.section(
+            `## Moderador Responsável pela Anulação`,
+            `${moderator.toString()}
+            \n ${moderator.username} (\`${moderator.id}\`)`,
+            AdvancedContainerBuilder.thumbnail(moderatorAvatar),
+        );
+        builder.separator();
         builder.text(`**📈 Pontos restaurados:** +${pointsRestored}`);
         builder.text(`**⭐ Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
         builder.separator();
@@ -352,7 +379,10 @@ const PunishmentSystem = {
             
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
             const { components, flags } = container.build();
-            await interaction.editReply({ components, flags: [flags] });
+            const bannerAttachment = imageManager.getAttachment('title_strike');
+            const replyData = { components, flags: [flags] };
+            if (bannerAttachment) replyData.files = [bannerAttachment];
+            await interaction.editReply(replyData);
         }
     },
     
@@ -426,11 +456,67 @@ const PunishmentSystem = {
         const container = this.generateUnstrikeUnifiedContainer(target, interaction.user, strikeNumber, reason, pointsRestored, newPoints, strike.reason, interaction.guild.name);
         
         const { components, flags } = container.build();
-        await interaction.editReply({ components, flags: [flags] });
+        const bannerAttachment = imageManager.getAttachment('title_strike_removido');
+        const replyData = { components, flags: [flags] };
+        if (bannerAttachment) replyData.files = [bannerAttachment];
+        await interaction.editReply(replyData);
         SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_modal');
     },
     
     // ==================== MÉTODOS DE NEGÓCIO ====================
+
+    /**
+     * Atribui o cargo temporário de Strike (configurado via /config-roles,
+     * chave 'strike_role') ao membro punido, e registra a expiração na
+     * tabela temporary_roles para remoção automática pelo worker (initWorker).
+     *
+     * Se durationMs <= 0 (punição permanente / "0" / "perm"), o cargo NÃO é
+     * aplicado como temporário — a tabela temporary_roles existe apenas para
+     * controlar remoções automáticas, então punição permanente não deveria
+     * inserir um registro que nunca expira por design.
+     *
+     * @param {object} guild        - Guild do discord.js
+     * @param {object} targetMember - GuildMember do discord.js (já buscado)
+     * @param {number} durationMs   - Duração da punição em ms (0 = permanente)
+     * @returns {Promise<{ applied: boolean, roleId: string|null, expiresAt: number|null, error: string|null }>}
+     */
+    async applyTemporaryRole(guild, targetMember, durationMs) {
+        const ConfigSystem = require('./configSystem');
+        const strikeRoleId = ConfigSystem.getSetting(guild.id, 'strike_role');
+
+        if (!strikeRoleId) {
+            return { applied: false, roleId: null, expiresAt: null, error: 'Cargo de Strike não configurado (config-roles).' };
+        }
+
+        if (!targetMember) {
+            return { applied: false, roleId: strikeRoleId, expiresAt: null, error: 'Membro não está no servidor.' };
+        }
+
+        if (!durationMs || durationMs <= 0) {
+            // Punição permanente: não aplica cargo temporário (sem expiração definida).
+            return { applied: false, roleId: strikeRoleId, expiresAt: null, error: null };
+        }
+
+        try {
+            const role = await guild.roles.fetch(strikeRoleId).catch(() => null);
+            if (!role) {
+                return { applied: false, roleId: strikeRoleId, expiresAt: null, error: 'Cargo configurado não existe mais no servidor.' };
+            }
+
+            await targetMember.roles.add(strikeRoleId, 'Cargo temporário de Strike aplicado');
+
+            const expiresAt = Date.now() + durationMs;
+            db.prepare(`
+                INSERT INTO temporary_roles (guild_id, user_id, role_id, expires_at)
+                VALUES (?, ?, ?, ?)
+            `).run(guild.id, targetMember.id, strikeRoleId, expiresAt);
+
+            return { applied: true, roleId: strikeRoleId, expiresAt, error: null };
+        } catch (error) {
+            console.error('❌ Erro ao aplicar cargo temporário de Strike:', error);
+            return { applied: false, roleId: strikeRoleId, expiresAt: null, error: error.message };
+        }
+    },
 
     parseDuration(durationStr) {
         if (!durationStr || ['0', 'perm'].includes(durationStr.toLowerCase())) return 0;

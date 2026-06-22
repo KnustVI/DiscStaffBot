@@ -47,8 +47,8 @@ module.exports = {
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
 
-        const bannerUrl = imageManager.getUrl('title_ajuda');
-        const bannerAttachment = imageManager.getAttachment('title_ajuda');
+        const bannerUrl = imageManager.getUrl('config_punições');
+        const bannerAttachment = imageManager.getAttachment('config_punições');
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
         
         builder.gallery([bannerUrl])

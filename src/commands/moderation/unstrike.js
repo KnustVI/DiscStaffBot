@@ -3,6 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
+const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -103,11 +104,17 @@ module.exports = {
 
             const { components, flags } = containerBuilder.build();
 
+            // ── Banner de título: attachment buscado uma vez, reenviado em
+            // toda mensagem que usa este container (DM e canal de log) ────────
+            const bannerAttachment = imageManager.getAttachment('title_strike_removido');
+            const filesPayload = bannerAttachment ? [bannerAttachment] : [];
+
             if (targetUser) {
                 try {
                     await targetUser.send({
                         components,
-                        flags: [flags]
+                        flags: [flags],
+                        files: filesPayload
                     }).catch(() => null);
                 } catch (err) {
                     console.error('❌ Erro ao enviar DM:', err);
@@ -121,7 +128,8 @@ module.exports = {
                     if (logChannel) {
                         await logChannel.send({
                             components,
-                            flags: [flags]
+                            flags: [flags],
+                            files: filesPayload
                         }).catch(() => null);
                     }
                 } catch (err) {
