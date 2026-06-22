@@ -209,7 +209,7 @@ const PunishmentSystem = {
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
-        builder.title(`${EMOJIS.ban || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
+        builder.text(`## ${EMOJIS.ban || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
         builder.text(`**${EMOJIS.lose || '❌'} Pontos subtraídos:** -${pointsLost}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
@@ -257,7 +257,7 @@ const PunishmentSystem = {
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
-        builder.title(`${EMOJIS.check || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
+        builder.text(`## ${EMOJIS.check || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
         builder.text(`**${EMOJIS.gain || '✅'} Pontos restaurados:** +${pointsRestored}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
         builder.separator();
