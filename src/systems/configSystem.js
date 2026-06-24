@@ -58,6 +58,26 @@ const ConfigSystem = {
         }
     },
 
+    /**
+     * Retorna o canal de log "Geral / AutoMod" unificado.
+     *
+     * ✅ UNIFICAÇÃO: Geral e AutoMod agora compartilham o mesmo canal,
+     * configurado pela chave 'log_channel'. A chave antiga 'log_automod'
+     * é mantida como FALLBACK LEGADO apenas: se um servidor antigo já
+     * tinha um canal de AutoMod configurado separadamente e nunca
+     * configurou 'log_channel', ainda usamos o valor antigo para não
+     * quebrar quem já estava em produção. Novas configurações sempre
+     * gravam em 'log_channel' (ver setLogChannel).
+     *
+     * @param {string} guildId
+     * @returns {string|null}
+     */
+    getUnifiedGeneralLogChannel(guildId) {
+        const current = this.getSetting(guildId, 'log_channel');
+        if (current) return current;
+        return this.getSetting(guildId, 'log_automod'); // fallback legado
+    },
+
     getMany(guildId, keys = []) {
         const result = {};
         for (const key of keys) {
@@ -109,15 +129,12 @@ const ConfigSystem = {
                 return;
             }
             if (customId === 'config-logs:geral') {
+                // ✅ UNIFICADO: este select agora cobre Geral + AutoMod.
                 await this.setLogChannel(interaction, 'log_channel');
                 return;
             }
             if (customId === 'config-logs:punishments') {
                 await this.setLogChannel(interaction, 'log_punishments');
-                return;
-            }
-            if (customId === 'config-logs:automod') {
-                await this.setLogChannel(interaction, 'log_automod');
                 return;
             }
             if (customId === 'config-logs:reports') {
@@ -277,6 +294,29 @@ const ConfigSystem = {
 
     // ==================== PAINÉIS ====================
 
+    /**
+     * Envia uma mensagem de sucesso/feedback como followUp EFÊMERO,
+     * separada do painel principal.
+     *
+     * ✅ CORRIGE O BUG: interaction.update() não aceita `content` junto de
+     * MessageFlags.IsComponentsV2 ("MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2").
+     * Antes, os métodos refresh*Panel tentavam colocar `content: successMessage`
+     * no MESMO payload do update()/editReply() que já usa Components V2 —
+     * isso fazia a requisição inteira falhar com erro 400, e por isso o
+     * painel "não atualizava" (na verdade a edição nunca era aplicada).
+     *
+     * Agora a mensagem de sucesso vai SEMPRE por aqui, separada, e o painel
+     * principal nunca leva `content`.
+     */
+    async sendFeedback(interaction, message) {
+        if (!message) return;
+        try {
+            await interaction.followUp({ content: message, flags: MessageFlags.Ephemeral });
+        } catch (error) {
+            console.error('❌ Erro ao enviar feedback efêmero:', error);
+        }
+    },
+
     async refreshPointsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
@@ -321,17 +361,17 @@ const ConfigSystem = {
             new ButtonBuilder().setCustomId('config-points:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.Reset || '⚠️')
         );
         
-        const replyData = {
-            components: [...components, row],
-            flags,
-            ...(successMessage ? { content: successMessage } : {}),
-        };
+        // ✅ Painel SEMPRE limpo, sem `content` — mensagem de sucesso vai
+        // separada via sendFeedback() (followUp efêmero).
+        const replyData = { components: [...components, row], flags };
         
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(replyData);
         } else {
             await interaction.update(replyData);
         }
+
+        await this.sendFeedback(interaction, successMessage);
     },
 
     async refreshRolesPanel(interaction, successMessage) {
@@ -365,11 +405,8 @@ const ConfigSystem = {
         const exemplarRow    = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
         const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
-        const replyData = {
-            components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow],
-            flags,
-            ...(successMessage ? { content: successMessage } : {}),
-        };
+        // ✅ Painel SEMPRE limpo, sem `content`.
+        const replyData = { components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow], flags };
         
         try {
             if (interaction.deferred || interaction.replied) {
@@ -377,6 +414,7 @@ const ConfigSystem = {
             } else {
                 await interaction.update(replyData);
             }
+            await this.sendFeedback(interaction, successMessage);
         } catch (error) {
             console.error('❌ Erro no refreshRolesPanel:', error);
         }
@@ -400,11 +438,17 @@ const ConfigSystem = {
         await this.refreshRolesPanel(interaction, `${EMOJIS.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
+    /**
+     * Painel de canais de log.
+     *
+     * ✅ UNIFICADO: removida a linha/seleção de "AutoMod" — o relatório
+     * diário do AutoMod agora é enviado no mesmo canal configurado como
+     * "Geral" (chave 'log_channel'). Ver autoModeration.js → sendLogReports.
+     */
     async refreshLogsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
-        const logGeral       = this.getSetting(guildId, 'log_channel');
+        const logGeral       = this.getUnifiedGeneralLogChannel(guildId);
         const logPunishments = this.getSetting(guildId, 'log_punishments');
-        const logAutomod     = this.getSetting(guildId, 'log_automod');
         const logReports     = this.getSetting(guildId, 'log_reports');
 
         const fmt = (channelId) => channelId
@@ -414,32 +458,26 @@ const ConfigSystem = {
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
             .title(`${EMOJIS.dashboard || '🪵'} Canais de Log`)
             .block([
-                '**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.',
+                '**Geral** — recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos atribuídos/removidos, ranking de staff).',
                 '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
-                '**AutoMod** — recebe logs de ações tomadas pela análise diária de automação do bot, responsável por dar e remover cargos e enviar alertas de players problemáticos.',
                 '**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
             ])
             .separator()
             .block([
-                `${EMOJIS.global  || '📜'} **Geral:** ${fmt(logGeral)}`,
+                `${EMOJIS.global  || '📜'} **Geral / AutoMod:** ${fmt(logGeral)}`,
                 `${EMOJIS.strike  || '⚖️'} **Punições:** ${fmt(logPunishments)}`,
-                `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`,
                 `${EMOJIS.chat    || '🚩'} **ReportChat:** ${fmt(logReports)}`,
             ])
             .footer(guildName)
             .build();
         
-        const geralRow       = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais').addChannelTypes(ChannelType.GuildText));
+        const geralRow       = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais / automod').addChannelTypes(ChannelType.GuildText));
         const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder('Selecionar canal de logs de punições').addChannelTypes(ChannelType.GuildText));
-        const automodRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:automod').setPlaceholder('Selecionar canal de logs de automoderação').addChannelTypes(ChannelType.GuildText));
         const reportsRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder('Selecionar canal de logs de reports').addChannelTypes(ChannelType.GuildText));
         const buttonRow      = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plusone || '➕'));
         
-        const replyData = {
-            components: [...components, geralRow, punishmentsRow, automodRow, reportsRow, buttonRow],
-            flags,
-            ...(successMessage ? { content: successMessage } : {}),
-        };
+        // ✅ Painel SEMPRE limpo, sem `content`.
+        const replyData = { components: [...components, geralRow, punishmentsRow, reportsRow, buttonRow], flags };
         
         try {
             if (interaction.deferred || interaction.replied) {
@@ -447,6 +485,7 @@ const ConfigSystem = {
             } else {
                 await interaction.update(replyData);
             }
+            await this.sendFeedback(interaction, successMessage);
         } catch (error) {
             console.error('❌ Erro no refreshLogsPanel:', error);
         }
@@ -467,15 +506,21 @@ const ConfigSystem = {
         this.clearCache(interaction.guildId);
         
         const channelLabels = {
-            log_channel:      `${EMOJIS.global  || '📜'} Canal de logs gerais`,
+            log_channel:      `${EMOJIS.global  || '📜'} Canal de logs gerais / automod`,
             log_punishments:  `${EMOJIS.strike  || '⚖️'} Canal de logs de punições`,
-            log_automod:      `${EMOJIS.AutoMod || '🛡️'} Canal de logs de automoderação`,
             log_reports:      `${EMOJIS.chat    || '🚩'} Canal de logs de reports`,
         };
         
         await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
     },
 
+    /**
+     * Cria os canais de log automaticamente.
+     *
+     * ✅ UNIFICADO: não cria mais um canal separado "logs-automod".
+     * O canal "logs-gerais" agora recebe tanto logs gerais quanto o
+     * relatório diário do AutoMod.
+     */
     async createLogChannels(interaction) {
         try {
             if (!interaction.isRepliable()) {
@@ -514,12 +559,10 @@ const ConfigSystem = {
             });
             
             const geral       = await guild.channels.create({ name: '📜 logs-gerais',   type: ChannelType.GuildText, parent: category.id });
-            const automod     = await guild.channels.create({ name: '🛡️ logs-automod',  type: ChannelType.GuildText, parent: category.id });
             const punishments = await guild.channels.create({ name: '⚖️ logs-punicoes', type: ChannelType.GuildText, parent: category.id });
             const reports     = await guild.channels.create({ name: '🚩 logs-reports',  type: ChannelType.GuildText, parent: category.id });
             
             this.setSetting(guild.id, 'log_channel',      geral.id);
-            this.setSetting(guild.id, 'log_automod',      automod.id);
             this.setSetting(guild.id, 'log_punishments',  punishments.id);
             this.setSetting(guild.id, 'log_reports',      reports.id);
             this.clearCache(guild.id);
@@ -529,8 +572,7 @@ const ConfigSystem = {
                 .text('Os seguintes canais foram criados:')
                 .separator()
                 .block([
-                    `${EMOJIS.global  || '📜'} **Geral:** <#${geral.id}>`,
-                    `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** <#${automod.id}>`,
+                    `${EMOJIS.global  || '📜'} **Geral / AutoMod:** <#${geral.id}>`,
                     `${EMOJIS.strike  || '⚖️'} **Punições:** <#${punishments.id}>`,
                     `${EMOJIS.chat    || '🎫'} **Reports:** <#${reports.id}>`,
                 ])
@@ -547,9 +589,6 @@ const ConfigSystem = {
             console.error('❌ Erro ao criar canais:', error);
             const msg = `${EMOJIS.Error || '❌'} Erro ao criar canais: ${error.message}`;
             try {
-                // Mesma regra: se já respondemos com Components V2 (reply de
-                // "Criando canais..." na linha acima), o editReply de erro
-                // também precisa ser Components V2 — nunca { content }.
                 const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
                     .text(msg)
                     .build();
@@ -565,8 +604,16 @@ const ConfigSystem = {
         }
     },
 
+    /**
+     * @param {string} guildId
+     * @param {'geral'|'punishments'|'automod'|'reports'} type
+     * ✅ UNIFICADO: 'automod' agora resolve para o mesmo canal de 'geral'.
+     */
     getLogChannel(guildId, type) {
-        const channelMap = { geral: 'log_channel', punishments: 'log_punishments', automod: 'log_automod', reports: 'log_reports' };
+        if (type === 'geral' || type === 'automod') {
+            return this.getUnifiedGeneralLogChannel(guildId);
+        }
+        const channelMap = { punishments: 'log_punishments', reports: 'log_reports' };
         const key = channelMap[type];
         if (!key) return null;
         return this.getSetting(guildId, key) || null;

@@ -32,19 +32,19 @@ module.exports = {
         
         const ConfigSystem = require('../../systems/configSystem');
         
-        const logGeral = ConfigSystem.getSetting(guildId, 'log_channel');
+        // ✅ UNIFICADO: Geral e AutoMod compartilham o mesmo canal agora.
+        // getUnifiedGeneralLogChannel() lê 'log_channel' e cai para o antigo
+        // 'log_automod' apenas como fallback legado (servidores já configurados).
+        const logGeral = ConfigSystem.getUnifiedGeneralLogChannel(guildId);
         const logPunishments = ConfigSystem.getSetting(guildId, 'log_punishments');
-        const logAutomod = ConfigSystem.getSetting(guildId, 'log_automod');
         const logReports = ConfigSystem.getSetting(guildId, 'log_reports');
         
         const fmt = (channelId) => channelId
             ? `<#${channelId}>`
             : `${emojis.Error || '❌'} Não definido`;
 
-        // ✅ Container único com todas as informações
         const bannerUrl = imageManager.getUrl('title_config_logs_dc');
         const bannerAttachment = imageManager.getAttachment('title_config_logs_dc');
-        const iconURL = guild.iconURL({ size: 64}) || 'https://via.placeholder.com/128x128/7289DA/FFFFFF?text=Servidor';
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
         
         .gallery([bannerUrl])
@@ -55,28 +55,24 @@ module.exports = {
             \n Os canais criados podem ter o nome alterado a sua maneira ou deletados, isso não afetará o funcionamento do sistema, desde que o canal correto seja selecionado no menu abaixo, para receber as logs.`,
             AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
         )
-            .text('**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.')
-            .text(`${emojis.global || '📜'} **Geral:** ${fmt(logGeral)}`)
+            .text('**Geral / AutoMod** — recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos, ranking de staff).')
+            .text(`${emojis.global || '📜'} **Geral / AutoMod:** ${fmt(logGeral)}`)
             .separator()
             // Seção 2: Punições
             .text('**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.')
             .text(`${emojis.strike || '⚖️'} **Punições:** ${fmt(logPunishments)}`)
             .separator()
-            // Seção 3: AutoMod
-            .text('**AutoMod** — recebe logs de ações tomadas pela análise diária de automação do bot, responsável por dar e remover cargos e enviar alertas de players problemáticos.')
-            .text(`${emojis.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`)
-            .separator()
-            // Seção 4: ReportChat
+            // Seção 3: ReportChat
             .text('**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.')
             .text(`${emojis.chat || '🎫'} **ReportChat:** ${fmt(logReports)}`)
             .footer(`Server: ${guild.name}`)
             .build();
 
-        // ✅ ActionRows com os Select Menus (cada um abaixo do bloco correspondente)
+        // ── Select menu único pra Geral/AutoMod (sem mais o de automod separado) ──
         const geralRow = new ActionRowBuilder().addComponents(
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:geral')
-                .setPlaceholder('Selecionar canal de logs gerais')
+                .setPlaceholder('Selecionar canal de logs gerais / automod')
                 .addChannelTypes(ChannelType.GuildText)
         );
 
@@ -84,13 +80,6 @@ module.exports = {
             new ChannelSelectMenuBuilder()
                 .setCustomId('config-logs:punishments')
                 .setPlaceholder('Selecionar canal de logs de punições')
-                .addChannelTypes(ChannelType.GuildText)
-        );
-
-        const automodRow = new ActionRowBuilder().addComponents(
-            new ChannelSelectMenuBuilder()
-                .setCustomId('config-logs:automod')
-                .setPlaceholder('Selecionar canal de logs de automoderação')
                 .addChannelTypes(ChannelType.GuildText)
         );
 
@@ -109,18 +98,18 @@ module.exports = {
                 .setEmoji(emojis.plusone || '➕')
         );
 
-        // ✅ Todos os componentes juntos na ordem correta
-        await interaction.editReply({
+        const replyPayload = {
             components: [
-                ...components,      // Container com todas as informações
-                geralRow,           // Select Menu 1
-                punishmentsRow,     // Select Menu 2
-                automodRow,         // Select Menu 3
-                reportsRow,         // Select Menu 4
-                buttonRow           // Botão
+                ...components,
+                geralRow,
+                punishmentsRow,
+                reportsRow,
+                buttonRow
             ],
             flags: [flags],
-            files: [bannerAttachment]
-        });
+        };
+        if (bannerAttachment) replyPayload.files = [bannerAttachment];
+
+        await interaction.editReply(replyPayload);
     }
 };

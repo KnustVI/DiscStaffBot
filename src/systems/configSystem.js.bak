@@ -12,7 +12,8 @@ const {
     ButtonStyle, 
     ChannelType,
     ChannelSelectMenuBuilder,
-    RoleSelectMenuBuilder      
+    RoleSelectMenuBuilder,
+    MessageFlags
 } = require('discord.js');
 
 const cache = new Map();
@@ -411,7 +412,7 @@ const ConfigSystem = {
             : `${EMOJIS.Error || '❌'} Não definido`;
         
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-            .title(`${EMOJIS.dashboard || '📝'} Canais de Log`)
+            .title(`${EMOJIS.dashboard || '🪵'} Canais de Log`)
             .block([
                 '**Geral** — recebe logs de alterações de configuração, atualizações de sistema e eventos diversos.',
                 '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
@@ -423,7 +424,7 @@ const ConfigSystem = {
                 `${EMOJIS.global  || '📜'} **Geral:** ${fmt(logGeral)}`,
                 `${EMOJIS.strike  || '⚖️'} **Punições:** ${fmt(logPunishments)}`,
                 `${EMOJIS.AutoMod || '🛡️'} **AutoMod:** ${fmt(logAutomod)}`,
-                `${EMOJIS.chat    || '🎫'} **ReportChat:** ${fmt(logReports)}`,
+                `${EMOJIS.chat    || '🚩'} **ReportChat:** ${fmt(logReports)}`,
             ])
             .footer(guildName)
             .build();
@@ -469,7 +470,7 @@ const ConfigSystem = {
             log_channel:      `${EMOJIS.global  || '📜'} Canal de logs gerais`,
             log_punishments:  `${EMOJIS.strike  || '⚖️'} Canal de logs de punições`,
             log_automod:      `${EMOJIS.AutoMod || '🛡️'} Canal de logs de automoderação`,
-            log_reports:      `${EMOJIS.chat    || '🎫'} Canal de logs de reports`,
+            log_reports:      `${EMOJIS.chat    || '🚩'} Canal de logs de reports`,
         };
         
         await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
@@ -496,11 +497,15 @@ const ConfigSystem = {
             }
             
             if (!interaction.deferred && !interaction.replied) {
-                await interaction.reply({ content: `${EMOJIS.clock || '⏳'} Criando canais de log...`, flags: 64 });
+                const loadingPayload = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+                    .text(`${EMOJIS.clock || '⏳'} Criando canais de log...`)
+                    .build();
+
+                await interaction.reply({ ...loadingPayload, flags: loadingPayload.flags | MessageFlags.Ephemeral });
             }
             
             const category = await guild.channels.create({
-                name: '📊 LOGS DO SISTEMA',
+                name: '░░🪵 LOGS DO SISTEMA ░░░░░░░░',
                 type: ChannelType.GuildCategory,
                 permissionOverwrites: [
                     { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -511,7 +516,7 @@ const ConfigSystem = {
             const geral       = await guild.channels.create({ name: '📜 logs-gerais',   type: ChannelType.GuildText, parent: category.id });
             const automod     = await guild.channels.create({ name: '🛡️ logs-automod',  type: ChannelType.GuildText, parent: category.id });
             const punishments = await guild.channels.create({ name: '⚖️ logs-punicoes', type: ChannelType.GuildText, parent: category.id });
-            const reports     = await guild.channels.create({ name: '🎫 logs-reports',  type: ChannelType.GuildText, parent: category.id });
+            const reports     = await guild.channels.create({ name: '🚩 logs-reports',  type: ChannelType.GuildText, parent: category.id });
             
             this.setSetting(guild.id, 'log_channel',      geral.id);
             this.setSetting(guild.id, 'log_automod',      automod.id);
@@ -542,10 +547,17 @@ const ConfigSystem = {
             console.error('❌ Erro ao criar canais:', error);
             const msg = `${EMOJIS.Error || '❌'} Erro ao criar canais: ${error.message}`;
             try {
+                // Mesma regra: se já respondemos com Components V2 (reply de
+                // "Criando canais..." na linha acima), o editReply de erro
+                // também precisa ser Components V2 — nunca { content }.
+                const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                    .text(msg)
+                    .build();
+
                 if (interaction.deferred || interaction.replied) {
-                    await interaction.editReply({ content: msg, components: [] });
+                    await interaction.editReply(errorPayload);
                 } else {
-                    await interaction.reply({ content: msg, flags: 64 });
+                    await interaction.reply({ ...errorPayload, flags: errorPayload.flags | MessageFlags.Ephemeral });
                 }
             } catch (err) {
                 console.error('❌ Erro ao responder:', err);

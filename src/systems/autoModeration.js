@@ -28,7 +28,6 @@ let isWorkerStarted = false;
 
 class AutoModerationSystem {
     constructor(client) {
-        // Se já existe uma instância, retorna ela
         if (instance) {
             console.log('⚠️ [AutoMod] Tentativa de criar nova instância - retornando existente');
             return instance;
@@ -44,7 +43,6 @@ class AutoModerationSystem {
             totalRolesRemoved: 0
         };
 
-        // Salva a instância
         instance = this;
         
         console.log('🛡️ [AutoMod] Instância criada (worker será iniciado separadamente)');
@@ -229,17 +227,12 @@ class AutoModerationSystem {
         await interaction.editReply({ components, flags: [flags] });
     }
 
-    // ============================================
-    // MÉTODO PARA INICIAR O WORKER (APENAS UMA VEZ)
-    // ============================================
     startWorker() {
-        // Verifica se o worker já foi iniciado
         if (this.isRunning || isWorkerStarted) {
             console.log('⚠️ [AutoMod] Worker já está rodando');
             return;
         }
         
-        // Marca como iniciado antes de agendar
         isWorkerStarted = true;
         this.isRunning = true;
         
@@ -352,16 +345,60 @@ class AutoModerationSystem {
         this.isProcessing = false;
     }
 
+    /**
+     * Envia o relatório diário consolidado.
+     *
+     * ✅ UNIFICADO: o relatório agora vai para o canal "Geral" (chave
+     * 'log_channel'), via ConfigSystem.getUnifiedGeneralLogChannel().
+     * Antes ia para 'log_automod', que deixou de ser configurável
+     * separadamente no painel /config-logs (mantido só como fallback legado
+     * para guilds que já tinham configurado antes da unificação).
+     *
+     * ✅ EXPANDIDO: além do resumo de recuperação/cargos que já existia,
+     * o relatório agora também inclui:
+     *  - Status atual do servidor (total de exemplares e alerta de
+     *    problemáticos no momento, não só os que mudaram hoje)
+     *  - Top 5 staffs por punições aplicadas nos últimos 7 dias
+     *    (via AnalyticsSystem.getStaffRanking)
+     */
     async sendLogReports(stats) {
         const ConfigSystem = require('./configSystem');
-        
+        const AnalyticsSystem = require('./analyticsSystem');
+
         for (const [gId, data] of Object.entries(stats)) {
             try {
-                const logChanId = ConfigSystem.getSetting(gId, 'log_automod');
+                const logChanId = ConfigSystem.getUnifiedGeneralLogChannel(gId);
                 if (!logChanId) continue;
                 
                 const channel = await this.client.channels.fetch(logChanId).catch(() => null);
                 if (!channel) continue;
+
+                // ── Status atual do servidor (contagem total, não só do dia) ────
+                const limitProb = parseInt(ConfigSystem.getSetting(gId, 'limit_problematico')) || 30;
+                const problematicCount = db.prepare(`
+                    SELECT COUNT(*) as count FROM reputation 
+                    WHERE guild_id = ? AND points <= ?
+                `).get(gId, limitProb)?.count || 0;
+
+                const limitEx = parseInt(ConfigSystem.getSetting(gId, 'limit_exemplar')) || 95;
+                const exemplarCount = db.prepare(`
+                    SELECT COUNT(*) as count FROM reputation 
+                    WHERE guild_id = ? AND points >= ?
+                `).get(gId, limitEx)?.count || 0;
+
+                // ── Ranking de staff (top 5 por punições aplicadas, 7 dias) ──────
+                let rankingLines = [];
+                try {
+                    const ranking = await AnalyticsSystem.getStaffRanking(gId, 'punishments_applied', 'week', 5);
+                    rankingLines = ranking
+                        .filter(r => r.total > 0)
+                        .map((r, i) => {
+                            const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i + 1}º`));
+                            return `${medal} <@${r.user_id}>: \`${r.total}\` punições (7d)`;
+                        });
+                } catch (err) {
+                    console.error('❌ [AutoMod] Erro ao buscar ranking de staff:', err);
+                }
 
                 const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
                 builder.title(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`, 1);
@@ -369,6 +406,23 @@ class AutoModerationSystem {
                 builder.text(`${EMOJIS.gain || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+1pt**.`);
                 builder.text(`${EMOJIS.Leadboard || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
                 builder.text(`${EMOJIS.Rank || '📊'} **Detalhes:** ${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
+                builder.separator();
+
+                builder.title(`${EMOJIS.Warning || '⚠️'} Status Atual do Servidor`, 2);
+                builder.text(`${EMOJIS.shinystar || '🎖️'} **Exemplares atualmente:** \`${exemplarCount}\``);
+                if (problematicCount > 0) {
+                    builder.text(`${EMOJIS.Warning || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
+                } else {
+                    builder.text(`${EMOJIS.Check || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
+                }
+                builder.separator();
+
+                builder.title(`${EMOJIS.Leadboard || '🏆'} Top Staff (últimos 7 dias)`, 2);
+                if (rankingLines.length > 0) {
+                    builder.text(rankingLines.join('\n'));
+                } else {
+                    builder.text(`${EMOJIS.Note || 'ℹ️'} Sem punições registradas nos últimos 7 dias.`);
+                }
                 builder.footer();
 
                 const { components, flags } = builder.build();
@@ -396,7 +450,6 @@ class AutoModerationSystem {
 // FUNÇÃO DE INICIALIZAÇÃO (SINGLETON)
 // ============================================
 function initializeAutoModeration(client) {
-    // Verifica se já existe uma instância global
     if (!global.autoModInstance) {
         console.log('🛡️ [AutoMod] Inicializando sistema pela primeira vez...');
         global.autoModInstance = new AutoModerationSystem(client);
@@ -404,7 +457,6 @@ function initializeAutoModeration(client) {
         console.log('🛡️ [AutoMod] Sistema inicializado e worker iniciado');
     } else {
         console.log('🛡️ [AutoMod] Sistema já inicializado, reutilizando instância');
-        // Se o worker não estiver rodando, inicia
         if (!global.autoModInstance.isRunning) {
             global.autoModInstance.startWorker();
         }
@@ -416,20 +468,12 @@ function initializeAutoModeration(client) {
 // EXPORTAÇÕES
 // ============================================
 
-// Exportação principal (mantendo compatibilidade)
 module.exports = initializeAutoModeration;
-
-// Exportar a classe para uso interno
 module.exports.AutoModerationSystem = AutoModerationSystem;
-
-// Exportar a instância global (para uso em outros módulos)
 module.exports.getInstance = function() {
     return global.autoModInstance || null;
 };
 
-// ============================================
-// HANDLERS (USAM A INSTÂNCIA GLOBAL)
-// ============================================
 module.exports.handler = {
     handleComponent: async (interaction, action, param) => {
         if (!global.autoModInstance) {
