@@ -343,6 +343,43 @@ class PoTGatewayServer {
         
         return null;
     }
+
+        async _routeToDiscord(guildId, eventType, data) {
+        try {
+            // ==================== REGISTRAR JOGADOR ====================
+            // Se for evento de login/logout/chat/killed/command, registra no potPlayerRegistry
+            if (['login', 'logout', 'chat', 'killed', 'command', 'group'].includes(eventType)) {
+                try {
+                    const potPlayerRegistry = require('../../systems/potPlayerRegistry');
+                    // O evento 'logout' não existe no potPlayerRegistry, mapeamos para 'PlayerLogout'
+                    const registryEvent = eventType === 'logout' ? 'PlayerLogout' : eventType;
+                    potPlayerRegistry.upsertPlayerFromEvent(guildId, data, registryEvent);
+                } catch (registryError) {
+                    // Não deixa o registro quebrar o fluxo do webhook
+                    console.warn('⚠️ [Gateway] Erro no registro do jogador:', registryError.message);
+                }
+            }
+
+            // ==================== ENVIAR PARA DISCORD ====================
+            // Buscar webhook configurado para este tipo de evento
+            const webhookUrl = await this._getWebhookForEvent(guildId, eventType);
+            
+            if (!webhookUrl) {
+                // Se não tiver webhook específico, tenta o canal geral
+                const generalWebhook = await this._getGeneralWebhook(guildId);
+                if (!generalWebhook) return;
+                
+                await this._sendToWebhook(generalWebhook, eventType, data);
+                return;
+            }
+            
+            await this._sendToWebhook(webhookUrl, eventType, data);
+            
+        } catch (error) {
+            ErrorLogger.error('pot_gateway', 'route', error, { guildId, eventType });
+        }
+    }
+
 }
 
 module.exports = PoTGatewayServer;

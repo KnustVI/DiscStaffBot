@@ -1,6 +1,6 @@
-// src/systems/potConfigSystem.js (VERSÃO ADAPTADA)
-
 /**
+ * potConfigSystem.js
+ * 
  * Extensão do sistema de configuração para Path of Titans
  * NÃO modifica o ConfigSystem original - apenas adiciona funcionalidades
  * 
@@ -162,6 +162,196 @@ class PoTConfigSystem {
         }
         
         return await potIntegration.executeCommand(guildId, command);
+    }
+
+    // ==================== GERENCIAMENTO DE WEBHOOKS (EXTENDIDO) ====================
+
+    /**
+     * Remove um webhook específico do banco
+     * @param {string} guildId - ID do servidor
+     * @param {string} event - Nome do evento (login, killed, etc.)
+     */
+    static removeWebhook(guildId, event) {
+        const stmt = db.prepare(`
+            DELETE FROM settings 
+            WHERE guild_id = ? AND key = ?
+        `);
+        stmt.run(guildId, `pot_webhook_${event}`);
+    }
+
+    /**
+     * Remove todos os webhooks de um servidor
+     * @param {string} guildId - ID do servidor
+     */
+    static removeAllWebhooks(guildId) {
+        const stmt = db.prepare(`
+            DELETE FROM settings 
+            WHERE guild_id = ? AND key LIKE 'pot_webhook_%'
+        `);
+        stmt.run(guildId);
+    }
+
+    /**
+     * Reseta configurações específicas do servidor
+     * @param {string} guildId - ID do servidor
+     * @param {string} scope - 'server' | 'logs' | 'all'
+     */
+    static resetConfig(guildId, scope) {
+        switch(scope) {
+            case 'server':
+                // Remove apenas configuração do servidor
+                const stmtServer = db.prepare(`
+                    DELETE FROM settings 
+                    WHERE guild_id = ? AND key = 'pot_server_config'
+                `);
+                stmtServer.run(guildId);
+                break;
+
+            case 'logs':
+                // Remove todos os webhooks
+                this.removeAllWebhooks(guildId);
+                break;
+
+            case 'all':
+                // Remove tudo
+                this.clearAllConfigs(guildId);
+                break;
+
+            default:
+                throw new Error(`Escopo de reset inválido: ${scope}`);
+        }
+    }
+
+    /**
+     * Verifica se um webhook específico existe e está configurado
+     * @param {string} guildId - ID do servidor
+     * @param {string} event - Nome do evento
+     * @returns {Object} Status do webhook
+     */
+    static getWebhookStatus(guildId, event) {
+        const url = this.getWebhookForEvent(guildId, event);
+        return {
+            configured: !!url && url.trim() !== '',
+            url: url || null,
+            event: event
+        };
+    }
+
+    /**
+     * Obtém o status de todos os webhooks de um servidor
+     * @param {string} guildId - ID do servidor
+     * @returns {Object} Mapeamento evento -> status
+     */
+    static getAllWebhooksStatus(guildId) {
+        const allWebhooks = this.getAllWebhookConfigs(guildId);
+        const status = {};
+        
+        // Lista de eventos conhecidos (baseada no LOG_CHANNELS)
+        const events = [
+            'login', 'killed', 'chat', 'group', 'nest', 
+            'quest', 'respawn', 'waystone', 'command', 
+            'admin_command', 'error'
+        ];
+        
+        for (const event of events) {
+            status[event] = {
+                configured: !!allWebhooks[event],
+                url: allWebhooks[event] || null,
+                event: event
+            };
+        }
+        
+        return status;
+    }
+
+    /**
+     * Conta quantos webhooks estão configurados
+     * @param {string} guildId - ID do servidor
+     * @returns {number} Quantidade de webhooks configurados
+     */
+    static countConfiguredWebhooks(guildId) {
+        const webhooks = this.getAllWebhookConfigs(guildId);
+        return Object.keys(webhooks).length;
+    }
+
+    /**
+     * Verifica se o servidor está totalmente configurado
+     * @param {string} guildId - ID do servidor
+     * @returns {Object} Status completo da configuração
+     */
+    static getFullStatus(guildId) {
+        const config = this.getServerConfig(guildId);
+        const webhooks = this.getAllWebhookConfigs(guildId);
+        
+        return {
+            configured: config !== null && config.enabled === true,
+            server: config ? {
+                ip: config.server_ip || null,
+                rcon_port: config.rcon_port || null,
+                webhook_port: config.webhook_port || null,
+                enabled: config.enabled || false
+            } : null,
+            webhooks: {
+                total: Object.keys(webhooks).length,
+                events: Object.keys(webhooks),
+                urls: webhooks
+            },
+            hasRcon: config ? !!(config.rcon_password && config.rcon_port) : false,
+            hasWebhooks: Object.keys(webhooks).length > 0
+        };
+    }
+
+    /**
+     * Gera um container com o resumo rápido do status (para /potserver status)
+     * @param {string} guildId - ID do servidor
+     * @param {string} guildName - Nome do servidor
+     * @param {Object} gatewayStats - Estatísticas do gateway (opcional)
+     * @param {Object} tokenStats - Estatísticas do token (opcional)
+     * @returns {AdvancedContainerBuilder} Builder configurado
+     */
+    static getQuickStatusContainer(guildId, guildName, gatewayStats = null, tokenStats = null) {
+        const status = this.getFullStatus(guildId);
+        const builder = new AdvancedContainerBuilder({ 
+            accentColor: status.configured ? 0x00AAFF : 0xFFA500 
+        });
+
+        builder
+            .title('📊 Status do Servidor Path of Titans')
+            .text('Resumo da integração com seu servidor PoT.')
+            .separator();
+
+        if (status.configured) {
+            builder.text(`✅ **Servidor:** ${status.server.ip}`);
+            builder.text(`🔌 **Porta RCON:** ${status.server.rcon_port}`);
+            builder.text(`📨 **Webhooks:** ${status.webhooks.total} configurados`);
+            
+            if (gatewayStats) {
+                builder.text(`🔒 **Gateway:** ${gatewayStats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
+            }
+            
+            if (tokenStats) {
+                builder.text(`📊 **Usos do Token:** ${tokenStats.usage_count || 0} requisições`);
+                if (tokenStats.last_used) {
+                    builder.text(`🕐 **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
+                }
+            }
+        } else {
+            builder.text('❌ **Servidor:** Não configurado');
+            builder.text('Use `/potserver setup` para configurar');
+        }
+
+        builder.separator();
+        
+        if (!status.configured) {
+            builder.text('💡 **Dica:** Use `/potserver setup` para configurar o servidor.');
+        } else if (status.webhooks.total === 0) {
+            builder.text('💡 **Dica:** Use `/potserver logs` para criar os webhooks.');
+        } else {
+            builder.text('✅ **Tudo pronto!** O servidor está integrado com o bot.');
+        }
+
+        builder.footer(guildName);
+        return builder;
     }
 
     // ==================== GERADORES DE CONTAINER ====================
