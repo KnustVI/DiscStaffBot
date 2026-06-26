@@ -70,14 +70,23 @@ module.exports = {
             }
 
             builder.footer(guildName);
-            await interaction.editReply(builder.build());
+
+            // ✅ ADICIONAR FLAG EFÊMERO
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [Status] Erro:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao carregar status: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao carregar status: ${error.message}`)
+                .footer(guildName);
+            
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 };

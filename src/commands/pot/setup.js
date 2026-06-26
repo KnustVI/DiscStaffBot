@@ -57,14 +57,22 @@ module.exports = {
                 .text('3. Cole a configuração no arquivo Game.ini do servidor')
                 .footer(interaction.guild.name);
 
-            await interaction.editReply(builder.build());
+            // ✅ ADICIONAR FLAG EFÊMERO
+            const payload = builder.build();
+            payload.flags = 64; // MessageFlags.Ephemeral
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [Setup] Erro:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao configurar servidor: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao configurar servidor: ${error.message}`)
+                .footer(interaction.guild.name);
+            
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 };

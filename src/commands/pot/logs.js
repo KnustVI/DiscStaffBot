@@ -1,4 +1,4 @@
-const PoTWebhookSystem = require('../../systems/potWebhookSystem');
+const { PoTWebhookSystem } = require('../../systems/potWebhookSystem');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
@@ -16,19 +16,29 @@ module.exports = {
                     .text('Configure o servidor primeiro usando `/potserver setup`')
                     .footer(guildName);
                 
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
                 return;
             }
 
             const builder = PoTWebhookSystem.getLogsPanelContainer(guildId, guildName, 0, 5);
-            await interaction.editReply(builder.build());
+            
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [Logs] Erro:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao carregar painel de logs: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao carregar painel de logs: ${error.message}`)
+                .footer(guildName);
+            
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 };
