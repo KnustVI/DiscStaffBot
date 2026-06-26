@@ -59,7 +59,7 @@ module.exports = {
 
             // ✅ ADICIONAR FLAG EFÊMERO
             const payload = builder.build();
-            payload.flags = 64; // MessageFlags.Ephemeral
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
 
         } catch (error) {
@@ -71,7 +71,7 @@ module.exports = {
                 .footer(interaction.guild.name);
             
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }

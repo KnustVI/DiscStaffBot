@@ -1,4 +1,4 @@
-const { PoTWebhookSystem } = require('../../systems/potWebhookSystem');
+const PoTWebhookSystem = require('../../systems/potWebhookSystem');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
@@ -17,7 +17,7 @@ module.exports = {
                     .footer(guildName);
                 
                 const payload = builder.build();
-                payload.flags = 64;
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(payload);
                 return;
             }
@@ -25,7 +25,7 @@ module.exports = {
             const builder = PoTWebhookSystem.getLogsPanelContainer(guildId, guildName, 0, 5);
             
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
 
         } catch (error) {
@@ -37,7 +37,7 @@ module.exports = {
                 .footer(guildName);
             
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }

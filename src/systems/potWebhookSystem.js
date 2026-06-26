@@ -431,7 +431,7 @@ class PoTWebhookSystem {
                     .text('Configure o servidor primeiro com `/potserver setup`')
                     .footer(interaction.guild.name);
                 const payload = builder.build();
-                payload.flags = 64;
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(payload);
                 return;
             }
@@ -458,13 +458,13 @@ class PoTWebhookSystem {
                     .text(`📌 Canal: ${result.channel.name}`)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
-                payload.flags = 64;
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(payload);
 
                 // ✅ EFÊMERA - painel atualizado (configuração)
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
                 const panelPayload = panelBuilder.build();
-                panelPayload.flags = 64;
+                panelPayload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.followUp(panelPayload);
 
             } else {
@@ -475,7 +475,7 @@ class PoTWebhookSystem {
                     .text(`Erro: ${result.error}`)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
-                payload.flags = 64;
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(payload);
             }
 
@@ -488,7 +488,7 @@ class PoTWebhookSystem {
                 .text(`Erro ao criar webhook: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }
@@ -515,7 +515,7 @@ class PoTWebhookSystem {
                 .text(result.message)
                 .footer(interaction.guild.name);
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
 
         } catch (error) {
@@ -527,7 +527,7 @@ class PoTWebhookSystem {
                 .text(`Erro ao testar webhook: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }
@@ -553,13 +553,13 @@ class PoTWebhookSystem {
                     .text(result.message)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
-                payload.flags = 64;
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(payload);
 
                 // ✅ EFÊMERA - painel atualizado (configuração)
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
                 const panelPayload = panelBuilder.build();
-                panelPayload.flags = 64;
+                panelPayload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.followUp(panelPayload);
 
             } else {
@@ -570,7 +570,7 @@ class PoTWebhookSystem {
                     .text(result.message)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
-                payload.flags = 64;
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(payload);
             }
 
@@ -583,7 +583,7 @@ class PoTWebhookSystem {
                 .text(`Erro ao remover webhook: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }
@@ -619,7 +619,7 @@ class PoTWebhookSystem {
 
             // ✅ EFÊMERA - resposta ao admin
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
 
         } catch (error) {
@@ -631,7 +631,7 @@ class PoTWebhookSystem {
                 .text(`Erro ao gerar Game.ini: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }
