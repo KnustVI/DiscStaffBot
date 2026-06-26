@@ -71,7 +71,7 @@ module.exports = {
 
             builder.footer(guildName);
 
-            // ✅ ADICIONAR FLAG EFÊMERO
+            // ✅ APENAS build(), SEM manipular components
             const payload = builder.build();
             payload.flags = 64;
             await interaction.editReply(payload);
