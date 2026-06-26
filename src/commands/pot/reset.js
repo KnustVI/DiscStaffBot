@@ -11,12 +11,12 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // REMOVIDO: verificação desnecessária
-        // if (interaction.replied || interaction.deferred) {
-        //     console.warn('⚠️ [Reset] Interação já respondida, ignorando.');
-        //     return;
-        // }
+        // ============================================================
+        // IMPORTANTE: NÃO deferir a interação antes do modal!
+        // showModal() já responde a interação automaticamente.
+        // ============================================================
 
+        // Criar o modal
         const modal = new ModalBuilder()
             .setCustomId(`pot_reset_confirm_${guildId}_${userId}`)
             .setTitle('⚠️ CONFIRMAR RESET');
@@ -40,16 +40,23 @@ module.exports = {
 
         modal.addComponents(row1, row2);
 
+        // Salvar sessão
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
+        // ============================================================
+        // showModal() já responde a interação - NÃO use deferReply() antes!
+        // ============================================================
         await interaction.showModal(modal);
 
+        // Aguardar o submit do modal
         const filter = (i) => 
             i.customId === `pot_reset_confirm_${guildId}_${userId}` &&
             i.user.id === userId;
 
         try {
             const modalInteraction = await interaction.awaitModalSubmit({ filter, time: 120000 });
+            
+            // Agora sim, deferir a resposta do modal
             await modalInteraction.deferReply({ flags: 64 });
 
             const confirmText = modalInteraction.fields.getTextInputValue('confirm_text');
@@ -63,8 +70,10 @@ module.exports = {
                 return;
             }
 
-            const result = await this.executeReset(guildId, scopeValue || scope, modalInteraction);
+            // Executar o reset
+            const result = await this.executeReset(guildId, scopeValue || scope);
 
+            // Criar container de resposta
             const builder = new AdvancedContainerBuilder({ 
                 accentColor: result.success ? 0x00FF00 : 0xFF0000 
             });
@@ -89,17 +98,25 @@ module.exports = {
 
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
-                // A interação original já foi respondida pelo modal
-                console.warn('⏰ [Reset] Tempo esgotado para o modal.');
+                // O modal expirou - isso é normal, não fazer nada
+                console.warn('⏰ [Reset] Modal expirou (usuário não respondeu).');
             } else {
                 console.error('❌ [Reset] Erro:', error);
+                try {
+                    await interaction.followUp({
+                        content: `❌ Erro ao processar reset: ${error.message}`,
+                        flags: 64
+                    });
+                } catch (e) {
+                    // Ignora se não puder enviar followUp
+                }
             }
         } finally {
             resetSessions.delete(`${guildId}_${userId}`);
         }
     },
 
-    async executeReset(guildId, scope, interaction) {
+    async executeReset(guildId, scope) {
         try {
             switch(scope) {
                 case 'server':
