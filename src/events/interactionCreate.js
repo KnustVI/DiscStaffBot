@@ -213,6 +213,67 @@ module.exports = {
                 await ConfigSystem.processLimitesModal(interaction);
                 return;
             }
+
+            // ==================== PATH OF TITANS - RESET ====================
+            // Os botões de reset são gerenciados pelo próprio comando reset.js
+            // Não fazemos nada aqui - apenas ignoramos para não conflitar
+            if (interaction.customId?.startsWith('pot_reset_')) {
+                return;
+            }
+
+            // ==================== PATH OF TITANS - WEBHOOK PANEL ====================
+            // Usa o padrão do bot: handler específico antes do genérico
+            if (interaction.customId?.startsWith('pot_webhook_')) {
+                const { PoTWebhookSystem } = require('../systems/potWebhookSystem');
+                const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+                
+                const parts = interaction.customId.split('_');
+                // parts = ['pot', 'webhook', 'create', 'login', 'guildId']
+                const action = parts[2]; // create, test, remove, gameini
+                const event = parts[3];  // login, killed, etc.
+                const guildId = parts[4] || interaction.guildId;
+                
+                // Verifica se é para esta guild
+                if (guildId !== interaction.guildId) {
+                    const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+                    builder
+                        .title('❌ Erro')
+                        .text('Este painel não pertence a este servidor.')
+                        .footer(interaction.guild?.name || 'Servidor');
+                    await interaction.reply(builder.build());
+                    return;
+                }
+                
+                // Deferir a interação (padrão do bot para botões)
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferReply({ flags: 64 });
+                }
+                
+                // Executar a ação
+                switch(action) {
+                    case 'create':
+                        await PoTWebhookSystem.handleCreate(interaction, event);
+                        break;
+                    case 'test':
+                        await PoTWebhookSystem.handleTest(interaction, event);
+                        break;
+                    case 'remove':
+                        await PoTWebhookSystem.handleRemove(interaction, event);
+                        break;
+                    case 'gameini':
+                        await PoTWebhookSystem.handleGameIni(interaction);
+                        break;
+                    default:
+                        const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+                        builder
+                            .title('❌ Erro')
+                            .text('Ação desconhecida.')
+                            .footer(interaction.guild?.name || 'Servidor');
+                        await interaction.editReply(builder.build());
+                }
+                return;
+            }
+
             
             // ==================== OUTROS COMPONENTES ====================
             if (interaction.isButton() || interaction.isStringSelectMenu() || 

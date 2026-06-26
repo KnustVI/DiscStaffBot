@@ -10,7 +10,7 @@
  * - Gerenciar status de cada webhook
  */
 
-const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const PoTConfigSystem = require('./potConfigSystem');
 const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
@@ -106,23 +106,12 @@ const LOG_CHANNELS = [
     }
 ];
 
-// ==================== CUSTOM IDS PARA INTERACTION HANDLER ====================
-const CUSTOM_IDS = {
-    CREATE: 'pot_webhook_create',
-    TEST: 'pot_webhook_test',
-    REMOVE: 'pot_webhook_remove',
-    GAMEINI: 'pot_webhook_gameini'
-};
-
 // ==================== SISTEMA PRINCIPAL ====================
 
 class PoTWebhookSystem {
 
     // ==================== GERENCIAMENTO DE WEBHOOKS ====================
 
-    /**
-     * Cria um webhook para um evento específico
-     */
     static async createWebhookForEvent(guildId, event, categoryId, interaction) {
         try {
             const guild = interaction.guild;
@@ -178,9 +167,6 @@ class PoTWebhookSystem {
         }
     }
 
-    /**
-     * Testa um webhook específico
-     */
     static async testWebhook(guildId, event, interaction) {
         try {
             const webhookUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
@@ -214,9 +200,6 @@ class PoTWebhookSystem {
         }
     }
 
-    /**
-     * Remove um webhook específico
-     */
     static async removeWebhook(guildId, event, interaction) {
         try {
             const webhookUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
@@ -248,9 +231,6 @@ class PoTWebhookSystem {
         }
     }
 
-    /**
-     * Gera a configuração do Game.ini
-     */
     static getGameIniConfig(guildId) {
         const publicDomain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
         let token = PoTTokenManager.getToken(guildId);
@@ -273,17 +253,11 @@ class PoTWebhookSystem {
         return lines.join('\n');
     }
 
-    /**
-     * Verifica se um webhook está configurado
-     */
     static isWebhookConfigured(guildId, event) {
         const url = PoTConfigSystem.getWebhookForEvent(guildId, event);
         return !!url && url.trim() !== '';
     }
 
-    /**
-     * Obtém o status de todos os webhooks
-     */
     static getAllWebhookStatus(guildId) {
         const status = {};
         for (const log of LOG_CHANNELS) {
@@ -297,9 +271,6 @@ class PoTWebhookSystem {
 
     // ==================== CONTAINERS VISUAIS ====================
 
-    /**
-     * Gera o container do painel completo de webhooks
-     */
     static getLogsPanelContainer(guildId, guildName, page = 0, itemsPerPage = 5) {
         const status = this.getAllWebhookStatus(guildId);
         const token = PoTTokenManager.getToken(guildId);
@@ -342,11 +313,11 @@ class PoTWebhookSystem {
                 builder.text(`✅ Configurado | 🔗 ${shortUrl}`);
                 builder.buttons(
                     AdvancedContainerBuilder.primaryButton(
-                        `${CUSTOM_IDS.TEST}_${log.event}_${guildId}`,
+                        `pot_webhook_test_${log.event}_${guildId}`,
                         '🔄 Testar'
                     ),
                     AdvancedContainerBuilder.dangerButton(
-                        `${CUSTOM_IDS.REMOVE}_${log.event}_${guildId}`,
+                        `pot_webhook_remove_${log.event}_${guildId}`,
                         '🗑️ Remover'
                     )
                 );
@@ -354,7 +325,7 @@ class PoTWebhookSystem {
                 builder.text('❌ Não configurado');
                 builder.buttons(
                     AdvancedContainerBuilder.successButton(
-                        `${CUSTOM_IDS.CREATE}_${log.event}_${guildId}`,
+                        `pot_webhook_create_${log.event}_${guildId}`,
                         '📝 Criar'
                     )
                 );
@@ -369,7 +340,7 @@ class PoTWebhookSystem {
 
         builder.buttons(
             AdvancedContainerBuilder.primaryButton(
-                `${CUSTOM_IDS.GAMEINI}_${guildId}`,
+                `pot_webhook_gameini_${guildId}`,
                 '📄 Gerar Game.ini'
             )
         );
@@ -385,9 +356,6 @@ class PoTWebhookSystem {
         return builder;
     }
 
-    /**
-     * Cria uma section para o container
-     */
     static _createSection(title, description) {
         return {
             text: `**${title}**\n${description}`,
@@ -395,11 +363,8 @@ class PoTWebhookSystem {
         };
     }
 
-    // ==================== HANDLERS PARA INTERAÇÕES (USANDO CONTAINER) ====================
+    // ==================== HANDLERS PARA INTERAÇÕES ====================
 
-    /**
-     * Handler para criar webhook
-     */
     static async handleCreate(interaction, event) {
         try {
             const guildId = interaction.guildId;
@@ -437,7 +402,6 @@ class PoTWebhookSystem {
                     .footer(interaction.guild.name);
                 await interaction.editReply(builder.build());
 
-                // Reenviar o painel atualizado
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
                 await interaction.followUp(panelBuilder.build());
 
@@ -461,9 +425,6 @@ class PoTWebhookSystem {
         }
     }
 
-    /**
-     * Handler para testar webhook
-     */
     static async handleTest(interaction, event) {
         try {
             const guildId = interaction.guildId;
@@ -489,9 +450,6 @@ class PoTWebhookSystem {
         }
     }
 
-    /**
-     * Handler para remover webhook
-     */
     static async handleRemove(interaction, event) {
         try {
             const guildId = interaction.guildId;
@@ -506,7 +464,6 @@ class PoTWebhookSystem {
                     .footer(interaction.guild.name);
                 await interaction.editReply(builder.build());
 
-                // Reenviar o painel atualizado
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
                 await interaction.followUp(panelBuilder.build());
 
@@ -530,9 +487,6 @@ class PoTWebhookSystem {
         }
     }
 
-    /**
-     * Handler para gerar Game.ini
-     */
     static async handleGameIni(interaction) {
         try {
             const guildId = interaction.guildId;
@@ -567,18 +521,6 @@ class PoTWebhookSystem {
             await interaction.editReply(builder.build());
         }
     }
-
-    /**
-     * Obtém o container do painel com paginação
-     */
-    static getPaginatedPanelContainer(guildId, guildName, page = 0) {
-        return this.getLogsPanelContainer(guildId, guildName, page, 5);
-    }
 }
 
-// ==================== EXPORTAR CONSTANTES PARA O INTERACTION HANDLER ====================
-module.exports = {
-    PoTWebhookSystem,
-    CUSTOM_IDS,
-    LOG_CHANNELS
-};
+module.exports = { PoTWebhookSystem, LOG_CHANNELS };
