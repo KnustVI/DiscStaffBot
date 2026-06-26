@@ -9,8 +9,10 @@
  * - Gerar containers visuais para o painel
  * - Gerenciar status de cada webhook
  * 
- * 🔒 SEGURANÇA: Todas as respostas são EFÊMERAS (flags: 64)
- * 🔒 ADMIN: Apenas administradores podem usar (controlado pelo comando)
+ * 🔒 SEGURANÇA: 
+ * - Respostas de comandos são EFÊMERAS (flags: 64)
+ * - Mensagens enviadas para canais de log NÃO são efêmeras
+ * - Apenas administradores podem usar (controlado pelo comando)
  */
 
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
@@ -18,7 +20,7 @@ const PoTConfigSystem = require('./potConfigSystem');
 const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 
-// Emojis
+// Carregar emojis
 let EMOJIS = {};
 try {
     const emojisFile = require('../database/emojis.js');
@@ -115,6 +117,14 @@ class PoTWebhookSystem {
 
     // ==================== GERENCIAMENTO DE WEBHOOKS ====================
 
+    /**
+     * Cria um webhook para um evento específico
+     * @param {string} guildId - ID do servidor Discord
+     * @param {string} event - Nome do evento (login, killed, etc.)
+     * @param {string} categoryId - ID da categoria onde criar o canal
+     * @param {object} interaction - Interação do Discord
+     * @returns {Promise<{success: boolean, channel: object, webhook: object, error?: string}>}
+     */
     static async createWebhookForEvent(guildId, event, categoryId, interaction) {
         try {
             const guild = interaction.guild;
@@ -170,6 +180,16 @@ class PoTWebhookSystem {
         }
     }
 
+    /**
+     * Testa um webhook específico
+     * @param {string} guildId - ID do servidor Discord
+     * @param {string} event - Nome do evento
+     * @param {object} interaction - Interação do Discord
+     * @returns {Promise<{success: boolean, message: string}>}
+     * 
+     * ⚠️ A mensagem de teste enviada para o canal NÃO é efêmera!
+     * Apenas a resposta ao admin é efêmera.
+     */
     static async testWebhook(guildId, event, interaction) {
         try {
             const webhookUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
@@ -180,6 +200,7 @@ class PoTWebhookSystem {
 
             const fetch = require('node-fetch');
             
+            // ⚠️ NÃO adicionar flags aqui - mensagem vai para o canal de log
             const testMessage = {
                 content: `🧪 **Teste de Webhook**\nEvento: ${event}\nServidor: ${interaction.guild.name}\nHorário: ${new Date().toLocaleString('pt-BR')}\n\n✅ Webhook está funcionando corretamente!`
             };
@@ -203,6 +224,13 @@ class PoTWebhookSystem {
         }
     }
 
+    /**
+     * Remove um webhook específico
+     * @param {string} guildId - ID do servidor Discord
+     * @param {string} event - Nome do evento
+     * @param {object} interaction - Interação do Discord
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
     static async removeWebhook(guildId, event, interaction) {
         try {
             const webhookUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
@@ -234,6 +262,11 @@ class PoTWebhookSystem {
         }
     }
 
+    /**
+     * Gera a configuração do Game.ini
+     * @param {string} guildId - ID do servidor Discord
+     * @returns {string} Configuração formatada para Game.ini
+     */
     static getGameIniConfig(guildId) {
         const publicDomain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
         let token = PoTTokenManager.getToken(guildId);
@@ -256,11 +289,22 @@ class PoTWebhookSystem {
         return lines.join('\n');
     }
 
+    /**
+     * Verifica se um webhook está configurado
+     * @param {string} guildId - ID do servidor Discord
+     * @param {string} event - Nome do evento
+     * @returns {boolean}
+     */
     static isWebhookConfigured(guildId, event) {
         const url = PoTConfigSystem.getWebhookForEvent(guildId, event);
         return !!url && url.trim() !== '';
     }
 
+    /**
+     * Obtém o status de todos os webhooks
+     * @param {string} guildId - ID do servidor Discord
+     * @returns {Object} Mapeamento evento -> status
+     */
     static getAllWebhookStatus(guildId) {
         const status = {};
         for (const log of LOG_CHANNELS) {
@@ -274,6 +318,16 @@ class PoTWebhookSystem {
 
     // ==================== CONTAINERS VISUAIS ====================
 
+    /**
+     * Gera um container com o painel completo de webhooks.
+     * Segue o mesmo padrão do potConfigSystem.js
+     * 
+     * @param {string} guildId - ID do servidor Discord
+     * @param {string} guildName - Nome do servidor
+     * @param {number} page - Página atual (para paginação)
+     * @param {number} itemsPerPage - Itens por página
+     * @returns {AdvancedContainerBuilder} Builder configurado (chame .build() para enviar)
+     */
     static getLogsPanelContainer(guildId, guildName, page = 0, itemsPerPage = 5) {
         const status = this.getAllWebhookStatus(guildId);
         const token = PoTTokenManager.getToken(guildId);
@@ -283,7 +337,7 @@ class PoTWebhookSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
         builder
-            .title('📋 GERENCIADOR DE WEBHOOKS')
+            .title(`${EMOJIS.link || '📋'} GERENCIADOR DE WEBHOOKS`)
             .text('Gerencie os webhooks do seu servidor Path of Titans.')
             .separator()
             .text(`${EMOJIS.Status || '📊'} **Status:** ${totalWebhooks}/${LOG_CHANNELS.length} webhooks configurados`);
@@ -303,17 +357,13 @@ class PoTWebhookSystem {
             const isConfigured = status[log.event]?.configured || false;
             const url = status[log.event]?.url || null;
             
-            const sectionText = `${log.emoji} **${log.event.toUpperCase()}**`;
-            
-            const section = this._createSection(sectionText, log.description);
-            builder.components.push({
-                kind: 'section',
-                payload: section
-            });
+            // Título da seção com emoji
+            const sectionText = `${log.emoji} **${log.event.toUpperCase()}**\n${log.description}`;
+            builder.section(sectionText);
 
             if (isConfigured && url) {
                 const shortUrl = url.length > 50 ? `${url.substring(0, 47)}...` : url;
-                builder.text(`✅ Configurado | 🔗 ${shortUrl}`);
+                builder.text(`${EMOJIS.Check || '✅'} Configurado | 🔗 ${shortUrl}`);
                 builder.buttons(
                     AdvancedContainerBuilder.primaryButton(
                         `pot_webhook_test_${log.event}_${guildId}`,
@@ -325,7 +375,7 @@ class PoTWebhookSystem {
                     )
                 );
             } else {
-                builder.text('❌ Não configurado');
+                builder.text(`${EMOJIS.Error || '❌'} Não configurado`);
                 builder.buttons(
                     AdvancedContainerBuilder.successButton(
                         `pot_webhook_create_${log.event}_${guildId}`,
@@ -359,17 +409,15 @@ class PoTWebhookSystem {
         return builder;
     }
 
-    static _createSection(title, description) {
-        return {
-            text: `**${title}**\n${description}`,
-            accessory: null
-        };
-    }
-
     // ==================== HANDLERS PARA INTERAÇÕES ====================
 
     /**
-     * 🔒 Handler para criar webhook - RESPOSTA EFÊMERA
+     * Handler para criar webhook
+     * 🔒 RESPOSTA EFÊMERA (apenas o admin vê)
+     * ⚠️ Mensagem para o canal de log NÃO é efêmera (enviada pelo webhook)
+     * 
+     * @param {object} interaction - Interação do Discord
+     * @param {string} event - Nome do evento
      */
     static async handleCreate(interaction, event) {
         try {
@@ -379,7 +427,7 @@ class PoTWebhookSystem {
             if (!config) {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
                 builder
-                    .title('❌ Servidor não configurado')
+                    .title(`${EMOJIS.Error || '❌'} Servidor não configurado`)
                     .text('Configure o servidor primeiro com `/potserver setup`')
                     .footer(interaction.guild.name);
                 const payload = builder.build();
@@ -402,9 +450,10 @@ class PoTWebhookSystem {
             const result = await this.createWebhookForEvent(guildId, event, category.id, interaction);
 
             if (result.success) {
+                // ✅ EFÊMERA - resposta ao admin
                 const builder = new AdvancedContainerBuilder({ accentColor: 0x00FF00 });
                 builder
-                    .title('✅ Webhook Criado')
+                    .title(`${EMOJIS.Check || '✅'} Webhook Criado`)
                     .text(`Webhook para **${event}** criado com sucesso!`)
                     .text(`📌 Canal: ${result.channel.name}`)
                     .footer(interaction.guild.name);
@@ -412,15 +461,17 @@ class PoTWebhookSystem {
                 payload.flags = 64;
                 await interaction.editReply(payload);
 
+                // ✅ EFÊMERA - painel atualizado (configuração)
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
                 const panelPayload = panelBuilder.build();
                 panelPayload.flags = 64;
                 await interaction.followUp(panelPayload);
 
             } else {
+                // ✅ EFÊMERA - resposta ao admin
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
                 builder
-                    .title('❌ Erro ao criar webhook')
+                    .title(`${EMOJIS.Error || '❌'} Erro ao criar webhook`)
                     .text(`Erro: ${result.error}`)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
@@ -430,9 +481,10 @@ class PoTWebhookSystem {
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleCreate:', error);
+            // ✅ EFÊMERA - resposta ao admin
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
             builder
-                .title('❌ Erro')
+                .title(`${EMOJIS.Error || '❌'} Erro`)
                 .text(`Erro ao criar webhook: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
@@ -442,7 +494,12 @@ class PoTWebhookSystem {
     }
 
     /**
-     * 🔒 Handler para testar webhook - RESPOSTA EFÊMERA
+     * Handler para testar webhook
+     * 🔒 RESPOSTA EFÊMERA (apenas o admin vê)
+     * ⚠️ Mensagem de teste no canal NÃO é efêmera
+     * 
+     * @param {object} interaction - Interação do Discord
+     * @param {string} event - Nome do evento
      */
     static async handleTest(interaction, event) {
         try {
@@ -450,10 +507,11 @@ class PoTWebhookSystem {
             
             const result = await this.testWebhook(guildId, event, interaction);
 
+            // ✅ EFÊMERA - resposta ao admin
             const color = result.success ? 0x00FF00 : 0xFF0000;
             const builder = new AdvancedContainerBuilder({ accentColor: color });
             builder
-                .title(result.success ? '✅ Teste Concluído' : '❌ Teste Falhou')
+                .title(result.success ? `${EMOJIS.Check || '✅'} Teste Concluído` : `${EMOJIS.Error || '❌'} Teste Falhou`)
                 .text(result.message)
                 .footer(interaction.guild.name);
             const payload = builder.build();
@@ -462,9 +520,10 @@ class PoTWebhookSystem {
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleTest:', error);
+            // ✅ EFÊMERA - resposta ao admin
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
             builder
-                .title('❌ Erro')
+                .title(`${EMOJIS.Error || '❌'} Erro`)
                 .text(`Erro ao testar webhook: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
@@ -474,7 +533,11 @@ class PoTWebhookSystem {
     }
 
     /**
-     * 🔒 Handler para remover webhook - RESPOSTA EFÊMERA
+     * Handler para remover webhook
+     * 🔒 RESPOSTA EFÊMERA (apenas o admin vê)
+     * 
+     * @param {object} interaction - Interação do Discord
+     * @param {string} event - Nome do evento
      */
     static async handleRemove(interaction, event) {
         try {
@@ -483,24 +546,27 @@ class PoTWebhookSystem {
             const result = await this.removeWebhook(guildId, event, interaction);
 
             if (result.success) {
+                // ✅ EFÊMERA - resposta ao admin
                 const builder = new AdvancedContainerBuilder({ accentColor: 0x00FF00 });
                 builder
-                    .title('✅ Webhook Removido')
+                    .title(`${EMOJIS.Check || '✅'} Webhook Removido`)
                     .text(result.message)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
                 payload.flags = 64;
                 await interaction.editReply(payload);
 
+                // ✅ EFÊMERA - painel atualizado (configuração)
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
                 const panelPayload = panelBuilder.build();
                 panelPayload.flags = 64;
                 await interaction.followUp(panelPayload);
 
             } else {
+                // ✅ EFÊMERA - resposta ao admin
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
                 builder
-                    .title('❌ Erro ao remover webhook')
+                    .title(`${EMOJIS.Error || '❌'} Erro ao remover webhook`)
                     .text(result.message)
                     .footer(interaction.guild.name);
                 const payload = builder.build();
@@ -510,9 +576,10 @@ class PoTWebhookSystem {
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleRemove:', error);
+            // ✅ EFÊMERA - resposta ao admin
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
             builder
-                .title('❌ Erro')
+                .title(`${EMOJIS.Error || '❌'} Erro`)
                 .text(`Erro ao remover webhook: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
@@ -522,7 +589,10 @@ class PoTWebhookSystem {
     }
 
     /**
-     * 🔒 Handler para gerar Game.ini - RESPOSTA EFÊMERA
+     * Handler para gerar Game.ini
+     * 🔒 RESPOSTA EFÊMERA (apenas o admin vê)
+     * 
+     * @param {object} interaction - Interação do Discord
      */
     static async handleGameIni(interaction) {
         try {
@@ -534,7 +604,7 @@ class PoTWebhookSystem {
             const builder = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
             
             builder
-                .title('📄 Configuração para Game.ini')
+                .title(`${EMOJIS.Config || '📄'} Configuração para Game.ini`)
                 .text('Copie e cole estas configurações no arquivo `Game.ini` do seu servidor.')
                 .text('⚠️ **ESTA MENSAGEM É EFÊMERA** - Apenas você pode ver!')
                 .separator()
@@ -547,15 +617,17 @@ class PoTWebhookSystem {
                 .text('💡 **Dica:** O servidor PoT precisa conseguir acessar esta URL!')
                 .footer(interaction.guild.name);
 
+            // ✅ EFÊMERA - resposta ao admin
             const payload = builder.build();
             payload.flags = 64;
             await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleGameIni:', error);
+            // ✅ EFÊMERA - resposta ao admin
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
             builder
-                .title('❌ Erro')
+                .title(`${EMOJIS.Error || '❌'} Erro`)
                 .text(`Erro ao gerar Game.ini: ${error.message}`)
                 .footer(interaction.guild.name);
             const payload = builder.build();
@@ -563,13 +635,7 @@ class PoTWebhookSystem {
             await interaction.editReply(payload);
         }
     }
-
-    /**
-     * Obtém o container do painel com paginação
-     */
-    static getPaginatedPanelContainer(guildId, guildName, page = 0) {
-        return this.getLogsPanelContainer(guildId, guildName, page, 5);
-    }
 }
 
-module.exports = { PoTWebhookSystem, LOG_CHANNELS };
+// ==================== EXPORT ====================
+module.exports = PoTWebhookSystem;
