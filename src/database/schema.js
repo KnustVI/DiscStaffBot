@@ -217,7 +217,7 @@ const SCHEMA = {
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
     `,
-
+    
     pot_players: `
         CREATE TABLE IF NOT EXISTS pot_players (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -230,6 +230,10 @@ const SCHEMA = {
             last_seen INTEGER,
             total_playtime INTEGER DEFAULT 0,
             is_online INTEGER DEFAULT 0,
+            linked_at INTEGER,
+            first_login_at INTEGER,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            admin_notes TEXT,
             UNIQUE(guild_id, alderon_id)
         )
     `,
@@ -304,6 +308,8 @@ const INDEXES = [
     // Path of Titans indexes
     `CREATE INDEX IF NOT EXISTS idx_pot_players_guild ON pot_players(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_players_alderon ON pot_players(alderon_id)`,
+    // ✅ NOVO: acelera consultas por vínculo Discord (ex: "qual o perfil PoT deste membro?")
+    `CREATE INDEX IF NOT EXISTS idx_pot_players_discord ON pot_players(guild_id, discord_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_guild ON pot_logs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_type ON pot_logs(event_type)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,

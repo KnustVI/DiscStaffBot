@@ -6,7 +6,6 @@
  * 
  * Gerencia:
  * - Configurações do servidor PoT (IP, RCON, portas)
- * - Canais de log
  * - Webhooks por evento
  * - URLs dos endpoints
  */
@@ -55,46 +54,6 @@ class PoTConfigSystem {
     static isConfigured(guildId) {
         const config = this.getServerConfig(guildId);
         return config !== null && config.enabled === true;
-    }
-
-    // ==================== CANAIS DE LOG ====================
-    
-    static setLogChannel(guildId, channelId, userId) {
-        const stmt = db.prepare(`
-            INSERT INTO settings (guild_id, key, value, updated_by, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(guild_id, key) DO UPDATE SET
-                value = excluded.value,
-                updated_by = excluded.updated_by,
-                updated_at = excluded.updated_at
-        `);
-        
-        stmt.run(guildId, 'pot_log_channel', channelId, userId, Date.now());
-    }
-
-    static getLogChannel(guildId) {
-        const stmt = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`);
-        const result = stmt.get(guildId, 'pot_log_channel');
-        return result ? result.value : null;
-    }
-
-    static setSpecificLogChannel(guildId, logType, channelId, userId) {
-        const stmt = db.prepare(`
-            INSERT INTO settings (guild_id, key, value, updated_by, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(guild_id, key) DO UPDATE SET
-                value = excluded.value,
-                updated_by = excluded.updated_by,
-                updated_at = excluded.updated_at
-        `);
-        
-        stmt.run(guildId, `pot_log_channel_${logType}`, channelId, userId, Date.now());
-    }
-
-    static getSpecificLogChannel(guildId, logType) {
-        const stmt = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`);
-        const result = stmt.get(guildId, `pot_log_channel_${logType}`);
-        return result ? result.value : null;
     }
 
     // ==================== WEBHOOKS ====================
@@ -208,7 +167,7 @@ class PoTConfigSystem {
     // ==================== GERADORES DE CONTAINER ====================
     
     /**
-     * Gera um container com o status da configuração do PoT
+     * Gera um container com o status da configuração do PoT.
      * @param {string} guildId - ID do servidor Discord
      * @param {string} guildName - Nome do servidor
      * @returns {AdvancedContainerBuilder} Builder configurado (chame .build() para enviar)
@@ -216,7 +175,6 @@ class PoTConfigSystem {
     static getStatusContainer(guildId, guildName) {
         const config = this.getServerConfig(guildId);
         const stats = this.getStats(guildId);
-        const logChannel = this.getLogChannel(guildId);
         
         const builder = new AdvancedContainerBuilder({
             accentColor: stats.enabled ? 0xBBF96A : 0xDCA15E,
@@ -235,12 +193,11 @@ class PoTConfigSystem {
             builder.block([
                 `${EMOJIS.global   || '🌐'} **Servidor:** ${config.server_ip || `${EMOJIS.Error || '❌'} Não configurado`}`,
                 `${EMOJIS.Config   || '🔌'} **Portas:** RCON: ${config.rcon_port || 'N/A'} | Webhook: ${config.webhook_port || 'N/A'}`,
-                `${EMOJIS.dashboard|| '📝'} **Canal de Log:** ${logChannel ? `<#${logChannel}>` : `${EMOJIS.Error || '❌'} Não configurado`}`,
                 `${EMOJIS.link     || '🔗'} **Webhooks Configurados:** ${webhookCount} evento(s) ativo(s)`,
                 `${EMOJIS.rcon     || '🖥️'} **RCON:** ${stats.has_rcon ? `${EMOJIS.Check || '✅'} Configurado` : `${EMOJIS.Error || '❌'} Não configurado`}`,
             ]);
         } else {
-            builder.text('```\nNenhuma configuração encontrada. Use /pot-config para configurar.\n```');
+            builder.text('```\nNenhuma configuração encontrada. Use /potserver setup para configurar.\n```');
         }
         
         builder.footer(guildName);
@@ -249,7 +206,11 @@ class PoTConfigSystem {
     }
     
     /**
-     * Gera um container com a lista de webhooks configurados
+     * Gera um container com a lista de webhooks configurados.
+     *
+     * ✅ Agora chamado a partir de /potserver status (mesclado), em vez de
+     * ser um comando/visualização separada.
+     *
      * @param {string} guildId - ID do servidor Discord
      * @param {string} guildName - Nome do servidor
      * @returns {AdvancedContainerBuilder} Builder configurado (chame .build() para enviar)
@@ -263,18 +224,20 @@ class PoTConfigSystem {
             .separator();
         
         if (Object.keys(webhooks).length === 0) {
-            builder.text('```\nNenhum webhook configurado.\n```');
+            builder.text('```\nNenhum webhook configurado. Use /potserver logs para criar.\n```');
         } else {
             const eventIcons = {
-                PlayerLogin: '🔐',
-                PlayerLogout: '🚪',
-                PlayerKilled: '💀',
-                PlayerChat: '💬',
-                PlayerCommand: '⌨️',
-                PlayerQuestComplete: '📋',
-                ServerStart: '🟢',
-                ServerRestart: '🔄',
-                ServerError: '⚠️'
+                login: '🔐',
+                killed: '💀',
+                chat: '💬',
+                command: '⌨️',
+                quest: '📋',
+                group: '👥',
+                nest: '🪺',
+                respawn: '🔄',
+                waystone: '✨',
+                admin_command: '👑',
+                error: '⚠️'
             };
             
             const lines = Object.entries(webhooks).map(([event, url]) => {
@@ -306,7 +269,7 @@ class PoTConfigSystem {
             .separator();
         
         if (Object.keys(endpoints).length === 0) {
-            builder.text('```\nConfigure o servidor PoT primeiro usando /pot-config\n```');
+            builder.text('```\nConfigure o servidor PoT primeiro usando /potserver setup\n```');
         } else {
             const lines = [
                 '```ini',
@@ -335,14 +298,12 @@ class PoTConfigSystem {
     static getStats(guildId) {
         const config = this.getServerConfig(guildId);
         const webhooks = this.getAllWebhookConfigs(guildId);
-        const logChannel = this.getLogChannel(guildId);
         
         return {
             configured: config !== null,
             enabled: config?.enabled || false,
             server_ip: config?.server_ip || null,
             webhook_count: Object.keys(webhooks).length,
-            log_channel: logChannel,
             has_rcon: !!(config?.rcon_password && config?.rcon_port)
         };
     }
