@@ -3,7 +3,6 @@ const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
-// Armazenar sessões de reset
 const resetSessions = new Map();
 
 module.exports = {
@@ -13,12 +12,20 @@ module.exports = {
         const userId = interaction.user.id;
 
         // ============================================================
-        // IMPORTANTE: O AdvancedContainerBuilder JÁ define components V2
-        // NÃO podemos usar content com components V2
-        // Tudo deve estar DENTRO do container
+        // REGRA: SEMPRE usar AdvancedContainerBuilder
+        // NUNCA usar content
         // ============================================================
+        const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
+        
+        builder
+            .title('⚠️ CONFIRMAR RESET')
+            .text(`Você está prestes a resetar: **${scope}**`)
+            .text('Esta ação **NÃO PODE SER DESFEITA**!')
+            .separator()
+            .text('Clique em **Confirmar Reset** para prosseguir.')
+            .footer(interaction.guild.name);
 
-        // Criar botões de confirmação
+        // Botões
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`pot_reset_confirm_${guildId}_${userId}_${scope}`)
@@ -30,26 +37,16 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        // Criar container com a mensagem de confirmação - TUDO DENTRO DO CONTAINER
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
-        builder
-            .title('⚠️ CONFIRMAR RESET')
-            .text(`Você está prestes a resetar: **${scope}**`)
-            .text('Esta ação **NÃO PODE SER DESFEITA**!')
-            .separator()
-            .text('Clique em **Confirmar Reset** para prosseguir.')
-            .footer(interaction.guild.name);
-
-        // Build do container - NÃO adicionar content separado!
+        // Build e adicionar botões
         const payload = builder.build();
-        
-        // Adicionar os botões ao payload (components já está definido)
         payload.components.push(row);
 
         // Salvar sessão
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
-        // Enviar a mensagem com botões
+        // ============================================================
+        // REGRA: SEMPRE usar editReply (interaction já está deferida)
+        // ============================================================
         await interaction.editReply(payload);
 
         // Aguardar interação com os botões
@@ -65,7 +62,6 @@ module.exports = {
                 max: 1
             });
 
-            // Desabilitar os botões imediatamente
             const disabledRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('disabled_confirm')
@@ -95,8 +91,7 @@ module.exports = {
                 return;
             }
 
-            // Usuário confirmou - NÃO usar deferUpdate() pois pode causar Unknown Interaction
-            // Em vez disso, use update() diretamente
+            // Usuário confirmou
             const scopeValue = buttonInteraction.customId.split('_')[4] || scope;
             const result = await this.executeReset(guildId, scopeValue);
 
@@ -125,12 +120,11 @@ module.exports = {
             const resultPayload = resultBuilder.build();
             resultPayload.components = [disabledRow];
 
-            // Usar update() em vez de editReply() para a resposta do botão
             await buttonInteraction.update(resultPayload);
 
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
-                // Tempo esgotado - desabilitar botões
+                // Tempo esgotado
                 const timeoutBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
                 timeoutBuilder
                     .title('⏰ Tempo Esgotado')
@@ -155,7 +149,7 @@ module.exports = {
                 await interaction.editReply(timeoutPayload);
             } else {
                 console.error('❌ [Reset] Erro:', error);
-                // NÃO usar content com components V2 - usar container
+                // NUNCA usar content com components V2
                 const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
                 errorBuilder
                     .title('❌ Erro')
