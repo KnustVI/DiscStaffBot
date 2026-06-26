@@ -33,7 +33,7 @@ module.exports = {
 
         const payload = builder.build();
         payload.components.push(row);
-        payload.flags = 64; // ✅ ADICIONAR FLAG EFÊMERO
+        payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
 
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
@@ -73,7 +73,7 @@ module.exports = {
 
                 const cancelPayload = cancelBuilder.build();
                 cancelPayload.components = [disabledRow];
-                cancelPayload.flags = 64;
+                cancelPayload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 
                 await buttonInteraction.update(cancelPayload);
                 resetSessions.delete(`${guildId}_${userId}`);
@@ -106,7 +106,7 @@ module.exports = {
 
             const resultPayload = resultBuilder.build();
             resultPayload.components = [disabledRow];
-            resultPayload.flags = 64;
+            resultPayload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
 
             await buttonInteraction.update(resultPayload);
 
@@ -132,7 +132,7 @@ module.exports = {
                         .setDisabled(true)
                 );
                 timeoutPayload.components = [disabledRow];
-                timeoutPayload.flags = 64;
+                timeoutPayload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
 
                 await interaction.editReply(timeoutPayload);
             } else {
@@ -144,7 +144,7 @@ module.exports = {
                     .footer(interaction.guild.name);
                 
                 const errorPayload = errorBuilder.build();
-                errorPayload.flags = 64;
+                errorPayload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 await interaction.editReply(errorPayload);
             }
         } finally {

@@ -73,7 +73,7 @@ module.exports = {
 
             // ✅ APENAS build(), SEM manipular components
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
 
         } catch (error) {
@@ -85,7 +85,7 @@ module.exports = {
                 .footer(guildName);
             
             const payload = builder.build();
-            payload.flags = 64;
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }
