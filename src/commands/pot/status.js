@@ -2,23 +2,24 @@ const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { MessageFlags } = require('discord.js'); // ✅ FIX
 
 module.exports = {
     async execute(interaction, client) {
         const guildId = interaction.guildId;
-        const guildName = interaction.guild.name;
+        const guildName = interaction.guild?.name || 'Servidor';
 
         try {
             const config = PoTConfigSystem.getServerConfig(guildId);
             const token = PoTTokenManager.getToken(guildId);
             const tokenStats = PoTTokenManager.getTokenStats(guildId);
             const webhooks = PoTConfigSystem.getAllWebhookConfigs(guildId);
-            
+
             const potIntegration = getInstance(client);
             const stats = potIntegration.getStats();
 
-            const builder = new AdvancedContainerBuilder({ 
-                accentColor: config ? 0x00AAFF : 0xFFA500 
+            const builder = new AdvancedContainerBuilder({
+                accentColor: config ? 0x00AAFF : 0xFFA500
             });
 
             builder
@@ -38,10 +39,14 @@ module.exports = {
             builder.separator();
 
             if (token) {
-                const maskedToken = token.length > 20 ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}` : token;
+                const maskedToken =
+                    token.length > 20
+                        ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}`
+                        : token;
+
                 builder.text(`🔑 **Token:** \`${maskedToken}\``);
                 builder.text(`📊 **Usos:** ${tokenStats.usage_count || 0} requisições`);
-                
+
                 if (tokenStats.last_used) {
                     builder.text(`🕐 **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
                 }
@@ -71,21 +76,30 @@ module.exports = {
 
             builder.footer(guildName);
 
-            // ✅ APENAS build(), SEM manipular components
             const payload = builder.build();
-            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+            payload.flags =
+                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
             await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [Status] Erro:', error);
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+
+            const builder = new AdvancedContainerBuilder({
+                accentColor: 0xFF0000
+            });
+
             builder
                 .title('❌ Erro')
                 .text(`Erro ao carregar status: ${error.message}`)
-                .footer(guildName);
-            
+                .footer(interaction.guild?.name || 'Servidor');
+
             const payload = builder.build();
-            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+            payload.flags =
+                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
             await interaction.editReply(payload);
         }
     }

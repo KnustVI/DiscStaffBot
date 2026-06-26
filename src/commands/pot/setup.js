@@ -1,3 +1,5 @@
+const { MessageFlags } = require('discord.js');
+
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
@@ -8,6 +10,8 @@ module.exports = {
         const ip = interaction.options.getString('ip');
         const rconPassword = interaction.options.getString('rcon_password');
         const rconPort = interaction.options.getInteger('rcon_port') || 27015;
+
+        const guildName = interaction.guild?.name || 'Servidor';
 
         try {
             const config = {
@@ -23,55 +27,54 @@ module.exports = {
             PoTConfigSystem.setServerConfig(interaction.guildId, config, interaction.user.id);
 
             let token = PoTTokenManager.getToken(interaction.guildId);
-            if (!token) {
-                token = PoTTokenManager.generateToken(interaction.guildId);
-            }
+            if (!token) token = PoTTokenManager.generateToken(interaction.guildId);
 
             const potIntegration = getInstance(client);
+
             let rconStatus = false;
-            
             try {
                 rconStatus = await potIntegration.initializeForGuild(interaction.guildId, config);
-            } catch (rconError) {
-                console.warn('⚠️ [Setup] Erro ao conectar RCON:', rconError.message);
-                rconStatus = false;
+            } catch (err) {
+                console.warn('⚠️ RCON erro:', err.message);
             }
 
-            const builder = new AdvancedContainerBuilder({ 
-                accentColor: rconStatus ? 0x00FF00 : 0xFFA500 
+            const builder = new AdvancedContainerBuilder({
+                accentColor: rconStatus ? 0x00FF00 : 0xFFA500
             });
 
             builder
                 .title('🎮 Path of Titans - Configuração')
-                .text('Configurações do servidor salvas com sucesso!')
+                .text('Configurações salvas com sucesso!')
                 .separator()
-                .text(`📡 **IP:** ${ip}`)
-                .text(`🔌 **Porta RCON:** ${rconPort}`)
-                .text(`🔑 **Token:** \`${token}\``)
+                .text(`📡 IP: ${ip}`)
+                .text(`🔌 Porta RCON: ${rconPort}`)
+                .text(`🔑 Token: \`${token}\``)
                 .separator()
-                .text(`🔄 **Status RCON:** ${rconStatus ? '✅ Conectado' : '⚠️ Offline (configure depois)'}`)
-                .separator()
-                .text('📋 **Próximos passos:**')
-                .text('1. Use `/potserver logs` para criar os webhooks')
-                .text('2. Use `/potserver logs` e clique em "Gerar Game.ini"')
-                .text('3. Cole a configuração no arquivo Game.ini do servidor')
-                .footer(interaction.guild.name);
+                .text(`🔄 RCON: ${rconStatus ? '✅ Conectado' : '⚠️ Offline'}`)
+                .footer(guildName);
 
-            // ✅ ADICIONAR FLAG EFÊMERO
             const payload = builder.build();
-            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+            payload.flags =
+                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
             await interaction.editReply(payload);
 
         } catch (error) {
-            console.error('❌ [Setup] Erro:', error);
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            const builder = new AdvancedContainerBuilder({
+                accentColor: 0xFF0000
+            });
+
             builder
                 .title('❌ Erro')
-                .text(`Erro ao configurar servidor: ${error.message}`)
-                .footer(interaction.guild.name);
-            
+                .text(error.message)
+                .footer(interaction.guild?.name || 'Servidor');
+
             const payload = builder.build();
-            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+            payload.flags =
+                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
             await interaction.editReply(payload);
         }
     }

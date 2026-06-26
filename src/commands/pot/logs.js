@@ -1,3 +1,5 @@
+const { MessageFlags } = require('discord.js');
+
 const PoTWebhookSystem = require('../../systems/potWebhookSystem');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
@@ -5,39 +7,58 @@ const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 module.exports = {
     async execute(interaction, client) {
         const guildId = interaction.guildId;
-        const guildName = interaction.guild.name;
+        const guildName = interaction.guild?.name || 'Servidor';
 
         try {
             const config = PoTConfigSystem.getServerConfig(guildId);
+
             if (!config) {
-                const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
+                const builder = new AdvancedContainerBuilder({
+                    accentColor: 0xFFA500
+                });
+
                 builder
                     .title('⚠️ Servidor não configurado')
-                    .text('Configure o servidor primeiro usando `/potserver setup`')
+                    .text('Use /potserver setup primeiro')
                     .footer(guildName);
-                
+
                 const payload = builder.build();
-                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-                await interaction.editReply(payload);
-                return;
+
+                payload.flags =
+                    MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+                return interaction.editReply(payload);
             }
 
-            const builder = PoTWebhookSystem.getLogsPanelContainer(guildId, guildName, 0, 5);
-            
+            const builder = PoTWebhookSystem.getLogsPanelContainer(
+                guildId,
+                guildName,
+                0,
+                5
+            );
+
             const payload = builder.build();
-            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+            payload.flags =
+                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
             await interaction.editReply(payload);
 
         } catch (error) {
-            console.error('❌ [Logs] Erro:', error);
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            const builder = new AdvancedContainerBuilder({
+                accentColor: 0xFF0000
+            });
+
             builder
                 .title('❌ Erro')
-                .text(`Erro ao carregar painel de logs: ${error.message}`)
-                .footer(guildName);
-            
+                .text(error.message)
+                .footer(interaction.guild?.name || 'Servidor');
+
             const payload = builder.build();
-            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
+            payload.flags =
+                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
+
             await interaction.editReply(payload);
         }
     }
