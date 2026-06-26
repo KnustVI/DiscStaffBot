@@ -1,8 +1,9 @@
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
+// Armazenar sessões de reset
 const resetSessions = new Map();
 
 module.exports = {
@@ -11,105 +12,150 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // ============================================================
-        // IMPORTANTE: NÃO deferir a interação antes do modal!
-        // showModal() já responde a interação automaticamente.
-        // ============================================================
+        // A interação já está deferida pelo interactionCreate.js
+        // Então usamos editReply()
 
-        // Criar o modal
-        const modal = new ModalBuilder()
-            .setCustomId(`pot_reset_confirm_${guildId}_${userId}`)
-            .setTitle('⚠️ CONFIRMAR RESET');
+        // Criar botões de confirmação
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`pot_reset_confirm_${guildId}_${userId}_${scope}`)
+                .setLabel('✅ Confirmar Reset')
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId(`pot_reset_cancel_${guildId}_${userId}`)
+                .setLabel('❌ Cancelar')
+                .setStyle(ButtonStyle.Secondary)
+        );
 
-        const confirmInput = new TextInputBuilder()
-            .setCustomId('confirm_text')
-            .setLabel('Digite "CONFIRMAR" para prosseguir')
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder('CONFIRMAR')
-            .setRequired(true);
+        // Criar container com a mensagem de confirmação
+        const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
+        builder
+            .title('⚠️ CONFIRMAR RESET')
+            .text(`Você está prestes a resetar: **${scope}**`)
+            .text('Esta ação **NÃO PODE SER DESFEITA**!')
+            .separator()
+            .text('Clique em **Confirmar Reset** para prosseguir.')
+            .footer(interaction.guild.name);
 
-        const scopeInput = new TextInputBuilder()
-            .setCustomId('scope_text')
-            .setLabel('Escopo do reset (informação)')
-            .setStyle(TextInputStyle.Short)
-            .setValue(scope)
-            .setRequired(false);
-
-        const row1 = new ActionRowBuilder().addComponents(confirmInput);
-        const row2 = new ActionRowBuilder().addComponents(scopeInput);
-
-        modal.addComponents(row1, row2);
+        const payload = builder.build();
+        
+        // Adicionar os botões ao payload
+        payload.components.push(row);
 
         // Salvar sessão
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
-        // ============================================================
-        // showModal() já responde a interação - NÃO use deferReply() antes!
-        // ============================================================
-        await interaction.showModal(modal);
+        // Enviar a mensagem com botões
+        await interaction.editReply(payload);
 
-        // Aguardar o submit do modal
+        // Aguardar interação com os botões
         const filter = (i) => 
-            i.customId === `pot_reset_confirm_${guildId}_${userId}` &&
-            i.user.id === userId;
+            i.user.id === userId && 
+            (i.customId.startsWith(`pot_reset_confirm_${guildId}_${userId}`) || 
+             i.customId === `pot_reset_cancel_${guildId}_${userId}`);
 
         try {
-            const modalInteraction = await interaction.awaitModalSubmit({ filter, time: 120000 });
-            
-            // Agora sim, deferir a resposta do modal
-            await modalInteraction.deferReply({ flags: 64 });
+            const buttonInteraction = await interaction.channel.awaitMessageComponent({
+                filter,
+                time: 120000,
+                max: 1
+            });
 
-            const confirmText = modalInteraction.fields.getTextInputValue('confirm_text');
-            const scopeValue = modalInteraction.fields.getTextInputValue('scope_text');
+            // Desabilitar os botões imediatamente
+            const disabledRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('disabled_confirm')
+                    .setLabel('✅ Confirmado')
+                    .setStyle(ButtonStyle.Danger)
+                    .setDisabled(true),
+                new ButtonBuilder()
+                    .setCustomId('disabled_cancel')
+                    .setLabel('❌ Cancelado')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true)
+            );
 
-            if (confirmText !== 'CONFIRMAR') {
-                await modalInteraction.editReply({
-                    content: '❌ Confirmação inválida. Digite exatamente "CONFIRMAR".'
-                });
+            if (buttonInteraction.customId === `pot_reset_cancel_${guildId}_${userId}`) {
+                // Usuário cancelou
+                const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
+                cancelBuilder
+                    .title('❌ Reset Cancelado')
+                    .text('A operação foi cancelada com sucesso.')
+                    .footer(interaction.guild.name);
+
+                const cancelPayload = cancelBuilder.build();
+                cancelPayload.components = [disabledRow];
+                
+                await buttonInteraction.update(cancelPayload);
                 resetSessions.delete(`${guildId}_${userId}`);
                 return;
             }
 
-            // Executar o reset
-            const result = await this.executeReset(guildId, scopeValue || scope);
+            // Usuário confirmou
+            await buttonInteraction.deferUpdate();
 
-            // Criar container de resposta
-            const builder = new AdvancedContainerBuilder({ 
+            // Executar o reset
+            const scopeValue = buttonInteraction.customId.split('_')[4] || scope;
+            const result = await this.executeReset(guildId, scopeValue);
+
+            // Container de resultado
+            const resultBuilder = new AdvancedContainerBuilder({ 
                 accentColor: result.success ? 0x00FF00 : 0xFF0000 
             });
 
-            builder
+            resultBuilder
                 .title(result.success ? '✅ Reset Concluído' : '❌ Erro no Reset')
                 .text(result.message);
 
             if (result.success) {
-                builder.separator();
+                resultBuilder.separator();
                 if (scopeValue === 'server') {
-                    builder.text('💡 Use `/potserver setup` para reconfigurar o servidor.');
+                    resultBuilder.text('💡 Use `/potserver setup` para reconfigurar o servidor.');
                 } else if (scopeValue === 'logs') {
-                    builder.text('💡 Use `/potserver logs` para recriar os webhooks.');
+                    resultBuilder.text('💡 Use `/potserver logs` para recriar os webhooks.');
                 } else if (scopeValue === 'all') {
-                    builder.text('💡 Use `/potserver setup` para configurar tudo novamente.');
+                    resultBuilder.text('💡 Use `/potserver setup` para configurar tudo novamente.');
                 }
             }
 
-            builder.footer(interaction.guild.name);
-            await modalInteraction.editReply(builder.build());
+            resultBuilder.footer(interaction.guild.name);
+
+            const resultPayload = resultBuilder.build();
+            resultPayload.components = [disabledRow];
+
+            await buttonInteraction.editReply(resultPayload);
 
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
-                // O modal expirou - isso é normal, não fazer nada
-                console.warn('⏰ [Reset] Modal expirou (usuário não respondeu).');
+                // Tempo esgotado - desabilitar botões
+                const timeoutBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
+                timeoutBuilder
+                    .title('⏰ Tempo Esgotado')
+                    .text('A confirmação expirou. Execute o comando novamente se necessário.')
+                    .footer(interaction.guild.name);
+
+                const timeoutPayload = timeoutBuilder.build();
+                const disabledRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('disabled_confirm')
+                        .setLabel('⏰ Expirado')
+                        .setStyle(ButtonStyle.Danger)
+                        .setDisabled(true),
+                    new ButtonBuilder()
+                        .setCustomId('disabled_cancel')
+                        .setLabel('⏰ Expirado')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(true)
+                );
+                timeoutPayload.components = [disabledRow];
+
+                await interaction.editReply(timeoutPayload);
             } else {
                 console.error('❌ [Reset] Erro:', error);
-                try {
-                    await interaction.followUp({
-                        content: `❌ Erro ao processar reset: ${error.message}`,
-                        flags: 64
-                    });
-                } catch (e) {
-                    // Ignora se não puder enviar followUp
-                }
+                await interaction.editReply({
+                    content: `❌ Erro ao processar reset: ${error.message}`,
+                    flags: 64
+                });
             }
         } finally {
             resetSessions.delete(`${guildId}_${userId}`);
