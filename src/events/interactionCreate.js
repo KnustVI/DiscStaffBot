@@ -244,10 +244,17 @@ module.exports = {
     
        // ==================== POT SERVER - WEBHOOK PANEL ====================
         // Só processa se for interação (botão/modal), NÃO comandos
+        // E IGNORA botões de reset (pot_reset_*)
         if (interaction.customId?.startsWith('pot_') && !interaction.isCommand()) {
+            
+            // ============================================================
+            // IMPORTANTE: IGNORAR botões de reset (eles são gerenciados pelo reset.js)
+            // ============================================================
+            if (interaction.customId?.startsWith('pot_reset_')) {
+                return; // Deixa o reset.js lidar com isso
+            }
+            
             const PoTWebhookSystem = require('../systems/potWebhookSystem');
-            const PoTConfigSystem = require('../systems/potConfigSystem');
-            const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
             
             try {
                 const parts = interaction.customId.split('_');
