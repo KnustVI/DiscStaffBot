@@ -11,11 +11,11 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // Verificar se a interação já foi respondida
-        if (interaction.replied || interaction.deferred) {
-            console.warn('⚠️ [Reset] Interação já respondida, ignorando.');
-            return;
-        }
+        // REMOVIDO: verificação desnecessária
+        // if (interaction.replied || interaction.deferred) {
+        //     console.warn('⚠️ [Reset] Interação já respondida, ignorando.');
+        //     return;
+        // }
 
         const modal = new ModalBuilder()
             .setCustomId(`pot_reset_confirm_${guildId}_${userId}`)
@@ -42,10 +42,8 @@ module.exports = {
 
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
-        // Mostrar o modal - isso já responde a interação
         await interaction.showModal(modal);
 
-        // Aguardar modal submit
         const filter = (i) => 
             i.customId === `pot_reset_confirm_${guildId}_${userId}` &&
             i.user.id === userId;
@@ -91,7 +89,7 @@ module.exports = {
 
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
-                // A interação original já foi respondida pelo modal, não podemos editar
+                // A interação original já foi respondida pelo modal
                 console.warn('⏰ [Reset] Tempo esgotado para o modal.');
             } else {
                 console.error('❌ [Reset] Erro:', error);
