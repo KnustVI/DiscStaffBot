@@ -242,8 +242,9 @@ module.exports = {
             } catch (err) {}
         }
     
-        // ==================== POT SERVER - WEBHOOK PANEL ====================
-        if (interaction.customId?.startsWith('pot_')) {
+       // ==================== POT SERVER - WEBHOOK PANEL ====================
+        // Só processa se for interação (botão/modal), NÃO comandos
+        if (interaction.customId?.startsWith('pot_') && !interaction.isCommand()) {
             const PoTWebhookSystem = require('../systems/potWebhookSystem');
             const PoTConfigSystem = require('../systems/potConfigSystem');
             const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
