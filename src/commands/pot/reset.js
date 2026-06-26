@@ -11,9 +11,8 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // Criar container com a mensagem de confirmação
+        // Container de confirmação
         const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
-        
         builder
             .title('⚠️ CONFIRMAR RESET')
             .text(`Você está prestes a resetar: **${scope}**`)
@@ -34,17 +33,13 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        // Build e adicionar botões
         const payload = builder.build();
         payload.components.push(row);
 
-        // Salvar sessão
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
-        // Enviar usando editReply (já está deferido)
         await interaction.editReply(payload);
 
-        // Aguardar interação com os botões
         const filter = (i) => 
             i.user.id === userId && 
             (i.customId.startsWith(`pot_reset_confirm_${guildId}_${userId}`) || 
@@ -57,7 +52,6 @@ module.exports = {
                 max: 1
             });
 
-            // Desabilitar botões
             const disabledRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('disabled_confirm')
@@ -72,7 +66,6 @@ module.exports = {
             );
 
             if (buttonInteraction.customId === `pot_reset_cancel_${guildId}_${userId}`) {
-                // Cancelar
                 const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
                 cancelBuilder
                     .title('❌ Reset Cancelado')
@@ -87,11 +80,9 @@ module.exports = {
                 return;
             }
 
-            // Confirmar
             const scopeValue = buttonInteraction.customId.split('_')[4] || scope;
             const result = await this.executeReset(guildId, scopeValue);
 
-            // Resultado
             const resultBuilder = new AdvancedContainerBuilder({ 
                 accentColor: result.success ? 0x00FF00 : 0xFF0000 
             });
@@ -120,7 +111,6 @@ module.exports = {
 
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
-                // Timeout
                 const timeoutBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
                 timeoutBuilder
                     .title('⏰ Tempo Esgotado')
@@ -150,7 +140,6 @@ module.exports = {
                     .title('❌ Erro')
                     .text(`Erro ao processar reset: ${error.message}`)
                     .footer(interaction.guild.name);
-                
                 await interaction.editReply(errorBuilder.build());
             }
         } finally {

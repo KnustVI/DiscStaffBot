@@ -1,4 +1,3 @@
-// src/integrations/pathoftitans/rconClient.js
 const net = require('net');
 const ErrorLogger = require('../../systems/errorLogger');
 
@@ -57,9 +56,9 @@ class PoTRconClient {
         });
     }
 
-        _buildPacket(id, type, body) {
+    _buildPacket(id, type, body) {
         const bodyBuffer = Buffer.from(body, 'utf8');
-        // Packet length: 4 bytes for ID + 4 bytes for type + body length + 2 null bytes
+        // Tamanho do pacote: 4 bytes ID + 4 bytes type + body + 2 bytes null
         const packetLength = 4 + 4 + bodyBuffer.length + 2;
         const buffer = Buffer.alloc(packetLength);
         
@@ -69,7 +68,7 @@ class PoTRconClient {
         buffer.writeInt32LE(type, offset); offset += 4;
         bodyBuffer.copy(buffer, offset);
         offset += bodyBuffer.length;
-        buffer.writeInt16LE(0, offset); // Null terminator
+        buffer.writeInt16LE(0, offset);
         
         return buffer;
     }
