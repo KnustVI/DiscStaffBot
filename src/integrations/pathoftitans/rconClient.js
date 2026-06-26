@@ -57,7 +57,7 @@ class PoTRconClient {
         });
     }
 
-    _buildPacket(id, type, body) {
+        _buildPacket(id, type, body) {
         const bodyBuffer = Buffer.from(body, 'utf8');
         // Packet length: 4 bytes for ID + 4 bytes for type + body length + 2 null bytes
         const packetLength = 4 + 4 + bodyBuffer.length + 2;
