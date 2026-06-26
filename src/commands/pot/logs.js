@@ -8,7 +8,6 @@ module.exports = {
         const guildName = interaction.guild.name;
 
         try {
-            // Verificar se o servidor está configurado
             const config = PoTConfigSystem.getServerConfig(guildId);
             if (!config) {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
@@ -21,10 +20,7 @@ module.exports = {
                 return;
             }
 
-            // Gerar o container do painel (página 0)
             const builder = PoTWebhookSystem.getLogsPanelContainer(guildId, guildName, 0, 5);
-            
-            // Enviar o painel
             await interaction.editReply(builder.build());
 
         } catch (error) {

@@ -26,7 +26,6 @@ module.exports = {
                 .text('Resumo da integração com seu servidor PoT.')
                 .separator();
 
-            // Status Geral
             if (config) {
                 builder.text(`✅ **Servidor:** ${config.server_ip || 'Não configurado'}`);
                 builder.text(`🔌 **Porta RCON:** ${config.rcon_port || 'N/A'}`);
@@ -38,7 +37,6 @@ module.exports = {
 
             builder.separator();
 
-            // Token
             if (token) {
                 const maskedToken = token.length > 20 ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}` : token;
                 builder.text(`🔑 **Token:** \`${maskedToken}\``);
@@ -54,7 +52,6 @@ module.exports = {
 
             builder.separator();
 
-            // Gateway
             builder.text(`🔒 **Gateway:** ${stats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
             builder.text(`🔗 **RCON:** ${stats.rconConnections > 0 ? `✅ ${stats.rconConnections} conexão(ões)` : '❌ Nenhuma conexão'}`);
 
@@ -64,7 +61,6 @@ module.exports = {
 
             builder.separator();
 
-            // Dicas
             if (!config) {
                 builder.text('💡 **Dica:** Use `/potserver setup` para configurar o servidor.');
             } else if (Object.keys(webhooks).length === 0) {
@@ -74,7 +70,6 @@ module.exports = {
             }
 
             builder.footer(guildName);
-
             await interaction.editReply(builder.build());
 
         } catch (error) {

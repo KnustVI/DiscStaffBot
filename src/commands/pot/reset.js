@@ -3,7 +3,6 @@ const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
-// Armazenar sessões de reset
 const resetSessions = new Map();
 
 module.exports = {
@@ -12,7 +11,6 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // Criar modal de confirmação
         const modal = new ModalBuilder()
             .setCustomId(`pot_reset_confirm_${guildId}_${userId}`)
             .setTitle('⚠️ CONFIRMAR RESET');
@@ -36,28 +34,21 @@ module.exports = {
 
         modal.addComponents(row1, row2);
 
-        // Salvar sessão
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
         await interaction.showModal(modal);
 
-        // Aguardar modal submit
         const filter = (i) => 
             i.customId === `pot_reset_confirm_${guildId}_${userId}` &&
             i.user.id === userId;
 
         try {
-            const modalInteraction = await interaction.awaitModalSubmit({ 
-                filter, 
-                time: 120000 
-            });
-
+            const modalInteraction = await interaction.awaitModalSubmit({ filter, time: 120000 });
             await modalInteraction.deferReply({ flags: 64 });
 
             const confirmText = modalInteraction.fields.getTextInputValue('confirm_text');
             const scopeValue = modalInteraction.fields.getTextInputValue('scope_text');
 
-            // Verificar confirmação
             if (confirmText !== 'CONFIRMAR') {
                 await modalInteraction.editReply({
                     content: '❌ Confirmação inválida. Digite exatamente "CONFIRMAR".'
@@ -66,10 +57,8 @@ module.exports = {
                 return;
             }
 
-            // Executar reset
             const result = await this.executeReset(guildId, scopeValue || scope, modalInteraction);
 
-            // Container de resultado
             const builder = new AdvancedContainerBuilder({ 
                 accentColor: result.success ? 0x00FF00 : 0xFF0000 
             });
@@ -90,7 +79,6 @@ module.exports = {
             }
 
             builder.footer(interaction.guild.name);
-
             await modalInteraction.editReply(builder.build());
 
         } catch (error) {
@@ -115,38 +103,29 @@ module.exports = {
         try {
             switch(scope) {
                 case 'server':
-                    // Limpar apenas configuração do servidor
                     const stmt = require('../../database/index').prepare(
                         `DELETE FROM settings WHERE guild_id = ? AND key = ?`
                     );
                     stmt.run(guildId, 'pot_server_config');
-                    
-                    // Não remove o token (apenas limpa a configuração)
                     return {
                         success: true,
                         message: '🖥️ Configuração do servidor removida com sucesso!\nO token foi mantido.'
                     };
 
                 case 'logs':
-                    // Remover todos os webhooks
                     const db = require('../../database/index');
                     const deleteStmt = db.prepare(
                         `DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_webhook_%'`
                     );
                     deleteStmt.run(guildId);
-                    
                     return {
                         success: true,
                         message: '📨 Todos os webhooks foram removidos com sucesso!'
                     };
 
                 case 'all':
-                    // Reset completo
                     PoTConfigSystem.clearAllConfigs(guildId);
-                    
-                    // Remove token também
                     PoTTokenManager.revokeToken(guildId);
-                    
                     return {
                         success: true,
                         message: '🗑️ Todas as configurações foram removidas!\nIncluindo o token do servidor.'

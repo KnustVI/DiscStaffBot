@@ -10,7 +10,6 @@ module.exports = {
         const rconPort = interaction.options.getInteger('rcon_port') || 27015;
 
         try {
-            // Criar configuração
             const config = {
                 enabled: true,
                 server_ip: ip,
@@ -21,16 +20,13 @@ module.exports = {
                 configured_by: interaction.user.id
             };
 
-            // Salvar no banco
             PoTConfigSystem.setServerConfig(interaction.guildId, config, interaction.user.id);
 
-            // Gerar token (se não existir)
             let token = PoTTokenManager.getToken(interaction.guildId);
             if (!token) {
                 token = PoTTokenManager.generateToken(interaction.guildId);
             }
 
-            // Inicializar integração RCON
             const potIntegration = getInstance(client);
             let rconStatus = false;
             
@@ -41,7 +37,6 @@ module.exports = {
                 rconStatus = false;
             }
 
-            // Montar container de resposta
             const builder = new AdvancedContainerBuilder({ 
                 accentColor: rconStatus ? 0x00FF00 : 0xFFA500 
             });
