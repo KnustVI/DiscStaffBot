@@ -10,11 +10,10 @@
  * - Gerenciar status de cada webhook
  */
 
-const { ChannelType, PermissionFlagsBits } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const PoTConfigSystem = require('./potConfigSystem');
 const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
-const { PaginationBuilder } = require('../utils/paginationBuilder');
 
 // Emojis
 let EMOJIS = {};
@@ -107,6 +106,14 @@ const LOG_CHANNELS = [
     }
 ];
 
+// ==================== CUSTOM IDS PARA INTERACTION HANDLER ====================
+const CUSTOM_IDS = {
+    CREATE: 'pot_webhook_create',
+    TEST: 'pot_webhook_test',
+    REMOVE: 'pot_webhook_remove',
+    GAMEINI: 'pot_webhook_gameini'
+};
+
 // ==================== SISTEMA PRINCIPAL ====================
 
 class PoTWebhookSystem {
@@ -115,29 +122,21 @@ class PoTWebhookSystem {
 
     /**
      * Cria um webhook para um evento específico
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} event - Nome do evento (login, killed, etc.)
-     * @param {string} categoryId - ID da categoria onde criar o canal
-     * @param {object} interaction - Interação do Discord (para followUp)
-     * @returns {Promise<{success: boolean, channel: object, webhook: object, error?: string}>}
      */
     static async createWebhookForEvent(guildId, event, categoryId, interaction) {
         try {
             const guild = interaction.guild;
             
-            // Buscar configuração do evento
             const logConfig = LOG_CHANNELS.find(l => l.event === event);
             if (!logConfig) {
                 return { success: false, error: 'Evento não encontrado' };
             }
 
-            // Verificar se já existe webhook configurado
             const existingUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
             if (existingUrl) {
                 return { success: false, error: 'Webhook já configurado para este evento' };
             }
 
-            // Criar canal se não existir
             let channel = guild.channels.cache.find(
                 c => c.name === logConfig.name && 
                 c.type === ChannelType.GuildText &&
@@ -159,17 +158,12 @@ class PoTWebhookSystem {
                 });
             }
 
-            // Criar webhook no canal
             const webhook = await channel.createWebhook({
                 name: `PoT ${logConfig.name.split(' ')[0]} Logger`,
                 reason: `Webhook para logs de ${logConfig.event}`
             });
 
-            // Salvar URL no banco
             PoTConfigSystem.setWebhookForEvent(guildId, event, webhook.url);
-
-            // Atualizar container do painel (reutilizando o método existente)
-            // O container será reenviado pelo handler
 
             return { 
                 success: true, 
@@ -186,10 +180,6 @@ class PoTWebhookSystem {
 
     /**
      * Testa um webhook específico
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} event - Nome do evento
-     * @param {object} interaction - Interação do Discord
-     * @returns {Promise<{success: boolean, message: string}>}
      */
     static async testWebhook(guildId, event, interaction) {
         try {
@@ -199,7 +189,6 @@ class PoTWebhookSystem {
                 return { success: false, message: '❌ Nenhum webhook configurado para este evento.' };
             }
 
-            // Enviar mensagem de teste para o webhook
             const fetch = require('node-fetch');
             
             const testMessage = {
@@ -227,10 +216,6 @@ class PoTWebhookSystem {
 
     /**
      * Remove um webhook específico
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} event - Nome do evento
-     * @param {object} interaction - Interação do Discord
-     * @returns {Promise<{success: boolean, message: string}>}
      */
     static async removeWebhook(guildId, event, interaction) {
         try {
@@ -240,12 +225,9 @@ class PoTWebhookSystem {
                 return { success: false, message: '❌ Nenhum webhook configurado para este evento.' };
             }
 
-            // Remover do banco
             PoTConfigSystem.removeWebhook(guildId, event);
 
-            // Tentar deletar o webhook do Discord (opcional, mas boa prática)
             try {
-                // Extrair ID do webhook da URL
                 const urlParts = webhookUrl.split('/');
                 const webhookId = urlParts[urlParts.length - 2];
                 const webhookToken = urlParts[urlParts.length - 1];
@@ -255,7 +237,6 @@ class PoTWebhookSystem {
                     method: 'DELETE'
                 });
             } catch (deleteError) {
-                // Não falha se não conseguir deletar
                 console.warn(`⚠️ [WebhookSystem] Não foi possível deletar webhook do Discord:`, deleteError.message);
             }
 
@@ -269,8 +250,6 @@ class PoTWebhookSystem {
 
     /**
      * Gera a configuração do Game.ini
-     * @param {string} guildId - ID do servidor Discord
-     * @returns {string} Configuração formatada para Game.ini
      */
     static getGameIniConfig(guildId) {
         const publicDomain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
@@ -287,7 +266,6 @@ class PoTWebhookSystem {
             ''
         ];
 
-        // Adicionar todos os endpoints
         for (const log of LOG_CHANNELS) {
             lines.push(`${log.endpoint}="${publicDomain}/pot/${log.event}?token=${token}"`);
         }
@@ -297,9 +275,6 @@ class PoTWebhookSystem {
 
     /**
      * Verifica se um webhook está configurado
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} event - Nome do evento
-     * @returns {boolean}
      */
     static isWebhookConfigured(guildId, event) {
         const url = PoTConfigSystem.getWebhookForEvent(guildId, event);
@@ -308,8 +283,6 @@ class PoTWebhookSystem {
 
     /**
      * Obtém o status de todos os webhooks
-     * @param {string} guildId - ID do servidor Discord
-     * @returns {Object} Mapeamento evento -> status
      */
     static getAllWebhookStatus(guildId) {
         const status = {};
@@ -326,11 +299,6 @@ class PoTWebhookSystem {
 
     /**
      * Gera o container do painel completo de webhooks
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} guildName - Nome do servidor
-     * @param {number} page - Página atual (para paginação)
-     * @param {number} itemsPerPage - Itens por página
-     * @returns {AdvancedContainerBuilder} Builder configurado
      */
     static getLogsPanelContainer(guildId, guildName, page = 0, itemsPerPage = 5) {
         const status = this.getAllWebhookStatus(guildId);
@@ -353,7 +321,6 @@ class PoTWebhookSystem {
 
         builder.separator();
 
-        // Adicionar seções para cada evento na página atual
         const startIndex = page * itemsPerPage;
         const endIndex = Math.min(startIndex + itemsPerPage, LOG_CHANNELS.length);
         const currentEvents = LOG_CHANNELS.slice(startIndex, endIndex);
@@ -362,27 +329,24 @@ class PoTWebhookSystem {
             const isConfigured = status[log.event]?.configured || false;
             const url = status[log.event]?.url || null;
             
-            // Nome do evento com emoji
             const sectionText = `${log.emoji} **${log.event.toUpperCase()}**`;
             
-            // Criar a section
-            const section = builder._createSection(sectionText, log.description);
+            const section = this._createSection(sectionText, log.description);
             builder.components.push({
                 kind: 'section',
                 payload: section
             });
 
-            // Status e botões
             if (isConfigured && url) {
                 const shortUrl = url.length > 50 ? `${url.substring(0, 47)}...` : url;
                 builder.text(`✅ Configurado | 🔗 ${shortUrl}`);
                 builder.buttons(
                     AdvancedContainerBuilder.primaryButton(
-                        `pot_${log.event}_test_${guildId}`,
+                        `${CUSTOM_IDS.TEST}_${log.event}_${guildId}`,
                         '🔄 Testar'
                     ),
                     AdvancedContainerBuilder.dangerButton(
-                        `pot_${log.event}_remove_${guildId}`,
+                        `${CUSTOM_IDS.REMOVE}_${log.event}_${guildId}`,
                         '🗑️ Remover'
                     )
                 );
@@ -390,13 +354,12 @@ class PoTWebhookSystem {
                 builder.text('❌ Não configurado');
                 builder.buttons(
                     AdvancedContainerBuilder.successButton(
-                        `pot_${log.event}_create_${guildId}`,
+                        `${CUSTOM_IDS.CREATE}_${log.event}_${guildId}`,
                         '📝 Criar'
                     )
                 );
             }
 
-            // Separador entre eventos (exceto no último)
             if (log !== currentEvents[currentEvents.length - 1]) {
                 builder.separator();
             }
@@ -404,15 +367,13 @@ class PoTWebhookSystem {
 
         builder.separator();
 
-        // Botão para gerar Game.ini
         builder.buttons(
             AdvancedContainerBuilder.primaryButton(
-                `pot_gameini_generate_${guildId}`,
+                `${CUSTOM_IDS.GAMEINI}_${guildId}`,
                 '📄 Gerar Game.ini'
             )
         );
 
-        // Paginação (se necessário)
         if (totalPages > 1) {
             builder.separator();
             const pageInfo = `📄 Página ${page + 1} de ${totalPages}`;
@@ -426,9 +387,6 @@ class PoTWebhookSystem {
 
     /**
      * Cria uma section para o container
-     * @param {string} title - Título da section
-     * @param {string} description - Descrição
-     * @returns {Object} Objeto da section
      */
     static _createSection(title, description) {
         return {
@@ -437,28 +395,26 @@ class PoTWebhookSystem {
         };
     }
 
-    // ==================== HANDLERS PARA INTERAÇÕES ====================
+    // ==================== HANDLERS PARA INTERAÇÕES (USANDO CONTAINER) ====================
 
     /**
      * Handler para criar webhook
-     * @param {object} interaction - Interação do Discord
-     * @param {string} event - Nome do evento
      */
     static async handleCreate(interaction, event) {
         try {
             const guildId = interaction.guildId;
             
-            // Verificar se o servidor está configurado
             const config = PoTConfigSystem.getServerConfig(guildId);
             if (!config) {
-                await interaction.editReply({
-                    content: '❌ Configure o servidor primeiro com `/potserver setup`',
-                    flags: 64
-                });
+                const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
+                builder
+                    .title('❌ Servidor não configurado')
+                    .text('Configure o servidor primeiro com `/potserver setup`')
+                    .footer(interaction.guild.name);
+                await interaction.editReply(builder.build());
                 return;
             }
 
-            // Buscar ou criar categoria
             let category = interaction.guild.channels.cache.find(
                 c => c.name === '📊 PATH OF TITANS LOGS' && c.type === ChannelType.GuildCategory
             );
@@ -470,42 +426,43 @@ class PoTWebhookSystem {
                 });
             }
 
-            // Criar webhook
             const result = await this.createWebhookForEvent(guildId, event, category.id, interaction);
 
             if (result.success) {
-                await interaction.editReply({
-                    content: `✅ Webhook para **${event}** criado com sucesso!\n📌 Canal: ${result.channel.name}`,
-                    flags: 64
-                });
+                const builder = new AdvancedContainerBuilder({ accentColor: 0x00FF00 });
+                builder
+                    .title('✅ Webhook Criado')
+                    .text(`Webhook para **${event}** criado com sucesso!`)
+                    .text(`📌 Canal: ${result.channel.name}`)
+                    .footer(interaction.guild.name);
+                await interaction.editReply(builder.build());
 
                 // Reenviar o painel atualizado
-                const builder = this.getLogsPanelContainer(guildId, interaction.guild.name);
-                await interaction.followUp({
-                    ...builder.build(),
-                    flags: 64
-                });
+                const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
+                await interaction.followUp(panelBuilder.build());
 
             } else {
-                await interaction.editReply({
-                    content: `❌ Erro ao criar webhook: ${result.error}`,
-                    flags: 64
-                });
+                const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+                builder
+                    .title('❌ Erro ao criar webhook')
+                    .text(`Erro: ${result.error}`)
+                    .footer(interaction.guild.name);
+                await interaction.editReply(builder.build());
             }
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleCreate:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao criar webhook: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao criar webhook: ${error.message}`)
+                .footer(interaction.guild.name);
+            await interaction.editReply(builder.build());
         }
     }
 
     /**
      * Handler para testar webhook
-     * @param {object} interaction - Interação do Discord
-     * @param {string} event - Nome do evento
      */
     static async handleTest(interaction, event) {
         try {
@@ -513,24 +470,27 @@ class PoTWebhookSystem {
             
             const result = await this.testWebhook(guildId, event, interaction);
 
-            await interaction.editReply({
-                content: result.message,
-                flags: 64
-            });
+            const color = result.success ? 0x00FF00 : 0xFF0000;
+            const builder = new AdvancedContainerBuilder({ accentColor: color });
+            builder
+                .title(result.success ? '✅ Teste Concluído' : '❌ Teste Falhou')
+                .text(result.message)
+                .footer(interaction.guild.name);
+            await interaction.editReply(builder.build());
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleTest:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao testar webhook: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao testar webhook: ${error.message}`)
+                .footer(interaction.guild.name);
+            await interaction.editReply(builder.build());
         }
     }
 
     /**
      * Handler para remover webhook
-     * @param {object} interaction - Interação do Discord
-     * @param {string} event - Nome do evento
      */
     static async handleRemove(interaction, event) {
         try {
@@ -539,37 +499,39 @@ class PoTWebhookSystem {
             const result = await this.removeWebhook(guildId, event, interaction);
 
             if (result.success) {
-                await interaction.editReply({
-                    content: result.message,
-                    flags: 64
-                });
+                const builder = new AdvancedContainerBuilder({ accentColor: 0x00FF00 });
+                builder
+                    .title('✅ Webhook Removido')
+                    .text(result.message)
+                    .footer(interaction.guild.name);
+                await interaction.editReply(builder.build());
 
                 // Reenviar o painel atualizado
-                const builder = this.getLogsPanelContainer(guildId, interaction.guild.name);
-                await interaction.followUp({
-                    ...builder.build(),
-                    flags: 64
-                });
+                const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
+                await interaction.followUp(panelBuilder.build());
 
             } else {
-                await interaction.editReply({
-                    content: result.message,
-                    flags: 64
-                });
+                const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+                builder
+                    .title('❌ Erro ao remover webhook')
+                    .text(result.message)
+                    .footer(interaction.guild.name);
+                await interaction.editReply(builder.build());
             }
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleRemove:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao remover webhook: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao remover webhook: ${error.message}`)
+                .footer(interaction.guild.name);
+            await interaction.editReply(builder.build());
         }
     }
 
     /**
      * Handler para gerar Game.ini
-     * @param {object} interaction - Interação do Discord
      */
     static async handleGameIni(interaction) {
         try {
@@ -597,23 +559,26 @@ class PoTWebhookSystem {
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleGameIni:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao gerar Game.ini: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao gerar Game.ini: ${error.message}`)
+                .footer(interaction.guild.name);
+            await interaction.editReply(builder.build());
         }
     }
 
     /**
      * Obtém o container do painel com paginação
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} guildName - Nome do servidor
-     * @param {number} page - Página atual
-     * @returns {AdvancedContainerBuilder} Builder configurado
      */
     static getPaginatedPanelContainer(guildId, guildName, page = 0) {
         return this.getLogsPanelContainer(guildId, guildName, page, 5);
     }
 }
 
-module.exports = PoTWebhookSystem;
+// ==================== EXPORTAR CONSTANTES PARA O INTERACTION HANDLER ====================
+module.exports = {
+    PoTWebhookSystem,
+    CUSTOM_IDS,
+    LOG_CHANNELS
+};
