@@ -12,8 +12,11 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // A interação já está deferida pelo interactionCreate.js
-        // Então usamos editReply()
+        // ============================================================
+        // IMPORTANTE: O AdvancedContainerBuilder JÁ define components V2
+        // NÃO podemos usar content com components V2
+        // Tudo deve estar DENTRO do container
+        // ============================================================
 
         // Criar botões de confirmação
         const row = new ActionRowBuilder().addComponents(
@@ -27,7 +30,7 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        // Criar container com a mensagem de confirmação
+        // Criar container com a mensagem de confirmação - TUDO DENTRO DO CONTAINER
         const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
         builder
             .title('⚠️ CONFIRMAR RESET')
@@ -37,9 +40,10 @@ module.exports = {
             .text('Clique em **Confirmar Reset** para prosseguir.')
             .footer(interaction.guild.name);
 
+        // Build do container - NÃO adicionar content separado!
         const payload = builder.build();
         
-        // Adicionar os botões ao payload
+        // Adicionar os botões ao payload (components já está definido)
         payload.components.push(row);
 
         // Salvar sessão
@@ -91,10 +95,8 @@ module.exports = {
                 return;
             }
 
-            // Usuário confirmou
-            await buttonInteraction.deferUpdate();
-
-            // Executar o reset
+            // Usuário confirmou - NÃO usar deferUpdate() pois pode causar Unknown Interaction
+            // Em vez disso, use update() diretamente
             const scopeValue = buttonInteraction.customId.split('_')[4] || scope;
             const result = await this.executeReset(guildId, scopeValue);
 
@@ -123,7 +125,8 @@ module.exports = {
             const resultPayload = resultBuilder.build();
             resultPayload.components = [disabledRow];
 
-            await buttonInteraction.editReply(resultPayload);
+            // Usar update() em vez de editReply() para a resposta do botão
+            await buttonInteraction.update(resultPayload);
 
         } catch (error) {
             if (error.code === 'InteractionCollectorError') {
@@ -152,10 +155,14 @@ module.exports = {
                 await interaction.editReply(timeoutPayload);
             } else {
                 console.error('❌ [Reset] Erro:', error);
-                await interaction.editReply({
-                    content: `❌ Erro ao processar reset: ${error.message}`,
-                    flags: 64
-                });
+                // NÃO usar content com components V2 - usar container
+                const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+                errorBuilder
+                    .title('❌ Erro')
+                    .text(`Erro ao processar reset: ${error.message}`)
+                    .footer(interaction.guild.name);
+                
+                await interaction.editReply(errorBuilder.build());
             }
         } finally {
             resetSessions.delete(`${guildId}_${userId}`);
