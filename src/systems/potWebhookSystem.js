@@ -8,6 +8,9 @@
  * - Remover webhooks
  * - Gerar containers visuais para o painel
  * - Gerenciar status de cada webhook
+ * 
+ * 🔒 SEGURANÇA: Todas as respostas são EFÊMERAS (flags: 64)
+ * 🔒 ADMIN: Apenas administradores podem usar (controlado pelo comando)
  */
 
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
@@ -365,6 +368,9 @@ class PoTWebhookSystem {
 
     // ==================== HANDLERS PARA INTERAÇÕES ====================
 
+    /**
+     * 🔒 Handler para criar webhook - RESPOSTA EFÊMERA
+     */
     static async handleCreate(interaction, event) {
         try {
             const guildId = interaction.guildId;
@@ -376,7 +382,9 @@ class PoTWebhookSystem {
                     .title('❌ Servidor não configurado')
                     .text('Configure o servidor primeiro com `/potserver setup`')
                     .footer(interaction.guild.name);
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
                 return;
             }
 
@@ -400,10 +408,14 @@ class PoTWebhookSystem {
                     .text(`Webhook para **${event}** criado com sucesso!`)
                     .text(`📌 Canal: ${result.channel.name}`)
                     .footer(interaction.guild.name);
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
 
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
-                await interaction.followUp(panelBuilder.build());
+                const panelPayload = panelBuilder.build();
+                panelPayload.flags = 64;
+                await interaction.followUp(panelPayload);
 
             } else {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
@@ -411,7 +423,9 @@ class PoTWebhookSystem {
                     .title('❌ Erro ao criar webhook')
                     .text(`Erro: ${result.error}`)
                     .footer(interaction.guild.name);
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
             }
 
         } catch (error) {
@@ -421,10 +435,15 @@ class PoTWebhookSystem {
                 .title('❌ Erro')
                 .text(`Erro ao criar webhook: ${error.message}`)
                 .footer(interaction.guild.name);
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 
+    /**
+     * 🔒 Handler para testar webhook - RESPOSTA EFÊMERA
+     */
     static async handleTest(interaction, event) {
         try {
             const guildId = interaction.guildId;
@@ -437,7 +456,9 @@ class PoTWebhookSystem {
                 .title(result.success ? '✅ Teste Concluído' : '❌ Teste Falhou')
                 .text(result.message)
                 .footer(interaction.guild.name);
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleTest:', error);
@@ -446,10 +467,15 @@ class PoTWebhookSystem {
                 .title('❌ Erro')
                 .text(`Erro ao testar webhook: ${error.message}`)
                 .footer(interaction.guild.name);
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 
+    /**
+     * 🔒 Handler para remover webhook - RESPOSTA EFÊMERA
+     */
     static async handleRemove(interaction, event) {
         try {
             const guildId = interaction.guildId;
@@ -462,10 +488,14 @@ class PoTWebhookSystem {
                     .title('✅ Webhook Removido')
                     .text(result.message)
                     .footer(interaction.guild.name);
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
 
                 const panelBuilder = this.getLogsPanelContainer(guildId, interaction.guild.name);
-                await interaction.followUp(panelBuilder.build());
+                const panelPayload = panelBuilder.build();
+                panelPayload.flags = 64;
+                await interaction.followUp(panelPayload);
 
             } else {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
@@ -473,7 +503,9 @@ class PoTWebhookSystem {
                     .title('❌ Erro ao remover webhook')
                     .text(result.message)
                     .footer(interaction.guild.name);
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
             }
 
         } catch (error) {
@@ -483,10 +515,15 @@ class PoTWebhookSystem {
                 .title('❌ Erro')
                 .text(`Erro ao remover webhook: ${error.message}`)
                 .footer(interaction.guild.name);
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 
+    /**
+     * 🔒 Handler para gerar Game.ini - RESPOSTA EFÊMERA
+     */
     static async handleGameIni(interaction) {
         try {
             const guildId = interaction.guildId;
@@ -499,6 +536,7 @@ class PoTWebhookSystem {
             builder
                 .title('📄 Configuração para Game.ini')
                 .text('Copie e cole estas configurações no arquivo `Game.ini` do seu servidor.')
+                .text('⚠️ **ESTA MENSAGEM É EFÊMERA** - Apenas você pode ver!')
                 .separator()
                 .text('```ini\n' + config + '\n```')
                 .separator()
@@ -509,7 +547,9 @@ class PoTWebhookSystem {
                 .text('💡 **Dica:** O servidor PoT precisa conseguir acessar esta URL!')
                 .footer(interaction.guild.name);
 
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [WebhookSystem] Erro no handleGameIni:', error);
@@ -518,8 +558,17 @@ class PoTWebhookSystem {
                 .title('❌ Erro')
                 .text(`Erro ao gerar Game.ini: ${error.message}`)
                 .footer(interaction.guild.name);
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
+    }
+
+    /**
+     * Obtém o container do painel com paginação
+     */
+    static getPaginatedPanelContainer(guildId, guildName, page = 0) {
+        return this.getLogsPanelContainer(guildId, guildName, page, 5);
     }
 }
 

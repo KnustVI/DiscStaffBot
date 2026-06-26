@@ -1,4 +1,4 @@
-const PoTWebhookSystem = require('../../systems/potWebhookSystem');
+const { PoTWebhookSystem } = require('../../systems/potWebhookSystem');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
@@ -8,7 +8,6 @@ module.exports = {
         const guildName = interaction.guild.name;
 
         try {
-            // Verificar se o servidor está configurado
             const config = PoTConfigSystem.getServerConfig(guildId);
             if (!config) {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
@@ -17,22 +16,29 @@ module.exports = {
                     .text('Configure o servidor primeiro usando `/potserver setup`')
                     .footer(guildName);
                 
-                await interaction.editReply(builder.build());
+                const payload = builder.build();
+                payload.flags = 64;
+                await interaction.editReply(payload);
                 return;
             }
 
-            // Gerar o container do painel (página 0)
             const builder = PoTWebhookSystem.getLogsPanelContainer(guildId, guildName, 0, 5);
             
-            // Enviar o painel
-            await interaction.editReply(builder.build());
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [Logs] Erro:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao carregar painel de logs: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao carregar painel de logs: ${error.message}`)
+                .footer(guildName);
+            
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 };

@@ -10,7 +10,6 @@ module.exports = {
         const rconPort = interaction.options.getInteger('rcon_port') || 27015;
 
         try {
-            // Criar configuração
             const config = {
                 enabled: true,
                 server_ip: ip,
@@ -21,16 +20,13 @@ module.exports = {
                 configured_by: interaction.user.id
             };
 
-            // Salvar no banco
             PoTConfigSystem.setServerConfig(interaction.guildId, config, interaction.user.id);
 
-            // Gerar token (se não existir)
             let token = PoTTokenManager.getToken(interaction.guildId);
             if (!token) {
                 token = PoTTokenManager.generateToken(interaction.guildId);
             }
 
-            // Inicializar integração RCON
             const potIntegration = getInstance(client);
             let rconStatus = false;
             
@@ -41,7 +37,6 @@ module.exports = {
                 rconStatus = false;
             }
 
-            // Montar container de resposta
             const builder = new AdvancedContainerBuilder({ 
                 accentColor: rconStatus ? 0x00FF00 : 0xFFA500 
             });
@@ -62,14 +57,22 @@ module.exports = {
                 .text('3. Cole a configuração no arquivo Game.ini do servidor')
                 .footer(interaction.guild.name);
 
-            await interaction.editReply(builder.build());
+            // ✅ ADICIONAR FLAG EFÊMERO
+            const payload = builder.build();
+            payload.flags = 64; // MessageFlags.Ephemeral
+            await interaction.editReply(payload);
 
         } catch (error) {
             console.error('❌ [Setup] Erro:', error);
-            await interaction.editReply({
-                content: `❌ Erro ao configurar servidor: ${error.message}`,
-                flags: 64
-            });
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder
+                .title('❌ Erro')
+                .text(`Erro ao configurar servidor: ${error.message}`)
+                .footer(interaction.guild.name);
+            
+            const payload = builder.build();
+            payload.flags = 64;
+            await interaction.editReply(payload);
         }
     }
 };

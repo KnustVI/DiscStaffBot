@@ -11,7 +11,6 @@ module.exports = {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
 
-        // Container de confirmação
         const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
         builder
             .title('⚠️ CONFIRMAR RESET')
@@ -21,7 +20,6 @@ module.exports = {
             .text('Clique em **Confirmar Reset** para prosseguir.')
             .footer(interaction.guild.name);
 
-        // Botões
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`pot_reset_confirm_${guildId}_${userId}_${scope}`)
@@ -35,6 +33,7 @@ module.exports = {
 
         const payload = builder.build();
         payload.components.push(row);
+        payload.flags = 64; // ✅ ADICIONAR FLAG EFÊMERO
 
         resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
@@ -74,6 +73,7 @@ module.exports = {
 
                 const cancelPayload = cancelBuilder.build();
                 cancelPayload.components = [disabledRow];
+                cancelPayload.flags = 64;
                 
                 await buttonInteraction.update(cancelPayload);
                 resetSessions.delete(`${guildId}_${userId}`);
@@ -106,6 +106,7 @@ module.exports = {
 
             const resultPayload = resultBuilder.build();
             resultPayload.components = [disabledRow];
+            resultPayload.flags = 64;
 
             await buttonInteraction.update(resultPayload);
 
@@ -131,6 +132,7 @@ module.exports = {
                         .setDisabled(true)
                 );
                 timeoutPayload.components = [disabledRow];
+                timeoutPayload.flags = 64;
 
                 await interaction.editReply(timeoutPayload);
             } else {
@@ -140,7 +142,10 @@ module.exports = {
                     .title('❌ Erro')
                     .text(`Erro ao processar reset: ${error.message}`)
                     .footer(interaction.guild.name);
-                await interaction.editReply(errorBuilder.build());
+                
+                const errorPayload = errorBuilder.build();
+                errorPayload.flags = 64;
+                await interaction.editReply(errorPayload);
             }
         } finally {
             resetSessions.delete(`${guildId}_${userId}`);
