@@ -18,6 +18,19 @@ module.exports = {
             const potIntegration = getInstance(client);
             const stats = potIntegration.getStats();
 
+            // ✅ NOVO: teste de RCON AO VIVO. initializeForGuild recria o
+            // cliente RCON e envia o comando 'status' de verdade — diferente
+            // de stats.rconConnections, que só conta instâncias em memória
+            // (fica zerado/desatualizado se o bot reiniciar).
+            let rconLiveOk = null;
+            if (config) {
+                try {
+                    rconLiveOk = await potIntegration.initializeForGuild(guildId, config);
+                } catch (err) {
+                    rconLiveOk = false;
+                }
+            }
+
             const builder = new AdvancedContainerBuilder({
                 accentColor: config ? 0x00AAFF : 0xFFA500
             });
@@ -58,7 +71,17 @@ module.exports = {
             builder.separator();
 
             builder.text(`🔒 **Gateway:** ${stats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
-            builder.text(`🔗 **RCON:** ${stats.rconConnections > 0 ? `✅ ${stats.rconConnections} conexão(ões)` : '❌ Nenhuma conexão'}`);
+
+            // ✅ Linha de RCON agora mostra o teste ao vivo, não a contagem em memória.
+            let rconText;
+            if (rconLiveOk === null) {
+                rconText = '⚪ Não testado (servidor não configurado)';
+            } else if (rconLiveOk) {
+                rconText = '✅ Conectado (testado agora)';
+            } else {
+                rconText = '❌ Falhou (sem resposta do servidor — verifique IP/porta/senha RCON)';
+            }
+            builder.text(`🔗 **RCON:** ${rconText}`);
 
             if (process.env.POT_PUBLIC_URL) {
                 builder.text(`🌐 **URL Pública:** \`${process.env.POT_PUBLIC_URL}\``);
@@ -70,6 +93,8 @@ module.exports = {
                 builder.text('💡 **Dica:** Use `/potserver setup` para configurar o servidor.');
             } else if (Object.keys(webhooks).length === 0) {
                 builder.text('💡 **Dica:** Use `/potserver logs` para criar os webhooks.');
+            } else if (!rconLiveOk) {
+                builder.text('💡 **Dica:** RCON falhou — confirme se o servidor PoT está online e se IP/porta/senha estão corretos em `/potserver setup`.');
             } else {
                 builder.text('✅ **Tudo pronto!** O servidor está integrado com o bot.');
             }
