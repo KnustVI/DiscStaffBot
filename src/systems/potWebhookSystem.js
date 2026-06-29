@@ -191,7 +191,11 @@ class PoTWebhookSystem {
         for (const log of slice) {
             const s = status[log.event];
 
-            builder.section(`${log.emoji} ${log.event.toUpperCase()}\n${log.description}`);
+            // ✅ FIX: era builder.section(...) sem acessório — Components V2
+            // exige thumbnail OU botão em toda Section, senão a API rejeita
+            // com "Invalid Form Body" (aparecia como "Received one or more
+            // errors" no Discord). Texto simples não precisa de Section.
+            builder.text(`${log.emoji} **${log.event.toUpperCase()}**\n${log.description}`);
 
             if (s.configured) {
                 builder.text('✅ Configurado');
