@@ -215,9 +215,36 @@ module.exports = {
             }
 
             // ==================== PATH OF TITANS - RESET ====================
-            // Os botões de reset são gerenciados pelo próprio comando reset.js
-            // Não fazemos nada aqui - apenas ignoramos para não conflitar
+            // Botões `pot_reset_confirm_<guildId>_<userId>_<scope>` e
+            // `pot_reset_cancel_<guildId>_<userId>` (gerados em commands/pot/reset.js).
+            // Tratados diretamente aqui — mesmo padrão dos demais blocos deste
+            // arquivo — sem necessidade de collector dedicado, pois é um clique
+            // único de confirmação, não uma navegação contínua.
             if (interaction.customId?.startsWith('pot_reset_')) {
+                const parts = interaction.customId.split('_');
+                const action = parts[2];   // confirm | cancel
+                const guildId = parts[3];
+                const userId = parts[4];
+                const scope = parts.slice(5).join('_'); // só presente em "confirm"
+
+                if (interaction.user.id !== userId) {
+                    await interaction.reply({ content: '❌ Apenas quem iniciou o reset pode confirmar.', flags: 64 });
+                    return;
+                }
+
+                await interaction.deferUpdate();
+
+                if (action === 'cancel') {
+                    await interaction.editReply({ content: '❌ Reset cancelado.', components: [] });
+                    return;
+                }
+
+                const { executeReset } = require('../commands/pot/reset');
+                const result = await executeReset(guildId, scope);
+                await interaction.editReply({
+                    content: `${result.success ? '✅' : '❌'} ${result.message}`,
+                    components: []
+                });
                 return;
             }
 

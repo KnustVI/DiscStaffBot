@@ -4,8 +4,6 @@ const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
-const resetSessions = new Map();
-
 module.exports = {
     async execute(interaction, client) {
         const scope = interaction.options.getString('scope');
@@ -38,8 +36,6 @@ module.exports = {
         const payload = builder.build();
         payload.components = [...payload.components, row];
         payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-
-        resetSessions.set(`${guildId}_${userId}`, { scope, timestamp: Date.now() });
 
         await interaction.editReply(payload);
     },
