@@ -88,7 +88,9 @@ class InteractionHandler {
         }
         
         // Lista de comandos que devem ser ephemeral (visíveis apenas para o usuário)
-        const ephemeralCommands = ['config', 'strike', 'unstrike', 'repset', 'config-rep', 'config-strike', 'automod', 'reset-db', 'reset-reports', 'botstatus'];
+        // ✅ 'potserver' adicionado: cobre os subcomandos setup/logs/status/reset
+        // (interaction.commandName é sempre 'potserver', nunca o nome do subcomando).
+        const ephemeralCommands = ['config', 'strike', 'unstrike', 'repset', 'config-rep', 'config-strike', 'automod', 'reset-db', 'reset-reports', 'botstatus', 'potserver'];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
         
         try {
