@@ -26,7 +26,6 @@ class PoTGatewayServer {
         this.app = express();
         this.app.use(express.json());
 
-        // ==================== LOG DE REQUISIÇÕES (debug) ====================
         this.app.use((req, res, next) => {
             if (process.env.DEBUG_POT === 'true') {
                 console.log(`📡 [Gateway] ${req.method} ${req.path} - IP: ${req.ip}`);
@@ -34,14 +33,11 @@ class PoTGatewayServer {
             next();
         });
 
-        // ==================== MIDDLEWARE DE AUTENTICAÇÃO ====================
         this.app.use((req, res, next) => {
-            // Health check é público
             if (req.path === '/health' || req.path === '/') {
                 return next();
             }
 
-            // Buscar token (query string ou header)
             const token = req.query.token || req.headers['x-pot-token'];
             
             if (!token) {
@@ -62,132 +58,99 @@ class PoTGatewayServer {
             next();
         });
 
-        // ==================== ENDPOINTS ====================
-        //
-        // IMPORTANTE: as URLs geradas em potConfigSystem.js (getAllEndpointUrls)
-        // usam o prefixo "/pot/..." (ex: ${baseUrl}/pot/login), pois é isso
-        // que vai no Game.ini do servidor. Por isso TODAS as rotas abaixo
-        // precisam nascer sob o prefixo /pot — caso contrário o Express
-        // responde 404 para toda requisição do jogo e nenhum evento chega
-        // ao Discord. Usamos um Router dedicado para manter isso em um
-        // único lugar e evitar repetir "/pot" em cada rota manualmente.
         const potRouter = express.Router();
 
-        // Login / Logout / Leave
         potRouter.post('/login', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'login', req.body);
             res.json({ status: 'ok', event: 'login' });
         });
 
-        // Player Damage
         potRouter.post('/damaged', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'damaged', req.body);
             res.json({ status: 'ok', event: 'damaged' });
         });
 
-        // Player Killed
         potRouter.post('/killed', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'killed', req.body);
             res.json({ status: 'ok', event: 'killed' });
         });
 
-        // Group
         potRouter.post('/group', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'group', req.body);
             res.json({ status: 'ok', event: 'group' });
         });
 
-        // Nest
         potRouter.post('/nest', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'nest', req.body);
             res.json({ status: 'ok', event: 'nest' });
         });
 
-        // Quest
         potRouter.post('/quest', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'quest', req.body);
             res.json({ status: 'ok', event: 'quest' });
         });
 
-        // Respawn
         potRouter.post('/respawn', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'respawn', req.body);
             res.json({ status: 'ok', event: 'respawn' });
         });
 
-        // Waystone
         potRouter.post('/waystone', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'waystone', req.body);
             res.json({ status: 'ok', event: 'waystone' });
         });
 
-        // Chat
         potRouter.post('/chat', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'chat', req.body);
             res.json({ status: 'ok', event: 'chat' });
         });
 
-        // Player Command
         potRouter.post('/command', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'command', req.body);
             res.json({ status: 'ok', event: 'command' });
         });
 
-        // Admin Command
         potRouter.post('/admin_command', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'admin_command', req.body);
             res.json({ status: 'ok', event: 'admin_command' });
         });
 
-        // Admin Spectate
         potRouter.post('/spectate', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'spectate', req.body);
             res.json({ status: 'ok', event: 'spectate' });
         });
 
-        // Server Events
         potRouter.post('/server', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'server', req.body);
             res.json({ status: 'ok', event: 'server' });
         });
 
-        // Error/Alert
         potRouter.post('/error', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'error', req.body);
             res.json({ status: 'ok', event: 'error' });
         });
 
-        // Hack
         potRouter.post('/hack', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'hack', req.body);
             res.json({ status: 'ok', event: 'hack' });
         });
 
-        // Purchase
         potRouter.post('/purchase', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'purchase', req.body);
             res.json({ status: 'ok', event: 'purchase' });
         });
 
-        // Profanity
         potRouter.post('/profanity', async (req, res) => {
             await this._routeToDiscord(req.guildId, 'profanity', req.body);
             res.json({ status: 'ok', event: 'profanity' });
         });
 
-        // Monta todas as rotas acima sob o prefixo /pot
         this.app.use('/pot', potRouter);
 
-        // Health check (fora do prefixo /pot — é público e usado por monitoramento)
         this.app.get('/health', (req, res) => {
-            res.json({ 
-                status: 'alive', 
-                version: '1.0.0',
-                uptime: process.uptime()
-            });
+            res.json({ status: 'alive', version: '1.0.0', uptime: process.uptime() });
         });
 
-        // Root - informações
         this.app.get('/', (req, res) => {
             res.json({
                 name: 'PoT Discord Gateway',
@@ -217,25 +180,66 @@ class PoTGatewayServer {
     }
 
     // ==================== ROTEAMENTO PARA DISCORD ====================
-    
+    // ✅ FIX: havia DOIS métodos `_routeToDiscord` nesta classe — em JS,
+    // o segundo sobrescrevia o primeiro silenciosamente (sem erro), o que
+    // é confuso e arriscado de manter. Consolidado em um só, com:
+    //   1. Registro automático do jogador (potPlayerRegistry)
+    //   2. Envio pro canal de log dedicado (potConfigSystem → setLogChannelForEvent)
+    //   3. Envio pro webhook configurado (ou webhook geral de fallback)
     async _routeToDiscord(guildId, eventType, data) {
         try {
-            // Buscar webhook configurado para este tipo de evento
+            // 1. Registrar jogador (login/logout/chat/killed/command/group)
+            if (['login', 'logout', 'chat', 'killed', 'command', 'group'].includes(eventType)) {
+                try {
+                    const potPlayerRegistry = require('../../systems/potPlayerRegistry');
+                    const registryEvent = eventType === 'logout' ? 'PlayerLogout' : eventType;
+                    potPlayerRegistry.upsertPlayerFromEvent(guildId, data, registryEvent);
+                } catch (registryError) {
+                    console.warn('⚠️ [Gateway] Erro no registro do jogador:', registryError.message);
+                }
+            }
+
+            // 2. Canal de log dedicado (mensagem formatada, postada pelo bot)
+            await this._sendToLogChannel(guildId, eventType, data);
+
+            // 3. Webhook configurado (raw POST do Discord, sem precisar do bot)
             const webhookUrl = await this._getWebhookForEvent(guildId, eventType);
-            
+
             if (!webhookUrl) {
-                // Se não tiver webhook específico, tenta o canal geral
                 const generalWebhook = await this._getGeneralWebhook(guildId);
                 if (!generalWebhook) return;
-                
                 await this._sendToWebhook(generalWebhook, eventType, data);
                 return;
             }
-            
+
             await this._sendToWebhook(webhookUrl, eventType, data);
-            
+
         } catch (error) {
             ErrorLogger.error('pot_gateway', 'route', error, { guildId, eventType });
+        }
+    }
+
+    /**
+     * Envia uma mensagem formatada (texto + embed quando aplicável) direto
+     * pro canal de log dedicado do evento, via bot.send — independente de
+     * webhook. Configurado pelo painel /potserver logs ("Criar Canal de Log").
+     */
+    async _sendToLogChannel(guildId, eventType, data) {
+        try {
+            const PoTConfigSystem = require('../../systems/potConfigSystem');
+            const channelId = PoTConfigSystem.getLogChannelForEvent(guildId, eventType);
+            if (!channelId) return;
+
+            const channel = await this.client.channels.fetch(channelId).catch(() => null);
+            if (!channel) return;
+
+            const content = this._formatMessage(eventType, data);
+            const embed = this._formatEmbed(eventType, data);
+            const payload = embed ? { content, embeds: [embed] } : { content };
+
+            await channel.send(payload);
+        } catch (error) {
+            ErrorLogger.warn('pot_gateway', 'sendLogChannel', error.message);
         }
     }
 
@@ -246,7 +250,6 @@ class PoTGatewayServer {
             return this.webhooksCache.get(cacheKey);
         }
         
-        // Buscar no banco
         const db = require('../../database/index');
         const stmt = db.prepare(`
             SELECT value FROM settings 
@@ -320,7 +323,6 @@ class PoTGatewayServer {
     }
 
     _formatEmbed(eventType, data) {
-        // Só criar embed para eventos mais complexos
         if (eventType === 'killed' && data) {
             return new EmbedBuilder()
                 .setColor(0xFF0000)
@@ -343,43 +345,6 @@ class PoTGatewayServer {
         
         return null;
     }
-
-        async _routeToDiscord(guildId, eventType, data) {
-        try {
-            // ==================== REGISTRAR JOGADOR ====================
-            // Se for evento de login/logout/chat/killed/command, registra no potPlayerRegistry
-            if (['login', 'logout', 'chat', 'killed', 'command', 'group'].includes(eventType)) {
-                try {
-                    const potPlayerRegistry = require('../../systems/potPlayerRegistry');
-                    // O evento 'logout' não existe no potPlayerRegistry, mapeamos para 'PlayerLogout'
-                    const registryEvent = eventType === 'logout' ? 'PlayerLogout' : eventType;
-                    potPlayerRegistry.upsertPlayerFromEvent(guildId, data, registryEvent);
-                } catch (registryError) {
-                    // Não deixa o registro quebrar o fluxo do webhook
-                    console.warn('⚠️ [Gateway] Erro no registro do jogador:', registryError.message);
-                }
-            }
-
-            // ==================== ENVIAR PARA DISCORD ====================
-            // Buscar webhook configurado para este tipo de evento
-            const webhookUrl = await this._getWebhookForEvent(guildId, eventType);
-            
-            if (!webhookUrl) {
-                // Se não tiver webhook específico, tenta o canal geral
-                const generalWebhook = await this._getGeneralWebhook(guildId);
-                if (!generalWebhook) return;
-                
-                await this._sendToWebhook(generalWebhook, eventType, data);
-                return;
-            }
-            
-            await this._sendToWebhook(webhookUrl, eventType, data);
-            
-        } catch (error) {
-            ErrorLogger.error('pot_gateway', 'route', error, { guildId, eventType });
-        }
-    }
-
 }
 
 module.exports = PoTGatewayServer;

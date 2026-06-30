@@ -20,11 +20,6 @@ module.exports = {
             }
 
             // ==================== PAGINAÇÃO (PaginationBuilder) ====================
-            // Os botões de paginação (`pag_<timestamp>_<userId>_prev_X`, `_next_X`, `_page_X`)
-            // possuem seu próprio InteractionCollector criado em PaginationBuilder.start().
-            // Esse collector já chama i.deferUpdate() e i.editReply() internamente.
-            // Por isso, NÃO podemos interceptar/deferir esses customIds aqui,
-            // ou a segunda tentativa de ack causa "Unknown interaction" (10062).
             if (interaction.customId?.startsWith('pag_')) {
                 return;
             }
@@ -215,17 +210,12 @@ module.exports = {
             }
 
             // ==================== PATH OF TITANS - RESET ====================
-            // Botões `pot_reset_confirm_<guildId>_<userId>_<scope>` e
-            // `pot_reset_cancel_<guildId>_<userId>` (gerados em commands/pot/reset.js).
-            // Tratados diretamente aqui — mesmo padrão dos demais blocos deste
-            // arquivo — sem necessidade de collector dedicado, pois é um clique
-            // único de confirmação, não uma navegação contínua.
             if (interaction.customId?.startsWith('pot_reset_')) {
                 const parts = interaction.customId.split('_');
                 const action = parts[2];   // confirm | cancel
                 const guildId = parts[3];
                 const userId = parts[4];
-                const scope = parts.slice(5).join('_'); // só presente em "confirm"
+                const scope = parts.slice(5).join('_');
 
                 if (interaction.user.id !== userId) {
                     await interaction.reply({ content: '❌ Apenas quem iniciou o reset pode confirmar.', flags: 64 });
@@ -248,55 +238,50 @@ module.exports = {
                 return;
             }
 
-            // ==================== PATH OF TITANS - WEBHOOK PANEL ====================
-            // Usa o padrão do bot: handler específico antes do genérico
-            if (interaction.customId?.startsWith('pot_webhook_')) {
-                const { PoTWebhookSystem } = require('../systems/potWebhookSystem');
-                const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
-                
-                const parts = interaction.customId.split('_');
-                // parts = ['pot', 'webhook', 'create', 'login', 'guildId']
-                const action = parts[2]; // create, test, remove, gameini
-                const event = parts[3];  // login, killed, etc.
-                const guildId = parts[4] || interaction.guildId;
-                
-                // Verifica se é para esta guild
+            // ==================== PATH OF TITANS - PAINEL DE WEBHOOKS ====================
+            // Customid: pot_webhook:<action>:<event|_>:<guildId>:<page>
+            // ':' como separador (não '_') porque eventos como "admin_command"
+            // têm underscore no próprio nome — '_' como separador quebrava o parsing.
+            if (interaction.customId?.startsWith('pot_webhook:')) {
+                const [, action, eventRaw, guildId, pageRaw] = interaction.customId.split(':');
+                const event = eventRaw === '_' ? null : eventRaw;
+                const page = parseInt(pageRaw) || 0;
+
                 if (guildId !== interaction.guildId) {
-                    const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
-                    builder
-                        .title('❌ Erro')
-                        .text('Este painel não pertence a este servidor.')
-                        .footer(interaction.guild?.name || 'Servidor');
-                    await interaction.reply(builder.build());
+                    await interaction.reply({ content: '❌ Este painel não pertence a este servidor.', flags: 64 });
                     return;
                 }
-                
-                // Deferir a interação (padrão do bot para botões)
+
                 if (!interaction.deferred && !interaction.replied) {
                     await interaction.deferReply({ flags: 64 });
                 }
-                
-                // Executar a ação
-                switch(action) {
+
+                const PoTWebhookSystem = require('../systems/potWebhookSystem');
+
+                switch (action) {
                     case 'create':
-                        await PoTWebhookSystem.handleCreate(interaction, event);
+                        await PoTWebhookSystem.handleCreate(interaction, event, guildId, page);
                         break;
                     case 'test':
-                        await PoTWebhookSystem.handleTest(interaction, event);
+                        await PoTWebhookSystem.handleTest(interaction, event, guildId, page);
                         break;
                     case 'remove':
-                        await PoTWebhookSystem.handleRemove(interaction, event);
+                        await PoTWebhookSystem.handleRemove(interaction, event, guildId, page);
+                        break;
+                    case 'logchan':
+                        await PoTWebhookSystem.handleCreateLogChannel(interaction, event, guildId, page);
                         break;
                     case 'gameini':
                         await PoTWebhookSystem.handleGameIni(interaction);
                         break;
+                    case 'channels':
+                        await PoTWebhookSystem.handleShowChannels(interaction);
+                        break;
+                    case 'page':
+                        await PoTWebhookSystem.renderPanel(interaction, page);
+                        break;
                     default:
-                        const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
-                        builder
-                            .title('❌ Erro')
-                            .text('Ação desconhecida.')
-                            .footer(interaction.guild?.name || 'Servidor');
-                        await interaction.editReply(builder.build());
+                        await interaction.editReply({ content: '❌ Ação desconhecida.', components: [] });
                 }
                 return;
             }

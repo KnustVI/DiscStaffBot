@@ -13,52 +13,24 @@ module.exports = {
             const config = PoTConfigSystem.getServerConfig(guildId);
 
             if (!config) {
-                const builder = new AdvancedContainerBuilder({
-                    accentColor: 0xFFA500
-                });
-
-                builder
-                    .title('⚠️ Servidor não configurado')
-                    .text('Use /potserver setup primeiro')
-                    .footer(guildName);
+                const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
+                builder.title('⚠️ Servidor não configurado').text('Use /potserver setup primeiro').footer(guildName);
 
                 const payload = builder.build();
-
-                payload.flags =
-                    MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-
+                payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
                 return interaction.editReply(payload);
             }
 
-            const builder = PoTWebhookSystem.getLogsPanelContainer(
-                guildId,
-                guildName,
-                0,
-                5
-            );
-
-            const payload = builder.build();
-
-            payload.flags =
-                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-
+            const payload = PoTWebhookSystem.buildPanelPayload(interaction, 0);
             await interaction.editReply(payload);
 
         } catch (error) {
-            const builder = new AdvancedContainerBuilder({
-                accentColor: 0xFF0000
-            });
-
-            builder
-                .title('❌ Erro')
-                .text(error.message)
-                .footer(interaction.guild?.name || 'Servidor');
+            console.error('❌ [Logs] Erro:', error);
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            builder.title('❌ Erro').text(error.message).footer(guildName);
 
             const payload = builder.build();
-
-            payload.flags =
-                MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-
+            payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
             await interaction.editReply(payload);
         }
     }
