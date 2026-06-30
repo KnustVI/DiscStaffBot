@@ -240,8 +240,6 @@ module.exports = {
 
             // ==================== PATH OF TITANS - PAINEL DE WEBHOOKS ====================
             // Customid: pot_webhook:<action>:<event|_>:<guildId>:<page>
-            // ':' como separador (não '_') porque eventos como "admin_command"
-            // têm underscore no próprio nome — '_' como separador quebrava o parsing.
             if (interaction.customId?.startsWith('pot_webhook:')) {
                 const [, action, eventRaw, guildId, pageRaw] = interaction.customId.split(':');
                 const event = eventRaw === '_' ? null : eventRaw;
@@ -252,11 +250,20 @@ module.exports = {
                     return;
                 }
 
-                if (!interaction.deferred && !interaction.replied) {
-                    await interaction.deferReply({ flags: 64 });
-                }
-
                 const PoTWebhookSystem = require('../systems/potWebhookSystem');
+
+                // ✅ FIX: 'gameini' e 'channels' abrem mensagem NOVA (deferReply).
+                // Todo o resto edita o painel no lugar (deferUpdate) — era isso
+                // que estava faltando e fazia a paginação "mandar outra mensagem".
+                const opensNewMessage = action === 'gameini' || action === 'channels';
+
+                if (!interaction.deferred && !interaction.replied) {
+                    if (opensNewMessage) {
+                        await interaction.deferReply({ flags: 64 });
+                    } else {
+                        await interaction.deferUpdate();
+                    }
+                }
 
                 switch (action) {
                     case 'create':
