@@ -350,8 +350,7 @@ class PoTWebhookSystem {
         b.title('📄 Game.ini').text('```ini\n' + config + '\n```').footer(interaction.guild.name);
 
         const payload = b.build();
-        payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-        await interaction.followUp(payload);
+        await interaction.editReply(payload); // ✅ editReply, não followUp (já deferReply'd)
     }
 
     static async handleShowChannels(interaction) {
@@ -363,7 +362,7 @@ class PoTWebhookSystem {
         b.title('📺 Canais de Log Criados');
 
         if (entries.length === 0) {
-            b.text('Nenhum canal de log criado ainda. Use o botão "📺 Criar Canal de Log" em cada evento do painel.');
+            b.text('Nenhum canal de log criado ainda.');
         } else {
             for (const [event, channelId] of entries) {
                 b.text(`**${event}:** <#${channelId}>`);
@@ -372,8 +371,7 @@ class PoTWebhookSystem {
         b.footer(interaction.guild.name);
 
         const payload = b.build();
-        payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
-        await interaction.followUp(payload);
+        await interaction.editReply(payload); // ✅ editReply, não followUp
     }
 }
 
