@@ -130,7 +130,7 @@ const PunishmentSystem = {
         }
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `# ${target.toString()}\n${target.username}\n(\`${target.id}\`)`,
+            `# ${target.toString()}|ID ALDERON:123-456-789\n${target.username}\n(\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(avatar),
         );
 
@@ -197,7 +197,7 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${moderator.toString()}\n${moderator.username} (\`${moderator.id}\`)`,
+            `## ${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
         );
         builder.separator();
@@ -205,7 +205,7 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Usuário alvo da punição ─────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${target?.toString() || 'Desconhecido'}\n${target?.username || '?'} (\`${target?.id || '?'}\`)`,
+            `## ${target?.toString() || 'Desconhecido'}|ID ALDERON:123-456-789\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -253,7 +253,7 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## JOGADOR\n${target?.toString() || 'Desconhecido'}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${target?.toString() || 'Desconhecido'}|ID ALDERON:123-456-789\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -344,11 +344,6 @@ const PunishmentSystem = {
             await interaction.editReply({ content: '❌ Ocorreu um erro.', flags: 64 });
         }
     },
-
-    // ⚠️ NOTA: handleHistoryPagination foi REMOVIDO. A paginação do /historico
-    // agora é feita inteiramente pelo PaginationBuilder (mesmo padrão do
-    // /ajuda), que já cria seu próprio collector de botões e não passa mais
-    // pelo handler central de componentes. Veja historico.js.
     
     async handleStrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending');

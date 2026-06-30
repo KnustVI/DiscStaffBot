@@ -36,7 +36,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     // ── Apresentação padrão: Usuário alvo do ajuste ──────────────────────────
     const targetAvatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
     builder.section(
-        `## JOGADOR\n${target.toString()}\n${target.username}\n(\`${target.id}\`)`,
+        `## JOGADOR\n${target.toString()}|ID ALDERON:123-456-789\n${target.username}\n(\`${target.id}\`)`,
         AdvancedContainerBuilder.thumbnail(targetAvatar),
     );
     builder.separator();
