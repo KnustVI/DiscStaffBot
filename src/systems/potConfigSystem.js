@@ -7,6 +7,7 @@
  * Gerencia:
  * - Configurações do servidor PoT (IP, RCON, portas)
  * - Webhooks por evento
+ * - Canais de log dedicados por evento (mensagens formatadas pelo bot)
  * - URLs dos endpoints
  */
 const db = require('../database/index');
@@ -103,6 +104,73 @@ class PoTConfigSystem {
         return configs;
     }
 
+    /**
+     * Remove um webhook específico do banco
+     * @param {string} guildId - ID do servidor
+     * @param {string} event - Nome do evento (login, killed, etc.)
+     */
+    static removeWebhook(guildId, event) {
+        const stmt = db.prepare(`
+            DELETE FROM settings 
+            WHERE guild_id = ? AND key = ?
+        `);
+        stmt.run(guildId, `pot_webhook_${event}`);
+    }
+
+    /**
+     * Remove todos os webhooks de um servidor
+     * @param {string} guildId - ID do servidor
+     */
+    static removeAllWebhooks(guildId) {
+        const stmt = db.prepare(`
+            DELETE FROM settings 
+            WHERE guild_id = ? AND key LIKE 'pot_webhook_%'
+        `);
+        stmt.run(guildId);
+    }
+
+    // ==================== CANAIS DE LOG (por evento) ====================
+    //
+    // ✅ NOVO: distinto do webhook. O webhook recebe o POST bruto do
+    // servidor PoT (configurado no Game.ini). O canal de log aqui é onde
+    // o PRÓPRIO BOT posta mensagens já formatadas (via gatewayServer →
+    // _sendToLogChannel), útil pra quem quer ver os eventos dentro do
+    // Discord sem depender só do webhook cru.
+
+    static setLogChannelForEvent(guildId, event, channelId) {
+        const stmt = db.prepare(`
+            INSERT INTO settings (guild_id, key, value, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(guild_id, key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+        `);
+        stmt.run(guildId, `pot_logchannel_${event}`, channelId, Date.now());
+    }
+
+    static getLogChannelForEvent(guildId, event) {
+        const stmt = db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = ?`);
+        const result = stmt.get(guildId, `pot_logchannel_${event}`);
+        return result ? result.value : null;
+    }
+
+    static getAllLogChannels(guildId) {
+        const stmt = db.prepare(`SELECT key, value FROM settings WHERE guild_id = ? AND key LIKE 'pot_logchannel_%'`);
+        const results = stmt.all(guildId);
+
+        const channels = {};
+        for (const row of results) {
+            const event = row.key.replace('pot_logchannel_', '');
+            channels[event] = row.value;
+        }
+        return channels;
+    }
+
+    static removeLogChannelForEvent(guildId, event) {
+        const stmt = db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key = ?`);
+        stmt.run(guildId, `pot_logchannel_${event}`);
+    }
+
     // ==================== ENDPOINTS DO SERVIDOR ====================
     
     static getBaseWebhookUrl(guildId) {
@@ -164,33 +232,6 @@ class PoTConfigSystem {
         return await potIntegration.executeCommand(guildId, command);
     }
 
-    // ==================== GERENCIAMENTO DE WEBHOOKS (EXTENDIDO) ====================
-
-    /**
-     * Remove um webhook específico do banco
-     * @param {string} guildId - ID do servidor
-     * @param {string} event - Nome do evento (login, killed, etc.)
-     */
-    static removeWebhook(guildId, event) {
-        const stmt = db.prepare(`
-            DELETE FROM settings 
-            WHERE guild_id = ? AND key = ?
-        `);
-        stmt.run(guildId, `pot_webhook_${event}`);
-    }
-
-    /**
-     * Remove todos os webhooks de um servidor
-     * @param {string} guildId - ID do servidor
-     */
-    static removeAllWebhooks(guildId) {
-        const stmt = db.prepare(`
-            DELETE FROM settings 
-            WHERE guild_id = ? AND key LIKE 'pot_webhook_%'
-        `);
-        stmt.run(guildId);
-    }
-
     /**
      * Reseta configurações específicas do servidor
      * @param {string} guildId - ID do servidor
@@ -199,7 +240,6 @@ class PoTConfigSystem {
     static resetConfig(guildId, scope) {
         switch(scope) {
             case 'server':
-                // Remove apenas configuração do servidor
                 const stmtServer = db.prepare(`
                     DELETE FROM settings 
                     WHERE guild_id = ? AND key = 'pot_server_config'
@@ -208,12 +248,10 @@ class PoTConfigSystem {
                 break;
 
             case 'logs':
-                // Remove todos os webhooks
                 this.removeAllWebhooks(guildId);
                 break;
 
             case 'all':
-                // Remove tudo
                 this.clearAllConfigs(guildId);
                 break;
 
@@ -224,9 +262,6 @@ class PoTConfigSystem {
 
     /**
      * Verifica se um webhook específico existe e está configurado
-     * @param {string} guildId - ID do servidor
-     * @param {string} event - Nome do evento
-     * @returns {Object} Status do webhook
      */
     static getWebhookStatus(guildId, event) {
         const url = this.getWebhookForEvent(guildId, event);
@@ -237,16 +272,10 @@ class PoTConfigSystem {
         };
     }
 
-    /**
-     * Obtém o status de todos os webhooks de um servidor
-     * @param {string} guildId - ID do servidor
-     * @returns {Object} Mapeamento evento -> status
-     */
     static getAllWebhooksStatus(guildId) {
         const allWebhooks = this.getAllWebhookConfigs(guildId);
         const status = {};
         
-        // Lista de eventos conhecidos (baseada no LOG_CHANNELS)
         const events = [
             'login', 'killed', 'chat', 'group', 'nest', 
             'quest', 'respawn', 'waystone', 'command', 
@@ -264,21 +293,11 @@ class PoTConfigSystem {
         return status;
     }
 
-    /**
-     * Conta quantos webhooks estão configurados
-     * @param {string} guildId - ID do servidor
-     * @returns {number} Quantidade de webhooks configurados
-     */
     static countConfiguredWebhooks(guildId) {
         const webhooks = this.getAllWebhookConfigs(guildId);
         return Object.keys(webhooks).length;
     }
 
-    /**
-     * Verifica se o servidor está totalmente configurado
-     * @param {string} guildId - ID do servidor
-     * @returns {Object} Status completo da configuração
-     */
     static getFullStatus(guildId) {
         const config = this.getServerConfig(guildId);
         const webhooks = this.getAllWebhookConfigs(guildId);
@@ -301,14 +320,6 @@ class PoTConfigSystem {
         };
     }
 
-    /**
-     * Gera um container com o resumo rápido do status (para /potserver status)
-     * @param {string} guildId - ID do servidor
-     * @param {string} guildName - Nome do servidor
-     * @param {Object} gatewayStats - Estatísticas do gateway (opcional)
-     * @param {Object} tokenStats - Estatísticas do token (opcional)
-     * @returns {AdvancedContainerBuilder} Builder configurado
-     */
     static getQuickStatusContainer(guildId, guildName, gatewayStats = null, tokenStats = null) {
         const status = this.getFullStatus(guildId);
         const builder = new AdvancedContainerBuilder({ 
@@ -356,12 +367,6 @@ class PoTConfigSystem {
 
     // ==================== GERADORES DE CONTAINER ====================
     
-    /**
-     * Gera um container com o status da configuração do PoT.
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} guildName - Nome do servidor
-     * @returns {AdvancedContainerBuilder} Builder configurado (chame .build() para enviar)
-     */
     static getStatusContainer(guildId, guildName) {
         const config = this.getServerConfig(guildId);
         const stats = this.getStats(guildId);
@@ -395,61 +400,6 @@ class PoTConfigSystem {
         return builder;
     }
     
-    /**
-     * Gera um container com a lista de webhooks configurados.
-     *
-     * ✅ Agora chamado a partir de /potserver status (mesclado), em vez de
-     * ser um comando/visualização separada.
-     *
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} guildName - Nome do servidor
-     * @returns {AdvancedContainerBuilder} Builder configurado (chame .build() para enviar)
-     */
-    static getWebhooksContainer(guildId, guildName) {
-        const webhooks = this.getAllWebhookConfigs(guildId);
-        
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-            .title(`${EMOJIS.link || '🔗'} Webhooks Configurados`)
-            .text('Eventos que estão enviando dados para o bot.')
-            .separator();
-        
-        if (Object.keys(webhooks).length === 0) {
-            builder.text('```\nNenhum webhook configurado. Use /potserver logs para criar.\n```');
-        } else {
-            const eventIcons = {
-                login: '🔐',
-                killed: '💀',
-                chat: '💬',
-                command: '⌨️',
-                quest: '📋',
-                group: '👥',
-                nest: '🪺',
-                respawn: '🔄',
-                waystone: '✨',
-                admin_command: '👑',
-                error: '⚠️'
-            };
-            
-            const lines = Object.entries(webhooks).map(([event, url]) => {
-                const icon = eventIcons[event] || '📡';
-                const shortUrl = url.length > 60 ? `${url.substring(0, 57)}...` : url;
-                return `${icon} **${event}:** ${shortUrl}`;
-            });
-
-            builder.block(lines);
-        }
-        
-        builder.footer(guildName);
-        
-        return builder;
-    }
-    
-    /**
-     * Gera um container com as URLs dos endpoints para o Game.ini
-     * @param {string} guildId - ID do servidor Discord
-     * @param {string} guildName - Nome do servidor
-     * @returns {AdvancedContainerBuilder} Builder configurado (chame .build() para enviar)
-     */
     static getEndpointsContainer(guildId, guildName) {
         const endpoints = this.getAllEndpointUrls(guildId);
         
