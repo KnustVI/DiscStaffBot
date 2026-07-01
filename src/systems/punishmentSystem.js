@@ -346,38 +346,137 @@ const PunishmentSystem = {
     },
     
     async handleStrikeConfirmation(interaction, action) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending');
+        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
         if (!session) {
-            return await interaction.editReply({ content: '❌ Sessão expirada.', components: [] });
+            return await interaction.editReply({ content: '❌ Sessão expirada. Use /strike novamente.', components: [] });
         }
         
         if (action === 'cancel') {
-            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
-            return await interaction.editReply({ content: '❌ Cancelado.', components: [] });
+            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+            return await interaction.editReply({ content: '❌ Punição cancelada.', components: [] });
         }
         
         if (action === 'confirm') {
-            const { targetId, reason, severity, reportId, discordAct, discordActionResult } = session;
-            const pointsLost = this.getPointsBySeverity(severity);
-            const currentRep = await this.getUserData(interaction.guildId, targetId);
-            const newPoints = Math.max(0, currentRep.reputation - pointsLost);
-            
-            const strikeNumber = this.applyPunishment(interaction.guildId, targetId, interaction.user.id, reason, severity, reportId, pointsLost);
-            const target = await interaction.client.users.fetch(targetId).catch(() => null);
-            
-            const container = this.generateStrikeUnifiedContainer(target, interaction.user, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, interaction.guild.name, null);
-            
-            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
-            const { components, flags } = container.build();
+            const ConfigSystem = require('./configSystem');
+            const AnalyticsSystem = require('./analyticsSystem');
+            const imageManager = require('../utils/imageManager');
+
+            let emojis = {};
+            try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+            const { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost } = session;
+            const guild = interaction.guild;
+            const staff = interaction.user;
+
+            const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
+            if (!targetUser) {
+                SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+                return await interaction.editReply({ content: '❌ Usuário não encontrado.', components: [] });
+            }
+
+            const targetMember = await guild.members.fetch(targetId).catch(() => null);
+
+            const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guild.id, targetId)?.points || 100;
+            const newPoints = Math.max(0, currentRep - pointsLost);
+
+            let durationMs = 0;
+            if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
+                durationMs = this.parseDuration(durationStr);
+            }
+
+            const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
+            if (!strikeId) {
+                SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+                return await interaction.editReply({ content: '❌ Erro ao aplicar punição no banco de dados.', components: [] });
+            }
+
+            let discordActionResult = null;
+            if (discordAct && discordAct !== 'none' && targetMember) {
+                try {
+                    switch (discordAct) {
+                        case 'timeout':
+                            await targetMember.timeout(durationMs > 0 ? durationMs : 60000, reason);
+                            discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
+                            break;
+                        case 'kick':
+                            await targetMember.kick(reason);
+                            discordActionResult = 'Expulsão aplicada';
+                            break;
+                        case 'ban':
+                            await targetMember.ban({ reason });
+                            discordActionResult = 'Banimento aplicado';
+                            break;
+                    }
+                } catch (err) {
+                    discordActionResult = `❌ Erro: ${err.message}`;
+                }
+            }
+
+            const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
+
+            require('../database/index').logActivity(guild.id, staff.id, 'strike', targetId, {
+                command: 'strike', punishmentId: strikeId, severity, pointsLost,
+                oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
+                temporaryRoleApplied: roleResult.applied
+            });
+
+            await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
+
+            const containerBuilder = this.generateStrikeUnifiedContainer(
+                targetUser, staff, strikeId, severity, reason, reportId || null,
+                pointsLost, newPoints, discordAct, discordActionResult, guild.name, null
+            );
+            const { components, flags } = containerBuilder.build();
+
             const bannerAttachment = imageManager.getAttachment('title_strike');
-            const replyData = { components, flags: [flags] };
-            if (bannerAttachment) replyData.files = [bannerAttachment];
-            await interaction.editReply(replyData);
+            const filesPayload = bannerAttachment ? [bannerAttachment] : [];
+
+            let dmDelivered = false;
+            if (targetMember) {
+                try {
+                    await targetMember.send({ components, flags: [flags], files: filesPayload });
+                    dmDelivered = true;
+                } catch (err) {
+                    dmDelivered = false;
+                }
+            }
+
+            let logSent = false;
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
+            if (logChannelId) {
+                try {
+                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                    if (logChannel) {
+                        await logChannel.send({ components, flags: [flags], files: filesPayload });
+                        logSent = true;
+                    }
+                } catch (err) {}
+            }
+
+            const dmStatusMsg = dmDelivered
+                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
+
+            const roleStatusMsg = roleResult.applied
+                ? `${emojis.strike || '⚠️'} Cargo de Strike aplicado temporariamente.`
+                : (roleResult.error ? `${emojis.Note || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
+
+            const summaryLines = [
+                `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**`,
+                `📉 ${pointsLost} pts perdidos`,
+                `⭐ Reputação: ${newPoints}/100`,
+                dmStatusMsg,
+            ];
+            if (roleStatusMsg) summaryLines.push(roleStatusMsg);
+            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+
+            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+            await interaction.editReply({ content: summaryLines.join('\n'), components: [] });
         }
     },
     
     async processStrikeModal(interaction) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_modal');
+        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_modal', 'strike_modal');
         if (!session) {
             return await interaction.editReply({ content: '❌ Sessão expirada.', flags: 64 });
         }
@@ -386,15 +485,15 @@ const PunishmentSystem = {
         const severity = parseInt(session.severity);
         const pointsLost = this.getPointsBySeverity(severity);
         
-        SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', {
-            targetId: session.targetId,
-            reason,
-            severity,
-            reportId: session.reportId,
-            pointsLost,
-            discordAct: session.discordAct,
-            discordActionResult: session.discordActionResult
-        }, 120000);
+            SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending', {
+        targetId: session.targetId,
+        reason,
+        severity,
+        reportId: session.reportId,
+        pointsLost,
+        discordAct: session.discordAct,
+        discordActionResult: session.discordActionResult
+    }, 120000);
         
         const target = await interaction.client.users.fetch(session.targetId).catch(() => null);
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
@@ -417,11 +516,11 @@ const PunishmentSystem = {
         const replyData = { components, flags: [flags] };
         replyData.components.push(row);
         await interaction.editReply(replyData);
-        SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_modal');
+        SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_modal', 'strike_modal');
     },
     
     async processUnstrikeModal(interaction) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_modal');
+        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_modal', 'unstrike_modal');
         if (!session) {
             return await interaction.editReply({ content: '❌ Sessão expirada.', flags: 64 });
         }
@@ -450,7 +549,7 @@ const PunishmentSystem = {
         const replyData = { components, flags: [flags] };
         if (bannerAttachment) replyData.files = [bannerAttachment];
         await interaction.editReply(replyData);
-        SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_modal');
+        SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_modal', 'unstrike_modal');
     },
     
     // ==================== MÉTODOS DE NEGÓCIO ====================

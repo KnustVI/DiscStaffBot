@@ -333,8 +333,17 @@ const ConfigSystem = {
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+        const imageManager = require('../utils/imageManager');
+        const bannerUrl = imageManager.getUrl('config_pontos') || imageManager.getUrl('config_punições');
+        const bannerAttachment = imageManager.getAttachment('config_pontos') || imageManager.getAttachment('config_punições');
+
+        const cb = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        if (bannerUrl) {
+            cb.gallery([bannerUrl]);
+            cb.separator();
+        }
+
+        const { components, flags } = cb
             .title(`${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`)
             .text('Gerencie os valores do sistema de reputação.')
             .separator()
@@ -364,6 +373,7 @@ const ConfigSystem = {
         // ✅ Painel SEMPRE limpo, sem `content` — mensagem de sucesso vai
         // separada via sendFeedback() (followUp efêmero).
         const replyData = { components: [...components, row], flags };
+        if (bannerAttachment) replyData.files = [bannerAttachment];
         
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(replyData);
