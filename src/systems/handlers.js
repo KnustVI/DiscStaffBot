@@ -32,7 +32,7 @@ class InteractionHandler {
             automod: autoModeration,
             status: systemStatus,   
             error: errorLogger,
-            'config-points': configSystem,
+            'config-punishments': configSystem,
             'config-roles': configSystem,
             'config-logs': configSystem,
         };
@@ -70,7 +70,7 @@ class InteractionHandler {
             filter: 'handleFilterLogs',
 
             // Config Strike
-            'config-points': 'handleComponent', 
+            'config-punishments': 'handleComponent',
             'config-roles': 'handleComponent',   
             'config-logs': 'handleComponent',   
             

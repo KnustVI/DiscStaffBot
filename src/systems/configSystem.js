@@ -78,6 +78,43 @@ const ConfigSystem = {
         return this.getSetting(guildId, 'log_automod'); // fallback legado
     },
 
+    /**
+     * Envia um registro de "configuração alterada" para o canal de log
+     * Geral (mesmo canal usado pelo relatório diário do AutoMod — ver
+     * getUnifiedGeneralLogChannel). Usado por qualquer comando
+     * administrativo que altere uma configuração do servidor.
+     *
+     * Falha silenciosamente se o canal não estiver configurado ou não
+     * puder ser alcançado — mesmo padrão usado nos demais envios de log.
+     *
+     * @param {import('discord.js').Interaction} interaction
+     * @param {string|string[]} lines - Linha(s) descrevendo a alteração
+     */
+    async logConfigChange(interaction, lines) {
+        const entries = Array.isArray(lines) ? lines : [lines];
+        if (entries.length === 0) return;
+
+        try {
+            const logChannelId = this.getUnifiedGeneralLogChannel(interaction.guildId);
+            if (!logChannelId) return;
+
+            const channel = await interaction.guild.channels.fetch(logChannelId).catch(() => null);
+            if (!channel) return;
+
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+            builder.title(`${EMOJIS.Config || '⚙️'} Configuração Alterada`);
+            builder.text(`**Responsável:** ${interaction.user}`);
+            builder.separator();
+            builder.block(entries);
+            builder.footer(interaction.guild.name);
+
+            const { components, flags } = builder.build();
+            await channel.send({ components, flags: [flags] });
+        } catch (error) {
+            console.error('❌ Erro ao enviar log de alteração de configuração:', error);
+        }
+    },
+
     getMany(guildId, keys = []) {
         const result = {};
         for (const key of keys) {
@@ -100,15 +137,15 @@ const ConfigSystem = {
         try {
             const customId = interaction.customId;
             
-            if (customId.startsWith('config-points:strike')) {
+            if (customId.startsWith('config-punishments:strike')) {
                 await this.handleStrikeModal(interaction);
                 return;
             }
-            if (customId.startsWith('config-points:limites')) {
+            if (customId.startsWith('config-punishments:limites')) {
                 await this.handleLimitesModal(interaction);
                 return;
             }
-            if (customId === 'config-points:reset') {
+            if (customId === 'config-punishments:reset') {
                 await this.resetPoints(interaction);
                 return;
             }
@@ -155,11 +192,11 @@ const ConfigSystem = {
 
     async handleModal(interaction, action) {
         try {
-            if (interaction.customId === 'config-points:strike:modal:submit') {
+            if (interaction.customId === 'config-punishments:strike:modal:submit') {
                 await this.processPointsStrikeModal(interaction);
                 return;
             }
-            if (interaction.customId === 'config-points:limites:modal:submit') {
+            if (interaction.customId === 'config-punishments:limites:modal:submit') {
                 await this.processLimitesModal(interaction);
                 return;
             }
@@ -194,7 +231,7 @@ const ConfigSystem = {
             new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'nivel5', label: 'Nivel 5 (Perm)', style: TextInputStyle.Short, required: true, value: pontos[5].toString(), placeholder: 'Ex: 10' }))
         ];
         
-        const modal = new ModalBuilder({ customId: 'config-points:strike:modal:submit', title: 'Configurar Niveis', components: rows });
+        const modal = new ModalBuilder({ customId: 'config-punishments:strike:modal:submit', title: 'Configurar Niveis', components: rows });
         await interaction.showModal(modal);
     },
 
@@ -212,7 +249,7 @@ const ConfigSystem = {
             new ActionRowBuilder().addComponents(new TextInputBuilder({ customId: 'problematic_limit', label: 'Limite Problematico (0-50)', style: TextInputStyle.Short, required: true, value: problematicLimit.toString(), placeholder: 'Ex: 30' }))
         ];
         
-        const modal = new ModalBuilder({ customId: 'config-points:limites:modal:submit', title: 'Configurar Limites', components: rows });
+        const modal = new ModalBuilder({ customId: 'config-punishments:limites:modal:submit', title: 'Configurar Limites', components: rows });
         await interaction.showModal(modal);
     },
 
@@ -247,6 +284,7 @@ const ConfigSystem = {
         const changeMessage = changes.length > 0
             ? `${EMOJIS.Check || '✅'} **${changes.length} alterações salvas!**\n${changes.join('\n')}`
             : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (changes.length > 0) await this.logConfigChange(interaction, changes);
         await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
@@ -278,6 +316,7 @@ const ConfigSystem = {
         const changeMessage = changes.length > 0
             ? `${EMOJIS.Check || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
             : `${EMOJIS.Note || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (changes.length > 0) await this.logConfigChange(interaction, changes);
         await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
@@ -289,6 +328,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'limit_exemplar', '95');
         this.setSetting(interaction.guildId, 'limit_problematico', '30');
         this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.Reset || '⚠️'} Pontos de Strike e limites de reputação resetados para o padrão.`);
         await this.refreshPointsPanel(interaction, `${EMOJIS.Check || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name);
     },
 
@@ -333,8 +373,10 @@ const ConfigSystem = {
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+
+        const cb = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+
+        const { components, flags } = cb
             .title(`${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`)
             .text('Gerencie os valores do sistema de reputação.')
             .separator()
@@ -356,15 +398,15 @@ const ConfigSystem = {
             .build();
         
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('config-points:strike:modal').setLabel('Editar Níveis de Strike').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder().setCustomId('config-points:limites:modal').setLabel('Editar Limites').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder().setCustomId('config-points:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.Reset || '⚠️')
+            new ButtonBuilder().setCustomId('config-punishments:strike:modal').setLabel('Editar Níveis de Strike').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-punishments:limites:modal').setLabel('Editar Limites').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-punishments:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.Reset || '⚠️')
         );
         
         // ✅ Painel SEMPRE limpo, sem `content` — mensagem de sucesso vai
         // separada via sendFeedback() (followUp efêmero).
         const replyData = { components: [...components, row], flags };
-        
+
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(replyData);
         } else {
@@ -430,11 +472,14 @@ const ConfigSystem = {
         if (!role) {
             return await ResponseManager.error(interaction, `${EMOJIS.Error || '❌'} Cargo não encontrado.`);
         }
-        
+
+        const oldRoleId = this.getSetting(interaction.guildId, roleKey);
         this.setSetting(interaction.guildId, roleKey, selectedRoleId);
         this.clearCache(interaction.guildId);
-        
+
         const roleLabels = { staff_role: 'Staff', strike_role: 'Strike', role_exemplar: 'Exemplar', role_problematico: 'Problemático' };
+        const oldRoleMention = oldRoleId ? `<@&${oldRoleId}>` : '`não definido`';
+        await this.logConfigChange(interaction, `${EMOJIS.staff || '🎭'} Cargo **${roleLabels[roleKey]}**: ${oldRoleMention} → ${role}`);
         await this.refreshRolesPanel(interaction, `${EMOJIS.Check || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
     },
 
@@ -501,16 +546,19 @@ const ConfigSystem = {
         if (!channel) {
             return await ResponseManager.error(interaction, 'Canal não encontrado.');
         }
-        
+
+        const oldChannelId = this.getSetting(interaction.guildId, channelKey);
         this.setSetting(interaction.guildId, channelKey, selectedChannelId);
         this.clearCache(interaction.guildId);
-        
+
         const channelLabels = {
             log_channel:      `${EMOJIS.global  || '📜'} Canal de logs gerais / automod`,
             log_punishments:  `${EMOJIS.strike  || '⚖️'} Canal de logs de punições`,
             log_reports:      `${EMOJIS.chat    || '🚩'} Canal de logs de reports`,
         };
-        
+
+        const oldChannelMention = oldChannelId ? `<#${oldChannelId}>` : '`não definido`';
+        await this.logConfigChange(interaction, `${channelLabels[channelKey]}: ${oldChannelMention} → ${channel}`);
         await this.refreshLogsPanel(interaction, `${EMOJIS.Check || '✅'} **${channelLabels[channelKey]}** alterado para ${channel}`, interaction.guild.name);
     },
 
@@ -566,7 +614,13 @@ const ConfigSystem = {
             this.setSetting(guild.id, 'log_punishments',  punishments.id);
             this.setSetting(guild.id, 'log_reports',      reports.id);
             this.clearCache(guild.id);
-            
+
+            await this.logConfigChange(interaction, [
+                `${EMOJIS.global || '📜'} Geral / AutoMod: → ${geral}`,
+                `${EMOJIS.strike || '⚖️'} Punições: → ${punishments}`,
+                `${EMOJIS.chat || '🎫'} Reports: → ${reports}`,
+            ]);
+
             const replyData = new AdvancedContainerBuilder({ accentColor: 0x57F287 })
                 .title(`${EMOJIS.Check || '✅'} Canais de Log Criados`)
                 .text('Os seguintes canais foram criados:')

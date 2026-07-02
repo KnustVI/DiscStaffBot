@@ -3,7 +3,6 @@ const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ChannelSelec
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
-const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -43,11 +42,8 @@ module.exports = {
             ? `<#${channelId}>`
             : `${emojis.Error || '❌'} Não definido`;
 
-        const bannerUrl = imageManager.getUrl('title_config_logs_dc');
-        const bannerAttachment = imageManager.getAttachment('title_config_logs_dc');
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        
-        .gallery([bannerUrl])
+        .title(`${emojis.dashboard || '🪵'} Canais de Log`)
         .separator()
         .section(
             `Aqui serão configuradas todas as logs relacionadas ao sistema do ***Titan's Pass***. 
@@ -108,7 +104,6 @@ module.exports = {
             ],
             flags: [flags],
         };
-        if (bannerAttachment) replyPayload.files = [bannerAttachment];
 
         await interaction.editReply(replyPayload);
     }

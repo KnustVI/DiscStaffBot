@@ -4,7 +4,6 @@ const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
-const imageManager = require('../../utils/imageManager');
 
 // ---------------------------------------------------------------------------
 // Montagem visual — separada para reaproveitar entre DM e canal de log
@@ -15,15 +14,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
     const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
-
-    // ── Banner de título — pré-configurado para 'TITLE REPSET.png'.
-    // Só adiciona se o arquivo existir de fato em assets/images; até lá,
-    // o container funciona normalmente sem banner. ─────────────────────────
-    const bannerUrl = imageManager.getUrl('title_repset');
-    if (bannerUrl) {
-        builder.gallery([bannerUrl]);
-        builder.separator();
-    }
+    builder.banner('title_repset');
 
     // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────────
     const staffAvatar = staff.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -36,7 +27,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     // ── Apresentação padrão: Usuário alvo do ajuste ──────────────────────────
     const targetAvatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
     builder.section(
-        `## JOGADOR\n${target.toString()}\n${target.username}\n(\`${target.id}\`)`,
+        `## JOGADOR\n${target.toString()}|ID ALDERON:123-456-789\n${target.username}\n(\`${target.id}\`)`,
         AdvancedContainerBuilder.thumbnail(targetAvatar),
     );
     builder.separator();
@@ -126,12 +117,7 @@ module.exports = {
             const containerBuilder = buildRepSetContainer({
                 target, staff, reason, diffText, currentRep, newPoints, isGain, emojis,
             });
-            const { components, flags } = containerBuilder.build();
-
-            // ── Banner de título: attachment buscado uma vez, reenviado em
-            // toda mensagem que usa este container (DM e canal de log) ────────
-            const bannerAttachment = imageManager.getAttachment('title_repset');
-            const filesPayload = bannerAttachment ? [bannerAttachment] : [];
+            const { components, flags, files: filesPayload } = containerBuilder.build();
 
             // ── DM do usuário — captura o resultado REAL do envio (não engole
             // o erro), mesmo padrão aplicado em /strike e /unstrike. ───────────

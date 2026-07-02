@@ -1,0 +1,61 @@
+TITAN'S PASS - FERRAMENTAS E COMANDOS DO PROJETO
+==================================================
+Guia rapido de uso das ferramentas de desenvolvimento do bot.
+Mantenha este arquivo atualizado sempre que um comando/script novo for adicionado.
+
+
+1) CONVERSAO DE IMAGENS PNG/JPG -> WEBP
+------------------------------------------------
+Script: scripts/convert-images-to-webp.js
+Comando: npm run convert-images
+
+O que faz:
+- Procura em assets/images por qualquer arquivo .png, .jpg ou .jpeg
+- Converte cada um para .webp (qualidade 90), mantendo o mesmo nome de arquivo
+- Apaga o arquivo original apos a conversao
+- Mostra no terminal o tamanho antes/depois de cada imagem e o total economizado
+
+Quando usar:
+- Toda vez que voce adicionar uma imagem nova (banner, icone, etc) em assets/images
+  no formato PNG ou JPG. Rode o comando depois de colocar a imagem na pasta.
+
+Como usar:
+1. Coloque a(s) imagem(ns) nova(s) em assets/images (pode ser .png, .jpg ou .jpeg)
+2. Rode: npm run convert-images
+3. Pronto - o arquivo .webp fica em assets/images e o codigo ja reconhece
+   automaticamente, sem precisar editar nada no codigo. O nome da "chave" da
+   imagem (usada em builder.banner('chave') ou imageManager.getUrl('chave'))
+   e gerado a partir do nome do arquivo, em minusculo e com espacos trocados
+   por "_". Exemplo: "TITLE STRIKE.png" -> chave "title_strike"
+
+Se o comando nao rodar (erro de modulo faltando):
+- Rode "npm install" para garantir que a dependencia "sharp" (devDependency)
+  esteja instalada corretamente.
+
+
+2) INICIAR O BOT
+------------------------------------------------
+Comando: node index.js
+
+Carrega todos os comandos (src/commands) e eventos (src/events), conecta no
+Discord e (se configurado) sobe o dashboard web. Precisa de um arquivo .env
+na raiz do projeto com pelo menos a variavel TOKEN preenchida.
+
+
+3) REGISTRAR OS SLASH COMMANDS NO DISCORD
+------------------------------------------------
+Comando: node deploy.js
+
+Registra (ou atualiza) todos os slash commands nos servidores configurados.
+IMPORTANTE: os servidores sao definidos manualmente no array GUILD_IDS, no
+topo do arquivo deploy.js. Ao adicionar o bot em um servidor novo, edite esse
+array antes de rodar o comando. O deploy sempre reflete o conjunto atual de
+arquivos em src/commands - comandos renomeados ou removidos do codigo somem
+do Discord automaticamente na proxima vez que voce rodar este comando.
+
+
+4) TESTES
+------------------------------------------------
+Comando: npm test
+
+Ainda nao ha testes configurados no projeto (comando placeholder).

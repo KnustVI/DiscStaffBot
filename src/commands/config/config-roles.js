@@ -3,7 +3,6 @@ const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, RoleSelectMe
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
-const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -37,11 +36,9 @@ module.exports = {
         const exemplarRole = ConfigSystem.getSetting(guildId, 'role_exemplar');
         const problematicoRole = ConfigSystem.getSetting(guildId, 'role_problematico');
 
-        const bannerUrl = imageManager.getUrl('title_config_roles');
-        const bannerAttachment = imageManager.getAttachment('title_config_roles');
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-        
-        builder.gallery([bannerUrl]);
+
+        builder.title(`${emojis.staff || '👥'} Cargos do Sistema`);
         builder.text(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.
             \n Para maior filtro de oturos comandos de moderação é recomendado configurar seu uso pelo propio discord, em ***configurações do servidor*** > ***integrações*** > ***comandos***.
             \n O cargo de Strike é recomendado para marcar os membros que receberam punições temporárias, isso facilita a identificação e aplicação de punições progressivas.
@@ -72,8 +69,7 @@ module.exports = {
         
         await interaction.editReply({
             components: [components[0], staffRow, strikeRow, exemplarRow, problematicoRow],
-            flags: [flags],
-            files: [bannerAttachment]
+            flags: [flags]
         });
     }
 };

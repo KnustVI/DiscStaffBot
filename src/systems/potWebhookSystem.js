@@ -1,234 +1,202 @@
 /**
  * potWebhookSystem.js
  *
- * Painel de gerenciamento de Webhooks/Canais de Log do Path of Titans.
+ * Painel de gerenciamento de Webhooks do Path of Titans.
  *
- * Funciona no padrão "controle remoto": cada clique de botão redesenha
- * a MESMA mensagem (editReply), sem depender de collector com timeout.
- * O roteamento vem do interactionCreate.js (customId prefixo `pot_webhook:`),
- * por isso o painel funciona indefinidamente, mesmo após restart do bot.
+ * Padrão "controle remoto": cada botão redesenha a MESMA mensagem (editReply).
+ * Roteado pelo interactionCreate.js via prefixo `pot_webhook:`.
+ * Funciona indefinidamente — sem collector, sem timeout.
  */
 
-const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const {
+    MessageFlags,
+    ModalBuilder,
+    ActionRowBuilder,
+    TextInputBuilder,
+    TextInputStyle
+} = require('discord.js');
+
 const PoTConfigSystem = require('./potConfigSystem');
 const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 
-let EMOJIS = {};
-try {
-    const emojisFile = require('../database/emojis.js');
-    EMOJIS = emojisFile.EMOJIS || {};
-} catch (err) {
-    EMOJIS = {};
-}
-
-const CATEGORY_NAME = '📊 PATH OF TITANS LOGS';
-const ITEMS_PER_PAGE = 3; // limite seguro de Components V2 por Container
+const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
+const ITEMS_PER_PAGE = 3;
 const FALLBACK_ICON = 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-const LOG_CHANNELS = [
-    { name: '📥 login', event: 'login', endpoint: 'PlayerLogin', description: '🔐 Controle de entrada e saída de jogadores' },
-    { name: '💀 killed', event: 'killed', endpoint: 'PlayerKilled', description: '⚔️ Registro de mortes entre jogadores' },
-    { name: '💬 chat', event: 'chat', endpoint: 'PlayerChat', description: '💬 Mensagens do chat global' },
-    { name: '👥 group', event: 'group', endpoint: 'PlayerJoinedGroup', description: '👥 Formação e saída de grupos' },
-    { name: '🪺 nest', event: 'nest', endpoint: 'CreateNest', description: '🪺 Criação e destruição de ninhos' },
-    { name: '📜 quest', event: 'quest', endpoint: 'PlayerQuestComplete', description: '📜 Progresso de missões (completo/falha)' },
-    { name: '🔄 respawn', event: 'respawn', endpoint: 'PlayerRespawn', description: '🔄 Reviver jogadores' },
-    { name: '✨ waystone', event: 'waystone', endpoint: 'PlayerWaystone', description: '✨ Uso de pedras de teletransporte' },
-    { name: '⚡ command', event: 'command', endpoint: 'PlayerCommand', description: '⚡ Comandos de jogadores (prefixo !)' },
-    { name: '👑 admin_command', event: 'admin_command', endpoint: 'AdminCommand', description: '👑 Comandos administrativos' },
-    { name: '⚠️ error', event: 'error', endpoint: 'ServerError', description: '⚠️ Erros e alertas do servidor' }
-];
+let EMOJIS = {};
+try { EMOJIS = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
 class PoTWebhookSystem {
 
-    // ==================== CRIAÇÃO ====================
-
-    static async getOrCreateCategory(guild) {
-        let category = guild.channels.cache.find(
-            c => c.name === CATEGORY_NAME && c.type === ChannelType.GuildCategory
-        );
-        if (!category) {
-            category = await guild.channels.create({ name: CATEGORY_NAME, type: ChannelType.GuildCategory });
-        }
-        return category;
-    }
-
-    static async createWebhookForEvent(guildId, event, categoryId, interaction) {
-        try {
-            const guild = interaction.guild;
-            const logConfig = LOG_CHANNELS.find(l => l.event === event);
-            if (!logConfig) return { success: false, error: 'Evento não encontrado' };
-
-            const existingUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
-            if (existingUrl) return { success: false, error: 'Webhook já configurado para este evento' };
-
-            let channel = guild.channels.cache.find(
-                c => c.name === logConfig.name && c.type === ChannelType.GuildText && c.parentId === categoryId
-            );
-
-            if (!channel) {
-                channel = await guild.channels.create({
-                    name: logConfig.name,
-                    type: ChannelType.GuildText,
-                    parent: categoryId,
-                    topic: `📊 Webhook bruto de ${logConfig.event} do Path of Titans`,
-                    permissionOverwrites: [
-                        { id: guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory] }
-                    ]
-                });
-            }
-
-            const webhook = await channel.createWebhook({
-                name: `PoT ${logConfig.name.split(' ')[0]} Logger`,
-                reason: `Webhook para logs de ${logConfig.event}`
-            });
-
-            PoTConfigSystem.setWebhookForEvent(guildId, event, webhook.url);
-            return { success: true, channel, webhook, url: webhook.url };
-        } catch (error) {
-            console.error(`❌ [WebhookSystem] Erro ao criar webhook:`, error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    static async createLogChannelForEvent(guildId, event, categoryId, interaction) {
-        try {
-            const existing = PoTConfigSystem.getLogChannelForEvent(guildId, event);
-            if (existing) return { success: false, error: 'Canal de log já existe para este evento' };
-
-            const logConfig = LOG_CHANNELS.find(l => l.event === event);
-            const channel = await interaction.guild.channels.create({
-                name: logConfig ? logConfig.name : `log-${event}`,
-                type: ChannelType.GuildText,
-                parent: categoryId,
-                topic: `📊 Logs traduzidos de ${event} do Path of Titans (postados pelo bot)`
-            });
-
-            PoTConfigSystem.setLogChannelForEvent(guildId, event, channel.id);
-            return { success: true, channel };
-        } catch (error) {
-            console.error(`❌ [WebhookSystem] Erro ao criar canal de log:`, error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    static async testWebhook(guildId, event, interaction) {
-        try {
-            const webhookUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
-            if (!webhookUrl) return { success: false, message: 'Nenhum webhook configurado para este evento.' };
-
-            const fetch = require('node-fetch');
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: `🧪 Teste de Webhook | Evento: ${event} | Servidor: ${interaction.guild.name}` })
-            });
-
-            if (response.ok) return { success: true, message: 'Webhook testado com sucesso!' };
-            const text = await response.text();
-            return { success: false, message: `Erro ${response.status}: ${text}` };
-        } catch (error) {
-            return { success: false, message: error.message };
-        }
-    }
-
-    static async removeWebhook(guildId, event) {
-        try {
-            const webhookUrl = PoTConfigSystem.getWebhookForEvent(guildId, event);
-            if (!webhookUrl) return { success: false, message: 'Nenhum webhook configurado.' };
-
-            PoTConfigSystem.removeWebhook(guildId, event);
-
-            try {
-                const parts = webhookUrl.split('/');
-                const id = parts[parts.length - 2];
-                const token = parts[parts.length - 1];
-                const fetch = require('node-fetch');
-                await fetch(`https://discord.com/api/v10/webhooks/${id}/${token}`, { method: 'DELETE' });
-            } catch {}
-
-            return { success: true, message: `Webhook ${event} removido` };
-        } catch (error) {
-            return { success: false, message: error.message };
-        }
-    }
+    // ==================== GAME.INI ====================
 
     static getGameIniConfig(guildId) {
         const domain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
         let token = PoTTokenManager.getToken(guildId);
         if (!token) token = PoTTokenManager.generateToken(guildId);
 
-        const lines = ['[ServerWebhooks]', 'bEnabled=true', 'Format="General"', ''];
-        for (const log of LOG_CHANNELS) {
-            lines.push(`${log.endpoint}="${domain}/pot/${log.event}?token=${token}"`);
+        const lines = [
+            '[ServerWebhooks]',
+            'bEnabled=true',
+            'Format="General"',
+            ''
+        ];
+
+        for (const group of EVENT_GROUPS) {
+            lines.push(`; ${group.name}`);
+            for (const iniEvent of group.iniEvents) {
+                // evt= permite ao gateway saber qual evento PoT específico chegou,
+                // mesmo que vários eventos compartilhem a mesma rota de grupo.
+                lines.push(`${iniEvent}="${domain}/pot/${group.route}?token=${token}&evt=${iniEvent}"`);
+            }
+            lines.push('');
         }
+
         return lines.join('\n');
     }
 
-    static getAllWebhookStatus(guildId) {
-        const status = {};
-        for (const log of LOG_CHANNELS) {
-            const url = PoTConfigSystem.getWebhookForEvent(guildId, log.event);
-            status[log.event] = { configured: !!url, url: url || null };
+    // ==================== TESTE DE WEBHOOK DISCORD ====================
+
+    static async testDiscordWebhook(webhookUrl, guildName = 'Servidor') {
+        try {
+            const fetch = require('node-fetch');
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: `🧪 **Teste de Webhook** — ${guildName} via Titan's Pass`
+                })
+            });
+            if (response.ok) return { success: true };
+            const text = await response.text();
+            return { success: false, error: `HTTP ${response.status}: ${text.slice(0, 100)}` };
+        } catch (error) {
+            return { success: false, error: error.message };
         }
-        return status;
+    }
+
+    // ==================== MODAL DE CONFIGURAÇÃO ====================
+
+    /**
+     * Exibe o modal para o usuário colar a URL do webhook Discord.
+     * Chamado ANTES de qualquer deferral — showModal é a primeira resposta.
+     */
+    static async handleShowConfigModal(interaction, groupId, guildId, page) {
+        const group = EVENT_GROUPS.find(g => g.id === groupId);
+        const existingUrl = PoTConfigSystem.getWebhookForGroup(guildId, groupId);
+
+        const input = new TextInputBuilder()
+            .setCustomId('webhook_url')
+            .setLabel('URL do Webhook Discord')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('https://discord.com/api/webhooks/ID/TOKEN')
+            .setRequired(true);
+
+        if (existingUrl) input.setValue(existingUrl);
+
+        const modal = new ModalBuilder()
+            .setCustomId(`pot_webhook:url_modal:${groupId}:${guildId}:${page}`)
+            .setTitle(`Webhook — ${group?.name || groupId}`)
+            .addComponents(new ActionRowBuilder().addComponents(input));
+
+        await interaction.showModal(modal);
+    }
+
+    /**
+     * Processa o submit do modal de URL.
+     * Valida → testa → salva → redesenha o painel.
+     */
+    static async handleUrlModalSubmit(interaction) {
+        // customId: pot_webhook:url_modal:<groupId>:<guildId>:<page>
+        const parts = interaction.customId.split(':');
+        const groupId = parts[2];
+        const guildId = parts[3];
+        const page = parseInt(parts[4]) || 0;
+
+        await interaction.deferReply({ flags: 64 });
+
+        const webhookUrl = interaction.fields.getTextInputValue('webhook_url').trim();
+
+        if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+            await interaction.editReply({
+                content: [
+                    '❌ URL inválida. Deve ser um webhook do Discord.',
+                    'Como criar: **Canal → Configurações → Integrações → Criar Webhook → Copiar URL**'
+                ].join('\n')
+            });
+            return;
+        }
+
+        const test = await this.testDiscordWebhook(webhookUrl, interaction.guild?.name);
+        if (!test.success) {
+            await interaction.editReply({ content: `❌ Webhook não respondeu: ${test.error}` });
+            return;
+        }
+
+        PoTConfigSystem.setWebhookForGroup(guildId, groupId, webhookUrl);
+
+        // Redesenha o painel com o novo estado
+        const payload = this.buildPanelPayload(interaction, page);
+        await interaction.editReply(payload);
     }
 
     // ==================== PAINEL (CONTROLE REMOTO) ====================
 
-    /**
-     * Monta o payload COMPLETO do painel (Container + linhas externas),
-     * já pronto pra enviar via editReply/reply.
-     */
     static buildPanelPayload(interaction, page = 0) {
         const guildId = interaction.guildId;
         const guildName = interaction.guild?.name || 'Servidor';
         const guildIconUrl = interaction.guild?.iconURL({ size: 128 }) || FALLBACK_ICON;
 
-        const webhookStatus = this.getAllWebhookStatus(guildId);
-        const logChannels = PoTConfigSystem.getAllLogChannels(guildId);
-
-        const total = LOG_CHANNELS.length;
+        const groupWebhooks = PoTConfigSystem.getAllGroupWebhooks(guildId);
+        const total = EVENT_GROUPS.length;
         const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
         const safePage = Math.min(Math.max(page, 0), totalPages - 1);
-        const start = safePage * ITEMS_PER_PAGE;
-        const slice = LOG_CHANNELS.slice(start, start + ITEMS_PER_PAGE);
-
-        const webhooksConfigured = Object.values(webhookStatus).filter(s => s.configured).length;
-        const channelsConfigured = Object.keys(logChannels).length;
+        const slice = EVENT_GROUPS.slice(safePage * ITEMS_PER_PAGE, (safePage + 1) * ITEMS_PER_PAGE);
+        const configured = Object.keys(groupWebhooks).length;
 
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
         builder
             .title(`${EMOJIS.link || '📡'} GERENCIADOR DE WEBHOOKS`)
             .text('Aqui você gera os webhooks para o bot trazer informações do jogo até você. Você também pode criar um canal no Discord para receber essas informações já traduzidas, em tempo real.')
-            .text(`📊 **Status:** ${webhooksConfigured}/${total} webhooks • ${channelsConfigured}/${total} canais de log`)
+            .text(`📊 **Status:** ${configured}/${total} grupos configurados`)
             .separator();
 
-        for (const log of slice) {
-            const s = webhookStatus[log.event];
-            const channelId = logChannels[log.event];
-
-            const webhookLine = s.configured ? '✅ Webhook configurado' : '❌ Webhook não configurado';
-            const channelLine = channelId ? `📺 Canal: <#${channelId}>` : '📺 Canal de log não criado';
+        for (const group of slice) {
+            const webhookUrl = groupWebhooks[group.id];
+            const isConfigured = !!webhookUrl;
 
             builder.section(
-                `# ${log.name}\n${log.description}\n${webhookLine}\n${channelLine}`,
-                AdvancedContainerBuilder.thumbnail(guildIconUrl, log.event)
+                [
+                    `# ${group.name}`,
+                    group.description,
+                    isConfigured ? '✅ Webhook configurado' : '❌ Não configurado',
+                    `-# Eventos: ${group.iniEvents.join(', ')}`
+                ].join('\n'),
+                AdvancedContainerBuilder.thumbnail(guildIconUrl, group.id)
             );
 
-            const rowButtons = [];
-            if (s.configured) {
-                rowButtons.push(AdvancedContainerBuilder.primaryButton(`pot_webhook:test:${log.event}:${guildId}:${safePage}`, '🔄 Testar'));
-                rowButtons.push(AdvancedContainerBuilder.dangerButton(`pot_webhook:remove:${log.event}:${guildId}:${safePage}`, '🗑️ Remover'));
+            if (isConfigured) {
+                builder.buttons(
+                    AdvancedContainerBuilder.secondaryButton(
+                        `pot_webhook:config:${group.id}:${guildId}:${safePage}`, '✏️ Alterar'
+                    ),
+                    AdvancedContainerBuilder.primaryButton(
+                        `pot_webhook:test:${group.id}:${guildId}:${safePage}`, '🔄 Testar'
+                    ),
+                    AdvancedContainerBuilder.dangerButton(
+                        `pot_webhook:remove:${group.id}:${guildId}:${safePage}`, '🗑️ Remover'
+                    )
+                );
             } else {
-                rowButtons.push(AdvancedContainerBuilder.successButton(`pot_webhook:create:${log.event}:${guildId}:${safePage}`, '📝 Criar Webhook'));
+                builder.buttons(
+                    AdvancedContainerBuilder.successButton(
+                        `pot_webhook:config:${group.id}:${guildId}:${safePage}`, '🔗 Configurar Webhook'
+                    )
+                );
             }
-            if (!channelId) {
-                rowButtons.push(AdvancedContainerBuilder.secondaryButton(`pot_webhook:logchan:${log.event}:${guildId}:${safePage}`, '📺 Criar Canal de Log'));
-            }
-            builder.buttons(...rowButtons);
+
             builder.separator();
         }
 
@@ -239,139 +207,100 @@ class PoTWebhookSystem {
 
         const { components, flags } = builder.build();
 
-        // ── Linhas EXTERNAS, fora do Container (sibling no array de components) ──
-        const externalButtons = [
-            AdvancedContainerBuilder.primaryButton(`pot_webhook:gameini:_:${guildId}:${safePage}`, '📄 Ver Game.ini'),
-            AdvancedContainerBuilder.secondaryButton(`pot_webhook:channels:_:${guildId}:${safePage}`, '📺 Ver Canais Criados'),
-        ];
-        const { ActionRowBuilder } = require('discord.js');
-        const externalRow = new ActionRowBuilder().addComponents(...externalButtons);
+        // Botões de info FORA do Container (sibling) — sempre visíveis
+        const infoRow = new ActionRowBuilder().addComponents(
+            AdvancedContainerBuilder.primaryButton(
+                `pot_webhook:gameini:_:${guildId}:${safePage}`, '📄 Game.ini'
+            ),
+            AdvancedContainerBuilder.secondaryButton(
+                `pot_webhook:webhooks:_:${guildId}:${safePage}`, '🔗 Ver Webhooks'
+            )
+        );
 
-        const finalComponents = [...components, externalRow];
+        const finalComponents = [...components, infoRow];
 
+        // Navegação de página (só aparece quando há mais de uma página)
         if (totalPages > 1) {
-            const navButtons = [];
-            navButtons.push(
-                AdvancedContainerBuilder.secondaryButton(`pot_webhook:page:_:${guildId}:${Math.max(0, safePage - 1)}`, '◀ Anterior')
-                    .setDisabled(safePage === 0)
+            finalComponents.push(
+                new ActionRowBuilder().addComponents(
+                    AdvancedContainerBuilder.secondaryButton(
+                        `pot_webhook:page:_:${guildId}:${Math.max(0, safePage - 1)}`, '◀ Anterior'
+                    ).setDisabled(safePage === 0),
+                    AdvancedContainerBuilder.secondaryButton(
+                        `pot_webhook:page:_:${guildId}:${Math.min(totalPages - 1, safePage + 1)}`, 'Próxima ▶'
+                    ).setDisabled(safePage === totalPages - 1)
+                )
             );
-            navButtons.push(
-                AdvancedContainerBuilder.secondaryButton(`pot_webhook:page:_:${guildId}:${Math.min(totalPages - 1, safePage + 1)}`, 'Próxima ▶')
-                    .setDisabled(safePage === totalPages - 1)
-            );
-            finalComponents.push(new ActionRowBuilder().addComponents(...navButtons));
         }
 
-        return {
-            components: finalComponents,
-            flags: flags | MessageFlags.Ephemeral
-        };
+        return { components: finalComponents, flags: flags | MessageFlags.Ephemeral };
     }
 
-    /**
-     * Redesenha o painel na MESMA mensagem (padrão "controle remoto").
-     * Chamado depois de toda ação (criar/testar/remover/etc).
-     */
     static async renderPanel(interaction, page = 0) {
         const payload = this.buildPanelPayload(interaction, page);
         await interaction.editReply(payload);
     }
 
-    /**
-     * Feedback curto e efêmero (texto puro, sem Container), seguindo o
-     * padrão de confirmação do projeto: emoji + bullet.
-     */
-    static async feedback(interaction, success, text) {
-        const emoji = success ? '✅' : '❌';
-        try {
-            await interaction.followUp({ content: `${emoji} ${text}`, flags: MessageFlags.Ephemeral });
-        } catch (err) {
-            console.error('❌ [WebhookSystem] Erro ao enviar feedback:', err);
+    // ==================== HANDLERS ====================
+
+    static async handleTest(interaction, groupId, guildId, page) {
+        const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, groupId);
+
+        if (!webhookUrl) {
+            await interaction.followUp({ content: '❌ Nenhum webhook configurado para este grupo.', flags: 64 });
+        } else {
+            const result = await this.testDiscordWebhook(webhookUrl, interaction.guild?.name);
+            await interaction.followUp({
+                content: result.success
+                    ? '✅ Webhook testado com sucesso!'
+                    : `❌ Falhou: ${result.error}`,
+                flags: 64
+            });
         }
-    }
 
-    // ==================== HANDLERS (chamados pelo interactionCreate.js) ====================
-
-    static async handleCreate(interaction, event, guildId, page) {
-        try {
-            const config = PoTConfigSystem.getServerConfig(guildId);
-            if (!config) {
-                await this.feedback(interaction, false, 'Configure o servidor primeiro com `/potserver setup`.');
-                return this.renderPanel(interaction, page);
-            }
-
-            const category = await this.getOrCreateCategory(interaction.guild);
-            const result = await this.createWebhookForEvent(guildId, event, category.id, interaction);
-
-            await this.feedback(
-                interaction,
-                result.success,
-                result.success
-                    ? `Webhook criado para **${event}**. Veja a URL em "📄 Ver Game.ini".`
-                    : result.error
-            );
-        } catch (error) {
-            await this.feedback(interaction, false, error.message);
-        }
         await this.renderPanel(interaction, page);
     }
 
-    static async handleTest(interaction, event, guildId, page) {
-        const result = await this.testWebhook(guildId, event, interaction);
-        await this.feedback(interaction, result.success, result.message);
-        await this.renderPanel(interaction, page);
-    }
-
-    static async handleRemove(interaction, event, guildId, page) {
-        const result = await this.removeWebhook(guildId, event);
-        await this.feedback(interaction, result.success, result.message);
-        await this.renderPanel(interaction, page);
-    }
-
-    static async handleCreateLogChannel(interaction, event, guildId, page) {
-        try {
-            const category = await this.getOrCreateCategory(interaction.guild);
-            const result = await this.createLogChannelForEvent(guildId, event, category.id, interaction);
-
-            await this.feedback(
-                interaction,
-                result.success,
-                result.success ? `Canal de log criado: <#${result.channel.id}>` : result.error
-            );
-        } catch (error) {
-            await this.feedback(interaction, false, error.message);
-        }
+    static async handleRemove(interaction, groupId, guildId, page) {
+        PoTConfigSystem.removeWebhookForGroup(guildId, groupId);
+        await interaction.followUp({ content: '✅ Webhook removido.', flags: 64 });
         await this.renderPanel(interaction, page);
     }
 
     static async handleGameIni(interaction) {
         const config = this.getGameIniConfig(interaction.guildId);
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
-        b.title('📄 Game.ini').text('```ini\n' + config + '\n```').footer(interaction.guild.name);
 
-        const payload = b.build();
-        await interaction.editReply(payload); // ✅ editReply, não followUp (já deferReply'd)
+        b.title('📄 Game.ini')
+            .text('Cole este conteúdo no arquivo `Game.ini` do seu servidor PoT.\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
+            .text('```ini\n' + config + '\n```')
+            .footer(interaction.guild?.name || 'Servidor');
+
+        await interaction.editReply(b.build());
     }
 
-    static async handleShowChannels(interaction) {
+    static async handleShowWebhooks(interaction) {
         const guildId = interaction.guildId;
-        const channels = PoTConfigSystem.getAllLogChannels(guildId);
-        const entries = Object.entries(channels);
+        const webhooks = PoTConfigSystem.getAllGroupWebhooks(guildId);
+        const entries = Object.entries(webhooks);
 
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
-        b.title('📺 Canais de Log Criados');
+        b.title('🔗 Webhooks Configurados');
 
         if (entries.length === 0) {
-            b.text('Nenhum canal de log criado ainda.');
+            b.text('Nenhum webhook configurado ainda.\nUse **🔗 Configurar Webhook** em cada grupo do painel.');
         } else {
-            for (const [event, channelId] of entries) {
-                b.text(`**${event}:** <#${channelId}>`);
+            for (const [groupId, url] of entries) {
+                const group = EVENT_GROUPS.find(g => g.id === groupId);
+                // Mostra só o início da URL por segurança
+                const masked = url.split('/').slice(0, 7).join('/') + '/...';
+                b.text(`**${group?.name || groupId}**\n\`${masked}\``);
+                b.separator();
             }
         }
-        b.footer(interaction.guild.name);
 
-        const payload = b.build();
-        await interaction.editReply(payload); // ✅ editReply, não followUp
+        b.footer(interaction.guild?.name || 'Servidor');
+        await interaction.editReply(b.build());
     }
 }
 

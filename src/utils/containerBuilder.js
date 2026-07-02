@@ -11,7 +11,7 @@
  *
  *   const builder = new AdvancedContainerBuilder({ accentColor: 0xED4245 });
  *   builder
- *     .title('STRIKE #15')
+ *     .banner('title_strike') // opcional: imagem de assets/images no lugar do title()
  *     .section('**Usuário:** Fulano', AdvancedContainerBuilder.thumbnail(avatarUrl))
  *     .separator()
  *     .block(['🛡️ Moderador: Staff', '📉 Pontos: -10'])
@@ -19,7 +19,8 @@
  *     .footer('Gerado automaticamente');
  *
  *   const payload = builder.build();
- *   // payload = { components: [ContainerBuilder], flags: MessageFlags.IsComponentsV2 }
+ *   // payload = { components: [ContainerBuilder], flags: MessageFlags.IsComponentsV2, files: [] }
+ *   await interaction.editReply(payload); // files já vem pronto (vazio se não houver banner)
  */
 
 const {
@@ -36,6 +37,7 @@ const {
     ButtonStyle,
     MessageFlags,
 } = require('discord.js');
+const imageManager = require('./imageManager');
 
 // ---------------------------------------------------------------------------
 // Tipos de acessório (usados internamente para diferenciar thumbnail x button)
@@ -63,6 +65,14 @@ class AdvancedContainerBuilder {
          * @type {Array<{ kind: string, payload: * }>}
          */
         this.components = [];
+
+        /**
+         * Attachments (banners) acumulados via banner() — devolvidos por
+         * build() em `files`, prontos para reply()/send()/edit().
+         *
+         * @type {Array<AttachmentBuilder>}
+         */
+        this._files = [];
     }
 
     // -----------------------------------------------------------------------
@@ -84,6 +94,29 @@ class AdvancedContainerBuilder {
             payload: `${prefix} ${text}`,
         });
         return this;
+    }
+
+    /**
+     * Adiciona um banner de topo (imagem de assets/images, ver ImageManager)
+     * no lugar de title(), seguido de um separador. Resolve a URL (para a
+     * galeria) e o attachment (arquivo de fato) a partir da mesma chave —
+     * se a imagem não existir, não faz nada e o container segue normal.
+     *
+     * O attachment é acumulado internamente e devolvido por build() em
+     * `files`, então quem envia a mensagem não precisa buscar o arquivo
+     * separadamente nem repetir a chave.
+     *
+     * @param {string} key - Chave da imagem em assets/images (ver ImageManager.getUrl)
+     * @returns {this}
+     */
+    banner(key) {
+        const url = imageManager.getUrl(key);
+        const attachment = imageManager.getAttachment(key);
+        if (!url || !attachment) return this;
+
+        this.components.push({ kind: 'gallery', payload: [url] });
+        this._files.push(attachment);
+        return this.separator();
     }
 
     /**
@@ -303,6 +336,7 @@ class AdvancedContainerBuilder {
         return {
             components: [container],
             flags: MessageFlags.IsComponentsV2,
+            files: this._files,
         };
     }
 

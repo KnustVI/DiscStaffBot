@@ -128,31 +128,24 @@ class ImageManager {
 }
 
         // ============================================
-        // USAR IMAGENS DO GERENCIADOR
+        // BANNER DE TOPO EM UM CONTAINER
         // ============================================
-        // Pegar o attachment da imagem
-        // const bannerAttachment = imageManager.getAttachment('title_config_logs_dc');
-        
-        // Pegar a URL para usar no embed
-        // const bannerUrl = imageManager.getUrl('title_config_logs_dc');
-
-        // Se quiser várias imagens para galeria
-        // const galeriaUrls = imageManager.getGalleryUrls([
-        //    'title_config_logs_dc',
-        //    'title_ajuda',
-        //    'title_botstatus'
-        // ]);
-
-        // const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        //     .gallery(galeriaUrls) // ← Usar múltiplas imagens
-        //     .gallery([bannerUrl]) // ← Ou usar uma única
-
-        // ENVIAR COM O ATTACHMENT
-        // await interaction.editReply({
-        // components,
-        // flags: [flags],
-        // files: [bannerAttachment]
-        // });
+        // Para banners de topo (no lugar de title()), use o método banner()
+        // do AdvancedContainerBuilder — ele já resolve URL + attachment pela
+        // mesma chave e devolve tudo pronto em build().files:
+        //
+        // const { components, flags, files } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+        //     .banner('title_strike')
+        //     .text('...')
+        //     .build();
+        //
+        // await interaction.editReply({ components, flags: [flags], files });
+        //
+        // Para galerias de múltiplas imagens (não-banner), use getGalleryUrls()
+        // com gallery() diretamente:
+        //
+        // const urls = imageManager.getGalleryUrls(['title_strike', 'title_repset']);
+        // builder.gallery(urls);
         // ============================================
 
 // Exportar uma instância única (Singleton)

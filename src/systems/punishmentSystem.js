@@ -6,7 +6,6 @@ const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 const { PaginationBuilder } = require('../utils/paginationBuilder');
 const SessionManager = require('../utils/sessionManager');
 const SequenceManager = require('../database/sequences');
-const imageManager = require('../utils/imageManager');
 
 const COLORS = {
     DEFAULT: 0xDCA15E,
@@ -122,15 +121,12 @@ const PunishmentSystem = {
 
         const builder = new AdvancedContainerBuilder({ accentColor });
 
-        // ── Banner (gallery) — só adiciona se a imagem existir de fato ──────
-        const bannerUrl = imageManager.getUrl('title_historico_de_jogador');
-        if (bannerUrl) {
-            builder.gallery([bannerUrl]);
-            builder.separator();
-        }
+        builder.title(`${EMOJIS.strike || '📜'} Histórico do Jogador`);
+        builder.separator();
+
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `# ${target.toString()}\n${target.username}\n(\`${target.id}\`)`,
+            `# ${target.toString()}|ID ALDERON:123-456-789\n${target.username}\n(\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(avatar),
         );
 
@@ -162,42 +158,17 @@ const PunishmentSystem = {
         return builder;
     },
 
-    // ⚠️ MANTIDO por compatibilidade com qualquer chamada externa antiga.
-    // Não é mais usado pelo fluxo principal de /historico (ver buildHistoryPages).
-    generateHistoryButtons(targetId, currentPage, totalPages) {
-        if (totalPages <= 1) return null;
-        
-        return new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId(`punishment:history:prev:${targetId}:${currentPage - 1}`)
-                .setEmoji('⬅️')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(currentPage === 1),
-            new ButtonBuilder()
-                .setCustomId(`punishment:history:next:${targetId}:${currentPage + 1}`)
-                .setEmoji('➡️')
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(currentPage === totalPages)
-        );
-    },
-    
     generateStrikeUnifiedContainer(target, moderator, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DANGER });
-
-        // ── Banner de título — só adiciona se a imagem existir de fato ──────
-        const bannerUrl = imageManager.getUrl('title_strike');
-        if (bannerUrl) {
-            builder.gallery([bannerUrl]);
-            builder.separator();
-        }
+        builder.banner('title_strike');
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${moderator.toString()}\n${moderator.username} (\`${moderator.id}\`)`,
+            `## ${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
         );
         builder.separator();
@@ -205,7 +176,7 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Usuário alvo da punição ─────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${target?.toString() || 'Desconhecido'}\n${target?.username || '?'} (\`${target?.id || '?'}\`)`,
+            `## ${target?.toString() || 'Desconhecido'}|ID ALDERON:123-456-789\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -234,13 +205,7 @@ const PunishmentSystem = {
     
     generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
-
-        // ── Banner de título — só adiciona se a imagem existir de fato ──────
-        const bannerUrl = imageManager.getUrl('title_strike_removido');
-        if (bannerUrl) {
-            builder.gallery([bannerUrl]);
-            builder.separator();
-        }
+        builder.banner('title_strike_removido');
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -253,7 +218,7 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## JOGADOR\n${target?.toString() || 'Desconhecido'}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${target?.toString() || 'Desconhecido'}|ID ALDERON:123-456-789\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -318,6 +283,9 @@ const PunishmentSystem = {
                 case 'confirm':
                     await this.handleStrikeConfirmation(interaction, subAction);
                     break;
+                case 'unstrike_confirm':
+                    await this.handleUnstrikeConfirmation(interaction, subAction);
+                    break;
                 default:
                     await interaction.editReply({ content: `❌ Ação "${action}" não reconhecida.`, components: [] });
             }
@@ -326,138 +294,239 @@ const PunishmentSystem = {
             await interaction.editReply({ content: '❌ Ocorreu um erro.', components: [] });
         }
     },
-    
-    async handleModal(interaction, action) {
-        try {
-            switch (action) {
-                case 'strike':
-                    await this.processStrikeModal(interaction);
-                    break;
-                case 'unstrike':
-                    await this.processUnstrikeModal(interaction);
-                    break;
-                default:
-                    await interaction.editReply({ content: `❌ Modal "${action}" não reconhecido.`, flags: 64 });
-            }
-        } catch (error) {
-            console.error('❌ Erro no handleModal:', error);
-            await interaction.editReply({ content: '❌ Ocorreu um erro.', flags: 64 });
-        }
-    },
 
-    // ⚠️ NOTA: handleHistoryPagination foi REMOVIDO. A paginação do /historico
-    // agora é feita inteiramente pelo PaginationBuilder (mesmo padrão do
-    // /ajuda), que já cria seu próprio collector de botões e não passa mais
-    // pelo handler central de componentes. Veja historico.js.
-    
     async handleStrikeConfirmation(interaction, action) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending');
+        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
         if (!session) {
-            return await interaction.editReply({ content: '❌ Sessão expirada.', components: [] });
+            return await interaction.editReply({ content: '❌ Sessão expirada. Use /strike novamente.', components: [] });
         }
         
         if (action === 'cancel') {
-            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
-            return await interaction.editReply({ content: '❌ Cancelado.', components: [] });
+            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+            return await interaction.editReply({ content: '❌ Punição cancelada.', components: [] });
         }
         
         if (action === 'confirm') {
-            const { targetId, reason, severity, reportId, discordAct, discordActionResult } = session;
-            const pointsLost = this.getPointsBySeverity(severity);
-            const currentRep = await this.getUserData(interaction.guildId, targetId);
-            const newPoints = Math.max(0, currentRep.reputation - pointsLost);
-            
-            const strikeNumber = this.applyPunishment(interaction.guildId, targetId, interaction.user.id, reason, severity, reportId, pointsLost);
-            const target = await interaction.client.users.fetch(targetId).catch(() => null);
-            
-            const container = this.generateStrikeUnifiedContainer(target, interaction.user, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, interaction.guild.name, null);
-            
-            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending');
-            const { components, flags } = container.build();
-            const bannerAttachment = imageManager.getAttachment('title_strike');
-            const replyData = { components, flags: [flags] };
-            if (bannerAttachment) replyData.files = [bannerAttachment];
-            await interaction.editReply(replyData);
+            const ConfigSystem = require('./configSystem');
+            const AnalyticsSystem = require('./analyticsSystem');
+
+            let emojis = {};
+            try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+            const { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost } = session;
+            const guild = interaction.guild;
+            const staff = interaction.user;
+
+            const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
+            if (!targetUser) {
+                SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+                return await interaction.editReply({ content: '❌ Usuário não encontrado.', components: [] });
+            }
+
+            const targetMember = await guild.members.fetch(targetId).catch(() => null);
+
+            const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guild.id, targetId)?.points || 100;
+            const newPoints = Math.max(0, currentRep - pointsLost);
+
+            let durationMs = 0;
+            if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
+                durationMs = this.parseDuration(durationStr);
+            }
+
+            const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
+            if (!strikeId) {
+                SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+                return await interaction.editReply({ content: '❌ Erro ao aplicar punição no banco de dados.', components: [] });
+            }
+
+            let discordActionResult = null;
+            if (discordAct && discordAct !== 'none' && targetMember) {
+                try {
+                    switch (discordAct) {
+                        case 'timeout':
+                            await targetMember.timeout(durationMs > 0 ? durationMs : 60000, reason);
+                            discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
+                            break;
+                        case 'kick':
+                            await targetMember.kick(reason);
+                            discordActionResult = 'Expulsão aplicada';
+                            break;
+                        case 'ban':
+                            await targetMember.ban({ reason });
+                            discordActionResult = 'Banimento aplicado';
+                            break;
+                    }
+                } catch (err) {
+                    discordActionResult = `❌ Erro: ${err.message}`;
+                }
+            }
+
+            const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
+
+            require('../database/index').logActivity(guild.id, staff.id, 'strike', targetId, {
+                command: 'strike', punishmentId: strikeId, severity, pointsLost,
+                oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
+                temporaryRoleApplied: roleResult.applied
+            });
+
+            await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
+
+            const containerBuilder = this.generateStrikeUnifiedContainer(
+                targetUser, staff, strikeId, severity, reason, reportId || null,
+                pointsLost, newPoints, discordAct, discordActionResult, guild.name, null
+            );
+            const { components, flags, files: filesPayload } = containerBuilder.build();
+
+            let dmDelivered = false;
+            if (targetMember) {
+                try {
+                    await targetMember.send({ components, flags: [flags], files: filesPayload });
+                    dmDelivered = true;
+                } catch (err) {
+                    dmDelivered = false;
+                }
+            }
+
+            let logSent = false;
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
+            if (logChannelId) {
+                try {
+                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                    if (logChannel) {
+                        await logChannel.send({ components, flags: [flags], files: filesPayload });
+                        logSent = true;
+                    }
+                } catch (err) {}
+            }
+
+            const dmStatusMsg = dmDelivered
+                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
+
+            const roleStatusMsg = roleResult.applied
+                ? `${emojis.strike || '⚠️'} Cargo de Strike aplicado temporariamente.`
+                : (roleResult.error ? `${emojis.Note || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
+
+            const summaryLines = [
+                `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**`,
+                `📉 ${pointsLost} pts perdidos`,
+                `⭐ Reputação: ${newPoints}/100`,
+                dmStatusMsg,
+            ];
+            if (roleStatusMsg) summaryLines.push(roleStatusMsg);
+            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+
+            SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
+            await interaction.editReply({ content: summaryLines.join('\n'), components: [] });
         }
     },
     
-    async processStrikeModal(interaction) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_modal');
+    async handleUnstrikeConfirmation(interaction, action) {
+        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
         if (!session) {
-            return await interaction.editReply({ content: '❌ Sessão expirada.', flags: 64 });
+            return await interaction.editReply({ content: '❌ Sessão expirada. Use /unstrike novamente.', components: [] });
         }
-        
-        const reason = interaction.fields.getTextInputValue('reason');
-        const severity = parseInt(session.severity);
-        const pointsLost = this.getPointsBySeverity(severity);
-        
-        SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', {
-            targetId: session.targetId,
-            reason,
-            severity,
-            reportId: session.reportId,
-            pointsLost,
-            discordAct: session.discordAct,
-            discordActionResult: session.discordActionResult
-        }, 120000);
-        
-        const target = await interaction.client.users.fetch(session.targetId).catch(() => null);
-        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.WARNING });
-        builder.title(`${EMOJIS.Warning || '⚠️'} Confirmar Aplicação de Strike`, 1);
-        builder.separator();
-        builder.text(`**👤 Usuário:** ${target?.tag || session.targetId}`);
-        builder.text(`**⚠️ Severidade:** ${severityNames[severity]}`);
-        builder.text(`**📝 Motivo:** ${reason}`);
-        builder.text(`**📉 Pontos a perder:** -${pointsLost}`);
-        builder.footer('Confirme ou cancele abaixo');
-        
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`punishment:confirm:confirm`).setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`punishment:confirm:cancel`).setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
-        );
-        
-        const { components, flags } = builder.build();
-        const replyData = { components, flags: [flags] };
-        replyData.components.push(row);
-        await interaction.editReply(replyData);
-        SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_modal');
+
+        if (action === 'cancel') {
+            SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
+            return await interaction.editReply({ content: '❌ Anulação cancelada.', components: [] });
+        }
+
+        if (action === 'confirm') {
+            const ConfigSystem = require('./configSystem');
+            const AnalyticsSystem = require('./analyticsSystem');
+
+            let emojis = {};
+            try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+            const { punishmentId, reason } = session;
+            const guild = interaction.guild;
+            const guildId = interaction.guildId;
+            const staff = interaction.user;
+
+            const punishment = db.prepare(`SELECT * FROM punishments WHERE id = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
+            if (!punishment) {
+                SessionManager.delete(interaction.user.id, guildId, 'unstrike_pending', 'unstrike_pending');
+                return await interaction.editReply({ content: '❌ Punição não encontrada ou já anulada.', components: [] });
+            }
+
+            const targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
+
+            // ── Usa o valor REAL gravado na punição (points_deducted), não um
+            // mapa fixo — garante que a devolução bate com o que foi de fato
+            // descontado, mesmo se os pontos de severidade tiverem sido
+            // reconfigurados depois em /config-punishments. ────────────────────
+            const pointsRestored = punishment.points_deducted || 0;
+            const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, punishment.user_id)?.points || 100;
+            const newPoints = Math.min(100, currentRep + pointsRestored);
+
+            db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
+                WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishmentId, guildId);
+            db.prepare(`UPDATE reputation SET points = MIN(100, points + ?) WHERE guild_id = ? AND user_id = ?`)
+                .run(pointsRestored, guildId, punishment.user_id);
+
+            const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
+            if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
+                try {
+                    await targetMember.roles.remove(strikeRoleId, `Punição #${punishmentId} anulada`);
+                } catch (err) {}
+            }
+            if (targetMember?.communicationDisabledUntilTimestamp) {
+                try {
+                    await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
+                } catch (err) {}
+            }
+
+            db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
+                command: 'unstrike', punishmentId, pointsRestored, oldPoints: currentRep, newPoints
+            });
+
+            await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
+
+            const targetUser = await interaction.client.users.fetch(punishment.user_id).catch(() => null);
+            const containerBuilder = this.generateUnstrikeUnifiedContainer(
+                targetUser, staff, punishmentId, reason, pointsRestored, newPoints, punishment.reason, guild.name
+            );
+            const { components, flags, files: filesPayload } = containerBuilder.build();
+
+            let dmDelivered = false;
+            if (targetUser) {
+                try {
+                    await targetUser.send({ components, flags: [flags], files: filesPayload });
+                    dmDelivered = true;
+                } catch (err) {
+                    dmDelivered = false;
+                }
+            }
+
+            let logSent = false;
+            const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
+            if (logChannelId) {
+                try {
+                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                    if (logChannel) {
+                        await logChannel.send({ components, flags: [flags], files: filesPayload });
+                        logSent = true;
+                    }
+                } catch (err) {}
+            }
+
+            const dmStatusMsg = dmDelivered
+                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
+
+            const summaryLines = [
+                `✅ **Strike #${punishmentId} anulado!**`,
+                `📈 +${pointsRestored} pts | ⭐ Reputação: ${newPoints}/100`,
+                dmStatusMsg,
+            ];
+            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+
+            SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
+            await interaction.editReply({ content: summaryLines.join('\n'), components: [] });
+        }
     },
-    
-    async processUnstrikeModal(interaction) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_modal');
-        if (!session) {
-            return await interaction.editReply({ content: '❌ Sessão expirada.', flags: 64 });
-        }
-        
-        const reason = interaction.fields.getTextInputValue('reason');
-        const strikeNumber = session.strikeId;
-        
-        const strike = db.prepare(`SELECT * FROM punishments WHERE guild_id = ? AND strike_number = ?`).get(interaction.guildId, strikeNumber);
-        
-        if (!strike) {
-            return await interaction.editReply({ content: '❌ Strike não encontrado.', flags: 64 });
-        }
-        
-        const pointsRestored = this.getPointsBySeverity(strike.severity);
-        const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(interaction.guildId, strike.user_id)?.points || 100;
-        const newPoints = Math.min(100, currentRep + pointsRestored);
-        
-        db.prepare(`DELETE FROM punishments WHERE guild_id = ? AND strike_number = ?`).run(interaction.guildId, strikeNumber);
-        db.prepare(`UPDATE reputation SET points = ? WHERE guild_id = ? AND user_id = ?`).run(newPoints, interaction.guildId, strike.user_id);
-        
-        const target = await interaction.client.users.fetch(strike.user_id).catch(() => null);
-        const container = this.generateUnstrikeUnifiedContainer(target, interaction.user, strikeNumber, reason, pointsRestored, newPoints, strike.reason, interaction.guild.name);
-        
-        const { components, flags } = container.build();
-        const bannerAttachment = imageManager.getAttachment('title_strike_removido');
-        const replyData = { components, flags: [flags] };
-        if (bannerAttachment) replyData.files = [bannerAttachment];
-        await interaction.editReply(replyData);
-        SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_modal');
-    },
-    
+
     // ==================== MÉTODOS DE NEGÓCIO ====================
 
     /**
@@ -519,11 +588,6 @@ const PunishmentSystem = {
         const type = durationStr.slice(-1).toLowerCase();
         const multipliers = { 'm': 60000, 'h': 3600000, 'd': 86400000 };
         return (multipliers[type] || 3600000) * timeValue;
-    },
-    
-    getPointsBySeverity(severity) {
-        const pointsMap = { 0: 0, 1: 5, 2: 15, 3: 30, 4: 50, 5: 100 };
-        return pointsMap[severity] || 10;
     },
     
     applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
