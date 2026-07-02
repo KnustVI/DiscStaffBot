@@ -1,11 +1,11 @@
-// /home/ubuntu/DiscStaffBot/src/commands/config/config-points.js
+// /home/ubuntu/DiscStaffBot/src/commands/config/config-punishments.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('config-points')
+        .setName('config-punishments')
         .setDescription('⚙️ Configura os pontos dos níveis de Strike e limites de reputação.')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
@@ -21,11 +21,8 @@ module.exports = {
 
         const ConfigSystem = require('../../systems/configSystem.js');
 
-        // ✅ Usa o MESMO painel "vivo" que os botões usam pra editar depois.
-        // Antes o comando duplicava a renderização com um banner sem guard
-        // (`builder.gallery([bannerUrl])` sem checar null), o que quebrava
-        // o comando quando a imagem 'config_punições' não existia.
-        // Agora comando e botões nunca ficam dessincronizados.
+        // Usa o MESMO painel "vivo" que os botões usam pra editar depois,
+        // assim comando e botões nunca ficam dessincronizados.
         await ConfigSystem.refreshPointsPanel(interaction, null, guild.name);
     }
 };

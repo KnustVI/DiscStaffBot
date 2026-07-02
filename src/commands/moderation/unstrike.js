@@ -1,9 +1,9 @@
 // /home/ubuntu/DiscStaffBot/src/commands/moderation/unstrike.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
+const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
-const AnalyticsSystem = require('../../systems/analyticsSystem');
-const imageManager = require('../../utils/imageManager');
+const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,159 +14,83 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
     async execute(interaction, client) {
-        const startTime = Date.now();
         const { guild, options, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
-        
+
         const punishmentId = options.getInteger('id');
         const reason = options.getString('motivo');
-        
+
         let emojis = {};
         try {
-            const emojisFile = require('../../database/emojis.js');
-            emojis = emojisFile.EMOJIS || {};
+            emojis = require('../../database/emojis.js').EMOJIS || {};
         } catch (err) {}
-        
+
         try {
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
-            
-            const ConfigSystem = require('../../systems/configSystem');
-            const PunishmentSystem = require('../../systems/punishmentSystem');
-            
+
             const punishment = db.prepare(`
                 SELECT * FROM punishments WHERE id = ? AND guild_id = ? AND status = 'active'
             `).get(punishmentId, guildId);
-            
+
             if (!punishment) {
                 return await ResponseManager.error(interaction, `Punição #${punishmentId} não encontrada ou já anulada.`);
             }
-            
+
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
             } catch (err) {}
-            
-            const isStaffHigher = targetMember && 
-                targetMember.roles.highest.position >= staffMember.roles.highest.position && 
+
+            const isStaffHigher = targetMember &&
+                targetMember.roles.highest.position >= staffMember.roles.highest.position &&
                 staff.id !== guild.ownerId;
-            
+
             if (isStaffHigher) {
                 return await ResponseManager.error(interaction, 'Você não pode anular punições de um cargo superior.');
             }
-            
-            const pointsMap = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
-            const pointsToRestore = pointsMap[punishment.severity] || 10;
-            
+
+            const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
+            const pointsToRestore = punishment.points_deducted || 0;
             const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`)
                 .get(guildId, punishment.user_id)?.points || 100;
-            const newPoints = Math.min(100, currentRep + pointsToRestore);
-            
-            db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
-                WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishmentId, guildId);
-            
-            db.prepare(`
-                UPDATE reputation SET points = MIN(100, points + ?)
-                WHERE guild_id = ? AND user_id = ?
-            `).run(pointsToRestore, guildId, punishment.user_id);
-            
-            const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
-            if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
-                try {
-                    await targetMember.roles.remove(strikeRoleId, `Punição #${punishmentId} anulada`);
-                } catch (err) {}
-            }
-            
-            if (targetMember?.communicationDisabledUntilTimestamp) {
-                try {
-                    await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
-                } catch (err) {}
-            }
-            
-            db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
-                command: 'unstrike', punishmentId, pointsRestored: pointsToRestore, oldPoints: currentRep, newPoints
-            });
-            
-            await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
-            
-            const targetUser = await client.users.fetch(punishment.user_id).catch(() => null);
-            
-            const containerBuilder = PunishmentSystem.generateUnstrikeUnifiedContainer(
-                targetUser,
-                staff,
+            const previewPoints = Math.min(100, currentRep + pointsToRestore);
+
+            // ── Guarda os dados da anulação pendente. A aplicação real só
+            // acontece quando o staff clicar em "Confirmar" (ver
+            // punishmentSystem.handleUnstrikeConfirmation). Mesmo padrão do
+            // /strike, evita anulações aplicadas por engano com um clique só. ──
+            sessionManager.set(staff.id, guildId, 'unstrike_pending', 'unstrike_pending', {
                 punishmentId,
                 reason,
-                pointsToRestore,
-                newPoints,
-                punishment.reason,
-                guild.name
+            }, 120000);
+
+            const severityIcons = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'];
+
+            const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
+            builder.title(`${emojis.Warning || '⚠️'} Confirmar Anulação de Strike`, 1);
+            builder.separator();
+            builder.text(`**👤 Usuário:** ${targetUser?.tag || punishment.user_id}`);
+            builder.text(`${severityIcons[punishment.severity] || '❓'} **Strike:** #${punishmentId}`);
+            builder.text(`**📝 Motivo original:** ${punishment.reason}`);
+            builder.text(`**📝 Motivo da anulação:** ${reason}`);
+            builder.separator();
+            builder.text(`**📈 Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
+            builder.footer('Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('punishment:unstrike_confirm:confirm').setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('punishment:unstrike_confirm:cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
             );
 
-            const { components, flags } = containerBuilder.build();
+            const { components, flags } = builder.build();
+            await interaction.editReply({ components: [...components, row], flags: [flags] });
 
-            // ── Banner de título: attachment buscado uma vez, reenviado em
-            // toda mensagem que usa este container (DM e canal de log) ────────
-            const bannerAttachment = imageManager.getAttachment('title_strike_removido');
-            const filesPayload = bannerAttachment ? [bannerAttachment] : [];
-
-            // ── DM do usuário — captura o resultado REAL do envio (não engole
-            // o erro), para sabermos se a DM foi entregue de fato e avisar o
-            // staff corretamente. Mesmo padrão aplicado no /strike. ────────────
-            let dmDelivered = false;
-            if (targetUser) {
-                try {
-                    await targetUser.send({ components, flags: [flags], files: filesPayload });
-                    dmDelivered = true;
-                } catch (err) {
-                    // Erro 50007 = "Cannot send messages to this user" → DMs bloqueadas/fechadas.
-                    dmDelivered = false;
-                    console.warn(`⚠️ [UNSTRIKE] Não foi possível enviar DM para ${targetUser.tag}: ${err.message}`);
-                }
-            }
-
-            // ── Log no canal configurado (log_punishments) ──────────────────────
-            let logSent = false;
-            const logChannelId = ConfigSystem.getSetting(guildId, 'log_punishments');
-            if (logChannelId) {
-                try {
-                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-                    if (logChannel) {
-                        await logChannel.send({ components, flags: [flags], files: filesPayload });
-                        logSent = true;
-                    } else {
-                        console.warn(`⚠️ [UNSTRIKE] Canal de log de punições (${logChannelId}) não encontrado/acessível.`);
-                    }
-                } catch (err) {
-                    console.error('❌ Erro ao enviar log de anulação no canal:', err);
-                }
-            } else {
-                console.warn(`⚠️ [UNSTRIKE] Canal de log de punições não configurado para a guild ${guildId}.`);
-            }
-
-            // ── Monta o aviso para o staff que anulou o strike ──────────────────
-            const dmStatusMsg = dmDelivered
-                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
-                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
-
-            const summaryLines = [
-                `✅ **Strike #${punishmentId} anulado!**`,
-                `📈 +${pointsToRestore} pts | ⭐ Reputação: ${newPoints}/100`,
-                dmStatusMsg,
-            ];
-            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
-
-            await interaction.editReply({ 
-                content: summaryLines.join('\n'),
-                components: []
-            });
-            
-            console.log(`📊 [UNSTRIKE] ${staff.tag} anulou #${punishmentId} | DM:${dmDelivered} | Log:${logSent} | ${Date.now() - startTime}ms`);
-            
         } catch (error) {
             console.error('❌ Erro no unstrike:', error);
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
-            await ResponseManager.error(interaction, 'Erro ao anular strike. A equipe foi notificada.');
+            await ResponseManager.error(interaction, 'Erro ao preparar anulação de strike. A equipe foi notificada.');
         }
     }
 };

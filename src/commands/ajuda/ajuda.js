@@ -3,23 +3,13 @@ const { SlashCommandBuilder, ButtonStyle, MessageFlags } = require('discord.js')
 const db = require('../../database/index');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
-const imageManager = require('../../utils/imageManager');
 
 // ---------------------------------------------------------------------------
 // Fábrica de páginas
 // ---------------------------------------------------------------------------
-// Cada página recebe `bannerUrl` e, se existir, adiciona o banner de título
-// via gallery() — mesmo padrão usado em generateHistoryContainer (punishmentSystem.js).
-// O attachment correspondente (arquivo de fato) é buscado uma única vez em
-// execute() e reaplicado em toda transição de página pelo PaginationBuilder.
 
-function buildPageWelcome(displayName, guildName, emojis, bannerUrl) {
+function buildPageWelcome(displayName, guildName, emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-
-    if (bannerUrl) {
-        builder.gallery([bannerUrl]);
-        builder.separator();
-    }
 
     return builder
         .title(`${emojis.user || '🤖'} Assistente Titan`)
@@ -30,7 +20,7 @@ function buildPageWelcome(displayName, guildName, emojis, bannerUrl) {
         .block([
             '• **/config-logs** — Configura os canais de log (Geral, Punições, AutoMod, ReportChat)',
             '• **/config-roles** — Configura cargos (Staff é OBRIGATÓRIO!)',
-            '• **/config-points** — Configura pontos dos strikes e limites de reputação',
+            '• **/config-punishments** — Configura pontos dos strikes e limites de reputação',
         ])
         .separator()
         .title(`${emojis.chat || '🎫'} ReportChat`, 2)
@@ -40,13 +30,8 @@ function buildPageWelcome(displayName, guildName, emojis, bannerUrl) {
         ]);
 }
 
-function buildPageModeration(emojis, bannerUrl) {
+function buildPageModeration(emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-
-    if (bannerUrl) {
-        builder.gallery([bannerUrl]);
-        builder.separator();
-    }
 
     return builder
         .title(`${emojis.strike || '🛠️'} Moderação e Reputação`)
@@ -68,13 +53,8 @@ function buildPageModeration(emojis, bannerUrl) {
         ]);
 }
 
-function buildPageAutomod(emojis, bannerUrl) {
+function buildPageAutomod(emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-
-    if (bannerUrl) {
-        builder.gallery([bannerUrl]);
-        builder.separator();
-    }
 
     return builder
         .title(`${emojis.AutoMod || '🛡️'} Auto Moderação`)
@@ -98,13 +78,8 @@ function buildPageAutomod(emojis, bannerUrl) {
         ]);
 }
 
-function buildPageUserSimple(displayName, guildName, emojis, bannerUrl) {
+function buildPageUserSimple(displayName, guildName, emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-
-    if (bannerUrl) {
-        builder.gallery([bannerUrl]);
-        builder.separator();
-    }
 
     return builder
         .title(`${emojis.user || '🤖'} Assistente Titan`)
@@ -152,17 +127,12 @@ module.exports = {
 
             const isAdmin = member.permissions.has('Administrator');
 
-            // ── Banner de título: busca URL (pra referenciar no container)
-            const bannerUrl = imageManager.getUrl('title_ajuda');
-            const bannerAttachment = imageManager.getAttachment('title_ajuda');
-
             // ----------------------------------------------------------------
             // Usuário comum - Mensagem única
             // ----------------------------------------------------------------
             if (!isAdmin) {
-                const page = buildPageUserSimple(member.displayName, guild.name, emojis, bannerUrl);
+                const page = buildPageUserSimple(member.displayName, guild.name, emojis);
                 const payload = page.build();
-                if (bannerAttachment) payload.files = [bannerAttachment];
                 await interaction.editReply(payload);
                 console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (usuário comum)`);
                 return;
@@ -178,10 +148,9 @@ module.exports = {
             });
 
             pagination
-                .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis, bannerUrl))
-                .addPage(() => buildPageModeration(emojis, bannerUrl))
-                .addPage(() => buildPageAutomod(emojis, bannerUrl))
-                .setFiles(bannerAttachment ? [bannerAttachment] : [])
+                .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis))
+                .addPage(() => buildPageModeration(emojis))
+                .addPage(() => buildPageAutomod(emojis))
                 .setButtons({
                     prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
                     next: { label: 'Próxima ▶', style: ButtonStyle.Primary },

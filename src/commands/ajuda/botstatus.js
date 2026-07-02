@@ -4,7 +4,6 @@ const db = require('../../database/index');
 const SystemStatus = require('../../systems/systemStatus');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
-const imageManager = require('../../utils/imageManager');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -59,14 +58,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     const healthEmoji  = isHealthy ? '🟢' : '🔴';
     const healthStatus = isHealthy ? 'Saudável' : 'Crítico — Verifique os logs';
 
-    // ── Banner de título — só adiciona se a imagem existir de fato ──────
-    const bannerUrl = imageManager.getUrl('title_botstatus');
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-
-    if (bannerUrl) {
-        builder.gallery([bannerUrl]);
-        builder.separator();
-    }
 
     builder
         .title(`${emojis.panel || '🖥️'} Painel de Controle do Bot`)
@@ -165,12 +157,6 @@ module.exports = {
             });
 
             const payload = builder.build();
-
-            // ── Banner de título: attachment do arquivo de fato (sem isso, a
-            // URL attachment:// dentro do container não resolve para nada) ────
-            const bannerAttachment = imageManager.getAttachment('title_botstatus');
-            if (bannerAttachment) payload.files = [bannerAttachment];
-
             await interaction.editReply(payload);
 
             db.logActivity(guildId, user.id, 'status_command', null, {

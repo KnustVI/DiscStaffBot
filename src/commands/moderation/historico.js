@@ -5,7 +5,6 @@ const ResponseManager = require('../../utils/responseManager');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
-const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -45,15 +44,9 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
 
-            // ── Banner de título: busca o attachment UMA vez (reutilizado em
-            // toda a navegação, já que generateHistoryContainer só referencia
-            // a URL attachment://, não o arquivo em si) ──────────────────────
-            const bannerAttachment = imageManager.getAttachment('title_historico_de_jogador');
-
             // ── Sem registros: envia só a página única, sem botões de navegação ──
             if (totalPages <= 1) {
                 const payload = pages[0]().build();
-                if (bannerAttachment) payload.files = [bannerAttachment];
                 await interaction.editReply(payload);
                 console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);
                 return;
@@ -68,7 +61,6 @@ module.exports = {
 
             pagination
                 .addPages(...pages)
-                .setFiles(bannerAttachment ? [bannerAttachment] : [])
                 .setButtons({
                     prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
                     next: { label: 'Próxima ▶', style: ButtonStyle.Primary },

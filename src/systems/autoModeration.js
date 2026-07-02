@@ -100,9 +100,10 @@ class AutoModerationSystem {
         const ConfigSystem = require('./configSystem');
         const current = ConfigSystem.getSetting(interaction.guildId, 'automod_enabled') === 'true';
         const newValue = !current;
-        
+
         ConfigSystem.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
-        
+        await ConfigSystem.logConfigChange(interaction, `${EMOJIS.AutoMod || '🛡️'} Auto Moderação: ${newValue ? 'ativada' : 'desativada'}`);
+
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`, 1);
         builder.text(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`);
@@ -190,9 +191,16 @@ class AutoModerationSystem {
             });
         }
         
+        const oldExemplar = ConfigSystem.getSetting(interaction.guildId, 'limit_exemplar');
+        const oldProblematic = ConfigSystem.getSetting(interaction.guildId, 'limit_problematico');
+
         ConfigSystem.setSetting(interaction.guildId, 'limit_exemplar', exLimit.toString());
         ConfigSystem.setSetting(interaction.guildId, 'limit_problematico', probLimit.toString());
-        
+        await ConfigSystem.logConfigChange(interaction, [
+            `${EMOJIS.shinystar || '🎖️'} Limite Exemplar: \`${oldExemplar || 95}\` → \`${exLimit}\``,
+            `${EMOJIS.Warning || '⚠️'} Limite Problemático: \`${oldProblematic || 30}\` → \`${probLimit}\``,
+        ]);
+
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         builder.title(`${EMOJIS.Check || '✅'} Configurações Atualizadas`, 1);
         builder.separator();

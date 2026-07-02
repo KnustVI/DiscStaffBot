@@ -156,9 +156,9 @@ module.exports = {
 
             // ==================== CONFIGURAÇÕES ====================
 
-            if (interaction.customId === 'config-points:strike:modal') { await ConfigSystem.handleStrikeModal(interaction); return; }
-            if (interaction.customId === 'config-points:limites:modal') { await ConfigSystem.handleLimitesModal(interaction); return; }
-            if (interaction.customId === 'config-points:reset') { await ConfigSystem.resetPoints(interaction); return; }
+            if (interaction.customId === 'config-punishments:strike:modal') { await ConfigSystem.handleStrikeModal(interaction); return; }
+            if (interaction.customId === 'config-punishments:limites:modal') { await ConfigSystem.handleLimitesModal(interaction); return; }
+            if (interaction.customId === 'config-punishments:reset') { await ConfigSystem.resetPoints(interaction); return; }
             if (interaction.customId === 'config-roles:staff') { await ConfigSystem.setRole(interaction, 'staff_role'); return; }
             if (interaction.customId === 'config-roles:strike') { await ConfigSystem.setRole(interaction, 'strike_role'); return; }
             if (interaction.customId === 'config-roles:exemplar') { await ConfigSystem.setRole(interaction, 'role_exemplar'); return; }
@@ -168,8 +168,8 @@ module.exports = {
             if (interaction.customId === 'config-logs:automod') { await ConfigSystem.setLogChannel(interaction, 'log_automod'); return; }
             if (interaction.customId === 'config-logs:reports') { await ConfigSystem.setLogChannel(interaction, 'log_reports'); return; }
             if (interaction.customId === 'config-logs:criar') { await ConfigSystem.createLogChannels(interaction); return; }
-            if (interaction.customId === 'config-points:strike:modal:submit') { await ConfigSystem.processPointsStrikeModal(interaction); return; }
-            if (interaction.customId === 'config-points:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
+            if (interaction.customId === 'config-punishments:strike:modal:submit') { await ConfigSystem.processPointsStrikeModal(interaction); return; }
+            if (interaction.customId === 'config-punishments:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
 
             // ==================== PATH OF TITANS - RESET ====================
 
