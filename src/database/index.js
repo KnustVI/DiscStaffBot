@@ -66,7 +66,12 @@ class DatabaseManager {
                 'staff_analytics',
                 'activity_logs',
                 'temporary_roles',
-                'feedbacks'
+                'feedbacks',
+                'sequences',
+                'pot_servers',
+                'pot_players',
+                'pot_logs',
+                'pot_tokens'
             ];
             
             for (const table of tables) {
@@ -89,12 +94,30 @@ class DatabaseManager {
                     // Ignorar erros de índices
                 }
             }
-            
+
+            // Colunas adicionadas depois da criação inicial das tabelas.
+            // CREATE TABLE IF NOT EXISTS não adiciona colunas em bancos já
+            // existentes, então precisamos de ALTER TABLE aqui (idempotente:
+            // se a coluna já existe, o erro é ignorado).
+            this.ensureColumn('reports', 'type', "TEXT NOT NULL DEFAULT 'report'");
+            this.ensureColumn('reports', 'punishment_id', 'INTEGER');
+
             console.log('📋 Schema do banco de dados criado');
-            
+
         } catch (error) {
             console.error('❌ Erro ao criar tabelas:', error);
             throw error;
+        }
+    }
+
+    // Adiciona uma coluna a uma tabela existente se ela ainda não existir.
+    // Idempotente: chamar em toda inicialização é seguro.
+    ensureColumn(table, column, definition) {
+        try {
+            this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+            console.log(`   ✅ Coluna ${table}.${column} adicionada`);
+        } catch (err) {
+            // Coluna já existe (ou tabela ainda não existe) — ignorar.
         }
     }
     

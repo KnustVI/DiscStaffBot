@@ -12,6 +12,7 @@ const {
     MessageFlags,
 } = require('discord.js');
 const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { getAlderonIdSuffix } = require('./potPlayerRegistry');
 
 let EMOJIS = {};
 try {
@@ -58,14 +59,34 @@ class ReportChatSystem {
 
     // ==================== BASE CONTAINER ====================
 
+    /**
+     * Container compartilhado entre a DM do usuário e o painel de log da
+     * staff — ambos são sempre EDITADOS (nunca recriados) a cada mudança de
+     * status, para manter as duas cópias sincronizadas.
+     *
+     * options.audience controla o que difere entre as duas audiências:
+     *  - 'dm'    → tem banner de topo; NUNCA mostra timestamps brutos.
+     *  - 'staff' (padrão) → sem banner; mostra timestamp de entrada de cada
+     *    staff, de fechamento e de atualização de status.
+     *
+     * Em ambas: o usuário que abriu o chat e o primeiro staff que entrou
+     * ganham um card completo (seção + thumbnail); os demais presentes
+     * aparecem só como menção simples.
+     */
     createBaseContainer(guild, reportNumber, user, status = 'waiting', staffs = [], options = {}) {
+        const audience = options.audience === 'dm' ? 'dm' : 'staff';
+        const showTimestamps = audience === 'staff';
+
         // Buscar informações adicionais do report
         const reportInfo = db.prepare(`
-            SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment, rating, rating_comment, thread_id
-            FROM reports 
+            SELECT last_reply_by, last_reply_at, closed_by, closed_at, closed_reason, punishment,
+                   rating, rating_comment, thread_id, type
+            FROM reports
             WHERE guild_id = ? AND report_number = ?
         `).get(guild.id, reportNumber);
-        
+
+        const typeLabel = reportInfo?.type === 'punishment_review' ? 'REVISÃO DE PUNIÇÃO' : 'REPORTE';
+
         // Determinar a cor baseada no status
         let color;
         if (status === 'closed_no_reason' || status === 'closed_with_reason') {
@@ -75,25 +96,57 @@ class ReportChatSystem {
         } else {
             color = 0xED4245; // error
         }
-        
+
         const builder = new AdvancedContainerBuilder({ accentColor: color });
-        if (options.banner) builder.banner('title_report_chat');
+        if (audience === 'dm') builder.banner('title_report_chat');
         const reportIdDisplay = `#R${reportNumber}`;
-        
-        // ==================== 1. HEADER COM THUMBNAIL ====================
-        const thumbnail = AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 64 }));
+
+        // ==================== 1. TÍTULO ====================
+        builder.text(`## ${typeLabel} | ${reportIdDisplay}`);
+        builder.separator();
+
+        // ==================== 2. CARD DO JOGADOR (quem abriu) ====================
+        const userAlderonSuffix = getAlderonIdSuffix(guild.id, user.id);
         builder.section(
-            `# REPORTE | ${reportIdDisplay} │ ${user.toString()}\n**Userinfo:** ${user.tag} (${user.id})`,
-            thumbnail
+            `## JOGADOR\n${user.toString()}${userAlderonSuffix ? ` ${userAlderonSuffix}` : ''}\n${user.username}\n(\`${user.id}\`)`,
+            AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 128 })),
         );
-        
-        // ==================== 2. STATUS ====================
+        builder.separator();
+
+        // ==================== 3. PRESENÇA: 1º staff com card, resto por menção ====================
+        if (staffs && staffs.length > 0) {
+            const [firstStaff, ...restStaffs] = staffs;
+            const firstStaffUser = this.client.users.cache.get(firstStaff.id);
+
+            if (firstStaffUser) {
+                builder.section(
+                    `## STAFF RESPONSAVEL\n${firstStaffUser.toString()}\n${firstStaffUser.username}\n(\`${firstStaffUser.id}\`)`,
+                    AdvancedContainerBuilder.thumbnail(firstStaffUser.displayAvatarURL({ size: 128 })),
+                );
+            } else {
+                builder.text(`## STAFF RESPONSAVEL\n<@${firstStaff.id}>`);
+            }
+            builder.separator();
+
+            if (restStaffs.length > 0) {
+                let restText = `### 👥 Demais presentes:\n`;
+                for (const s of restStaffs) {
+                    restText += showTimestamps
+                        ? `<@${s.id}> (entrou <t:${Math.floor(s.timestamp / 1000)}:R>)\n`
+                        : `<@${s.id}>\n`;
+                }
+                builder.text(restText);
+                builder.separator();
+            }
+        }
+
+        // ==================== 4. STATUS ====================
         let statusText = '';
         let closedByName = null;
         let closedAt = null;
         let closedReason = reportInfo?.closed_reason || null;
         let punishment = reportInfo?.punishment || null;
-        
+
         if (reportInfo && reportInfo.closed_by) {
             try {
                 const closedUser = this.client.users.cache.get(reportInfo.closed_by);
@@ -103,21 +156,22 @@ class ReportChatSystem {
                 closedByName = `Usuário (${reportInfo.closed_by})`;
             }
         }
-        
-        const closedTime = closedAt ? `<t:${Math.floor(closedAt / 1000)}:R>` : '';
-        
+
+        const closedTime = showTimestamps && closedAt ? ` <t:${Math.floor(closedAt / 1000)}:R>` : '';
+
         if (status === 'closed_with_reason') {
-            statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName} ${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
+            statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName}${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
         } else if (status === 'closed_no_reason') {
-            statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName} ${closedTime}`;
+            statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName}${closedTime}`;
         } else if (status === 'waiting') {
             statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
         } else if (status === 'responded') {
-            statusText = `### 📊 Status:\n💬 **Respondido**`;
+            const respondedTime = showTimestamps && reportInfo?.last_reply_at ? ` <t:${Math.floor(reportInfo.last_reply_at / 1000)}:R>` : '';
+            statusText = `### 📊 Status:\n💬 **Respondido**${respondedTime}`;
         } else if (status === 'inactive') {
-            statusText = `### 📊 Status:\n⚠️ **Inativo** (4h sem mensagens)`;
+            statusText = `### 📊 Status:\n⚠️ **Inativo** (24h sem mensagens)`;
         }
-        
+
         // Criar botão de link se existir thread
         if (reportInfo?.thread_id) {
             const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
@@ -130,25 +184,14 @@ class ReportChatSystem {
             builder.text(statusText);
         }
         builder.separator();
-        
-        // ==================== 3. MOTIVO ====================
+
+        // ==================== 5. MOTIVO ====================
         if (closedReason) {
             builder.text(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
             builder.separator();
         }
-        
-        // ==================== 4. STAFFS ====================
-        if (staffs && staffs.length > 0) {
-            let staffsText = `### 👥 Staffs:\n`;
-            for (const s of staffs) {
-                const entryTime = `<t:${Math.floor(s.timestamp / 1000)}:R>`;
-                staffsText += `<@${s.id}> (entrou ${entryTime})\n`;
-            }
-            builder.text(staffsText);
-            builder.separator();
-        }
-        
-        // ==================== 5. AVALIAÇÃO ====================
+
+        // ==================== 6. AVALIAÇÃO (sempre sem timestamp) ====================
         if (reportInfo?.rating && reportInfo.rating > 0) {
             const stars = '⭐'.repeat(reportInfo.rating);
             let ratingText = `### ⭐ Avaliação: ${reportInfo.rating}/5\n`;
@@ -159,10 +202,10 @@ class ReportChatSystem {
             builder.text(ratingText);
             builder.separator();
         }
-        
-        // ==================== 6. FOOTER ====================
+
+        // ==================== 7. FOOTER ====================
         builder.footer();
-        
+
         return builder;
     }
 
@@ -204,8 +247,16 @@ class ReportChatSystem {
         return modal;
     }
 
+    getReviewModal() {
+        const modal = new ModalBuilder().setCustomId('review_modal').setTitle('Revisar Punição');
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('strike_number').setLabel('Número do Strike a revisar').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 15'))
+        );
+        return modal;
+    }
+
     // ==================== PAINEL ====================
-    
+
     getPanel(guildName, guildIcon) {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
@@ -216,22 +267,30 @@ class ReportChatSystem {
             `- **Preencha o Formulário**: Responda o formulário enviado pelo bot.`,
             `- **Descreva a Situação**: Explique o que aconteceu.`,
             `- **Envie as Provas**: Inclua vídeos ou prints.`,
-            `- **Aguarde a Análise**: A equipe analisará o caso.`
+            `- **Aguarde a Análise**: A equipe analisará o caso.`,
+            ``,
+            `- **Revisar uma Punição**: Recebeu um strike e quer contestar? Use o botão "Revisar Punição" e informe o número do strike.`,
         ].join('\n'));
         builder.footer();
 
-        // Botão do painel usando ButtonBuilder
+        // Botões do painel usando ButtonBuilder
         const reportButton = new ButtonBuilder()
             .setCustomId('open_report')
             .setLabel('Reportar Jogador')
             .setStyle(ButtonStyle.Primary)
             .setEmoji(EMOJIS.chat || '🎫');
 
+        const reviewButton = new ButtonBuilder()
+            .setCustomId('review_punishment')
+            .setLabel('Revisar Punição')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji(EMOJIS.strike || '⚖️');
+
         const { components, flags, files } = builder.build();
 
-        // Container + botão separadamente
+        // Container + botões separadamente
         return {
-            components: [...components, new ActionRowBuilder().addComponents(reportButton)],
+            components: [...components, new ActionRowBuilder().addComponents(reportButton, reviewButton)],
             flags: [flags],
             files
         };
@@ -280,6 +339,14 @@ class ReportChatSystem {
                 files: threadFiles
             });
 
+            // Insere o report ANTES de montar os painéis de DM/log: createBaseContainer
+            // lê thread_id/type direto do banco, então sem isso os painéis iniciais
+            // saem sem o botão "Ir para o chat" e (no caso de revisão) com o título errado.
+            db.prepare(`
+                INSERT INTO reports (guild_id, report_number, user_id, thread_id, thread_message_id, status, staffs, created_at, last_message_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(guild.id, reportNumber, user.id, thread.id, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
+
             // ==================== CONTAINER DE INFORMAÇÕES ====================
             const infoBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
             infoBuilder.title(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
@@ -298,7 +365,7 @@ class ReportChatSystem {
             });
 
             // ==================== DM DO USUÁRIO ====================
-            const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { banner: true });
+            const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { audience: 'dm' });
 
             const closeButton = new ButtonBuilder()
                 .setCustomId(`close:${guild.id}:${reportNumber}`)
@@ -330,37 +397,200 @@ class ReportChatSystem {
                 .setStyle(ButtonStyle.Success);
                 
             const logCloseButton = new ButtonBuilder()
-                .setCustomId(`close:${reportId}`)
+                .setCustomId(`close:${guild.id}:${reportNumber}`)
                 .setLabel('Fechar')
                 .setStyle(ButtonStyle.Danger);
-                
+
             const logCloseReasonButton = new ButtonBuilder()
-                .setCustomId(`close_reason:${reportId}`)
+                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
                 .setLabel('Fechar com Motivo')
                 .setStyle(ButtonStyle.Primary);
             
             const { components: logComponents, flags: logFlags } = logBuilder.build();
             const logRow = new ActionRowBuilder().addComponents(joinButton, logCloseButton, logCloseReasonButton);
             
-            const logMessage = await logChannel.send({ 
-                components: [...logComponents, logRow], 
-                flags: [logFlags] 
+            const logMessage = await logChannel.send({
+                components: [...logComponents, logRow],
+                flags: [logFlags]
             });
 
-            // ==================== SALVAR NO BANCO ====================
+            // ==================== ATUALIZAR IDS DAS MENSAGENS ====================
             db.prepare(`
-                INSERT INTO reports (guild_id, report_number, user_id, thread_id, log_message_id, dm_message_id, thread_message_id, status, staffs, created_at, last_message_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(guild.id, reportNumber, user.id, thread.id, logMessage.id, dmMessage?.id || null, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
+                UPDATE reports SET log_message_id = ?, dm_message_id = ?
+                WHERE guild_id = ? AND report_number = ?
+            `).run(logMessage.id, dmMessage?.id || null, guild.id, reportNumber);
 
-            await interaction.editReply({ 
+            await interaction.editReply({
                 content: `✅ ${reportId} criado! ${thread.url}`,
                 flags: [MessageFlags.Ephemeral]
             });
-            
+
         } catch (error) {
             console.error('❌ Erro ao criar report:', error);
             await interaction.editReply({ content: '❌ Erro ao criar report.', flags: [MessageFlags.Ephemeral] });
+        }
+    }
+
+    // ==================== REVISAR PUNIÇÃO ====================
+
+    /**
+     * Abre uma "Revisão de Punição" — mesma infraestrutura do ReportChat
+     * (thread privada, DM, painel de log, fechar/entrar/status), mudando
+     * apenas como o chat é aberto (pede o número do strike em vez do
+     * formulário de denúncia) e a mensagem inicial da thread (resumo da
+     * punição em vez de regra/data/local/descrição).
+     *
+     * @param {import('discord.js').ModalSubmitInteraction} interaction
+     * @param {string} strikeNumberRaw - Valor bruto digitado no modal
+     */
+    async openPunishmentReview(interaction, strikeNumberRaw) {
+        const { guild, user } = interaction;
+
+        await interaction.editReply({
+            content: '⏳ Abrindo revisão...',
+            flags: [MessageFlags.Ephemeral]
+        });
+
+        try {
+            const strikeNumber = parseInt(String(strikeNumberRaw).replace(/[^\d]/g, ''));
+            if (isNaN(strikeNumber)) {
+                await interaction.editReply({ content: '❌ Número de strike inválido.', flags: [MessageFlags.Ephemeral] });
+                return;
+            }
+
+            const punishment = db.prepare(`
+                SELECT * FROM punishments WHERE guild_id = ? AND strike_number = ?
+            `).get(guild.id, strikeNumber);
+            if (!punishment) {
+                await interaction.editReply({ content: `❌ Punição #${strikeNumber} não encontrada.`, flags: [MessageFlags.Ephemeral] });
+                return;
+            }
+
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+            if (!logChannelId) {
+                await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: [MessageFlags.Ephemeral] });
+                return;
+            }
+
+            const reportNumber = this.getNextId(guild.id);
+            const reportId = `#R${reportNumber}`;
+            const threadName = `【${reportId}】revisao-strike-${strikeNumber}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+            const thread = await interaction.channel.threads.create({
+                name: threadName,
+                type: ChannelType.PrivateThread,
+                invitable: false,
+                reason: `Revisão do strike #${strikeNumber} solicitada por ${user.tag}`
+            });
+            await thread.members.add(user.id);
+
+            // ==================== CONTAINER DA THREAD ====================
+            const threadBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+            threadBuilder.banner('title_report_chat');
+            threadBuilder.text(`## ${EMOJIS.chat || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
+            threadBuilder.text(`Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
+            threadBuilder.footer();
+
+            const { components: threadComponents, flags: threadFlags, files: threadFiles } = threadBuilder.build();
+            const threadMsg = await thread.send({
+                components: threadComponents,
+                flags: [threadFlags],
+                files: threadFiles
+            });
+
+            // Insere o report ANTES de montar os painéis de DM/log (mesmo motivo do openReport):
+            // createBaseContainer lê thread_id/type direto do banco.
+            db.prepare(`
+                INSERT INTO reports (guild_id, report_number, type, punishment_id, user_id, thread_id, thread_message_id, status, staffs, created_at, last_message_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(guild.id, reportNumber, 'punishment_review', punishment.id, user.id, thread.id, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
+
+            // ==================== RESUMO DA PUNIÇÃO ====================
+            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+            const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+            const moderator = await this.client.users.fetch(punishment.moderator_id).catch(() => null);
+
+            const summaryBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+            summaryBuilder.title(`${EMOJIS.strike || '⚖️'} Resumo da Punição #${strikeNumber}`, 1);
+            summaryBuilder.separator();
+            summaryBuilder.text(`**📅 Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
+            summaryBuilder.text(`**🛡️ Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
+            summaryBuilder.text(`${severityIcons[punishment.severity] || '❓'} **Severidade:** ${severityNames[punishment.severity] || punishment.severity}`);
+            summaryBuilder.text(`**📉 Pontos descontados:** -${punishment.points_deducted}`);
+            summaryBuilder.text(`**📝 Motivo:**\n\`\`\`text\n${punishment.reason}\n\`\`\``);
+            if (punishment.report_id) summaryBuilder.text(`**🎫 Report original:** ${punishment.report_id}`);
+            summaryBuilder.text(`**Status:** ${punishment.status === 'revoked' ? '✅ Já anulado' : '⚠️ Ativo'}`);
+            summaryBuilder.footer();
+
+            const { components: summaryComponents, flags: summaryFlags } = summaryBuilder.build();
+            await thread.send({
+                components: summaryComponents,
+                flags: [summaryFlags]
+            });
+
+            // ==================== DM DO USUÁRIO ====================
+            const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { audience: 'dm' });
+
+            const closeButton = new ButtonBuilder()
+                .setCustomId(`close:${guild.id}:${reportNumber}`)
+                .setLabel('Fechar')
+                .setStyle(ButtonStyle.Danger);
+
+            const closeReasonButton = new ButtonBuilder()
+                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
+                .setLabel('Fechar com Motivo')
+                .setStyle(ButtonStyle.Primary);
+
+            const { components: dmComponents, flags: dmFlags, files: dmFiles } = dmBuilder.build();
+            const dmRow = new ActionRowBuilder().addComponents(closeButton, closeReasonButton);
+
+            const dmMessage = await user.send({
+                components: [...dmComponents, dmRow],
+                flags: [dmFlags],
+                files: dmFiles
+            }).catch(() => null);
+
+            // ==================== LOG DA STAFF ====================
+            const logChannel = await guild.channels.fetch(logChannelId);
+            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
+
+            const joinButton = new ButtonBuilder()
+                .setCustomId(`join:${reportId}`)
+                .setLabel('Entrar no Reporte')
+                .setStyle(ButtonStyle.Success);
+
+            const logCloseButton = new ButtonBuilder()
+                .setCustomId(`close:${guild.id}:${reportNumber}`)
+                .setLabel('Fechar')
+                .setStyle(ButtonStyle.Danger);
+
+            const logCloseReasonButton = new ButtonBuilder()
+                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
+                .setLabel('Fechar com Motivo')
+                .setStyle(ButtonStyle.Primary);
+
+            const { components: logComponents, flags: logFlags } = logBuilder.build();
+            const logRow = new ActionRowBuilder().addComponents(joinButton, logCloseButton, logCloseReasonButton);
+
+            const logMessage = await logChannel.send({
+                components: [...logComponents, logRow],
+                flags: [logFlags]
+            });
+
+            // ==================== ATUALIZAR IDS DAS MENSAGENS ====================
+            db.prepare(`
+                UPDATE reports SET log_message_id = ?, dm_message_id = ?
+                WHERE guild_id = ? AND report_number = ?
+            `).run(logMessage.id, dmMessage?.id || null, guild.id, reportNumber);
+
+            await interaction.editReply({
+                content: `✅ ${reportId} criado! ${thread.url}`,
+                flags: [MessageFlags.Ephemeral]
+            });
+
+        } catch (error) {
+            console.error('❌ Erro ao criar revisão de punição:', error);
+            await interaction.editReply({ content: '❌ Erro ao criar revisão de punição.', flags: [MessageFlags.Ephemeral] });
         }
     }
     
@@ -417,7 +647,7 @@ class ReportChatSystem {
             if (report.dm_message_id) {
                 const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                 if (dmMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, { banner: true });
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, { audience: 'dm' });
                     const existingComponents = dmMessage.components;
                     const buttonsToPreserve = existingComponents.slice(1);
 
@@ -507,7 +737,7 @@ class ReportChatSystem {
                 try {
                     const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
                     if (dmMessage) {
-                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, { banner: true });
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, status, staffs, { audience: 'dm' });
 
                         const rateButton = new ButtonBuilder()
                             .setCustomId(`rate:${guild.id}:${reportNumber}`)
@@ -650,7 +880,7 @@ class ReportChatSystem {
         if (report.dm_message_id) {
             const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
             if (dmMessage) {
-                const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs, { banner: true });
+                const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs, { audience: 'dm' });
                 const existingComponents = dmMessage.components;
                 const buttonsToPreserve = existingComponents.slice(1);
 

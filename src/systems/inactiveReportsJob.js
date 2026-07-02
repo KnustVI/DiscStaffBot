@@ -9,8 +9,8 @@ function startInactiveReportsJob(client) {
         console.log('🕐 Verificando reports inativos...');
         
         try {
-            // 4 horas sem mensagens para considerar inativo
-            const cutoffTime = Date.now() - (4 * 60 * 60 * 1000);
+            // 24 horas sem mensagens para considerar inativo
+            const cutoffTime = Date.now() - (24 * 60 * 60 * 1000);
             
             // Buscar reports inativos usando a nova estrutura
             const inactiveReports = db.prepare(`
@@ -34,7 +34,7 @@ function startInactiveReportsJob(client) {
                 const reportId = `#R${report.report_number}`;
                 await reportSystem.updateStatus(report.guild_id, reportId, 'inactive');
                 
-                console.log(`📌 Report ${reportId} marcado como inativo (4h sem mensagens)`);
+                console.log(`📌 Report ${reportId} marcado como inativo (24h sem mensagens)`);
             }
         } catch (error) {
             console.error('❌ Erro no job de reports inativos:', error);
