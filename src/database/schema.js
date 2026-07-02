@@ -81,6 +81,8 @@ const SCHEMA = {
             guild_id TEXT NOT NULL,
             report_number INTEGER NOT NULL,
             report_id TEXT GENERATED ALWAYS AS ('#R' || report_number) STORED,
+            type TEXT NOT NULL DEFAULT 'report',
+            punishment_id INTEGER,
             user_id TEXT NOT NULL,
             thread_id TEXT NOT NULL,
             log_message_id TEXT,

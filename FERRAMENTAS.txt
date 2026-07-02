@@ -33,7 +33,36 @@ Se o comando nao rodar (erro de modulo faltando):
   esteja instalada corretamente.
 
 
-2) INICIAR O BOT
+2) SINCRONIZAR EMOJIS DE APLICACAO DO BOT
+------------------------------------------------
+Script: scripts/sync-emojis.js
+Comando: npm run sync-emojis
+
+O que faz:
+- Busca, direto na API do Discord, todos os emojis de APLICACAO do bot (os
+  cadastrados no Discord Developer Portal, em Application > Emojis - nao sao
+  emojis de servidor)
+- Regenera o arquivo src/database/emojis.js inteiro (objeto EMOJIS) com o
+  nome e ID reais de cada emoji, incluindo emojis animados (<a:nome:id>)
+- Nao precisa que voce informe nomes/IDs manualmente - eles vem todos da API
+
+Quando usar:
+- Toda vez que um emoji for adicionado, removido ou renomeado no Developer
+  Portal do bot. Rode o comando depois da alteracao para atualizar o codigo.
+
+Como usar:
+1. Garanta que o .env tenha TOKEN e CLIENT_ID preenchidos (os mesmos usados
+   pelo bot/deploy.js)
+2. Rode: npm run sync-emojis
+3. Pronto - src/database/emojis.js e reescrito automaticamente. NAO edite os
+   IDs desse arquivo na mao, sempre rode o script de novo.
+
+Se algum emoji tiver nome invalido como chave JS (comeca com numero, tem
+espaco/traco), o script gera uma chave "sanitizada" soh para o objeto EMOJIS,
+mas o <:nome:id> renderizado usa o nome real cadastrado no Discord.
+
+
+3) INICIAR O BOT
 ------------------------------------------------
 Comando: node index.js
 
@@ -42,7 +71,7 @@ Discord e (se configurado) sobe o dashboard web. Precisa de um arquivo .env
 na raiz do projeto com pelo menos a variavel TOKEN preenchida.
 
 
-3) REGISTRAR OS SLASH COMMANDS NO DISCORD
+4) REGISTRAR OS SLASH COMMANDS NO DISCORD
 ------------------------------------------------
 Comando: node deploy.js
 
@@ -54,7 +83,7 @@ arquivos em src/commands - comandos renomeados ou removidos do codigo somem
 do Discord automaticamente na proxima vez que voce rodar este comando.
 
 
-4) TESTES
+5) TESTES
 ------------------------------------------------
 Comando: npm test
 

@@ -53,11 +53,28 @@ module.exports = {
         const durationStr = options.getString('duracao');
         const discordAct = options.getString('discord_act') || 'none';
         const jogoAct = options.getString('jogo_act') || 'none';
-        const reportId = options.getString('report') || null;
+        let reportId = options.getString('report') || null;
 
         try {
             if (!targetUser) {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
+            }
+
+            // ── Report continua opcional (staff pode punir sem denúncia
+            // formal por trás), mas quando informado precisa existir de fato
+            // — evita punições "linkadas" a um report inexistente/digitado
+            // errado. Aceita "#R5", "R5" ou só "5". ─────────────────────────
+            if (reportId) {
+                const match = reportId.trim().match(/^#?R?(\d+)$/i);
+                if (!match) {
+                    return await ResponseManager.error(interaction, 'ID de Report inválido. Use o formato #R5 (ou apenas 5).');
+                }
+                const reportNumber = parseInt(match[1]);
+                const reportExists = db.prepare(`SELECT 1 FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
+                if (!reportExists) {
+                    return await ResponseManager.error(interaction, `Report #R${reportNumber} não encontrado neste servidor.`);
+                }
+                reportId = `#R${reportNumber}`;
             }
 
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);

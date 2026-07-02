@@ -33,6 +33,13 @@ module.exports = {
                 return;
             }
 
+            // ==================== REVISÃO DE PUNIÇÃO - ABRIR MODAL ====================
+            if (interaction.customId === 'review_punishment') {
+                const reportSystem = new ReportChatSystem(client);
+                await interaction.showModal(reportSystem.getReviewModal());
+                return;
+            }
+
             // ==================== BOTÕES NA DM (COM GUILD_ID) ====================
 
             if (interaction.customId?.startsWith('close_reason:')) {
@@ -79,6 +86,16 @@ module.exports = {
                 const guildId = parts[1];
                 const reportNumber = parseInt(parts[2]);
 
+                // ── Precisa deferir ANTES do closeReport, que faz várias
+                // chamadas assíncronas (DB, fetch de canal/thread, edição de
+                // mensagens) que facilmente estouram os 3s de ack do Discord.
+                // Sem isso, sendTempReply() tenta reply() numa interação
+                // expirada e lança "Unknown interaction" (10062). Mesmo padrão
+                // usado pelos modais close_modal_staff/close_modal_user. ──────
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.deferReply({ flags: 64 });
+                }
+
                 const reportSystem = new ReportChatSystem(client);
                 await reportSystem.closeReport(interaction, reportNumber, null, null, false, guildId);
                 return;
@@ -104,6 +121,13 @@ module.exports = {
                     descricao: interaction.fields.getTextInputValue('descricao'),
                     termo: interaction.fields.getTextInputValue('termo')
                 });
+                return;
+            }
+
+            if (interaction.customId === 'review_modal') {
+                await interaction.deferReply({ flags: 64 });
+                const reportSystem = new ReportChatSystem(client);
+                await reportSystem.openPunishmentReview(interaction, interaction.fields.getTextInputValue('strike_number'));
                 return;
             }
 

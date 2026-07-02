@@ -9,7 +9,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('unstrike')
         .setDescription('Anula uma punição e devolve os pontos ao usuário.')
-        .addIntegerOption(opt => opt.setName('id').setDescription('ID da punição').setRequired(true))
+        .addIntegerOption(opt => opt.setName('id').setDescription('Número do Strike (o mesmo mostrado em "Strike #N")').setRequired(true))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da anulação').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
@@ -29,8 +29,12 @@ module.exports = {
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
+            // ── Busca por strike_number (o número mostrado como "Strike #N" em
+            // todo o resto do sistema), não pela PK global `id` — `id` é um
+            // auto-increment cross-guild, então bater com ele aqui podia
+            // encontrar a punição errada assim que o bot atende 2+ servidores. ──
             const punishment = db.prepare(`
-                SELECT * FROM punishments WHERE id = ? AND guild_id = ? AND status = 'active'
+                SELECT * FROM punishments WHERE strike_number = ? AND guild_id = ? AND status = 'active'
             `).get(punishmentId, guildId);
 
             if (!punishment) {

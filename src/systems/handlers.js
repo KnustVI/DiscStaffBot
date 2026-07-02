@@ -87,10 +87,19 @@ class InteractionHandler {
             return await ResponseManager.error(interaction, 'Comando não encontrado.');
         }
         
-        // Lista de comandos que devem ser ephemeral (visíveis apenas para o usuário)
-        // ✅ 'potserver' adicionado: cobre os subcomandos setup/logs/status/reset
+        // Lista de comandos que devem ser ephemeral (visíveis apenas para quem
+        // usou o comando) — cobre toda resposta de confirmação de ação. Painéis
+        // que precisam ser públicos (ex: /reportchat) são enviados à parte via
+        // channel.send() dentro do próprio comando, então não são afetados por
+        // este flag — só a mensagem de confirmação da interação fica privada.
+        // 'potserver' cobre os subcomandos setup/logs/status/reset
         // (interaction.commandName é sempre 'potserver', nunca o nome do subcomando).
-        const ephemeralCommands = ['config', 'strike', 'unstrike', 'repset', 'config-rep', 'config-strike', 'automod', 'reset-db', 'reset-reports', 'botstatus', 'potserver'];
+        const ephemeralCommands = [
+            'strike', 'unstrike', 'repset',
+            'config-roles', 'config-logs', 'config-punishments', 'automod',
+            'reset-db', 'reset-reports', 'botstatus', 'potserver',
+            'reportchat', 'reportarbug',
+        ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
         
         try {

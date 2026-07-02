@@ -4,12 +4,13 @@ const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { getAlderonIdSuffix } = require('../../systems/potPlayerRegistry');
 
 // ---------------------------------------------------------------------------
 // Montagem visual — separada para reaproveitar entre DM e canal de log
 // ---------------------------------------------------------------------------
 
-function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis }) {
+function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId }) {
     const titleIcon = isGain ? `${emojis.gain || '📈'}` : `${emojis.lose || '📉'}`;
     const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
@@ -26,8 +27,9 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
 
     // ── Apresentação padrão: Usuário alvo do ajuste ──────────────────────────
     const targetAvatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    const targetAlderonSuffix = getAlderonIdSuffix(guildId, target.id);
     builder.section(
-        `## JOGADOR\n${target.toString()}|ID ALDERON:123-456-789\n${target.username}\n(\`${target.id}\`)`,
+        `## JOGADOR\n${target.toString()}${targetAlderonSuffix}\n${target.username}\n(\`${target.id}\`)`,
         AdvancedContainerBuilder.thumbnail(targetAvatar),
     );
     builder.separator();
@@ -115,7 +117,7 @@ module.exports = {
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
             const containerBuilder = buildRepSetContainer({
-                target, staff, reason, diffText, currentRep, newPoints, isGain, emojis,
+                target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId,
             });
             const { components, flags, files: filesPayload } = containerBuilder.build();
 

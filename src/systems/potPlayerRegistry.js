@@ -226,8 +226,52 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
     }
 }
 
+/**
+ * Busca o jogador PoT vinculado a um Discord ID, se houver.
+ *
+ * ATENÇÃO: hoje não existe nenhum comando/fluxo manual de vínculo — o único
+ * jeito de discord_id ser preenchido é o payload de webhook trazer esse
+ * campo (ver extractDiscordId acima), o que a maioria dos servidores PoT
+ * não faz. Na prática isso retorna null na maioria dos casos até que um
+ * vínculo real (manual ou por webhook) exista.
+ *
+ * @param {string} guildId
+ * @param {string} discordId
+ * @returns {{ alderon_id: string, player_name: string } | null}
+ */
+function getPlayerByDiscordId(guildId, discordId) {
+    if (!guildId || !discordId) return null;
+    try {
+        return db.prepare(`
+            SELECT alderon_id, player_name FROM pot_players
+            WHERE guild_id = ? AND discord_id = ?
+            ORDER BY updated_at DESC LIMIT 1
+        `).get(guildId, discordId) || null;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar jogador por discord_id:', error);
+        return null;
+    }
+}
+
+/**
+ * Monta o sufixo "|ID ALDERON:xxx-xxx-xxx" usado nas linhas de identificação
+ * de usuário nos containers (strike, unstrike, repset, historico, reportchat).
+ * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
+ * linha de identificação deve simplesmente omitir o Alderon ID.
+ *
+ * @param {string} guildId
+ * @param {string} discordId
+ * @returns {string}
+ */
+function getAlderonIdSuffix(guildId, discordId) {
+    const player = getPlayerByDiscordId(guildId, discordId);
+    return player ? `|ID ALDERON:${player.alderon_id}` : '';
+}
+
 module.exports = {
     upsertPlayerFromEvent,
+    getPlayerByDiscordId,
+    getAlderonIdSuffix,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     ONLINE_EVENTS,

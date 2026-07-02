@@ -6,6 +6,7 @@ const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 const { PaginationBuilder } = require('../utils/paginationBuilder');
 const SessionManager = require('../utils/sessionManager');
 const SequenceManager = require('../database/sequences');
+const { getAlderonIdSuffix } = require('./potPlayerRegistry');
 
 const COLORS = {
     DEFAULT: 0xDCA15E,
@@ -93,7 +94,7 @@ const PunishmentSystem = {
         }
 
         const pageFactories = allPagesData.map((historyData) =>
-            () => this.generateHistoryContainer(target, historyData, guildName),
+            () => this.generateHistoryContainer(target, historyData, guildName, guildId),
         );
 
         return {
@@ -109,14 +110,14 @@ const PunishmentSystem = {
      * Não inclui mais footer com paginação manual — isso agora é
      * responsabilidade do PaginationBuilder (footerText com {page}).
      */
-    generateHistoryContainer(target, history, guildName) {
+    generateHistoryContainer(target, history, guildName, guildId) {
         let accentColor = COLORS.DEFAULT;
         if (history.reputation > 70) accentColor = COLORS.SUCCESS;
         else if (history.reputation < 30) accentColor = COLORS.DANGER;
         else if (history.reputation < 50) accentColor = COLORS.WARNING;
-        
-        const repEmoji = history.reputation >= 90 ? '🌟' : 
-                        history.reputation >= 70 ? '⭐' : 
+
+        const repEmoji = history.reputation >= 90 ? '🌟' :
+                        history.reputation >= 70 ? '⭐' :
                         history.reputation >= 50 ? '👍' : '⚠️';
 
         const builder = new AdvancedContainerBuilder({ accentColor });
@@ -125,8 +126,9 @@ const PunishmentSystem = {
         builder.separator();
 
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const alderonSuffix = getAlderonIdSuffix(guildId, target.id);
         builder.section(
-            `# ${target.toString()}|ID ALDERON:123-456-789\n${target.username}\n(\`${target.id}\`)`,
+            `# ${target.toString()}${alderonSuffix}\n${target.username}\n(\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(avatar),
         );
 
@@ -158,7 +160,7 @@ const PunishmentSystem = {
         return builder;
     },
 
-    generateStrikeUnifiedContainer(target, moderator, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink) {
+    generateStrikeUnifiedContainer(target, moderator, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
         
@@ -175,8 +177,9 @@ const PunishmentSystem = {
 
         // ── Apresentação padrão: Usuário alvo da punição ─────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(guildId, target.id) : '';
         builder.section(
-            `## ${target?.toString() || 'Desconhecido'}|ID ALDERON:123-456-789\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## ${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -203,7 +206,7 @@ const PunishmentSystem = {
         return builder;
     },
     
-    generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName) {
+    generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName, guildId) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         builder.banner('title_strike_removido');
 
@@ -217,8 +220,9 @@ const PunishmentSystem = {
 
         // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(guildId, target.id) : '';
         builder.section(
-            `## JOGADOR\n${target?.toString() || 'Desconhecido'}|ID ALDERON:123-456-789\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -339,6 +343,18 @@ const PunishmentSystem = {
                 return await interaction.editReply({ content: '❌ Erro ao aplicar punição no banco de dados.', components: [] });
             }
 
+            // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
+            // report (já validado em strike.js), grava a punição aplicada
+            // de volta no próprio report para consulta futura. ──────────────
+            if (reportId) {
+                const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+                const linkedReportNumber = parseInt(String(reportId).replace(/^#?R/i, ''));
+                if (!isNaN(linkedReportNumber)) {
+                    db.prepare(`UPDATE reports SET punishment = ? WHERE guild_id = ? AND report_number = ?`)
+                        .run(`Strike #${strikeId} (${severityNames[severity] || severity})`, guild.id, linkedReportNumber);
+                }
+            }
+
             let discordActionResult = null;
             if (discordAct && discordAct !== 'none' && targetMember) {
                 try {
@@ -373,7 +389,7 @@ const PunishmentSystem = {
 
             const containerBuilder = this.generateStrikeUnifiedContainer(
                 targetUser, staff, strikeId, severity, reason, reportId || null,
-                pointsLost, newPoints, discordAct, discordActionResult, guild.name, null
+                pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id
             );
             const { components, flags, files: filesPayload } = containerBuilder.build();
 
@@ -444,7 +460,9 @@ const PunishmentSystem = {
             const guildId = interaction.guildId;
             const staff = interaction.user;
 
-            const punishment = db.prepare(`SELECT * FROM punishments WHERE id = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
+            // ── Busca por strike_number (o número mostrado como "Strike #N"),
+            // não pela PK global `id` — ver mesmo comentário em unstrike.js. ────
+            const punishment = db.prepare(`SELECT * FROM punishments WHERE strike_number = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
             if (!punishment) {
                 SessionManager.delete(interaction.user.id, guildId, 'unstrike_pending', 'unstrike_pending');
                 return await interaction.editReply({ content: '❌ Punição não encontrada ou já anulada.', components: [] });
@@ -461,7 +479,7 @@ const PunishmentSystem = {
             const newPoints = Math.min(100, currentRep + pointsRestored);
 
             db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
-                WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishmentId, guildId);
+                WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishment.id, guildId);
             db.prepare(`UPDATE reputation SET points = MIN(100, points + ?) WHERE guild_id = ? AND user_id = ?`)
                 .run(pointsRestored, guildId, punishment.user_id);
 
@@ -485,7 +503,7 @@ const PunishmentSystem = {
 
             const targetUser = await interaction.client.users.fetch(punishment.user_id).catch(() => null);
             const containerBuilder = this.generateUnstrikeUnifiedContainer(
-                targetUser, staff, punishmentId, reason, pointsRestored, newPoints, punishment.reason, guild.name
+                targetUser, staff, punishmentId, reason, pointsRestored, newPoints, punishment.reason, guild.name, guildId
             );
             const { components, flags, files: filesPayload } = containerBuilder.build();
 
