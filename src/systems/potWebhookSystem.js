@@ -292,15 +292,31 @@ class PoTWebhookSystem {
         const config = this.getGameIniConfig(interaction.guildId);
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
 
-        // Manda o conteúdo como ANEXO em vez de embutido em texto: o bloco
-        // ```ini``` com os ~30 eventos passa perto (ou passa) do limite de
-        // 4000 caracteres por TextDisplay do Discord dependendo do tamanho
-        // do domínio/token, e o Discord rejeitava a mensagem sem avisar —
-        // era a causa do botão "Game.ini" ficar respondendo pra sempre.
-        // Como anexo não tem esse limite, e o host pode usar o arquivo direto.
         b.title(`${EMOJIS.filetext || '📄'} Game.ini`)
-            .text('Copie o conteúdo do arquivo em anexo para dentro do `Game.ini` do seu servidor PoT, na seção `[ServerWebhooks]`.\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
-            .footer(interaction.guild?.name || 'Servidor');
+            .text('Cole o conteúdo abaixo dentro do `Game.ini` do seu servidor PoT, na seção `[ServerWebhooks]` (também vai em anexo, se preferir baixar o arquivo direto).\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
+            .separator();
+
+        // Quebra o conteúdo em blocos de código copiáveis, cada um bem abaixo
+        // do limite de 4000 caracteres por TextDisplay do Discord (nunca corta
+        // uma linha ao meio). Um único bloco grande demais (~30 eventos com
+        // domínio/token longos) já fez o Discord rejeitar a mensagem sem
+        // avisar, deixando o botão "respondendo" pra sempre — por isso a
+        // quebra em pedaços, com margem de sobra, em vez de um bloco só.
+        const MAX_CHUNK = 3500;
+        const lines = config.split('\n');
+        let chunk = '';
+        for (const line of lines) {
+            const candidate = chunk ? `${chunk}\n${line}` : line;
+            if (candidate.length > MAX_CHUNK && chunk) {
+                b.text('```ini\n' + chunk + '\n```');
+                chunk = line;
+            } else {
+                chunk = candidate;
+            }
+        }
+        if (chunk) b.text('```ini\n' + chunk + '\n```');
+
+        b.footer(interaction.guild?.name || 'Servidor');
 
         const payload = b.build();
         const attachment = new AttachmentBuilder(Buffer.from(config, 'utf8'), { name: 'Game.ini' });
