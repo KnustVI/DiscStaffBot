@@ -2,19 +2,12 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../database/index.js');
 const { EMOJIS } = require('../database/emojis.js');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 const { PaginationBuilder } = require('../utils/paginationBuilder');
 const SessionManager = require('../utils/sessionManager');
 const SequenceManager = require('../database/sequences');
 const { getAlderonIdSuffix } = require('./potPlayerRegistry');
 const imageManager = require('../utils/imageManager');
-
-const COLORS = {
-    DEFAULT: 0xDCA15E,
-    SUCCESS: 0xBBF96A,
-    DANGER: 0xF64B4E,
-    WARNING: 0xFFBD59
-};
 
 const PunishmentSystem = {
     
@@ -108,14 +101,11 @@ const PunishmentSystem = {
 
     /**
      * Monta o container de uma única página do histórico.
-     * Não inclui mais footer com paginação manual — isso agora é
-     * responsabilidade do PaginationBuilder (footerText com {page}).
      */
     generateHistoryContainer(target, history, guildName, guildId) {
         let accentColor = COLORS.DEFAULT;
         if (history.reputation > 70) accentColor = COLORS.SUCCESS;
-        else if (history.reputation < 30) accentColor = COLORS.DANGER;
-        else if (history.reputation < 50) accentColor = COLORS.WARNING;
+        else if (history.reputation < 30) accentColor = COLORS.ERROR;
 
         const repEmoji = history.reputation >= 90 ? (EMOJIS.starfull || '🌟') :
                         history.reputation >= 70 ? (EMOJIS.star || '⭐') :
@@ -165,10 +155,8 @@ const PunishmentSystem = {
             builder.text(`\`\`\`\nNenhuma punição registrada.\n\`\`\``);
         }
         
-        // Nota: o footer com "Página X/Y" é adicionado automaticamente pelo
-        // PaginationBuilder via footerText (substitui {page}). Não chamamos
-        // builder.footer() aqui para não duplicar.
-        
+        builder.footer(guildName);
+
         return builder;
     },
 
@@ -176,7 +164,7 @@ const PunishmentSystem = {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DANGER });
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
         builder.banner('title_strike');
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
@@ -213,7 +201,7 @@ const PunishmentSystem = {
             }
         }
         
-        builder.footer(`${guildName || ''}`.trim());
+        builder.footer(guildName);
         
         return builder;
     },
@@ -247,7 +235,7 @@ const PunishmentSystem = {
         builder.separator();
         builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo da Anulação:**`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
-        builder.footer(`${guildName || ''}`.trim());
+        builder.footer(guildName);
         
         return builder;
     },
@@ -300,8 +288,8 @@ const PunishmentSystem = {
      * FIELDS_WITH_COMPONENTS_V2"). Por isso todo editReply de resultado/erro
      * aqui precisa passar por um container, não por `{ content }`.
      */
-    _simpleReply(text, color = 0xED4245) {
-        return new AdvancedContainerBuilder({ accentColor: color }).text(text).build();
+    _simpleReply(text, color = COLORS.ERROR, guildName = null) {
+        return new AdvancedContainerBuilder({ accentColor: color }).text(text).footer(guildName).build();
     },
 
     async handleComponent(interaction, action, param) {
@@ -314,162 +302,356 @@ const PunishmentSystem = {
                 case 'unstrike_confirm':
                     await this.handleUnstrikeConfirmation(interaction, subAction);
                     break;
+                case 'supervisor_approve':
+                    await this.handleSupervisorApproval(interaction, param, true);
+                    break;
+                case 'supervisor_reject':
+                    await this.handleSupervisorApproval(interaction, param, false);
+                    break;
                 default:
-                    await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`));
+                    await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, COLORS.ERROR, interaction.guild?.name));
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
-            await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`));
+            await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, COLORS.ERROR, interaction.guild?.name));
         }
     },
 
     async handleStrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
         if (!session) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, COLORS.ERROR, interaction.guild?.name));
         }
-        
+
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição cancelada.`));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição cancelada.`, COLORS.ERROR, interaction.guild?.name));
         }
         
         if (action === 'confirm') {
-            const ConfigSystem = require('./configSystem');
-            const AnalyticsSystem = require('./analyticsSystem');
-
-            let emojis = {};
-            try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
-
-            const { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost } = session;
             const guild = interaction.guild;
             const staff = interaction.user;
+            const staffMember = interaction.member;
 
-            const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
-            if (!targetUser) {
+            // ── Punição severa (Nível 4 - Severa, ou 5 - Permanente): exige
+            // aprovação do cargo Supervisor, a menos que quem esteja
+            // confirmando já SEJA o supervisor (fluxo normal nesse caso). ────
+            if (this.isSevereSeverity(session.severity) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Usuário não encontrado.`));
+                return await this.requestSupervisorApproval(interaction, session);
             }
 
-            const targetMember = await guild.members.fetch(targetId).catch(() => null);
-
-            const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guild.id, targetId)?.points || 100;
-            const newPoints = Math.max(0, currentRep - pointsLost);
-
-            let durationMs = 0;
-            if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
-                durationMs = this.parseDuration(durationStr);
-            }
-
-            const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
-            if (!strikeId) {
-                SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Erro ao aplicar punição no banco de dados.`));
-            }
-
-            // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
-            // report (já validado em strike.js), grava a punição aplicada
-            // de volta no próprio report para consulta futura. ──────────────
-            if (reportId) {
-                const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-                const linkedReportNumber = parseInt(String(reportId).replace(/^#?R/i, ''));
-                if (!isNaN(linkedReportNumber)) {
-                    db.prepare(`UPDATE reports SET punishment = ? WHERE guild_id = ? AND report_number = ?`)
-                        .run(`Strike #${strikeId} (${severityNames[severity] || severity})`, guild.id, linkedReportNumber);
-                }
-            }
-
-            let discordActionResult = null;
-            if (discordAct && discordAct !== 'none' && targetMember) {
-                try {
-                    switch (discordAct) {
-                        case 'timeout':
-                            await targetMember.timeout(durationMs > 0 ? durationMs : 60000, reason);
-                            discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
-                            break;
-                        case 'kick':
-                            await targetMember.kick(reason);
-                            discordActionResult = 'Expulsão aplicada';
-                            break;
-                        case 'ban':
-                            await targetMember.ban({ reason });
-                            discordActionResult = 'Banimento aplicado';
-                            break;
-                    }
-                } catch (err) {
-                    discordActionResult = `${EMOJIS.circlealert || '❌'} Erro: ${err.message}`;
-                }
-            }
-
-            const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
-
-            require('../database/index').logActivity(guild.id, staff.id, 'strike', targetId, {
-                command: 'strike', punishmentId: strikeId, severity, pointsLost,
-                oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
-                temporaryRoleApplied: roleResult.applied
-            });
-
-            await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
-
-            const containerBuilder = this.generateStrikeUnifiedContainer(
-                targetUser, staff, strikeId, severity, reason, reportId || null,
-                pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id
-            );
-            const { components, flags, files: filesPayload } = containerBuilder.build();
-
-            let dmDelivered = false;
-            if (targetMember) {
-                try {
-                    await targetMember.send({ components, flags: [flags], files: filesPayload });
-                    dmDelivered = true;
-                } catch (err) {
-                    dmDelivered = false;
-                }
-            }
-
-            let logSent = false;
-            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
-            if (logChannelId) {
-                try {
-                    const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
-                    if (logChannel) {
-                        await logChannel.send({ components, flags: [flags], files: filesPayload });
-                        logSent = true;
-                    }
-                } catch (err) {}
-            }
-
-            const dmStatusMsg = dmDelivered
-                ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
-                : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
-
-            const roleStatusMsg = roleResult.applied
-                ? `${emojis.gavel || '⚠️'} Cargo de Strike aplicado temporariamente.`
-                : (roleResult.error ? `${emojis.messagesquare || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
-
-            const summaryLines = [
-                `${emojis.circlecheck || '✅'} **Strike #${strikeId} aplicado em ${targetUser.username}**`,
-                `${emojis.trendingdown || '📉'} ${pointsLost} pts perdidos`,
-                `${emojis.star || '⭐'} Reputação: ${newPoints}/100`,
-                dmStatusMsg,
-            ];
-            if (roleStatusMsg) summaryLines.push(roleStatusMsg);
-            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
-
+            const result = await this._executeStrike(guild, staff, session);
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), 0x57F287));
+
+            if (!result.success) {
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, interaction.guild?.name));
+            }
+
+            await interaction.editReply(this._simpleReply(this._buildStrikeSummaryLines(result).join('\n'), COLORS.SUCCESS, interaction.guild?.name));
         }
     },
-    
+
+    // ==================== APROVAÇÃO DE SUPERVISOR (PUNIÇÕES SEVERAS) ====================
+
+    /**
+     * Severidade 4 (Severa) e 5 (Permanente) cobrem bans muito longos ou
+     * permanentes — exigem aprovação do cargo Supervisor (ver /config-roles,
+     * aba Moderação) quando aplicadas por um Staff comum.
+     */
+    isSevereSeverity(severity) {
+        return Number(severity) >= 4;
+    },
+
+    async memberHasSupervisorRole(guild, member) {
+        if (!member) return false;
+        const ConfigSystem = require('./configSystem');
+        const supervisorRoleId = ConfigSystem.getSetting(guild.id, 'supervisor_role');
+        if (!supervisorRoleId) return false;
+        return member.roles?.cache?.has(supervisorRoleId) || false;
+    },
+
+    /**
+     * Envia o pedido de aprovação para o canal de log de punições, marcando
+     * o cargo Supervisor, e avisa o staff que abriu o pedido. Os dados da
+     * punição pendente ficam guardados no SessionManager sob uma chave
+     * própria (não a do staff) — quem clicar Aprovar/Rejeitar é o
+     * supervisor, um usuário diferente de quem pediu.
+     */
+    async requestSupervisorApproval(interaction, session) {
+        const ConfigSystem = require('./configSystem');
+        const guild = interaction.guild;
+        const staff = interaction.user;
+
+        let emojis = {};
+        try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+        const supervisorRoleId = ConfigSystem.getSetting(guild.id, 'supervisor_role');
+        const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
+
+        if (!supervisorRoleId || !logChannelId) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Esta punição é severa e precisa de aprovação de um Supervisor, mas o cargo Supervisor e/ou o canal de log de punições ainda não foram configurados (${EMOJIS.gavel || '⚖️'} veja /config-roles e /config-logs). Peça a um administrador para configurar antes de tentar novamente.`,
+                COLORS.ERROR, guild.name,
+            ));
+        }
+
+        const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+        if (!logChannel) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} O canal de log de punições configurado não foi encontrado. Peça a um administrador para reconfigurar em /config-logs.`,
+                COLORS.ERROR, guild.name,
+            ));
+        }
+
+        const approvalId = db.generateUUID();
+        SessionManager.set('approval', guild.id, 'strike_approval', approvalId, {
+            ...session,
+            requestedBy: staff.id,
+            requestedByTag: staff.tag,
+        }, 15 * 60 * 1000);
+
+        const targetUser = await interaction.client.users.fetch(session.targetId).catch(() => null);
+        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+        const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
+
+        const approvalBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        approvalBuilder.section(
+            [
+                '# APROVAÇÃO NECESSÁRIA: PUNIÇÃO SEVERA',
+                `<@&${supervisorRoleId}> um Staff solicitou uma punição de nível **${severityNames[session.severity]}**, que precisa de aprovação antes de ser aplicada.`,
+            ].join('\n'),
+            targetUser ? AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 128 })) : null,
+        );
+        approvalBuilder.separator();
+        approvalBuilder.text(`**${EMOJIS.user || '👤'} Solicitado por:** ${staff.toString()}`);
+        approvalBuilder.text(`**${EMOJIS.user || '👤'} Alvo:** ${targetUser ? targetUser.toString() : `\`${session.targetId}\``}`);
+        approvalBuilder.text(`${severityIcons[session.severity]} **Severidade:** ${severityNames[session.severity]}`);
+        approvalBuilder.text(`**${EMOJIS.trendingdown || '📉'} Pontos a perder:** -${session.pointsLost}`);
+        approvalBuilder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
+        approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
+        approvalBuilder.separator();
+        approvalBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${session.reason}\n\`\`\``);
+        approvalBuilder.footer(guild.name, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`punishment:supervisor_approve:${approvalId}`).setLabel('Aprovar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),
+            new ButtonBuilder().setCustomId(`punishment:supervisor_reject:${approvalId}`).setLabel('Rejeitar').setStyle(ButtonStyle.Danger).setEmoji(emojis.circlealert || '❌'),
+        );
+
+        const { components, flags } = approvalBuilder.build();
+        await logChannel.send({ components: [...components, row], flags: [flags] });
+
+        return await interaction.editReply(this._simpleReply(
+            `${emojis.clockalert || '⏳'} Esta é uma punição **severa** (${severityNames[session.severity]}). Como você não possui o cargo Supervisor, o pedido foi enviado para aprovação no canal de log de punições, marcando o cargo Supervisor. A punição só será aplicada depois que um Supervisor aprovar.`,
+            COLORS.DEFAULT, guild.name,
+        ));
+    },
+
+    /**
+     * Clique de Aprovar/Rejeitar no pedido enviado a logs-punições.
+     * @param {boolean} approved
+     */
+    async handleSupervisorApproval(interaction, approvalId, approved) {
+        const guild = interaction.guild;
+
+        if (!(await this.memberHasSupervisorRole(guild, interaction.member))) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Apenas o cargo Supervisor pode aprovar ou rejeitar punições severas.`, COLORS.ERROR, guild?.name));
+        }
+
+        const session = SessionManager.get('approval', guild.id, 'strike_approval', approvalId);
+        if (!session) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Este pedido de aprovação expirou ou já foi resolvido.`, COLORS.ERROR, guild?.name));
+        }
+        SessionManager.delete('approval', guild.id, 'strike_approval', approvalId);
+
+        const requester = await interaction.client.users.fetch(session.requestedBy).catch(() => null);
+
+        if (!approved) {
+            await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Punição severa **rejeitada** por ${interaction.user}. O pedido de ${session.requestedByTag || session.requestedBy} não foi aplicado.`,
+                COLORS.ERROR, guild.name,
+            ));
+            if (requester) {
+                await requester.send(
+                    `${EMOJIS.circlealert || '❌'} Seu pedido de punição severa contra \`${session.targetId}\` foi **rejeitado** por ${interaction.user.tag} em **${guild.name}**.`
+                ).catch(() => {});
+            }
+            return;
+        }
+
+        // Aplica a punição com o staff original como responsável (moderator_id),
+        // já que ele decidiu o caso — o supervisor só autorizou a execução.
+        const originalStaff = requester || interaction.user;
+        const result = await this._executeStrike(guild, originalStaff, session);
+
+        if (!result.success) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, guild.name));
+        }
+
+        const summaryLines = this._buildStrikeSummaryLines(result);
+        summaryLines.unshift(`${EMOJIS.circlecheck || '✅'} **Aprovado por ${interaction.user.tag}**`);
+        await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, guild.name));
+
+        if (requester) {
+            await requester.send(
+                `${EMOJIS.circlecheck || '✅'} Seu pedido de punição severa contra ${result.targetUser?.tag || session.targetId} foi **aprovado** por ${interaction.user.tag} em **${guild.name}** e já foi aplicado (Strike #${result.strikeId}).`
+            ).catch(() => {});
+        }
+    },
+
+    /**
+     * Núcleo compartilhado da aplicação de um strike: grava a punição,
+     * vincula ao report (se houver), aplica ação no Discord, aplica cargo
+     * temporário, registra atividade/analytics, envia DM ao alvo e log ao
+     * canal configurado. Usado tanto pela confirmação direta (staff comum
+     * em punição leve/moderada, ou Supervisor em qualquer nível) quanto pela
+     * aprovação de punição severa (ver requestSupervisorApproval).
+     *
+     * @param {import('discord.js').Guild} guild
+     * @param {import('discord.js').User} staff - Creditado como moderator_id
+     * @param {object} session - { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost }
+     * @returns {Promise<object>} resultado com { success, error } ou os dados usados no resumo
+     */
+    async _executeStrike(guild, staff, session) {
+        const ConfigSystem = require('./configSystem');
+        const AnalyticsSystem = require('./analyticsSystem');
+
+        let emojis = {};
+        try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+        const { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost } = session;
+
+        const targetUser = await guild.client.users.fetch(targetId).catch(() => null);
+        if (!targetUser) {
+            return { success: false, error: 'Usuário não encontrado.' };
+        }
+
+        const targetMember = await guild.members.fetch(targetId).catch(() => null);
+
+        const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guild.id, targetId)?.points || 100;
+        const newPoints = Math.max(0, currentRep - pointsLost);
+
+        let durationMs = 0;
+        if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
+            durationMs = this.parseDuration(durationStr);
+        }
+
+        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
+        if (!strikeId) {
+            return { success: false, error: 'Erro ao aplicar punição no banco de dados.' };
+        }
+
+        // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
+        // report (já validado em strike.js), grava a punição aplicada
+        // de volta no próprio report para consulta futura. ──────────────
+        if (reportId) {
+            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+            const linkedReportNumber = parseInt(String(reportId).replace(/^#?R/i, ''));
+            if (!isNaN(linkedReportNumber)) {
+                db.prepare(`UPDATE reports SET punishment = ? WHERE guild_id = ? AND report_number = ?`)
+                    .run(`Strike #${strikeId} (${severityNames[severity] || severity})`, guild.id, linkedReportNumber);
+            }
+        }
+
+        let discordActionResult = null;
+        if (discordAct && discordAct !== 'none' && targetMember) {
+            try {
+                switch (discordAct) {
+                    case 'timeout':
+                        await targetMember.timeout(durationMs > 0 ? durationMs : 60000, reason);
+                        discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
+                        break;
+                    case 'kick':
+                        await targetMember.kick(reason);
+                        discordActionResult = 'Expulsão aplicada';
+                        break;
+                    case 'ban':
+                        await targetMember.ban({ reason });
+                        discordActionResult = 'Banimento aplicado';
+                        break;
+                }
+            } catch (err) {
+                discordActionResult = `${EMOJIS.circlealert || '❌'} Erro: ${err.message}`;
+            }
+        }
+
+        const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
+
+        db.logActivity(guild.id, staff.id, 'strike', targetId, {
+            command: 'strike', punishmentId: strikeId, severity, pointsLost,
+            oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
+            temporaryRoleApplied: roleResult.applied
+        });
+
+        await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
+
+        const containerBuilder = this.generateStrikeUnifiedContainer(
+            targetUser, staff, strikeId, severity, reason, reportId || null,
+            pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id
+        );
+        const { components, flags, files: filesPayload } = containerBuilder.build();
+
+        let dmDelivered = false;
+        if (targetMember) {
+            try {
+                await targetMember.send({ components, flags: [flags], files: filesPayload });
+                dmDelivered = true;
+            } catch (err) {
+                dmDelivered = false;
+            }
+        }
+
+        let logSent = false;
+        const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
+        if (logChannelId) {
+            try {
+                const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
+                if (logChannel) {
+                    await logChannel.send({ components, flags: [flags], files: filesPayload });
+                    logSent = true;
+                }
+            } catch (err) {}
+        }
+
+        const roleStatusMsg = roleResult.applied
+            ? `${emojis.gavel || '⚠️'} Cargo de Strike aplicado temporariamente.`
+            : (roleResult.error ? `${emojis.messagesquare || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
+
+        return {
+            success: true, strikeId, targetUser, pointsLost, newPoints,
+            dmDelivered, logSent, roleStatusMsg,
+        };
+    },
+
+    _buildStrikeSummaryLines(result) {
+        let emojis = {};
+        try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+        const dmStatusMsg = result.dmDelivered
+            ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
+            : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
+
+        const lines = [
+            `${emojis.circlecheck || '✅'} **Strike #${result.strikeId} aplicado em ${result.targetUser.username}**`,
+            `${emojis.trendingdown || '📉'} ${result.pointsLost} pts perdidos`,
+            `${emojis.star || '⭐'} Reputação: ${result.newPoints}/100`,
+            dmStatusMsg,
+        ];
+        if (result.roleStatusMsg) lines.push(result.roleStatusMsg);
+        if (!result.logSent) lines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+        return lines;
+    },
+
     async handleUnstrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
         if (!session) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`, COLORS.ERROR, interaction.guild?.name));
         }
 
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Anulação cancelada.`));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Anulação cancelada.`, COLORS.ERROR, interaction.guild?.name));
         }
 
         if (action === 'confirm') {
@@ -489,7 +671,7 @@ const PunishmentSystem = {
             const punishment = db.prepare(`SELECT * FROM punishments WHERE strike_number = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
             if (!punishment) {
                 SessionManager.delete(interaction.user.id, guildId, 'unstrike_pending', 'unstrike_pending');
-                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`));
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`, COLORS.ERROR, interaction.guild?.name));
             }
 
             const targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
@@ -565,7 +747,7 @@ const PunishmentSystem = {
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), 0x57F287));
+            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, interaction.guild?.name));
         }
     },
 

@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilde
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -71,7 +71,7 @@ module.exports = {
 
             const severityIcons = [emojis.thumbsup || '⚪', emojis.severidadebaixa || '🟢', emojis.severidademedia || '🟡', emojis.severidadelaranja || '🟠', emojis.severidadealta || '🔴', emojis.Dead || '💀'];
 
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
+            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
             builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser?.tag || punishment.user_id}`);
@@ -80,7 +80,7 @@ module.exports = {
             builder.text(`**${emojis.messagesquare || '📝'} Motivo da anulação:** ${reason}`);
             builder.separator();
             builder.text(`**${emojis.restore || '📈'} Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
-            builder.footer('Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
+            builder.footer(guild.name, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('punishment:unstrike_confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),

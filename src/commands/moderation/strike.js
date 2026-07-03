@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilde
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -134,7 +134,7 @@ module.exports = {
             const jogoActNames = { none: 'Nenhuma', rcon_warn: 'Aviso na Tela', rcon_kick: 'Kick do Jogo', rcon_slay: 'Slay (Matar)', rcon_ban: 'Ban do Jogo' };
             const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm';
 
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
+            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
             builder.separator();
             builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser.tag}`);
@@ -146,7 +146,21 @@ module.exports = {
             builder.text(`**${emojis.trendingdown || '📉'} Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
             builder.text(`**${emojis.raio || '⚡'} Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
             builder.text(`**${emojis.game || '🎮'} Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
-            builder.footer('Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
+
+            // ── Nível 4 (Severa) e 5 (Permanente) cobrem bans muito longos ou
+            // permanentes: exigem aprovação de um Supervisor. Avisa o staff
+            // ANTES de ele confirmar, já que quem não é Supervisor terá o
+            // pedido enviado para aprovação em vez de aplicado na hora. ──────
+            const PunishmentSystem = require('../../systems/punishmentSystem');
+            if (PunishmentSystem.isSevereSeverity(severity) && !(await PunishmentSystem.memberHasSupervisorRole(guild, staffMember))) {
+                builder.separator();
+                builder.text(
+                    `${emojis.shieldban || '🛡️'} **Requer aprovação de Supervisor**\n` +
+                    `Esta é uma punição **${severityNames[severity]}** (pode envolver ban permanente ou muito longo). Como você não possui o cargo Supervisor (/config-roles), ao confirmar o pedido será enviado para o canal de log de punições, marcando o cargo Supervisor — a punição só será aplicada depois de aprovada.`
+                );
+            }
+
+            builder.footer(guild.name, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('punishment:confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),

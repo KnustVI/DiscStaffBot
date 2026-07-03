@@ -18,12 +18,16 @@ class PaginationBuilder {
      * @param {Object} options
      * @param {number} [options.accentColor=0xDCA15E] - Cor padrão do container
      * @param {number} [options.timeout=120000] - Tempo de expiração em ms (padrão: 2min)
-     * @param {string} [options.footerText] - Texto padrão do rodapé
+     *
+     * Nota: o rodapé (com a assinatura padrão do bot) é responsabilidade de
+     * cada página — chame builder.footer(guildName) dentro da função que
+     * monta a página, igual a qualquer outro container. O número da página
+     * já aparece no botão central de navegação, então a paginação não
+     * precisa adicionar um rodapé próprio.
      */
     constructor(options = {}) {
         this.accentColor = options.accentColor || 0xDCA15E;
         this.timeout = options.timeout || 120000;
-        this.footerText = options.footerText || '';
         this.pages = [];
         this.currentPage = 0;
         this.interaction = null;
@@ -57,14 +61,13 @@ class PaginationBuilder {
     /**
      * Adiciona uma página ao sistema
      * @param {Function|AdvancedContainerBuilder} pageBuilder - Função que retorna um builder ou um builder pronto
-     * @param {string} [footer] - Rodapé específico da página (sobrescreve o padrão)
      * @returns {this}
      */
-    addPage(pageBuilder, footer = null) {
+    addPage(pageBuilder) {
         if (typeof pageBuilder === 'function') {
-            this.pages.push({ builder: pageBuilder, footer });
+            this.pages.push({ builder: pageBuilder });
         } else if (pageBuilder instanceof AdvancedContainerBuilder) {
-            this.pages.push({ builder: () => pageBuilder, footer });
+            this.pages.push({ builder: () => pageBuilder });
         } else {
             throw new TypeError('pageBuilder deve ser uma função ou AdvancedContainerBuilder');
         }
@@ -161,19 +164,11 @@ class PaginationBuilder {
     /**
      * Constrói uma página específica
      * @param {number} index - Índice da página
-     * @param {string} [customFooter] - Rodapé customizado
      * @returns {Object} { components, flags }
      */
-    _buildPage(index, customFooter = null) {
+    _buildPage(index) {
         const page = this.pages[index];
         const builder = page.builder();
-        const total = this.pages.length;
-        const footer = customFooter || page.footer || this.footerText;
-        
-        if (footer) {
-            builder.footer(footer.replace('{page}', `${index + 1}/${total}`));
-        }
-        
         return builder.build();
     }
 
@@ -181,11 +176,10 @@ class PaginationBuilder {
      * Prepara o payload para envio
      * @param {number} index - Índice da página
      * @param {string} customIdPrefix - Prefixo para os IDs
-     * @param {string} [customFooter] - Rodapé customizado
      * @returns {Object}
      */
-    _buildPayload(index, customIdPrefix, customFooter = null) {
-        const { components, flags } = this._buildPage(index, customFooter);
+    _buildPayload(index, customIdPrefix) {
+        const { components, flags } = this._buildPage(index);
         const navRow = this._buildNavRow(customIdPrefix, this.pages.length);
         const payload = {
             components: [...components, navRow],
@@ -208,7 +202,6 @@ class PaginationBuilder {
      * @param {CommandInteraction} interaction - A interação do comando
      * @param {Object} options
      * @param {string} [options.customIdPrefix] - Prefixo para IDs dos botões (auto-gerado se não especificado)
-     * @param {string} [options.footer] - Rodapé padrão
      * @param {boolean} [options.ephemeral] - Se a mensagem deve ser efêmera
      * @param {Array} [options.files] - NOVO: Attachments a enviar (alternativa a setFiles())
      * @returns {Promise<Object>} - O payload final para resposta
@@ -216,7 +209,6 @@ class PaginationBuilder {
     async start(interaction, options = {}) {
         this.interaction = interaction;
         const customIdPrefix = options.customIdPrefix || `pag_${Date.now()}_${interaction.user.id}`;
-        const footer = options.footer || this.footerText;
         const ephemeral = options.ephemeral || false;
 
         // NOVO: permite passar files também via options de start(), não só setFiles()
@@ -228,7 +220,7 @@ class PaginationBuilder {
         // IMPORTANTE: nunca incluir `content` junto de MessageFlags.IsComponentsV2 —
         // o Discord rejeita com "MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2".
         // Toda informação visível deve estar dentro do próprio Container (title/text/footer).
-        const payload = this._buildPayload(0, customIdPrefix, footer);
+        const payload = this._buildPayload(0, customIdPrefix);
 
         if (ephemeral) {
             payload.flags = payload.flags | MessageFlags.Ephemeral;
@@ -286,7 +278,7 @@ class PaginationBuilder {
                     this.currentPage = Math.min(this.pages.length - 1, this.currentPage + 1);
                 }
 
-                const newPayload = this._buildPayload(this.currentPage, customIdPrefix, footer);
+                const newPayload = this._buildPayload(this.currentPage, customIdPrefix);
                 await i.editReply(newPayload);
             } catch (error) {
                 console.error('❌ Erro no coletor de paginação:', error);

@@ -19,7 +19,7 @@ const {
 
 const PoTConfigSystem = require('./potConfigSystem');
 const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 const ITEMS_PER_PAGE = 3;
@@ -185,7 +185,7 @@ class PoTWebhookSystem {
         const slice = EVENT_GROUPS.slice(safePage * ITEMS_PER_PAGE, (safePage + 1) * ITEMS_PER_PAGE);
         const configured = Object.keys(groupWebhooks).length;
 
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
         builder
             .section(
@@ -309,7 +309,7 @@ class PoTWebhookSystem {
 
     static async handleGameIni(interaction) {
         const config = this.getGameIniConfig(interaction.guildId);
-        const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
+        const b = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
         b.section(
             [
@@ -355,7 +355,7 @@ class PoTWebhookSystem {
         const webhooks = PoTConfigSystem.getAllGroupWebhooks(guildId);
         const entries = Object.entries(webhooks);
 
-        const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
+        const b = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         b.section(
             '# WEBHOOKS CONFIGURADOS',
             b.assetThumbnail('icone_pegada') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')

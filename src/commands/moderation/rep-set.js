@@ -3,18 +3,18 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { getAlderonIdSuffix } = require('../../systems/potPlayerRegistry');
 
 // ---------------------------------------------------------------------------
 // Montagem visual — separada para reaproveitar entre DM e canal de log
 // ---------------------------------------------------------------------------
 
-function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId }) {
+function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId, guildName }) {
     const titleIcon = isGain ? `${emojis.trendingup || '📈'}` : `${emojis.trendingdown || '📉'}`;
     const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
-    const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
+    const builder = new AdvancedContainerBuilder({ accentColor: isGain ? COLORS.SUCCESS : COLORS.ERROR });
     builder.banner('title_repset');
 
     // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────────
@@ -40,7 +40,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     builder.separator();
     builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
     builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-    builder.footer();
+    builder.footer(guildName);
 
     return builder;
 }
@@ -117,7 +117,7 @@ module.exports = {
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
             const containerBuilder = buildRepSetContainer({
-                target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId,
+                target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId, guildName: guild.name,
             });
             const { components, flags, files: filesPayload } = containerBuilder.build();
 

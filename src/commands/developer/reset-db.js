@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const SequenceManager = require('../../database/sequences');
 
 const DEVELOPER_ID = '203676076189286412';
@@ -39,7 +39,7 @@ module.exports = {
                 userTag: user.tag
             });
             
-            const deniedBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            const deniedBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
             deniedBuilder.section(
                 [
                     '# ACESSO NEGADO',
@@ -50,7 +50,7 @@ module.exports = {
             deniedBuilder.separator();
             deniedBuilder.text(`**Seu ID:** \`${user.id}\``);
             deniedBuilder.text(`**ID Autorizado:** \`${DEVELOPER_ID}\``);
-            deniedBuilder.footer('Caso necessário, contate o desenvolvedor.');
+            deniedBuilder.footer(guild.name, 'Caso necessário, contate o desenvolvedor.');
             
             const { components, flags } = deniedBuilder.build();
             await interaction.editReply({
@@ -61,7 +61,7 @@ module.exports = {
         }
         
         if (confirmacao !== 'LIMPAR TUDO') {
-            const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
+            const cancelBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             cancelBuilder.section(
                 [
                     '# AÇÃO CANCELADA',
@@ -71,7 +71,7 @@ module.exports = {
             );
             cancelBuilder.separator();
             cancelBuilder.text(`**Você digitou:** \`${confirmacao}\``);
-            cancelBuilder.footer();
+            cancelBuilder.footer(guild.name);
             
             const { components, flags } = cancelBuilder.build();
             await interaction.editReply({
@@ -134,7 +134,7 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const alertBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+                        const alertBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
                         alertBuilder.section(
                             [
                                 '# ALERTA CRÍTICO: BANCO DE DADOS LIMPO',
@@ -150,7 +150,7 @@ module.exports = {
                         alertBuilder.text(`- Reports: \`${statsBefore.reports}\` registros`);
                         alertBuilder.separator();
                         alertBuilder.text(`**ID da Transação:** \`${activityId}\``);
-                        alertBuilder.footer();
+                        alertBuilder.footer(guild.name);
                         
                         const { components, flags } = alertBuilder.build();
                         await logChannel.send({
@@ -161,7 +161,7 @@ module.exports = {
                 } catch (err) {}
             }
             
-            const successBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
+            const successBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
             successBuilder.section(
                 [
                     '# DATABASE RESETADA',
@@ -176,7 +176,7 @@ module.exports = {
             successBuilder.text(`- Reports: \`${statsBefore.reports}\``);
             successBuilder.separator();
             successBuilder.text(`**Tempo de execução:** \`${Date.now() - startTime}ms\``);
-            successBuilder.footer(`UUID: ${resetUuid.slice(0, 8)}`);
+            successBuilder.footer(guild.name, `UUID: ${resetUuid.slice(0, 8)}`);
             
             const { components, flags } = successBuilder.build();
             await interaction.editReply({
@@ -196,7 +196,7 @@ module.exports = {
                 command: 'reset-db', error: error.message
             });
             
-            const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            const errorBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
             errorBuilder.section(
                 [
                     '# ERRO AO RESETAR',
@@ -206,7 +206,7 @@ module.exports = {
             );
             errorBuilder.separator();
             errorBuilder.text(`**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
-            errorBuilder.footer('Contate o suporte imediatamente.');
+            errorBuilder.footer(guild.name, 'Contate o suporte imediatamente.');
             
             const { components, flags } = errorBuilder.build();
             await interaction.editReply({

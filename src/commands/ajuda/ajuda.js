@@ -1,7 +1,7 @@
 // /home/ubuntu/DiscStaffBot/src/commands/utility/ajuda.js
 const { SlashCommandBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const db = require('../../database/index');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 
 // ---------------------------------------------------------------------------
@@ -11,7 +11,7 @@ const { PaginationBuilder } = require('../../utils/paginationBuilder');
 const FALLBACK_ICON = 'https://cdn.discordapp.com/embed/avatars/0.png';
 
 function buildPageWelcome(displayName, guildName, emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
     return builder
         .section(
@@ -34,11 +34,12 @@ function buildPageWelcome(displayName, guildName, emojis) {
         .block([
             '• **/reportchat** — Cria o painel de reports para os usuários',
             '• Usuários abrem reports via formulário; staff entra na thread e atende.',
-        ]);
+        ])
+        .footer(guildName);
 }
 
-function buildPageModeration(emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+function buildPageModeration(guildName, emojis) {
+    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
     return builder
         .section(
@@ -62,11 +63,12 @@ function buildPageModeration(emojis) {
             '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
             '• Recuperação: +1 ponto/dia sem punições',
             '• Perda: conforme configuração de strikes',
-        ]);
+        ])
+        .footer(guildName);
 }
 
-function buildPageAutomod(emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+function buildPageAutomod(guildName, emojis) {
+    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
     return builder
         .section(
@@ -92,11 +94,12 @@ function buildPageAutomod(emojis) {
         .block([
             '• **/botstatus** — Verifica saúde do bot e sistemas',
             '• Mostra latência, memória, status do AutoMod e estatísticas',
-        ]);
+        ])
+        .footer(guildName);
 }
 
 function buildPageUserSimple(displayName, guildName, emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
     return builder
         .section(
@@ -119,7 +122,8 @@ function buildPageUserSimple(displayName, guildName, emojis) {
             '• Sua reputação começa em **100 pontos**',
             '• Infrações reduzem sua pontuação',
             '• Comportamento exemplar mantém pontos altos',
-        ]);
+        ])
+        .footer(guildName);
 }
 
 // ---------------------------------------------------------------------------
@@ -164,15 +168,14 @@ module.exports = {
             // Admin - Sistema de Paginação
             // ----------------------------------------------------------------
             const pagination = new PaginationBuilder({
-                accentColor: 0xDCA15E,
+                accentColor: COLORS.DEFAULT,
                 timeout: 120000,
-                footerText: `${guild.name} • Página {page}`,
             });
 
             pagination
                 .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis))
-                .addPage(() => buildPageModeration(emojis))
-                .addPage(() => buildPageAutomod(emojis))
+                .addPage(() => buildPageModeration(guild.name, emojis))
+                .addPage(() => buildPageAutomod(guild.name, emojis))
                 .setButtons({
                     prev: { label: 'Anterior', style: ButtonStyle.Secondary },
                     next: { label: 'Próxima', style: ButtonStyle.Primary },
@@ -186,8 +189,9 @@ module.exports = {
             console.error('❌ Erro no ajuda:', error);
 
             try {
-                const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                const errorPayload = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
                     .text(`${emojis.circlealert || '❌'} Erro ao gerar guia de ajuda. Tente novamente.`)
+                    .footer(guild?.name)
                     .build();
 
                 if (interaction.deferred || interaction.replied) {

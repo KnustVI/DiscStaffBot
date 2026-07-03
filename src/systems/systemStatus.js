@@ -1,7 +1,7 @@
 // src/systems/systemStatus.js
 const ConfigSystem = require('./configSystem');
 const ErrorLogger = require('./errorLogger');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 const os = require('os');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
@@ -13,7 +13,6 @@ try {
     EMOJIS = {};
 }
 
-const COLORS = { DEFAULT: 0xDCA15E, SUCCESS: 0xBBF96A, WARNING: 0xFFBD59, DANGER: 0xF64B4E };
 const statsCache = new Map();
 const CACHE_TTL = 60000;
 
@@ -32,21 +31,21 @@ class SystemStatus {
                     // As mensagens desse painel são Components V2 — depois de
                     // deferUpdate(), `content` sozinho é rejeitado pelo Discord
                     // (erro 50035), precisa ir como container.
-                    await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                        .text(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`).build());
+                    await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                        .text(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`).footer(interaction.guild?.name).build());
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
-            await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                .text(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`).build());
+            await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                .text(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`).footer(interaction.guild?.name).build());
         }
     }
 
     static async handleRefreshStatus(interaction) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
-            return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).build());
+            return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).footer(interaction.guild?.name).build());
         }
         
         const builder = this.generateStatusContainer(status, interaction.guild);
@@ -63,8 +62,8 @@ class SystemStatus {
     static async handleDetailedStatus(interaction, param) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
-            return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).build());
+            return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).footer(interaction.guild?.name).build());
         }
         const builder = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
         const { components, flags } = builder.build();
@@ -76,8 +75,7 @@ class SystemStatus {
         if (status.ping !== "Calculando...") {
             const pingValue = parseInt(status.ping);
             if (pingValue < 100) accentColor = COLORS.SUCCESS;
-            else if (pingValue > 200) accentColor = COLORS.DANGER;
-            else if (pingValue > 100) accentColor = COLORS.WARNING;
+            else if (pingValue > 200) accentColor = COLORS.ERROR;
         }
         
         const builder = new AdvancedContainerBuilder({ accentColor });
@@ -91,8 +89,8 @@ class SystemStatus {
         const nextRunText = status.nextAutoModTS ? `${EMOJIS.clockalert || '⏰'} Próxima: <t:${status.nextAutoModTS}:R>` : `${EMOJIS.circlealert || '❌'} N/A`;
         const lastRunText = status.lastRunTS ? `${EMOJIS.clock || '🕐'} Última: <t:${status.lastRunTS}:R>` : `${EMOJIS.circlealert || '❌'} Nunca`;
         builder.text(`**${EMOJIS.shieldcheck || '🛡️'} Auto Moderação**\n${nextRunText}\n${lastRunText}`);
-        builder.footer();
-        
+        builder.footer(guild?.name || status.guildName);
+
         return builder;
     }
     
@@ -113,7 +111,8 @@ class SystemStatus {
         else if (memoryUsage > 300) healthScore -= 10;
         
         const healthEmoji = healthScore >= 80 ? '🟢' : (healthScore >= 50 ? '🟡' : '🔴');
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        const detailAccentColor = healthScore >= 80 ? COLORS.SUCCESS : (healthScore >= 50 ? COLORS.DEFAULT : COLORS.ERROR);
+        const builder = new AdvancedContainerBuilder({ accentColor: detailAccentColor });
         
         builder.title(`${EMOJIS.settings || '🔧'} Status Detalhado do Sistema`, 1);
         builder.separator();
@@ -141,8 +140,8 @@ class SystemStatus {
         }
         
         builder.text(`${healthEmoji} **Health Score: ${healthScore}/100**\n${healthMessage}`);
-        builder.footer();
-        
+        builder.footer(guild?.name || status.guildName);
+
         return builder;
     }
     

@@ -3,7 +3,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, version } = require('discord.j
 const db = require('../../database/index');
 const SystemStatus = require('../../systems/systemStatus');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -58,7 +58,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     const healthEmoji  = isHealthy ? '🟢' : '🔴';
     const healthStatus = isHealthy ? 'Saudável' : 'Crítico — Verifique os logs';
 
-    const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+    const builder = new AdvancedContainerBuilder({ accentColor: isHealthy ? COLORS.SUCCESS : COLORS.ERROR });
 
     builder
         .section(
@@ -108,7 +108,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
             `**Logs:** ${lastLogLink}`,
             `**Health:** ${healthEmoji} ${healthStatus}`,
         ])
-        .footer(`Server: ${guild.name}`);
+        .footer(guild.name);
 
     return builder;
 }

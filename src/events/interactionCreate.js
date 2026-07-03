@@ -3,7 +3,7 @@ const InteractionHandler = require('../systems/handlers');
 const ReportChatSystem = require('../systems/reportChatSystem');
 const ConfigSystem = require('../systems/configSystem');
 const sessionManager = require('../utils/sessionManager');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
@@ -59,18 +59,15 @@ module.exports = {
                     reportNumber, guildId, reportId: `#R${reportNumber}`
                 }, 300000);
 
-                let isStaff = false;
-                if (guildId) {
-                    const guild = client.guilds.cache.get(guildId);
-                    if (guild) {
-                        const member = await guild.members.fetch(interaction.user.id).catch(() => null);
-                        const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
-                        isStaff = member?.roles?.cache?.has(staffRoleId);
-                    }
-                }
+                // ── A pergunta de punição só deve aparecer no modal de
+                // fechamento da STAFF (painel em logs-reports). O botão é
+                // idêntico na DM do usuário, mas lá o clique acontece fora de
+                // um servidor (interaction.guildId nulo), então usamos isso
+                // — e não o cargo do clicante — para decidir o modal. ──────
+                const isStaffPanel = Boolean(interaction.guildId);
 
                 const reportSystem = new ReportChatSystem(client);
-                const modal = isStaff ? reportSystem.getCloseModalStaff() : reportSystem.getCloseModalUser();
+                const modal = isStaffPanel ? reportSystem.getCloseModalStaff() : reportSystem.getCloseModalUser();
                 await interaction.showModal(modal);
                 return;
             }
@@ -225,16 +222,18 @@ module.exports = {
                 // LEGACY_FIELDS_WITH_COMPONENTS_V2"). Por isso o resultado
                 // também precisa ser montado como container, não como content.
                 if (action === 'cancel') {
-                    const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                        .text(`${EMOJIS.circlealert || '❌'} Reset cancelado.`);
+                    const cancelBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                        .text(`${EMOJIS.circlealert || '❌'} Reset cancelado.`)
+                        .footer(interaction.guild?.name);
                     await interaction.editReply(cancelBuilder.build());
                     return;
                 }
 
                 const { executeReset } = require('../commands/pot/reset');
                 const result = await executeReset(guildId, scope);
-                const resultBuilder = new AdvancedContainerBuilder({ accentColor: result.success ? 0x57F287 : 0xED4245 })
-                    .text(`${result.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${result.message}`);
+                const resultBuilder = new AdvancedContainerBuilder({ accentColor: result.success ? COLORS.SUCCESS : COLORS.ERROR })
+                    .text(`${result.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${result.message}`)
+                    .footer(interaction.guild?.name);
                 await interaction.editReply(resultBuilder.build());
                 return;
             }
@@ -296,8 +295,9 @@ module.exports = {
                     default: {
                         // Mesmo motivo do bloco pot_reset acima: a mensagem do
                         // painel é Components V2, não aceita `content`.
-                        const unknownBuilder = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                            .text(`${EMOJIS.circlealert || '❌'} Ação desconhecida.`);
+                        const unknownBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                            .text(`${EMOJIS.circlealert || '❌'} Ação desconhecida.`)
+                            .footer(interaction.guild?.name);
                         await interaction.editReply(unknownBuilder.build());
                     }
                 }

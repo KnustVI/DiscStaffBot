@@ -62,7 +62,6 @@ module.exports = {
             const pagination = new PaginationBuilder({
                 accentColor: 0xDCA15E,
                 timeout: 120000,
-                footerText: `${guild.name} • Total: ${totalRecords} registros • Página {page}`,
             });
 
             pagination

@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ChannelSelectMenuBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -42,7 +42,7 @@ module.exports = {
             ? `<#${channelId}>`
             : `${emojis.circlealert || '❌'} Não definido`;
 
-        const logsBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const logsBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         const { components, flags, files } = logsBuilder
         .section(
             [
@@ -64,7 +64,7 @@ module.exports = {
             // Seção 3: ReportChat
             .text('**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.')
             .text(`${emojis.ticket || '🎫'} **ReportChat:** ${fmt(logReports)}`)
-            .footer(`Server: ${guild.name}`)
+            .footer(guild.name)
             .build();
 
         // ── Select menu único pra Geral/AutoMod (sem mais o de automod separado) ──

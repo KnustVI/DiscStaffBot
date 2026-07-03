@@ -1,6 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/systems/analyticsSystem.js
 const db = require('../database/index');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
@@ -169,7 +169,7 @@ class AnalyticsSystem {
             ? `${report.totals.avgResponseTime}s` 
             : 'Sem dados';
         
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.medal || '📊'} Relatório de Staff`, 1);
         builder.separator();
         builder.text(`**Staff:** <@${userId}>`);
@@ -179,7 +179,7 @@ class AnalyticsSystem {
         builder.text(`${EMOJIS.ticket || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
         builder.text(`${EMOJIS.circlecheck || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
         builder.text(`${EMOJIS.clock || '⏱️'} **Tempo Médio:** ${avgResponseText}`);
-        builder.footer(`${report.days} dias analisados`);
+        builder.footer(guildName, `${report.days} dias analisados`);
         
         return builder;
     }
@@ -193,7 +193,7 @@ class AnalyticsSystem {
             reports_closed: `${EMOJIS.circlecheck || '✅'} Reports Fechados`
         };
         
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.trophy || '🏆'} Ranking de Staff`, 1);
         builder.separator();
         builder.text(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
@@ -206,7 +206,7 @@ class AnalyticsSystem {
             builder.text(`**${medal}** <@${item.user_id}>: \`${item.total}\``);
         }
         
-        builder.footer(`Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}`);
+        builder.footer(guildName, `Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}`);
         
         return builder;
     }

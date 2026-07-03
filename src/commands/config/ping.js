@@ -1,6 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/commands/config/ping.js
 const { SlashCommandBuilder } = require('discord.js');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let emojis = {};
 try {
@@ -18,23 +18,24 @@ module.exports = {
         try {
             // O handler já fez deferReply, então usamos editReply
             const ping = client.ws.ping;
-            
-            // Criar container com AdvancedContainerBuilder
-            const builder = new AdvancedContainerBuilder({ accentColor: 0x57F287 });
-            
+
             // Determinar cor baseada na latência
             let statusEmoji = '🟢';
             let statusText = 'Excelente';
+            let accentColor = COLORS.SUCCESS;
             if (ping > 200) {
-                builder.accentColor = 0xED4245;
+                accentColor = COLORS.ERROR;
                 statusEmoji = '🔴';
                 statusText = 'Crítico';
             } else if (ping > 100) {
-                builder.accentColor = 0xFEE75C;
+                accentColor = COLORS.DEFAULT;
                 statusEmoji = '🟡';
                 statusText = 'Moderado';
             }
-            
+
+            // Criar container com AdvancedContainerBuilder
+            const builder = new AdvancedContainerBuilder({ accentColor });
+
             builder.title('🏓 Pong!', 1);
             builder.separator();
             builder.text(`${emojis.wifi || '📡'} **Latência:** \`${ping}ms\``);
@@ -43,7 +44,7 @@ module.exports = {
             builder.separator();
             builder.text(`${emojis.robo || '🤖'} **Bot:** ${client.user?.tag || 'Desconhecido'}`);
             builder.text(`${emojis.calendar || '📅'} **Uptime:** ${Math.floor(client.uptime / 1000 / 60)} minutos`);
-            builder.footer(`Solicitado por ${interaction.user.tag}`);
+            builder.footer(interaction.guild?.name, `Solicitado por ${interaction.user.tag}`);
             
             const { components, flags } = builder.build();
             

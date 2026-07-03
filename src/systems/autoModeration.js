@@ -3,7 +3,7 @@ const cron = require('node-cron');
 const db = require('../database/index');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const SessionManager = require('../utils/sessionManager');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
@@ -12,13 +12,6 @@ try {
 } catch (err) {
     EMOJIS = {};
 }
-
-const COLORS = {
-    DEFAULT: 0xDCA15E,
-    SUCCESS: 0x00FF00,
-    DANGER: 0xFF0000,
-    WARNING: 0xFFA500
-};
 
 // ============================================
 // SINGLETON - CONTROLE DE INSTÂNCIA ÚNICA
@@ -107,7 +100,7 @@ class AutoModerationSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.shieldcheck || '🛡️'} Auto Moderação`, 1);
         builder.text(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`);
-        builder.footer(`Solicitado por ${interaction.user.tag}`);
+        builder.footer(interaction.guild?.name, `Solicitado por ${interaction.user.tag}`);
         
         const { components, flags } = builder.build();
         await interaction.editReply({ components, flags: [flags] });
@@ -154,7 +147,7 @@ class AutoModerationSystem {
             builder.text(`${EMOJIS.trianglealert || '⚠️'} **Limite Problemático:** ${problematicLimit} pontos`);
             builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação Diária:** +1 ponto para quem não tem punições nas últimas 24h`);
             builder.text(`${EMOJIS.refreshccw || '🔄'} **Atualização:** Diariamente às 12:00`);
-            builder.footer();
+            builder.footer(interaction.guild?.name);
             
             const { components, flags } = builder.build();
             await interaction.editReply({ components, flags: [flags] });
@@ -206,7 +199,7 @@ class AutoModerationSystem {
         builder.separator();
         builder.text(`${EMOJIS.sparkles || '🎖️'} **Limite Exemplar:** ${exLimit} pontos`);
         builder.text(`${EMOJIS.trianglealert || '⚠️'} **Limite Problemático:** ${probLimit} pontos`);
-        builder.footer(`Solicitado por ${interaction.user.tag}`);
+        builder.footer(interaction.guild?.name, `Solicitado por ${interaction.user.tag}`);
         
         const { components, flags } = builder.build();
         await interaction.editReply({ components, flags: [flags] });
@@ -229,7 +222,7 @@ class AutoModerationSystem {
         builder.text(`${EMOJIS.trianglealert || '⚠️'} **Usuários Problemáticos:** \`${problematic?.count || 0}\``);
         builder.text(`${EMOJIS.calendar || '🕒'} **Última Execução:** ${this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado'}`);
         builder.text(`${EMOJIS.trendingup || '📈'} **Total Recuperado:** \`${this.stats.totalRepRecovered}\` pontos`);
-        builder.footer();
+        builder.footer(interaction.guild?.name);
         
         const { components, flags } = builder.build();
         await interaction.editReply({ components, flags: [flags] });
@@ -431,7 +424,7 @@ class AutoModerationSystem {
                 } else {
                     builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Sem punições registradas nos últimos 7 dias.`);
                 }
-                builder.footer();
+                builder.footer(data.guildName);
 
                 const { components, flags } = builder.build();
                 await channel.send({ components, flags: [flags] });

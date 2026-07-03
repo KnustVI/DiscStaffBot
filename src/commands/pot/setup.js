@@ -3,7 +3,7 @@ const { MessageFlags } = require('discord.js');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let emojis = {};
 try {
@@ -47,7 +47,7 @@ module.exports = {
             }
 
             const builder = new AdvancedContainerBuilder({
-                accentColor: rconResult.success ? 0x00FF00 : 0xFFA500
+                accentColor: rconResult.success ? COLORS.SUCCESS : COLORS.DEFAULT
             });
 
             builder
@@ -75,7 +75,7 @@ module.exports = {
 
         } catch (error) {
             const builder = new AdvancedContainerBuilder({
-                accentColor: 0xFF0000
+                accentColor: COLORS.ERROR
             });
 
             builder

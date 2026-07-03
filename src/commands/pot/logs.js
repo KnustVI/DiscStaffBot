@@ -2,7 +2,7 @@ const { MessageFlags } = require('discord.js');
 
 const PoTWebhookSystem = require('../../systems/potWebhookSystem');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let emojis = {};
 try {
@@ -20,7 +20,7 @@ module.exports = {
             const config = PoTConfigSystem.getServerConfig(guildId);
 
             if (!config) {
-                const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
+                const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
                 builder.section(
                     [
                         '# SERVIDOR NÃO CONFIGURADO',
@@ -39,7 +39,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ [Logs] Erro:', error);
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
             builder.section(
                 [
                     '# ERRO',

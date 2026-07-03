@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -36,7 +36,7 @@ module.exports = {
                 reason: 'Usuário não autorizado'
             });
             
-            const deniedBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            const deniedBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
             deniedBuilder.section(
                 [
                     '# ACESSO NEGADO',
@@ -44,7 +44,7 @@ module.exports = {
                 ].join('\n'),
                 AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
             );
-            deniedBuilder.footer();
+            deniedBuilder.footer(guild.name);
             
             const { components, flags } = deniedBuilder.build();
             await interaction.editReply({
@@ -55,7 +55,7 @@ module.exports = {
         }
         
         if (confirmacao !== 'LIMPAR REPORTS') {
-            const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
+            const cancelBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             cancelBuilder.section(
                 [
                     '# AÇÃO CANCELADA',
@@ -63,7 +63,7 @@ module.exports = {
                 ].join('\n'),
                 AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
             );
-            cancelBuilder.footer();
+            cancelBuilder.footer(guild.name);
             
             const { components, flags } = cancelBuilder.build();
             await interaction.editReply({
@@ -124,7 +124,7 @@ module.exports = {
                 try {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
-                        const alertBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+                        const alertBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
                         alertBuilder.section(
                             [
                                 '# REPORTS RESETADOS',
@@ -138,7 +138,7 @@ module.exports = {
                         alertBuilder.text(`- Total: \`${statsBefore.reports}\``);
                         alertBuilder.text(`- Abertos: \`${statsBefore.openReports}\``);
                         alertBuilder.text(`- Fechados: \`${statsBefore.closedReports}\``);
-                        alertBuilder.footer();
+                        alertBuilder.footer(guild.name);
                         
                         const { components, flags } = alertBuilder.build();
                         await logChannel.send({
@@ -149,7 +149,7 @@ module.exports = {
                 } catch (err) {}
             }
             
-            const successBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
+            const successBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
             successBuilder.section(
                 [
                     '# REPORTS RESETADOS',
@@ -164,7 +164,7 @@ module.exports = {
             successBuilder.text(`- Fechados: \`${statsBefore.closedReports}\``);
             successBuilder.separator();
             successBuilder.text(`**Contagem reiniciada:** O próximo report será **#R1**`);
-            successBuilder.footer(`UUID: ${resetUuid.slice(0, 8)}`);
+            successBuilder.footer(guild.name, `UUID: ${resetUuid.slice(0, 8)}`);
             
             const { components, flags } = successBuilder.build();
             await interaction.editReply({
@@ -180,7 +180,7 @@ module.exports = {
             const ErrorLogger = require('../../systems/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
-            const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            const errorBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
             errorBuilder.section(
                 [
                     '# ERRO AO RESETAR',
@@ -188,7 +188,7 @@ module.exports = {
                 ].join('\n'),
                 AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
             );
-            errorBuilder.footer();
+            errorBuilder.footer(guild.name);
             
             const { components, flags } = errorBuilder.build();
             await interaction.editReply({

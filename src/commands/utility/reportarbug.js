@@ -2,7 +2,7 @@
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717';
 
@@ -69,7 +69,7 @@ module.exports = {
             const feedbackUuid = db.generateUUID();
             
             const tipoIcon = tipo === 'BUG' ? emojis.circlealert || '🐛' : emojis.compass || '💡';
-            const tipoColor = tipo === 'BUG' ? 0xF64B4E : 0x3B82F6;
+            const tipoColor = tipo === 'BUG' ? COLORS.ERROR : COLORS.DEFAULT;
             
             const devBuilder = new AdvancedContainerBuilder({ accentColor: tipoColor });
             devBuilder.title(`${tipoIcon} Feedback: ${tipo}`, 1);
@@ -79,7 +79,7 @@ module.exports = {
             devBuilder.text(`${emojis.badge || '👥'} **Cargo:** ${member?.roles.highest ? member.roles.highest.name : 'Sem cargo'}`);
             devBuilder.text(`${emojis.mensagem || '📝'} **Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``);
             devBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid}\``);
-            devBuilder.footer(`ID: ${feedbackUuid.slice(0, 8)}`);
+            devBuilder.footer(guild.name, `ID: ${feedbackUuid.slice(0, 8)}`);
             
             const { components: devComponents, flags: devFlags } = devBuilder.build();
             
@@ -113,12 +113,12 @@ module.exports = {
                 }
             } catch (err) {}
             
-            const responseBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
+            const responseBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
             responseBuilder.title(`${tipoIcon} ${tipo === 'BUG' ? 'Bug Reportado' : 'Sugestão Enviada'}`, 1);
             responseBuilder.separator();
             responseBuilder.text(`${emojis.mensagem || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
             responseBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid.slice(0, 8)}...\``);
-            responseBuilder.footer(`Obrigado por contribuir!`);
+            responseBuilder.footer(guild.name, `Obrigado por contribuir!`);
             
             const { components: responseComponents, flags: responseFlags } = responseBuilder.build();
             await interaction.editReply({
@@ -145,12 +145,12 @@ module.exports = {
                 command: 'reportarbug', tipo, error: error.message
             });
             
-            const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
+            const errorBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
             errorBuilder.title(`${emojis.circlealert || '❌'} Erro ao Enviar Feedback`, 1);
             errorBuilder.separator();
             errorBuilder.text(`**Tipo:** ${tipo}`);
             errorBuilder.text(`**Código do Erro:** \`${error.message?.slice(0, 50) || 'Desconhecido'}\``);
-            errorBuilder.footer('Caso persista, contate um administrador.');
+            errorBuilder.footer(guild?.name, 'Caso persista, contate um administrador.');
             
             const { components: errorComponents, flags: errorFlags } = errorBuilder.build();
             await interaction.editReply({

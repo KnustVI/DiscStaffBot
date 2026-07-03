@@ -2,7 +2,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('
 
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let emojis = {};
 try {
@@ -19,7 +19,7 @@ module.exports = {
 
         const guildName = interaction.guild?.name || 'Servidor';
 
-        const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
 
         builder
             .section(

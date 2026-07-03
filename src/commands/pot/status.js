@@ -1,7 +1,7 @@
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { MessageFlags } = require('discord.js'); // ✅ FIX
 
 let emojis = {};
@@ -38,8 +38,12 @@ module.exports = {
                 }
             }
 
+            let statusAccentColor = COLORS.DEFAULT;
+            if (config) {
+                statusAccentColor = rconResult?.success ? COLORS.SUCCESS : COLORS.ERROR;
+            }
             const builder = new AdvancedContainerBuilder({
-                accentColor: config ? 0x00AAFF : 0xFFA500
+                accentColor: statusAccentColor
             });
 
             builder
@@ -124,7 +128,7 @@ module.exports = {
             console.error('❌ [Status] Erro:', error);
 
             const builder = new AdvancedContainerBuilder({
-                accentColor: 0xFF0000
+                accentColor: COLORS.ERROR
             });
 
             builder

@@ -2,7 +2,7 @@
 const db = require('../database/index');
 const sessionManager = require('../utils/sessionManager');
 const ResponseManager = require('../utils/responseManager');
-const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 const { 
     ActionRowBuilder, 
     ModalBuilder, 
@@ -25,6 +25,80 @@ try {
 } catch (err) {
     EMOJIS = {};
 }
+
+/**
+ * Definição dos 3 grupos (abas) do painel /config-roles — separados porque
+ * um único painel com os 6 RoleSelectMenus (staff, strike, exemplar,
+ * problematico, supervisor, event) ultrapassaria a quantidade segura de
+ * ActionRows por mensagem. Cada aba tem no máximo 3 selects + 1 linha de
+ * botões de navegação + o container = 5 componentes de topo, mesmo padrão
+ * já usado em /config-logs.
+ */
+const ROLE_TABS = {
+    automod: {
+        label: 'Reputação Automática',
+        icon: 'trendingup',
+        headerTitle: '# CARGOS AUTOMÁTICOS - REPUTAÇÃO',
+        headerDesc: 'Estes cargos são atribuídos e removidos automaticamente pelo sistema, com base na reputação do membro e nas punições ativas. Não é necessário atribuí-los manualmente.',
+        fields: [
+            {
+                key: 'strike_role', icon: 'shieldalert', label: 'Strike (Temporário)',
+                desc: 'Atribuído automaticamente enquanto uma punição temporária está ativa. Removido quando a punição expira ou é anulada.',
+                customId: 'config-roles:strike',
+            },
+            {
+                key: 'role_exemplar', icon: 'sparkles', label: 'Exemplar',
+                desc: 'Atribuído automaticamente a membros com reputação acima do limite configurado em /config-punishments. Indica bom comportamento.',
+                customId: 'config-roles:exemplar',
+            },
+            {
+                key: 'role_problematico', icon: 'trianglealert', label: 'Problemático',
+                desc: 'Atribuído automaticamente a membros com reputação abaixo do limite configurado em /config-punishments. Sinaliza comportamento problemático.',
+                customId: 'config-roles:problematico',
+            },
+        ],
+    },
+    moderation: {
+        label: 'Moderação',
+        icon: 'shieldcheck',
+        headerTitle: '# CARGOS DE MODERAÇÃO',
+        headerDesc: 'Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas.',
+        fields: [
+            {
+                key: 'staff_role', icon: 'shield', label: 'Staff (obrigatório)',
+                desc: 'Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem esse cargo configurado, a staff não consegue usar o sistema.',
+                customId: 'config-roles:staff',
+            },
+            {
+                key: 'supervisor_role', icon: 'shieldban', label: 'Supervisor',
+                desc: 'Tem autoridade para aprovar ou aplicar diretamente punições severas (Nível 4 - Severa, ou Nível 5 - Permanente), como bans permanentes ou muito longos. Quando um Staff comum aplica uma punição desse nível, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.',
+                customId: 'config-roles:supervisor',
+            },
+        ],
+    },
+    events: {
+        label: 'Eventos',
+        icon: 'partypopper',
+        headerTitle: '# CARGOS DE EVENTOS',
+        headerDesc: 'Cargos usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.',
+        fields: [
+            {
+                key: 'event_role', icon: 'calendardays', label: 'Equipe de Eventos',
+                desc: 'Permite usar o comando /evento para criar e publicar eventos da comunidade.',
+                customId: 'config-roles:event',
+            },
+            {
+                key: 'event_notify_role', icon: 'megaphone', label: 'Notificação de Eventos',
+                desc: 'Marcado automaticamente na postagem do fórum sempre que um novo evento é publicado, para avisar quem tem interesse. Não precisa ter permissão nenhuma, é só um cargo de avisos.',
+                customId: 'config-roles:event-notify',
+            },
+        ],
+    },
+};
+
+const ROLE_LABELS = Object.fromEntries(
+    Object.values(ROLE_TABS).flatMap(tab => tab.fields.map(f => [f.key, f.label])),
+);
 
 const ConfigSystem = {
     getSetting(guildId, key) {
@@ -101,7 +175,7 @@ const ConfigSystem = {
             const channel = await interaction.guild.channels.fetch(logChannelId).catch(() => null);
             if (!channel) return;
 
-            const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${EMOJIS.settings || '⚙️'} Configuração Alterada`);
             builder.text(`**Responsável:** ${interaction.user}`);
             builder.separator();
@@ -163,6 +237,23 @@ const ConfigSystem = {
             }
             if (customId === 'config-roles:problematico') {
                 await this.setRole(interaction, 'role_problematico');
+                return;
+            }
+            if (customId === 'config-roles:supervisor') {
+                await this.setRole(interaction, 'supervisor_role');
+                return;
+            }
+            if (customId === 'config-roles:event') {
+                await this.setRole(interaction, 'event_role');
+                return;
+            }
+            if (customId === 'config-roles:event-notify') {
+                await this.setRole(interaction, 'event_notify_role');
+                return;
+            }
+            if (customId.startsWith('config-roles:tab:')) {
+                const tab = customId.split(':')[2];
+                await this.refreshRolesPanel(interaction, null, tab);
                 return;
             }
             if (customId === 'config-logs:geral') {
@@ -374,7 +465,7 @@ const ConfigSystem = {
         const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
 
-        const cb = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
         const { components, flags, files } = cb
             .section(
@@ -421,45 +512,62 @@ const ConfigSystem = {
         await this.sendFeedback(interaction, successMessage);
     },
 
-    async refreshRolesPanel(interaction, successMessage) {
+    /**
+     * Descobre em qual aba do /config-roles vive uma determinada chave de
+     * cargo (usado para reabrir a mesma aba depois de salvar uma seleção).
+     */
+    _tabForRoleKey(roleKey) {
+        for (const [tabKey, tab] of Object.entries(ROLE_TABS)) {
+            if (tab.fields.some(f => f.key === roleKey)) return tabKey;
+        }
+        return 'moderation';
+    },
+
+    async refreshRolesPanel(interaction, successMessage, tab = 'moderation') {
         const guildId = interaction.guildId;
-        const staffRole       = this.getSetting(guildId, 'staff_role');
-        const strikeRole      = this.getSetting(guildId, 'strike_role');
-        const exemplarRole    = this.getSetting(guildId, 'role_exemplar');
-        const problematicoRole = this.getSetting(guildId, 'role_problematico');
+        const tabKey = ROLE_TABS[tab] ? tab : 'moderation';
+        const tabData = ROLE_TABS[tabKey];
 
         const fmt = (roleId) => roleId
             ? `<@&${roleId}>`
             : `${EMOJIS.circlealert || '❌'} Não definido`;
-        
-        const rolesBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-        const { components, flags, files } = rolesBuilder
-            .section(
-                [
-                    '# CARGOS DO SISTEMA',
-                    'É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.',
-                ].join('\n'),
-                rolesBuilder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
+
+        const rolesBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        rolesBuilder.section(
+            [tabData.headerTitle, tabData.headerDesc].join('\n'),
+            rolesBuilder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
+        );
+        rolesBuilder.separator();
+
+        const selectRows = [];
+        for (const field of tabData.fields) {
+            const currentId = this.getSetting(guildId, field.key);
+            rolesBuilder.text(`**${EMOJIS[field.icon] || ''} ${field.label}** — ${field.desc}`);
+            rolesBuilder.text(`${EMOJIS.gauge || '📊'} **Atual:** ${fmt(currentId)}`);
+            rolesBuilder.separator();
+
+            selectRows.push(
+                new ActionRowBuilder().addComponents(
+                    new RoleSelectMenuBuilder().setCustomId(field.customId).setPlaceholder(`Selecionar cargo: ${field.label}`)
+                )
+            );
+        }
+
+        rolesBuilder.footer(interaction.guild.name);
+        const { components, flags, files } = rolesBuilder.build();
+
+        const tabRow = new ActionRowBuilder().addComponents(
+            Object.entries(ROLE_TABS).map(([key, data]) =>
+                new ButtonBuilder()
+                    .setCustomId(`config-roles:tab:${key}`)
+                    .setLabel(data.label)
+                    .setEmoji(EMOJIS[data.icon] || undefined)
+                    .setStyle(key === tabKey ? ButtonStyle.Primary : ButtonStyle.Secondary)
             )
-            .separator()
-            .text('Selecione os cargos abaixo:')
-            .separator()
-            .block([
-                `${EMOJIS.shield  || '🛡️'} **Staff:** ${fmt(staffRole)}`,
-                `${EMOJIS.gavel || '⚠️'} **Strike (Temporário):** ${fmt(strikeRole)}`,
-                `${EMOJIS.sparkles || '✨'} **Exemplar:** ${fmt(exemplarRole)}`,
-                `${EMOJIS.trianglealert  || '⚠️'} **Problemático:** ${fmt(problematicoRole)}`,
-            ])
-            .footer(interaction.guild.name)
-            .build();
-        
-        const staffRow       = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff'));
-        const strikeRow      = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:strike').setPlaceholder('Selecionar cargo de Strike'));
-        const exemplarRow    = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:exemplar').setPlaceholder('Selecionar cargo Exemplar'));
-        const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
-        
+        );
+
         // ✅ Painel SEMPRE limpo, sem `content`.
-        const replyData = { components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow], flags, files };
+        const replyData = { components: [...components, tabRow, ...selectRows], flags, files };
 
         try {
             if (interaction.deferred || interaction.replied) {
@@ -478,7 +586,7 @@ const ConfigSystem = {
         if (!selectedRoleId) {
             return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Nenhum cargo selecionado.`);
         }
-        
+
         const role = interaction.guild.roles.cache.get(selectedRoleId);
         if (!role) {
             return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Cargo não encontrado.`);
@@ -488,10 +596,13 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, roleKey, selectedRoleId);
         this.clearCache(interaction.guildId);
 
-        const roleLabels = { staff_role: 'Staff', strike_role: 'Strike', role_exemplar: 'Exemplar', role_problematico: 'Problemático' };
         const oldRoleMention = oldRoleId ? `<@&${oldRoleId}>` : '`não definido`';
-        await this.logConfigChange(interaction, `${EMOJIS.shield || '🎭'} Cargo **${roleLabels[roleKey]}**: ${oldRoleMention} → ${role}`);
-        await this.refreshRolesPanel(interaction, `${EMOJIS.circlecheck || '✅'} **${roleLabels[roleKey]}** alterado para ${role}`);
+        await this.logConfigChange(interaction, `${EMOJIS.shield || '🎭'} Cargo **${ROLE_LABELS[roleKey]}**: ${oldRoleMention} → ${role}`);
+        await this.refreshRolesPanel(
+            interaction,
+            `${EMOJIS.circlecheck || '✅'} **${ROLE_LABELS[roleKey]}** alterado para ${role}`,
+            this._tabForRoleKey(roleKey),
+        );
     },
 
     /**
@@ -511,7 +622,7 @@ const ConfigSystem = {
             ? `<#${channelId}>`
             : `${EMOJIS.circlealert || '❌'} Não definido`;
         
-        const logsBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const logsBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         const { components, flags, files } = logsBuilder
             .section(
                 [
@@ -604,7 +715,7 @@ const ConfigSystem = {
                     // A mensagem original (painel config-logs) é Components V2 —
                     // depois de deferUpdate(), `content` sozinho é rejeitado
                     // pelo Discord (erro 50035). Precisa ir como container.
-                    const errBuilder = new AdvancedContainerBuilder({ accentColor: 0xED4245 }).text(msg);
+                    const errBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR }).text(msg).footer(guild.name);
                     await interaction.editReply(errBuilder.build());
                 } else {
                     await interaction.reply({ content: msg, flags: 64 });
@@ -613,8 +724,9 @@ const ConfigSystem = {
             }
             
             if (!interaction.deferred && !interaction.replied) {
-                const loadingPayload = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
+                const loadingPayload = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT })
                     .text(`${EMOJIS.clock || '⏳'} Criando canais de log...`)
+                    .footer(guild.name)
                     .build();
 
                 await interaction.reply({ ...loadingPayload, flags: loadingPayload.flags | MessageFlags.Ephemeral });
@@ -644,7 +756,7 @@ const ConfigSystem = {
                 `${EMOJIS.ticket || '🎫'} Reports: → ${reports}`,
             ]);
 
-            const replyData = new AdvancedContainerBuilder({ accentColor: 0x57F287 })
+            const replyData = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
                 .title(`${EMOJIS.circlecheck || '✅'} Canais de Log Criados`)
                 .text('Os seguintes canais foram criados:')
                 .separator()
@@ -666,8 +778,9 @@ const ConfigSystem = {
             console.error('❌ Erro ao criar canais:', error);
             const msg = `${EMOJIS.circlealert || '❌'} Erro ao criar canais: ${error.message}`;
             try {
-                const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                const errorPayload = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
                     .text(msg)
+                    .footer(interaction.guild?.name)
                     .build();
 
                 if (interaction.deferred || interaction.replied) {

@@ -7,16 +7,16 @@
  * Compatível com Discord.js 14.26.4 (API Components V2).
  *
  * Uso:
- *   const { AdvancedContainerBuilder } = require('./containerBuilder');
+ *   const { AdvancedContainerBuilder, COLORS } = require('./containerBuilder');
  *
- *   const builder = new AdvancedContainerBuilder({ accentColor: 0xED4245 });
+ *   const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
  *   builder
  *     .banner('title_strike') // opcional: imagem de assets/images no lugar do title()
  *     .section('**Usuário:** Fulano', AdvancedContainerBuilder.thumbnail(avatarUrl))
  *     .separator()
  *     .block(['🛡️ Moderador: Staff', '📉 Pontos: -10'])
  *     .separator()
- *     .footer('Gerado automaticamente');
+ *     .footer(guild.name); // -# Produzido por KnustVI e T.Mach | Server: {guild.name}
  *
  *   const payload = builder.build();
  *   // payload = { components: [ContainerBuilder], flags: MessageFlags.IsComponentsV2, files: [] }
@@ -48,15 +48,27 @@ const ACCESSORY_TYPE = Object.freeze({
 });
 
 // ---------------------------------------------------------------------------
+// Paleta única de cores do bot — todo container deve usar uma destas três.
+// DEFAULT também cobre estados neutros/de alerta leve (não há tom "warning").
+// ---------------------------------------------------------------------------
+const COLORS = Object.freeze({
+    DEFAULT: 0xDCA15E,
+    SUCCESS: 0x79FF72,
+    ERROR: 0xFF4E3B,
+});
+
+const BRAND_FOOTER = 'Produzido por KnustVI e T.Mach';
+
+// ---------------------------------------------------------------------------
 // Classe principal
 // ---------------------------------------------------------------------------
 class AdvancedContainerBuilder {
     /**
      * @param {object} [options]
-     * @param {number} [options.accentColor] - Cor de destaque do container (ex: 0xED4245)
+     * @param {number} [options.accentColor] - Cor de destaque do container (ver COLORS: DEFAULT/SUCCESS/ERROR)
      */
     constructor(options = {}) {
-        this._accentColor = options.accentColor ?? null;
+        this._accentColor = options.accentColor ?? COLORS.DEFAULT;
 
         /**
          * Lista única de componentes na ordem de inserção.
@@ -267,12 +279,18 @@ class AdvancedContainerBuilder {
     }
 
     /**
-     * Adiciona um rodapé como TextDisplay em itálico.
+     * Adiciona o rodapé padrão do bot: sempre contém a assinatura
+     * "Produzido por KnustVI e T.Mach | Server: {guildName}". Um `extra`
+     * opcional (ex: "Página 2/5", "Solicitado por Fulano") é prefixado antes
+     * da assinatura, na mesma linha.
      *
-     * @param {string} text - Texto do rodapé
+     * @param {string} guildName - Nome do servidor onde o container foi gerado
+     * @param {string} [extra] - Contexto adicional específico deste container
      * @returns {this}
      */
-    footer(text) {
+    footer(guildName, extra = null) {
+        const brand = `${BRAND_FOOTER} | Server: ${guildName || 'Servidor'}`;
+        const text = extra ? `${extra} • ${brand}` : brand;
         this.components.push({
             kind: 'textDisplay',
             payload: `-# ${text}`,
@@ -508,4 +526,5 @@ AdvancedContainerBuilder.prototype.section = function section(text, accessory = 
 // ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
-module.exports = { AdvancedContainerBuilder };
+AdvancedContainerBuilder.COLORS = COLORS;
+module.exports = { AdvancedContainerBuilder, COLORS };

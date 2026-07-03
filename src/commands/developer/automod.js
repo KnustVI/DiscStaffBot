@@ -1,6 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/commands/developer/automod.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 // REMOVER esta importação:
 // const { AutoModerationSystem } = require('../../systems/autoModeration');
 
@@ -78,7 +78,7 @@ module.exports = {
         const workerRunning = autoMod.isRunning;
         const hasIssues = channelIssues.length > 0 || !isEnabled;
 
-        const builder = new AdvancedContainerBuilder({ accentColor: hasIssues ? 0xFFA500 : 0x00FF00 });
+        const builder = new AdvancedContainerBuilder({ accentColor: hasIssues ? COLORS.ERROR : COLORS.SUCCESS });
 
         builder.section(
             [
@@ -100,7 +100,7 @@ module.exports = {
             }
         }
         
-        builder.footer(`Server: ${guild.name}`);
+        builder.footer(guild.name);
         
         const { components, flags } = builder.build();
         
