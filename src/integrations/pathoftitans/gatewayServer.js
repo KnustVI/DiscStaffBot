@@ -192,7 +192,7 @@ class PoTGatewayServer {
             ServerRestart:           () => `${EMOJIS.refreshccw || '🔄'} Servidor **reiniciando**...`,
             ServerRestartCountdown:  () => `${EMOJIS.clockalert || '⏳'} Servidor reinicia em **${d.CountdownTime || '?'}s**`,
             ServerModerate:          () => `${EMOJIS.shieldcheck || '🛡️'} Moderação automática: **${d.PlayerName}** — ${d.Reason || 'sem motivo'}`,
-            ServerError:             () => `${EMOJIS.octagonalert || '⚠️'} **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
+            ServerError:             () => `${EMOJIS.filewarning || '⚠️'} **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
             SecurityAlert:           () => `${EMOJIS.siren || '🚨'} **ALERTA DE SEGURANÇA:** ${d.SecurityAlert || 'suspeita detectada'}`,
             BadAverageTick:          () => `${EMOJIS.trendingdown || '📉'} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
 
