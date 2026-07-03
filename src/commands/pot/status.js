@@ -29,12 +29,12 @@ module.exports = {
             // cliente RCON e envia o comando 'status' de verdade — diferente
             // de stats.rconConnections, que só conta instâncias em memória
             // (fica zerado/desatualizado se o bot reiniciar).
-            let rconLiveOk = null;
+            let rconResult = null;
             if (config) {
                 try {
-                    rconLiveOk = await potIntegration.initializeForGuild(guildId, config);
+                    rconResult = await potIntegration.initializeForGuild(guildId, config);
                 } catch (err) {
-                    rconLiveOk = false;
+                    rconResult = { success: false, error: err.message };
                 }
             }
 
@@ -81,12 +81,12 @@ module.exports = {
 
             // ✅ Linha de RCON agora mostra o teste ao vivo, não a contagem em memória.
             let rconText;
-            if (rconLiveOk === null) {
+            if (rconResult === null) {
                 rconText = `${emojis.thumbsup || '⚪'} Não testado (servidor não configurado)`;
-            } else if (rconLiveOk) {
+            } else if (rconResult.success) {
                 rconText = `${emojis.circlecheck || '✅'} Conectado (testado agora)`;
             } else {
-                rconText = `${emojis.circlealert || '❌'} Falhou (sem resposta do servidor — verifique IP/porta/senha RCON)`;
+                rconText = `${emojis.circlealert || '❌'} Falhou: ${rconResult.error || 'sem resposta do servidor'} — verifique IP/porta/senha RCON`;
             }
             builder.text(`${emojis.rcon || '🔗'} **RCON:** ${rconText}`);
 
@@ -100,7 +100,7 @@ module.exports = {
                 builder.text(`${emojis.luz || '💡'} **Dica:** Use \`/potserver setup\` para configurar o servidor.`);
             } else if (Object.keys(webhooks).length === 0) {
                 builder.text(`${emojis.luz || '💡'} **Dica:** Use \`/potserver logs\` para criar os webhooks.`);
-            } else if (!rconLiveOk) {
+            } else if (!rconResult?.success) {
                 builder.text(`${emojis.luz || '💡'} **Dica:** RCON falhou — confirme se o servidor PoT está online e se IP/porta/senha estão corretos em \`/potserver setup\`.`);
             } else {
                 builder.text(`${emojis.circlecheck || '✅'} **Tudo pronto!** O servidor está integrado com o bot.`);

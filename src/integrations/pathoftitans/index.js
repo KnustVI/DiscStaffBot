@@ -26,28 +26,31 @@ class PathOfTitansIntegration {
     }
 
     async initializeForGuild(guildId, config) {
-        if (!config || !config.enabled) return false;
-        
+        if (!config || !config.enabled) return { success: false, error: 'Integração desativada' };
+
         try {
             // Criar/validar token
             let token = PoTTokenManager.getToken(guildId);
             if (!token) {
                 token = PoTTokenManager.generateToken(guildId);
             }
-            
+
             // Inicializar RCON
             const rcon = new PoTRconClient(guildId, config);
             this.rconClients.set(guildId, rcon);
-            
+
             // Testar conexão
             const testResult = await rcon.sendCommand('status');
-            
-            console.log(`🎮 [PoT] Guild ${guildId} - Token: ${token.substring(0, 20)}... | RCON: ${testResult.success ? 'OK' : 'FAIL'}`);
-            return testResult.success;
-            
+
+            // Log detalhado (motivo real da falha, não só OK/FAIL) — antes só
+            // mostrava sucesso/falha, dificultando diagnosticar se era senha
+            // errada, timeout ou conexão recusada/encerrada.
+            console.log(`🎮 [PoT] Guild ${guildId} - Token: ${token.substring(0, 20)}... | RCON: ${testResult.success ? 'OK' : `FAIL (${testResult.error})`}`);
+            return testResult;
+
         } catch (error) {
             ErrorLogger.error('pot_integration', 'initializeForGuild', error, { guildId });
-            return false;
+            return { success: false, error: error.message };
         }
     }
 
@@ -82,8 +85,8 @@ class PathOfTitansIntegration {
                 return await this.initializeForGuild(guildId, config);
             }
         }
-        
-        return false;
+
+        return { success: false, error: 'Servidor não configurado' };
     }
 
     getStats() {
