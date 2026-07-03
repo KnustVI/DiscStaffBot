@@ -202,7 +202,7 @@ class PoTGatewayServer {
             // ── Nest ──
             CreateNest:    () => `${EMOJIS.Nest || '🪺'} **${d.PlayerName}** criou um ninho`,
             DestroyNest:   () => `💥 Ninho de **${d.PlayerName}** foi destruído`,
-            NestInvite:    () => `📨 **${d.PlayerName}** convidou **${d.InvitedPlayer}** para o ninho`,
+            NestInvite:    () => `${EMOJIS.mensagem || '📨'} **${d.PlayerName}** convidou **${d.InvitedPlayer}** para o ninho`,
             PlayerJoinNest: () => `${EMOJIS.circlecheck || '✅'} **${d.PlayerName}** entrou em um ninho`,
             UpdateNest:    () => `${EMOJIS.filetext || '📝'} Ninho de **${d.PlayerName}** foi atualizado`,
         };

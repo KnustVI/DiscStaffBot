@@ -50,7 +50,7 @@ module.exports = {
             if (config) {
                 builder.text(`${emojis.circlecheck || '✅'} **Servidor:** ${config.server_ip || 'Não configurado'}`);
                 builder.text(`${emojis.tomada || '🔌'} **Porta RCON:** ${config.rcon_port || 'N/A'}`);
-                builder.text(`📨 **Webhooks:** ${Object.keys(webhooks).length} configurados`);
+                builder.text(`${emojis.mensagem || '📨'} **Webhooks:** ${Object.keys(webhooks).length} configurados`);
             } else {
                 builder.text(`${emojis.circlealert || '❌'} **Servidor:** Não configurado`);
                 builder.text('Use `/potserver setup` para configurar');

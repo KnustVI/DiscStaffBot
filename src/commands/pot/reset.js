@@ -69,7 +69,7 @@ module.exports = {
 
                     return {
                         success: true,
-                        message: '📨 Webhooks removidos'
+                        message: `${emojis.mensagem || '📨'} Webhooks removidos`
                     };
 
                 case 'all':
