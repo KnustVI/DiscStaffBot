@@ -5,125 +5,274 @@ const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuild
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 
 // ---------------------------------------------------------------------------
-// Fábrica de páginas
+// Fábrica de páginas — /ajuda funciona como um tutorial completo do bot,
+// terminando sempre com FAQ e o contato com o desenvolvedor (/reportarbug).
+// Administradores veem o tutorial completo (setup + todos os sistemas);
+// membros comuns veem uma versão enxuta focada no que eles podem usar.
 // ---------------------------------------------------------------------------
 
 const FALLBACK_ICON = 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-function buildPageWelcome(displayName, guildName, emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+function newPage() {
+    return new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+}
 
-    return builder
-        .section(
-            [
-                '# ASSISTENTE TITAN',
-                `Olá **${displayName}**! Sou o sistema de gestão do seu servidor **${guildName}**.`,
-            ].join('\n'),
-            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
-        )
-        .separator()
-        .title(`${emojis.settings || '⚙️'} Configuração Inicial`, 2)
-        .text('Apenas administradores podem usar estes comandos:')
-        .block([
-            '• **/config-logs** — Configura os canais de log (Geral, Punições, AutoMod, ReportChat)',
-            '• **/config-roles** — Configura cargos (Staff é OBRIGATÓRIO!)',
-            '• **/config-punishments** — Configura pontos dos strikes e limites de reputação',
-        ])
-        .separator()
-        .title(`${emojis.ticket || '🎫'} ReportChat`, 2)
-        .block([
-            '• **/reportchat** — Cria o painel de reports para os usuários',
-            '• Usuários abrem reports via formulário; staff entra na thread e atende.',
-        ])
-        .footer(guildName);
+function pageHeader(builder, title, description) {
+    builder.section(
+        [`# ${title}`, description].join('\n'),
+        builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
+    );
+    builder.separator();
+    return builder;
+}
+
+// ==================== PÁGINAS — ADMIN/STAFF ====================
+
+function buildPageWelcome(displayName, guildName, emojis, isAdmin) {
+    const builder = newPage(emojis);
+    pageHeader(
+        builder,
+        'ASSISTENTE TITAN',
+        `Olá **${displayName}**! Este é o guia completo do bot em **${guildName}** — use os botões abaixo para navegar pelas páginas.`
+    );
+
+    builder.title(`${emojis.clipboardlist || '📋'} Neste guia você encontra`, 2);
+    builder.block(isAdmin ? [
+        '• **Configuração inicial** — o que configurar e em que ordem',
+        '• **Moderação e Reputação** — strike, unstrike, punições severas',
+        '• **Sistema de Reports** — como o ReportChat funciona pro staff',
+        '• **Auto Moderação** — o que roda sozinho todo dia',
+        '• **Eventos** — como criar e divulgar eventos da comunidade',
+        '• **Status e utilidades** — checar a saúde do bot',
+        '• **Perguntas Frequentes**',
+        '• **Fale com o desenvolvedor** — bugs e sugestões',
+    ] : [
+        '• **Como funciona o sistema de reputação**',
+        '• **Como denunciar alguém ou contestar uma punição**',
+        '• **Perguntas Frequentes**',
+        '• **Fale com o desenvolvedor** — bugs e sugestões',
+    ]);
+
+    builder.footer(guildName);
+    return builder;
+}
+
+function buildPageSetup(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'CONFIGURAÇÃO INICIAL', 'Apenas administradores podem usar estes comandos. Siga essa ordem na primeira configuração:');
+
+    builder.title(`${emojis.shield || '🛡️'} 1. /config-roles`, 2);
+    builder.block([
+        '• Define quais cargos do servidor controlam cada permissão do bot.',
+        '• **Staff é obrigatório** — sem ele, ninguém consegue moderar.',
+        `• ${emojis.messagesquare || 'ℹ️'} **Importante:** esses cargos servem só para o bot saber quem pode usar cada comando. Eles não precisam ser (nem representar) um cargo "oficial" do servidor — você pode reaproveitar um cargo que já existe ou criar um novo só pra isso. É 100% customizável.`,
+        '• Painel dividido em 3 abas: Reputação Automática, Moderação e Eventos.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.filetext || '📝'} 2. /config-logs`, 2);
+    builder.block([
+        '• Define os canais que recebem logs: Geral/AutoMod, Punições e ReportChat.',
+        '• Tem um botão para criar os 3 canais automaticamente, se preferir.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.gavel || '⚖️'} 3. /config-punishments`, 2);
+    builder.block([
+        '• Ajusta os pontos perdidos por nível de strike (1 a 5).',
+        '• Ajusta os limites de reputação para os cargos Exemplar e Problemático.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.ticket || '🎫'} 4. /reportchat`, 2);
+    builder.text('• Publica o painel de denúncias para os usuários no canal atual.');
+
+    builder.footer(guildName);
+    return builder;
 }
 
 function buildPageModeration(guildName, emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    const builder = newPage(emojis);
+    pageHeader(builder, 'MODERAÇÃO E REPUTAÇÃO', 'Apenas usuários com o cargo **Staff** (configurado em /config-roles) podem usar:');
 
-    return builder
-        .section(
-            [
-                '# MODERAÇÃO E REPUTAÇÃO',
-                'Apenas usuários com cargo **STAFF** podem usar:',
-            ].join('\n'),
-            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
-        )
-        .separator()
-        .title(`${emojis.gavel || '⚠️'} Comandos de Punição`, 2)
-        .block([
-            '• **/strike** — Aplica punição e reduz reputação',
-            '• **/unstrike** — Anula punição e restaura pontos',
-            '• **/historico** — Consulta ficha completa do usuário',
-            '• **/repset** — Ajuste manual de reputação',
-        ])
-        .separator()
-        .title(`${emojis.star || '⭐'} Sistema de Reputação`, 2)
-        .block([
-            '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
-            '• Recuperação: +1 ponto/dia sem punições',
-            '• Perda: conforme configuração de strikes',
-        ])
-        .footer(guildName);
+    builder.title(`${emojis.gavel || '⚠️'} Comandos de Punição`, 2);
+    builder.block([
+        '• **/strike** — Aplica punição e reduz reputação',
+        '• **/unstrike** — Anula punição e restaura pontos',
+        '• **/historico** — Consulta ficha completa do usuário',
+        '• **/repset** — Ajuste manual de reputação',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.shieldban || '🛡️'} Punições Severas Precisam de Aprovação`, 2);
+    builder.block([
+        '• Strikes de **Nível 4 (Severa)** ou **5 (Permanente)** podem envolver bans muito longos ou permanentes.',
+        '• Quem não tem o cargo **Supervisor** (configurado em /config-roles) tem o pedido enviado para aprovação no canal de log de punições, marcando o Supervisor.',
+        '• Quem já é Supervisor aplica direto, sem precisar de aprovação.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.star || '⭐'} Sistema de Reputação`, 2);
+    builder.block([
+        '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
+        '• Recuperação: +1 ponto/dia sem punições (via AutoMod)',
+        '• Perda: conforme configuração de strikes',
+    ]);
+
+    builder.footer(guildName);
+    return builder;
+}
+
+function buildPageReports(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'SISTEMA DE REPORTS', 'Como o ReportChat funciona para o staff:');
+
+    builder.title(`${emojis.ticket || '🎫'} Fluxo`, 2);
+    builder.block([
+        '• O usuário abre um report pelo painel publicado com /reportchat.',
+        '• Uma thread privada é criada e um resumo aparece no canal de logs (config-logs).',
+        '• Clique em **Entrar no Reporte** para atender — o cargo Staff é necessário.',
+        '• Use **Fechar** (sem motivo) ou **Fechar com Motivo** para encerrar; o fechamento com motivo pergunta também sobre punição aplicada.',
+        '• O usuário pode avaliar o atendimento depois de encerrado.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.circlecheck || '✅'} Revisão de Punição`, 2);
+    builder.text('• O botão "Revisar Punição" no painel abre o mesmo fluxo de thread, mas para contestar um strike específico — informando o número do strike.');
+
+    builder.footer(guildName);
+    return builder;
 }
 
 function buildPageAutomod(guildName, emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    const builder = newPage(emojis);
+    pageHeader(builder, 'AUTO MODERAÇÃO', 'Sistema automático de gerenciamento de reputação:');
 
-    return builder
-        .section(
-            [
-                '# AUTO MODERAÇÃO',
-                'Sistema automático de gerenciamento de reputação:',
-            ].join('\n'),
-            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
-        )
-        .separator()
-        .title(`${emojis.settings || '⚙️'} Comandos`, 2)
-        .text('• **/automod test** — Verifica configurações e canal de log')
-        .separator()
-        .title(`${emojis.trendingup || '📈'} Funcionamento`, 2)
-        .block([
-            '• Executa diariamente às **12:00**',
-            '• +1 ponto para quem não tem punições nas últimas 24h',
-            '• Atribui/remove cargos **Exemplar** e **Problemático** automaticamente',
-            '• Envia relatório no canal de log configurado',
-        ])
-        .separator()
-        .title(`${emojis.megaphone || '🌐'} Status`, 2)
-        .block([
-            '• **/botstatus** — Verifica saúde do bot e sistemas',
-            '• Mostra latência, memória, status do AutoMod e estatísticas',
-        ])
-        .footer(guildName);
+    builder.title(`${emojis.settings || '⚙️'} Comandos`, 2);
+    builder.text('• **/automod test** — Verifica configurações e canal de log');
+    builder.separator();
+
+    builder.title(`${emojis.trendingup || '📈'} Funcionamento`, 2);
+    builder.block([
+        '• Executa diariamente às **12:00** (horário de Brasília).',
+        '• +1 ponto para quem não tem punições nas últimas 24h.',
+        '• Atribui/remove cargos **Exemplar** e **Problemático** automaticamente, conforme os limites de /config-punishments.',
+        '• Envia relatório no canal de log configurado.',
+    ]);
+
+    builder.footer(guildName);
+    return builder;
 }
 
-function buildPageUserSimple(displayName, guildName, emojis) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+function buildPageEvents(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'EVENTOS', 'Criação e divulgação de eventos da comunidade:');
 
-    return builder
-        .section(
-            [
-                '# ASSISTENTE TITAN',
-                `Olá **${displayName}**! Sou o sistema de gestão do servidor **${guildName}**.`,
-            ].join('\n'),
-            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
-        )
-        .separator()
-        .title(`${emojis.ticket || '🎫'} ReportChat`, 2)
-        .block([
-            '• Use o painel de reports para abrir uma denúncia',
-            '• Staff irá atender e analisar o caso',
-            '• Você pode avaliar o atendimento ao final',
-        ])
-        .separator()
-        .title(`${emojis.star || '⭐'} Reputação`, 2)
-        .block([
-            '• Sua reputação começa em **100 pontos**',
-            '• Infrações reduzem sua pontuação',
-            '• Comportamento exemplar mantém pontos altos',
-        ])
-        .footer(guildName);
+    builder.title(`${emojis.calendardays || '📅'} /evento`, 2);
+    builder.block([
+        '• Pede: canal de fórum, título, descrição breve, imagem (PNG/JPEG, até 1920x1279), data e local.',
+        '• O local pode ser um **canal de voz/palco** ou um **texto livre** (ex: um local dentro do jogo).',
+        '• Publica automaticamente no fórum escolhido, cria um Evento agendado nativo do Discord e coloca o link dele na própria postagem.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.partypopper || '🎉'} Cargos (configurados em /config-roles, aba Eventos)`, 2);
+    builder.block([
+        '• **Equipe de Eventos** — quem pode usar o /evento.',
+        '• **Notificação de Eventos** — marcado automaticamente em cada postagem, para avisar quem tem interesse.',
+    ]);
+
+    builder.footer(guildName);
+    return builder;
+}
+
+function buildPageUtility(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'STATUS E UTILIDADES', 'Comandos para checar a saúde do bot:');
+
+    builder.block([
+        '• **/botstatus** — Verifica saúde do bot e sistemas: uptime, latência, memória, status do AutoMod e estatísticas.',
+        '• **/ping** — Latência rápida do bot.',
+    ]);
+
+    builder.footer(guildName);
+    return builder;
+}
+
+// ==================== PÁGINAS — MEMBROS COMUNS ====================
+
+function buildPageUserSimple(displayName, guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(
+        builder,
+        'ASSISTENTE TITAN',
+        `Olá **${displayName}**! Sou o sistema de gestão de **${guildName}**. Aqui vai um resumo rápido do que você pode fazer:`
+    );
+
+    builder.title(`${emojis.ticket || '🎫'} ReportChat`, 2);
+    builder.block([
+        '• Use o painel de reports para abrir uma denúncia.',
+        '• A staff vai atender e analisar o caso numa thread privada.',
+        '• Você pode avaliar o atendimento ao final.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.star || '⭐'} Reputação`, 2);
+    builder.block([
+        '• Sua reputação começa em **100 pontos**.',
+        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera +1 ponto/dia.',
+        '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos.',
+    ]);
+
+    builder.footer(guildName);
+    return builder;
+}
+
+function buildPageUserFAQ(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'PERGUNTAS FREQUENTES', 'Dúvidas comuns sobre reports e reputação:');
+
+    const faq = [
+        ['Como eu denuncio outro jogador?', 'Procure o painel de reports fixado no servidor e clique em "Reportar Jogador". Preencha o formulário com regra quebrada, data, local e descrição.'],
+        ['Recebi um strike que acho injusto, o que eu faço?', 'No mesmo painel de reports, use o botão "Revisar Punição" e informe o número do strike. A staff vai analisar numa thread privada com você.'],
+        ['Minha reputação caiu, por quê?', 'Toda punição (strike) reduz reputação. Use "Revisar Punição" se achar que foi um engano.'],
+        ['Como recupero minha reputação?', 'O sistema devolve +1 ponto por dia em que você não recebe nenhuma punição nova.'],
+        ['Fechei o report sem querer, dá pra reabrir?', 'Não — abra um novo report pelo painel, explicando a situação.'],
+    ];
+
+    for (const [pergunta, resposta] of faq) {
+        builder.text(`**${emojis.circlealert || '❓'} ${pergunta}**\n${resposta}`);
+        builder.separator();
+    }
+
+    builder.footer(guildName);
+    return builder;
+}
+
+// ==================== PÁGINA COMPARTILHADA — CONTATO ====================
+
+function buildPageContact(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'FALE COM O DESENVOLVEDOR', 'Encontrou um bug ou tem uma sugestão? É rapidinho:');
+
+    builder.section(
+        [
+            `## ${emojis.compass || '💡'} /reportarbug`,
+            'Envia sua mensagem direto para o desenvolvedor, com o tipo (Bug ou Sugestão) e uma descrição.',
+        ].join('\n'),
+        AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
+    );
+    builder.separator();
+    builder.block([
+        '• Escolha **Reportar Bug/Erro** para algo que não está funcionando como deveria.',
+        '• Escolha **Sugerir Melhoria** para ideias de novos recursos ou ajustes.',
+        '• Descreva com o máximo de detalhes possível — isso ajuda (e muito) a resolver mais rápido.',
+    ]);
+    builder.separator();
+    builder.text(`${emojis.circlecheck || '✅'} Toda sugestão e todo report são lidos — obrigado por ajudar a melhorar o bot!`);
+
+    builder.footer(guildName);
+    return builder;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +282,7 @@ function buildPageUserSimple(displayName, guildName, emojis) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ajuda')
-        .setDescription('📖 Guia de introdução e lista de comandos do Assistente Titan.'),
+        .setDescription('📖 Guia completo, FAQ e contato com o desenvolvedor do Assistente Titan.'),
 
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
@@ -153,37 +302,39 @@ module.exports = {
 
             const isAdmin = member.permissions.has('Administrator');
 
-            // ----------------------------------------------------------------
-            // Usuário comum - Mensagem única
-            // ----------------------------------------------------------------
-            if (!isAdmin) {
-                const page = buildPageUserSimple(member.displayName, guild.name, emojis);
-                const payload = page.build();
-                await interaction.editReply(payload);
-                console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (usuário comum)`);
-                return;
-            }
-
-            // ----------------------------------------------------------------
-            // Admin - Sistema de Paginação
-            // ----------------------------------------------------------------
             const pagination = new PaginationBuilder({
                 accentColor: COLORS.DEFAULT,
-                timeout: 120000,
+                timeout: 180000,
             });
 
-            pagination
-                .addPage(() => buildPageWelcome(member.displayName, guild.name, emojis))
-                .addPage(() => buildPageModeration(guild.name, emojis))
-                .addPage(() => buildPageAutomod(guild.name, emojis))
-                .setButtons({
-                    prev: { label: 'Anterior', style: ButtonStyle.Secondary },
-                    next: { label: 'Próxima', style: ButtonStyle.Primary },
-                });
+            if (isAdmin) {
+                pagination.addPages(
+                    () => buildPageWelcome(member.displayName, guild.name, emojis, true),
+                    () => buildPageSetup(guild.name, emojis),
+                    () => buildPageModeration(guild.name, emojis),
+                    () => buildPageReports(guild.name, emojis),
+                    () => buildPageAutomod(guild.name, emojis),
+                    () => buildPageEvents(guild.name, emojis),
+                    () => buildPageUtility(guild.name, emojis),
+                    () => buildPageUserFAQ(guild.name, emojis),
+                    () => buildPageContact(guild.name, emojis),
+                );
+            } else {
+                pagination.addPages(
+                    () => buildPageUserSimple(member.displayName, guild.name, emojis),
+                    () => buildPageUserFAQ(guild.name, emojis),
+                    () => buildPageContact(guild.name, emojis),
+                );
+            }
+
+            pagination.setButtons({
+                prev: { label: 'Anterior', style: ButtonStyle.Secondary },
+                next: { label: 'Próxima', style: ButtonStyle.Primary },
+            });
 
             await pagination.start(interaction);
 
-            console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (admin)`);
+            console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (${isAdmin ? 'admin' : 'usuário comum'})`);
 
         } catch (error) {
             console.error('❌ Erro no ajuda:', error);

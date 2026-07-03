@@ -537,6 +537,11 @@ const ConfigSystem = {
             [tabData.headerTitle, tabData.headerDesc].join('\n'),
             rolesBuilder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
         );
+        rolesBuilder.text(
+            `${EMOJIS.messagesquare || 'ℹ️'} **Importante:** os cargos abaixo precisam estar configurados para os comandos correspondentes funcionarem. ` +
+            `Eles servem **apenas** para o bot saber quem pode usar cada comando — não precisam ser (nem representar) um cargo "oficial" do servidor. ` +
+            `Você pode escolher **qualquer** cargo já existente, ou criar um novo específico só para isso: é 100% customizável.`
+        );
         rolesBuilder.separator();
 
         const selectRows = [];
