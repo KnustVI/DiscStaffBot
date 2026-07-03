@@ -21,7 +21,8 @@
     "express-session": "^1.19.0",
     "node-cron": "^4.2.1",
     "passport": "^0.7.0",
-    "passport-discord": "^0.1.4"
+    "passport-discord": "^0.1.4",
+    "rcon-client": "^4.2.5"
   },
   "devDependencies": {
     "sharp": "^0.35.3"
