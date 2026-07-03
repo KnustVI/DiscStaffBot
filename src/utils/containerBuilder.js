@@ -120,6 +120,29 @@ class AdvancedContainerBuilder {
     }
 
     /**
+     * Resolve um ícone fixo de assets/images (ver ImageManager) como
+     * acessório de thumbnail para uso em section() — mesmo espírito do
+     * banner(): resolve URL + attachment pela mesma chave e já registra o
+     * attachment em `_files` para sair pronto em build(). Usado no cabeçalho
+     * de containers que não têm banner (ver seção() padrão de abertura),
+     * quando o ícone é fixo em vez do avatar do servidor.
+     *
+     * Se a chave não existir, retorna null — quem chamou decide o fallback
+     * (normalmente AdvancedContainerBuilder.thumbnail(guildIconUrl)).
+     *
+     * @param {string} key - Chave da imagem em assets/images
+     * @returns {{ _accessoryType: string, _builder: ThumbnailBuilder } | null}
+     */
+    assetThumbnail(key) {
+        const url = imageManager.getUrl(key);
+        const attachment = imageManager.getAttachment(key);
+        if (!url || !attachment) return null;
+
+        this._files.push(attachment);
+        return AdvancedContainerBuilder.thumbnail(url);
+    }
+
+    /**
      * Adiciona um bloco de texto simples via TextDisplay.
      *
      * @param {string} content - Conteúdo em markdown

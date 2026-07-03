@@ -8,12 +8,19 @@ const { PaginationBuilder } = require('../../utils/paginationBuilder');
 // Fábrica de páginas
 // ---------------------------------------------------------------------------
 
+const FALLBACK_ICON = 'https://cdn.discordapp.com/embed/avatars/0.png';
+
 function buildPageWelcome(displayName, guildName, emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.robo || '🤖'} Assistente Titan`)
-        .text(`Olá **${displayName}**! Sou o sistema de gestão do seu servidor **${guildName}**.`)
+        .section(
+            [
+                '# ASSISTENTE TITAN',
+                `Olá **${displayName}**! Sou o sistema de gestão do seu servidor **${guildName}**.`,
+            ].join('\n'),
+            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
+        )
         .separator()
         .title(`${emojis.settings || '⚙️'} Configuração Inicial`, 2)
         .text('Apenas administradores podem usar estes comandos:')
@@ -34,8 +41,13 @@ function buildPageModeration(emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.gavel || '🛠️'} Moderação e Reputação`)
-        .text('Apenas usuários com cargo **STAFF** podem usar:')
+        .section(
+            [
+                '# MODERAÇÃO E REPUTAÇÃO',
+                'Apenas usuários com cargo **STAFF** podem usar:',
+            ].join('\n'),
+            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
+        )
         .separator()
         .title(`${emojis.gavel || '⚠️'} Comandos de Punição`, 2)
         .block([
@@ -57,8 +69,13 @@ function buildPageAutomod(emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.shieldcheck || '🛡️'} Auto Moderação`)
-        .text('Sistema automático de gerenciamento de reputação:')
+        .section(
+            [
+                '# AUTO MODERAÇÃO',
+                'Sistema automático de gerenciamento de reputação:',
+            ].join('\n'),
+            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
+        )
         .separator()
         .title(`${emojis.settings || '⚙️'} Comandos`, 2)
         .text('• **/automod test** — Verifica configurações e canal de log')
@@ -82,8 +99,13 @@ function buildPageUserSimple(displayName, guildName, emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.robo || '🤖'} Assistente Titan`)
-        .text(`Olá **${displayName}**! Sou o sistema de gestão do servidor **${guildName}**.`)
+        .section(
+            [
+                '# ASSISTENTE TITAN',
+                `Olá **${displayName}**! Sou o sistema de gestão do servidor **${guildName}**.`,
+            ].join('\n'),
+            builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
+        )
         .separator()
         .title(`${emojis.ticket || '🎫'} ReportChat`, 2)
         .block([

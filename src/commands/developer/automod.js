@@ -80,8 +80,13 @@ module.exports = {
 
         const builder = new AdvancedContainerBuilder({ accentColor: hasIssues ? 0xFFA500 : 0x00FF00 });
 
-        builder.title(`${emojis.shieldcheck || '🛡️'} Diagnóstico da Auto Moderação`, 1);
-        builder.text(`**Servidor:** ${guild.name}`);
+        builder.section(
+            [
+                '# DIAGNÓSTICO DA AUTO MODERAÇÃO',
+                `**Servidor:** ${guild.name}`,
+            ].join('\n'),
+            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
+        );
         builder.separator();
         builder.text(`${emojis.clipboardlist || '📋'} **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
         builder.text(`${emojis.tv || '📺'} **Canal de Log:** ${channelStatus}`);

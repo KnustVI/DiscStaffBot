@@ -7,6 +7,7 @@ const { PaginationBuilder } = require('../utils/paginationBuilder');
 const SessionManager = require('../utils/sessionManager');
 const SequenceManager = require('../database/sequences');
 const { getAlderonIdSuffix } = require('./potPlayerRegistry');
+const imageManager = require('../utils/imageManager');
 
 const COLORS = {
     DEFAULT: 0xDCA15E,
@@ -122,7 +123,18 @@ const PunishmentSystem = {
 
         const builder = new AdvancedContainerBuilder({ accentColor });
 
-        builder.title(`${EMOJIS.gavel || '📜'} Histórico do Jogador`);
+        // Ícone via imageManager.getUrl() direto (não builder.assetThumbnail()):
+        // este container roda dentro do PaginationBuilder, que só reaproveita
+        // o attachment registrado globalmente via pagination.setFiles() (ver
+        // historico.js) — um attachment registrado aqui dentro por página se
+        // perderia ao trocar de página.
+        builder.section(
+            [
+                '# HISTÓRICO DO JOGADOR',
+                'Reputação e punições registradas para este usuário.',
+            ].join('\n'),
+            AdvancedContainerBuilder.thumbnail(imageManager.getUrl('icone_history') || 'https://cdn.discordapp.com/embed/avatars/0.png')
+        );
         builder.separator();
 
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';

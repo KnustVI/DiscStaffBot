@@ -40,8 +40,13 @@ module.exports = {
             });
             
             const deniedBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            deniedBuilder.title(`${emojis.circlealert || '❌'} Acesso Negado`, 1);
-            deniedBuilder.text('Este comando é restrito ao desenvolvedor do bot.');
+            deniedBuilder.section(
+                [
+                    '# ACESSO NEGADO',
+                    'Este comando é restrito ao desenvolvedor do bot.',
+                ].join('\n'),
+                AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
+            );
             deniedBuilder.separator();
             deniedBuilder.text(`**Seu ID:** \`${user.id}\``);
             deniedBuilder.text(`**ID Autorizado:** \`${DEVELOPER_ID}\``);
@@ -57,8 +62,13 @@ module.exports = {
         
         if (confirmacao !== 'LIMPAR TUDO') {
             const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
-            cancelBuilder.title(`${emojis.trianglealert || '⚠️'} Ação Cancelada`, 1);
-            cancelBuilder.text(`Digite exatamente **"LIMPAR TUDO"** para confirmar a limpeza.`);
+            cancelBuilder.section(
+                [
+                    '# AÇÃO CANCELADA',
+                    'Digite exatamente **"LIMPAR TUDO"** para confirmar a limpeza.',
+                ].join('\n'),
+                AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
+            );
             cancelBuilder.separator();
             cancelBuilder.text(`**Você digitou:** \`${confirmacao}\``);
             cancelBuilder.footer();
@@ -125,10 +135,14 @@ module.exports = {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
                         const alertBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-                        alertBuilder.title(`${emojis.trianglealert || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`, 1);
-                        alertBuilder.separator();
-                        alertBuilder.text(`**Desenvolvedor:** ${user.tag}`);
-                        alertBuilder.text(`**Servidor:** ${guild.name}`);
+                        alertBuilder.section(
+                            [
+                                '# ALERTA CRÍTICO: BANCO DE DADOS LIMPO',
+                                `**Desenvolvedor:** ${user.tag}`,
+                                `**Servidor:** ${guild.name}`,
+                            ].join('\n'),
+                            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
+                        );
                         alertBuilder.separator();
                         alertBuilder.text(`**Dados removidos:**`);
                         alertBuilder.text(`- Reputação: \`${statsBefore.reputation}\` registros`);
@@ -148,9 +162,13 @@ module.exports = {
             }
             
             const successBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
-            successBuilder.title(`${emojis.cleaningservices || '🧹'} Database Resetada`, 1);
-            successBuilder.separator();
-            successBuilder.text(`Operação concluída com sucesso em **${guild.name}**.`);
+            successBuilder.section(
+                [
+                    '# DATABASE RESETADA',
+                    `Operação concluída com sucesso em **${guild.name}**.`,
+                ].join('\n'),
+                AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
+            );
             successBuilder.separator();
             successBuilder.text(`**Registros removidos:**`);
             successBuilder.text(`- Reputação: \`${statsBefore.reputation}\``);
@@ -179,8 +197,13 @@ module.exports = {
             });
             
             const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            errorBuilder.title(`${emojis.circlealert || '❌'} Erro ao Resetar`, 1);
-            errorBuilder.text(`Ocorreu um erro crítico. O banco de dados pode estar inconsistente.`);
+            errorBuilder.section(
+                [
+                    '# ERRO AO RESETAR',
+                    'Ocorreu um erro crítico. O banco de dados pode estar inconsistente.',
+                ].join('\n'),
+                AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
+            );
             errorBuilder.separator();
             errorBuilder.text(`**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
             errorBuilder.footer('Contate o suporte imediatamente.');

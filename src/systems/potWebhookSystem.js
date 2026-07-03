@@ -188,8 +188,13 @@ class PoTWebhookSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
         builder
-            .title(`${EMOJIS.wifi || '📡'} GERENCIADOR DE WEBHOOKS`)
-            .text('Aqui você gera os webhooks para o bot trazer informações do jogo até você. Você também pode criar um canal no Discord para receber essas informações já traduzidas, em tempo real.')
+            .section(
+                [
+                    '# GERENCIADOR DE WEBHOOKS',
+                    'Aqui você gera os webhooks para o bot trazer informações do jogo até você. Você também pode criar um canal no Discord para receber essas informações já traduzidas, em tempo real.',
+                ].join('\n'),
+                builder.assetThumbnail('icone_pegada') || AdvancedContainerBuilder.thumbnail(guildIconUrl)
+            )
             .text(`${EMOJIS.gauge || '📊'} **Status:** ${configured}/${total} grupos configurados`)
             .separator();
 
@@ -240,7 +245,7 @@ class PoTWebhookSystem {
         }
         builder.footer(guildName);
 
-        const { components, flags } = builder.build();
+        const { components, flags, files } = builder.build();
 
         // Botões de info FORA do Container (sibling) — sempre visíveis
         const infoRow = new ActionRowBuilder().addComponents(
@@ -268,7 +273,7 @@ class PoTWebhookSystem {
             );
         }
 
-        return { components: finalComponents, flags: flags | MessageFlags.Ephemeral };
+        return { components: finalComponents, flags: flags | MessageFlags.Ephemeral, files };
     }
 
     static async renderPanel(interaction, page = 0) {
@@ -306,8 +311,14 @@ class PoTWebhookSystem {
         const config = this.getGameIniConfig(interaction.guildId);
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
 
-        b.title(`${EMOJIS.filetext || '📄'} Game.ini`)
-            .text('Cole o conteúdo abaixo dentro do `Game.ini` do seu servidor PoT, na seção `[ServerWebhooks]` (também vai em anexo, se preferir baixar o arquivo direto).\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
+        b.section(
+            [
+                '# GAME.INI',
+                'Cole o conteúdo abaixo dentro do `Game.ini` do seu servidor PoT, na seção `[ServerWebhooks]` (também vai em anexo, se preferir baixar o arquivo direto).',
+                'Caminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`',
+            ].join('\n'),
+            b.assetThumbnail('icone_pegada') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+        )
             .separator();
 
         // Quebra o conteúdo em blocos de código copiáveis, cada um bem abaixo
@@ -345,7 +356,10 @@ class PoTWebhookSystem {
         const entries = Object.entries(webhooks);
 
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
-        b.title(`${EMOJIS.wifi || '🔗'} Webhooks Configurados`);
+        b.section(
+            '# WEBHOOKS CONFIGURADOS',
+            b.assetThumbnail('icone_pegada') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+        );
 
         if (entries.length === 0) {
             b.text(`Nenhum webhook configurado ainda.\nUse **${EMOJIS.wifi || '🔗'} Configurar Webhook** em cada grupo do painel.`);

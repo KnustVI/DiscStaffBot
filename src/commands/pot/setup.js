@@ -51,8 +51,13 @@ module.exports = {
             });
 
             builder
-                .title(`${emojis.DinoFootprint || '🎮'} Path of Titans - Configuração`)
-                .text('Configurações salvas com sucesso!')
+                .section(
+                    [
+                        '# PATH OF TITANS - CONFIGURAÇÃO',
+                        'Configurações salvas com sucesso!',
+                    ].join('\n'),
+                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                )
                 .separator()
                 .text(`${emojis.wifi || '📡'} IP: ${ip}`)
                 .text(`${emojis.tomada || '🔌'} Porta RCON: ${rconPort}`)
@@ -74,8 +79,13 @@ module.exports = {
             });
 
             builder
-                .title(`${emojis.circlealert || '❌'} Erro`)
-                .text(error.message)
+                .section(
+                    [
+                        '# ERRO',
+                        error.message,
+                    ].join('\n'),
+                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                )
                 .footer(interaction.guild?.name || 'Servidor');
 
             const payload = builder.build();

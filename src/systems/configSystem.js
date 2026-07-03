@@ -376,9 +376,14 @@ const ConfigSystem = {
 
         const cb = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
-        const { components, flags } = cb
-            .title(`${EMOJIS.tune || '⚙️'} Configuração de Pontos e Limites`)
-            .text('Gerencie os valores do sistema de reputação.')
+        const { components, flags, files } = cb
+            .section(
+                [
+                    '# CONFIGURAÇÃO DE PONTOS E LIMITES',
+                    'Gerencie os valores do sistema de reputação.',
+                ].join('\n'),
+                cb.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+            )
             .separator()
             .title(`${EMOJIS.gavel || '🎯'} Níveis de Strike`, 2)
             .block([
@@ -405,7 +410,7 @@ const ConfigSystem = {
         
         // ✅ Painel SEMPRE limpo, sem `content` — mensagem de sucesso vai
         // separada via sendFeedback() (followUp efêmero).
-        const replyData = { components: [...components, row], flags };
+        const replyData = { components: [...components, row], flags, files };
 
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(replyData);
@@ -427,9 +432,15 @@ const ConfigSystem = {
             ? `<@&${roleId}>`
             : `${EMOJIS.circlealert || '❌'} Não definido`;
         
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-            .title(`${EMOJIS.shield || '👥'} Cargos do Sistema`)
-            .text('É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.')
+        const rolesBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const { components, flags, files } = rolesBuilder
+            .section(
+                [
+                    '# CARGOS DO SISTEMA',
+                    'É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.',
+                ].join('\n'),
+                rolesBuilder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
+            )
             .separator()
             .text('Selecione os cargos abaixo:')
             .separator()
@@ -448,8 +459,8 @@ const ConfigSystem = {
         const problematicoRow = new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('config-roles:problematico').setPlaceholder('Selecionar cargo Problemático'));
         
         // ✅ Painel SEMPRE limpo, sem `content`.
-        const replyData = { components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow], flags };
-        
+        const replyData = { components: [...components, staffRow, strikeRow, exemplarRow, problematicoRow], flags, files };
+
         try {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply(replyData);
@@ -500,8 +511,16 @@ const ConfigSystem = {
             ? `<#${channelId}>`
             : `${EMOJIS.circlealert || '❌'} Não definido`;
         
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-            .title(`${EMOJIS.clipboardlist || '🪵'} Canais de Log`)
+        const logsBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const { components, flags, files } = logsBuilder
+            .section(
+                [
+                    '# CANAIS DE LOG',
+                    'Configure os canais que recebem os registros de atividade do servidor.',
+                ].join('\n'),
+                logsBuilder.assetThumbnail('icone_logs') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+            )
+            .separator()
             .block([
                 '**Geral** — recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos atribuídos/removidos, ranking de staff).',
                 '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
@@ -522,8 +541,8 @@ const ConfigSystem = {
         const buttonRow      = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plus || '➕'));
         
         // ✅ Painel SEMPRE limpo, sem `content`.
-        const replyData = { components: [...components, geralRow, punishmentsRow, reportsRow, buttonRow], flags };
-        
+        const replyData = { components: [...components, geralRow, punishmentsRow, reportsRow, buttonRow], flags, files };
+
         try {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply(replyData);

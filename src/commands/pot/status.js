@@ -43,8 +43,13 @@ module.exports = {
             });
 
             builder
-                .title(`${emojis.gauge || '📊'} Status do Servidor Path of Titans`)
-                .text('Resumo da integração com seu servidor PoT.')
+                .section(
+                    [
+                        '# STATUS DO SERVIDOR PATH OF TITANS',
+                        'Resumo da integração com seu servidor PoT.',
+                    ].join('\n'),
+                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                )
                 .separator();
 
             if (config) {
@@ -123,8 +128,13 @@ module.exports = {
             });
 
             builder
-                .title(`${emojis.circlealert || '❌'} Erro`)
-                .text(`Erro ao carregar status: ${error.message}`)
+                .section(
+                    [
+                        '# ERRO',
+                        `Erro ao carregar status: ${error.message}`,
+                    ].join('\n'),
+                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                )
                 .footer(interaction.guild?.name || 'Servidor');
 
             const payload = builder.build();

@@ -21,7 +21,13 @@ module.exports = {
 
             if (!config) {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
-                builder.title(`${emojis.trianglealert || '⚠️'} Servidor não configurado`).text('Use /potserver setup primeiro').footer(guildName);
+                builder.section(
+                    [
+                        '# SERVIDOR NÃO CONFIGURADO',
+                        'Use /potserver setup primeiro',
+                    ].join('\n'),
+                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                ).footer(guildName);
 
                 const payload = builder.build();
                 payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
@@ -34,7 +40,13 @@ module.exports = {
         } catch (error) {
             console.error('❌ [Logs] Erro:', error);
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
-            builder.title(`${emojis.circlealert || '❌'} Erro`).text(error.message).footer(guildName);
+            builder.section(
+                [
+                    '# ERRO',
+                    error.message,
+                ].join('\n'),
+                builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+            ).footer(guildName);
 
             const payload = builder.build();
             payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;

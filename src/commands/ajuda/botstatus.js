@@ -61,7 +61,13 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     builder
-        .title(`${emojis.gauge || '🖥️'} Painel de Controle do Bot`)
+        .section(
+            [
+                '# PAINEL DE CONTROLE DO BOT',
+                'Status geral, uptime e métricas do bot.',
+            ].join('\n'),
+            builder.assetThumbnail('icone_info') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+        )
         .separator()
         .title(`${emojis.megaphone || '🌐'} Status Global`, 2)
         .block([

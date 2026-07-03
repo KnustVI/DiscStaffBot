@@ -38,12 +38,17 @@ module.exports = {
 
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
-        builder.title(`${emojis.shield || '👥'} Cargos do Sistema`);
-        builder.text(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.
-            \n Para maior filtro de oturos comandos de moderação é recomendado configurar seu uso pelo propio discord, em ***configurações do servidor*** > ***integrações*** > ***comandos***.
-            \n O cargo de Strike é recomendado para marcar os membros que receberam punições temporárias, isso facilita a identificação e aplicação de punições progressivas.
-            \n Os cargos de Exemplar e Problemático são opcionais, mas podem ser usados para destacar membros que se destacam positivamente ou negativamente na comunidade, respectivamente. 
-            \n Recomendamos configurar esses cargos para melhor organização e controle dentro do servidor.`);
+        builder.section(
+            [
+                '# CARGOS DO SISTEMA',
+                'É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.',
+                'Para maior filtro de outros comandos de moderação é recomendado configurar seu uso pelo próprio Discord, em ***configurações do servidor*** > ***integrações*** > ***comandos***.',
+                'O cargo de Strike é recomendado para marcar os membros que receberam punições temporárias, isso facilita a identificação e aplicação de punições progressivas.',
+                'Os cargos de Exemplar e Problemático são opcionais, mas podem ser usados para destacar membros que se destacam positivamente ou negativamente na comunidade, respectivamente.',
+                'Recomendamos configurar esses cargos para melhor organização e controle dentro do servidor.'
+            ].join('\n'),
+            builder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
+        );
         builder.separator();
         builder.title(`Selecione os cargos abaixo:`);
         builder.text(`${emojis.shield || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.circlealert || '❌'} Não definido`}`);
@@ -52,7 +57,7 @@ module.exports = {
         builder.text(`${emojis.trianglealert || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.circlealert || '❌'} Não definido`}`);
         builder.footer(`Server: ${guild.name}`);
         
-        const { components, flags } = builder.build();
+        const { components, flags, files } = builder.build();
         
         const staffRow = new ActionRowBuilder().addComponents(
             new RoleSelectMenuBuilder().setCustomId('config-roles:staff').setPlaceholder('Selecionar cargo de Staff')
@@ -69,7 +74,8 @@ module.exports = {
         
         await interaction.editReply({
             components: [components[0], staffRow, strikeRow, exemplarRow, problematicoRow],
-            flags: [flags]
+            flags: [flags],
+            files
         });
     }
 };

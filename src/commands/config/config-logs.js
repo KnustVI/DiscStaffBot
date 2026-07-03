@@ -42,15 +42,18 @@ module.exports = {
             ? `<#${channelId}>`
             : `${emojis.circlealert || '❌'} Não definido`;
 
-        const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .title(`${emojis.clipboardlist || '🪵'} Canais de Log`)
-        .separator()
+        const logsBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
+        const { components, flags, files } = logsBuilder
         .section(
-            `Aqui serão configuradas todas as logs relacionadas ao sistema do ***Titan's Pass***. 
-            \n Recomendamos criar canais separados para cada categoria de log para melhor organização e controle de permissões, caso prefira clique no botão abaixo para que ele crie automaticamente para você!
-            \n Os canais criados podem ter o nome alterado a sua maneira ou deletados, isso não afetará o funcionamento do sistema, desde que o canal correto seja selecionado no menu abaixo, para receber as logs.`,
-            AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
+            [
+                '# CANAIS DE LOG',
+                `Aqui serão configuradas todas as logs relacionadas ao sistema do ***Titan's Pass***.`,
+                `Recomendamos criar canais separados para cada categoria de log para melhor organização e controle de permissões, caso prefira clique no botão abaixo para que ele crie automaticamente para você!`,
+                `Os canais criados podem ter o nome alterado a sua maneira ou deletados, isso não afetará o funcionamento do sistema, desde que o canal correto seja selecionado no menu abaixo, para receber as logs.`
+            ].join('\n'),
+            logsBuilder.assetThumbnail('icone_logs') || AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
         )
+            .separator()
             .text('**Geral / AutoMod** — recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos, ranking de staff).')
             .text(`${emojis.megaphone || '📜'} **Geral / AutoMod:** ${fmt(logGeral)}`)
             .separator()
@@ -103,6 +106,7 @@ module.exports = {
                 buttonRow
             ],
             flags: [flags],
+            files,
         };
 
         await interaction.editReply(replyPayload);

@@ -22,9 +22,14 @@ module.exports = {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
 
         builder
-            .title(`${emojis.trianglealert || '⚠️'} CONFIRMAR RESET`)
-            .text(`Você está prestes a resetar: **${scope}**`)
-            .text('Esta ação NÃO PODE SER DESFEITA!')
+            .section(
+                [
+                    '# CONFIRMAR RESET',
+                    `Você está prestes a resetar: **${scope}**`,
+                    'Esta ação NÃO PODE SER DESFEITA!',
+                ].join('\n'),
+                builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+            )
             .separator()
             .text('Clique em Confirmar Reset para prosseguir.')
             .footer(guildName);

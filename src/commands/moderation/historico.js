@@ -5,6 +5,7 @@ const ResponseManager = require('../../utils/responseManager');
 const PunishmentSystem = require('../../systems/punishmentSystem');
 const AnalyticsSystem = require('../../systems/analyticsSystem');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
+const imageManager = require('../../utils/imageManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -44,9 +45,14 @@ module.exports = {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
 
+            // Ícone do cabeçalho (fixo, ver punishmentSystem.js generateHistoryContainer)
+            // — precisa ir junto no attachment em qualquer um dos dois caminhos abaixo.
+            const historyIcon = imageManager.getAttachment('icone_history');
+
             // ── Sem registros: envia só a página única, sem botões de navegação ──
             if (totalPages <= 1) {
                 const payload = pages[0]().build();
+                if (historyIcon) payload.files = [...(payload.files || []), historyIcon];
                 await interaction.editReply(payload);
                 console.log(`📊 [HISTORICO] ${user.tag} consultou ${target.tag} | ${Date.now() - startTime}ms`);
                 return;
@@ -65,6 +71,8 @@ module.exports = {
                     prev: { label: 'Anterior', style: ButtonStyle.Secondary },
                     next: { label: 'Próxima', style: ButtonStyle.Primary },
                 });
+
+            if (historyIcon) pagination.setFiles([historyIcon]);
 
             await pagination.start(interaction);
 
