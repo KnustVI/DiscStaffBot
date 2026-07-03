@@ -60,7 +60,6 @@ class PoTWebhookSystem {
 
     static async testDiscordWebhook(webhookUrl, guildName = 'Servidor') {
         try {
-            const fetch = require('node-fetch');
             const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

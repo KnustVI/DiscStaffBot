@@ -134,7 +134,6 @@ class PoTGatewayServer {
 
     async _postToWebhook(webhookUrl, content, embed = null) {
         try {
-            const fetch = require('node-fetch');
             const payload = { content };
             if (embed) payload.embeds = [embed.toJSON()];
 

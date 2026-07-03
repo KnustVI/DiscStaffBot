@@ -189,7 +189,6 @@ class ErrorLogger {
      */
     async sendToWebhook(logEntry) {
         try {
-            const fetch = require('node-fetch');
             const webhookData = {
                 content: `${EMOJIS.trianglealert || '⚠️'} **ERRO CRÍTICO** | ${logEntry.category.toUpperCase()}`,
                 embeds: [{

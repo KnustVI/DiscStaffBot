@@ -58,10 +58,15 @@ class PoTRconClient {
 
     _buildPacket(id, type, body) {
         const bodyBuffer = Buffer.from(body, 'utf8');
-        // Tamanho do pacote: 4 bytes ID + 4 bytes type + body + 2 bytes null
+        // Protocolo RCON (Source): o campo "Size" informa o tamanho do RESTO
+        // do pacote (ID + Type + Body + 2 bytes nulos) e NÃO inclui os 4
+        // bytes dele mesmo. O buffer alocado precisa ser packetLength + 4
+        // (os 4 bytes do próprio campo Size) — sem esse +4, o buffer estourava
+        // 4 bytes no final (bodyBuffer.copy/writeInt16LE), causando
+        // "RangeError [ERR_OUT_OF_RANGE]" e falha silenciosa de conexão RCON.
         const packetLength = 4 + 4 + bodyBuffer.length + 2;
-        const buffer = Buffer.alloc(packetLength);
-        
+        const buffer = Buffer.alloc(packetLength + 4);
+
         let offset = 0;
         buffer.writeInt32LE(packetLength, offset); offset += 4;
         buffer.writeInt32LE(id, offset); offset += 4;
