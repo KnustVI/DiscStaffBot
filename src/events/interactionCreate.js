@@ -321,9 +321,12 @@ module.exports = {
                 const message = `${EMOJIS.circlealert || '❌'} Erro. Tente novamente.`;
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({ content: message, flags: 64 });
-                } else if (interaction.deferred && !interaction.replied) {
-                    await interaction.editReply({ content: message });
-                } else if (interaction.replied) {
+                } else {
+                    // followUp (mensagem NOVA) em vez de editReply: a mensagem
+                    // original pode ser Components V2 (painéis do bot), que o
+                    // Discord rejeita com "Invalid Form Body" se tentar
+                    // sobrescrever com `content` — followUp nunca conflita com
+                    // o formato da mensagem original.
                     await interaction.followUp({ content: message, flags: 64 });
                 }
             } catch (err) {}
