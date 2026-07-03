@@ -179,19 +179,24 @@ class PaginationBuilder {
      * @returns {Object}
      */
     _buildPayload(index, customIdPrefix) {
-        const { components, flags } = this._buildPage(index);
+        const { components, flags, files: pageFiles } = this._buildPage(index);
         const navRow = this._buildNavRow(customIdPrefix, this.pages.length);
         const payload = {
             components: [...components, navRow],
             flags,
         };
 
-        // ── NOVO: reanexa os arquivos (banner etc) em toda transição de
-        // página. Necessário porque editReply não preserva attachments
-        // anteriores automaticamente quando o payload de components é
-        // substituído. ────────────────────────────────────────────────────
-        if (this.files.length > 0) {
-            payload.files = this.files;
+        // ── Reanexa os arquivos em toda transição de página. Precisa incluir
+        // TANTO os arquivos globais da paginação (this.files, via setFiles())
+        // QUANTO os registrados pela própria página (ex: builder.assetThumbnail()
+        // dentro da função que monta aquela página) — sem isso, um thumbnail
+        // via attachment:// fica referenciando um arquivo que nunca foi
+        // anexado, e o Discord rejeita com 50035 "Invalid Form Body" em
+        // components. editReply também não preserva attachments anteriores
+        // automaticamente quando o payload de components é substituído. ──────
+        const allFiles = [...this.files, ...(pageFiles || [])];
+        if (allFiles.length > 0) {
+            payload.files = allFiles;
         }
 
         return payload;
@@ -236,7 +241,11 @@ class PaginationBuilder {
                 await interaction.reply(payload);
             }
         } catch (error) {
-            console.error('❌ Erro ao enviar resposta inicial da paginação:', error);
+            // ── console.error(msg, error) trunca objetos aninhados a partir do
+            // 3º nível (ex: error.rawError.errors.components vira "[Object]"),
+            // escondendo exatamente o campo que o Discord rejeitou. Aqui o
+            // detalhe importa, então força profundidade total. ─────────────
+            console.error('❌ Erro ao enviar resposta inicial da paginação:', require('util').inspect(error, { depth: null }));
             throw error;
         }
 
@@ -287,16 +296,18 @@ class PaginationBuilder {
 
         this.collector.on('end', async () => {
             try {
-                const { components, flags } = this._buildPage(this.currentPage);
+                const { components, flags, files: pageFiles } = this._buildPage(this.currentPage);
                 const disabledRow = this._buildDisabledNavRow(customIdPrefix);
 
-                // NOVO: reanexa os arquivos também na mensagem final (collector expirado)
+                // Reanexa os arquivos também na mensagem final (collector expirado) —
+                // mesmo motivo do _buildPayload acima.
                 const finalPayload = {
                     components: [...components, disabledRow],
                     flags,
                 };
-                if (this.files.length > 0) {
-                    finalPayload.files = this.files;
+                const allFiles = [...this.files, ...(pageFiles || [])];
+                if (allFiles.length > 0) {
+                    finalPayload.files = allFiles;
                 }
 
                 await interaction.editReply(finalPayload);

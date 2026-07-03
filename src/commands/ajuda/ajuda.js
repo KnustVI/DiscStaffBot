@@ -337,7 +337,10 @@ module.exports = {
             console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (${isAdmin ? 'admin' : 'usuário comum'})`);
 
         } catch (error) {
-            console.error('❌ Erro no ajuda:', error);
+            // Profundidade total: console.error(msg, error) trunca objetos
+            // aninhados (ex: error.rawError.errors), escondendo o motivo real
+            // de um 50035 "Invalid Form Body" do Discord.
+            console.error('❌ Erro no ajuda:', require('util').inspect(error, { depth: null }));
 
             try {
                 const errorPayload = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
