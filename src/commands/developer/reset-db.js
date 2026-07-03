@@ -82,7 +82,7 @@ module.exports = {
         }
         
         try {
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
             
             const statsBefore = {
                 reputation: db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ?`).get(guildId)?.count || 0,
@@ -189,7 +189,7 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro no reset-db:', error);
             
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
             db.logActivity(guildId, user.id, 'error', null, { 

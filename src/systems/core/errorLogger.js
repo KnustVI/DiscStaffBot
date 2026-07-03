@@ -1,11 +1,11 @@
-// /home/ubuntu/DiscStaffBot/src/systems/errorLogger.js
+// /home/ubuntu/DiscStaffBot/src/systems/core/errorLogger.js
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 
 let EMOJIS = {};
 try {
-    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+    EMOJIS = require('../../database/emojis.js').EMOJIS || {};
 } catch (err) {
     EMOJIS = {};
 }

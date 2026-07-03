@@ -1,13 +1,13 @@
-// /home/ubuntu/DiscStaffBot/src/systems/punishmentSystem.js
+// /home/ubuntu/DiscStaffBot/src/systems/moderation/punishmentSystem.js
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const db = require('../database/index.js');
-const { EMOJIS } = require('../database/emojis.js');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
-const { PaginationBuilder } = require('../utils/paginationBuilder');
-const SessionManager = require('../utils/sessionManager');
-const SequenceManager = require('../database/sequences');
-const { getAlderonIdSuffix } = require('./potPlayerRegistry');
-const imageManager = require('../utils/imageManager');
+const db = require('../../database/index.js');
+const { EMOJIS } = require('../../database/emojis.js');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const { PaginationBuilder } = require('../../utils/paginationBuilder');
+const SessionManager = require('../../utils/sessionManager');
+const SequenceManager = require('../../database/sequences');
+const { getAlderonIdSuffix } = require('../pot/potPlayerRegistry');
+const imageManager = require('../../utils/imageManager');
 
 const PunishmentSystem = {
     
@@ -365,7 +365,7 @@ const PunishmentSystem = {
 
     async memberHasSupervisorRole(guild, member) {
         if (!member) return false;
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const supervisorRoleId = ConfigSystem.getSetting(guild.id, 'supervisor_role');
         if (!supervisorRoleId) return false;
         return member.roles?.cache?.has(supervisorRoleId) || false;
@@ -379,12 +379,12 @@ const PunishmentSystem = {
      * supervisor, um usuário diferente de quem pediu.
      */
     async requestSupervisorApproval(interaction, session) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const guild = interaction.guild;
         const staff = interaction.user;
 
         let emojis = {};
-        try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+        try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
         const supervisorRoleId = ConfigSystem.getSetting(guild.id, 'supervisor_role');
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
@@ -514,11 +514,11 @@ const PunishmentSystem = {
      * @returns {Promise<object>} resultado com { success, error } ou os dados usados no resumo
      */
     async _executeStrike(guild, staff, session) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const AnalyticsSystem = require('./analyticsSystem');
 
         let emojis = {};
-        try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+        try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
         const { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost } = session;
 
@@ -626,7 +626,7 @@ const PunishmentSystem = {
 
     _buildStrikeSummaryLines(result) {
         let emojis = {};
-        try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+        try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
         const dmStatusMsg = result.dmDelivered
             ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
@@ -655,11 +655,11 @@ const PunishmentSystem = {
         }
 
         if (action === 'confirm') {
-            const ConfigSystem = require('./configSystem');
+            const ConfigSystem = require('../core/configSystem');
             const AnalyticsSystem = require('./analyticsSystem');
 
             let emojis = {};
-            try { emojis = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+            try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
             const { punishmentId, reason } = session;
             const guild = interaction.guild;
@@ -769,7 +769,7 @@ const PunishmentSystem = {
      * @returns {Promise<{ applied: boolean, roleId: string|null, expiresAt: number|null, error: string|null }>}
      */
     async applyTemporaryRole(guild, targetMember, durationMs) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const strikeRoleId = ConfigSystem.getSetting(guild.id, 'strike_role');
 
         if (!strikeRoleId) {
@@ -822,7 +822,7 @@ const PunishmentSystem = {
                 `).get(guildId);
                 const strikeNumber = (maxStrike?.max || 0) + 1;
                 
-                const uuid = require('../database/index').generateUUID();
+                const uuid = require('../../database/index').generateUUID();
                 
                 db.prepare(`
                     INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)

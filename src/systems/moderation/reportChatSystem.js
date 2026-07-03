@@ -1,6 +1,6 @@
-// /home/ubuntu/DiscStaffBot/src/systems/reportChatSystem.js
-const db = require('../database/index');
-const ConfigSystem = require('./configSystem');
+// /home/ubuntu/DiscStaffBot/src/systems/moderation/reportChatSystem.js
+const db = require('../../database/index');
+const ConfigSystem = require('../core/configSystem');
 const { 
     ChannelType, 
     ActionRowBuilder, 
@@ -11,12 +11,12 @@ const {
     TextInputStyle,
     MessageFlags,
 } = require('discord.js');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
-const { getAlderonIdSuffix } = require('./potPlayerRegistry');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const { getAlderonIdSuffix } = require('../pot/potPlayerRegistry');
 
 let EMOJIS = {};
 try {
-    const emojisFile = require('../database/emojis.js');
+    const emojisFile = require('../../database/emojis.js');
     EMOJIS = emojisFile.EMOJIS || {};
 } catch (err) {
     EMOJIS = {};

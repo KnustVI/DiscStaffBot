@@ -118,7 +118,7 @@ module.exports = {
                 responseTime: Date.now() - startTime
             });
             
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
             const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
             if (logChannelId) {
                 try {
@@ -177,7 +177,7 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro no reset-reports:', error);
             
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
             const errorBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });

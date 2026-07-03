@@ -18,15 +18,15 @@ const {
 } = require('discord.js');
 
 const PoTConfigSystem = require('./potConfigSystem');
-const PoTTokenManager = require('../integrations/pathoftitans/tokenManager');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
+const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 const ITEMS_PER_PAGE = 3;
 const FALLBACK_ICON = 'https://cdn.discordapp.com/embed/avatars/0.png';
 
 let EMOJIS = {};
-try { EMOJIS = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
+try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
 class PoTWebhookSystem {
 

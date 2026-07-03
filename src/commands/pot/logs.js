@@ -1,7 +1,7 @@
 const { MessageFlags } = require('discord.js');
 
-const PoTWebhookSystem = require('../../systems/potWebhookSystem');
-const PoTConfigSystem = require('../../systems/potConfigSystem');
+const PoTWebhookSystem = require('../../systems/pot/potWebhookSystem');
+const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let emojis = {};

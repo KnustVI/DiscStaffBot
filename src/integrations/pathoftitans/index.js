@@ -2,8 +2,8 @@
 const PoTGatewayServer = require('./gatewayServer');
 const PoTRconClient = require('./rconClient');
 const PoTTokenManager = require('./tokenManager');
-const PoTConfigSystem = require('../../systems/potConfigSystem');
-const ErrorLogger = require('../../systems/errorLogger');
+const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
+const ErrorLogger = require('../../systems/core/errorLogger');
 const db = require('../../database/index');
 
 class PathOfTitansIntegration {

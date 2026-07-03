@@ -1,7 +1,7 @@
 // /home/ubuntu/DiscStaffBot/src/events/interactionCreate.js
-const InteractionHandler = require('../systems/handlers');
-const ReportChatSystem = require('../systems/reportChatSystem');
-const ConfigSystem = require('../systems/configSystem');
+const InteractionHandler = require('../systems/core/handlers');
+const ReportChatSystem = require('../systems/moderation/reportChatSystem');
+const ConfigSystem = require('../systems/core/configSystem');
 const sessionManager = require('../utils/sessionManager');
 const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
 
@@ -45,6 +45,14 @@ module.exports = {
             if (interaction.customId === 'review_punishment') {
                 const reportSystem = new ReportChatSystem(client);
                 await interaction.showModal(reportSystem.getReviewModal());
+                return;
+            }
+
+            // ==================== CADASTRO DE JOGADOR - ABRIR MODAL ====================
+            if (interaction.customId === 'player_register:open') {
+                const PlayerRegistrationSystem = require('../systems/pot/playerRegistrationSystem');
+                const playerRegistration = new PlayerRegistrationSystem(client);
+                await playerRegistration.handleOpenModal(interaction);
                 return;
             }
 
@@ -183,6 +191,14 @@ module.exports = {
                 return;
             }
 
+            if (interaction.customId === 'player_register_modal') {
+                await interaction.deferReply({ flags: 64 });
+                const PlayerRegistrationSystem = require('../systems/pot/playerRegistrationSystem');
+                const playerRegistration = new PlayerRegistrationSystem(client);
+                await playerRegistration.handleModalSubmit(interaction);
+                return;
+            }
+
             // ==================== CONFIGURAÇÕES ====================
 
             if (interaction.customId === 'config-punishments:strike:modal') { await ConfigSystem.handleStrikeModal(interaction); return; }
@@ -242,7 +258,7 @@ module.exports = {
             // Tratado ANTES do bloco genérico de modais abaixo.
 
             if (interaction.isModalSubmit() && interaction.customId.startsWith('pot_webhook:url_modal:')) {
-                const PoTWebhookSystem = require('../systems/potWebhookSystem');
+                const PoTWebhookSystem = require('../systems/pot/potWebhookSystem');
                 await PoTWebhookSystem.handleUrlModalSubmit(interaction);
                 return;
             }
@@ -258,7 +274,7 @@ module.exports = {
                     return;
                 }
 
-                const PoTWebhookSystem = require('../systems/potWebhookSystem');
+                const PoTWebhookSystem = require('../systems/pot/potWebhookSystem');
 
                 // 'config' abre modal — deve ser a PRIMEIRA resposta, sem deferral antes.
                 if (action === 'config') {

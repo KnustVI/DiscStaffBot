@@ -1,5 +1,5 @@
 const { Rcon } = require('rcon-client');
-const ErrorLogger = require('../../systems/errorLogger');
+const ErrorLogger = require('../../systems/core/errorLogger');
 
 /**
  * Usa a biblioteca `rcon-client` (protocolo Source RCON) em vez de uma

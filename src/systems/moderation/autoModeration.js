@@ -1,13 +1,13 @@
-// /home/ubuntu/DiscStaffBot/src/systems/autoModeration.js
+// /home/ubuntu/DiscStaffBot/src/systems/moderation/autoModeration.js
 const cron = require('node-cron');
-const db = require('../database/index');
+const db = require('../../database/index');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const SessionManager = require('../utils/sessionManager');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
+const SessionManager = require('../../utils/sessionManager');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
-    const emojisFile = require('../database/emojis.js');
+    const emojisFile = require('../../database/emojis.js');
     EMOJIS = emojisFile.EMOJIS || {};
 } catch (err) {
     EMOJIS = {};
@@ -90,7 +90,7 @@ class AutoModerationSystem {
     }
 
     async handleToggleAutoMod(interaction) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const current = ConfigSystem.getSetting(interaction.guildId, 'automod_enabled') === 'true';
         const newValue = !current;
 
@@ -107,7 +107,7 @@ class AutoModerationSystem {
     }
 
     async handleAutoModConfig(interaction, param) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         
         if (param === 'limits') {
             const modal = new ModalBuilder()
@@ -155,7 +155,7 @@ class AutoModerationSystem {
     }
 
     async processLimitConfigModal(interaction) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         
         const exemplarLimit = interaction.fields.getTextInputValue('exemplar_limit');
         const problematicLimit = interaction.fields.getTextInputValue('problematic_limit');
@@ -206,7 +206,7 @@ class AutoModerationSystem {
     }
 
     async handleAutoModReport(interaction) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         
         const totalUsers = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM reputation WHERE guild_id = ?`).get(interaction.guildId);
         const avgRep = db.prepare(`SELECT AVG(points) as avg FROM reputation WHERE guild_id = ?`).get(interaction.guildId);
@@ -255,7 +255,7 @@ class AutoModerationSystem {
         console.log("🛡️ [AutoMod] Iniciando processamento de integridade diária...");
         this.stats.lastRun = Date.now();
         
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const stats = {};
         let totalRepRecovered = 0;
         let totalRolesAdded = 0;
@@ -363,7 +363,7 @@ class AutoModerationSystem {
      *    (via AnalyticsSystem.getStaffRanking)
      */
     async sendLogReports(stats) {
-        const ConfigSystem = require('./configSystem');
+        const ConfigSystem = require('../core/configSystem');
         const AnalyticsSystem = require('./analyticsSystem');
 
         for (const [gId, data] of Object.entries(stats)) {

@@ -80,7 +80,7 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
 
-        const ConfigSystem = require('../../systems/configSystem');
+        const ConfigSystem = require('../../systems/core/configSystem');
 
         // ==================== PERMISSÃO: EQUIPE DE EVENTOS ====================
         const eventRoleId = ConfigSystem.getSetting(guild.id, 'event_role');

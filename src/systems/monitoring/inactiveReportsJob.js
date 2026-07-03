@@ -1,6 +1,6 @@
-// /home/ubuntu/DiscStaffBot/src/systems/inactiveReportsJob.js
+// /home/ubuntu/DiscStaffBot/src/systems/monitoring/inactiveReportsJob.js
 const cron = require('node-cron');
-const db = require('../database/index');
+const db = require('../../database/index');
 
 function startInactiveReportsJob(client) {
     console.log('🕐 Job de verificação de reports inativos iniciado');
@@ -29,7 +29,7 @@ function startInactiveReportsJob(client) {
                     WHERE guild_id = ? AND report_number = ?
                 `).run(report.guild_id, report.report_number);
                 
-                const ReportChatSystem = require('./reportChatSystem');
+                const ReportChatSystem = require('../moderation/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
                 const reportId = `#R${report.report_number}`;
                 await reportSystem.updateStatus(report.guild_id, reportId, 'inactive');

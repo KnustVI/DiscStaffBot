@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 
-const PoTConfigSystem = require('../../systems/potConfigSystem');
+const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 

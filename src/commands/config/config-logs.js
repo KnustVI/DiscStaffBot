@@ -29,7 +29,7 @@ module.exports = {
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
         db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
         
-        const ConfigSystem = require('../../systems/configSystem');
+        const ConfigSystem = require('../../systems/core/configSystem');
         
         // ✅ UNIFICADO: Geral e AutoMod compartilham o mesmo canal agora.
         // getUnifiedGeneralLogChannel() lê 'log_channel' e cai para o antigo

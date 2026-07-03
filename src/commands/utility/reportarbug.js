@@ -126,10 +126,10 @@ module.exports = {
                 flags: [responseFlags]
             });
             
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
             if (staffRoleId && member.roles.cache.has(staffRoleId)) {
-                const AnalyticsSystem = require('../../systems/analyticsSystem');
+                const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
             
@@ -138,7 +138,7 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro no reportarbug:', error);
             
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
             db.logActivity(guildId, user.id, 'error', null, {

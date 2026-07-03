@@ -92,7 +92,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ Erro no unstrike:', error);
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao preparar anulação de strike. A equipe foi notificada.');
         }

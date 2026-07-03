@@ -1,8 +1,8 @@
-// /home/ubuntu/DiscStaffBot/src/systems/configSystem.js
-const db = require('../database/index');
-const sessionManager = require('../utils/sessionManager');
-const ResponseManager = require('../utils/responseManager');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
+// /home/ubuntu/DiscStaffBot/src/systems/core/configSystem.js
+const db = require('../../database/index');
+const sessionManager = require('../../utils/sessionManager');
+const ResponseManager = require('../../utils/responseManager');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { 
     ActionRowBuilder, 
     ModalBuilder, 
@@ -20,7 +20,7 @@ const cache = new Map();
 
 let EMOJIS = {};
 try {
-    const emojisFile = require('../database/emojis.js');
+    const emojisFile = require('../../database/emojis.js');
     EMOJIS = emojisFile.EMOJIS || {};
 } catch (err) {
     EMOJIS = {};

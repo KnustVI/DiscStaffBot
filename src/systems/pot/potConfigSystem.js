@@ -4,11 +4,11 @@
  * Configurações da integração Path of Titans.
  * Armazena: config do servidor, webhooks Discord por grupo de eventos.
  */
-const db = require('../database/index');
+const db = require('../../database/index');
 
 let EMOJIS = {};
 try {
-    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+    EMOJIS = require('../../database/emojis.js').EMOJIS || {};
 } catch (err) {
     EMOJIS = {};
 }
@@ -209,7 +209,7 @@ class PoTConfigSystem {
     // ==================== RCON ====================
 
     static async executeRconCommand(guildId, command) {
-        const { getInstance } = require('../integrations/pathoftitans');
+        const { getInstance } = require('../../integrations/pathoftitans');
         const potIntegration = getInstance(global.client);
         if (!potIntegration) return { success: false, error: 'Integração não inicializada' };
         return await potIntegration.executeCommand(guildId, command);

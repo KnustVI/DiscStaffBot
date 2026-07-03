@@ -81,7 +81,7 @@ module.exports = {
             db.ensureUser(targetUser.id, targetUser.username, targetUser.discriminator, targetUser.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
 
             const pointsMap = {
                 1: parseInt(ConfigSystem.getSetting(guildId, 'strike_points_1')) || 10,
@@ -151,7 +151,7 @@ module.exports = {
             // permanentes: exigem aprovação de um Supervisor. Avisa o staff
             // ANTES de ele confirmar, já que quem não é Supervisor terá o
             // pedido enviado para aprovação em vez de aplicado na hora. ──────
-            const PunishmentSystem = require('../../systems/punishmentSystem');
+            const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
             if (PunishmentSystem.isSevereSeverity(severity) && !(await PunishmentSystem.memberHasSupervisorRole(guild, staffMember))) {
                 builder.separator();
                 builder.text(
@@ -172,7 +172,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ Erro no strike:', error);
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao preparar aplicação de strike. A equipe foi notificada.');
         }

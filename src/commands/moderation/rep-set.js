@@ -2,9 +2,9 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const AnalyticsSystem = require('../../systems/analyticsSystem');
+const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
-const { getAlderonIdSuffix } = require('../../systems/potPlayerRegistry');
+const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
 
 // ---------------------------------------------------------------------------
 // Montagem visual — separada para reaproveitar entre DM e canal de log
@@ -78,7 +78,7 @@ module.exports = {
             db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
             
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
             
             let targetMember = null;
             try {
@@ -175,7 +175,7 @@ module.exports = {
             
         } catch (error) {
             console.error('❌ Erro no repset:', error);
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao ajustar reputação.');
         }

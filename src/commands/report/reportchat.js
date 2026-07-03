@@ -1,6 +1,6 @@
 // /home/ubuntu/DiscStaffBot/src/commands/report/reportchat.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const ReportChatSystem = require('../../systems/reportChatSystem');
+const ReportChatSystem = require('../../systems/moderation/reportChatSystem');
 
 let emojis = {};
 try {

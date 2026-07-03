@@ -1,13 +1,13 @@
-// src/systems/systemStatus.js
-const ConfigSystem = require('./configSystem');
-const ErrorLogger = require('./errorLogger');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
+// src/systems/monitoring/systemStatus.js
+const ConfigSystem = require('../core/configSystem');
+const ErrorLogger = require('../core/errorLogger');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const os = require('os');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 let EMOJIS = {};
 try {
-    const emojisFile = require('../database/emojis.js');
+    const emojisFile = require('../../database/emojis.js');
     EMOJIS = emojisFile.EMOJIS || {};
 } catch (err) {
     EMOJIS = {};

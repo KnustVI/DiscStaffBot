@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 // REMOVER esta importação:
-// const { AutoModerationSystem } = require('../../systems/autoModeration');
+// const { AutoModerationSystem } = require('../../systems/moderation/autoModeration');
 
 let emojis = {};
 try {
@@ -20,7 +20,7 @@ module.exports = {
     async execute(interaction, client) {
         const { guild } = interaction;
         
-        const ConfigSystem = require('../../systems/configSystem');
+        const ConfigSystem = require('../../systems/core/configSystem');
         const guildId = guild.id;
         
         const autoMod = global.autoModInstance;
@@ -28,7 +28,7 @@ module.exports = {
         if (!autoMod) {
             // Se não existir, tenta inicializar (fallback)
             try {
-                const autoModeration = require('../../systems/autoModeration');
+                const autoModeration = require('../../systems/moderation/autoModeration');
                 const newInstance = autoModeration(client);
                 if (newInstance) {
                     await interaction.deferReply({ flags: 64 });

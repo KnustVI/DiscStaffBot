@@ -1,10 +1,10 @@
-// /home/ubuntu/DiscStaffBot/src/systems/analyticsSystem.js
-const db = require('../database/index');
-const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
+// /home/ubuntu/DiscStaffBot/src/systems/moderation/analyticsSystem.js
+const db = require('../../database/index');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
-    const emojisFile = require('../database/emojis.js');
+    const emojisFile = require('../../database/emojis.js');
     EMOJIS = emojisFile.EMOJIS || {};
 } catch (err) {
     EMOJIS = {};

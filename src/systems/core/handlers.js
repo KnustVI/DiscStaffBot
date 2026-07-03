@@ -1,12 +1,12 @@
-// /home/ubuntu/DiscStaffBot/src/systems/handlers.js
-const ResponseManager = require('../utils/responseManager');
-const sessionManager = require('../utils/sessionManager');
+// /home/ubuntu/DiscStaffBot/src/systems/core/handlers.js
+const ResponseManager = require('../../utils/responseManager');
+const sessionManager = require('../../utils/sessionManager');
 
 // Importação dos handlers específicos do seu sistema
 const configSystem = require('./configSystem');
-const punishmentSystem = require('./punishmentSystem');
-const autoModerationModule = require('./autoModeration');
-const systemStatus = require('./systemStatus');
+const punishmentSystem = require('../moderation/punishmentSystem');
+const autoModerationModule = require('../moderation/autoModeration');
+const systemStatus = require('../monitoring/systemStatus');
 const errorLoggerModule = require('./errorLogger');
 
 class InteractionHandler {
@@ -98,7 +98,7 @@ class InteractionHandler {
             'strike', 'unstrike', 'repset',
             'config-roles', 'config-logs', 'config-punishments', 'automod',
             'reset-db', 'reset-reports', 'botstatus', 'potserver',
-            'reportchat', 'reportarbug', 'evento',
+            'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
         ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
         

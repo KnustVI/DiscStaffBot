@@ -11,9 +11,9 @@
  */
 const express = require('express');
 const { EmbedBuilder } = require('discord.js');
-const ErrorLogger = require('../../systems/errorLogger');
+const ErrorLogger = require('../../systems/core/errorLogger');
 const PoTTokenManager = require('./tokenManager');
-const PoTConfigSystem = require('../../systems/potConfigSystem');
+const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 
 let EMOJIS = {};
 try {
@@ -111,7 +111,7 @@ class PoTGatewayServer {
             const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerKilled', 'PlayerChat', 'PlayerCommand'];
             if (playerEvents.includes(potEvent)) {
                 try {
-                    const registry = require('../../systems/potPlayerRegistry');
+                    const registry = require('../../systems/pot/potPlayerRegistry');
                     registry.upsertPlayerFromEvent(guildId, data, potEvent);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Registro de jogador falhou:', err.message);

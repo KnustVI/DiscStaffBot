@@ -1,14 +1,21 @@
-// /home/ubuntu/DiscStaffBot/src/systems/potPlayerRegistry.js
+// /home/ubuntu/DiscStaffBot/src/systems/pot/potPlayerRegistry.js
 
 /**
  * potPlayerRegistry.js
  *
- * Sistema de cadastro AUTOMÁTICO de jogadores do Path of Titans.
+ * Sistema de cadastro de jogadores do Path of Titans — duas portas de entrada:
  *
- * Não existe nenhum comando administrativo de cadastro manual — o único
- * ponto de entrada é upsertPlayerFromEvent(), chamado sempre que um evento
- * de webhook do PoT é recebido (PlayerLogin, PlayerLogout, ou qualquer outro
- * evento que traga AlderonId/PlayerName no payload).
+ *  1. AUTOMÁTICA (upsertPlayerFromEvent): chamada sempre que um evento de
+ *     webhook do PoT é recebido (PlayerLogin, PlayerLogout, ou qualquer outro
+ *     evento que traga AlderonId/PlayerName no payload). Só vincula o
+ *     discord_id automaticamente se o servidor do jogo enviar esse campo no
+ *     payload — o que exige o jogador ter linkado o Discord pelo site oficial
+ *     do Path of Titans. Bem menos comum na prática.
+ *
+ *  2. MANUAL (registerPlayerManually): usada pelo comando /registrar — o
+ *     jogador informa o próprio Alderon ID pelo Discord. Hoje é aceito sem
+ *     confirmação (ver seção de verificação em jogo mais abaixo, que existe
+ *     mas ainda não está ativada por depender de RCON confiável em produção).
  *
  * Referência do payload oficial:
  * https://hosting.pathoftitans.wiki/guide/webhooks
@@ -32,7 +39,7 @@
 
 'use strict';
 
-const db = require('../database/index');
+const db = require('../../database/index');
 
 // ---------------------------------------------------------------------------
 // Eventos suportados e de onde tiramos "está online" / "tempo de jogo"
@@ -227,13 +234,178 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
 }
 
 /**
+ * Cadastro/vínculo MANUAL — usado pelo comando /registrar (painel + modal).
+ * Complementa upsertPlayerFromEvent (que só roda a partir de webhooks do
+ * jogo): aqui o Discord ID é sempre conhecido de antemão (quem clicou no
+ * botão), então o cadastro é indexado primeiro por discord_id.
+ *
+ * Cenários tratados:
+ *  - Nada existe ainda para este discord_id nem para este alderon_id: cria
+ *    uma linha nova.
+ *  - Já existe uma linha para este alderon_id (ex: criada por um webhook,
+ *    ainda sem discord_id vinculado, ou já vinculada a este mesmo usuário):
+ *    atualiza discord_id/nome nela.
+ *  - Este discord_id já está vinculado a OUTRO alderon_id: trata como
+ *    re-vínculo — atualiza a linha existente do discord_id para o novo
+ *    alderon_id, em vez de criar uma segunda linha para o mesmo usuário.
+ *  - O alderon_id já pertence a OUTRO discord_id: rejeita (conflito real,
+ *    precisa de intervenção manual da staff).
+ *
+ * @param {string} guildId
+ * @param {string} discordId
+ * @param {string} alderonId - Já validado no formato xxx-xxx-xxx pelo chamador
+ * @param {string} playerName
+ * @returns {{ success: boolean, created?: boolean, relinked?: boolean, error?: string }}
+ *   error, quando presente, é um código curto: 'MISSING_FIELDS' | 'ALDERON_TAKEN' | 'DB_ERROR'
+ */
+function registerPlayerManually(guildId, discordId, alderonId, playerName) {
+    if (!guildId || !discordId || !alderonId || !playerName) {
+        return { success: false, error: 'MISSING_FIELDS' };
+    }
+
+    const now = Date.now();
+    const nowSeconds = Math.floor(now / 1000);
+
+    try {
+        const byAlderon = db.prepare(`
+            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        `).get(guildId, alderonId);
+
+        if (byAlderon && byAlderon.discord_id && byAlderon.discord_id !== discordId) {
+            return { success: false, error: 'ALDERON_TAKEN' };
+        }
+
+        const byDiscord = db.prepare(`
+            SELECT * FROM pot_players WHERE guild_id = ? AND discord_id = ?
+        `).get(guildId, discordId);
+
+        if (byDiscord && byDiscord.alderon_id !== alderonId) {
+            // Re-vínculo: o usuário já tinha outro Alderon ID cadastrado.
+            db.prepare(`
+                UPDATE pot_players SET
+                    alderon_id = ?, player_name = ?, linked_at = ?, updated_at = ?
+                WHERE guild_id = ? AND discord_id = ?
+            `).run(alderonId, playerName, now, nowSeconds, guildId, discordId);
+            return { success: true, created: false, relinked: true };
+        }
+
+        if (byAlderon) {
+            // Linha já existe para este Alderon ID (webhook ou já era este
+            // mesmo usuário) — só garante o vínculo/nome atualizados.
+            db.prepare(`
+                UPDATE pot_players SET
+                    discord_id = ?, player_name = ?, linked_at = ?, updated_at = ?
+                WHERE guild_id = ? AND alderon_id = ?
+            `).run(discordId, playerName, now, nowSeconds, guildId, alderonId);
+            return { success: true, created: false, relinked: false };
+        }
+
+        db.prepare(`
+            INSERT INTO pot_players (
+                guild_id, alderon_id, player_name, discord_id,
+                last_seen, total_playtime, is_online,
+                linked_at, first_login_at, updated_at, admin_notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(guildId, alderonId, playerName, discordId, null, 0, 0, now, null, nowSeconds, null);
+
+        return { success: true, created: true, relinked: false };
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro no cadastro manual:', error);
+        return { success: false, error: 'DB_ERROR' };
+    }
+}
+
+/**
+ * Busca o jogador PoT por Alderon ID (qualquer guild_id específico).
+ *
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @returns {object|null} linha completa de pot_players
+ */
+function getPlayerByAlderonId(guildId, alderonId) {
+    if (!guildId || !alderonId) return null;
+    try {
+        return db.prepare(`
+            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        `).get(guildId, alderonId) || null;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar jogador por alderon_id:', error);
+        return null;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// VERIFICAÇÃO EM JOGO (RCON) — PREPARADO, AINDA NÃO ATIVADO.
+//
+// O cadastro manual (/registrar) hoje aceita o Alderon ID informado pelo
+// próprio usuário sem confirmar que ele realmente é o dono daquele
+// personagem no jogo. A ideia é fechar esse buraco com um código de uso
+// único enviado no chat do jogo via RCON, que o jogador digita de volta no
+// Discord para confirmar.
+//
+// As funções abaixo só mexem no banco (gerar/guardar/confirmar o código) —
+// nenhuma delas é chamada pelo fluxo atual de /registrar. O envio de fato
+// pelo RCON (`PoTRconClient.sendCommand`) depende de termos uma conexão
+// RCON confiável em produção, o que ainda está pendente (ver conversas
+// anteriores sobre ECONNREFUSED). Quando isso for resolvido, o fluxo de
+// /registrar precisa ser ajustado para: gerar o código com
+// generateVerificationCode(), guardar com setVerificationCode(), mandar via
+// RCON (broadcast ou whisper — checar o comando certo na doc do PoT), e só
+// marcar verified_ingame=1 (confirmVerification) depois do jogador informar
+// o código de volta no Discord.
+// ---------------------------------------------------------------------------
+
+/**
+ * Gera um código numérico de 6 dígitos para verificação em jogo.
+ * @returns {string}
+ */
+function generateVerificationCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+/**
+ * Guarda o código de verificação pendente para um jogador já cadastrado.
+ * @returns {boolean} sucesso
+ */
+function setVerificationCode(guildId, alderonId, code) {
+    try {
+        const result = db.prepare(`
+            UPDATE pot_players SET verification_code = ? WHERE guild_id = ? AND alderon_id = ?
+        `).run(code, guildId, alderonId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar código de verificação:', error);
+        return false;
+    }
+}
+
+/**
+ * Confirma a verificação em jogo se o código bater, e limpa o código usado.
+ * @returns {boolean} true se o código conferiu e a verificação foi confirmada
+ */
+function confirmVerification(guildId, alderonId, submittedCode) {
+    try {
+        const player = getPlayerByAlderonId(guildId, alderonId);
+        if (!player || !player.verification_code || player.verification_code !== String(submittedCode).trim()) {
+            return false;
+        }
+        db.prepare(`
+            UPDATE pot_players SET verified_ingame = 1, verification_code = NULL WHERE guild_id = ? AND alderon_id = ?
+        `).run(guildId, alderonId);
+        return true;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao confirmar verificação:', error);
+        return false;
+    }
+}
+
+/**
  * Busca o jogador PoT vinculado a um Discord ID, se houver.
  *
- * ATENÇÃO: hoje não existe nenhum comando/fluxo manual de vínculo — o único
- * jeito de discord_id ser preenchido é o payload de webhook trazer esse
- * campo (ver extractDiscordId acima), o que a maioria dos servidores PoT
- * não faz. Na prática isso retorna null na maioria dos casos até que um
- * vínculo real (manual ou por webhook) exista.
+ * O vínculo pode vir de duas fontes: o comando /registrar (manual, ver
+ * registerPlayerManually) ou o payload de webhook trazer o campo
+ * DiscordId/discord_id (ver extractDiscordId acima) — o que exige o servidor
+ * do jogo enviar esse dado, algo que a maioria não faz.
  *
  * @param {string} guildId
  * @param {string} discordId
@@ -271,7 +443,13 @@ function getAlderonIdSuffix(guildId, discordId) {
 module.exports = {
     upsertPlayerFromEvent,
     getPlayerByDiscordId,
+    getPlayerByAlderonId,
     getAlderonIdSuffix,
+    registerPlayerManually,
+    // Verificação em jogo (RCON) — preparado, ainda não ativado no fluxo real.
+    generateVerificationCode,
+    setVerificationCode,
+    confirmVerification,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     ONLINE_EVENTS,

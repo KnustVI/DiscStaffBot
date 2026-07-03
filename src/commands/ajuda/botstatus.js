@@ -1,7 +1,7 @@
 // /home/ubuntu/DiscStaffBot/src/commands/utility/botstatus.js
 const { SlashCommandBuilder, PermissionFlagsBits, version } = require('discord.js');
 const db = require('../../database/index');
-const SystemStatus = require('../../systems/systemStatus');
+const SystemStatus = require('../../systems/monitoring/systemStatus');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
@@ -138,7 +138,7 @@ module.exports = {
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
             const status = SystemStatus.getBotStatus(client, guildId);
 
             if (!status) {
@@ -176,7 +176,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ Erro no botstatus:', error);
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao gerar relatório de status.');
         }

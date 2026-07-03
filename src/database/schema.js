@@ -236,6 +236,8 @@ const SCHEMA = {
             first_login_at INTEGER,
             updated_at INTEGER DEFAULT (strftime('%s', 'now')),
             admin_notes TEXT,
+            verification_code TEXT,
+            verified_ingame INTEGER DEFAULT 0,
             UNIQUE(guild_id, alderon_id)
         )
     `,

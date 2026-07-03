@@ -19,7 +19,7 @@ module.exports = {
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
         db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-        const ConfigSystem = require('../../systems/configSystem.js');
+        const ConfigSystem = require('../../systems/core/configSystem.js');
 
         // Usa o MESMO painel "vivo" que os botões usam pra editar depois,
         // assim comando e botões nunca ficam dessincronizados.

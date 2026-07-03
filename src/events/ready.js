@@ -1,8 +1,9 @@
 // /home/ubuntu/DiscStaffBot/src/events/ready.js
-const InteractionHandler = require('../systems/handlers');
+const InteractionHandler = require('../systems/core/handlers');
 const { ActivityType } = require('discord.js');
-const { startInactiveReportsJob } = require('../systems/inactiveReportsJob');
-const autoModeration = require('../systems/autoModeration');
+const { startInactiveReportsJob } = require('../systems/monitoring/inactiveReportsJob');
+const { startEventSchedulerWorker } = require('../systems/monitoring/eventScheduler');
+const autoModeration = require('../systems/moderation/autoModeration');
 let handler = null;
 let isReady = false;
 
@@ -26,6 +27,7 @@ module.exports = {
         console.log('========================================\n');
         
         startInactiveReportsJob(client);
+        startEventSchedulerWorker(client);
 
         // 1. Inicializar handler central (cache)
         try {
@@ -172,7 +174,7 @@ module.exports = {
         
         // 10. Limpar cache de configuração
         try {
-            const ConfigSystem = require('../systems/configSystem');
+            const ConfigSystem = require('../systems/core/configSystem');
             if (ConfigSystem.clearAllCache) {
                 ConfigSystem.clearAllCache();
                 console.log('🗑️ Cache de configurações reiniciado');

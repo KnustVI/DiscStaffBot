@@ -1,6 +1,6 @@
 const { MessageFlags } = require('discord.js');
 
-const PoTConfigSystem = require('../../systems/potConfigSystem');
+const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');

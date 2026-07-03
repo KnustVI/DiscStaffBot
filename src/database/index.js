@@ -101,6 +101,11 @@ class DatabaseManager {
             // se a coluna já existe, o erro é ignorado).
             this.ensureColumn('reports', 'type', "TEXT NOT NULL DEFAULT 'report'");
             this.ensureColumn('reports', 'punishment_id', 'INTEGER');
+            // Verificação em jogo (RCON) do cadastro manual de jogador — colunas
+            // já preparadas, mas o envio do código pelo chat do jogo ainda não
+            // está ativado (ver potPlayerRegistry.js). Ver /registrar.
+            this.ensureColumn('pot_players', 'verification_code', 'TEXT');
+            this.ensureColumn('pot_players', 'verified_ingame', 'INTEGER DEFAULT 0');
 
             console.log('📋 Schema do banco de dados criado');
 

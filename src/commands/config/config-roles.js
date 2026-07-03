@@ -19,7 +19,7 @@ module.exports = {
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
         db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-        const ConfigSystem = require('../../systems/configSystem');
+        const ConfigSystem = require('../../systems/core/configSystem');
 
         // Painel dividido em 3 abas (Reputação Automática, Moderação, Eventos)
         // — ver ROLE_TABS em configSystem.js. Começa na aba de Moderação, que

@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/events/messageCreate.js
-const ConfigSystem = require('../systems/configSystem');
+const ConfigSystem = require('../systems/core/configSystem');
 const db = require('../database/index');
 
 module.exports = {
@@ -56,7 +56,7 @@ module.exports = {
         
         // Se o status mudou, atualizar os containers
         if (newStatus !== report.status) {
-            const ReportChatSystem = require('../systems/reportChatSystem');
+            const ReportChatSystem = require('../systems/moderation/reportChatSystem');
             const reportSystem = new ReportChatSystem(client);
             const reportId = `#R${report.report_number}`;
             await reportSystem.updateStatus(report.guild_id, reportId, newStatus);

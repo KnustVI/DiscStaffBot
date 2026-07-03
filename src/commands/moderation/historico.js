@@ -2,8 +2,8 @@
 const { SlashCommandBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
-const PunishmentSystem = require('../../systems/punishmentSystem');
-const AnalyticsSystem = require('../../systems/analyticsSystem');
+const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
+const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 const imageManager = require('../../utils/imageManager');
 
@@ -28,7 +28,7 @@ module.exports = {
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
             db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
 
-            const ConfigSystem = require('../../systems/configSystem');
+            const ConfigSystem = require('../../systems/core/configSystem');
             const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
 
             // ── Monta TODAS as páginas de uma vez (igual ao /ajuda) ─────────────
@@ -79,7 +79,7 @@ module.exports = {
 
         } catch (error) {
             console.error('❌ Erro no historico:', error);
-            const ErrorLogger = require('../../systems/errorLogger');
+            const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao carregar histórico.');
         }
