@@ -227,7 +227,7 @@ const PunishmentSystem = {
         );
         builder.separator();
         builder.text(`## ${EMOJIS.circlecheck || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
-        builder.text(`**${EMOJIS.trendingup || '✅'} Pontos restaurados:** +${pointsRestored}`);
+        builder.text(`**${EMOJIS.restore || '✅'} Pontos restaurados:** +${pointsRestored}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
         builder.separator();
         builder.text(`**📝 Punição Original:**`);

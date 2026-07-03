@@ -119,7 +119,7 @@ class AutoModerationSystem {
         if (param === 'limits') {
             const modal = new ModalBuilder()
                 .setCustomId('automod:limits')
-                .setTitle(`${EMOJIS.Config || '⚙️'} Configurar Limites`);
+                .setTitle('⚙️ Configurar Limites');
             
             const exemplarLimit = new TextInputBuilder()
                 .setCustomId('exemplar_limit')
@@ -147,9 +147,9 @@ class AutoModerationSystem {
             const isEnabled = ConfigSystem.getSetting(interaction.guildId, 'automod_enabled') === 'true';
             
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-            builder.title(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`, 1);
+            builder.title(`${EMOJIS.settings || '⚙️'} Configurações da Auto Moderação`, 1);
             builder.separator();
-            builder.text(`${EMOJIS.circledot || '📊'} **Status:** ${isEnabled ? `${EMOJIS.circlecheck || '✅'} Ativado` : `${EMOJIS.circlealert || '❌'} Desativado`}`);
+            builder.text(`${EMOJIS.circledot || '📊'} **Status:** ${isEnabled ? `${EMOJIS.toggleon || '✅'} Ativado` : `${EMOJIS.toggleoff || '❌'} Desativado`}`);
             builder.text(`${EMOJIS.sparkles || '🎖️'} **Limite Exemplar:** ${exemplarLimit} pontos`);
             builder.text(`${EMOJIS.trianglealert || '⚠️'} **Limite Problemático:** ${problematicLimit} pontos`);
             builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação Diária:** +1 ponto para quem não tem punições nas últimas 24h`);

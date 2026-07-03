@@ -15,7 +15,7 @@ function buildPageWelcome(displayName, guildName, emojis) {
         .title(`${emojis.user || '🤖'} Assistente Titan`)
         .text(`Olá **${displayName}**! Sou o sistema de gestão do seu servidor **${guildName}**.`)
         .separator()
-        .title(`${emojis.Config || '⚙️'} Configuração Inicial`, 2)
+        .title(`${emojis.settings || '⚙️'} Configuração Inicial`, 2)
         .text('Apenas administradores podem usar estes comandos:')
         .block([
             '• **/config-logs** — Configura os canais de log (Geral, Punições, AutoMod, ReportChat)',
@@ -60,7 +60,7 @@ function buildPageAutomod(emojis) {
         .title(`${emojis.shieldcheck || '🛡️'} Auto Moderação`)
         .text('Sistema automático de gerenciamento de reputação:')
         .separator()
-        .title(`${emojis.Config || '⚙️'} Comandos`, 2)
+        .title(`${emojis.settings || '⚙️'} Comandos`, 2)
         .text('• **/automod test** — Verifica configurações e canal de log')
         .separator()
         .title(`${emojis.trendingup || '📈'} Funcionamento`, 2)

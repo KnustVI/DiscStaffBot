@@ -114,7 +114,7 @@ class SystemStatus {
         const healthEmoji = healthScore >= 80 ? '🟢' : (healthScore >= 50 ? '🟡' : '🔴');
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         
-        builder.title(`${EMOJIS.Config || '🔧'} Status Detalhado do Sistema`, 1);
+        builder.title(`${EMOJIS.settings || '🔧'} Status Detalhado do Sistema`, 1);
         builder.separator();
         builder.text(`**🤖 Bot**\n⏱️ Uptime: ${status.uptime}\n📡 Latência: ${status.ping}\n💾 Memória: ${status.memory}\n🟢 Node: ${nodeVersion}\n📦 DJS: v${discordVersion}`);
         builder.separator();

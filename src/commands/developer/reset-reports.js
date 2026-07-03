@@ -136,7 +136,7 @@ module.exports = {
             }
             
             const successBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
-            successBuilder.title(`${emojis.CLEAN || '🧹'} Reports Resetados`, 1);
+            successBuilder.title(`${emojis.cleaningservices || '🧹'} Reports Resetados`, 1);
             successBuilder.separator();
             successBuilder.text(`Operação concluída com sucesso em **${guild.name}**.`);
             successBuilder.separator();
