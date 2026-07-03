@@ -32,11 +32,24 @@ class PoTWebhookSystem {
 
     // ==================== GAME.INI ====================
 
-    static getGameIniConfig(guildId) {
+    /**
+     * Monta as linhas de Game.ini (uma por evento) de UM grupo — reaproveitada
+     * tanto pelo Game.ini completo (getGameIniConfig) quanto pelo painel
+     * principal, que mostra a linha de cada grupo direto na seção dele.
+     */
+    static _getGroupIniLines(group, guildId) {
         const domain = process.env.POT_PUBLIC_URL || 'https://api.seubot.com';
         let token = PoTTokenManager.getToken(guildId);
         if (!token) token = PoTTokenManager.generateToken(guildId);
 
+        // evt= permite ao gateway saber qual evento PoT específico chegou,
+        // mesmo que vários eventos compartilhem a mesma rota de grupo.
+        return group.iniEvents.map(
+            (iniEvent) => `${iniEvent}="${domain}/pot/${group.route}?token=${token}&evt=${iniEvent}"`
+        );
+    }
+
+    static getGameIniConfig(guildId) {
         const lines = [
             '[ServerWebhooks]',
             'bEnabled=true',
@@ -48,11 +61,7 @@ class PoTWebhookSystem {
             // label = texto puro (sem emoji custom) — é um comentário dentro
             // de um arquivo .ini de verdade, não uma mensagem do Discord.
             lines.push(`; ${group.label || group.name}`);
-            for (const iniEvent of group.iniEvents) {
-                // evt= permite ao gateway saber qual evento PoT específico chegou,
-                // mesmo que vários eventos compartilhem a mesma rota de grupo.
-                lines.push(`${iniEvent}="${domain}/pot/${group.route}?token=${token}&evt=${iniEvent}"`);
-            }
+            lines.push(...this._getGroupIniLines(group, guildId));
             lines.push('');
         }
 
@@ -187,13 +196,18 @@ class PoTWebhookSystem {
         for (const group of slice) {
             const webhookUrl = groupWebhooks[group.id];
             const isConfigured = !!webhookUrl;
+            // Linhas de Game.ini já prontas pra copiar, direto na seção do
+            // grupo — evita ter que abrir o botão "Game.ini" separado só
+            // pra pegar a URL de um grupo específico.
+            const iniLines = this._getGroupIniLines(group, guildId);
 
             builder.section(
                 [
                     `# ${group.name}`,
                     group.description,
                     isConfigured ? `${EMOJIS.circlecheck || '✅'} Webhook configurado` : `${EMOJIS.circlealert || '❌'} Não configurado`,
-                    `-# Eventos: ${group.iniEvents.join(', ')}`
+                    `-# Eventos: ${group.iniEvents.join(', ')}`,
+                    `\`\`\`ini\n${iniLines.join('\n')}\n\`\`\``
                 ].join('\n'),
                 AdvancedContainerBuilder.thumbnail(guildIconUrl, group.id)
             );
@@ -336,13 +350,19 @@ class PoTWebhookSystem {
         if (entries.length === 0) {
             b.text(`Nenhum webhook configurado ainda.\nUse **${EMOJIS.wifi || '🔗'} Configurar Webhook** em cada grupo do painel.`);
         } else {
-            for (const [groupId, url] of entries) {
+            // Um único bloco de texto para TODOS os grupos, em vez de um
+            // text()+separator() por grupo — um Container do Discord tem um
+            // limite de componentes-filho diretos, e com muitos grupos
+            // configurados (até 10 possíveis, 2 componentes cada) isso
+            // passava do limite e o Discord rejeitava a mensagem inteira
+            // (erro 50035 em "components").
+            const lines = entries.map(([groupId, url]) => {
                 const group = EVENT_GROUPS.find(g => g.id === groupId);
                 // Mostra só o início da URL por segurança
                 const masked = url.split('/').slice(0, 7).join('/') + '/...';
-                b.text(`**${group?.name || groupId}**\n\`${masked}\``);
-                b.separator();
-            }
+                return `**${group?.name || groupId}**\n\`${masked}\``;
+            });
+            b.text(lines.join('\n\n'));
         }
 
         b.footer(interaction.guild?.name || 'Servidor');
