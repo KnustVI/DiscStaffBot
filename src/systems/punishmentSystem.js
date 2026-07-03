@@ -279,7 +279,19 @@ const PunishmentSystem = {
     },
     
     // ==================== MÉTODOS PARA HANDLER CENTRAL ====================
-    
+
+    /**
+     * Monta um payload Components V2 de uma linha só. As mensagens de
+     * confirmação de strike/unstrike são Components V2 (MessageFlags.
+     * IsComponentsV2) — depois de um deferUpdate(), o Discord rejeita
+     * `content` legado nelas (erro 50035 "MESSAGE_CANNOT_USE_LEGACY_
+     * FIELDS_WITH_COMPONENTS_V2"). Por isso todo editReply de resultado/erro
+     * aqui precisa passar por um container, não por `{ content }`.
+     */
+    _simpleReply(text, color = 0xED4245) {
+        return new AdvancedContainerBuilder({ accentColor: color }).text(text).build();
+    },
+
     async handleComponent(interaction, action, param) {
         try {
             const [subAction, targetId, page] = param ? param.split(':') : [];
@@ -291,23 +303,23 @@ const PunishmentSystem = {
                     await this.handleUnstrikeConfirmation(interaction, subAction);
                     break;
                 default:
-                    await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, components: [] });
+                    await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`));
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
-            await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, components: [] });
+            await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`));
         }
     },
 
     async handleStrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
         if (!session) {
-            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, components: [] });
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`));
         }
         
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição cancelada.`, components: [] });
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição cancelada.`));
         }
         
         if (action === 'confirm') {
@@ -324,7 +336,7 @@ const PunishmentSystem = {
             const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
             if (!targetUser) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-                return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Usuário não encontrado.`, components: [] });
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Usuário não encontrado.`));
             }
 
             const targetMember = await guild.members.fetch(targetId).catch(() => null);
@@ -340,7 +352,7 @@ const PunishmentSystem = {
             const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
             if (!strikeId) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-                return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao aplicar punição no banco de dados.`, components: [] });
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Erro ao aplicar punição no banco de dados.`));
             }
 
             // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
@@ -433,19 +445,19 @@ const PunishmentSystem = {
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-            await interaction.editReply({ content: summaryLines.join('\n'), components: [] });
+            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), 0x57F287));
         }
     },
     
     async handleUnstrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
         if (!session) {
-            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`, components: [] });
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`));
         }
 
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Anulação cancelada.`, components: [] });
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Anulação cancelada.`));
         }
 
         if (action === 'confirm') {
@@ -465,7 +477,7 @@ const PunishmentSystem = {
             const punishment = db.prepare(`SELECT * FROM punishments WHERE strike_number = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
             if (!punishment) {
                 SessionManager.delete(interaction.user.id, guildId, 'unstrike_pending', 'unstrike_pending');
-                return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`, components: [] });
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`));
             }
 
             const targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
@@ -541,7 +553,7 @@ const PunishmentSystem = {
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            await interaction.editReply({ content: summaryLines.join('\n'), components: [] });
+            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), 0x57F287));
         }
     },
 

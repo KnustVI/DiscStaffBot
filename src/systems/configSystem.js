@@ -582,7 +582,11 @@ const ConfigSystem = {
             if (!guild.members.me.permissions.has(PermissionFlagsBits.ManageChannels)) {
                 const msg = `${EMOJIS.circlealert || '❌'} Não tenho permissão para criar canais.`;
                 if (interaction.deferred || interaction.replied) {
-                    await interaction.editReply({ content: msg, components: [] });
+                    // A mensagem original (painel config-logs) é Components V2 —
+                    // depois de deferUpdate(), `content` sozinho é rejeitado
+                    // pelo Discord (erro 50035). Precisa ir como container.
+                    const errBuilder = new AdvancedContainerBuilder({ accentColor: 0xED4245 }).text(msg);
+                    await interaction.editReply(errBuilder.build());
                 } else {
                     await interaction.reply({ content: msg, flags: 64 });
                 }

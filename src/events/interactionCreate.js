@@ -3,6 +3,7 @@ const InteractionHandler = require('../systems/handlers');
 const ReportChatSystem = require('../systems/reportChatSystem');
 const ConfigSystem = require('../systems/configSystem');
 const sessionManager = require('../utils/sessionManager');
+const { AdvancedContainerBuilder } = require('../utils/containerBuilder');
 
 let EMOJIS = {};
 try {
@@ -218,17 +219,23 @@ module.exports = {
 
                 await interaction.deferUpdate();
 
+                // A mensagem original (confirmação de reset) é Components V2 —
+                // deferUpdate() mantém essa flag, e o Discord rejeita `content`
+                // em qualquer edição dela (erro 50035 "MESSAGE_CANNOT_USE_
+                // LEGACY_FIELDS_WITH_COMPONENTS_V2"). Por isso o resultado
+                // também precisa ser montado como container, não como content.
                 if (action === 'cancel') {
-                    await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Reset cancelado.`, components: [] });
+                    const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                        .text(`${EMOJIS.circlealert || '❌'} Reset cancelado.`);
+                    await interaction.editReply(cancelBuilder.build());
                     return;
                 }
 
                 const { executeReset } = require('../commands/pot/reset');
                 const result = await executeReset(guildId, scope);
-                await interaction.editReply({
-                    content: `${result.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${result.message}`,
-                    components: []
-                });
+                const resultBuilder = new AdvancedContainerBuilder({ accentColor: result.success ? 0x57F287 : 0xED4245 })
+                    .text(`${result.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${result.message}`);
+                await interaction.editReply(resultBuilder.build());
                 return;
             }
 
@@ -286,8 +293,13 @@ module.exports = {
                     case 'page':
                         await PoTWebhookSystem.renderPanel(interaction, page);
                         break;
-                    default:
-                        await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Ação desconhecida.`, components: [] });
+                    default: {
+                        // Mesmo motivo do bloco pot_reset acima: a mensagem do
+                        // painel é Components V2, não aceita `content`.
+                        const unknownBuilder = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                            .text(`${EMOJIS.circlealert || '❌'} Ação desconhecida.`);
+                        await interaction.editReply(unknownBuilder.build());
+                    }
                 }
                 return;
             }

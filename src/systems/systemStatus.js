@@ -29,24 +29,24 @@ class SystemStatus {
                     await this.handleDetailedStatus(interaction, param);
                     break;
                 default:
-                    await interaction.editReply({
-                        content: `${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`,
-                        components: []
-                    });
+                    // As mensagens desse painel são Components V2 — depois de
+                    // deferUpdate(), `content` sozinho é rejeitado pelo Discord
+                    // (erro 50035), precisa ir como container.
+                    await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                        .text(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`).build());
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
-            await interaction.editReply({
-                content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`,
-                components: []
-            });
+            await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                .text(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`).build());
         }
     }
-    
+
     static async handleRefreshStatus(interaction) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
-            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao obter status.`, components: [] });
+            return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).build());
         }
         
         const builder = this.generateStatusContainer(status, interaction.guild);
@@ -63,7 +63,8 @@ class SystemStatus {
     static async handleDetailedStatus(interaction, param) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
-            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao obter status.`, components: [] });
+            return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: 0xED4245 })
+                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).build());
         }
         const builder = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
         const { components, flags } = builder.build();
