@@ -4,6 +4,13 @@ const ReportChatSystem = require('../systems/reportChatSystem');
 const ConfigSystem = require('../systems/configSystem');
 const sessionManager = require('../utils/sessionManager');
 
+let EMOJIS = {};
+try {
+    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 let handler = null;
 
 module.exports = {
@@ -205,21 +212,21 @@ module.exports = {
                 const scope = parts.slice(5).join('_');
 
                 if (interaction.user.id !== userId) {
-                    await interaction.reply({ content: '❌ Apenas quem iniciou o reset pode confirmar.', flags: 64 });
+                    await interaction.reply({ content: `${EMOJIS.circlealert || '❌'} Apenas quem iniciou o reset pode confirmar.`, flags: 64 });
                     return;
                 }
 
                 await interaction.deferUpdate();
 
                 if (action === 'cancel') {
-                    await interaction.editReply({ content: '❌ Reset cancelado.', components: [] });
+                    await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Reset cancelado.`, components: [] });
                     return;
                 }
 
                 const { executeReset } = require('../commands/pot/reset');
                 const result = await executeReset(guildId, scope);
                 await interaction.editReply({
-                    content: `${result.success ? '✅' : '❌'} ${result.message}`,
+                    content: `${result.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${result.message}`,
                     components: []
                 });
                 return;
@@ -241,7 +248,7 @@ module.exports = {
                 const page = parseInt(pageRaw) || 0;
 
                 if (guildId !== interaction.guildId) {
-                    await interaction.reply({ content: '❌ Este painel não pertence a este servidor.', flags: 64 });
+                    await interaction.reply({ content: `${EMOJIS.circlealert || '❌'} Este painel não pertence a este servidor.`, flags: 64 });
                     return;
                 }
 
@@ -280,7 +287,7 @@ module.exports = {
                         await PoTWebhookSystem.renderPanel(interaction, page);
                         break;
                     default:
-                        await interaction.editReply({ content: '❌ Ação desconhecida.', components: [] });
+                        await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Ação desconhecida.`, components: [] });
                 }
                 return;
             }
@@ -308,7 +315,7 @@ module.exports = {
             console.error('❌ Erro:', error);
             try {
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: '❌ Erro. Tente novamente.', flags: 64 });
+                    await interaction.reply({ content: `${EMOJIS.circlealert || '❌'} Erro. Tente novamente.`, flags: 64 });
                 }
             } catch (err) {}
         }

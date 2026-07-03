@@ -5,6 +5,13 @@ const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     async execute(interaction, client) {
         const ip = interaction.options.getString('ip');
@@ -46,11 +53,11 @@ module.exports = {
                 .title('🎮 Path of Titans - Configuração')
                 .text('Configurações salvas com sucesso!')
                 .separator()
-                .text(`📡 IP: ${ip}`)
+                .text(`${emojis.wifi || '📡'} IP: ${ip}`)
                 .text(`🔌 Porta RCON: ${rconPort}`)
-                .text(`🔑 Token: \`${token}\``)
+                .text(`${emojis.vpnkey || '🔑'} Token: \`${token}\``)
                 .separator()
-                .text(`🔄 RCON: ${rconStatus ? '✅ Conectado' : '⚠️ Offline'}`)
+                .text(`${emojis.refreshccw || '🔄'} RCON: ${rconStatus ? `${emojis.circlecheck || '✅'} Conectado` : `${emojis.trianglealert || '⚠️'} Offline`}`)
                 .footer(guildName);
 
             const payload = builder.build();
@@ -66,7 +73,7 @@ module.exports = {
             });
 
             builder
-                .title('❌ Erro')
+                .title(`${emojis.circlealert || '❌'} Erro`)
                 .text(error.message)
                 .footer(interaction.guild?.name || 'Servidor');
 

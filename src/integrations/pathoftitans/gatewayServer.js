@@ -15,6 +15,13 @@ const ErrorLogger = require('../../systems/errorLogger');
 const PoTTokenManager = require('./tokenManager');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 
+let EMOJIS = {};
+try {
+    EMOJIS = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 
 class PoTGatewayServer {
@@ -153,61 +160,61 @@ class PoTGatewayServer {
 
         const formatters = {
             // ── Login / Logout ──
-            PlayerLogin:   () => `🎮 **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ' 👑' : ''}`,
-            PlayerLogout:  () => `👋 **${d.PlayerName}** saiu do servidor`,
-            PlayerLeave:   () => `🚶 **${d.PlayerName}** desconectou`,
+            PlayerLogin:   () => `🎮 **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${EMOJIS.crown || '👑'}` : ''}`,
+            PlayerLogout:  () => `${EMOJIS.logout || '👋'} **${d.PlayerName}** saiu do servidor`,
+            PlayerLeave:   () => `${EMOJIS.logout || '🚶'} **${d.PlayerName}** desconectou`,
 
             // ── Combate ──
             PlayerKilled:        () => `💀 **${d.VictimName}** foi morto por **${d.KillerName}**\n🔧 Causa: \`${d.DamageType}\``,
-            PlayerDamagedPlayer: () => `⚔️ **${d.SourceName}** causou **${d.DamageAmount}** de dano em **${d.TargetName}**`,
+            PlayerDamagedPlayer: () => `${EMOJIS.swords || '⚔️'} **${d.SourceName}** causou **${d.DamageAmount}** de dano em **${d.TargetName}**`,
 
             // ── Quest ──
-            PlayerQuestComplete: () => `📜 **${d.PlayerName}** completou a missão **${d.Quest}**`,
-            PlayerQuestFailed:   () => `❌ **${d.PlayerName}** falhou na missão **${d.Quest}**`,
+            PlayerQuestComplete: () => `${EMOJIS.listchecks || '📜'} **${d.PlayerName}** completou a missão **${d.Quest}**`,
+            PlayerQuestFailed:   () => `${EMOJIS.circlealert || '❌'} **${d.PlayerName}** falhou na missão **${d.Quest}**`,
 
             // ── Respawn ──
-            PlayerRespawn:  () => `🔄 **${d.PlayerName}** ressurgiu como **${d.DinosaurType}**`,
-            PlayerWaystone: () => `✨ **${d.InviterName}** teletransportou **${d.TeleportedPlayerName}**`,
+            PlayerRespawn:  () => `${EMOJIS.refreshccw || '🔄'} **${d.PlayerName}** ressurgiu como **${d.DinosaurType}**`,
+            PlayerWaystone: () => `${EMOJIS.sparkles || '✨'} **${d.InviterName}** teletransportou **${d.TeleportedPlayerName}**`,
 
             // ── Chat ──
-            PlayerChat:      () => `💬 **${d.PlayerName}:** ${d.Message}`,
-            PlayerProfanity: () => `🔞 **${d.PlayerName}** tentou enviar mensagem bloqueada`,
+            PlayerChat:      () => `${EMOJIS.messagecircle || '💬'} **${d.PlayerName}:** ${d.Message}`,
+            PlayerProfanity: () => `${EMOJIS.shieldban || '🔞'} **${d.PlayerName}** tentou enviar mensagem bloqueada`,
 
             // ── Comandos ──
             PlayerCommand: () => `⚡ **${d.PlayerName}:** \`${d.Message}\``,
 
             // ── Grupo ──
-            PlayerJoinedGroup: () => `👥 **${d.Player}** entrou no grupo de **${d.Leader}**`,
-            PlayerLeftGroup:   () => `👥 **${d.Player}** saiu do grupo`,
+            PlayerJoinedGroup: () => `${EMOJIS.users || '👥'} **${d.Player}** entrou no grupo de **${d.Leader}**`,
+            PlayerLeftGroup:   () => `${EMOJIS.users || '👥'} **${d.Player}** saiu do grupo`,
 
             // ── Servidor ──
             ServerStart:             () => `🟢 Servidor **iniciou** | Mapa: \`${d.Map || 'desconhecido'}\``,
-            ServerRestart:           () => `🔄 Servidor **reiniciando**...`,
-            ServerRestartCountdown:  () => `⏳ Servidor reinicia em **${d.CountdownTime || '?'}s**`,
-            ServerModerate:          () => `🛡️ Moderação automática: **${d.PlayerName}** — ${d.Reason || 'sem motivo'}`,
-            ServerError:             () => `⚠️ **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
-            SecurityAlert:           () => `🚨 **ALERTA DE SEGURANÇA:** ${d.SecurityAlert || 'suspeita detectada'}`,
-            BadAverageTick:          () => `📉 **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
+            ServerRestart:           () => `${EMOJIS.refreshccw || '🔄'} Servidor **reiniciando**...`,
+            ServerRestartCountdown:  () => `${EMOJIS.clockalert || '⏳'} Servidor reinicia em **${d.CountdownTime || '?'}s**`,
+            ServerModerate:          () => `${EMOJIS.shieldcheck || '🛡️'} Moderação automática: **${d.PlayerName}** — ${d.Reason || 'sem motivo'}`,
+            ServerError:             () => `${EMOJIS.octagonalert || '⚠️'} **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
+            SecurityAlert:           () => `${EMOJIS.siren || '🚨'} **ALERTA DE SEGURANÇA:** ${d.SecurityAlert || 'suspeita detectada'}`,
+            BadAverageTick:          () => `${EMOJIS.trendingdown || '📉'} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
 
             // ── Admin ──
-            AdminSpectate: () => `👁️ **${d.AdminName}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
-            AdminCommand:  () => `👑 **${d.AdminName}** executou: \`${d.Command}\``,
+            AdminSpectate: () => `${EMOJIS.eye || '👁️'} **${d.AdminName}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
+            AdminCommand:  () => `${EMOJIS.crown || '👑'} **${d.AdminName}** executou: \`${d.Command}\``,
 
             // ── Nest ──
             CreateNest:    () => `🪺 **${d.PlayerName}** criou um ninho`,
             DestroyNest:   () => `💥 Ninho de **${d.PlayerName}** foi destruído`,
             NestInvite:    () => `📨 **${d.PlayerName}** convidou **${d.InvitedPlayer}** para o ninho`,
-            PlayerJoinNest: () => `✅ **${d.PlayerName}** entrou em um ninho`,
-            UpdateNest:    () => `📝 Ninho de **${d.PlayerName}** foi atualizado`,
+            PlayerJoinNest: () => `${EMOJIS.circlecheck || '✅'} **${d.PlayerName}** entrou em um ninho`,
+            UpdateNest:    () => `${EMOJIS.filetext || '📝'} Ninho de **${d.PlayerName}** foi atualizado`,
         };
 
         const fn = formatters[potEvent];
-        if (!fn) return `📡 Evento: \`${potEvent}\``;
+        if (!fn) return `${EMOJIS.wifi || '📡'} Evento: \`${potEvent}\``;
 
         try {
             return fn();
         } catch (err) {
-            return `📡 Evento: \`${potEvent}\` (dados incompletos)`;
+            return `${EMOJIS.wifi || '📡'} Evento: \`${potEvent}\` (dados incompletos)`;
         }
     }
 
@@ -230,7 +237,7 @@ class PoTGatewayServer {
         if (potEvent === 'ServerError' || potEvent === 'SecurityAlert') {
             return new EmbedBuilder()
                 .setColor(0xFF4444)
-                .setTitle(`🚨 ${potEvent === 'SecurityAlert' ? 'Alerta de Segurança' : 'Erro do Servidor'}`)
+                .setTitle(`${EMOJIS.siren || '🚨'} ${potEvent === 'SecurityAlert' ? 'Alerta de Segurança' : 'Erro do Servidor'}`)
                 .setDescription(d.ErrorMessage || d.SecurityAlert || 'Sem detalhes')
                 .setTimestamp();
         }

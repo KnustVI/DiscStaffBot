@@ -40,11 +40,11 @@ class ReportChatSystem {
 
     getStatusText(status, closedBy = null, closedReason = null, closedAt = null) {
         const statusMap = {
-            waiting: '⏳ Aguardando staff',
-            responded: '💬 Respondido',
-            inactive: '⚠️ Inativo',
-            closed_no_reason: '🔒 Fechado',
-            closed_with_reason: '✅ Concluído'
+            waiting: `${EMOJIS.clockalert || '⏳'} Aguardando staff`,
+            responded: `${EMOJIS.messagecircle || '💬'} Respondido`,
+            inactive: `${EMOJIS.trianglealert || '⚠️'} Inativo`,
+            closed_no_reason: `${EMOJIS.lock || '🔒'} Fechado`,
+            closed_with_reason: `${EMOJIS.circlecheck || '✅'} Concluído`
         };
         
         let baseStatus = statusMap[status] || status;
@@ -129,7 +129,7 @@ class ReportChatSystem {
             builder.separator();
 
             if (restStaffs.length > 0) {
-                let restText = `### 👥 Demais presentes:\n`;
+                let restText = `### ${EMOJIS.users || '👥'} Demais presentes:\n`;
                 for (const s of restStaffs) {
                     restText += showTimestamps
                         ? `<@${s.id}> (entrou <t:${Math.floor(s.timestamp / 1000)}:R>)\n`
@@ -160,16 +160,16 @@ class ReportChatSystem {
         const closedTime = showTimestamps && closedAt ? ` <t:${Math.floor(closedAt / 1000)}:R>` : '';
 
         if (status === 'closed_with_reason') {
-            statusText = `### 📊 Status:\n✅ **Concluído por:** ${closedByName}${closedTime}\n⚠️ **Punição aplicada:** ${punishment || 'Nenhuma'}`;
+            statusText = `### ${EMOJIS.gauge || '📊'} Status:\n${EMOJIS.circlecheck || '✅'} **Concluído por:** ${closedByName}${closedTime}\n${EMOJIS.trianglealert || '⚠️'} **Punição aplicada:** ${punishment || 'Nenhuma'}`;
         } else if (status === 'closed_no_reason') {
-            statusText = `### 📊 Status:\n🔒 **Fechado sem motivo por:** ${closedByName}${closedTime}`;
+            statusText = `### ${EMOJIS.gauge || '📊'} Status:\n${EMOJIS.lock || '🔒'} **Fechado sem motivo por:** ${closedByName}${closedTime}`;
         } else if (status === 'waiting') {
-            statusText = `### 📊 Status:\n⏳ **Aguardando staff**`;
+            statusText = `### ${EMOJIS.gauge || '📊'} Status:\n${EMOJIS.clockalert || '⏳'} **Aguardando staff**`;
         } else if (status === 'responded') {
             const respondedTime = showTimestamps && reportInfo?.last_reply_at ? ` <t:${Math.floor(reportInfo.last_reply_at / 1000)}:R>` : '';
-            statusText = `### 📊 Status:\n💬 **Respondido**${respondedTime}`;
+            statusText = `### ${EMOJIS.gauge || '📊'} Status:\n${EMOJIS.messagecircle || '💬'} **Respondido**${respondedTime}`;
         } else if (status === 'inactive') {
-            statusText = `### 📊 Status:\n⚠️ **Inativo** (24h sem mensagens)`;
+            statusText = `### ${EMOJIS.gauge || '📊'} Status:\n${EMOJIS.trianglealert || '⚠️'} **Inativo** (24h sem mensagens)`;
         }
 
         // Criar botão de link se existir thread
@@ -187,14 +187,15 @@ class ReportChatSystem {
 
         // ==================== 5. MOTIVO ====================
         if (closedReason) {
-            builder.text(`### 📝 Motivo:\n\`\`\`${closedReason}\`\`\``);
+            builder.text(`### ${EMOJIS.messagesquare || '📝'} Motivo:\n\`\`\`${closedReason}\`\`\``);
             builder.separator();
         }
 
         // ==================== 6. AVALIAÇÃO (sempre sem timestamp) ====================
         if (reportInfo?.rating && reportInfo.rating > 0) {
-            const stars = '⭐'.repeat(reportInfo.rating);
-            let ratingText = `### ⭐ Avaliação: ${reportInfo.rating}/5\n`;
+            const starEmoji = EMOJIS.starfull || '⭐';
+            const stars = starEmoji.repeat(reportInfo.rating);
+            let ratingText = `### ${starEmoji} Avaliação: ${reportInfo.rating}/5\n`;
             if (reportInfo.rating_comment) {
                 ratingText += `\`\`\`${reportInfo.rating_comment}\`\`\`\n`;
             }
@@ -301,15 +302,15 @@ class ReportChatSystem {
     async openReport(interaction, data) {
         const { guild, user } = interaction;
         
-        await interaction.editReply({ 
-            content: '⏳ Criando report...',
+        await interaction.editReply({
+            content: `${EMOJIS.clockalert || '⏳'} Criando report...`,
             flags: [MessageFlags.Ephemeral]
         });
-        
+
         try {
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (!logChannelId) {
-                await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: [MessageFlags.Ephemeral] });
+                await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Canal de logs não configurado!`, flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -349,13 +350,13 @@ class ReportChatSystem {
 
             // ==================== CONTAINER DE INFORMAÇÕES ====================
             const infoBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-            infoBuilder.title(`${EMOJIS.ticket || '📋'} Informações do Report`, 1);
+            infoBuilder.title(`${EMOJIS.clipboardlist || '📋'} Informações do Report`, 1);
             infoBuilder.separator();
-            infoBuilder.text(`**📝 Regra quebrada:** ${data.regra}`);
-            infoBuilder.text(`**⏰ Quando aconteceu:** ${data.dataHora}`);
-            infoBuilder.text(`**📍 Local:** ${data.local || 'Não informado'}`);
-            infoBuilder.text(`**📋 Descrição:** ${data.descricao}`);
-            infoBuilder.text(`**⚖️ Termo de convivência:** ${data.termo}`);
+            infoBuilder.text(`**${EMOJIS.messagesquare || '📝'} Regra quebrada:** ${data.regra}`);
+            infoBuilder.text(`**${EMOJIS.clock || '⏰'} Quando aconteceu:** ${data.dataHora}`);
+            infoBuilder.text(`**${EMOJIS.mappin || '📍'} Local:** ${data.local || 'Não informado'}`);
+            infoBuilder.text(`**${EMOJIS.clipboardlist || '📋'} Descrição:** ${data.descricao}`);
+            infoBuilder.text(`**${EMOJIS.gavel || '⚖️'} Termo de convivência:** ${data.termo}`);
             infoBuilder.footer();
             
             const { components: infoComponents, flags: infoFlags } = infoBuilder.build();
@@ -421,13 +422,13 @@ class ReportChatSystem {
             `).run(logMessage.id, dmMessage?.id || null, guild.id, reportNumber);
 
             await interaction.editReply({
-                content: `✅ ${reportId} criado! ${thread.url}`,
+                content: `${EMOJIS.circlecheck || '✅'} ${reportId} criado! ${thread.url}`,
                 flags: [MessageFlags.Ephemeral]
             });
 
         } catch (error) {
             console.error('❌ Erro ao criar report:', error);
-            await interaction.editReply({ content: '❌ Erro ao criar report.', flags: [MessageFlags.Ephemeral] });
+            await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao criar report.`, flags: [MessageFlags.Ephemeral] });
         }
     }
 
@@ -447,14 +448,14 @@ class ReportChatSystem {
         const { guild, user } = interaction;
 
         await interaction.editReply({
-            content: '⏳ Abrindo revisão...',
+            content: `${EMOJIS.clockalert || '⏳'} Abrindo revisão...`,
             flags: [MessageFlags.Ephemeral]
         });
 
         try {
             const strikeNumber = parseInt(String(strikeNumberRaw).replace(/[^\d]/g, ''));
             if (isNaN(strikeNumber)) {
-                await interaction.editReply({ content: '❌ Número de strike inválido.', flags: [MessageFlags.Ephemeral] });
+                await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Número de strike inválido.`, flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -462,13 +463,13 @@ class ReportChatSystem {
                 SELECT * FROM punishments WHERE guild_id = ? AND strike_number = ?
             `).get(guild.id, strikeNumber);
             if (!punishment) {
-                await interaction.editReply({ content: `❌ Punição #${strikeNumber} não encontrada.`, flags: [MessageFlags.Ephemeral] });
+                await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição #${strikeNumber} não encontrada.`, flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (!logChannelId) {
-                await interaction.editReply({ content: '❌ Canal de logs não configurado!', flags: [MessageFlags.Ephemeral] });
+                await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Canal de logs não configurado!`, flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -513,13 +514,13 @@ class ReportChatSystem {
             const summaryBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
             summaryBuilder.title(`${EMOJIS.gavel || '⚖️'} Resumo da Punição #${strikeNumber}`, 1);
             summaryBuilder.separator();
-            summaryBuilder.text(`**📅 Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
-            summaryBuilder.text(`**🛡️ Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
+            summaryBuilder.text(`**${EMOJIS.calendar || '📅'} Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
+            summaryBuilder.text(`**${EMOJIS.shield || '🛡️'} Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
             summaryBuilder.text(`${severityIcons[punishment.severity] || '❓'} **Severidade:** ${severityNames[punishment.severity] || punishment.severity}`);
-            summaryBuilder.text(`**📉 Pontos descontados:** -${punishment.points_deducted}`);
-            summaryBuilder.text(`**📝 Motivo:**\n\`\`\`text\n${punishment.reason}\n\`\`\``);
-            if (punishment.report_id) summaryBuilder.text(`**🎫 Report original:** ${punishment.report_id}`);
-            summaryBuilder.text(`**Status:** ${punishment.status === 'revoked' ? '✅ Já anulado' : '⚠️ Ativo'}`);
+            summaryBuilder.text(`**${EMOJIS.trendingdown || '📉'} Pontos descontados:** -${punishment.points_deducted}`);
+            summaryBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${punishment.reason}\n\`\`\``);
+            if (punishment.report_id) summaryBuilder.text(`**${EMOJIS.ticket || '🎫'} Report original:** ${punishment.report_id}`);
+            summaryBuilder.text(`**Status:** ${punishment.status === 'revoked' ? `${EMOJIS.circlecheck || '✅'} Já anulado` : `${EMOJIS.trianglealert || '⚠️'} Ativo`}`);
             summaryBuilder.footer();
 
             const { components: summaryComponents, flags: summaryFlags } = summaryBuilder.build();
@@ -584,13 +585,13 @@ class ReportChatSystem {
             `).run(logMessage.id, dmMessage?.id || null, guild.id, reportNumber);
 
             await interaction.editReply({
-                content: `✅ ${reportId} criado! ${thread.url}`,
+                content: `${EMOJIS.circlecheck || '✅'} ${reportId} criado! ${thread.url}`,
                 flags: [MessageFlags.Ephemeral]
             });
 
         } catch (error) {
             console.error('❌ Erro ao criar revisão de punição:', error);
-            await interaction.editReply({ content: '❌ Erro ao criar revisão de punição.', flags: [MessageFlags.Ephemeral] });
+            await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao criar revisão de punição.`, flags: [MessageFlags.Ephemeral] });
         }
     }
     
@@ -708,7 +709,7 @@ class ReportChatSystem {
             const thread = await guild.channels.fetch(report.thread_id).catch(() => null);
             if (thread) {
                 await thread.send({
-                    content: `🔒 Report fechado por ${closedByMention}`
+                    content: `${EMOJIS.lock || '🔒'} Report fechado por ${closedByMention}`
                 }).catch(() => {});
                 await thread.setLocked(true).catch(() => {});
                 await thread.setArchived(true).catch(() => {});

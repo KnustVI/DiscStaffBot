@@ -121,7 +121,7 @@ class PoTWebhookSystem {
         if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
             await interaction.editReply({
                 content: [
-                    '❌ URL inválida. Deve ser um webhook do Discord.',
+                    `${EMOJIS.circlealert || '❌'} URL inválida. Deve ser um webhook do Discord.`,
                     'Como criar: **Canal → Configurações → Integrações → Criar Webhook → Copiar URL**'
                 ].join('\n')
             });
@@ -130,7 +130,7 @@ class PoTWebhookSystem {
 
         const test = await this.testDiscordWebhook(webhookUrl, interaction.guild?.name);
         if (!test.success) {
-            await interaction.editReply({ content: `❌ Webhook não respondeu: ${test.error}` });
+            await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Webhook não respondeu: ${test.error}` });
             return;
         }
 
@@ -160,7 +160,7 @@ class PoTWebhookSystem {
         builder
             .title(`${EMOJIS.wifi || '📡'} GERENCIADOR DE WEBHOOKS`)
             .text('Aqui você gera os webhooks para o bot trazer informações do jogo até você. Você também pode criar um canal no Discord para receber essas informações já traduzidas, em tempo real.')
-            .text(`📊 **Status:** ${configured}/${total} grupos configurados`)
+            .text(`${EMOJIS.gauge || '📊'} **Status:** ${configured}/${total} grupos configurados`)
             .separator();
 
         for (const group of slice) {
@@ -171,7 +171,7 @@ class PoTWebhookSystem {
                 [
                     `# ${group.name}`,
                     group.description,
-                    isConfigured ? '✅ Webhook configurado' : '❌ Não configurado',
+                    isConfigured ? `${EMOJIS.circlecheck || '✅'} Webhook configurado` : `${EMOJIS.circlealert || '❌'} Não configurado`,
                     `-# Eventos: ${group.iniEvents.join(', ')}`
                 ].join('\n'),
                 AdvancedContainerBuilder.thumbnail(guildIconUrl, group.id)
@@ -180,20 +180,20 @@ class PoTWebhookSystem {
             if (isConfigured) {
                 builder.buttons(
                     AdvancedContainerBuilder.secondaryButton(
-                        `pot_webhook:config:${group.id}:${guildId}:${safePage}`, '✏️ Alterar'
-                    ),
+                        `pot_webhook:config:${group.id}:${guildId}:${safePage}`, 'Alterar'
+                    ).setEmoji(EMOJIS.edit || '✏️'),
                     AdvancedContainerBuilder.primaryButton(
-                        `pot_webhook:test:${group.id}:${guildId}:${safePage}`, '🔄 Testar'
-                    ),
+                        `pot_webhook:test:${group.id}:${guildId}:${safePage}`, 'Testar'
+                    ).setEmoji(EMOJIS.refreshccw || '🔄'),
                     AdvancedContainerBuilder.dangerButton(
-                        `pot_webhook:remove:${group.id}:${guildId}:${safePage}`, '🗑️ Remover'
-                    )
+                        `pot_webhook:remove:${group.id}:${guildId}:${safePage}`, 'Remover'
+                    ).setEmoji(EMOJIS.packagex || '🗑️')
                 );
             } else {
                 builder.buttons(
                     AdvancedContainerBuilder.successButton(
-                        `pot_webhook:config:${group.id}:${guildId}:${safePage}`, '🔗 Configurar Webhook'
-                    )
+                        `pot_webhook:config:${group.id}:${guildId}:${safePage}`, 'Configurar Webhook'
+                    ).setEmoji(EMOJIS.wifi || '🔗')
                 );
             }
 
@@ -201,7 +201,7 @@ class PoTWebhookSystem {
         }
 
         if (totalPages > 1) {
-            builder.text(`📄 Página ${safePage + 1}/${totalPages}`);
+            builder.text(`${EMOJIS.filetext || '📄'} Página ${safePage + 1}/${totalPages}`);
         }
         builder.footer(guildName);
 
@@ -210,11 +210,11 @@ class PoTWebhookSystem {
         // Botões de info FORA do Container (sibling) — sempre visíveis
         const infoRow = new ActionRowBuilder().addComponents(
             AdvancedContainerBuilder.primaryButton(
-                `pot_webhook:gameini:_:${guildId}:${safePage}`, '📄 Game.ini'
-            ),
+                `pot_webhook:gameini:_:${guildId}:${safePage}`, 'Game.ini'
+            ).setEmoji(EMOJIS.filetext || '📄'),
             AdvancedContainerBuilder.secondaryButton(
-                `pot_webhook:webhooks:_:${guildId}:${safePage}`, '🔗 Ver Webhooks'
-            )
+                `pot_webhook:webhooks:_:${guildId}:${safePage}`, 'Ver Webhooks'
+            ).setEmoji(EMOJIS.wifi || '🔗')
         );
 
         const finalComponents = [...components, infoRow];
@@ -247,13 +247,13 @@ class PoTWebhookSystem {
         const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, groupId);
 
         if (!webhookUrl) {
-            await interaction.followUp({ content: '❌ Nenhum webhook configurado para este grupo.', flags: 64 });
+            await interaction.followUp({ content: `${EMOJIS.circlealert || '❌'} Nenhum webhook configurado para este grupo.`, flags: 64 });
         } else {
             const result = await this.testDiscordWebhook(webhookUrl, interaction.guild?.name);
             await interaction.followUp({
                 content: result.success
-                    ? '✅ Webhook testado com sucesso!'
-                    : `❌ Falhou: ${result.error}`,
+                    ? `${EMOJIS.circlecheck || '✅'} Webhook testado com sucesso!`
+                    : `${EMOJIS.circlealert || '❌'} Falhou: ${result.error}`,
                 flags: 64
             });
         }
@@ -263,7 +263,7 @@ class PoTWebhookSystem {
 
     static async handleRemove(interaction, groupId, guildId, page) {
         PoTConfigSystem.removeWebhookForGroup(guildId, groupId);
-        await interaction.followUp({ content: '✅ Webhook removido.', flags: 64 });
+        await interaction.followUp({ content: `${EMOJIS.circlecheck || '✅'} Webhook removido.`, flags: 64 });
         await this.renderPanel(interaction, page);
     }
 
@@ -271,7 +271,7 @@ class PoTWebhookSystem {
         const config = this.getGameIniConfig(interaction.guildId);
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
 
-        b.title('📄 Game.ini')
+        b.title(`${EMOJIS.filetext || '📄'} Game.ini`)
             .text('Cole este conteúdo no arquivo `Game.ini` do seu servidor PoT.\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
             .text('```ini\n' + config + '\n```')
             .footer(interaction.guild?.name || 'Servidor');
@@ -285,10 +285,10 @@ class PoTWebhookSystem {
         const entries = Object.entries(webhooks);
 
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
-        b.title('🔗 Webhooks Configurados');
+        b.title(`${EMOJIS.wifi || '🔗'} Webhooks Configurados`);
 
         if (entries.length === 0) {
-            b.text('Nenhum webhook configurado ainda.\nUse **🔗 Configurar Webhook** em cada grupo do painel.');
+            b.text(`Nenhum webhook configurado ainda.\nUse **${EMOJIS.wifi || '🔗'} Configurar Webhook** em cada grupo do painel.`);
         } else {
             for (const [groupId, url] of entries) {
                 const group = EVENT_GROUPS.find(g => g.id === groupId);

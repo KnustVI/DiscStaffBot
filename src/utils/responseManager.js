@@ -1,6 +1,13 @@
 // /home/ubuntu/DiscStaffBot/src/utils/responseManager.js
 const { MessageFlags } = require('discord.js');
 
+let EMOJIS = {};
+try {
+    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 class ResponseManager {
     constructor() {
         this.processing = new Set();
@@ -131,7 +138,7 @@ class ResponseManager {
         } catch (error) {
             console.error(`[ResponseManager] ❌ Erro:`, { id: interaction.id, error: error.message });
             try {
-                return await interaction.followUp({ content: '❌ Ocorreu um erro.', flags: MessageFlags.Ephemeral });
+                return await interaction.followUp({ content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, flags: MessageFlags.Ephemeral });
             } catch (fallbackError) {
                 return null;
             }
@@ -158,15 +165,15 @@ class ResponseManager {
     }
 
     async success(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `✅ ${message}`, flags: MessageFlags.Ephemeral, ...opts });
+        return this.send(interaction, { content: `${EMOJIS.circlecheck || '✅'} ${message}`, flags: MessageFlags.Ephemeral, ...opts });
     }
 
     async error(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `❌ ${message}`, flags: MessageFlags.Ephemeral, ...opts });
+        return this.send(interaction, { content: `${EMOJIS.circlealert || '❌'} ${message}`, flags: MessageFlags.Ephemeral, ...opts });
     }
 
     async warning(interaction, message, opts = {}) {
-        return this.send(interaction, { content: `⚠️ ${message}`, ...opts });
+        return this.send(interaction, { content: `${EMOJIS.trianglealert || '⚠️'} ${message}`, ...opts });
     }
 }
 

@@ -4,6 +4,13 @@ const PoTWebhookSystem = require('../../systems/potWebhookSystem');
 const PoTConfigSystem = require('../../systems/potConfigSystem');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     async execute(interaction, client) {
         const guildId = interaction.guildId;
@@ -14,7 +21,7 @@ module.exports = {
 
             if (!config) {
                 const builder = new AdvancedContainerBuilder({ accentColor: 0xFFA500 });
-                builder.title('⚠️ Servidor não configurado').text('Use /potserver setup primeiro').footer(guildName);
+                builder.title(`${emojis.trianglealert || '⚠️'} Servidor não configurado`).text('Use /potserver setup primeiro').footer(guildName);
 
                 const payload = builder.build();
                 payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;
@@ -27,7 +34,7 @@ module.exports = {
         } catch (error) {
             console.error('❌ [Logs] Erro:', error);
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
-            builder.title('❌ Erro').text(error.message).footer(guildName);
+            builder.title(`${emojis.circlealert || '❌'} Erro`).text(error.message).footer(guildName);
 
             const payload = builder.build();
             payload.flags = MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral;

@@ -178,7 +178,7 @@ class AnalyticsSystem {
         builder.text(`${EMOJIS.gavel || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}`);
         builder.text(`${EMOJIS.ticket || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
         builder.text(`${EMOJIS.circlecheck || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
-        builder.text(`⏱️ **Tempo Médio:** ${avgResponseText}`);
+        builder.text(`${EMOJIS.clock || '⏱️'} **Tempo Médio:** ${avgResponseText}`);
         builder.footer(`${report.days} dias analisados`);
         
         return builder;

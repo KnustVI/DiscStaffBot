@@ -74,17 +74,17 @@ module.exports = {
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
-            builder.text(`**👤 Usuário:** ${targetUser?.tag || punishment.user_id}`);
+            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser?.tag || punishment.user_id}`);
             builder.text(`${severityIcons[punishment.severity] || '❓'} **Strike:** #${punishmentId}`);
-            builder.text(`**📝 Motivo original:** ${punishment.reason}`);
-            builder.text(`**📝 Motivo da anulação:** ${reason}`);
+            builder.text(`**${emojis.messagesquare || '📝'} Motivo original:** ${punishment.reason}`);
+            builder.text(`**${emojis.messagesquare || '📝'} Motivo da anulação:** ${reason}`);
             builder.separator();
-            builder.text(`**📈 Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
+            builder.text(`**${emojis.restore || '📈'} Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
             builder.footer('Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('punishment:unstrike_confirm:confirm').setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('punishment:unstrike_confirm:cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId('punishment:unstrike_confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),
+                new ButtonBuilder().setCustomId('punishment:unstrike_confirm:cancel').setLabel('Cancelar').setStyle(ButtonStyle.Danger).setEmoji(emojis.circlealert || '❌')
             );
 
             const { components, flags } = builder.build();

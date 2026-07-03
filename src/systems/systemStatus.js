@@ -83,13 +83,13 @@ class SystemStatus {
         builder.title(`${EMOJIS.gauge || '📊'} Status do Sistema`, 1);
         builder.text(`**${status.guildName}** • Sistema operando normalmente`);
         builder.separator();
-        builder.text(`**🤖 Bot**\n📊 Uptime: ${status.uptime}\n📡 Latência: ${status.ping}\n💾 Memória: ${status.memory}`);
+        builder.text(`**🤖 Bot**\n${EMOJIS.gauge || '📊'} Uptime: ${status.uptime}\n${EMOJIS.wifi || '📡'} Latência: ${status.ping}\n${EMOJIS.storage || '💾'} Memória: ${status.memory}`);
         builder.separator();
-        builder.text(`**📈 Estatísticas**\n🌐 Servidores: ${status.totalGuilds}\n👥 Usuários: ${status.totalUsers.toLocaleString()}\n📝 Logs: ${status.logChannel}`);
+        builder.text(`**${EMOJIS.trendingup || '📈'} Estatísticas**\n🌐 Servidores: ${status.totalGuilds}\n${EMOJIS.users || '👥'} Usuários: ${status.totalUsers.toLocaleString()}\n${EMOJIS.filetext || '📝'} Logs: ${status.logChannel}`);
         builder.separator();
-        const nextRunText = status.nextAutoModTS ? `⏰ Próxima: <t:${status.nextAutoModTS}:R>` : '❌ N/A';
-        const lastRunText = status.lastRunTS ? `🕐 Última: <t:${status.lastRunTS}:R>` : '❌ Nunca';
-        builder.text(`**🛡️ Auto Moderação**\n${nextRunText}\n${lastRunText}`);
+        const nextRunText = status.nextAutoModTS ? `${EMOJIS.clockalert || '⏰'} Próxima: <t:${status.nextAutoModTS}:R>` : `${EMOJIS.circlealert || '❌'} N/A`;
+        const lastRunText = status.lastRunTS ? `${EMOJIS.clock || '🕐'} Última: <t:${status.lastRunTS}:R>` : `${EMOJIS.circlealert || '❌'} Nunca`;
+        builder.text(`**${EMOJIS.shieldcheck || '🛡️'} Auto Moderação**\n${nextRunText}\n${lastRunText}`);
         builder.footer();
         
         return builder;
@@ -116,15 +116,15 @@ class SystemStatus {
         
         builder.title(`${EMOJIS.settings || '🔧'} Status Detalhado do Sistema`, 1);
         builder.separator();
-        builder.text(`**🤖 Bot**\n⏱️ Uptime: ${status.uptime}\n📡 Latência: ${status.ping}\n💾 Memória: ${status.memory}\n🟢 Node: ${nodeVersion}\n📦 DJS: v${discordVersion}`);
+        builder.text(`**🤖 Bot**\n${EMOJIS.clock || '⏱️'} Uptime: ${status.uptime}\n${EMOJIS.wifi || '📡'} Latência: ${status.ping}\n${EMOJIS.storage || '💾'} Memória: ${status.memory}\n🟢 Node: ${nodeVersion}\n📦 DJS: v${discordVersion}`);
         builder.separator();
-        builder.text(`**💻 Sistema**\n🖥️ OS: ${platform}\n🧠 CPU: ${totalCores} cores\n⚙️ Load: ${cpuUsage.toFixed(2)}\n🏛️ Arquitetura: ${os.arch()}`);
+        builder.text(`**${EMOJIS.terminal || '💻'} Sistema**\n🖥️ OS: ${platform}\n🧠 CPU: ${totalCores} cores\n${EMOJIS.gauge || '⚙️'} Load: ${cpuUsage.toFixed(2)}\n🏛️ Arquitetura: ${os.arch()}`);
         builder.separator();
-        builder.text(`**📊 Métricas**\n🌐 Servidores: ${status.totalGuilds}\n👥 Usuários: ${status.totalUsers.toLocaleString()}\n💬 Canais: ${client.channels.cache.size}\n😀 Emojis: ${client.emojis.cache.size}`);
+        builder.text(`**${EMOJIS.gauge || '📊'} Métricas**\n🌐 Servidores: ${status.totalGuilds}\n${EMOJIS.users || '👥'} Usuários: ${status.totalUsers.toLocaleString()}\n${EMOJIS.messagecircle || '💬'} Canais: ${client.channels.cache.size}\n😀 Emojis: ${client.emojis.cache.size}`);
         builder.separator();
         const nextRunFull = status.nextAutoModTS ? `<t:${status.nextAutoModTS}:F>` : 'N/A';
         const lastRunFull = status.lastRunTS ? `<t:${status.lastRunTS}:F>` : 'Nunca';
-        builder.text(`**🛡️ Auto Moderação**\n⏰ Próxima: ${nextRunFull}\n🕐 Última: ${lastRunFull}\n📝 Logs: ${status.logChannel}`);
+        builder.text(`**${EMOJIS.shieldcheck || '🛡️'} Auto Moderação**\n${EMOJIS.clockalert || '⏰'} Próxima: ${nextRunFull}\n${EMOJIS.clock || '🕐'} Última: ${lastRunFull}\n${EMOJIS.filetext || '📝'} Logs: ${status.logChannel}`);
         builder.separator();
         
         let healthMessage = '';

@@ -4,6 +4,13 @@ const { getInstance } = require('../../integrations/pathoftitans');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 const { MessageFlags } = require('discord.js'); // ✅ FIX
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     async execute(interaction, client) {
         const guildId = interaction.guildId;
@@ -36,16 +43,16 @@ module.exports = {
             });
 
             builder
-                .title('📊 Status do Servidor Path of Titans')
+                .title(`${emojis.gauge || '📊'} Status do Servidor Path of Titans`)
                 .text('Resumo da integração com seu servidor PoT.')
                 .separator();
 
             if (config) {
-                builder.text(`✅ **Servidor:** ${config.server_ip || 'Não configurado'}`);
+                builder.text(`${emojis.circlecheck || '✅'} **Servidor:** ${config.server_ip || 'Não configurado'}`);
                 builder.text(`🔌 **Porta RCON:** ${config.rcon_port || 'N/A'}`);
                 builder.text(`📨 **Webhooks:** ${Object.keys(webhooks).length} configurados`);
             } else {
-                builder.text('❌ **Servidor:** Não configurado');
+                builder.text(`${emojis.circlealert || '❌'} **Servidor:** Não configurado`);
                 builder.text('Use `/potserver setup` para configurar');
             }
 
@@ -57,31 +64,31 @@ module.exports = {
                         ? `${token.substring(0, 10)}...${token.substring(token.length - 6)}`
                         : token;
 
-                builder.text(`🔑 **Token:** \`${maskedToken}\``);
-                builder.text(`📊 **Usos:** ${tokenStats.usage_count || 0} requisições`);
+                builder.text(`${emojis.vpnkey || '🔑'} **Token:** \`${maskedToken}\``);
+                builder.text(`${emojis.gauge || '📊'} **Usos:** ${tokenStats.usage_count || 0} requisições`);
 
                 if (tokenStats.last_used) {
-                    builder.text(`🕐 **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
+                    builder.text(`${emojis.clock || '🕐'} **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
                 }
             } else {
-                builder.text('🔑 **Token:** ❌ Não gerado');
+                builder.text(`${emojis.vpnkey || '🔑'} **Token:** ${emojis.circlealert || '❌'} Não gerado`);
                 builder.text('Execute `/potserver setup` para gerar um token');
             }
 
             builder.separator();
 
-            builder.text(`🔒 **Gateway:** ${stats.gatewayRunning ? '✅ Rodando' : '❌ Parado'}`);
+            builder.text(`${emojis.lock || '🔒'} **Gateway:** ${stats.gatewayRunning ? `${emojis.circlecheck || '✅'} Rodando` : `${emojis.circlealert || '❌'} Parado`}`);
 
             // ✅ Linha de RCON agora mostra o teste ao vivo, não a contagem em memória.
             let rconText;
             if (rconLiveOk === null) {
                 rconText = '⚪ Não testado (servidor não configurado)';
             } else if (rconLiveOk) {
-                rconText = '✅ Conectado (testado agora)';
+                rconText = `${emojis.circlecheck || '✅'} Conectado (testado agora)`;
             } else {
-                rconText = '❌ Falhou (sem resposta do servidor — verifique IP/porta/senha RCON)';
+                rconText = `${emojis.circlealert || '❌'} Falhou (sem resposta do servidor — verifique IP/porta/senha RCON)`;
             }
-            builder.text(`🔗 **RCON:** ${rconText}`);
+            builder.text(`${emojis.wifi || '🔗'} **RCON:** ${rconText}`);
 
             if (process.env.POT_PUBLIC_URL) {
                 builder.text(`🌐 **URL Pública:** \`${process.env.POT_PUBLIC_URL}\``);
@@ -96,7 +103,7 @@ module.exports = {
             } else if (!rconLiveOk) {
                 builder.text('💡 **Dica:** RCON falhou — confirme se o servidor PoT está online e se IP/porta/senha estão corretos em `/potserver setup`.');
             } else {
-                builder.text('✅ **Tudo pronto!** O servidor está integrado com o bot.');
+                builder.text(`${emojis.circlecheck || '✅'} **Tudo pronto!** O servidor está integrado com o bot.`);
             }
 
             builder.footer(guildName);
@@ -116,7 +123,7 @@ module.exports = {
             });
 
             builder
-                .title('❌ Erro')
+                .title(`${emojis.circlealert || '❌'} Erro`)
                 .text(`Erro ao carregar status: ${error.message}`)
                 .footer(interaction.guild?.name || 'Servidor');
 

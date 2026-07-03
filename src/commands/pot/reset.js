@@ -4,6 +4,13 @@ const PoTConfigSystem = require('../../systems/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     async execute(interaction, client) {
         const scope = interaction.options.getString('scope');
@@ -15,7 +22,7 @@ module.exports = {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xFF4444 });
 
         builder
-            .title('⚠️ CONFIRMAR RESET')
+            .title(`${emojis.trianglealert || '⚠️'} CONFIRMAR RESET`)
             .text(`Você está prestes a resetar: **${scope}**`)
             .text('Esta ação NÃO PODE SER DESFEITA!')
             .separator()
@@ -25,12 +32,14 @@ module.exports = {
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId(`pot_reset_confirm_${guildId}_${userId}_${scope}`)
-                .setLabel('✅ Confirmar Reset')
-                .setStyle(ButtonStyle.Danger),
+                .setLabel('Confirmar Reset')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji(emojis.circlecheck || '✅'),
             new ButtonBuilder()
                 .setCustomId(`pot_reset_cancel_${guildId}_${userId}`)
-                .setLabel('❌ Cancelar')
+                .setLabel('Cancelar')
                 .setStyle(ButtonStyle.Secondary)
+                .setEmoji(emojis.circlealert || '❌')
         );
 
         const payload = builder.build();
@@ -69,13 +78,13 @@ module.exports = {
 
                     return {
                         success: true,
-                        message: '🗑️ Tudo resetado (incluindo token)'
+                        message: `${emojis.cleaningservices || '🗑️'} Tudo resetado (incluindo token)`
                     };
 
                 default:
                     return {
                         success: false,
-                        message: '❌ Escopo inválido'
+                        message: `${emojis.circlealert || '❌'} Escopo inválido`
                     };
             }
         } catch (error) {

@@ -1,5 +1,12 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('potserver')
@@ -71,7 +78,7 @@ module.exports = {
                 break;
             default:
                 await interaction.editReply({
-                    content: '❌ Subcomando inválido.',
+                    content: `${emojis.circlealert || '❌'} Subcomando inválido.`,
                     flags: 64
                 });
         }

@@ -165,7 +165,7 @@ module.exports = {
 
             try {
                 const errorPayload = new AdvancedContainerBuilder({ accentColor: 0xED4245 })
-                    .text('❌ Erro ao gerar guia de ajuda. Tente novamente.')
+                    .text(`${emojis.circlealert || '❌'} Erro ao gerar guia de ajuda. Tente novamente.`)
                     .build();
 
                 if (interaction.deferred || interaction.replied) {

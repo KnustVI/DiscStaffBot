@@ -116,9 +116,9 @@ const PunishmentSystem = {
         else if (history.reputation < 30) accentColor = COLORS.DANGER;
         else if (history.reputation < 50) accentColor = COLORS.WARNING;
 
-        const repEmoji = history.reputation >= 90 ? '🌟' :
-                        history.reputation >= 70 ? '⭐' :
-                        history.reputation >= 50 ? '👍' : '⚠️';
+        const repEmoji = history.reputation >= 90 ? (EMOJIS.starfull || '🌟') :
+                        history.reputation >= 70 ? (EMOJIS.star || '⭐') :
+                        history.reputation >= 50 ? (EMOJIS.thumbsup || '👍') : (EMOJIS.trianglealert || '⚠️');
 
         const builder = new AdvancedContainerBuilder({ accentColor });
 
@@ -146,7 +146,7 @@ const PunishmentSystem = {
                 builder.text(`${severityIcon} Strike #${strikeNum} | ${date}`);
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);
                 if (p.report_id) builder.text(`┃ Report: \`${p.report_id}\``);
-                if (p.status === 'revoked') builder.text(`┃ Status: ✅ Anulado`);
+                if (p.status === 'revoked') builder.text(`┃ Status: ${EMOJIS.circlecheck || '✅'} Anulado`);
                 builder.separator();
             }
         } else {
@@ -188,14 +188,14 @@ const PunishmentSystem = {
         builder.text(`**${EMOJIS.trendingdown || '❌'} Pontos subtraídos:** -${pointsLost}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
         builder.separator();
-        builder.text(`**📝 Motivo:**`);
+        builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**`);
         if (reportId) builder.text(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
         
         const actions = this.getPunishmentActions(severity, discordAct, discordActionResult);
-        if (actions && actions !== '- 📝 **Apenas Registro:** Nenhuma ação automática aplicada') {
+        if (actions && actions !== `- ${EMOJIS.messagesquare || '📝'} **Apenas Registro:** Nenhuma ação automática aplicada`) {
             builder.separator();
-            builder.text(`**⚠️ Ações Aplicadas:**`);
+            builder.text(`**${EMOJIS.trianglealert || '⚠️'} Ações Aplicadas:**`);
             for (const action of actions.split('\n')) {
                 if (action.trim()) builder.text(action);
             }
@@ -230,10 +230,10 @@ const PunishmentSystem = {
         builder.text(`**${EMOJIS.restore || '✅'} Pontos restaurados:** +${pointsRestored}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
         builder.separator();
-        builder.text(`**📝 Punição Original:**`);
+        builder.text(`**${EMOJIS.messagesquare || '📝'} Punição Original:**`);
         builder.text(`\`\`\`text\n${originalReason}\n\`\`\``);
         builder.separator();
-        builder.text(`**📝 Motivo da Anulação:**`);
+        builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo da Anulação:**`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
         builder.footer(`${guildName || ''}`.trim());
         
@@ -244,35 +244,35 @@ const PunishmentSystem = {
         const actions = [];
         
         if (severity >= 1 && severity <= 2) {
-            actions.push(`- 📝 **Registro:** Infração registrada no sistema`);
+            actions.push(`- ${EMOJIS.messagesquare || '📝'} **Registro:** Infração registrada no sistema`);
         }
         if (severity >= 3) {
-            actions.push(`- ⚠️ **Aviso Formal:** Comportamento inadequado registrado`);
+            actions.push(`- ${EMOJIS.trianglealert || '⚠️'} **Aviso Formal:** Comportamento inadequado registrado`);
         }
         if (severity >= 4) {
-            actions.push(`- 🔇 **Mute Temporário:** Usuário silenciado por tempo determinado`);
+            actions.push(`- ${EMOJIS.micoff || '🔇'} **Mute Temporário:** Usuário silenciado por tempo determinado`);
         }
         if (severity >= 5) {
-            actions.push(`- 🚫 **Banimento Permanente:** Usuário removido permanentemente`);
+            actions.push(`- ${EMOJIS.ban || '🚫'} **Banimento Permanente:** Usuário removido permanentemente`);
         }
-        
+
         if (discordAct && discordAct !== 'none') {
-            const actIcons = { timeout: '🔇', kick: '👢', ban: '🚫' };
+            const actIcons = { timeout: EMOJIS.micoff || '🔇', kick: EMOJIS.userx || '👢', ban: EMOJIS.ban || '🚫' };
             const actNames = { timeout: 'Timeout (Silenciamento)', kick: 'Expulsão do Servidor', ban: 'Banimento do Servidor' };
             const icon = actIcons[discordAct] || '⚡';
             const name = actNames[discordAct] || discordAct;
-            
+
             if (discordActionResult && !discordActionResult.includes('Erro')) {
                 actions.push(`- ${icon} **${name}:** ${discordActionResult}`);
             } else if (discordActionResult && discordActionResult.includes('Erro')) {
-                actions.push(`- ❌ **${name}:** ${discordActionResult}`);
+                actions.push(`- ${EMOJIS.circlealert || '❌'} **${name}:** ${discordActionResult}`);
             } else {
                 actions.push(`- ${icon} **${name}:** Aplicado com sucesso`);
             }
         }
-        
+
         if (actions.length === 0) {
-            actions.push(`- 📝 **Apenas Registro:** Nenhuma ação automática aplicada`);
+            actions.push(`- ${EMOJIS.messagesquare || '📝'} **Apenas Registro:** Nenhuma ação automática aplicada`);
         }
         
         return actions.join('\n');
@@ -291,23 +291,23 @@ const PunishmentSystem = {
                     await this.handleUnstrikeConfirmation(interaction, subAction);
                     break;
                 default:
-                    await interaction.editReply({ content: `❌ Ação "${action}" não reconhecida.`, components: [] });
+                    await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, components: [] });
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
-            await interaction.editReply({ content: '❌ Ocorreu um erro.', components: [] });
+            await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, components: [] });
         }
     },
 
     async handleStrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
         if (!session) {
-            return await interaction.editReply({ content: '❌ Sessão expirada. Use /strike novamente.', components: [] });
+            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, components: [] });
         }
         
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-            return await interaction.editReply({ content: '❌ Punição cancelada.', components: [] });
+            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição cancelada.`, components: [] });
         }
         
         if (action === 'confirm') {
@@ -324,7 +324,7 @@ const PunishmentSystem = {
             const targetUser = await interaction.client.users.fetch(targetId).catch(() => null);
             if (!targetUser) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-                return await interaction.editReply({ content: '❌ Usuário não encontrado.', components: [] });
+                return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Usuário não encontrado.`, components: [] });
             }
 
             const targetMember = await guild.members.fetch(targetId).catch(() => null);
@@ -340,7 +340,7 @@ const PunishmentSystem = {
             const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
             if (!strikeId) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-                return await interaction.editReply({ content: '❌ Erro ao aplicar punição no banco de dados.', components: [] });
+                return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao aplicar punição no banco de dados.`, components: [] });
             }
 
             // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
@@ -373,7 +373,7 @@ const PunishmentSystem = {
                             break;
                     }
                 } catch (err) {
-                    discordActionResult = `❌ Erro: ${err.message}`;
+                    discordActionResult = `${EMOJIS.circlealert || '❌'} Erro: ${err.message}`;
                 }
             }
 
@@ -424,9 +424,9 @@ const PunishmentSystem = {
                 : (roleResult.error ? `${emojis.messagesquare || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
 
             const summaryLines = [
-                `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**`,
-                `📉 ${pointsLost} pts perdidos`,
-                `⭐ Reputação: ${newPoints}/100`,
+                `${emojis.circlecheck || '✅'} **Strike #${strikeId} aplicado em ${targetUser.username}**`,
+                `${emojis.trendingdown || '📉'} ${pointsLost} pts perdidos`,
+                `${emojis.star || '⭐'} Reputação: ${newPoints}/100`,
                 dmStatusMsg,
             ];
             if (roleStatusMsg) summaryLines.push(roleStatusMsg);
@@ -440,12 +440,12 @@ const PunishmentSystem = {
     async handleUnstrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
         if (!session) {
-            return await interaction.editReply({ content: '❌ Sessão expirada. Use /unstrike novamente.', components: [] });
+            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`, components: [] });
         }
 
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            return await interaction.editReply({ content: '❌ Anulação cancelada.', components: [] });
+            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Anulação cancelada.`, components: [] });
         }
 
         if (action === 'confirm') {
@@ -465,7 +465,7 @@ const PunishmentSystem = {
             const punishment = db.prepare(`SELECT * FROM punishments WHERE strike_number = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
             if (!punishment) {
                 SessionManager.delete(interaction.user.id, guildId, 'unstrike_pending', 'unstrike_pending');
-                return await interaction.editReply({ content: '❌ Punição não encontrada ou já anulada.', components: [] });
+                return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`, components: [] });
             }
 
             const targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
@@ -534,8 +534,8 @@ const PunishmentSystem = {
                 : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
 
             const summaryLines = [
-                `✅ **Strike #${punishmentId} anulado!**`,
-                `📈 +${pointsRestored} pts | ⭐ Reputação: ${newPoints}/100`,
+                `${emojis.circlecheck || '✅'} **Strike #${punishmentId} anulado!**`,
+                `${emojis.restore || '📈'} +${pointsRestored} pts | ${emojis.star || '⭐'} Reputação: ${newPoints}/100`,
                 dmStatusMsg,
             ];
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);

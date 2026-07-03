@@ -137,20 +137,20 @@ module.exports = {
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
             builder.separator();
-            builder.text(`**👤 Usuário:** ${targetUser.tag}`);
+            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser.tag}`);
             builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
-            builder.text(`**📝 Motivo:** ${reason}`);
-            builder.text(`**⏳ Duração:** ${isPermanent ? 'Permanente' : durationStr}`);
-            if (reportId) builder.text(`**🎫 Report:** ${reportId}`);
+            builder.text(`**${emojis.messagesquare || '📝'} Motivo:** ${reason}`);
+            builder.text(`**${emojis.clockalert || '⏳'} Duração:** ${isPermanent ? 'Permanente' : durationStr}`);
+            if (reportId) builder.text(`**${emojis.ticket || '🎫'} Report:** ${reportId}`);
             builder.separator();
-            builder.text(`**📉 Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
+            builder.text(`**${emojis.trendingdown || '📉'} Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
             builder.text(`**⚡ Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
             builder.text(`**🎮 Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
             builder.footer('Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('punishment:confirm:confirm').setLabel('✅ Confirmar').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('punishment:confirm:cancel').setLabel('❌ Cancelar').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId('punishment:confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),
+                new ButtonBuilder().setCustomId('punishment:confirm:cancel').setLabel('Cancelar').setStyle(ButtonStyle.Danger).setEmoji(emojis.circlealert || '❌')
             );
 
             const { components, flags } = builder.build();

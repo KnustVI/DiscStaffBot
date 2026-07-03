@@ -4,6 +4,13 @@ const { AdvancedContainerBuilder } = require('../../utils/containerBuilder');
 // REMOVER esta importação:
 // const { AutoModerationSystem } = require('../../systems/autoModeration');
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('automod')
@@ -26,63 +33,63 @@ module.exports = {
                 if (newInstance) {
                     await interaction.deferReply({ flags: 64 });
                     return await interaction.editReply({
-                        content: '⚠️ Sistema de Auto Moderação foi inicializado agora. Execute o comando novamente para ver o diagnóstico.',
+                        content: `${emojis.trianglealert || '⚠️'} Sistema de Auto Moderação foi inicializado agora. Execute o comando novamente para ver o diagnóstico.`,
                         flags: 64
                     });
                 }
             } catch (error) {
                 await interaction.deferReply({ flags: 64 });
                 return await interaction.editReply({
-                    content: '❌ Erro ao inicializar o sistema de Auto Moderação. Verifique os logs.',
+                    content: `${emojis.circlealert || '❌'} Erro ao inicializar o sistema de Auto Moderação. Verifique os logs.`,
                     flags: 64
                 });
             }
         }
-        
+
         // Executar manutenção manual usando a instância global
         const result = await autoMod.runManualMaintenance();
-        
+
         const isEnabled = ConfigSystem.getSetting(guildId, 'automod_enabled') === 'true';
         const logChannelId = ConfigSystem.getSetting(guildId, 'log_automod');
         const lastRun = ConfigSystem.getSetting(guildId, 'last_automod_run');
-        
-        let channelStatus = '❌ Não configurado';
+
+        let channelStatus = `${emojis.circlealert || '❌'} Não configurado`;
         let channelIssues = [];
-        
+
         if (logChannelId) {
             const channel = guild.channels.cache.get(logChannelId);
             if (!channel) {
-                channelStatus = '❌ Canal não encontrado';
+                channelStatus = `${emojis.circlealert || '❌'} Canal não encontrado`;
                 channelIssues.push(`Canal com ID \`${logChannelId}\` não existe.`);
             } else {
                 const botMember = guild.members.me;
                 const perms = channel.permissionsFor(botMember);
-                
+
                 if (!perms.has('ViewChannel') || !perms.has('SendMessages')) {
-                    channelStatus = `⚠️ Sem permissões em ${channel.name}`;
+                    channelStatus = `${emojis.trianglealert || '⚠️'} Sem permissões em ${channel.name}`;
                     channelIssues.push(`Configure permissões do bot no canal ${channel.name}.`);
                 } else {
-                    channelStatus = `✅ ${channel.name}`;
+                    channelStatus = `${emojis.circlecheck || '✅'} ${channel.name}`;
                 }
             }
         }
-        
-        const automodStatus = isEnabled ? '✅ Ativada' : '❌ Desativada';
+
+        const automodStatus = isEnabled ? `${emojis.toggleon || '✅'} Ativada` : `${emojis.toggleoff || '❌'} Desativada`;
         const workerRunning = autoMod.isRunning;
         const hasIssues = channelIssues.length > 0 || !isEnabled;
-        
+
         const builder = new AdvancedContainerBuilder({ accentColor: hasIssues ? 0xFFA500 : 0x00FF00 });
-        
-        builder.title('🛡️ Diagnóstico da Auto Moderação', 1);
+
+        builder.title(`${emojis.shieldcheck || '🛡️'} Diagnóstico da Auto Moderação`, 1);
         builder.text(`**Servidor:** ${guild.name}`);
         builder.separator();
-        builder.text(`📋 **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
+        builder.text(`${emojis.clipboardlist || '📋'} **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
         builder.text(`📺 **Canal de Log:** ${channelStatus}`);
-        builder.text(`📊 **Relatório:** 📈 ${result.totalRepRecovered} recuperados | ➕ ${result.totalRolesAdded} adicionados | ➖ ${result.totalRolesRemoved} removidos`);
-        
+        builder.text(`${emojis.gauge || '📊'} **Relatório:** ${emojis.trendingup || '📈'} ${result.totalRepRecovered} recuperados | ${emojis.plus || '➕'} ${result.totalRolesAdded} adicionados | ${emojis.minus || '➖'} ${result.totalRolesRemoved} removidos`);
+
         if (channelIssues.length > 0) {
             builder.separator();
-            builder.title('⚠️ Problemas', 2);
+            builder.title(`${emojis.trianglealert || '⚠️'} Problemas`, 2);
             for (const issue of channelIssues) {
                 builder.text(issue);
             }

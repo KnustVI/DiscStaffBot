@@ -3,6 +3,13 @@ const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
 
+let EMOJIS = {};
+try {
+    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 // Cores para terminal
 const COLORS = {
     RESET: '\x1b[0m',
@@ -184,9 +191,9 @@ class ErrorLogger {
         try {
             const fetch = require('node-fetch');
             const webhookData = {
-                content: `⚠️ **ERRO CRÍTICO** | ${logEntry.category.toUpperCase()}`,
+                content: `${EMOJIS.trianglealert || '⚠️'} **ERRO CRÍTICO** | ${logEntry.category.toUpperCase()}`,
                 embeds: [{
-                    title: `🚨 ${logEntry.context}`,
+                    title: `${EMOJIS.siren || '🚨'} ${logEntry.context}`,
                     color: 0xFF0000,
                     fields: [
                         { name: 'Categoria', value: logEntry.category, inline: true },

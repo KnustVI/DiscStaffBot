@@ -2,6 +2,13 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const ReportChatSystem = require('../../systems/reportChatSystem');
 
+let emojis = {};
+try {
+    emojis = require('../../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    emojis = {};
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('reportchat')
@@ -18,7 +25,7 @@ module.exports = {
         
         // Responder a interação com confirmação (usando editReply porque já está deferido)
         await interaction.editReply({ 
-            content: '✅ Painel de ReportChat criado!',
+            content: `${emojis.circlecheck || '✅'} Painel de ReportChat criado!`,
             components: []
         });
     }

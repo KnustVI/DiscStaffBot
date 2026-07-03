@@ -2,6 +2,13 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { AdvancedContainerBuilder } = require('./containerBuilder');
 
+let EMOJIS = {};
+try {
+    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 /**
  * Sistema de paginação para AdvancedContainerBuilder
  * Gerencia múltiplas páginas com navegação por botões
@@ -114,7 +121,8 @@ class PaginationBuilder {
                 .setDisabled(this.currentPage === totalPages - 1),
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_page_${this.currentPage}`)
-                .setLabel(`📄 ${this.currentPage + 1}/${totalPages}`)
+                .setLabel(`${this.currentPage + 1}/${totalPages}`)
+                .setEmoji(EMOJIS.filetext || '📄')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(true)
         );
@@ -139,7 +147,8 @@ class PaginationBuilder {
                 .setDisabled(true),
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_page_disabled`)
-                .setLabel(`📄 ${this.currentPage + 1}/${this.pages.length}`)
+                .setLabel(`${this.currentPage + 1}/${this.pages.length}`)
+                .setEmoji(EMOJIS.filetext || '📄')
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(true)
         );
