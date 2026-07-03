@@ -261,7 +261,7 @@ class ReportChatSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
         builder.banner('title_report_chat');
-        builder.text(`## ${EMOJIS.chat || '🎫'} Denúncia de jogador`);
+        builder.text(`## ${EMOJIS.ticket || '🎫'} Denúncia de jogador`);
         builder.text([
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
             `- **Preencha o Formulário**: Responda o formulário enviado pelo bot.`,
@@ -278,13 +278,13 @@ class ReportChatSystem {
             .setCustomId('open_report')
             .setLabel('Reportar Jogador')
             .setStyle(ButtonStyle.Primary)
-            .setEmoji(EMOJIS.chat || '🎫');
+            .setEmoji(EMOJIS.ticket || '🎫');
 
         const reviewButton = new ButtonBuilder()
             .setCustomId('review_punishment')
             .setLabel('Revisar Punição')
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji(EMOJIS.strike || '⚖️');
+            .setEmoji(EMOJIS.gavel || '⚖️');
 
         const { components, flags, files } = builder.build();
 
@@ -328,7 +328,7 @@ class ReportChatSystem {
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
             threadBuilder.banner('title_report_chat');
-            threadBuilder.text(`## ${EMOJIS.chat || '🗨️'} REPORTE | ${reportId}`);
+            threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REPORTE | ${reportId}`);
             threadBuilder.text(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.footer();
 
@@ -349,7 +349,7 @@ class ReportChatSystem {
 
             // ==================== CONTAINER DE INFORMAÇÕES ====================
             const infoBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-            infoBuilder.title(`${EMOJIS.chat || '📋'} Informações do Report`, 1);
+            infoBuilder.title(`${EMOJIS.ticket || '📋'} Informações do Report`, 1);
             infoBuilder.separator();
             infoBuilder.text(`**📝 Regra quebrada:** ${data.regra}`);
             infoBuilder.text(`**⏰ Quando aconteceu:** ${data.dataHora}`);
@@ -487,7 +487,7 @@ class ReportChatSystem {
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
             threadBuilder.banner('title_report_chat');
-            threadBuilder.text(`## ${EMOJIS.chat || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
+            threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
             threadBuilder.text(`Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.footer();
 
@@ -511,7 +511,7 @@ class ReportChatSystem {
             const moderator = await this.client.users.fetch(punishment.moderator_id).catch(() => null);
 
             const summaryBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-            summaryBuilder.title(`${EMOJIS.strike || '⚖️'} Resumo da Punição #${strikeNumber}`, 1);
+            summaryBuilder.title(`${EMOJIS.gavel || '⚖️'} Resumo da Punição #${strikeNumber}`, 1);
             summaryBuilder.separator();
             summaryBuilder.text(`**📅 Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
             summaryBuilder.text(`**🛡️ Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
@@ -825,7 +825,7 @@ class ReportChatSystem {
     // ==================== RESPOSTA TEMPORÁRIA ====================
     
     async sendTempReply(interaction, content, success = true) {
-        const emoji = success ? (EMOJIS.Check || '✅') : (EMOJIS.Error || '❌');
+        const emoji = success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌');
         
         const replyOptions = { 
             content: `${emoji} ${content}`, 

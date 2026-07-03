@@ -62,14 +62,14 @@ class AutoModerationSystem {
                     break;
                 default:
                     await interaction.editReply({
-                        content: `${EMOJIS.Error || '❌'} Ação "${action}" não reconhecida.`,
+                        content: `${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`,
                         components: []
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
             await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Ocorreu um erro.`,
+                content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`,
                 components: []
             });
         }
@@ -83,14 +83,14 @@ class AutoModerationSystem {
                     break;
                 default:
                     await interaction.editReply({
-                        content: `${EMOJIS.Error || '❌'} Modal "${action}" não reconhecido.`,
+                        content: `${EMOJIS.circlealert || '❌'} Modal "${action}" não reconhecido.`,
                         flags: 64
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleModal:', error);
             await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Ocorreu um erro.`,
+                content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`,
                 flags: 64
             });
         }
@@ -102,10 +102,10 @@ class AutoModerationSystem {
         const newValue = !current;
 
         ConfigSystem.setSetting(interaction.guildId, 'automod_enabled', newValue.toString());
-        await ConfigSystem.logConfigChange(interaction, `${EMOJIS.AutoMod || '🛡️'} Auto Moderação: ${newValue ? 'ativada' : 'desativada'}`);
+        await ConfigSystem.logConfigChange(interaction, `${EMOJIS.shieldcheck || '🛡️'} Auto Moderação: ${newValue ? 'ativada' : 'desativada'}`);
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        builder.title(`${EMOJIS.AutoMod || '🛡️'} Auto Moderação`, 1);
+        builder.title(`${EMOJIS.shieldcheck || '🛡️'} Auto Moderação`, 1);
         builder.text(`Sistema de auto moderação foi **${newValue ? 'ativado' : 'desativado'}** com sucesso!`);
         builder.footer(`Solicitado por ${interaction.user.tag}`);
         
@@ -123,14 +123,14 @@ class AutoModerationSystem {
             
             const exemplarLimit = new TextInputBuilder()
                 .setCustomId('exemplar_limit')
-                .setLabel(`${EMOJIS.shinystar || '🎖️'} Limite para cargo Exemplar (1-100)`)
+                .setLabel(`${EMOJIS.sparkles || '🎖️'} Limite para cargo Exemplar (1-100)`)
                 .setPlaceholder('Ex: 95')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
             
             const problematicLimit = new TextInputBuilder()
                 .setCustomId('problematic_limit')
-                .setLabel(`${EMOJIS.Warning || '⚠️'} Limite para cargo Problemático (1-100)`)
+                .setLabel(`${EMOJIS.trianglealert || '⚠️'} Limite para cargo Problemático (1-100)`)
                 .setPlaceholder('Ex: 30')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
@@ -149,11 +149,11 @@ class AutoModerationSystem {
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${EMOJIS.Config || '⚙️'} Configurações da Auto Moderação`, 1);
             builder.separator();
-            builder.text(`${EMOJIS.Status || '📊'} **Status:** ${isEnabled ? `${EMOJIS.Check || '✅'} Ativado` : `${EMOJIS.Error || '❌'} Desativado`}`);
-            builder.text(`${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:** ${exemplarLimit} pontos`);
-            builder.text(`${EMOJIS.Warning || '⚠️'} **Limite Problemático:** ${problematicLimit} pontos`);
-            builder.text(`${EMOJIS.gain || '📈'} **Recuperação Diária:** +1 ponto para quem não tem punições nas últimas 24h`);
-            builder.text(`${EMOJIS.Reset || '🔄'} **Atualização:** Diariamente às 12:00`);
+            builder.text(`${EMOJIS.circledot || '📊'} **Status:** ${isEnabled ? `${EMOJIS.circlecheck || '✅'} Ativado` : `${EMOJIS.circlealert || '❌'} Desativado`}`);
+            builder.text(`${EMOJIS.sparkles || '🎖️'} **Limite Exemplar:** ${exemplarLimit} pontos`);
+            builder.text(`${EMOJIS.trianglealert || '⚠️'} **Limite Problemático:** ${problematicLimit} pontos`);
+            builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação Diária:** +1 ponto para quem não tem punições nas últimas 24h`);
+            builder.text(`${EMOJIS.refreshccw || '🔄'} **Atualização:** Diariamente às 12:00`);
             builder.footer();
             
             const { components, flags } = builder.build();
@@ -172,21 +172,21 @@ class AutoModerationSystem {
         
         if (isNaN(exLimit) || exLimit < 1 || exLimit > 100) {
             return await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Limite para cargo Exemplar deve ser um número entre 1 e 100.`,
+                content: `${EMOJIS.circlealert || '❌'} Limite para cargo Exemplar deve ser um número entre 1 e 100.`,
                 flags: 64
             });
         }
         
         if (isNaN(probLimit) || probLimit < 1 || probLimit > 100) {
             return await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Limite para cargo Problemático deve ser um número entre 1 e 100.`,
+                content: `${EMOJIS.circlealert || '❌'} Limite para cargo Problemático deve ser um número entre 1 e 100.`,
                 flags: 64
             });
         }
         
         if (probLimit >= exLimit) {
             return await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} O limite para cargo Problemático deve ser menor que o limite para cargo Exemplar.`,
+                content: `${EMOJIS.circlealert || '❌'} O limite para cargo Problemático deve ser menor que o limite para cargo Exemplar.`,
                 flags: 64
             });
         }
@@ -197,15 +197,15 @@ class AutoModerationSystem {
         ConfigSystem.setSetting(interaction.guildId, 'limit_exemplar', exLimit.toString());
         ConfigSystem.setSetting(interaction.guildId, 'limit_problematico', probLimit.toString());
         await ConfigSystem.logConfigChange(interaction, [
-            `${EMOJIS.shinystar || '🎖️'} Limite Exemplar: \`${oldExemplar || 95}\` → \`${exLimit}\``,
-            `${EMOJIS.Warning || '⚠️'} Limite Problemático: \`${oldProblematic || 30}\` → \`${probLimit}\``,
+            `${EMOJIS.sparkles || '🎖️'} Limite Exemplar: \`${oldExemplar || 95}\` → \`${exLimit}\``,
+            `${EMOJIS.trianglealert || '⚠️'} Limite Problemático: \`${oldProblematic || 30}\` → \`${probLimit}\``,
         ]);
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
-        builder.title(`${EMOJIS.Check || '✅'} Configurações Atualizadas`, 1);
+        builder.title(`${EMOJIS.circlecheck || '✅'} Configurações Atualizadas`, 1);
         builder.separator();
-        builder.text(`${EMOJIS.shinystar || '🎖️'} **Limite Exemplar:** ${exLimit} pontos`);
-        builder.text(`${EMOJIS.Warning || '⚠️'} **Limite Problemático:** ${probLimit} pontos`);
+        builder.text(`${EMOJIS.sparkles || '🎖️'} **Limite Exemplar:** ${exLimit} pontos`);
+        builder.text(`${EMOJIS.trianglealert || '⚠️'} **Limite Problemático:** ${probLimit} pontos`);
         builder.footer(`Solicitado por ${interaction.user.tag}`);
         
         const { components, flags } = builder.build();
@@ -221,14 +221,14 @@ class AutoModerationSystem {
         const problematic = db.prepare(`SELECT COUNT(*) as count FROM reputation WHERE guild_id = ? AND points <= ?`).get(interaction.guildId, ConfigSystem.getSetting(interaction.guildId, 'limit_problematico') || 30);
         
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        builder.title(`${EMOJIS.Rank || '📊'} Relatório de Auto Moderação`, 1);
+        builder.title(`${EMOJIS.medal || '📊'} Relatório de Auto Moderação`, 1);
         builder.separator();
         builder.text(`${EMOJIS.user || '👥'} **Total de Usuários:** \`${totalUsers?.count || 0}\``);
         builder.text(`${EMOJIS.star || '⭐'} **Reputação Média:** \`${Math.round(avgRep?.avg || 0)}/100\``);
-        builder.text(`${EMOJIS.shinystar || '🎖️'} **Usuários Exemplares:** \`${exemplars?.count || 0}\``);
-        builder.text(`${EMOJIS.Warning || '⚠️'} **Usuários Problemáticos:** \`${problematic?.count || 0}\``);
-        builder.text(`${EMOJIS.Date || '🕒'} **Última Execução:** ${this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado'}`);
-        builder.text(`${EMOJIS.gain || '📈'} **Total Recuperado:** \`${this.stats.totalRepRecovered}\` pontos`);
+        builder.text(`${EMOJIS.sparkles || '🎖️'} **Usuários Exemplares:** \`${exemplars?.count || 0}\``);
+        builder.text(`${EMOJIS.trianglealert || '⚠️'} **Usuários Problemáticos:** \`${problematic?.count || 0}\``);
+        builder.text(`${EMOJIS.calendar || '🕒'} **Última Execução:** ${this.stats.lastRun ? `<t:${Math.floor(this.stats.lastRun / 1000)}:R>` : 'Nunca executado'}`);
+        builder.text(`${EMOJIS.trendingup || '📈'} **Total Recuperado:** \`${this.stats.totalRepRecovered}\` pontos`);
         builder.footer();
         
         const { components, flags } = builder.build();
@@ -314,7 +314,7 @@ class AutoModerationSystem {
                             stats[gId].added++;
                             stats[gId].exemplarAdded++;
                             totalRolesAdded++;
-                            await member.send(`${EMOJIS.shinystar || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar e você recebeu um cargo especial!`).catch(() => null);
+                            await member.send(`${EMOJIS.sparkles || '✨'} Parabéns! Sua conduta em **${guild.name}** é exemplar e você recebeu um cargo especial!`).catch(() => null);
                         } else if (rep < (limitEx - 5) && hasEx) {
                             await member.roles.remove(roleExId).catch(() => null);
                             stats[gId].removed++;
@@ -329,7 +329,7 @@ class AutoModerationSystem {
                             stats[gId].added++;
                             stats[gId].problematicAdded++;
                             totalRolesAdded++;
-                            await member.send(`${EMOJIS.Warning || '⚠️'} Sua reputação em **${guild.name}** atingiu um nível crítico. Melhore sua conduta para evitar sanções severas!`).catch(() => null);
+                            await member.send(`${EMOJIS.trianglealert || '⚠️'} Sua reputação em **${guild.name}** atingiu um nível crítico. Melhore sua conduta para evitar sanções severas!`).catch(() => null);
                         } else if (rep > 50 && hasProb) {
                             await member.roles.remove(roleProbId).catch(() => null);
                             stats[gId].removed++;
@@ -409,27 +409,27 @@ class AutoModerationSystem {
                 }
 
                 const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-                builder.title(`${EMOJIS.Check || '✅'} Manutenção Diária Concluída`, 1);
+                builder.title(`${EMOJIS.circlecheck || '✅'} Manutenção Diária Concluída`, 1);
                 builder.separator();
-                builder.text(`${EMOJIS.gain || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+1pt**.`);
-                builder.text(`${EMOJIS.Leadboard || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
-                builder.text(`${EMOJIS.Rank || '📊'} **Detalhes:** ${EMOJIS.shinystar || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.Warning || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
+                builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+1pt**.`);
+                builder.text(`${EMOJIS.trophy || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
+                builder.text(`${EMOJIS.medal || '📊'} **Detalhes:** ${EMOJIS.sparkles || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.trianglealert || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
                 builder.separator();
 
-                builder.title(`${EMOJIS.Warning || '⚠️'} Status Atual do Servidor`, 2);
-                builder.text(`${EMOJIS.shinystar || '🎖️'} **Exemplares atualmente:** \`${exemplarCount}\``);
+                builder.title(`${EMOJIS.trianglealert || '⚠️'} Status Atual do Servidor`, 2);
+                builder.text(`${EMOJIS.sparkles || '🎖️'} **Exemplares atualmente:** \`${exemplarCount}\``);
                 if (problematicCount > 0) {
-                    builder.text(`${EMOJIS.Warning || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
+                    builder.text(`${EMOJIS.trianglealert || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
                 } else {
-                    builder.text(`${EMOJIS.Check || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
+                    builder.text(`${EMOJIS.circlecheck || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
                 }
                 builder.separator();
 
-                builder.title(`${EMOJIS.Leadboard || '🏆'} Top Staff (últimos 7 dias)`, 2);
+                builder.title(`${EMOJIS.trophy || '🏆'} Top Staff (últimos 7 dias)`, 2);
                 if (rankingLines.length > 0) {
                     builder.text(rankingLines.join('\n'));
                 } else {
-                    builder.text(`${EMOJIS.Note || 'ℹ️'} Sem punições registradas nos últimos 7 dias.`);
+                    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Sem punições registradas nos últimos 7 dias.`);
                 }
                 builder.footer();
 

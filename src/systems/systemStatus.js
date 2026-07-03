@@ -30,14 +30,14 @@ class SystemStatus {
                     break;
                 default:
                     await interaction.editReply({
-                        content: `${EMOJIS.Error || '❌'} Ação "${action}" não reconhecida.`,
+                        content: `${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`,
                         components: []
                     });
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
             await interaction.editReply({
-                content: `${EMOJIS.Error || '❌'} Ocorreu um erro.`,
+                content: `${EMOJIS.circlealert || '❌'} Ocorreu um erro.`,
                 components: []
             });
         }
@@ -46,12 +46,12 @@ class SystemStatus {
     static async handleRefreshStatus(interaction) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
-            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Erro ao obter status.`, components: [] });
+            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao obter status.`, components: [] });
         }
         
         const builder = this.generateStatusContainer(status, interaction.guild);
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('status:refresh').setLabel(`${EMOJIS.Reset || '🔄'} Atualizar`).setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId('status:refresh').setLabel(`${EMOJIS.refreshccw || '🔄'} Atualizar`).setStyle(ButtonStyle.Secondary)
         );
         
         const { components, flags } = builder.build();
@@ -63,7 +63,7 @@ class SystemStatus {
     static async handleDetailedStatus(interaction, param) {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
-            return await interaction.editReply({ content: `${EMOJIS.Error || '❌'} Erro ao obter status.`, components: [] });
+            return await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Erro ao obter status.`, components: [] });
         }
         const builder = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
         const { components, flags } = builder.build();
@@ -80,7 +80,7 @@ class SystemStatus {
         }
         
         const builder = new AdvancedContainerBuilder({ accentColor });
-        builder.title(`${EMOJIS.panel || '📊'} Status do Sistema`, 1);
+        builder.title(`${EMOJIS.gauge || '📊'} Status do Sistema`, 1);
         builder.text(`**${status.guildName}** • Sistema operando normalmente`);
         builder.separator();
         builder.text(`**🤖 Bot**\n📊 Uptime: ${status.uptime}\n📡 Latência: ${status.ping}\n💾 Memória: ${status.memory}`);
@@ -129,14 +129,14 @@ class SystemStatus {
         
         let healthMessage = '';
         if (healthScore >= 80) {
-            healthMessage = `${EMOJIS.Check || '✅'} Sistema saudável. Nenhuma ação necessária.`;
+            healthMessage = `${EMOJIS.circlecheck || '✅'} Sistema saudável. Nenhuma ação necessária.`;
         } else if (healthScore >= 50) {
             let recommendations = [];
             if (pingValue > 100) recommendations.push('• Latência elevada, verifique a conexão');
             if (memoryUsage > 300) recommendations.push('• Consumo de memória alto, reinicie o bot');
-            healthMessage = `${EMOJIS.Warning || '⚠️'} Recomendações:\n${recommendations.join('\n')}`;
+            healthMessage = `${EMOJIS.trianglealert || '⚠️'} Recomendações:\n${recommendations.join('\n')}`;
         } else {
-            healthMessage = `${EMOJIS.DANGER || '🔴'} **AÇÃO URGENTE:**\n• Reinicie o bot imediatamente\n• Verifique os logs\n• Escale recursos do servidor`;
+            healthMessage = `${EMOJIS.siren || '🔴'} **AÇÃO URGENTE:**\n• Reinicie o bot imediatamente\n• Verifique os logs\n• Escale recursos do servidor`;
         }
         
         builder.text(`${healthEmoji} **Health Score: ${healthScore}/100**\n${healthMessage}`);
@@ -184,7 +184,7 @@ class SystemStatus {
                 totalUsers: totalUsers,
                 totalChannels: client.channels.cache.size,
                 totalEmojis: client.emojis.cache.size,
-                logChannel: guildData.log_channel ? `<#${guildData.log_channel}>` : `${EMOJIS.Error || '⚠️'} Não configurado`,
+                logChannel: guildData.log_channel ? `<#${guildData.log_channel}>` : `${EMOJIS.circlealert || '⚠️'} Não configurado`,
                 logChannelId: guildData.log_channel,
                 guildName: client.guilds.cache.get(guildId)?.name || "Este Servidor",
                 guildId: guildId,

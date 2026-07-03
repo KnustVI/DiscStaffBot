@@ -122,7 +122,7 @@ const PunishmentSystem = {
 
         const builder = new AdvancedContainerBuilder({ accentColor });
 
-        builder.title(`${EMOJIS.strike || '📜'} Histórico do Jogador`);
+        builder.title(`${EMOJIS.gavel || '📜'} Histórico do Jogador`);
         builder.separator();
 
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -135,7 +135,7 @@ const PunishmentSystem = {
         builder.separator();
         builder.text(`**Server:** ${guildName}`);
         builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
-        builder.text(`${EMOJIS.strike || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
+        builder.text(`${EMOJIS.gavel || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         
         if (history.punishments.length > 0) {
             builder.separator();
@@ -185,7 +185,7 @@ const PunishmentSystem = {
         builder.separator();
         builder.text(`## ${EMOJIS.ban || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
-        builder.text(`**${EMOJIS.lose || '❌'} Pontos subtraídos:** -${pointsLost}`);
+        builder.text(`**${EMOJIS.trendingdown || '❌'} Pontos subtraídos:** -${pointsLost}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
         builder.separator();
         builder.text(`**📝 Motivo:**`);
@@ -226,8 +226,8 @@ const PunishmentSystem = {
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
-        builder.text(`## ${EMOJIS.check || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
-        builder.text(`**${EMOJIS.gain || '✅'} Pontos restaurados:** +${pointsRestored}`);
+        builder.text(`## ${EMOJIS.circlecheck || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
+        builder.text(`**${EMOJIS.trendingup || '✅'} Pontos restaurados:** +${pointsRestored}`);
         builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
         builder.separator();
         builder.text(`**📝 Punição Original:**`);
@@ -416,12 +416,12 @@ const PunishmentSystem = {
             }
 
             const dmStatusMsg = dmDelivered
-                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
-                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
+                ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
 
             const roleStatusMsg = roleResult.applied
-                ? `${emojis.strike || '⚠️'} Cargo de Strike aplicado temporariamente.`
-                : (roleResult.error ? `${emojis.Note || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
+                ? `${emojis.gavel || '⚠️'} Cargo de Strike aplicado temporariamente.`
+                : (roleResult.error ? `${emojis.messagesquare || 'ℹ️'} Cargo de Strike não aplicado: ${roleResult.error}` : null);
 
             const summaryLines = [
                 `✅ **Strike #${strikeId} aplicado em ${targetUser.username}**`,
@@ -430,7 +430,7 @@ const PunishmentSystem = {
                 dmStatusMsg,
             ];
             if (roleStatusMsg) summaryLines.push(roleStatusMsg);
-            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
             await interaction.editReply({ content: summaryLines.join('\n'), components: [] });
@@ -530,15 +530,15 @@ const PunishmentSystem = {
             }
 
             const dmStatusMsg = dmDelivered
-                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
-                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
+                ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
 
             const summaryLines = [
                 `✅ **Strike #${punishmentId} anulado!**`,
                 `📈 +${pointsRestored} pts | ⭐ Reputação: ${newPoints}/100`,
                 dmStatusMsg,
             ];
-            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
             await interaction.editReply({ content: summaryLines.join('\n'), components: [] });

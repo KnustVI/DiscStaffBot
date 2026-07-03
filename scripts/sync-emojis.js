@@ -2,15 +2,22 @@
 // Portal, em Application > Emojis) direto pela API do Discord e regenera
 // src/database/emojis.js automaticamente. Rodar com: npm run sync-emojis
 //
+// Depois de regenerar o arquivo, também commita e dá push automaticamente
+// (só de src/database/emojis.js) caso o conteúdo tenha realmente mudado —
+// ver commitAndPush() no fim do arquivo.
+//
 // Precisa de TOKEN e CLIENT_ID no .env (os mesmos usados pelo bot/deploy.js).
 require('dotenv').config();
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
-const outPath = path.join(__dirname, '..', 'src', 'database', 'emojis.js');
+const repoRoot = path.join(__dirname, '..');
+const outPath = path.join(repoRoot, 'src', 'database', 'emojis.js');
+const relPath = 'src/database/emojis.js';
 
 if (!TOKEN || !CLIENT_ID) {
     console.error('❌ TOKEN e/ou CLIENT_ID não encontrados no .env — não é possível consultar a API do Discord.');
@@ -89,4 +96,54 @@ module.exports = {
 
     fs.writeFileSync(outPath, content, 'utf8');
     console.log(`✅ ${emojis.length} emoji(s) sincronizado(s) em src/database/emojis.js`);
+
+    commitAndPush();
 })();
+
+// Commita e envia SOMENTE src/database/emojis.js — nunca mexe em outros
+// arquivos que possam estar pendentes no repositório (ex: alterações locais
+// não relacionadas rodando em produção). Se não houver diferença real no
+// arquivo (emojis já sincronizados), não cria commit vazio. Qualquer falha
+// aqui (sem git, sem remoto, push rejeitado etc.) só avisa no console — o
+// arquivo já foi gravado no disco de qualquer forma.
+function commitAndPush() {
+    const git = (cmd) => execSync(cmd, { cwd: repoRoot, stdio: 'pipe' }).toString().trim();
+
+    try {
+        git('git rev-parse --is-inside-work-tree');
+    } catch {
+        console.log('ℹ️ Não é um repositório git — pulei o commit automático.');
+        return;
+    }
+
+    const diff = (() => {
+        try {
+            return git(`git status --porcelain -- ${relPath}`);
+        } catch (error) {
+            console.warn('⚠️ Não consegui checar o status do git:', error.message);
+            return null;
+        }
+    })();
+
+    if (diff === null) return;
+    if (diff === '') {
+        console.log('ℹ️ Nenhuma mudança em src/database/emojis.js — nada para commitar.');
+        return;
+    }
+
+    try {
+        git(`git add ${relPath}`);
+        git(`git commit -m "Sync emojis de aplicacao"`);
+        console.log('✅ Commit criado.');
+    } catch (error) {
+        console.error('❌ Erro ao commitar src/database/emojis.js:', error.message);
+        return;
+    }
+
+    try {
+        git('git push');
+        console.log('✅ Push enviado.');
+    } catch (error) {
+        console.error('❌ Commit criado, mas o push falhou (rode "git push" manualmente):', error.message);
+    }
+}

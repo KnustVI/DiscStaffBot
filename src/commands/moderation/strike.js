@@ -135,7 +135,7 @@ module.exports = {
             const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm';
 
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
-            builder.title(`${emojis.Warning || '⚠️'} Confirmar Aplicação de Strike`, 1);
+            builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
             builder.separator();
             builder.text(`**👤 Usuário:** ${targetUser.tag}`);
             builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);

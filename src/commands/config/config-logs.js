@@ -40,10 +40,10 @@ module.exports = {
         
         const fmt = (channelId) => channelId
             ? `<#${channelId}>`
-            : `${emojis.Error || '❌'} Não definido`;
+            : `${emojis.circlealert || '❌'} Não definido`;
 
         const { components, flags } = new AdvancedContainerBuilder({ accentColor: 0xDCA15E })
-        .title(`${emojis.dashboard || '🪵'} Canais de Log`)
+        .title(`${emojis.clipboardlist || '🪵'} Canais de Log`)
         .separator()
         .section(
             `Aqui serão configuradas todas as logs relacionadas ao sistema do ***Titan's Pass***. 
@@ -52,15 +52,15 @@ module.exports = {
             AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
         )
             .text('**Geral / AutoMod** — recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos, ranking de staff).')
-            .text(`${emojis.global || '📜'} **Geral / AutoMod:** ${fmt(logGeral)}`)
+            .text(`${emojis.megaphone || '📜'} **Geral / AutoMod:** ${fmt(logGeral)}`)
             .separator()
             // Seção 2: Punições
             .text('**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.')
-            .text(`${emojis.strike || '⚖️'} **Punições:** ${fmt(logPunishments)}`)
+            .text(`${emojis.gavel || '⚖️'} **Punições:** ${fmt(logPunishments)}`)
             .separator()
             // Seção 3: ReportChat
             .text('**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.')
-            .text(`${emojis.chat || '🎫'} **ReportChat:** ${fmt(logReports)}`)
+            .text(`${emojis.ticket || '🎫'} **ReportChat:** ${fmt(logReports)}`)
             .footer(`Server: ${guild.name}`)
             .build();
 
@@ -91,7 +91,7 @@ module.exports = {
                 .setCustomId('config-logs:criar')
                 .setLabel('Criar Canais Automaticamente')
                 .setStyle(ButtonStyle.Secondary)
-                .setEmoji(emojis.plusone || '➕')
+                .setEmoji(emojis.plus || '➕')
         );
 
         const replyPayload = {

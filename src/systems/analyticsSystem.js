@@ -170,14 +170,14 @@ class AnalyticsSystem {
             : 'Sem dados';
         
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-        builder.title(`${EMOJIS.Rank || '📊'} Relatório de Staff`, 1);
+        builder.title(`${EMOJIS.medal || '📊'} Relatório de Staff`, 1);
         builder.separator();
         builder.text(`**Staff:** <@${userId}>`);
         builder.text(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
         builder.separator();
-        builder.text(`${EMOJIS.strike || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}`);
-        builder.text(`${EMOJIS.chat || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
-        builder.text(`${EMOJIS.Check || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
+        builder.text(`${EMOJIS.gavel || '⚠️'} **Punições:** ${report.totals.punishmentsApplied}`);
+        builder.text(`${EMOJIS.ticket || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
+        builder.text(`${EMOJIS.circlecheck || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
         builder.text(`⏱️ **Tempo Médio:** ${avgResponseText}`);
         builder.footer(`${report.days} dias analisados`);
         
@@ -188,13 +188,13 @@ class AnalyticsSystem {
         const ranking = await this.getStaffRanking(guildId, metric, period, limit);
         
         const metricLabels = {
-            punishments_applied: `${EMOJIS.strike || '⚠️'} Punições`,
-            reports_claimed: `${EMOJIS.chat || '🎫'} Reports Assumidos`,
-            reports_closed: `${EMOJIS.Check || '✅'} Reports Fechados`
+            punishments_applied: `${EMOJIS.gavel || '⚠️'} Punições`,
+            reports_claimed: `${EMOJIS.ticket || '🎫'} Reports Assumidos`,
+            reports_closed: `${EMOJIS.circlecheck || '✅'} Reports Fechados`
         };
         
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-        builder.title(`${EMOJIS.Leadboard || '🏆'} Ranking de Staff`, 1);
+        builder.title(`${EMOJIS.trophy || '🏆'} Ranking de Staff`, 1);
         builder.separator();
         builder.text(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
         builder.text(`**Métrica:** ${metricLabels[metric] || metric}`);

@@ -23,7 +23,7 @@ function buildPageWelcome(displayName, guildName, emojis) {
             '• **/config-punishments** — Configura pontos dos strikes e limites de reputação',
         ])
         .separator()
-        .title(`${emojis.chat || '🎫'} ReportChat`, 2)
+        .title(`${emojis.ticket || '🎫'} ReportChat`, 2)
         .block([
             '• **/reportchat** — Cria o painel de reports para os usuários',
             '• Usuários abrem reports via formulário; staff entra na thread e atende.',
@@ -34,10 +34,10 @@ function buildPageModeration(emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.strike || '🛠️'} Moderação e Reputação`)
+        .title(`${emojis.gavel || '🛠️'} Moderação e Reputação`)
         .text('Apenas usuários com cargo **STAFF** podem usar:')
         .separator()
-        .title(`${emojis.strike || '⚠️'} Comandos de Punição`, 2)
+        .title(`${emojis.gavel || '⚠️'} Comandos de Punição`, 2)
         .block([
             '• **/strike** — Aplica punição e reduz reputação',
             '• **/unstrike** — Anula punição e restaura pontos',
@@ -57,13 +57,13 @@ function buildPageAutomod(emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.AutoMod || '🛡️'} Auto Moderação`)
+        .title(`${emojis.shieldcheck || '🛡️'} Auto Moderação`)
         .text('Sistema automático de gerenciamento de reputação:')
         .separator()
         .title(`${emojis.Config || '⚙️'} Comandos`, 2)
         .text('• **/automod test** — Verifica configurações e canal de log')
         .separator()
-        .title(`${emojis.gain || '📈'} Funcionamento`, 2)
+        .title(`${emojis.trendingup || '📈'} Funcionamento`, 2)
         .block([
             '• Executa diariamente às **12:00**',
             '• +1 ponto para quem não tem punições nas últimas 24h',
@@ -71,7 +71,7 @@ function buildPageAutomod(emojis) {
             '• Envia relatório no canal de log configurado',
         ])
         .separator()
-        .title(`${emojis.global || '🌐'} Status`, 2)
+        .title(`${emojis.megaphone || '🌐'} Status`, 2)
         .block([
             '• **/botstatus** — Verifica saúde do bot e sistemas',
             '• Mostra latência, memória, status do AutoMod e estatísticas',
@@ -85,7 +85,7 @@ function buildPageUserSimple(displayName, guildName, emojis) {
         .title(`${emojis.user || '🤖'} Assistente Titan`)
         .text(`Olá **${displayName}**! Sou o sistema de gestão do servidor **${guildName}**.`)
         .separator()
-        .title(`${emojis.chat || '🎫'} ReportChat`, 2)
+        .title(`${emojis.ticket || '🎫'} ReportChat`, 2)
         .block([
             '• Use o painel de reports para abrir uma denúncia',
             '• Staff irá atender e analisar o caso',

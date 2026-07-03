@@ -68,17 +68,17 @@ module.exports = {
             
             const feedbackUuid = db.generateUUID();
             
-            const tipoIcon = tipo === 'BUG' ? emojis.Error || '🐛' : emojis.How || '💡';
+            const tipoIcon = tipo === 'BUG' ? emojis.circlealert || '🐛' : emojis.compass || '💡';
             const tipoColor = tipo === 'BUG' ? 0xF64B4E : 0x3B82F6;
             
             const devBuilder = new AdvancedContainerBuilder({ accentColor: tipoColor });
             devBuilder.title(`${tipoIcon} Feedback: ${tipo}`, 1);
             devBuilder.separator();
             devBuilder.text(`${emojis.user || '👤'} **Enviado por:** ${user.tag} \`${user.id}\``);
-            devBuilder.text(`${emojis.serverguild || '🌐'} **Servidor:** ${guild.name} \`${guild.id}\``);
-            devBuilder.text(`${emojis.Rank || '👥'} **Cargo:** ${member?.roles.highest ? member.roles.highest.name : 'Sem cargo'}`);
-            devBuilder.text(`${emojis.Note || '📝'} **Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``);
-            devBuilder.text(`${emojis.ID || '🆔'} **ID do Feedback:** \`${feedbackUuid}\``);
+            devBuilder.text(`${emojis.flag || '🌐'} **Servidor:** ${guild.name} \`${guild.id}\``);
+            devBuilder.text(`${emojis.badge || '👥'} **Cargo:** ${member?.roles.highest ? member.roles.highest.name : 'Sem cargo'}`);
+            devBuilder.text(`${emojis.messagesquare || '📝'} **Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``);
+            devBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid}\``);
             devBuilder.footer(`ID: ${feedbackUuid.slice(0, 8)}`);
             
             const { components: devComponents, flags: devFlags } = devBuilder.build();
@@ -116,8 +116,8 @@ module.exports = {
             const responseBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
             responseBuilder.title(`${tipoIcon} ${tipo === 'BUG' ? 'Bug Reportado' : 'Sugestão Enviada'}`, 1);
             responseBuilder.separator();
-            responseBuilder.text(`${emojis.Note || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
-            responseBuilder.text(`${emojis.ID || '🆔'} **ID do Feedback:** \`${feedbackUuid.slice(0, 8)}...\``);
+            responseBuilder.text(`${emojis.messagesquare || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
+            responseBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid.slice(0, 8)}...\``);
             responseBuilder.footer(`Obrigado por contribuir!`);
             
             const { components: responseComponents, flags: responseFlags } = responseBuilder.build();
@@ -146,7 +146,7 @@ module.exports = {
             });
             
             const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            errorBuilder.title(`${emojis.Error || '❌'} Erro ao Enviar Feedback`, 1);
+            errorBuilder.title(`${emojis.circlealert || '❌'} Erro ao Enviar Feedback`, 1);
             errorBuilder.separator();
             errorBuilder.text(`**Tipo:** ${tipo}`);
             errorBuilder.text(`**Código do Erro:** \`${error.message?.slice(0, 50) || 'Desconhecido'}\``);

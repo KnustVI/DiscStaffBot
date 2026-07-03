@@ -34,19 +34,19 @@ function collectGuildStats(guildId) {
 
 async function resolveLastLogLink(guild, logChannelId, emojis) {
     if (!logChannelId) {
-        return `${emojis.Error || '❌'} Não definido`;
+        return `${emojis.circlealert || '❌'} Não definido`;
     }
 
     try {
         const channel = await guild.channels.fetch(logChannelId).catch(() => null);
-        if (!channel) return `${emojis.Error || '❌'} Canal não encontrado`;
+        if (!channel) return `${emojis.circlealert || '❌'} Canal não encontrado`;
 
         const messages = await channel.messages.fetch({ limit: 1 }).catch(() => null);
         if (messages?.first()) return `[Última mensagem](${messages.first().url})`;
 
         return `<#${logChannelId}> (sem mensagens)`;
     } catch {
-        return `${emojis.Error || '❌'} Erro ao buscar`;
+        return `${emojis.circlealert || '❌'} Erro ao buscar`;
     }
 }
 
@@ -61,9 +61,9 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     builder
-        .title(`${emojis.panel || '🖥️'} Painel de Controle do Bot`)
+        .title(`${emojis.gauge || '🖥️'} Painel de Controle do Bot`)
         .separator()
-        .title(`${emojis.global || '🌐'} Status Global`, 2)
+        .title(`${emojis.megaphone || '🌐'} Status Global`, 2)
         .block([
             `**Servidores:** ${status.totalGuilds}`,
             `**Usuários:** ${status.totalUsers.toLocaleString('pt-BR')}`,
@@ -74,7 +74,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
 
     if (isDeveloper) {
         builder
-            .title(`${emojis.stack || '📦'} Hardware & Sistema`, 2)
+            .title(`${emojis.terminal || '📦'} Hardware & Sistema`, 2)
             .block([
                 `**RAM:** ${status.memory}`,
                 `**Node:** ${process.version}`,
@@ -85,17 +85,17 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     }
 
     builder
-        .title(`${emojis.database || '🗄️'} Banco de Dados`, 2)
+        .title(`${emojis.binary || '🗄️'} Banco de Dados`, 2)
         .block([
             `**Tamanho:** ${dbStats?.fileSize ?? 'N/A'}`,
             `**Tabelas:** ${Object.keys(dbStats?.tables ?? {}).length}`,
             `**Punições:** ${guildStats.totalPunishments}`,
             `${emojis.user || '👥'} **Penalizados:** ${guildStats.totalUsers}`,
             `${emojis.star || '⭐'} **Média:** ${Math.round(guildStats.avgReputation)}/100`,
-            `${emojis.strike || '⚠️'} **Últimos 30d:** ${guildStats.recentStrikes}`,
+            `${emojis.gavel || '⚠️'} **Últimos 30d:** ${guildStats.recentStrikes}`,
         ])
         .separator()
-        .title(`${emojis.AutoMod || '🛡️'} Sistema AutoMod`, 2)
+        .title(`${emojis.shieldcheck || '🛡️'} Sistema AutoMod`, 2)
         .block([
             `**Próximo Ciclo:** <t:${status.nextAutoModTS}:R>`,
             `**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:f>` : 'Nenhum registro'}`,

@@ -72,7 +72,7 @@ module.exports = {
             const severityIcons = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'];
 
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
-            builder.title(`${emojis.Warning || '⚠️'} Confirmar Anulação de Strike`, 1);
+            builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
             builder.text(`**👤 Usuário:** ${targetUser?.tag || punishment.user_id}`);
             builder.text(`${severityIcons[punishment.severity] || '❓'} **Strike:** #${punishmentId}`);

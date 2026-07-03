@@ -45,6 +45,10 @@ O que faz:
 - Regenera o arquivo src/database/emojis.js inteiro (objeto EMOJIS) com o
   nome e ID reais de cada emoji, incluindo emojis animados (<a:nome:id>)
 - Nao precisa que voce informe nomes/IDs manualmente - eles vem todos da API
+- Se o conteudo de src/database/emojis.js realmente mudou, o script ja faz
+  "git add" + "git commit" + "git push" desse arquivo sozinho (so dele - nao
+  mexe em mais nada que esteja pendente no repositorio). Se nao mudou nada,
+  nao cria commit vazio.
 
 Quando usar:
 - Toda vez que um emoji for adicionado, removido ou renomeado no Developer
@@ -54,12 +58,17 @@ Como usar:
 1. Garanta que o .env tenha TOKEN e CLIENT_ID preenchidos (os mesmos usados
    pelo bot/deploy.js)
 2. Rode: npm run sync-emojis
-3. Pronto - src/database/emojis.js e reescrito automaticamente. NAO edite os
-   IDs desse arquivo na mao, sempre rode o script de novo.
+3. Pronto - src/database/emojis.js e reescrito automaticamente e ja enviado
+   pro git (commit "Sync emojis de aplicacao" + push). NAO edite os IDs desse
+   arquivo na mao, sempre rode o script de novo.
 
 Se algum emoji tiver nome invalido como chave JS (comeca com numero, tem
 espaco/traco), o script gera uma chave "sanitizada" soh para o objeto EMOJIS,
 mas o <:nome:id> renderizado usa o nome real cadastrado no Discord.
+
+Se o push automatico falhar (sem permissao, sem remoto configurado, conflito
+etc.) o script avisa no terminal mas NAO trava - o arquivo local ja fica
+atualizado, so falta rodar "git push" manualmente.
 
 
 3) INICIAR O BOT

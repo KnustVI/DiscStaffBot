@@ -11,7 +11,7 @@ const { getAlderonIdSuffix } = require('../../systems/potPlayerRegistry');
 // ---------------------------------------------------------------------------
 
 function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId }) {
-    const titleIcon = isGain ? `${emojis.gain || '📈'}` : `${emojis.lose || '📉'}`;
+    const titleIcon = isGain ? `${emojis.trendingup || '📈'}` : `${emojis.trendingdown || '📉'}`;
     const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
     const builder = new AdvancedContainerBuilder({ accentColor: isGain ? 0x00FF00 : 0xFF0000 });
@@ -36,7 +36,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
 
     builder.text(`## ${titleIcon} ${titleText}`, 1);
     builder.separator();
-    builder.text(`${emojis.Note || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
+    builder.text(`${emojis.messagesquare || '📝'} **Motivo:**\n\`\`\`text\n${reason}\n\`\`\``);
     builder.separator();
     builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
     builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
@@ -113,7 +113,7 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            const titleIcon = isGain ? `${emojis.up || '📈'}` : `${emojis.down || '📉'}`;
+            const titleIcon = isGain ? `${emojis.trendingup || '📈'}` : `${emojis.trendingdown || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
             const containerBuilder = buildRepSetContainer({
@@ -156,15 +156,15 @@ module.exports = {
 
             // ── Monta o aviso para o staff que ajustou a reputação ──────────────
             const dmStatusMsg = dmDelivered
-                ? `${emojis.Check || '✅'} O jogador foi notificado em sua DM.`
-                : `${emojis.Error || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do ajuste.`;
+                ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
+                : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do ajuste.`;
 
             const summaryLines = [
                 `${titleIcon} **Reputação de ${target.username} ${titleText.toLowerCase()}**`,
-                `${emojis.status || '📊'} ${currentRep} → ${newPoints} (${diffText})`,
+                `${emojis.gauge || '📊'} ${currentRep} → ${newPoints} (${diffText})`,
                 dmStatusMsg,
             ];
-            if (!logSent) summaryLines.push(`${emojis.Warning || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             await interaction.editReply({ 
                 content: summaryLines.join('\n'),

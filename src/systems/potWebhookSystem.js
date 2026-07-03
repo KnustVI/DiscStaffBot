@@ -158,7 +158,7 @@ class PoTWebhookSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
         builder
-            .title(`${EMOJIS.link || '📡'} GERENCIADOR DE WEBHOOKS`)
+            .title(`${EMOJIS.wifi || '📡'} GERENCIADOR DE WEBHOOKS`)
             .text('Aqui você gera os webhooks para o bot trazer informações do jogo até você. Você também pode criar um canal no Discord para receber essas informações já traduzidas, em tempo real.')
             .text(`📊 **Status:** ${configured}/${total} grupos configurados`)
             .separator();

@@ -38,7 +38,7 @@ module.exports = {
 
         const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
-        builder.title(`${emojis.staff || '👥'} Cargos do Sistema`);
+        builder.title(`${emojis.shield || '👥'} Cargos do Sistema`);
         builder.text(`É obrigatório que selecione um cargo para sua staff, sem o cargo configurado eles não conseguem usar os comandos de moderação. Os outros cargos são opcionais.
             \n Para maior filtro de oturos comandos de moderação é recomendado configurar seu uso pelo propio discord, em ***configurações do servidor*** > ***integrações*** > ***comandos***.
             \n O cargo de Strike é recomendado para marcar os membros que receberam punições temporárias, isso facilita a identificação e aplicação de punições progressivas.
@@ -46,10 +46,10 @@ module.exports = {
             \n Recomendamos configurar esses cargos para melhor organização e controle dentro do servidor.`);
         builder.separator();
         builder.title(`Selecione os cargos abaixo:`);
-        builder.text(`${emojis.staff || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.strike || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.shinystar || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.Error || '❌'} Não definido`}`);
-        builder.text(`${emojis.Warning || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.Error || '❌'} Não definido`}`);
+        builder.text(`${emojis.shield || '🛡️'} **Staff:** ${staffRole ? `<@&${staffRole}>` : `${emojis.circlealert || '❌'} Não definido`}`);
+        builder.text(`${emojis.gavel || '⚠️'} **Strike (Temporário):** ${strikeRole ? `<@&${strikeRole}>` : `${emojis.circlealert || '❌'} Não definido`}`);
+        builder.text(`${emojis.sparkles || '✨'} **Exemplar:** ${exemplarRole ? `<@&${exemplarRole}>` : `${emojis.circlealert || '❌'} Não definido`}`);
+        builder.text(`${emojis.trianglealert || '⚠️'} **Problemático:** ${problematicoRole ? `<@&${problematicoRole}>` : `${emojis.circlealert || '❌'} Não definido`}`);
         builder.footer(`Server: ${guild.name}`);
         
         const { components, flags } = builder.build();

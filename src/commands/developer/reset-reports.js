@@ -37,7 +37,7 @@ module.exports = {
             });
             
             const deniedBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            deniedBuilder.title(`${emojis.Error || '❌'} Acesso Negado`, 1);
+            deniedBuilder.title(`${emojis.circlealert || '❌'} Acesso Negado`, 1);
             deniedBuilder.text('Este comando é restrito ao desenvolvedor do bot.');
             deniedBuilder.footer();
             
@@ -51,7 +51,7 @@ module.exports = {
         
         if (confirmacao !== 'LIMPAR REPORTS') {
             const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
-            cancelBuilder.title(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
+            cancelBuilder.title(`${emojis.trianglealert || '⚠️'} Ação Cancelada`, 1);
             cancelBuilder.text(`Digite exatamente **"LIMPAR REPORTS"** para confirmar.\n\n**Você digitou:** \`${confirmacao}\``);
             cancelBuilder.footer();
             
@@ -115,7 +115,7 @@ module.exports = {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
                         const alertBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-                        alertBuilder.title(`${emojis.Warning || '⚠️'} REPORTS RESETADOS`, 1);
+                        alertBuilder.title(`${emojis.trianglealert || '⚠️'} REPORTS RESETADOS`, 1);
                         alertBuilder.separator();
                         alertBuilder.text(`**Desenvolvedor:** ${user.tag}`);
                         alertBuilder.text(`**Servidor:** ${guild.name}`);
@@ -163,7 +163,7 @@ module.exports = {
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
             const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            errorBuilder.title(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
+            errorBuilder.title(`${emojis.circlealert || '❌'} Erro ao Resetar`, 1);
             errorBuilder.text(`Ocorreu um erro ao resetar os reports.\n\n**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
             errorBuilder.footer();
             

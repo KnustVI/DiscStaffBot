@@ -40,7 +40,7 @@ module.exports = {
             });
             
             const deniedBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            deniedBuilder.title(`${emojis.Error || '❌'} Acesso Negado`, 1);
+            deniedBuilder.title(`${emojis.circlealert || '❌'} Acesso Negado`, 1);
             deniedBuilder.text('Este comando é restrito ao desenvolvedor do bot.');
             deniedBuilder.separator();
             deniedBuilder.text(`**Seu ID:** \`${user.id}\``);
@@ -57,7 +57,7 @@ module.exports = {
         
         if (confirmacao !== 'LIMPAR TUDO') {
             const cancelBuilder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
-            cancelBuilder.title(`${emojis.Warning || '⚠️'} Ação Cancelada`, 1);
+            cancelBuilder.title(`${emojis.trianglealert || '⚠️'} Ação Cancelada`, 1);
             cancelBuilder.text(`Digite exatamente **"LIMPAR TUDO"** para confirmar a limpeza.`);
             cancelBuilder.separator();
             cancelBuilder.text(`**Você digitou:** \`${confirmacao}\``);
@@ -125,7 +125,7 @@ module.exports = {
                     const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                     if (logChannel) {
                         const alertBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-                        alertBuilder.title(`${emojis.Warning || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`, 1);
+                        alertBuilder.title(`${emojis.trianglealert || '⚠️'} ALERTA CRÍTICO: BANCO DE DADOS LIMPO`, 1);
                         alertBuilder.separator();
                         alertBuilder.text(`**Desenvolvedor:** ${user.tag}`);
                         alertBuilder.text(`**Servidor:** ${guild.name}`);
@@ -179,7 +179,7 @@ module.exports = {
             });
             
             const errorBuilder = new AdvancedContainerBuilder({ accentColor: 0xF64B4E });
-            errorBuilder.title(`${emojis.Error || '❌'} Erro ao Resetar`, 1);
+            errorBuilder.title(`${emojis.circlealert || '❌'} Erro ao Resetar`, 1);
             errorBuilder.text(`Ocorreu um erro crítico. O banco de dados pode estar inconsistente.`);
             errorBuilder.separator();
             errorBuilder.text(`**Código:** \`${error.message?.slice(0, 100) || 'Desconhecido'}\``);
