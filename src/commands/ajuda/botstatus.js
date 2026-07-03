@@ -85,7 +85,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     }
 
     builder
-        .title(`${emojis.binary || '🗄️'} Banco de Dados`, 2)
+        .title(`${emojis.storage || '🗄️'} Banco de Dados`, 2)
         .block([
             `**Tamanho:** ${dbStats?.fileSize ?? 'N/A'}`,
             `**Tabelas:** ${Object.keys(dbStats?.tables ?? {}).length}`,

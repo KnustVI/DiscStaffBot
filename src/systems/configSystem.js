@@ -102,7 +102,7 @@ const ConfigSystem = {
             if (!channel) return;
 
             const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
-            builder.title(`${EMOJIS.Config || '⚙️'} Configuração Alterada`);
+            builder.title(`${EMOJIS.settings || '⚙️'} Configuração Alterada`);
             builder.text(`**Responsável:** ${interaction.user}`);
             builder.separator();
             builder.block(entries);
@@ -377,7 +377,7 @@ const ConfigSystem = {
         const cb = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
         const { components, flags } = cb
-            .title(`${EMOJIS.Config || '⚙️'} Configuração de Pontos e Limites`)
+            .title(`${EMOJIS.tune || '⚙️'} Configuração de Pontos e Limites`)
             .text('Gerencie os valores do sistema de reputação.')
             .separator()
             .title(`${EMOJIS.gavel || '🎯'} Níveis de Strike`, 2)
