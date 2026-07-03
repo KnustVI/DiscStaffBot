@@ -51,6 +51,7 @@ const EMOJIS = {
     creditcard: formatEmoji('1522487751612563506', 'creditcard', false),
     crown: formatEmoji('1522487932848701581', 'crown', false),
     darkmode: formatEmoji('1522487283138170982', 'darkmode', false),
+    Dead: formatEmoji('1522528315846692955', 'Dead', false),
     descricao: formatEmoji('1522522008733351936', 'descricao', false),
     DinoFootprint: formatEmoji('1522508100043542639', 'DinoFootprint', false),
     displaysettings: formatEmoji('1522487284505641000', 'displaysettings', false),
