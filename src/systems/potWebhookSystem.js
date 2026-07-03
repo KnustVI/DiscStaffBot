@@ -13,7 +13,8 @@ const {
     ModalBuilder,
     ActionRowBuilder,
     TextInputBuilder,
-    TextInputStyle
+    TextInputStyle,
+    AttachmentBuilder
 } = require('discord.js');
 
 const PoTConfigSystem = require('./potConfigSystem');
@@ -44,7 +45,9 @@ class PoTWebhookSystem {
         ];
 
         for (const group of EVENT_GROUPS) {
-            lines.push(`; ${group.name}`);
+            // label = texto puro (sem emoji custom) — é um comentário dentro
+            // de um arquivo .ini de verdade, não uma mensagem do Discord.
+            lines.push(`; ${group.label || group.name}`);
             for (const iniEvent of group.iniEvents) {
                 // evt= permite ao gateway saber qual evento PoT específico chegou,
                 // mesmo que vários eventos compartilhem a mesma rota de grupo.
@@ -96,7 +99,7 @@ class PoTWebhookSystem {
 
         const modal = new ModalBuilder()
             .setCustomId(`pot_webhook:url_modal:${groupId}:${guildId}:${page}`)
-            .setTitle(`Webhook — ${group?.name || groupId}`)
+            .setTitle(`Webhook — ${group?.label || groupId}`)
             .addComponents(new ActionRowBuilder().addComponents(input));
 
         await interaction.showModal(modal);
@@ -113,29 +116,48 @@ class PoTWebhookSystem {
         const guildId = parts[3];
         const page = parseInt(parts[4]) || 0;
 
-        await interaction.deferReply({ flags: 64 });
+        // O modal foi aberto a partir do botão do painel — isFromMessage()
+        // detecta isso e permite deferUpdate() + editReply() editando a
+        // MESMA mensagem do painel, em vez de deferReply() (que sempre cria
+        // uma resposta nova pra essa interação de submit do modal, gerando
+        // uma mensagem efêmera extra a cada vez que confirmava um webhook).
+        const canUpdateOriginal = typeof interaction.isFromMessage === 'function' && interaction.isFromMessage();
+        if (canUpdateOriginal) {
+            await interaction.deferUpdate();
+        } else {
+            await interaction.deferReply({ flags: 64 });
+        }
+
+        // Erros de validação viram um aviso efêmero separado (followUp) em
+        // vez de sobrescrever o painel — assim o painel não "some" quando o
+        // usuário erra a URL.
+        const replyError = async (content) => {
+            if (canUpdateOriginal) {
+                await interaction.followUp({ content, flags: 64 });
+            } else {
+                await interaction.editReply({ content });
+            }
+        };
 
         const webhookUrl = interaction.fields.getTextInputValue('webhook_url').trim();
 
         if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
-            await interaction.editReply({
-                content: [
-                    `${EMOJIS.circlealert || '❌'} URL inválida. Deve ser um webhook do Discord.`,
-                    'Como criar: **Canal → Configurações → Integrações → Criar Webhook → Copiar URL**'
-                ].join('\n')
-            });
+            await replyError([
+                `${EMOJIS.circlealert || '❌'} URL inválida. Deve ser um webhook do Discord.`,
+                'Como criar: **Canal → Configurações → Integrações → Criar Webhook → Copiar URL**'
+            ].join('\n'));
             return;
         }
 
         const test = await this.testDiscordWebhook(webhookUrl, interaction.guild?.name);
         if (!test.success) {
-            await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Webhook não respondeu: ${test.error}` });
+            await replyError(`${EMOJIS.circlealert || '❌'} Webhook não respondeu: ${test.error}`);
             return;
         }
 
         PoTConfigSystem.setWebhookForGroup(guildId, groupId, webhookUrl);
 
-        // Redesenha o painel com o novo estado
+        // Redesenha o painel com o novo estado (edita a mesma mensagem)
         const payload = this.buildPanelPayload(interaction, page);
         await interaction.editReply(payload);
     }
@@ -270,12 +292,21 @@ class PoTWebhookSystem {
         const config = this.getGameIniConfig(interaction.guildId);
         const b = new AdvancedContainerBuilder({ accentColor: 0x00AAFF });
 
+        // Manda o conteúdo como ANEXO em vez de embutido em texto: o bloco
+        // ```ini``` com os ~30 eventos passa perto (ou passa) do limite de
+        // 4000 caracteres por TextDisplay do Discord dependendo do tamanho
+        // do domínio/token, e o Discord rejeitava a mensagem sem avisar —
+        // era a causa do botão "Game.ini" ficar respondendo pra sempre.
+        // Como anexo não tem esse limite, e o host pode usar o arquivo direto.
         b.title(`${EMOJIS.filetext || '📄'} Game.ini`)
-            .text('Cole este conteúdo no arquivo `Game.ini` do seu servidor PoT.\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
-            .text('```ini\n' + config + '\n```')
+            .text('Copie o conteúdo do arquivo em anexo para dentro do `Game.ini` do seu servidor PoT, na seção `[ServerWebhooks]`.\nCaminho: `AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini`')
             .footer(interaction.guild?.name || 'Servidor');
 
-        await interaction.editReply(b.build());
+        const payload = b.build();
+        const attachment = new AttachmentBuilder(Buffer.from(config, 'utf8'), { name: 'Game.ini' });
+        payload.files = [...(payload.files || []), attachment];
+
+        await interaction.editReply(payload);
     }
 
     static async handleShowWebhooks(interaction) {

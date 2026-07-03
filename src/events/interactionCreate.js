@@ -314,8 +314,17 @@ module.exports = {
         } catch (error) {
             console.error('❌ Erro:', error);
             try {
+                // Sem isso, qualquer erro lançado DEPOIS de um deferReply/
+                // deferUpdate (interaction já "deferred") não respondia nada
+                // — a interação ficava "pensando..." pra sempre do lado do
+                // usuário, mesmo o bot já tendo desistido internamente.
+                const message = `${EMOJIS.circlealert || '❌'} Erro. Tente novamente.`;
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: `${EMOJIS.circlealert || '❌'} Erro. Tente novamente.`, flags: 64 });
+                    await interaction.reply({ content: message, flags: 64 });
+                } else if (interaction.deferred && !interaction.replied) {
+                    await interaction.editReply({ content: message });
+                } else if (interaction.replied) {
+                    await interaction.followUp({ content: message, flags: 64 });
                 }
             } catch (err) {}
         }

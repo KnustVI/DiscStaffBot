@@ -6,56 +6,84 @@
  */
 const db = require('../database/index');
 
+let EMOJIS = {};
+try {
+    EMOJIS = require('../database/emojis.js').EMOJIS || {};
+} catch (err) {
+    EMOJIS = {};
+}
+
 // ==================== GRUPOS DE EVENTOS ====================
 // Definido aqui pois é dado puro (sem imports Discord), acessível
 // tanto pelo painel (potWebhookSystem) quanto pelo gateway.
+//
+// `label` = texto puro (SEM emoji custom) — usado em título de modal e no
+// comentário do Game.ini, nenhum dos dois renderiza tag de emoji customizado
+// (modal só aceita texto puro; Game.ini é lido pelo servidor PoT/editor de
+// texto do host, não pelo Discord).
+// `emoji` = emoji customizado já resolvido — usado só em texto que o Discord
+// realmente renderiza (painel, `name` legado mantido pra outros usos soltos).
 
 const EVENT_GROUPS = [
     {
         id: 'login',
-        name: '📥 Login / Logout',
+        name: `${EMOJIS.login || '📥'} Login / Logout`,
+        label: 'Login / Logout',
+        emoji: EMOJIS.login || '📥',
         description: 'Registro de entradas e saídas do servidor.',
         route: 'login',
         iniEvents: ['PlayerLogin', 'PlayerLogout', 'PlayerLeave']
     },
     {
         id: 'combate',
-        name: '💀 Combate',
+        name: `${EMOJIS.swords || '💀'} Combate`,
+        label: 'Combate',
+        emoji: EMOJIS.swords || '💀',
         description: 'Mortes e dano entre jogadores.',
         route: 'combate',
         iniEvents: ['PlayerKilled', 'PlayerDamagedPlayer']
     },
     {
         id: 'quest',
-        name: '📜 Quest',
+        name: `${EMOJIS.listchecks || '📜'} Quest`,
+        label: 'Quest',
+        emoji: EMOJIS.listchecks || '📜',
         description: 'Progresso de missões.',
         route: 'quest',
         iniEvents: ['PlayerQuestComplete', 'PlayerQuestFailed']
     },
     {
         id: 'respawn',
-        name: '🔄 Respawn',
+        name: `${EMOJIS.refreshccw || '🔄'} Respawn`,
+        label: 'Respawn',
+        emoji: EMOJIS.refreshccw || '🔄',
         description: 'Reviver e teletransporte.',
         route: 'respawn',
         iniEvents: ['PlayerRespawn', 'PlayerWaystone']
     },
     {
         id: 'chat',
-        name: '💬 Chat',
+        name: `${EMOJIS.messagecircle || '💬'} Chat`,
+        label: 'Chat',
+        emoji: EMOJIS.messagecircle || '💬',
         description: 'Mensagens e profanidade no chat.',
         route: 'chat',
         iniEvents: ['PlayerChat', 'PlayerProfanity']
     },
     {
         id: 'comando',
-        name: '⚡ Comandos',
+        name: `${EMOJIS.terminal || '⚡'} Comandos`,
+        label: 'Comandos',
+        emoji: EMOJIS.terminal || '⚡',
         description: 'Comandos de jogadores (prefixo !).',
         route: 'comando',
         iniEvents: ['PlayerCommand']
     },
     {
         id: 'grupo',
-        name: '👥 Grupo',
+        name: `${EMOJIS.users || '👥'} Grupo`,
+        label: 'Grupo',
+        emoji: EMOJIS.users || '👥',
         description: 'Formação e dissolução de grupos.',
         route: 'grupo',
         iniEvents: ['PlayerJoinedGroup', 'PlayerLeftGroup']
@@ -63,20 +91,26 @@ const EVENT_GROUPS = [
     {
         id: 'servidor',
         name: '🖥️ Servidor',
+        label: 'Servidor',
+        emoji: '🖥️',
         description: 'Eventos, alertas e performance do servidor.',
         route: 'servidor',
         iniEvents: ['ServerStart', 'ServerRestart', 'ServerRestartCountdown', 'ServerModerate', 'ServerError', 'SecurityAlert', 'BadAverageTick']
     },
     {
         id: 'admin',
-        name: '👑 Admin',
+        name: `${EMOJIS.crown || '👑'} Admin`,
+        label: 'Admin',
+        emoji: EMOJIS.crown || '👑',
         description: 'Ações e comandos administrativos.',
         route: 'admin',
         iniEvents: ['AdminSpectate', 'AdminCommand']
     },
     {
         id: 'nest',
-        name: '🪺 Nest',
+        name: `${EMOJIS.Nest || '🪺'} Nest`,
+        label: 'Nest',
+        emoji: EMOJIS.Nest || '🪺',
         description: 'Criação e gestão de ninhos.',
         route: 'nest',
         iniEvents: ['CreateNest', 'DestroyNest', 'NestInvite', 'PlayerJoinNest', 'UpdateNest']
