@@ -210,11 +210,13 @@ module.exports = {
         const notifyRoleId = ConfigSystem.getSetting(guild.id, 'event_notify_role');
 
         const postBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // ── Só a imagem enviada pelo autor aparece na postagem — sem avatar
+        // do organizador nem qualquer outra imagem extra. Por isso título e
+        // descrição vão como texto simples, não em section() (que exige um
+        // acessório de imagem/botão). ─────────────────────────────────────
         postBuilder.gallery([`attachment://${imageFileName}`]);
-        postBuilder.section(
-            [`# ${titulo}`, descricao].join('\n'),
-            AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 128 })),
-        );
+        postBuilder.text(`# ${titulo}`);
+        postBuilder.text(descricao);
         postBuilder.separator();
         const startTs = Math.floor(startDate.getTime() / 1000);
         postBuilder.text(`${EMOJIS.calendardays || '📅'} **Data:** <t:${startTs}:F> (<t:${startTs}:R>)`);
@@ -248,7 +250,10 @@ module.exports = {
         }
 
         // ==================== LINK DO EVENTO NA THREAD ====================
-        await thread.send(`${EMOJIS.wifi || '🔗'} **Evento agendado:** ${scheduledEvent.url}`).catch(() => {});
+        await thread.send(
+            `${EMOJIS.wifi || '🔗'} **Evento agendado:** ${scheduledEvent.url}\n` +
+            `${EMOJIS.circlealert || '🔔'} Clique em **Me Interessa** no evento acima para o Discord te avisar automaticamente quando ele começar!`
+        ).catch(() => {});
 
         db.logActivity(guild.id, user.id, 'event_created', null, {
             command: 'evento', title: titulo, threadId: thread.id, scheduledEventId: scheduledEvent.id,
@@ -261,6 +266,11 @@ module.exports = {
         summaryBuilder.text(`${EMOJIS.clipboardlist || '📋'} Postagem: ${thread.toString()}`);
         summaryBuilder.text(`${EMOJIS.wifi || '🔗'} Evento agendado: ${scheduledEvent.url}`);
         summaryBuilder.text(`${EMOJIS.calendardays || '📅'} Início: <t:${startTs}:F>`);
+        summaryBuilder.separator();
+        summaryBuilder.text(
+            `${EMOJIS.trianglealert || '⚠️'} **Lembrete:** quando a hora chegar, alguém do staff precisa **iniciar o evento manualmente** no Discord (clique no botão **Eventos** no canto superior esquerdo da barra de canais, abra o evento e clique em Iniciar). ` +
+            `Só assim o Discord notifica automaticamente quem clicou em "Me Interessa".`
+        );
         if (!notifyRoleId) {
             summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config-roles, aba Eventos) — ninguém foi marcado na postagem.`);
         }
