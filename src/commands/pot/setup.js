@@ -50,7 +50,7 @@ module.exports = {
             });
 
             builder
-                .title('🎮 Path of Titans - Configuração')
+                .title(`${emojis.DinoFootprint || '🎮'} Path of Titans - Configuração`)
                 .text('Configurações salvas com sucesso!')
                 .separator()
                 .text(`${emojis.wifi || '📡'} IP: ${ip}`)

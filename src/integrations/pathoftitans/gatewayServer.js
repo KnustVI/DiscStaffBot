@@ -160,7 +160,7 @@ class PoTGatewayServer {
 
         const formatters = {
             // ── Login / Logout ──
-            PlayerLogin:   () => `🎮 **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${EMOJIS.crown || '👑'}` : ''}`,
+            PlayerLogin:   () => `${EMOJIS.DinoFootprint || '🎮'} **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${EMOJIS.crown || '👑'}` : ''}`,
             PlayerLogout:  () => `${EMOJIS.logout || '👋'} **${d.PlayerName}** saiu do servidor`,
             PlayerLeave:   () => `${EMOJIS.logout || '🚶'} **${d.PlayerName}** desconectou`,
 
@@ -201,7 +201,7 @@ class PoTGatewayServer {
             AdminCommand:  () => `${EMOJIS.crown || '👑'} **${d.AdminName}** executou: \`${d.Command}\``,
 
             // ── Nest ──
-            CreateNest:    () => `🪺 **${d.PlayerName}** criou um ninho`,
+            CreateNest:    () => `${EMOJIS.Nest || '🪺'} **${d.PlayerName}** criou um ninho`,
             DestroyNest:   () => `💥 Ninho de **${d.PlayerName}** foi destruído`,
             NestInvite:    () => `📨 **${d.PlayerName}** convidou **${d.InvitedPlayer}** para o ninho`,
             PlayerJoinNest: () => `${EMOJIS.circlecheck || '✅'} **${d.PlayerName}** entrou em um ninho`,
