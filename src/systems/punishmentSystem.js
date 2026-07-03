@@ -141,7 +141,7 @@ const PunishmentSystem = {
             builder.separator();
             for (const p of history.punishments) {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
-                const severityIcon = ['⚪', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'][p.severity] || '❓';
+                const severityIcon = [EMOJIS.thumbsup || '⚪', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'][p.severity] || '❓';
                 const strikeNum = p.strike_number || p.id;
                 builder.text(`${severityIcon} Strike #${strikeNum} | ${date}`);
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);

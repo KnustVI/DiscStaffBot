@@ -90,9 +90,9 @@ const EVENT_GROUPS = [
     },
     {
         id: 'servidor',
-        name: '🖥️ Servidor',
+        name: `${EMOJIS.tv || '🖥️'} Servidor`,
         label: 'Servidor',
-        emoji: '🖥️',
+        emoji: EMOJIS.tv || '🖥️',
         description: 'Eventos, alertas e performance do servidor.',
         route: 'servidor',
         iniEvents: ['ServerStart', 'ServerRestart', 'ServerRestartCountdown', 'ServerModerate', 'ServerError', 'SecurityAlert', 'BadAverageTick']

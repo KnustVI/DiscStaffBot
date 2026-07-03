@@ -164,7 +164,7 @@ class PoTGatewayServer {
             PlayerLeave:   () => `${EMOJIS.logout || '🚶'} **${d.PlayerName}** desconectou`,
 
             // ── Combate ──
-            PlayerKilled:        () => `${EMOJIS.Dead || '💀'} **${d.VictimName}** foi morto por **${d.KillerName}**\n🔧 Causa: \`${d.DamageType}\``,
+            PlayerKilled:        () => `${EMOJIS.Dead || '💀'} **${d.VictimName}** foi morto por **${d.KillerName}**\n${EMOJIS.build || '🔧'} Causa: \`${d.DamageType}\``,
             PlayerDamagedPlayer: () => `${EMOJIS.swords || '⚔️'} **${d.SourceName}** causou **${d.DamageAmount}** de dano em **${d.TargetName}**`,
 
             // ── Quest ──

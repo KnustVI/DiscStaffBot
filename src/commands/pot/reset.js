@@ -59,7 +59,7 @@ module.exports = {
 
                     return {
                         success: true,
-                        message: '🖥️ Configuração removida (token mantido)'
+                        message: `${emojis.tv || '🖥️'} Configuração removida (token mantido)`
                     };
 
                 case 'logs':

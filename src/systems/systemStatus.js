@@ -83,7 +83,7 @@ class SystemStatus {
         builder.title(`${EMOJIS.gauge || '📊'} Status do Sistema`, 1);
         builder.text(`**${status.guildName}** • Sistema operando normalmente`);
         builder.separator();
-        builder.text(`**🤖 Bot**\n${EMOJIS.gauge || '📊'} Uptime: ${status.uptime}\n${EMOJIS.wifi || '📡'} Latência: ${status.ping}\n${EMOJIS.storage || '💾'} Memória: ${status.memory}`);
+        builder.text(`**${EMOJIS.robo || '🤖'} Bot**\n${EMOJIS.gauge || '📊'} Uptime: ${status.uptime}\n${EMOJIS.wifi || '📡'} Latência: ${status.ping}\n${EMOJIS.storage || '💾'} Memória: ${status.memory}`);
         builder.separator();
         builder.text(`**${EMOJIS.trendingup || '📈'} Estatísticas**\n🌐 Servidores: ${status.totalGuilds}\n${EMOJIS.users || '👥'} Usuários: ${status.totalUsers.toLocaleString()}\n${EMOJIS.filetext || '📝'} Logs: ${status.logChannel}`);
         builder.separator();
@@ -116,9 +116,9 @@ class SystemStatus {
         
         builder.title(`${EMOJIS.settings || '🔧'} Status Detalhado do Sistema`, 1);
         builder.separator();
-        builder.text(`**🤖 Bot**\n${EMOJIS.clock || '⏱️'} Uptime: ${status.uptime}\n${EMOJIS.wifi || '📡'} Latência: ${status.ping}\n${EMOJIS.storage || '💾'} Memória: ${status.memory}\n🟢 Node: ${nodeVersion}\n📦 DJS: v${discordVersion}`);
+        builder.text(`**${EMOJIS.robo || '🤖'} Bot**\n${EMOJIS.clock || '⏱️'} Uptime: ${status.uptime}\n${EMOJIS.wifi || '📡'} Latência: ${status.ping}\n${EMOJIS.storage || '💾'} Memória: ${status.memory}\n🟢 Node: ${nodeVersion}\n📦 DJS: v${discordVersion}`);
         builder.separator();
-        builder.text(`**${EMOJIS.terminal || '💻'} Sistema**\n🖥️ OS: ${platform}\n🧠 CPU: ${totalCores} cores\n${EMOJIS.gauge || '⚙️'} Load: ${cpuUsage.toFixed(2)}\n🏛️ Arquitetura: ${os.arch()}`);
+        builder.text(`**${EMOJIS.terminal || '💻'} Sistema**\n${EMOJIS.tv || '🖥️'} OS: ${platform}\n🧠 CPU: ${totalCores} cores\n${EMOJIS.gauge || '⚙️'} Load: ${cpuUsage.toFixed(2)}\n🏛️ Arquitetura: ${os.arch()}`);
         builder.separator();
         builder.text(`**${EMOJIS.gauge || '📊'} Métricas**\n🌐 Servidores: ${status.totalGuilds}\n${EMOJIS.users || '👥'} Usuários: ${status.totalUsers.toLocaleString()}\n${EMOJIS.messagecircle || '💬'} Canais: ${client.channels.cache.size}\n😀 Emojis: ${client.emojis.cache.size}`);
         builder.separator();

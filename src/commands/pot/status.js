@@ -82,7 +82,7 @@ module.exports = {
             // ✅ Linha de RCON agora mostra o teste ao vivo, não a contagem em memória.
             let rconText;
             if (rconLiveOk === null) {
-                rconText = '⚪ Não testado (servidor não configurado)';
+                rconText = `${emojis.thumbsup || '⚪'} Não testado (servidor não configurado)`;
             } else if (rconLiveOk) {
                 rconText = `${emojis.circlecheck || '✅'} Conectado (testado agora)`;
             } else {
