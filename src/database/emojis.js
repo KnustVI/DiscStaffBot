@@ -157,6 +157,7 @@ const EMOJIS = {
     volumex: formatEmoji('1522487717064347658', 'volumex', false),
     vpnkey: formatEmoji('1522487310640353381', 'vpnkey', false),
     wallet: formatEmoji('1522487755290968084', 'wallet', false),
+    Waystone: formatEmoji('1522518720927502366', 'Waystone', false),
     widgets: formatEmoji('1522487311852507308', 'widgets', false),
     wifi: formatEmoji('1522488122984632330', 'wifi', false),
     wifioff: formatEmoji('1522488124070957097', 'wifioff', false),
