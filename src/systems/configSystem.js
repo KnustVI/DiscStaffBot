@@ -263,7 +263,7 @@ const ConfigSystem = {
         };
         
         const changes = [];
-        const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+        const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
         
         for (let i = 1; i <= 5; i++) {
@@ -371,7 +371,7 @@ const ConfigSystem = {
         
         const exemplarLimit    = parseInt(this.getSetting(guildId, 'limit_exemplar'))    || 95;
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
-        const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+        const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
 
         const cb = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });

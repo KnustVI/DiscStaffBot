@@ -12,7 +12,7 @@ function buildPageWelcome(displayName, guildName, emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.user || '🤖'} Assistente Titan`)
+        .title(`${emojis.robo || '🤖'} Assistente Titan`)
         .text(`Olá **${displayName}**! Sou o sistema de gestão do seu servidor **${guildName}**.`)
         .separator()
         .title(`${emojis.settings || '⚙️'} Configuração Inicial`, 2)
@@ -82,7 +82,7 @@ function buildPageUserSimple(displayName, guildName, emojis) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });
 
     return builder
-        .title(`${emojis.user || '🤖'} Assistente Titan`)
+        .title(`${emojis.robo || '🤖'} Assistente Titan`)
         .text(`Olá **${displayName}**! Sou o sistema de gestão do servidor **${guildName}**.`)
         .separator()
         .title(`${emojis.ticket || '🎫'} ReportChat`, 2)
@@ -152,8 +152,8 @@ module.exports = {
                 .addPage(() => buildPageModeration(emojis))
                 .addPage(() => buildPageAutomod(emojis))
                 .setButtons({
-                    prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
-                    next: { label: 'Próxima ▶', style: ButtonStyle.Primary },
+                    prev: { label: 'Anterior', style: ButtonStyle.Secondary },
+                    next: { label: 'Próxima', style: ButtonStyle.Primary },
                 });
 
             await pagination.start(interaction);

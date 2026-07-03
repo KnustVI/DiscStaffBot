@@ -77,7 +77,7 @@ module.exports = {
             devBuilder.text(`${emojis.user || '👤'} **Enviado por:** ${user.tag} \`${user.id}\``);
             devBuilder.text(`${emojis.flag || '🌐'} **Servidor:** ${guild.name} \`${guild.id}\``);
             devBuilder.text(`${emojis.badge || '👥'} **Cargo:** ${member?.roles.highest ? member.roles.highest.name : 'Sem cargo'}`);
-            devBuilder.text(`${emojis.messagesquare || '📝'} **Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``);
+            devBuilder.text(`${emojis.mensagem || '📝'} **Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 1800)}\n\`\`\``);
             devBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid}\``);
             devBuilder.footer(`ID: ${feedbackUuid.slice(0, 8)}`);
             
@@ -116,7 +116,7 @@ module.exports = {
             const responseBuilder = new AdvancedContainerBuilder({ accentColor: 0xBBF96A });
             responseBuilder.title(`${tipoIcon} ${tipo === 'BUG' ? 'Bug Reportado' : 'Sugestão Enviada'}`, 1);
             responseBuilder.separator();
-            responseBuilder.text(`${emojis.messagesquare || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
+            responseBuilder.text(`${emojis.mensagem || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
             responseBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid.slice(0, 8)}...\``);
             responseBuilder.footer(`Obrigado por contribuir!`);
             

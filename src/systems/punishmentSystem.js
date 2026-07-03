@@ -141,7 +141,7 @@ const PunishmentSystem = {
             builder.separator();
             for (const p of history.punishments) {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
-                const severityIcon = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'][p.severity] || '❓';
+                const severityIcon = ['⚪', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'][p.severity] || '❓';
                 const strikeNum = p.strike_number || p.id;
                 builder.text(`${severityIcon} Strike #${strikeNum} | ${date}`);
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);
@@ -162,8 +162,8 @@ const PunishmentSystem = {
 
     generateStrikeUnifiedContainer(target, moderator, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId) {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
-        
+        const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
+
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DANGER });
         builder.banner('title_strike');
 
@@ -259,7 +259,7 @@ const PunishmentSystem = {
         if (discordAct && discordAct !== 'none') {
             const actIcons = { timeout: EMOJIS.micoff || '🔇', kick: EMOJIS.userx || '👢', ban: EMOJIS.ban || '🚫' };
             const actNames = { timeout: 'Timeout (Silenciamento)', kick: 'Expulsão do Servidor', ban: 'Banimento do Servidor' };
-            const icon = actIcons[discordAct] || '⚡';
+            const icon = actIcons[discordAct] || EMOJIS.raio || '⚡';
             const name = actNames[discordAct] || discordAct;
 
             if (discordActionResult && !discordActionResult.includes('Erro')) {

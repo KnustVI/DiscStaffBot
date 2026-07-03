@@ -62,8 +62,8 @@ module.exports = {
             pagination
                 .addPages(...pages)
                 .setButtons({
-                    prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
-                    next: { label: 'Próxima ▶', style: ButtonStyle.Primary },
+                    prev: { label: 'Anterior', style: ButtonStyle.Secondary },
+                    next: { label: 'Próxima', style: ButtonStyle.Primary },
                 });
 
             await pagination.start(interaction);

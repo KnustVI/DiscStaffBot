@@ -202,7 +202,7 @@ class AnalyticsSystem {
         
         for (let index = 0; index < ranking.length; index++) {
             const item = ranking[index];
-            const medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : `${index + 1}º`));
+            const medal = index === 0 ? (EMOJIS.medalha1 || '🥇') : (index === 1 ? (EMOJIS.medalha2 || '🥈') : (index === 2 ? (EMOJIS.medalha3 || '🥉') : `${index + 1}º`));
             builder.text(`**${medal}** <@${item.user_id}>: \`${item.total}\``);
         }
         

@@ -54,10 +54,10 @@ module.exports = {
                 .text('Configurações salvas com sucesso!')
                 .separator()
                 .text(`${emojis.wifi || '📡'} IP: ${ip}`)
-                .text(`🔌 Porta RCON: ${rconPort}`)
+                .text(`${emojis.tomada || '🔌'} Porta RCON: ${rconPort}`)
                 .text(`${emojis.vpnkey || '🔑'} Token: \`${token}\``)
                 .separator()
-                .text(`${emojis.refreshccw || '🔄'} RCON: ${rconStatus ? `${emojis.circlecheck || '✅'} Conectado` : `${emojis.trianglealert || '⚠️'} Offline`}`)
+                .text(`${emojis.rcon || '🔄'} RCON: ${rconStatus ? `${emojis.circlecheck || '✅'} Conectado` : `${emojis.trianglealert || '⚠️'} Offline`}`)
                 .footer(guildName);
 
             const payload = builder.build();

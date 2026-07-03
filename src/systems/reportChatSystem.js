@@ -177,7 +177,8 @@ class ReportChatSystem {
             const threadLink = `https://discord.com/channels/${guild.id}/${reportInfo.thread_id}`;
             const linkButton = new ButtonBuilder()
                 .setURL(threadLink)
-                .setLabel('🔗 Ir para o chat')
+                .setLabel('Ir para o chat')
+                .setEmoji(EMOJIS.wifi || '🔗')
                 .setStyle(ButtonStyle.Link);
             builder.section(statusText, linkButton);
         } else {
@@ -355,7 +356,7 @@ class ReportChatSystem {
             infoBuilder.text(`**${EMOJIS.messagesquare || '📝'} Regra quebrada:** ${data.regra}`);
             infoBuilder.text(`**${EMOJIS.clock || '⏰'} Quando aconteceu:** ${data.dataHora}`);
             infoBuilder.text(`**${EMOJIS.mappin || '📍'} Local:** ${data.local || 'Não informado'}`);
-            infoBuilder.text(`**${EMOJIS.clipboardlist || '📋'} Descrição:** ${data.descricao}`);
+            infoBuilder.text(`**${EMOJIS.descricao || '📋'} Descrição:** ${data.descricao}`);
             infoBuilder.text(`**${EMOJIS.gavel || '⚖️'} Termo de convivência:** ${data.termo}`);
             infoBuilder.footer();
             
@@ -508,7 +509,7 @@ class ReportChatSystem {
 
             // ==================== RESUMO DA PUNIÇÃO ====================
             const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+            const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
             const moderator = await this.client.users.fetch(punishment.moderator_id).catch(() => null);
 
             const summaryBuilder = new AdvancedContainerBuilder({ accentColor: 0xDCA15E });

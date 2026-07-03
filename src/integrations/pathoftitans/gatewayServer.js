@@ -164,7 +164,7 @@ class PoTGatewayServer {
             PlayerLeave:   () => `${EMOJIS.logout || '🚶'} **${d.PlayerName}** desconectou`,
 
             // ── Combate ──
-            PlayerKilled:        () => `💀 **${d.VictimName}** foi morto por **${d.KillerName}**\n🔧 Causa: \`${d.DamageType}\``,
+            PlayerKilled:        () => `${EMOJIS.Dead || '💀'} **${d.VictimName}** foi morto por **${d.KillerName}**\n🔧 Causa: \`${d.DamageType}\``,
             PlayerDamagedPlayer: () => `${EMOJIS.swords || '⚔️'} **${d.SourceName}** causou **${d.DamageAmount}** de dano em **${d.TargetName}**`,
 
             // ── Quest ──
@@ -173,14 +173,14 @@ class PoTGatewayServer {
 
             // ── Respawn ──
             PlayerRespawn:  () => `${EMOJIS.refreshccw || '🔄'} **${d.PlayerName}** ressurgiu como **${d.DinosaurType}**`,
-            PlayerWaystone: () => `${EMOJIS.sparkles || '✨'} **${d.InviterName}** teletransportou **${d.TeleportedPlayerName}**`,
+            PlayerWaystone: () => `${EMOJIS.Waystone || '✨'} **${d.InviterName}** teletransportou **${d.TeleportedPlayerName}**`,
 
             // ── Chat ──
             PlayerChat:      () => `${EMOJIS.messagecircle || '💬'} **${d.PlayerName}:** ${d.Message}`,
             PlayerProfanity: () => `${EMOJIS.shieldban || '🔞'} **${d.PlayerName}** tentou enviar mensagem bloqueada`,
 
             // ── Comandos ──
-            PlayerCommand: () => `⚡ **${d.PlayerName}:** \`${d.Message}\``,
+            PlayerCommand: () => `${EMOJIS.raio || '⚡'} **${d.PlayerName}:** \`${d.Message}\``,
 
             // ── Grupo ──
             PlayerJoinedGroup: () => `${EMOJIS.users || '👥'} **${d.Player}** entrou no grupo de **${d.Leader}**`,
@@ -224,7 +224,7 @@ class PoTGatewayServer {
         if (potEvent === 'PlayerKilled' && d.VictimName && d.KillerName) {
             return new EmbedBuilder()
                 .setColor(0xFF0000)
-                .setTitle('💀 Morte em Combate')
+                .setTitle(`${EMOJIS.Dead || '💀'} Morte em Combate`)
                 .addFields(
                     { name: 'Vítima', value: d.VictimName, inline: true },
                     { name: 'Assassino', value: d.KillerName, inline: true },

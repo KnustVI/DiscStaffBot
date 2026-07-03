@@ -29,8 +29,8 @@ class PaginationBuilder {
         this.interaction = null;
         this.collector = null;
         this.buttons = {
-            prev: { label: '◀ Anterior', style: ButtonStyle.Secondary },
-            next: { label: 'Próxima ▶', style: ButtonStyle.Secondary },
+            prev: { label: 'Anterior', style: ButtonStyle.Secondary },
+            next: { label: 'Próxima', style: ButtonStyle.Secondary },
         };
 
         // ── NOVO: arquivos (attachments) a serem enviados em TODA mensagem
@@ -112,11 +112,13 @@ class PaginationBuilder {
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_prev_${this.currentPage}`)
                 .setLabel(prev.label)
+                .setEmoji(EMOJIS.paginaanterior || '◀')
                 .setStyle(prev.style)
                 .setDisabled(this.currentPage === 0),
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_next_${this.currentPage}`)
                 .setLabel(next.label)
+                .setEmoji(EMOJIS.paginaproxima || '▶')
                 .setStyle(next.style)
                 .setDisabled(this.currentPage === totalPages - 1),
             new ButtonBuilder()
@@ -138,11 +140,13 @@ class PaginationBuilder {
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_prev_disabled`)
                 .setLabel(this.buttons.prev.label)
+                .setEmoji(EMOJIS.paginaanterior || '◀')
                 .setStyle(this.buttons.prev.style)
                 .setDisabled(true),
             new ButtonBuilder()
                 .setCustomId(`${customIdPrefix}_next_disabled`)
                 .setLabel(this.buttons.next.label)
+                .setEmoji(EMOJIS.paginaproxima || '▶')
                 .setStyle(this.buttons.next.style)
                 .setDisabled(true),
             new ButtonBuilder()

@@ -84,7 +84,7 @@ module.exports = {
         builder.text(`**Servidor:** ${guild.name}`);
         builder.separator();
         builder.text(`${emojis.clipboardlist || '📋'} **Status:** AutoMod: ${automodStatus} | Worker: ${workerRunning ? '🟢 Rodando' : '🔴 Parado'}`);
-        builder.text(`📺 **Canal de Log:** ${channelStatus}`);
+        builder.text(`${emojis.tv || '📺'} **Canal de Log:** ${channelStatus}`);
         builder.text(`${emojis.gauge || '📊'} **Relatório:** ${emojis.trendingup || '📈'} ${result.totalRepRecovered} recuperados | ${emojis.plus || '➕'} ${result.totalRolesAdded} adicionados | ${emojis.minus || '➖'} ${result.totalRolesRemoved} removidos`);
 
         if (channelIssues.length > 0) {

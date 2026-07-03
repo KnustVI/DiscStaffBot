@@ -72,9 +72,9 @@ const EVENT_GROUPS = [
     },
     {
         id: 'comando',
-        name: `${EMOJIS.terminal || '⚡'} Comandos`,
+        name: `${EMOJIS.raio || '⚡'} Comandos`,
         label: 'Comandos',
-        emoji: EMOJIS.terminal || '⚡',
+        emoji: EMOJIS.raio || '⚡',
         description: 'Comandos de jogadores (prefixo !).',
         route: 'comando',
         iniEvents: ['PlayerCommand']

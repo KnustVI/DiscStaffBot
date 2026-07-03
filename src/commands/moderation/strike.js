@@ -129,7 +129,7 @@ module.exports = {
             }, 120000);
 
             const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcons = ['', '🟢', '🟡', '🟠', '🔴', '💀'];
+            const severityIcons = ['', emojis.severidadebaixa || '🟢', emojis.severidademedia || '🟡', emojis.severidadelaranja || '🟠', emojis.severidadealta || '🔴', emojis.Dead || '💀'];
             const discordActNames = { none: 'Nenhuma', timeout: 'Timeout (Mute)', kick: 'Expulsão', ban: 'Banimento' };
             const jogoActNames = { none: 'Nenhuma', rcon_warn: 'Aviso na Tela', rcon_kick: 'Kick do Jogo', rcon_slay: 'Slay (Matar)', rcon_ban: 'Ban do Jogo' };
             const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm';
@@ -144,8 +144,8 @@ module.exports = {
             if (reportId) builder.text(`**${emojis.ticket || '🎫'} Report:** ${reportId}`);
             builder.separator();
             builder.text(`**${emojis.trendingdown || '📉'} Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
-            builder.text(`**⚡ Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
-            builder.text(`**🎮 Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
+            builder.text(`**${emojis.raio || '⚡'} Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
+            builder.text(`**${emojis.game || '🎮'} Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
             builder.footer('Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(

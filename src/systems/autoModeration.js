@@ -401,7 +401,7 @@ class AutoModerationSystem {
                     rankingLines = ranking
                         .filter(r => r.total > 0)
                         .map((r, i) => {
-                            const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i + 1}º`));
+                            const medal = i === 0 ? (EMOJIS.medalha1 || '🥇') : (i === 1 ? (EMOJIS.medalha2 || '🥈') : (i === 2 ? (EMOJIS.medalha3 || '🥉') : `${i + 1}º`));
                             return `${medal} <@${r.user_id}>: \`${r.total}\` punições (7d)`;
                         });
                 } catch (err) {

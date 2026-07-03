@@ -41,7 +41,7 @@ module.exports = {
             builder.text(`${emojis.terminal || '💻'} **API:** \`${Math.round(client.ws.ping)}ms\``);
             builder.text(`${emojis.gauge || '📊'} **Status:** ${statusEmoji} ${statusText}`);
             builder.separator();
-            builder.text(`🤖 **Bot:** ${client.user?.tag || 'Desconhecido'}`);
+            builder.text(`${emojis.robo || '🤖'} **Bot:** ${client.user?.tag || 'Desconhecido'}`);
             builder.text(`${emojis.calendar || '📅'} **Uptime:** ${Math.floor(client.uptime / 1000 / 60)} minutos`);
             builder.footer(`Solicitado por ${interaction.user.tag}`);
             

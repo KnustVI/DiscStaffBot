@@ -245,11 +245,11 @@ class PoTWebhookSystem {
             finalComponents.push(
                 new ActionRowBuilder().addComponents(
                     AdvancedContainerBuilder.secondaryButton(
-                        `pot_webhook:page:_:${guildId}:${Math.max(0, safePage - 1)}`, '◀ Anterior'
-                    ).setDisabled(safePage === 0),
+                        `pot_webhook:page:_:${guildId}:${Math.max(0, safePage - 1)}`, 'Anterior'
+                    ).setEmoji(EMOJIS.paginaanterior || '◀').setDisabled(safePage === 0),
                     AdvancedContainerBuilder.secondaryButton(
-                        `pot_webhook:page:_:${guildId}:${Math.min(totalPages - 1, safePage + 1)}`, 'Próxima ▶'
-                    ).setDisabled(safePage === totalPages - 1)
+                        `pot_webhook:page:_:${guildId}:${Math.min(totalPages - 1, safePage + 1)}`, 'Próxima'
+                    ).setEmoji(EMOJIS.paginaproxima || '▶').setDisabled(safePage === totalPages - 1)
                 )
             );
         }

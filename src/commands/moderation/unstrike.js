@@ -69,7 +69,7 @@ module.exports = {
                 reason,
             }, 120000);
 
-            const severityIcons = ['⚪', '🟢', '🟡', '🟠', '🔴', '💀'];
+            const severityIcons = ['⚪', emojis.severidadebaixa || '🟢', emojis.severidademedia || '🟡', emojis.severidadelaranja || '🟠', emojis.severidadealta || '🔴', emojis.Dead || '💀'];
 
             const builder = new AdvancedContainerBuilder({ accentColor: 0xFFBD59 });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);

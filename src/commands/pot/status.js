@@ -49,7 +49,7 @@ module.exports = {
 
             if (config) {
                 builder.text(`${emojis.circlecheck || '✅'} **Servidor:** ${config.server_ip || 'Não configurado'}`);
-                builder.text(`🔌 **Porta RCON:** ${config.rcon_port || 'N/A'}`);
+                builder.text(`${emojis.tomada || '🔌'} **Porta RCON:** ${config.rcon_port || 'N/A'}`);
                 builder.text(`📨 **Webhooks:** ${Object.keys(webhooks).length} configurados`);
             } else {
                 builder.text(`${emojis.circlealert || '❌'} **Servidor:** Não configurado`);
@@ -88,20 +88,20 @@ module.exports = {
             } else {
                 rconText = `${emojis.circlealert || '❌'} Falhou (sem resposta do servidor — verifique IP/porta/senha RCON)`;
             }
-            builder.text(`${emojis.wifi || '🔗'} **RCON:** ${rconText}`);
+            builder.text(`${emojis.rcon || '🔗'} **RCON:** ${rconText}`);
 
             if (process.env.POT_PUBLIC_URL) {
-                builder.text(`🌐 **URL Pública:** \`${process.env.POT_PUBLIC_URL}\``);
+                builder.text(`${emojis.globo || '🌐'} **URL Pública:** \`${process.env.POT_PUBLIC_URL}\``);
             }
 
             builder.separator();
 
             if (!config) {
-                builder.text('💡 **Dica:** Use `/potserver setup` para configurar o servidor.');
+                builder.text(`${emojis.luz || '💡'} **Dica:** Use \`/potserver setup\` para configurar o servidor.`);
             } else if (Object.keys(webhooks).length === 0) {
-                builder.text('💡 **Dica:** Use `/potserver logs` para criar os webhooks.');
+                builder.text(`${emojis.luz || '💡'} **Dica:** Use \`/potserver logs\` para criar os webhooks.`);
             } else if (!rconLiveOk) {
-                builder.text('💡 **Dica:** RCON falhou — confirme se o servidor PoT está online e se IP/porta/senha estão corretos em `/potserver setup`.');
+                builder.text(`${emojis.luz || '💡'} **Dica:** RCON falhou — confirme se o servidor PoT está online e se IP/porta/senha estão corretos em \`/potserver setup\`.`);
             } else {
                 builder.text(`${emojis.circlecheck || '✅'} **Tudo pronto!** O servidor está integrado com o bot.`);
             }
