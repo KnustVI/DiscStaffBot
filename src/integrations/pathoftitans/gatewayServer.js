@@ -14,6 +14,13 @@ const { EmbedBuilder } = require('discord.js');
 const ErrorLogger = require('../../systems/core/errorLogger');
 const PoTTokenManager = require('./tokenManager');
 const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
+const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
+const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+
+// Eventos do grupo "login" que já ganharam o container novo (avatar/Discord
+// vinculado, quando reconhecemos o jogador). Os demais grupos continuam no
+// formato de texto simples por enquanto — reformulação prevista pra todos.
+const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave']);
 
 let EMOJIS = {};
 try {
@@ -36,12 +43,28 @@ class PoTGatewayServer {
         if (this.isRunning) return;
 
         this.app = express();
-        this.app.use(express.json());
+
+        // ── type: () => true força o parse como JSON não importa o
+        // Content-Type enviado. O servidor do jogo (motor Unreal) nem sempre
+        // manda "application/json" certinho — sem isso, express.json() com
+        // as opções padrão IGNORA o corpo silenciosamente (req.body vira
+        // {}), e todo campo (PlayerName, AlderonId etc.) chega "undefined"
+        // mesmo que o payload real esteja completo. ──────────────────────
+        this.app.use(express.json({ type: () => true }));
+
+        // Corpo mal formado (não é JSON de verdade) não deve derrubar o
+        // processo — responde 400 e segue.
+        this.app.use((err, req, res, next) => {
+            if (err?.type === 'entity.parse.failed') {
+                return res.status(400).json({ error: 'Invalid JSON body' });
+            }
+            next(err);
+        });
 
         // ── Log de debug (ativar com DEBUG_POT=true no .env) ──────────────
         this.app.use((req, res, next) => {
             if (process.env.DEBUG_POT === 'true') {
-                console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${req.query.evt || '-'}`);
+                console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${req.query.evt || '-'} body=${JSON.stringify(req.body)}`);
             }
             next();
         });
@@ -111,8 +134,7 @@ class PoTGatewayServer {
             const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerKilled', 'PlayerChat', 'PlayerCommand'];
             if (playerEvents.includes(potEvent)) {
                 try {
-                    const registry = require('../../systems/pot/potPlayerRegistry');
-                    registry.upsertPlayerFromEvent(guildId, data, potEvent);
+                    PlayerRegistry.upsertPlayerFromEvent(guildId, data, potEvent);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Registro de jogador falhou:', err.message);
                 }
@@ -122,13 +144,90 @@ class PoTGatewayServer {
             const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, groupId);
             if (!webhookUrl) return; // grupo não configurado, ignora silenciosamente
 
-            // 3. Traduz e posta no webhook Discord
+            // 3. Login/Logout/Leave já usam o container novo (Components V2);
+            // os demais grupos continuam no formato antigo por enquanto.
+            if (CONTAINER_EVENTS.has(potEvent)) {
+                const payload = await this._buildLoginEventPayload(guildId, potEvent, data);
+                await this._postJsonToWebhook(webhookUrl, payload);
+                return;
+            }
+
             const message = this._formatMessage(potEvent, data);
             const embed = this._formatEmbed(potEvent, data);
             await this._postToWebhook(webhookUrl, message, embed);
 
         } catch (error) {
             ErrorLogger.error('pot_gateway', 'routeToDiscord', error, { guildId, groupId, potEvent });
+        }
+    }
+
+    // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
+
+    /**
+     * Monta o container (Components V2) do evento de login/logout/leave.
+     * Se o AlderonId já estiver vinculado a um Discord (via /registrar ou
+     * webhook de login com DiscordId), mostra o usuário do Discord — avatar
+     * e username — junto das informações do jogo.
+     */
+    async _buildLoginEventPayload(guildId, potEvent, data) {
+        const d = data || {};
+
+        const titles = {
+            PlayerLogin:  `${EMOJIS.DinoFootprint || '🎮'} JOGADOR ENTROU`,
+            PlayerLogout: `${EMOJIS.logout || '👋'} JOGADOR SAIU`,
+            PlayerLeave:  `${EMOJIS.logout || '🚶'} JOGADOR DESCONECTOU`,
+        };
+        const color = potEvent === 'PlayerLogin' ? COLORS.SUCCESS : COLORS.DEFAULT;
+
+        let discordUser = null;
+        try {
+            const linked = PlayerRegistry.getPlayerByAlderonId(guildId, d.AlderonId);
+            if (linked?.discord_id) {
+                discordUser = await this.client.users.fetch(linked.discord_id).catch(() => null);
+            }
+        } catch (err) {
+            // sem vínculo encontrado — segue sem info de Discord
+        }
+
+        const guild = this.client.guilds.cache.get(guildId);
+        const avatarUrl = discordUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+        const builder = new AdvancedContainerBuilder({ accentColor: color });
+        builder.section(
+            [
+                `# ${titles[potEvent] || potEvent}`,
+                `**${d.PlayerName || 'Desconhecido'}**`,
+            ].join('\n'),
+            AdvancedContainerBuilder.thumbnail(avatarUrl),
+        );
+        builder.separator();
+        builder.text(`${EMOJIS.tv || '🖥️'} **Servidor:** ${d.ServerName || 'Desconhecido'}`);
+        builder.text(`${EMOJIS.idcard || '🆔'} **Alderon ID:** \`${d.AlderonId || 'N/A'}\``);
+        builder.text(`${EMOJIS.crown || '👑'} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
+        if (discordUser) {
+            builder.separator();
+            builder.text(`${EMOJIS.user || '👤'} **Discord:** ${discordUser.toString()} (\`${discordUser.tag}\`)`);
+        }
+        builder.footer(guild?.name || d.ServerName || 'Servidor');
+
+        const { components, flags } = builder.build();
+        return { components: components.map(c => c.toJSON()), flags };
+    }
+
+    async _postJsonToWebhook(webhookUrl, payload) {
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok && process.env.DEBUG_POT === 'true') {
+                const text = await response.text();
+                console.warn(`⚠️ [Gateway] Webhook (container) retornou ${response.status}: ${text.slice(0, 100)}`);
+            }
+        } catch (error) {
+            ErrorLogger.warn('pot_gateway', 'postJsonToWebhook', error.message);
         }
     }
 
