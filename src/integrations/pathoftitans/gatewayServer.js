@@ -52,11 +52,18 @@ class PoTGatewayServer {
         // mesmo que o payload real esteja completo. ──────────────────────
         this.app.use(express.json({ type: () => true }));
 
-        // Corpo mal formado (não é JSON de verdade) não deve derrubar o
-        // processo — responde 400 e segue.
+        // Corpo que não é JSON válido (ex: o motor do jogo manda algo vazio
+        // ou com formatação inesperada em algum evento) NUNCA deve derrubar
+        // o evento — melhor seguir com body vazio (e os campos saem com
+        // fallback) do que rejeitar a requisição inteira com 400 e o evento
+        // nunca chegar no Discord.
         this.app.use((err, req, res, next) => {
             if (err?.type === 'entity.parse.failed') {
-                return res.status(400).json({ error: 'Invalid JSON body' });
+                if (process.env.DEBUG_POT === 'true') {
+                    console.warn(`⚠️ [Gateway] Corpo não-JSON em ${req.method} ${req.path}, seguindo com body vazio:`, err.message);
+                }
+                req.body = {};
+                return next();
             }
             next(err);
         });
