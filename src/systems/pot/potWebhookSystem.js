@@ -201,18 +201,13 @@ class PoTWebhookSystem {
         for (const group of slice) {
             const webhookUrl = groupWebhooks[group.id];
             const isConfigured = !!webhookUrl;
-            // Linhas de Game.ini já prontas pra copiar, direto na seção do
-            // grupo — evita ter que abrir o botão "Game.ini" separado só
-            // pra pegar a URL de um grupo específico.
-            const iniLines = this._getGroupIniLines(group, guildId);
 
             builder.section(
                 [
                     `# ${group.name}`,
                     group.description,
                     isConfigured ? `${EMOJIS.circlecheck || '✅'} Webhook configurado` : `${EMOJIS.circlealert || '❌'} Não configurado`,
-                    `-# Eventos: ${group.iniEvents.join(', ')}`,
-                    `\`\`\`ini\n${iniLines.join('\n')}\n\`\`\``
+                    `-# Eventos: ${group.iniEvents.join(', ')}`
                 ].join('\n'),
                 AdvancedContainerBuilder.thumbnail(guildIconUrl, group.id)
             );

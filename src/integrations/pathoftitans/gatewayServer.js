@@ -10,24 +10,16 @@
  * mesmo que vários eventos compartilhem a mesma rota de grupo (/pot/login).
  */
 const express = require('express');
-const { EmbedBuilder } = require('discord.js');
 const ErrorLogger = require('../../systems/core/errorLogger');
 const PoTTokenManager = require('./tokenManager');
 const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
-const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const WebhookPayloads = require('./webhookPayloads');
 
 // Eventos do grupo "login" que já ganharam o container novo (avatar/Discord
 // vinculado, quando reconhecemos o jogador). Os demais grupos continuam no
 // formato de texto simples por enquanto — reformulação prevista pra todos.
 const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave']);
-
-let EMOJIS = {};
-try {
-    EMOJIS = require('../../database/emojis.js').EMOJIS || {};
-} catch (err) {
-    EMOJIS = {};
-}
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 
@@ -205,90 +197,21 @@ class PoTGatewayServer {
 
             // 3. Login/Logout/Leave já usam o container novo (Components V2);
             // os demais grupos continuam no formato antigo por enquanto.
+            // Construção das mensagens fica em webhookPayloads.js — edite lá.
             if (CONTAINER_EVENTS.has(potEvent)) {
-                const payload = await this._buildLoginEventPayload(guildId, potEvent, data);
+                const payload = await WebhookPayloads.buildLoginEventPayload(this.client, guildId, potEvent, data);
                 await this._postJsonToWebhook(webhookUrl, payload);
                 return;
             }
 
-            const message = this._formatMessage(potEvent, data);
-            const embed = this._formatEmbed(potEvent, data);
+            const guild = this.client.guilds.cache.get(guildId);
+            const message = WebhookPayloads.formatMessage(potEvent, data, guild);
+            const embed = WebhookPayloads.formatEmbed(potEvent, data, guild);
             await this._postToWebhook(webhookUrl, message, embed);
 
         } catch (error) {
             ErrorLogger.error('pot_gateway', 'routeToDiscord', error, { guildId, groupId, potEvent });
         }
-    }
-
-    // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
-
-    /**
-     * Monta o container (Components V2) do evento de login/logout/leave.
-     * Se o AlderonId já estiver vinculado a um Discord (via /registrar ou
-     * webhook de login com DiscordId), mostra o usuário do Discord — avatar
-     * e username — junto das informações do jogo.
-     */
-    async _buildLoginEventPayload(guildId, potEvent, data) {
-        const d = data || {};
-
-        // ── Emoji unicode simples, de propósito: esta mensagem sai por um
-        // webhook cru (fetch direto), não pelo client autenticado do bot —
-        // emojis customizados da aplicação (EMOJIS.*) não renderizam nesse
-        // caminho e aparecem como texto (":nome:"). ────────────────────────
-        const titleSuffixes = {
-            PlayerLogin:  'ENTROU',
-            PlayerLogout: 'SAIU',
-            PlayerLeave:  'DESCONECTOU',
-        };
-        const color = potEvent === 'PlayerLogin' ? COLORS.SUCCESS : COLORS.DEFAULT;
-
-        // PlayerLeave manda a chave como PlayerAlderonId, não AlderonId como
-        // os demais eventos deste grupo — ver doc oficial de webhooks do PoT.
-        const alderonId = d.AlderonId || d.PlayerAlderonId || null;
-
-        let discordUser = null;
-        try {
-            const linked = PlayerRegistry.getPlayerByAlderonId(guildId, alderonId);
-            if (linked?.discord_id) {
-                discordUser = await this.client.users.fetch(linked.discord_id).catch(() => null);
-            }
-        } catch (err) {
-            // sem vínculo encontrado — segue sem info de Discord
-        }
-
-        const guild = this.client.guilds.cache.get(guildId);
-        const avatarUrl = discordUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-
-        const playerName = d.PlayerName || 'Desconhecido';
-        const suffix = titleSuffixes[potEvent] || potEvent;
-        const nameLines = [`## ${playerName} ${suffix}`];
-        if (discordUser) {
-            nameLines.push(`👤 ${discordUser.toString()} (\`${discordUser.tag}\`)`);
-        }
-
-        const builder = new AdvancedContainerBuilder({ accentColor: color });
-        builder.section(nameLines.join('\n'), AdvancedContainerBuilder.thumbnail(avatarUrl));
-        builder.separator();
-        builder.text(`🖥️ **Servidor:** ${d.ServerName || 'Desconhecido'}`);
-        builder.text(`🆔 **Alderon ID:** \`${alderonId || 'N/A'}\``);
-        builder.text(`👑 **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
-
-        // Só o PlayerLeave traz esses dois campos (documentados oficialmente):
-        // SafeLog (desconexão graciosa, pelo menu, vs. queda abrupta/crash) e
-        // FromDeath (se saiu logo após morrer — relevante pra moderação).
-        if (potEvent === 'PlayerLeave') {
-            if (typeof d.SafeLog === 'boolean') {
-                builder.text(`${d.SafeLog ? '🟢' : '🔴'} **Desconexão segura:** ${d.SafeLog ? 'Sim' : 'Não'}`);
-            }
-            if (typeof d.FromDeath === 'boolean' && d.FromDeath) {
-                builder.text(`💀 **Saiu logo após morrer**`);
-            }
-        }
-
-        builder.footer(guild?.name || d.ServerName || 'Servidor');
-
-        const { components, flags } = builder.build();
-        return { components: components.map(c => c.toJSON()), flags };
     }
 
     /**
@@ -359,97 +282,6 @@ class PoTGatewayServer {
         }
     }
 
-    // ==================== FORMATAÇÃO POR EVENTO ====================
-
-    _formatMessage(potEvent, data) {
-        const d = data || {};
-
-        const formatters = {
-            // ── Login / Logout ──
-            PlayerLogin:   () => `${EMOJIS.DinoFootprint || '🎮'} **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${EMOJIS.crown || '👑'}` : ''}`,
-            PlayerLogout:  () => `${EMOJIS.logout || '👋'} **${d.PlayerName}** saiu do servidor`,
-            PlayerLeave:   () => `${EMOJIS.logout || '🚶'} **${d.PlayerName}** desconectou`,
-
-            // ── Combate ──
-            PlayerKilled:        () => `${EMOJIS.Dead || '💀'} **${d.VictimName}** foi morto por **${d.KillerName}**\n${EMOJIS.build || '🔧'} Causa: \`${d.DamageType}\``,
-            PlayerDamagedPlayer: () => `${EMOJIS.swords || '⚔️'} **${d.SourceName}** causou **${d.DamageAmount}** de dano em **${d.TargetName}**`,
-
-            // ── Quest ──
-            PlayerQuestComplete: () => `${EMOJIS.listchecks || '📜'} **${d.PlayerName}** completou a missão **${d.Quest}**`,
-            PlayerQuestFailed:   () => `${EMOJIS.circlealert || '❌'} **${d.PlayerName}** falhou na missão **${d.Quest}**`,
-
-            // ── Respawn ──
-            PlayerRespawn:  () => `${EMOJIS.refreshccw || '🔄'} **${d.PlayerName}** ressurgiu como **${d.DinosaurType}**`,
-            PlayerWaystone: () => `${EMOJIS.Waystone || '✨'} **${d.InviterName}** teletransportou **${d.TeleportedPlayerName}**`,
-
-            // ── Chat ──
-            PlayerChat:      () => `${EMOJIS.messagecircle || '💬'} **${d.PlayerName}:** ${d.Message}`,
-            PlayerProfanity: () => `${EMOJIS.shieldban || '🔞'} **${d.PlayerName}** tentou enviar mensagem bloqueada`,
-
-            // ── Comandos ──
-            PlayerCommand: () => `${EMOJIS.raio || '⚡'} **${d.PlayerName}:** \`${d.Message}\``,
-
-            // ── Grupo ──
-            PlayerJoinedGroup: () => `${EMOJIS.users || '👥'} **${d.Player}** entrou no grupo de **${d.Leader}**`,
-            PlayerLeftGroup:   () => `${EMOJIS.users || '👥'} **${d.Player}** saiu do grupo`,
-
-            // ── Servidor ──
-            ServerStart:             () => `🟢 Servidor **iniciou** | Mapa: \`${d.Map || 'desconhecido'}\``,
-            ServerRestart:           () => `${EMOJIS.refreshccw || '🔄'} Servidor **reiniciando**...`,
-            ServerRestartCountdown:  () => `${EMOJIS.clockalert || '⏳'} Servidor reinicia em **${d.CountdownTime || '?'}s**`,
-            ServerModerate:          () => `${EMOJIS.shieldcheck || '🛡️'} Moderação automática: **${d.PlayerName}** — ${d.Reason || 'sem motivo'}`,
-            ServerError:             () => `${EMOJIS.filewarning || '⚠️'} **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
-            SecurityAlert:           () => `${EMOJIS.siren || '🚨'} **ALERTA DE SEGURANÇA:** ${d.SecurityAlert || 'suspeita detectada'}`,
-            BadAverageTick:          () => `${EMOJIS.trendingdown || '📉'} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
-
-            // ── Admin ──
-            AdminSpectate: () => `${EMOJIS.eye || '👁️'} **${d.AdminName}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
-            AdminCommand:  () => `${EMOJIS.crown || '👑'} **${d.AdminName}** executou: \`${d.Command}\``,
-
-            // ── Nest ──
-            CreateNest:    () => `${EMOJIS.Nest || '🪺'} **${d.PlayerName}** criou um ninho`,
-            DestroyNest:   () => `💥 Ninho de **${d.PlayerName}** foi destruído`,
-            NestInvite:    () => `${EMOJIS.mensagem || '📨'} **${d.PlayerName}** convidou **${d.InvitedPlayer}** para o ninho`,
-            PlayerJoinNest: () => `${EMOJIS.circlecheck || '✅'} **${d.PlayerName}** entrou em um ninho`,
-            UpdateNest:    () => `${EMOJIS.filetext || '📝'} Ninho de **${d.PlayerName}** foi atualizado`,
-        };
-
-        const fn = formatters[potEvent];
-        if (!fn) return `${EMOJIS.wifi || '📡'} Evento: \`${potEvent}\``;
-
-        try {
-            return fn();
-        } catch (err) {
-            return `${EMOJIS.wifi || '📡'} Evento: \`${potEvent}\` (dados incompletos)`;
-        }
-    }
-
-    _formatEmbed(potEvent, data) {
-        const d = data || {};
-
-        // Embed extra apenas para eventos que ganham com contexto visual
-        if (potEvent === 'PlayerKilled' && d.VictimName && d.KillerName) {
-            return new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle(`${EMOJIS.Dead || '💀'} Morte em Combate`)
-                .addFields(
-                    { name: 'Vítima', value: d.VictimName, inline: true },
-                    { name: 'Assassino', value: d.KillerName, inline: true },
-                    { name: 'Causa', value: d.DamageType || 'Desconhecida', inline: true }
-                )
-                .setTimestamp();
-        }
-
-        if (potEvent === 'ServerError' || potEvent === 'SecurityAlert') {
-            return new EmbedBuilder()
-                .setColor(0xFF4444)
-                .setTitle(`${EMOJIS.siren || '🚨'} ${potEvent === 'SecurityAlert' ? 'Alerta de Segurança' : 'Erro do Servidor'}`)
-                .setDescription(d.ErrorMessage || d.SecurityAlert || 'Sem detalhes')
-                .setTimestamp();
-        }
-
-        return null;
-    }
 }
 
 module.exports = PoTGatewayServer;

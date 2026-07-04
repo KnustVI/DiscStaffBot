@@ -57,6 +57,9 @@ module.exports = {
                 .separator();
 
             if (config) {
+                if (config.server_name) {
+                    builder.text(`${emojis.circleuser || '🏷️'} **Nome:** ${config.server_name}`);
+                }
                 builder.text(`${emojis.circlecheck || '✅'} **Servidor:** ${config.server_ip || 'Não configurado'}`);
                 builder.text(`${emojis.tomada || '🔌'} **Porta RCON:** ${config.rcon_port || 'N/A'}`);
                 builder.text(`${emojis.mensagem || '📨'} **Webhooks:** ${Object.keys(webhooks).length} configurados`);

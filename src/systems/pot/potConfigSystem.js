@@ -23,6 +23,9 @@ try {
 // texto do host, não pelo Discord).
 // `emoji` = emoji customizado já resolvido — usado só em texto que o Discord
 // realmente renderiza (painel, `name` legado mantido pra outros usos soltos).
+//
+// `description` aparece no painel /potserver logs — atualize sempre que uma
+// nova funcionalidade do bot passar a usar os dados desse grupo.
 
 const EVENT_GROUPS = [
     {
@@ -30,7 +33,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.login || '📥'} Login / Logout`,
         label: 'Login / Logout',
         emoji: EMOJIS.login || '📥',
-        description: 'Registro de entradas e saídas do servidor.',
+        description: 'Registra entrada/saída e vincula o jogador ao Discord (usado por /registrar e pelo container de login).',
         route: 'login',
         iniEvents: ['PlayerLogin', 'PlayerLogout', 'PlayerLeave']
     },
@@ -39,7 +42,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.swords || '💀'} Combate`,
         label: 'Combate',
         emoji: EMOJIS.swords || '💀',
-        description: 'Mortes e dano entre jogadores.',
+        description: 'Mortes e dano entre jogadores. Só gera log no Discord por enquanto.',
         route: 'combate',
         iniEvents: ['PlayerKilled', 'PlayerDamagedPlayer']
     },
@@ -48,7 +51,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.listchecks || '📜'} Quest`,
         label: 'Quest',
         emoji: EMOJIS.listchecks || '📜',
-        description: 'Progresso de missões.',
+        description: 'Progresso de missões. Só gera log no Discord por enquanto.',
         route: 'quest',
         iniEvents: ['PlayerQuestComplete', 'PlayerQuestFailed']
     },
@@ -57,7 +60,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.refreshccw || '🔄'} Respawn`,
         label: 'Respawn',
         emoji: EMOJIS.refreshccw || '🔄',
-        description: 'Reviver e teletransporte.',
+        description: 'Reviver e teletransporte. Só gera log no Discord por enquanto.',
         route: 'respawn',
         iniEvents: ['PlayerRespawn', 'PlayerWaystone']
     },
@@ -66,7 +69,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.messagecircle || '💬'} Chat`,
         label: 'Chat',
         emoji: EMOJIS.messagecircle || '💬',
-        description: 'Mensagens e profanidade no chat.',
+        description: 'Mensagens e profanidade no chat do jogo. Só gera log no Discord por enquanto — útil pra moderação manual.',
         route: 'chat',
         iniEvents: ['PlayerChat', 'PlayerProfanity']
     },
@@ -75,7 +78,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.raio || '⚡'} Comandos`,
         label: 'Comandos',
         emoji: EMOJIS.raio || '⚡',
-        description: 'Comandos de jogadores (prefixo !).',
+        description: 'Comandos de jogadores (prefixo !). Só gera log no Discord por enquanto.',
         route: 'comando',
         iniEvents: ['PlayerCommand']
     },
@@ -84,7 +87,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.users || '👥'} Grupo`,
         label: 'Grupo',
         emoji: EMOJIS.users || '👥',
-        description: 'Formação e dissolução de grupos.',
+        description: 'Formação e dissolução de grupos. Só gera log no Discord por enquanto.',
         route: 'grupo',
         iniEvents: ['PlayerJoinedGroup', 'PlayerLeftGroup']
     },
@@ -93,7 +96,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.tv || '🖥️'} Servidor`,
         label: 'Servidor',
         emoji: EMOJIS.tv || '🖥️',
-        description: 'Eventos, alertas e performance do servidor.',
+        description: 'Eventos, alertas e performance do servidor (start, restart, erros, tick baixo). Só gera log no Discord por enquanto — bom pra monitorar a saúde do servidor.',
         route: 'servidor',
         iniEvents: ['ServerStart', 'ServerRestart', 'ServerRestartCountdown', 'ServerModerate', 'ServerError', 'SecurityAlert', 'BadAverageTick']
     },
@@ -102,7 +105,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.crown || '👑'} Admin`,
         label: 'Admin',
         emoji: EMOJIS.crown || '👑',
-        description: 'Ações e comandos administrativos.',
+        description: 'Ações administrativas no jogo (espectador, comandos de admin). Só gera log no Discord por enquanto — útil pra auditoria da staff.',
         route: 'admin',
         iniEvents: ['AdminSpectate', 'AdminCommand']
     },
@@ -111,7 +114,7 @@ const EVENT_GROUPS = [
         name: `${EMOJIS.Nest || '🪺'} Nest`,
         label: 'Nest',
         emoji: EMOJIS.Nest || '🪺',
-        description: 'Criação e gestão de ninhos.',
+        description: 'Criação e gestão de ninhos. Só gera log no Discord por enquanto.',
         route: 'nest',
         iniEvents: ['CreateNest', 'DestroyNest', 'NestInvite', 'PlayerJoinNest', 'UpdateNest']
     }

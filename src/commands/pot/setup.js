@@ -17,12 +17,14 @@ module.exports = {
         const ip = interaction.options.getString('ip');
         const rconPassword = interaction.options.getString('rcon_password');
         const rconPort = interaction.options.getInteger('rcon_port');
+        const serverName = interaction.options.getString('nome');
 
         const guildName = interaction.guild?.name || 'Servidor';
 
         try {
             const config = {
                 enabled: true,
+                server_name: serverName || null,
                 server_ip: ip,
                 rcon_password: rconPassword,
                 rcon_port: rconPort,
@@ -59,6 +61,7 @@ module.exports = {
                     builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
                 )
                 .separator()
+                .text(serverName ? `${emojis.circleuser || '🏷️'} Nome: ${serverName}` : `${emojis.circleuser || '🏷️'} Nome: (não informado)`)
                 .text(`${emojis.wifi || '📡'} IP: ${ip}`)
                 .text(`${emojis.tomada || '🔌'} Porta RCON: ${rconPort}`)
                 .text(`${emojis.vpnkey || '🔑'} Token: \`${token}\``)

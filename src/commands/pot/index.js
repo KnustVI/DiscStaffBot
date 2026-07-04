@@ -30,6 +30,11 @@ module.exports = {
                 .setDescription('Porta RCON do servidor')
                 .setRequired(true)
             )
+            .addStringOption(opt => opt
+                .setName('nome')
+                .setDescription('Nome do servidor de jogo (ex: Atlas Brasil)')
+                .setRequired(false)
+            )
         )
         .addSubcommand(sub => sub
             .setName('logs')
