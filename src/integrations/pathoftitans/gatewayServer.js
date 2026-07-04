@@ -232,11 +232,8 @@ class PoTGatewayServer {
     /**
      * URLs de webhook copiadas da interface do Discord (Configurações do
      * Canal → Integrações) não têm versão de API no caminho
-     * (discord.com/api/webhooks/...). Sem isso, o endpoint pode cair numa
-     * versão antiga que não reconhece Components V2 (components + flags) —
-     * ela ignora esses campos, não sobra nenhum content/embeds legado, e o
-     * Discord responde 400 "Cannot send an empty message" (50006), mesmo
-     * com o container cheio de texto. Forçar /v10/ resolve. */
+     * (discord.com/api/webhooks/...). Força /v10/ por segurança/consistência
+     * — isso sozinho NÃO resolve o 50006 (ver _postJsonToWebhook). */
     _withApiVersion(webhookUrl) {
         try {
             const url = new URL(webhookUrl);
@@ -249,9 +246,20 @@ class PoTGatewayServer {
         }
     }
 
+    /**
+     * A causa real do 50006 "Cannot send an empty message": um webhook comum
+     * de canal (criado em Integrações) NÃO é "application-owned". Pra esses,
+     * o Discord IGNORA o campo `components` da mensagem a menos que a
+     * requisição inclua `?with_components=true` na URL — e como não mandamos
+     * `content`/`embeds` (só components), depois de ignorado não sobra nada,
+     * daí o erro. Doc: https://docs.discord.com/developers/resources/webhook
+     * (Execute Webhook, query param with_components). */
     async _postJsonToWebhook(webhookUrl, payload) {
         try {
-            const response = await fetch(this._withApiVersion(webhookUrl), {
+            const url = new URL(this._withApiVersion(webhookUrl));
+            url.searchParams.set('with_components', 'true');
+
+            const response = await fetch(url.toString(), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
