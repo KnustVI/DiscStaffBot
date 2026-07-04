@@ -227,9 +227,9 @@ class PoTGatewayServer {
         // emojis customizados da aplicação (EMOJIS.*) não renderizam nesse
         // caminho e aparecem como texto (":nome:"). ────────────────────────
         const titles = {
-            PlayerLogin:  '🎮 JOGADOR ENTROU',
-            PlayerLogout: '👋 JOGADOR SAIU',
-            PlayerLeave:  '🚶 JOGADOR DESCONECTOU',
+            PlayerLogin:  'JOGADOR ENTROU',
+            PlayerLogout: 'JOGADOR SAIU',
+            PlayerLeave:  'JOGADOR DESCONECTOU',
         };
         const color = potEvent === 'PlayerLogin' ? COLORS.SUCCESS : COLORS.DEFAULT;
 
@@ -246,22 +246,20 @@ class PoTGatewayServer {
         const guild = this.client.guilds.cache.get(guildId);
         const avatarUrl = discordUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
 
+        const nameLines = [
+            `## ${titles[potEvent] || potEvent}`,
+            `**${d.PlayerName || 'Desconhecido'}**`,
+        ];
+        if (discordUser) {
+            nameLines.push(`👤 ${discordUser.toString()} (\`${discordUser.tag}\`)`);
+        }
+
         const builder = new AdvancedContainerBuilder({ accentColor: color });
-        builder.section(
-            [
-                `# ${titles[potEvent] || potEvent}`,
-                `**${d.PlayerName || 'Desconhecido'}**`,
-            ].join('\n'),
-            AdvancedContainerBuilder.thumbnail(avatarUrl),
-        );
+        builder.section(nameLines.join('\n'), AdvancedContainerBuilder.thumbnail(avatarUrl));
         builder.separator();
         builder.text(`🖥️ **Servidor:** ${d.ServerName || 'Desconhecido'}`);
         builder.text(`🆔 **Alderon ID:** \`${d.AlderonId || 'N/A'}\``);
         builder.text(`👑 **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
-        if (discordUser) {
-            builder.separator();
-            builder.text(`👤 **Discord:** ${discordUser.toString()} (\`${discordUser.tag}\`)`);
-        }
         builder.footer(guild?.name || d.ServerName || 'Servidor');
 
         const { components, flags } = builder.build();
