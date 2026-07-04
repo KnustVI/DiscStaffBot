@@ -73,14 +73,17 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
     const suffix = titleSuffixes[potEvent] || potEvent;
     const nameLines = [`## ${playerName} ${suffix}`];
     if (discordUser) {
-        nameLines.push(`${resolveEmoji(guild, 'circleuser', '👤')} ${discordUser.toString()} (\`${discordUser.tag}\`)`);
+        // Sem menção (@usuário) de propósito — isso pingaria o jogador a
+        // cada login/logout, o que pode incomodar. Só username + ID, sem
+        // notificação.
+        nameLines.push(`${resolveEmoji(guild, 'circleuser', '👤')} ${discordUser.tag} (\`${discordUser.id}\`)`);
     }
 
     const builder = new AdvancedContainerBuilder({ accentColor: color });
     builder.section(nameLines.join('\n'), AdvancedContainerBuilder.thumbnail(avatarUrl));
     builder.separator();
     builder.text(`${resolveEmoji(guild, 'tv', '🖥️')} **Servidor:** ${d.ServerName || 'Desconhecido'}`);
-    builder.text(`🆔 **Alderon ID:** \`${alderonId || 'N/A'}\``);
+    builder.text(`${resolveEmoji(guild, 'idcard', '🆔')} **Alderon ID:** \`${alderonId || 'N/A'}\``);
     builder.text(`${resolveEmoji(guild, 'crown', '👑')} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
 
     // Só o PlayerLeave traz esses dois campos (documentados oficialmente):
