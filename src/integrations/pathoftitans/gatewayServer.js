@@ -77,9 +77,18 @@ class PoTGatewayServer {
         });
 
         // ── Log de debug (ativar com DEBUG_POT=true no .env) ──────────────
+        // Só o essencial pra confirmar que o evento chegou e foi entendido —
+        // rawBody completo só quando o parse falhar (fields vazio), que é
+        // quando ele realmente ajuda a diagnosticar.
         this.app.use((req, res, next) => {
             if (process.env.DEBUG_POT === 'true') {
-                console.log(`📡 [Gateway] ${req.method} ${req.path} query=${JSON.stringify(req.query)} content-type=${req.headers['content-type'] || '-'} rawBody=${JSON.stringify(req.rawBody ?? '(vazio)')} parsedBody=${JSON.stringify(req.body)}`);
+                const fieldCount = Object.keys(req.body || {}).length;
+                const evt = req.query.evt || '-';
+                if (fieldCount > 0) {
+                    console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} (${fieldCount} campos recebidos)`);
+                } else {
+                    console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} — corpo vazio/não reconhecido. rawBody=${JSON.stringify(req.rawBody ?? '(vazio)')}`);
+                }
             }
             next();
         });
