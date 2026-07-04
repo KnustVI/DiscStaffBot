@@ -50,7 +50,15 @@ class PoTGatewayServer {
         // as opções padrão IGNORA o corpo silenciosamente (req.body vira
         // {}), e todo campo (PlayerName, AlderonId etc.) chega "undefined"
         // mesmo que o payload real esteja completo. ──────────────────────
-        this.app.use(express.json({ type: () => true }));
+        this.app.use(express.json({
+            type: () => true,
+            // Guarda o corpo bruto (antes de qualquer parse) pra diagnosticar
+            // via DEBUG_POT=true — sem isso, um corpo que falha o parse vira
+            // {} e nunca sabemos o que o servidor do jogo mandou de fato.
+            verify: (req, res, buf) => {
+                req.rawBody = buf && buf.length ? buf.toString('utf8') : '';
+            },
+        }));
 
         // Corpo que não é JSON válido (ex: o motor do jogo manda algo vazio
         // ou com formatação inesperada em algum evento) NUNCA deve derrubar
@@ -71,7 +79,7 @@ class PoTGatewayServer {
         // ── Log de debug (ativar com DEBUG_POT=true no .env) ──────────────
         this.app.use((req, res, next) => {
             if (process.env.DEBUG_POT === 'true') {
-                console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${req.query.evt || '-'} body=${JSON.stringify(req.body)}`);
+                console.log(`📡 [Gateway] ${req.method} ${req.path} query=${JSON.stringify(req.query)} content-type=${req.headers['content-type'] || '-'} rawBody=${JSON.stringify(req.rawBody ?? '(vazio)')} parsedBody=${JSON.stringify(req.body)}`);
             }
             next();
         });
