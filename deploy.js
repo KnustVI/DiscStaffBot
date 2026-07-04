@@ -9,7 +9,7 @@ const commands = [];
 // Adicione aqui os IDs dos servidores onde quer registrar os comandos
 const GUILD_IDS = [
     '430534418818400266',  // Servidor principal (KnustVI Productions)
-    '1480473937413672981'  // ← SUBSTITUA PELO ID DO NOVO SERVIDOR
+    '1470636597929050255'  // Atlas Brasil
 ];
 
 // --- 1. LOCALIZAÇÃO DOS COMANDOS ---
