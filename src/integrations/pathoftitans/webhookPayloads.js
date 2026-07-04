@@ -19,7 +19,17 @@ const { EmbedBuilder } = require('discord.js');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
+let EMOJIS = {};
+try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
+
+/**
+ * Prioridade: emoji de APLICAÇÃO do bot (EMOJIS.*) — só renderiza quando a
+ * mensagem sai autenticada como o bot (gatewayServer._trySendViaBotChannel),
+ * não via webhook cru — depois emoji do PRÓPRIO servidor (renderiza em
+ * qualquer um dos dois caminhos), depois unicode genérico.
+ */
 function resolveEmoji(guild, key, fallback) {
+    if (EMOJIS[key]) return EMOJIS[key];
     const found = guild?.emojis?.cache?.find(e => e.name?.toLowerCase() === key.toLowerCase());
     return found ? found.toString() : fallback;
 }

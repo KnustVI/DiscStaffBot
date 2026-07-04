@@ -46,13 +46,15 @@ module.exports = {
                 accentColor: statusAccentColor
             });
 
+            const guildIconUrl = interaction.guild?.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+
             builder
                 .section(
                     [
                         '# STATUS DO SERVIDOR PATH OF TITANS',
                         'Resumo da integração com seu servidor PoT.',
                     ].join('\n'),
-                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                    AdvancedContainerBuilder.thumbnail(guildIconUrl)
                 )
                 .separator();
 
@@ -82,6 +84,7 @@ module.exports = {
                 if (tokenStats.last_used) {
                     builder.text(`${emojis.clock || '🕐'} **Último uso:** <t:${Math.floor(tokenStats.last_used / 1000)}:R>`);
                 }
+                builder.text(`-# O token autentica as requisições do seu servidor de jogo com o bot (já embutido nas URLs do \`Game.ini\`, veja \`/potserver logs\`) — é o que garante que só o SEU servidor pode enviar eventos pra esse Discord.`);
             } else {
                 builder.text(`${emojis.vpnkey || '🔑'} **Token:** ${emojis.circlealert || '❌'} Não gerado`);
                 builder.text('Execute `/potserver setup` para gerar um token');

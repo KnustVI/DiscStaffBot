@@ -52,19 +52,22 @@ module.exports = {
                 accentColor: rconResult.success ? COLORS.SUCCESS : COLORS.DEFAULT
             });
 
+            const guildIconUrl = interaction.guild?.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+
             builder
                 .section(
                     [
                         '# PATH OF TITANS - CONFIGURAÇÃO',
                         'Configurações salvas com sucesso!',
                     ].join('\n'),
-                    builder.assetThumbnail('icone_setup_server') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                    AdvancedContainerBuilder.thumbnail(guildIconUrl)
                 )
                 .separator()
                 .text(serverName ? `${emojis.circleuser || '🏷️'} Nome: ${serverName}` : `${emojis.circleuser || '🏷️'} Nome: (não informado)`)
                 .text(`${emojis.wifi || '📡'} IP: ${ip}`)
                 .text(`${emojis.tomada || '🔌'} Porta RCON: ${rconPort}`)
                 .text(`${emojis.vpnkey || '🔑'} Token: \`${token}\``)
+                .text(`-# O token autentica as requisições do SEU servidor de jogo com o bot — ele já vem embutido nas URLs do Game.ini (\`/potserver logs\`). Não compartilhe: quem tiver o token pode enviar eventos falsos como se fossem do seu servidor.`)
                 .separator()
                 .text(`${emojis.rcon || '🔄'} RCON: ${rconResult.success ? `${emojis.circlecheck || '✅'} Conectado` : `${emojis.trianglealert || '⚠️'} Offline (${rconResult.error})`}`)
                 .footer(guildName);

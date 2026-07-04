@@ -200,17 +200,74 @@ class PoTGatewayServer {
             // Construção das mensagens fica em webhookPayloads.js — edite lá.
             if (CONTAINER_EVENTS.has(potEvent)) {
                 const payload = await WebhookPayloads.buildLoginEventPayload(this.client, guildId, potEvent, data);
-                await this._postJsonToWebhook(webhookUrl, payload);
+                await this._deliverMessage(webhookUrl, payload);
                 return;
             }
 
             const guild = this.client.guilds.cache.get(guildId);
             const message = WebhookPayloads.formatMessage(potEvent, data, guild);
             const embed = WebhookPayloads.formatEmbed(potEvent, data, guild);
-            await this._postToWebhook(webhookUrl, message, embed);
+            const payload = { content: message };
+            if (embed) payload.embeds = [embed.toJSON()];
+            await this._deliverMessage(webhookUrl, payload);
 
         } catch (error) {
             ErrorLogger.error('pot_gateway', 'routeToDiscord', error, { guildId, groupId, potEvent });
+        }
+    }
+
+    // ==================== ENTREGA DA MENSAGEM ====================
+
+    /**
+     * Tenta entregar a mensagem autenticado como o bot (channel.send na sala
+     * dona do webhook) e só cai pro POST cru no webhook se isso não for
+     * possível (bot não está no servidor/canal, ou sem permissão). O envio
+     * autenticado é o único jeito de emoji de APLICAÇÃO (EMOJIS.*) renderizar
+     * de verdade — webhook execute nunca autentica como o bot, então emoji de
+     * aplicação sempre aparece como texto (":nome:") nesse caminho, não
+     * importa se o servidor tem o bot ou não. */
+    async _deliverMessage(webhookUrl, payload) {
+        const sentAsBot = await this._trySendViaBotChannel(webhookUrl, payload);
+        if (sentAsBot) return;
+        await this._postRawToWebhook(webhookUrl, payload);
+    }
+
+    async _trySendViaBotChannel(webhookUrl, payload) {
+        const { id, token } = this._parseWebhookUrl(webhookUrl);
+        if (!id || !token) return false;
+
+        try {
+            const webhook = await this.client.fetchWebhook(id, token).catch(() => null);
+            if (!webhook?.channelId) return false;
+
+            const channel = await this.client.channels.fetch(webhook.channelId).catch(() => null);
+            if (!channel?.isTextBased?.() || !channel.guild) return false;
+
+            const me = channel.guild.members.me ?? await channel.guild.members.fetchMe().catch(() => null);
+            if (!me) return false;
+
+            const perms = channel.permissionsFor(me);
+            if (!perms?.has(['ViewChannel', 'SendMessages'])) return false;
+
+            await channel.send(payload);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Extrai {id, token} de uma URL de webhook do Discord
+     * (discord.com/api/webhooks/<id>/<token>). */
+    _parseWebhookUrl(webhookUrl) {
+        try {
+            const url = new URL(webhookUrl);
+            const parts = url.pathname.split('/').filter(Boolean);
+            const idx = parts.indexOf('webhooks');
+            if (idx === -1 || !parts[idx + 1] || !parts[idx + 2]) return {};
+            return { id: parts[idx + 1], token: parts[idx + 2] };
+        } catch {
+            return {};
         }
     }
 
@@ -218,7 +275,7 @@ class PoTGatewayServer {
      * URLs de webhook copiadas da interface do Discord (Configurações do
      * Canal → Integrações) não têm versão de API no caminho
      * (discord.com/api/webhooks/...). Força /v10/ por segurança/consistência
-     * — isso sozinho NÃO resolve o 50006 (ver _postJsonToWebhook). */
+     * — isso sozinho NÃO resolve o 50006 (ver _postRawToWebhook). */
     _withApiVersion(webhookUrl) {
         try {
             const url = new URL(webhookUrl);
@@ -232,17 +289,20 @@ class PoTGatewayServer {
     }
 
     /**
-     * A causa real do 50006 "Cannot send an empty message": um webhook comum
-     * de canal (criado em Integrações) NÃO é "application-owned". Pra esses,
-     * o Discord IGNORA o campo `components` da mensagem a menos que a
-     * requisição inclua `?with_components=true` na URL — e como não mandamos
-     * `content`/`embeds` (só components), depois de ignorado não sobra nada,
-     * daí o erro. Doc: https://docs.discord.com/developers/resources/webhook
+     * Fallback quando não dá pra mandar autenticado como o bot (não está no
+     * servidor/canal, ou sem permissão) — mesmo caminho de sempre: POST cru
+     * no webhook. A causa real do 50006 "Cannot send an empty message": um
+     * webhook comum de canal (criado em Integrações) NÃO é "application-
+     * owned". Pra esses, o Discord IGNORA o campo `components` da mensagem a
+     * menos que a requisição inclua `?with_components=true` na URL — e como
+     * não mandamos `content`/`embeds` junto (só components), depois de
+     * ignorado não sobra nada, daí o erro. Doc:
+     * https://docs.discord.com/developers/resources/webhook
      * (Execute Webhook, query param with_components). */
-    async _postJsonToWebhook(webhookUrl, payload) {
+    async _postRawToWebhook(webhookUrl, payload) {
         try {
             const url = new URL(this._withApiVersion(webhookUrl));
-            url.searchParams.set('with_components', 'true');
+            if (payload.components) url.searchParams.set('with_components', 'true');
 
             const response = await fetch(url.toString(), {
                 method: 'POST',
@@ -253,32 +313,12 @@ class PoTGatewayServer {
             if (!response.ok) {
                 const text = await response.text();
                 if (process.env.DEBUG_POT === 'true') {
-                    console.warn(`⚠️ [Gateway] Webhook (container) retornou ${response.status}: ${text.slice(0, 200)} | payload enviado: ${JSON.stringify(payload).slice(0, 300)}`);
+                    console.warn(`⚠️ [Gateway] Webhook retornou ${response.status}: ${text.slice(0, 200)} | payload enviado: ${JSON.stringify(payload).slice(0, 300)}`);
                 }
-                ErrorLogger.warn('pot_gateway', 'postJsonToWebhook', `HTTP ${response.status}: ${text.slice(0, 200)}`);
+                ErrorLogger.warn('pot_gateway', 'postRawToWebhook', `HTTP ${response.status}: ${text.slice(0, 200)}`);
             }
         } catch (error) {
-            ErrorLogger.warn('pot_gateway', 'postJsonToWebhook', error.message);
-        }
-    }
-
-    async _postToWebhook(webhookUrl, content, embed = null) {
-        try {
-            const payload = { content };
-            if (embed) payload.embeds = [embed.toJSON()];
-
-            const response = await fetch(this._withApiVersion(webhookUrl), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok && process.env.DEBUG_POT === 'true') {
-                const text = await response.text();
-                console.warn(`⚠️ [Gateway] Webhook retornou ${response.status}: ${text.slice(0, 100)}`);
-            }
-        } catch (error) {
-            ErrorLogger.warn('pot_gateway', 'postToWebhook', error.message);
+            ErrorLogger.warn('pot_gateway', 'postRawToWebhook', error.message);
         }
     }
 
