@@ -226,10 +226,10 @@ class PoTGatewayServer {
         // webhook cru (fetch direto), não pelo client autenticado do bot —
         // emojis customizados da aplicação (EMOJIS.*) não renderizam nesse
         // caminho e aparecem como texto (":nome:"). ────────────────────────
-        const titles = {
-            PlayerLogin:  'JOGADOR ENTROU',
-            PlayerLogout: 'JOGADOR SAIU',
-            PlayerLeave:  'JOGADOR DESCONECTOU',
+        const titleSuffixes = {
+            PlayerLogin:  'ENTROU',
+            PlayerLogout: 'SAIU',
+            PlayerLeave:  'DESCONECTOU',
         };
         const color = potEvent === 'PlayerLogin' ? COLORS.SUCCESS : COLORS.DEFAULT;
 
@@ -250,10 +250,9 @@ class PoTGatewayServer {
         const guild = this.client.guilds.cache.get(guildId);
         const avatarUrl = discordUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
 
-        const nameLines = [
-            `## ${titles[potEvent] || potEvent}`,
-            `**${d.PlayerName || 'Desconhecido'}**`,
-        ];
+        const playerName = d.PlayerName || 'Desconhecido';
+        const suffix = titleSuffixes[potEvent] || potEvent;
+        const nameLines = [`## ${playerName} ${suffix}`];
         if (discordUser) {
             nameLines.push(`👤 ${discordUser.toString()} (\`${discordUser.tag}\`)`);
         }
