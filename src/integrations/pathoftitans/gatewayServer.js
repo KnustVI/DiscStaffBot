@@ -141,10 +141,45 @@ class PoTGatewayServer {
         }
     }
 
+    // ==================== NORMALIZAÇÃO Format="Discord" ====================
+
+    /**
+     * Se o payload já vier no formato pronto-pra-webhook (Format="Discord"
+     * no Game.ini), extrai os pares "**Chave:** valor" de embeds[0].description
+     * e devolve como objeto plano — mesma forma que Format="General" produz
+     * (AlderonId, PlayerName, ServerName, bServerAdmin, DiscordId, etc.).
+     * Retorna null se o payload não tiver essa forma (assumido Format="General").
+     */
+    _extractFieldsFromDiscordFormat(rawBody) {
+        const description = rawBody?.embeds?.[0]?.description;
+        if (typeof description !== 'string' || !description.trim()) return null;
+
+        const fields = {};
+        const lineRegex = /\*\*([^*:]+):\*\*[ \t]*(.*)/g;
+        let match;
+        while ((match = lineRegex.exec(description)) !== null) {
+            const key = match[1].trim();
+            const rawValue = match[2].trim();
+            if (rawValue === 'true') fields[key] = true;
+            else if (rawValue === 'false') fields[key] = false;
+            else if (rawValue === '') fields[key] = null;
+            else fields[key] = rawValue;
+        }
+        return Object.keys(fields).length > 0 ? fields : null;
+    }
+
     // ==================== ROTEAMENTO PRINCIPAL ====================
 
-    async _routeToDiscord(guildId, groupId, potEvent, data) {
+    async _routeToDiscord(guildId, groupId, potEvent, rawData) {
         try {
+            // 0. O Game.ini pode estar configurado com Format="Discord" — nesse
+            // modo o servidor manda um payload já pronto pra postar direto num
+            // webhook ({content, username, embeds:[{description: "**Chave:**
+            // valor\n..."}]}), em vez de campos soltos (Format="General", o
+            // que o resto do código espera). Normaliza pra sempre trabalhar
+            // com campos soltos daqui pra frente. ──────────────────────────
+            const data = this._extractFieldsFromDiscordFormat(rawData) || rawData;
+
             // 1. Registro automático do jogador nos eventos relevantes
             const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerKilled', 'PlayerChat', 'PlayerCommand'];
             if (playerEvents.includes(potEvent)) {
@@ -187,10 +222,14 @@ class PoTGatewayServer {
     async _buildLoginEventPayload(guildId, potEvent, data) {
         const d = data || {};
 
+        // ── Emoji unicode simples, de propósito: esta mensagem sai por um
+        // webhook cru (fetch direto), não pelo client autenticado do bot —
+        // emojis customizados da aplicação (EMOJIS.*) não renderizam nesse
+        // caminho e aparecem como texto (":nome:"). ────────────────────────
         const titles = {
-            PlayerLogin:  `${EMOJIS.DinoFootprint || '🎮'} JOGADOR ENTROU`,
-            PlayerLogout: `${EMOJIS.logout || '👋'} JOGADOR SAIU`,
-            PlayerLeave:  `${EMOJIS.logout || '🚶'} JOGADOR DESCONECTOU`,
+            PlayerLogin:  '🎮 JOGADOR ENTROU',
+            PlayerLogout: '👋 JOGADOR SAIU',
+            PlayerLeave:  '🚶 JOGADOR DESCONECTOU',
         };
         const color = potEvent === 'PlayerLogin' ? COLORS.SUCCESS : COLORS.DEFAULT;
 
@@ -216,12 +255,12 @@ class PoTGatewayServer {
             AdvancedContainerBuilder.thumbnail(avatarUrl),
         );
         builder.separator();
-        builder.text(`${EMOJIS.tv || '🖥️'} **Servidor:** ${d.ServerName || 'Desconhecido'}`);
-        builder.text(`${EMOJIS.idcard || '🆔'} **Alderon ID:** \`${d.AlderonId || 'N/A'}\``);
-        builder.text(`${EMOJIS.crown || '👑'} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
+        builder.text(`🖥️ **Servidor:** ${d.ServerName || 'Desconhecido'}`);
+        builder.text(`🆔 **Alderon ID:** \`${d.AlderonId || 'N/A'}\``);
+        builder.text(`👑 **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
         if (discordUser) {
             builder.separator();
-            builder.text(`${EMOJIS.user || '👤'} **Discord:** ${discordUser.toString()} (\`${discordUser.tag}\`)`);
+            builder.text(`👤 **Discord:** ${discordUser.toString()} (\`${discordUser.tag}\`)`);
         }
         builder.footer(guild?.name || d.ServerName || 'Servidor');
 
