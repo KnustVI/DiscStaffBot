@@ -27,8 +27,8 @@ module.exports = {
             )
             .addIntegerOption(opt => opt
                 .setName('rcon_port')
-                .setDescription('Porta RCON (padrão: 27015)')
-                .setRequired(false)
+                .setDescription('Porta RCON do servidor')
+                .setRequired(true)
             )
         )
         .addSubcommand(sub => sub

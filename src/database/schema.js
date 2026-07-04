@@ -208,7 +208,7 @@ const SCHEMA = {
             guild_id TEXT NOT NULL UNIQUE,
             server_name TEXT,
             server_ip TEXT NOT NULL,
-            rcon_port INTEGER DEFAULT 27015,
+            rcon_port INTEGER,
             rcon_password TEXT,
             webhook_port INTEGER DEFAULT 8080,
             api_key TEXT,

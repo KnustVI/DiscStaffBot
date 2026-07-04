@@ -16,7 +16,7 @@ module.exports = {
     async execute(interaction, client) {
         const ip = interaction.options.getString('ip');
         const rconPassword = interaction.options.getString('rcon_password');
-        const rconPort = interaction.options.getInteger('rcon_port') || 27015;
+        const rconPort = interaction.options.getInteger('rcon_port');
 
         const guildName = interaction.guild?.name || 'Servidor';
 

@@ -14,7 +14,7 @@ class PoTRconClient {
     constructor(guildId, config) {
         this.guildId = guildId;
         this.host = config.server_ip;
-        this.port = config.rcon_port || 27015;
+        this.port = config.rcon_port;
         this.password = config.rcon_password;
         this.client = null;
     }
