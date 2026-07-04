@@ -233,9 +233,13 @@ class PoTGatewayServer {
         };
         const color = potEvent === 'PlayerLogin' ? COLORS.SUCCESS : COLORS.DEFAULT;
 
+        // PlayerLeave manda a chave como PlayerAlderonId, não AlderonId como
+        // os demais eventos deste grupo — ver doc oficial de webhooks do PoT.
+        const alderonId = d.AlderonId || d.PlayerAlderonId || null;
+
         let discordUser = null;
         try {
-            const linked = PlayerRegistry.getPlayerByAlderonId(guildId, d.AlderonId);
+            const linked = PlayerRegistry.getPlayerByAlderonId(guildId, alderonId);
             if (linked?.discord_id) {
                 discordUser = await this.client.users.fetch(linked.discord_id).catch(() => null);
             }
@@ -258,8 +262,21 @@ class PoTGatewayServer {
         builder.section(nameLines.join('\n'), AdvancedContainerBuilder.thumbnail(avatarUrl));
         builder.separator();
         builder.text(`🖥️ **Servidor:** ${d.ServerName || 'Desconhecido'}`);
-        builder.text(`🆔 **Alderon ID:** \`${d.AlderonId || 'N/A'}\``);
+        builder.text(`🆔 **Alderon ID:** \`${alderonId || 'N/A'}\``);
         builder.text(`👑 **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
+
+        // Só o PlayerLeave traz esses dois campos (documentados oficialmente):
+        // SafeLog (desconexão graciosa, pelo menu, vs. queda abrupta/crash) e
+        // FromDeath (se saiu logo após morrer — relevante pra moderação).
+        if (potEvent === 'PlayerLeave') {
+            if (typeof d.SafeLog === 'boolean') {
+                builder.text(`${d.SafeLog ? '🟢' : '🔴'} **Desconexão segura:** ${d.SafeLog ? 'Sim' : 'Não'}`);
+            }
+            if (typeof d.FromDeath === 'boolean' && d.FromDeath) {
+                builder.text(`💀 **Saiu logo após morrer**`);
+            }
+        }
+
         builder.footer(guild?.name || d.ServerName || 'Servidor');
 
         const { components, flags } = builder.build();

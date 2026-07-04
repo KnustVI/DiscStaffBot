@@ -102,7 +102,9 @@ function extractDiscordId(payload) {
 function normalizeEvent(rawPayload, eventType) {
     if (!rawPayload || typeof rawPayload !== 'object') return null;
 
-    const alderonId = rawPayload.AlderonId || rawPayload.alderon_id || null;
+    // PlayerLeave manda a chave como PlayerAlderonId, não AlderonId como os
+    // demais eventos (PlayerLogin/PlayerLogout) — ver doc oficial de webhooks.
+    const alderonId = rawPayload.AlderonId || rawPayload.PlayerAlderonId || rawPayload.alderon_id || null;
     if (!alderonId) return null; // sem AlderonId não há como identificar o jogador
 
     const playerName = rawPayload.PlayerName || rawPayload.player_name || 'Desconhecido';
