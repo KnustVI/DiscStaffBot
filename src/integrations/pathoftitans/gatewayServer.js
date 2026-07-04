@@ -229,17 +229,40 @@ class PoTGatewayServer {
         return { components: components.map(c => c.toJSON()), flags };
     }
 
+    /**
+     * URLs de webhook copiadas da interface do Discord (Configurações do
+     * Canal → Integrações) não têm versão de API no caminho
+     * (discord.com/api/webhooks/...). Sem isso, o endpoint pode cair numa
+     * versão antiga que não reconhece Components V2 (components + flags) —
+     * ela ignora esses campos, não sobra nenhum content/embeds legado, e o
+     * Discord responde 400 "Cannot send an empty message" (50006), mesmo
+     * com o container cheio de texto. Forçar /v10/ resolve. */
+    _withApiVersion(webhookUrl) {
+        try {
+            const url = new URL(webhookUrl);
+            if (/^discord(app)?\.com$/.test(url.hostname) && !/^\/api\/v\d+\//.test(url.pathname)) {
+                url.pathname = url.pathname.replace(/^\/api\//, '/api/v10/');
+            }
+            return url.toString();
+        } catch {
+            return webhookUrl;
+        }
+    }
+
     async _postJsonToWebhook(webhookUrl, payload) {
         try {
-            const response = await fetch(webhookUrl, {
+            const response = await fetch(this._withApiVersion(webhookUrl), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
-            if (!response.ok && process.env.DEBUG_POT === 'true') {
+            if (!response.ok) {
                 const text = await response.text();
-                console.warn(`⚠️ [Gateway] Webhook (container) retornou ${response.status}: ${text.slice(0, 100)}`);
+                if (process.env.DEBUG_POT === 'true') {
+                    console.warn(`⚠️ [Gateway] Webhook (container) retornou ${response.status}: ${text.slice(0, 200)} | payload enviado: ${JSON.stringify(payload).slice(0, 300)}`);
+                }
+                ErrorLogger.warn('pot_gateway', 'postJsonToWebhook', `HTTP ${response.status}: ${text.slice(0, 200)}`);
             }
         } catch (error) {
             ErrorLogger.warn('pot_gateway', 'postJsonToWebhook', error.message);
@@ -251,7 +274,7 @@ class PoTGatewayServer {
             const payload = { content };
             if (embed) payload.embeds = [embed.toJSON()];
 
-            const response = await fetch(webhookUrl, {
+            const response = await fetch(this._withApiVersion(webhookUrl), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
