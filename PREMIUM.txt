@@ -146,9 +146,8 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando.
 - Todo comando bloqueado pelo tier responde sempre a mesma mensagem:
-  "Este comando nao pode ser usado por um SERVIDOR TIER <TIER ATUAL>, use
-  /premium para saber mais!" (com o tier real do servidor no lugar de
-  <TIER ATUAL> - FREE, RASTREADOR, etc).
+  "Este comando esta disponivel apenas para servidores com um plano Premium
+  ativo. Use /premium para conhecer os beneficios e opcoes disponiveis."
 
 
 3) COMO CONCEDER/REVOGAR/CONSULTAR UM TIER (uso interno, dev do bot)
