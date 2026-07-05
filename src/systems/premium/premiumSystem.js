@@ -78,9 +78,7 @@ function getGuildLimits(guildId) {
  * PEGADA...) que está impedindo o uso, e apontando pro /premium.
  */
 function getGuildDenialMessage(guildId) {
-    const tier = getGuildTier(guildId);
-    const label = (GUILD_TIER_DISPLAY[tier] || tier).toUpperCase();
-    return `Este comando não pode ser usado por um SERVIDOR TIER ${label}, use /premium para saber mais!`;
+    return 'Este comando está disponível apenas para servidores com um plano Premium ativo. Use /premium para conhecer os benefícios e opções disponíveis.';
 }
 
 function grantPlayerPremium(userId, tier, days, grantedBy, notes = null) {
