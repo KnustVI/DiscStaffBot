@@ -155,6 +155,7 @@ const EMOJIS = {
     swords: formatEmoji('1522487636986564638', 'swords', false),
     sync: formatEmoji('1522487301618532494', 'sync', false),
     tag: formatEmoji('1522487587640447126', 'tag', false),
+    TapejaraSkull: formatEmoji('1523254843681148978', 'TapejaraSkull', false),
     target: formatEmoji('1522487638060175450', 'target', false),
     terminal: formatEmoji('1522488121508364358', 'terminal', false),
     thumbsdown: formatEmoji('1522487444451360818', 'thumbsdown', false),
