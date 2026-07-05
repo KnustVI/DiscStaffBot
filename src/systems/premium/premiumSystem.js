@@ -22,14 +22,35 @@ const GUILD_TO_PLAYER_TIER = { pegada: 'compy', fossil: 'raptor' };
 const GUILD_TIER_DISPLAY = { free: 'Free', pegada: 'Rastreador', fossil: 'Caçador' };
 
 // Limites concretos por tier de servidor — única fonte da verdade consultada
-// pelo reportChatSystem (limite/cooldown de chats), punishmentSystem
-// (reputação, RCON automático), historico.js (histórico de jogador) e
+// pelo reportChatSystem (limite de chats/revisões + cooldown), punishmentSystem
+// (reputação, ações no Discord via strike, RCON automático), historico.js
+// (histórico de jogador), evento.js (nível do sistema de eventos) e
 // autoModeration.js (manutenção diária de reputação/cargos automáticos —
-// "automod" só roda de verdade no Fossil).
+// "automod" só roda de verdade no Caçador). Espelha o planejamento de
+// features do /premium (ver premiumPanel.js) — reports e revisões de
+// punição têm contadores SEPARADOS (não é mais um limite combinado).
 const GUILD_LIMITS = {
-    free: { maxOpenChats: 1, chatCooldownMs: 14400000, autoRcon: false, reputationEnabled: false, automodEnabled: false, historyEnabled: false },
-    pegada: { maxOpenChats: 3, chatCooldownMs: 0, autoRcon: false, reputationEnabled: true, automodEnabled: false, historyEnabled: true },
-    fossil: { maxOpenChats: Infinity, chatCooldownMs: 0, autoRcon: true, reputationEnabled: true, automodEnabled: true, historyEnabled: true },
+    free: {
+        maxOpenReports: 1, maxOpenReviews: 1, chatCooldownMs: 3600000,
+        discordActionsEnabled: false, autoRcon: false,
+        reputationEnabled: false, automodEnabled: false, historyEnabled: false,
+        analyticsEnabled: false,
+        eventTier: 'basic',
+    },
+    pegada: {
+        maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
+        discordActionsEnabled: false, autoRcon: false,
+        reputationEnabled: true, automodEnabled: false, historyEnabled: false,
+        analyticsEnabled: false,
+        eventTier: 'medium',
+    },
+    fossil: {
+        maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
+        discordActionsEnabled: true, autoRcon: true,
+        reputationEnabled: true, automodEnabled: true, historyEnabled: true,
+        analyticsEnabled: true,
+        eventTier: 'full',
+    },
 };
 
 function _isExpired(expiresAt) {

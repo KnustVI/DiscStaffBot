@@ -173,17 +173,17 @@ function buildPageEvents(guildName, emojis) {
 
     builder.title(`${emojis.calendardays || '📅'} /evento`, 2);
     builder.block([
-        `• ${emojis.badge || '🏅'} **Recurso a partir do plano Rastreador** — ver página de Premium.`,
-        '• Pede: canal de fórum, título, descrição breve, imagem (PNG/JPEG, até 1920x1279), data e local.',
-        '• O local pode ser um **canal de voz/palco** ou um **texto livre** (ex: um local dentro do jogo).',
-        '• Publica automaticamente no fórum escolhido, cria um Evento agendado nativo do Discord e coloca o link dele na própria postagem.',
+        '• Disponível em **todos os planos**, mas o nível do sistema muda por tier (ver página de Premium).',
+        '• **Free** — só publica no fórum escolhido (título, descrição, imagem e data), sem evento agendado do Discord.',
+        `• ${emojis.badge || '🏅'} **Rastreador/Caçador** — publica no fórum **e** cria um Evento agendado nativo do Discord (pede também o local: um **canal de voz/palco** ou um **texto livre**), marcando o cargo de Notificação de Eventos.`,
+        '• Imagem: PNG/JPEG, até 1920x1279.',
     ]);
     builder.separator();
 
     builder.title(`${emojis.partypopper || '🎉'} Cargos (configurados em /config-roles, aba Eventos)`, 2);
     builder.block([
-        '• **Equipe de Eventos** — quem pode usar o /evento.',
-        '• **Notificação de Eventos** — marcado automaticamente em cada postagem, para avisar quem tem interesse.',
+        '• **Equipe de Eventos** — quem pode usar o /evento (obrigatório em qualquer plano).',
+        '• **Notificação de Eventos** — marcado automaticamente em cada postagem; só a partir do plano Rastreador (Free não marca ninguém).',
     ]);
 
     builder.footer(guildName);
@@ -196,18 +196,18 @@ function buildPagePremium(guildName, emojis) {
 
     builder.title(`${emojis.badge || '🏅'} Player Premium (por jogador, global)`, 2);
     builder.block([
-        '• **Free** — perfil sincronizado com Discord, badges e títulos de missão de servidor.',
-        '• **Compy (R$10/mês)** — badge exclusivo, títulos exclusivos, descontos e sorteio mensal de skin do PoT. *(vindo em breve)*',
-        '• **Raptor (R$25/mês)** — tudo do Compy + perfil 100% personalizado: banner próprio no `/perfil` (já disponível via `/perfil-banner`) e imagens exclusivas.',
+        '• **Free** — perfil sincronizado com Discord. *(server badges, títulos e boost de farm: vindo em breve)*',
+        '• **Compy (R$10/mês)** — tudo do Free + perfil personalizável pela loja, badge/títulos exclusivos e boost de farm por troféu. *(vindo em breve)*',
+        '• **Raptor (R$25/mês)** — tudo do Compy + perfil 100% personalizado (banner próprio, já disponível via `/perfil-banner`), boost de farm por missão e sorteio semanal de skin do PoT. *(os dois últimos: vindo em breve)*',
         `• Esse vínculo é **global** — vale em qualquer servidor com o bot, uma assinatura só.`,
     ]);
     builder.separator();
 
     builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
     builder.block([
-        '• **Free** — logs básicos (strike/unstrike/reportchat/config); 1 chat aberto por vez, 4h de cooldown; sem reputação, sem RCON automático.',
-        '• **Rastreador (R$25/mês)** — logs de jogo, 3 chats abertos sem cooldown, sistema de reputação ativado, `/historico` liberado, `/evento` liberado. O dono do servidor ganha Player Premium **Compy** de bônus.',
-        '• **Caçador (R$40/mês)** — chats ilimitados, automod diário (cargos automáticos de reputação), análise de staff, RCON automático em punições e níveis de punição personalizáveis. O dono do servidor ganha Player Premium **Raptor** de bônus.',
+        '• **Free** — logs de sistema; 1 chat de reporte + 1 revisão de punição abertos por vez, 1h de cooldown; sem reputação, sem ações automáticas de punição (Discord ou jogo); `/evento` só posta no fórum.',
+        '• **Rastreador (R$25/mês)** — tudo do Free + logs de jogo, 3 chats + 3 revisões sem cooldown, reputação ativada, `/evento` cria também o evento agendado do Discord.',
+        '• **Caçador (R$40/mês)** — tudo do Rastreador + chats/revisões ilimitados, `/historico` liberado, automod diário, análise de staff, ações automáticas de punição no Discord e no jogo (RCON). O dono do servidor ganha Player Premium **Raptor** de bônus (Rastreador dá **Compy**).',
     ]);
     builder.separator();
 

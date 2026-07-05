@@ -63,9 +63,9 @@ class PlayerRegistrationSystem {
             buildIdentityBlock(targetUser),
             AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })),
         );
-        builder.separator();
 
         if (!player) {
+            builder.separator();
             builder.text(`${EMOJIS.circlealert || '❌'} **Ainda não registrado no Path of Titans**`);
         }
 

@@ -81,9 +81,11 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
 
-        if (!PremiumSystem.isGuildAtLeast(guild.id, 'pegada')) {
-            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
-        }
+        // ── Nível do sistema de eventos por tier (ver premiumPanel.js):
+        // 'basic' (Free) = só posta no fórum, sem evento agendado do Discord
+        // nem marcação de cargo; 'medium'/'full' (Rastreador/Caçador) = fórum
+        // + evento agendado do Discord + marcação do cargo de notificação. ──
+        const eventTier = PremiumSystem.getGuildLimits(guild.id).eventTier;
 
         const ConfigSystem = require('../../systems/core/configSystem');
 
@@ -125,7 +127,7 @@ module.exports = {
             );
         }
 
-        if (!localCanal && !localDescricao) {
+        if (eventTier !== 'basic' && !localCanal && !localDescricao) {
             return await ResponseManager.error(
                 interaction,
                 'Informe o local do evento: use a opção `local_canal` (um canal de voz/palco) OU `local_descricao` (um texto livre).'
@@ -153,29 +155,33 @@ module.exports = {
         db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
         // ==================== MONTAGEM: local/entidade do evento agendado ====================
+        // Só relevante a partir do Rastreador — no Free (eventTier 'basic')
+        // não existe evento agendado do Discord, só a postagem no fórum.
         let entityType;
         let eventChannelId = null;
         let entityMetadata;
         let scheduledEndTime;
 
-        if (localCanal) {
-            if (localCanal.type === ChannelType.GuildStageVoice) {
-                entityType = GuildScheduledEventEntityType.StageInstance;
-            } else if (localCanal.type === ChannelType.GuildVoice) {
-                entityType = GuildScheduledEventEntityType.Voice;
+        if (eventTier !== 'basic') {
+            if (localCanal) {
+                if (localCanal.type === ChannelType.GuildStageVoice) {
+                    entityType = GuildScheduledEventEntityType.StageInstance;
+                } else if (localCanal.type === ChannelType.GuildVoice) {
+                    entityType = GuildScheduledEventEntityType.Voice;
+                } else {
+                    return await ResponseManager.error(interaction, 'O canal de local precisa ser um canal de voz ou de palco.');
+                }
+                eventChannelId = localCanal.id;
             } else {
-                return await ResponseManager.error(interaction, 'O canal de local precisa ser um canal de voz ou de palco.');
+                entityType = GuildScheduledEventEntityType.External;
+                entityMetadata = { location: localDescricao };
+                scheduledEndTime = new Date(startDate.getTime() + DEFAULT_EXTERNAL_DURATION_MS);
             }
-            eventChannelId = localCanal.id;
-        } else {
-            entityType = GuildScheduledEventEntityType.External;
-            entityMetadata = { location: localDescricao };
-            scheduledEndTime = new Date(startDate.getTime() + DEFAULT_EXTERNAL_DURATION_MS);
         }
 
         await interaction.editReply(
             new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT })
-                .text(`${EMOJIS.clockalert || '⏳'} Criando evento... isso envolve baixar a imagem, criar o evento agendado do Discord e publicar no fórum, pode levar alguns segundos.`)
+                .text(`${EMOJIS.clockalert || '⏳'} Criando evento... isso envolve baixar a imagem${eventTier !== 'basic' ? ', criar o evento agendado do Discord' : ''} e publicar no fórum, pode levar alguns segundos.`)
                 .footer(guild.name)
                 .build()
         );
@@ -193,26 +199,32 @@ module.exports = {
         const imageFileName = imagem.contentType === 'image/png' ? 'evento.png' : 'evento.jpg';
 
         // ==================== EVENTO AGENDADO DO DISCORD ====================
-        let scheduledEvent;
-        try {
-            scheduledEvent = await guild.scheduledEvents.create({
-                name: titulo,
-                scheduledStartTime: startDate,
-                ...(scheduledEndTime ? { scheduledEndTime } : {}),
-                privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
-                entityType,
-                description: descricao,
-                ...(eventChannelId ? { channel: eventChannelId } : {}),
-                ...(entityMetadata ? { entityMetadata } : {}),
-                image: imageBuffer,
-            });
-        } catch (err) {
-            console.error('❌ [Evento] Erro ao criar evento agendado:', err);
-            return await interaction.editReply(this._errorPayload(guild.name, `Não foi possível criar o evento agendado no Discord: ${err.message}. Verifique se o bot tem a permissão "Gerenciar Eventos".`));
+        // 'Sistema básico de eventos' (Free) não cria evento agendado — só a
+        // postagem no fórum, com anexo de imagem.
+        let scheduledEvent = null;
+        if (eventTier !== 'basic') {
+            try {
+                scheduledEvent = await guild.scheduledEvents.create({
+                    name: titulo,
+                    scheduledStartTime: startDate,
+                    ...(scheduledEndTime ? { scheduledEndTime } : {}),
+                    privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
+                    entityType,
+                    description: descricao,
+                    ...(eventChannelId ? { channel: eventChannelId } : {}),
+                    ...(entityMetadata ? { entityMetadata } : {}),
+                    image: imageBuffer,
+                });
+            } catch (err) {
+                console.error('❌ [Evento] Erro ao criar evento agendado:', err);
+                return await interaction.editReply(this._errorPayload(guild.name, `Não foi possível criar o evento agendado no Discord: ${err.message}. Verifique se o bot tem a permissão "Gerenciar Eventos".`));
+            }
         }
 
         // ==================== POSTAGEM NO FÓRUM ====================
-        const notifyRoleId = ConfigSystem.getSetting(guild.id, 'event_notify_role');
+        // Marcação do cargo de notificação também é 'Sistema médio/completo
+        // de eventos' — não disponível no Free.
+        const notifyRoleId = eventTier !== 'basic' ? ConfigSystem.getSetting(guild.id, 'event_notify_role') : null;
 
         const postBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         // ── Só a imagem enviada pelo autor aparece na postagem — sem avatar
@@ -225,7 +237,7 @@ module.exports = {
         postBuilder.separator();
         const startTs = Math.floor(startDate.getTime() / 1000);
         postBuilder.text(`${EMOJIS.calendardays || '📅'} **Data:** <t:${startTs}:F> (<t:${startTs}:R>)`);
-        postBuilder.text(`${EMOJIS.mappin || '📍'} **Local:** ${localCanal ? localCanal.toString() : localDescricao}`);
+        postBuilder.text(`${EMOJIS.mappin || '📍'} **Local:** ${localCanal ? localCanal.toString() : (localDescricao || 'Não informado')}`);
         postBuilder.text(`${EMOJIS.user || '👤'} **Organizado por:** ${user.toString()}`);
         if (notifyRoleId) {
             postBuilder.separator();
@@ -247,21 +259,23 @@ module.exports = {
             // ── Sem a postagem no fórum o evento fica "órfão" (agendado mas
             // sem divulgação) — melhor desfazer o evento agendado do que
             // deixar esse estado inconsistente para o staff resolver na mão. ──
-            await scheduledEvent.delete().catch(() => {});
+            if (scheduledEvent) await scheduledEvent.delete().catch(() => {});
             return await interaction.editReply(this._errorPayload(
                 guild.name,
-                `Não foi possível publicar no fórum selecionado (o evento agendado foi desfeito): ${err.message}. Verifique se o canal aceita novas postagens (tags obrigatórias, permissões do bot) e tente novamente.`,
+                `Não foi possível publicar no fórum selecionado${scheduledEvent ? ' (o evento agendado foi desfeito)' : ''}: ${err.message}. Verifique se o canal aceita novas postagens (tags obrigatórias, permissões do bot) e tente novamente.`,
             ));
         }
 
         // ==================== LINK DO EVENTO NA THREAD ====================
-        await thread.send(
-            `${EMOJIS.wifi || '🔗'} **Evento agendado:** ${scheduledEvent.url}\n` +
-            `${EMOJIS.circlealert || '🔔'} Clique em **Me Interessa** no evento acima para o Discord te avisar automaticamente quando ele começar!`
-        ).catch(() => {});
+        if (scheduledEvent) {
+            await thread.send(
+                `${EMOJIS.wifi || '🔗'} **Evento agendado:** ${scheduledEvent.url}\n` +
+                `${EMOJIS.circlealert || '🔔'} Clique em **Me Interessa** no evento acima para o Discord te avisar automaticamente quando ele começar!`
+            ).catch(() => {});
+        }
 
         db.logActivity(guild.id, user.id, 'event_created', null, {
-            command: 'evento', title: titulo, threadId: thread.id, scheduledEventId: scheduledEvent.id,
+            command: 'evento', title: titulo, threadId: thread.id, scheduledEventId: scheduledEvent?.id || null,
             startDate: startDate.toISOString(),
         });
 
@@ -269,15 +283,19 @@ module.exports = {
         const summaryBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         summaryBuilder.text(`${EMOJIS.circlecheck || '✅'} **Evento "${titulo}" criado com sucesso!**`);
         summaryBuilder.text(`${EMOJIS.clipboardlist || '📋'} Postagem: ${thread.toString()}`);
-        summaryBuilder.text(`${EMOJIS.wifi || '🔗'} Evento agendado: ${scheduledEvent.url}`);
+        if (scheduledEvent) summaryBuilder.text(`${EMOJIS.wifi || '🔗'} Evento agendado: ${scheduledEvent.url}`);
         summaryBuilder.text(`${EMOJIS.calendardays || '📅'} Início: <t:${startTs}:F>`);
         summaryBuilder.separator();
-        summaryBuilder.text(
-            `${EMOJIS.trianglealert || '⚠️'} **Lembrete:** quando a hora chegar, alguém do staff precisa **iniciar o evento manualmente** no Discord (clique no botão **Eventos** no canto superior esquerdo da barra de canais, abra o evento e clique em Iniciar). ` +
-            `Só assim o Discord notifica automaticamente quem clicou em "Me Interessa".`
-        );
-        if (!notifyRoleId) {
-            summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config-roles, aba Eventos) — ninguém foi marcado na postagem.`);
+        if (scheduledEvent) {
+            summaryBuilder.text(
+                `${EMOJIS.trianglealert || '⚠️'} **Lembrete:** quando a hora chegar, alguém do staff precisa **iniciar o evento manualmente** no Discord (clique no botão **Eventos** no canto superior esquerdo da barra de canais, abra o evento e clique em Iniciar). ` +
+                `Só assim o Discord notifica automaticamente quem clicou em "Me Interessa".`
+            );
+            if (!notifyRoleId) {
+                summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config-roles, aba Eventos) — ninguém foi marcado na postagem.`);
+            }
+        } else {
+            summaryBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Evento agendado do Discord e marcação de cargo exigem o plano Rastreador ou superior. Use \`/premium\` para saber mais.`);
         }
         summaryBuilder.footer(guild.name);
 

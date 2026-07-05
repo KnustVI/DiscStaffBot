@@ -20,6 +20,15 @@ function formatExpiry(expiresAt) {
 const TIER_LABELS = PremiumSystem.GUILD_TIER_DISPLAY;
 const PLAYER_TIER_LABELS = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
 
+// Ícones por "degrau" de tier (mesmo padrão visual pros dois planos: tier
+// base/Free, tier médio, tier top) — TapejaraSkull e CarniSkull ainda
+// dependem de `npm run sync-emojis` se ainda não tiverem sido sincronizados.
+const TIER_ICON = {
+    base: EMOJIS.HerbSkull || '🦴',
+    medium: EMOJIS.TapejaraSkull || '🟡',
+    top: EMOJIS.CarniSkull || '🔴',
+};
+
 // Banners de topo por tier de Server Premium (representam o tier ATUAL do
 // servidor onde o /premium foi rodado) — assets banner_premium_server_*.
 const SERVER_TIER_BANNER_KEYS = {
@@ -85,6 +94,7 @@ function appendAcquire(builder) {
 
 function navRow() {
     return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('premium:view:main').setLabel('Status').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
         new ButtonBuilder().setCustomId('premium:view:server').setLabel('Server Premium').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.tv || '🖥️'),
         new ButtonBuilder().setCustomId('premium:view:player').setLabel('Player Premium').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
     );
@@ -123,33 +133,65 @@ function buildServerContainer(guild, user) {
     ].join('\n'));
     extraFiles.push(...appendServerBanner(builder, guild));
 
-    builder.title(`${EMOJIS.circlealert || '⚪'} Free`, 2);
+    builder.title(`${TIER_ICON.base} Free`, 2);
     builder.block([
-        '• Logs de strike, unstrike, reportchat e alterações de config.',
-        '• 1 chat aberto por vez (report + revisão), cooldown de 4h.',
-        '• Sem sistema de reputação, sem cargo temporário de punição.',
-        '• Sem RCON automático, sem automod diário, sem histórico de jogador.',
+        '• Logs de sistemas.',
+        '**Sistema básico de reporte:**',
+        '• Limite de 1 chat de reporte.',
+        '• Limite de 1 revisão de punição.',
+        '• Tempo de espera de 1h para abrir chats.',
+        '**Sistema básico de punição:**',
+        '• Registros de punição.',
+        '• Não aplica ações de punição como ban/kick/mute.',
+        '**Sistema básico de eventos:**',
+        '• Cria evento em fórum de forma padrão, com anexo de imagem.',
     ]);
     builder.separator();
 
-    builder.title(`${EMOJIS.severidademedia || '🟡'} Rastreador — R$25/mês`, 2);
+    builder.title(`${TIER_ICON.medium} Rastreador — R$25/mês`, 2);
     builder.block([
-        '• Logs de sistema + logs de jogo.',
-        '• 3 chats abertos simultaneamente, sem cooldown.',
-        '• Sistema de reputação ativado (5 níveis, pontos configuráveis).',
-        '• `/historico` e `/evento` liberados.',
+        '**Tudo do Free +**',
+        '• Logs de jogo.',
+        '• Missões mensais do Titan\'s Pass ativadas. *(vindo em breve)*',
+        '**Sistema médio de reporte:**',
+        '• Limite de 3 chats de reporte.',
+        '• Limite de 3 revisões de punição.',
+        '• Sem tempo de espera!',
+        '• Pontuação de reputação.',
+        '**Sistema médio de punição:**',
+        '• Cargo temporário de punição.',
+        '• Até 5 níveis de punição configuráveis.',
+        '• Não aplica ações de punição como ban/kick/mute.',
+        '**Sistema médio de eventos:**',
+        '• Cria eventos em fóruns.',
+        '• Cria evento no Discord.',
+        '• Marca jogadores com cargo selecionado.',
         `• ${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor ganha Player Premium **Compy** de graça.`,
     ]);
     builder.separator();
 
-    builder.title(`${EMOJIS.severidadealta || '🔴'} Caçador — R$40/mês`, 2);
+    builder.title(`${TIER_ICON.top} Caçador — R$40/mês`, 2);
     builder.block([
-        '• Tudo do Rastreador.',
-        '• Chats ilimitados, sem cooldown.',
-        '• Automod diário (recuperação de reputação + cargos automáticos), com quantidade configurável de pontos/dia.',
+        '**Tudo do Rastreador +**',
         '• Análise de atividade de staff.',
-        '• RCON automático em punições (warn/kick/slay/ban).',
-        '• Níveis de punição 100% personalizáveis. *(vindo em breve)*',
+        '• 1 missão mensal exclusiva do seu servidor. *(vindo em breve)*',
+        '• Prioridade de suporte!',
+        '**Sistema completo de reporte:**',
+        '• Sem limite de chats.',
+        '• Sem tempo de espera!',
+        '• Resumo de logs dos possíveis envolvidos direto no chat de reporte. *(vindo em breve)*',
+        '**Sistema completo de punição:**',
+        '• Cargo temporário de punição.',
+        '• Níveis de punição totalmente personalizados. *(vindo em breve — hoje ainda são os 5 níveis fixos configuráveis)*',
+        '• Cargos de reputação automáticos.',
+        '• Sistema de pontos de reputação.',
+        '• Históricos de quebras de jogador.',
+        '• Aplica punições em jogo ou Discord!',
+        '**Sistema completo de eventos:**',
+        '• Cria eventos em fórum.',
+        '• Cria evento no Discord.',
+        '• Anuncia criação, começo e fim do evento. *(vindo em breve)*',
+        '• Pode ser configurado um botão de TP para o local do evento. *(vindo em breve)*',
         `• ${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor ganha Player Premium **Raptor** de graça.`,
     ]);
     builder.separator();
@@ -178,30 +220,31 @@ function buildPlayerContainer(guild, user) {
     );
     builder.separator();
 
-    builder.title(`${EMOJIS.circlealert || '⚪'} Free`, 2);
+    builder.title(`${TIER_ICON.base} Free`, 2);
     builder.block([
-        '• Perfil sincronizado com o Discord (`/perfil`, `/registrar`).',
-        '• Banner e footer padrão do tier no perfil.',
-        '• Badges de servidor e títulos de missão de servidor. *(vindo em breve)*',
+        '• Perfil sincronizado com Discord.',
+        '• Server Badges. *(vindo em breve)*',
+        '• Títulos de missões de servers. *(vindo em breve)*',
+        '• Farme de caçadas por hora de jogo. *(vindo em breve)*',
     ]);
     builder.separator();
 
-    builder.title(`${EMOJIS.severidademedia || '🟡'} Compy — R$10/mês`, 2);
+    builder.title(`${TIER_ICON.medium} Compy — R$10/mês`, 2);
     builder.block([
-        '• Tudo do Free.',
-        '• Banner e footer de perfil próprios do tier Compy.',
-        '• Badge exclusivo, títulos exclusivos. *(vindo em breve)*',
-        '• Descontos em lojinhas parceiras. *(vindo em breve)*',
-        '• Sorteio mensal de pacote de skins do Path of Titans. *(vindo em breve)*',
-        '• Poderá comprar outros banners na lojinha do bot. *(vindo em breve)*',
+        '**Tudo do Free +**',
+        '• Perfil personalizável pela loja. *(vindo em breve)*',
+        '• Badge exclusivo. *(vindo em breve)*',
+        '• Títulos exclusivos. *(vindo em breve)*',
+        '• Boost de farm por troféu entregue. *(vindo em breve)*',
     ]);
     builder.separator();
 
-    builder.title(`${EMOJIS.severidadealta || '🔴'} Raptor — R$25/mês`, 2);
+    builder.title(`${TIER_ICON.top} Raptor — R$25/mês`, 2);
     builder.block([
-        '• Tudo do Compy.',
-        '• Banner de perfil 100% personalizado: puxa do Discord automaticamente, ou envie o seu via `/perfil-banner`.',
-        '• Imagens exclusivas de perfil.',
+        '**Tudo do Compy +**',
+        '• Perfil 100% personalizável com suas próprias imagens: puxa do Discord automaticamente, ou envie o seu via `/perfil-banner`.',
+        '• Boost de farm por missão Titan concluída. *(vindo em breve)*',
+        '• Sorteio semanal de pacote de skins do Path of Titans. *(vindo em breve)*',
     ]);
     builder.separator();
 

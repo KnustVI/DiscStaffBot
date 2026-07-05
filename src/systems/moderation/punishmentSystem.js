@@ -579,8 +579,14 @@ const PunishmentSystem = {
             }
         }
 
+        // ── Ações automáticas no Discord (timeout/kick/ban) via strike só
+        // pra servidores Caçador — mesma checagem já feita em strike.js, mas
+        // repetida aqui (defesa em profundidade) já que este método também é
+        // chamado direto pela aprovação de Supervisor. ──────────────────────
         let discordActionResult = null;
-        if (discordAct && discordAct !== 'none' && targetMember) {
+        if (discordAct && discordAct !== 'none' && !PremiumSystem.getGuildLimits(guild.id).discordActionsEnabled) {
+            discordActionResult = `${EMOJIS.trianglealert || '⚠️'} Ação no Discord requer o plano Caçador.`;
+        } else if (discordAct && discordAct !== 'none' && targetMember) {
             try {
                 switch (discordAct) {
                     case 'timeout':

@@ -52,9 +52,15 @@ module.exports = {
         const severity = options.getInteger('gravidade');
         const reason = options.getString('motivo');
         const durationStr = options.getString('duracao');
-        const discordAct = options.getString('discord_act') || 'none';
+        let discordAct = options.getString('discord_act') || 'none';
         const jogoAct = options.getString('jogo_act') || 'none';
         let reportId = options.getString('report') || null;
+
+        // ── Ações automáticas no Discord (timeout/kick/ban) via strike são
+        // exclusivas do plano Caçador — em Free/Rastreador a punição é
+        // registrada normalmente, só a ação automática é ignorada. ──────────
+        const discordActionsBlocked = discordAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).discordActionsEnabled;
+        if (discordActionsBlocked) discordAct = 'none';
 
         try {
             if (!targetUser) {
@@ -153,6 +159,9 @@ module.exports = {
                 builder.text(`**${emojis.doublearrowdown || '📉'} Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
             }
             builder.text(`**${emojis.raio || '⚡'} Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
+            if (discordActionsBlocked) {
+                builder.text(`${emojis.trianglealert || '⚠️'} Ações automáticas no Discord (timeout/kick/ban) exigem o plano Caçador — a ação escolhida não será aplicada, só o registro da punição.`);
+            }
             builder.text(`**${emojis.game || '🎮'} Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
 
             // ── Nível 4/5 OU duração >72h/permanente exigem aprovação de um

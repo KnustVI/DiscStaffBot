@@ -29,14 +29,16 @@ class ReportChatSystem {
     }
 
     // ==================== LIMITES DE TIER (chats abertos + cooldown) ====================
-    // Report + revisão de punição contam juntos pro mesmo limite (decisão do
-    // dono) — ver PremiumSystem.GUILD_LIMITS.
+    // Report e revisão de punição têm contadores SEPARADOS por tier (ver
+    // PremiumSystem.GUILD_LIMITS.maxOpenReports/maxOpenReviews) — o cooldown
+    // de abertura, esse sim, é combinado (conta a última abertura de
+    // qualquer um dos dois tipos).
 
-    countOpenChatsForUser(guildId, userId) {
+    countOpenChatsForUser(guildId, userId, type) {
         return db.prepare(`
             SELECT COUNT(*) AS c FROM reports
-            WHERE guild_id = ? AND user_id = ? AND status NOT IN ('closed_no_reason', 'closed_with_reason')
-        `).get(guildId, userId)?.c || 0;
+            WHERE guild_id = ? AND user_id = ? AND type = ? AND status NOT IN ('closed_no_reason', 'closed_with_reason')
+        `).get(guildId, userId, type)?.c || 0;
     }
 
     getLastChatOpenedAt(guildId, userId) {
@@ -48,13 +50,17 @@ class ReportChatSystem {
     /**
      * Checa limite de chats abertos + cooldown pro tier do servidor. Retorna
      * null se pode abrir, ou uma string de erro pronta pra exibir se não.
+     *
+     * @param {string} type - 'report' ou 'punishment_review' (mesmos valores da coluna `reports.type`)
      */
-    checkChatLimits(guildId, userId) {
+    checkChatLimits(guildId, userId, type) {
         const limits = PremiumSystem.getGuildLimits(guildId);
+        const maxAllowed = type === 'punishment_review' ? limits.maxOpenReviews : limits.maxOpenReports;
+        const typeLabel = type === 'punishment_review' ? 'revisões de punição' : 'chats de reporte';
 
-        const openCount = this.countOpenChatsForUser(guildId, userId);
-        if (openCount >= limits.maxOpenChats) {
-            return `${EMOJIS.circlealert || '❌'} Você já atingiu o limite de chats abertos (reports + revisões) para este servidor (${limits.maxOpenChats}). Feche um chat aberto antes de abrir outro.`;
+        const openCount = this.countOpenChatsForUser(guildId, userId, type);
+        if (openCount >= maxAllowed) {
+            return `${EMOJIS.circlealert || '❌'} Você já atingiu o limite de ${typeLabel} abertos para este servidor (${maxAllowed}). Feche um antes de abrir outro.`;
         }
 
         if (limits.chatCooldownMs > 0) {
@@ -355,7 +361,7 @@ class ReportChatSystem {
     
     async openReport(interaction, data) {
         const { guild, user } = interaction;
-        
+
         await interaction.editReply({
             content: `${EMOJIS.clockalert || '⏳'} Criando report...`,
             flags: [MessageFlags.Ephemeral]
@@ -368,7 +374,7 @@ class ReportChatSystem {
                 return;
             }
 
-            const limitError = this.checkChatLimits(guild.id, user.id);
+            const limitError = this.checkChatLimits(guild.id, user.id, 'report');
             if (limitError) {
                 await interaction.editReply({ content: limitError, flags: [MessageFlags.Ephemeral] });
                 return;
@@ -533,7 +539,7 @@ class ReportChatSystem {
                 return;
             }
 
-            const limitError = this.checkChatLimits(guild.id, user.id);
+            const limitError = this.checkChatLimits(guild.id, user.id, 'punishment_review');
             if (limitError) {
                 await interaction.editReply({ content: limitError, flags: [MessageFlags.Ephemeral] });
                 return;
