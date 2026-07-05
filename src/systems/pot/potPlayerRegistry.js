@@ -237,80 +237,58 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
 
 /**
  * Cadastro/vínculo MANUAL — usado pelo comando /registrar (painel + modal).
- * Complementa upsertPlayerFromEvent (que só roda a partir de webhooks do
- * jogo): aqui o Discord ID é sempre conhecido de antemão (quem clicou no
- * botão), então o cadastro é indexado primeiro por discord_id.
+ *
+ * GLOBAL: o vínculo Discord<->Alderon ID vale em qualquer servidor com o bot,
+ * não é por guild — vive em player_links (sem guild_id), não em pot_players
+ * (que continua guild-scoped, só pra atividade por servidor via webhook).
  *
  * Cenários tratados:
  *  - Nada existe ainda para este discord_id nem para este alderon_id: cria
  *    uma linha nova.
- *  - Já existe uma linha para este alderon_id (ex: criada por um webhook,
- *    ainda sem discord_id vinculado, ou já vinculada a este mesmo usuário):
- *    atualiza discord_id/nome nela.
  *  - Este discord_id já está vinculado a OUTRO alderon_id: trata como
  *    re-vínculo — atualiza a linha existente do discord_id para o novo
- *    alderon_id, em vez de criar uma segunda linha para o mesmo usuário.
+ *    alderon_id.
  *  - O alderon_id já pertence a OUTRO discord_id: rejeita (conflito real,
  *    precisa de intervenção manual da staff).
  *
- * @param {string} guildId
  * @param {string} discordId
  * @param {string} alderonId - Já validado no formato xxx-xxx-xxx pelo chamador
  * @param {string} playerName
  * @returns {{ success: boolean, created?: boolean, relinked?: boolean, error?: string }}
  *   error, quando presente, é um código curto: 'MISSING_FIELDS' | 'ALDERON_TAKEN' | 'DB_ERROR'
  */
-function registerPlayerManually(guildId, discordId, alderonId, playerName) {
-    if (!guildId || !discordId || !alderonId || !playerName) {
+function registerPlayerManually(discordId, alderonId, playerName) {
+    if (!discordId || !alderonId || !playerName) {
         return { success: false, error: 'MISSING_FIELDS' };
     }
 
     const now = Date.now();
-    const nowSeconds = Math.floor(now / 1000);
 
     try {
         const byAlderon = db.prepare(`
-            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
-        `).get(guildId, alderonId);
+            SELECT * FROM player_links WHERE alderon_id = ?
+        `).get(alderonId);
 
-        if (byAlderon && byAlderon.discord_id && byAlderon.discord_id !== discordId) {
+        if (byAlderon && byAlderon.user_id !== discordId) {
             return { success: false, error: 'ALDERON_TAKEN' };
         }
 
         const byDiscord = db.prepare(`
-            SELECT * FROM pot_players WHERE guild_id = ? AND discord_id = ?
-        `).get(guildId, discordId);
+            SELECT * FROM player_links WHERE user_id = ?
+        `).get(discordId);
 
-        if (byDiscord && byDiscord.alderon_id !== alderonId) {
-            // Re-vínculo: o usuário já tinha outro Alderon ID cadastrado.
-            db.prepare(`
-                UPDATE pot_players SET
-                    alderon_id = ?, player_name = ?, linked_at = ?, updated_at = ?
-                WHERE guild_id = ? AND discord_id = ?
-            `).run(alderonId, playerName, now, nowSeconds, guildId, discordId);
-            return { success: true, created: false, relinked: true };
-        }
-
-        if (byAlderon) {
-            // Linha já existe para este Alderon ID (webhook ou já era este
-            // mesmo usuário) — só garante o vínculo/nome atualizados.
-            db.prepare(`
-                UPDATE pot_players SET
-                    discord_id = ?, player_name = ?, linked_at = ?, updated_at = ?
-                WHERE guild_id = ? AND alderon_id = ?
-            `).run(discordId, playerName, now, nowSeconds, guildId, alderonId);
-            return { success: true, created: false, relinked: false };
-        }
+        const relinked = !!(byDiscord && byDiscord.alderon_id !== alderonId);
 
         db.prepare(`
-            INSERT INTO pot_players (
-                guild_id, alderon_id, player_name, discord_id,
-                last_seen, total_playtime, is_online,
-                linked_at, first_login_at, updated_at, admin_notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(guildId, alderonId, playerName, discordId, null, 0, 0, now, null, nowSeconds, null);
+            INSERT INTO player_links (user_id, alderon_id, player_name, registered_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                alderon_id = excluded.alderon_id,
+                player_name = excluded.player_name,
+                updated_at = excluded.updated_at
+        `).run(discordId, alderonId, playerName, now, Math.floor(now / 1000));
 
-        return { success: true, created: true, relinked: false };
+        return { success: true, created: !byDiscord, relinked };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro no cadastro manual:', error);
         return { success: false, error: 'DB_ERROR' };
@@ -318,18 +296,17 @@ function registerPlayerManually(guildId, discordId, alderonId, playerName) {
 }
 
 /**
- * Busca o jogador PoT por Alderon ID (qualquer guild_id específico).
+ * Busca o vínculo global por Alderon ID.
  *
- * @param {string} guildId
  * @param {string} alderonId
- * @returns {object|null} linha completa de pot_players
+ * @returns {object|null} linha completa de player_links
  */
-function getPlayerByAlderonId(guildId, alderonId) {
-    if (!guildId || !alderonId) return null;
+function getPlayerByAlderonId(alderonId) {
+    if (!alderonId) return null;
     try {
         return db.prepare(`
-            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
-        `).get(guildId, alderonId) || null;
+            SELECT * FROM player_links WHERE alderon_id = ?
+        `).get(alderonId) || null;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao buscar jogador por alderon_id:', error);
         return null;
@@ -383,11 +360,15 @@ function setVerificationCode(guildId, alderonId, code) {
 
 /**
  * Confirma a verificação em jogo se o código bater, e limpa o código usado.
+ * Continua guild-scoped de propósito — verification_code/verified_ingame são
+ * campos de pot_players (atividade por servidor), não de player_links.
  * @returns {boolean} true se o código conferiu e a verificação foi confirmada
  */
 function confirmVerification(guildId, alderonId, submittedCode) {
     try {
-        const player = getPlayerByAlderonId(guildId, alderonId);
+        const player = db.prepare(`
+            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        `).get(guildId, alderonId);
         if (!player || !player.verification_code || player.verification_code !== String(submittedCode).trim()) {
             return false;
         }
@@ -402,28 +383,46 @@ function confirmVerification(guildId, alderonId, submittedCode) {
 }
 
 /**
- * Busca o jogador PoT vinculado a um Discord ID, se houver.
+ * Busca o vínculo global pelo Discord ID, se houver.
  *
- * O vínculo pode vir de duas fontes: o comando /registrar (manual, ver
- * registerPlayerManually) ou o payload de webhook trazer o campo
- * DiscordId/discord_id (ver extractDiscordId acima) — o que exige o servidor
- * do jogo enviar esse dado, algo que a maioria não faz.
- *
- * @param {string} guildId
  * @param {string} discordId
- * @returns {{ alderon_id: string, player_name: string } | null}
+ * @returns {{ alderon_id: string, player_name: string, banner_message_id: string|null } | null}
  */
-function getPlayerByDiscordId(guildId, discordId) {
-    if (!guildId || !discordId) return null;
+function getPlayerByDiscordId(discordId) {
+    if (!discordId) return null;
     try {
         return db.prepare(`
-            SELECT alderon_id, player_name FROM pot_players
-            WHERE guild_id = ? AND discord_id = ?
-            ORDER BY updated_at DESC LIMIT 1
-        `).get(guildId, discordId) || null;
+            SELECT alderon_id, player_name, banner_message_id FROM player_links WHERE user_id = ?
+        `).get(discordId) || null;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao buscar jogador por discord_id:', error);
         return null;
+    }
+}
+
+/**
+ * Define (ou remove, se messageId for null) o banner de perfil personalizado
+ * do jogador — recurso do Player Premium Raptor (ver /perfil-banner). Guarda
+ * o ID da mensagem no canal de armazenamento (BANNER_STORAGE_CHANNEL_ID),
+ * NÃO a URL do anexo — URLs de anexo do Discord expiram (~24h), a mensagem
+ * em si não; a URL é resolvida na hora, refazendo o fetch da mensagem
+ * sempre que o perfil é exibido (ver playerRegistrationSystem.sendProfile).
+ * Só atualiza se já existir um vínculo (usuário precisa ter rodado
+ * /registrar antes de poder ter um banner).
+ *
+ * @param {string} discordId
+ * @param {string|null} messageId
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setBannerMessageId(discordId, messageId) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET banner_message_id = ?, updated_at = ? WHERE user_id = ?
+        `).run(messageId, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar banner de perfil:', error);
+        return false;
     }
 }
 
@@ -433,12 +432,11 @@ function getPlayerByDiscordId(guildId, discordId) {
  * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
  * linha de identificação deve simplesmente omitir o Alderon ID.
  *
- * @param {string} guildId
  * @param {string} discordId
  * @returns {string}
  */
-function getAlderonIdSuffix(guildId, discordId) {
-    const player = getPlayerByDiscordId(guildId, discordId);
+function getAlderonIdSuffix(discordId) {
+    const player = getPlayerByDiscordId(discordId);
     return player ? `|ID ALDERON:${player.alderon_id}` : '';
 }
 
@@ -448,6 +446,7 @@ module.exports = {
     getPlayerByAlderonId,
     getAlderonIdSuffix,
     registerPlayerManually,
+    setBannerMessageId,
     // Verificação em jogo (RCON) — preparado, ainda não ativado no fluxo real.
     generateVerificationCode,
     setVerificationCode,

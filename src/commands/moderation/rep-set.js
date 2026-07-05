@@ -27,7 +27,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
 
     // ── Apresentação padrão: Usuário alvo do ajuste ──────────────────────────
     const targetAvatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-    const targetAlderonSuffix = getAlderonIdSuffix(guildId, target.id);
+    const targetAlderonSuffix = getAlderonIdSuffix(target.id);
     builder.section(
         `## JOGADOR\n${target.toString()}${targetAlderonSuffix}\n${target.username}\n(\`${target.id}\`)`,
         AdvancedContainerBuilder.thumbnail(targetAvatar),

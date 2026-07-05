@@ -137,7 +137,8 @@ module.exports = {
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
             builder.separator();
-            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser.tag}`);
+            const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
+            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser.tag}${getAlderonIdSuffix(targetUser.id)}`);
             builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo:** ${reason}`);
             builder.text(`**${emojis.clockalert || '⏳'} Duração:** ${isPermanent ? 'Permanente' : durationStr}`);
@@ -147,16 +148,17 @@ module.exports = {
             builder.text(`**${emojis.raio || '⚡'} Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
             builder.text(`**${emojis.game || '🎮'} Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
 
-            // ── Nível 4 (Severa) e 5 (Permanente) cobrem bans muito longos ou
-            // permanentes: exigem aprovação de um Supervisor. Avisa o staff
+            // ── Nível 4/5 OU duração >72h/permanente exigem aprovação de um
+            // Supervisor (vale pra qualquer tier — ver
+            // PunishmentSystem.requiresSupervisorApproval). Avisa o staff
             // ANTES de ele confirmar, já que quem não é Supervisor terá o
             // pedido enviado para aprovação em vez de aplicado na hora. ──────
             const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
-            if (PunishmentSystem.isSevereSeverity(severity) && !(await PunishmentSystem.memberHasSupervisorRole(guild, staffMember))) {
+            if (PunishmentSystem.requiresSupervisorApproval({ severity, durationStr }) && !(await PunishmentSystem.memberHasSupervisorRole(guild, staffMember))) {
                 builder.separator();
                 builder.text(
                     `${emojis.shieldban || '🛡️'} **Requer aprovação de Supervisor**\n` +
-                    `Esta é uma punição **${severityNames[severity]}** (pode envolver ban permanente ou muito longo). Como você não possui o cargo Supervisor (/config-roles), ao confirmar o pedido será enviado para o canal de log de punições, marcando o cargo Supervisor — a punição só será aplicada depois de aprovada.`
+                    `Esta punição é **${severityNames[severity]}** e/ou tem duração longa (>72h ou permanente). Como você não possui o cargo Supervisor (/config-roles), ao confirmar o pedido será enviado para o canal de log de punições, marcando o cargo Supervisor — a punição só será aplicada depois de aprovada.`
                 );
             }
 

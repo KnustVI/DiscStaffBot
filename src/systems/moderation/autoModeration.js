@@ -4,6 +4,7 @@ const db = require('../../database/index');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const SessionManager = require('../../utils/sessionManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../premium/premiumSystem');
 
 let EMOJIS = {};
 try {
@@ -262,18 +263,31 @@ class AutoModerationSystem {
         let totalRolesRemoved = 0;
 
         try {
-            const result = db.prepare(`
-                UPDATE reputation 
-                SET points = MIN(100, points + 1)
-                WHERE points < 100 
-                AND NOT EXISTS (
-                    SELECT 1 FROM punishments 
-                    WHERE punishments.user_id = reputation.user_id 
-                    AND punishments.guild_id = reputation.guild_id
-                    AND (strftime('%s','now') * 1000 - punishments.created_at) < 86400000
-                )
-            `).run();
-            totalRepRecovered = result.changes;
+            // Manutenção diária (recuperação de reputação + cargos automáticos)
+            // é recurso exclusivo do tier Fossil — servidores Free/Pegada não
+            // têm reputação automática nem "automod diário". A quantidade
+            // recuperada por dia é configurável por servidor (padrão 1 ponto),
+            // via /config-punishments — por isso o UPDATE roda por guild, não
+            // mais como uma query global única.
+            const fossilGuildIds = db.prepare(`
+                SELECT guild_id FROM guild_premium WHERE tier = 'fossil' AND (expires_at IS NULL OR expires_at > ?)
+            `).all(Date.now()).map(row => row.guild_id);
+
+            for (const gId of fossilGuildIds) {
+                const recoveryAmount = parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1;
+                const result = db.prepare(`
+                    UPDATE reputation
+                    SET points = MIN(100, points + ?)
+                    WHERE guild_id = ? AND points < 100
+                    AND NOT EXISTS (
+                        SELECT 1 FROM punishments
+                        WHERE punishments.user_id = reputation.user_id
+                        AND punishments.guild_id = reputation.guild_id
+                        AND (strftime('%s','now') * 1000 - punishments.created_at) < 86400000
+                    )
+                `).run(recoveryAmount, gId);
+                totalRepRecovered += result.changes;
+            }
             console.log(`📈 [AutoMod] ${totalRepRecovered} usuários recuperaram pontos.`);
         } catch (err) {
             console.error('❌ [AutoMod] Erro na recuperação de reputação:', err);
@@ -286,6 +300,7 @@ class AutoModerationSystem {
                 const { guild_id: gId, user_id: uId, points: rep } = userData;
                 const guild = this.client.guilds.cache.get(gId);
                 if (!guild) continue;
+                if (!PremiumSystem.getGuildLimits(gId).automodEnabled) continue;
 
                 if (!stats[gId]) {
                     stats[gId] = { added: 0, removed: 0, guildName: guild.name, exemplarAdded: 0, problematicAdded: 0 };
@@ -401,10 +416,12 @@ class AutoModerationSystem {
                     console.error('❌ [AutoMod] Erro ao buscar ranking de staff:', err);
                 }
 
+                const recoveryAmount = parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1;
+
                 const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
                 builder.title(`${EMOJIS.circlecheck || '✅'} Manutenção Diária Concluída`, 1);
                 builder.separator();
-                builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+1pt**.`);
+                builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+${recoveryAmount}pt**.`);
                 builder.text(`${EMOJIS.trophy || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
                 builder.text(`${EMOJIS.medal || '📊'} **Detalhes:** ${EMOJIS.sparkles || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.trianglealert || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
                 builder.separator();

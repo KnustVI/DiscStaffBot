@@ -265,6 +265,46 @@ const SCHEMA = {
             usage_count INTEGER DEFAULT 0
         )
     `,
+
+    // ==================== VÍNCULO GLOBAL DISCORD <-> ALDERON ID ====================
+    // Fonte da verdade da IDENTIDADE do jogador (global, sem guild_id) — usada
+    // por /registrar, /perfil, Player Premium, badges/títulos futuros. pot_players
+    // (acima) continua guild-scoped, só pra atividade por servidor (webhook, notas).
+    player_links: `
+        CREATE TABLE IF NOT EXISTS player_links (
+            user_id TEXT PRIMARY KEY,
+            alderon_id TEXT NOT NULL UNIQUE,
+            player_name TEXT,
+            banner_message_id TEXT,
+            registered_at INTEGER,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+    `,
+
+    // ==================== PREMIUM ====================
+    player_premium: `
+        CREATE TABLE IF NOT EXISTS player_premium (
+            user_id TEXT PRIMARY KEY,
+            tier TEXT NOT NULL DEFAULT 'free',
+            granted_by TEXT,
+            granted_at INTEGER,
+            expires_at INTEGER,
+            notes TEXT,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+    `,
+
+    guild_premium: `
+        CREATE TABLE IF NOT EXISTS guild_premium (
+            guild_id TEXT PRIMARY KEY,
+            tier TEXT NOT NULL DEFAULT 'free',
+            granted_by TEXT,
+            granted_at INTEGER,
+            expires_at INTEGER,
+            notes TEXT,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -319,7 +359,16 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,
     
     // Sequences
-    `CREATE INDEX IF NOT EXISTS idx_sequences_guild ON sequences(guild_id)`
+    `CREATE INDEX IF NOT EXISTS idx_sequences_guild ON sequences(guild_id)`,
+
+    // Player links (registro global)
+    `CREATE INDEX IF NOT EXISTS idx_player_links_alderon ON player_links(alderon_id)`,
+
+    // Premium
+    `CREATE INDEX IF NOT EXISTS idx_player_premium_tier ON player_premium(tier)`,
+    `CREATE INDEX IF NOT EXISTS idx_player_premium_expires ON player_premium(expires_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_guild_premium_tier ON guild_premium(tier)`,
+    `CREATE INDEX IF NOT EXISTS idx_guild_premium_expires ON guild_premium(expires_at)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };

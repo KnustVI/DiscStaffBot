@@ -71,7 +71,10 @@ class DatabaseManager {
                 'pot_servers',
                 'pot_players',
                 'pot_logs',
-                'pot_tokens'
+                'pot_tokens',
+                'player_links',
+                'player_premium',
+                'guild_premium'
             ];
             
             for (const table of tables) {
@@ -106,6 +109,10 @@ class DatabaseManager {
             // está ativado (ver potPlayerRegistry.js). Ver /registrar.
             this.ensureColumn('pot_players', 'verification_code', 'TEXT');
             this.ensureColumn('pot_players', 'verified_ingame', 'INTEGER DEFAULT 0');
+            // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-banner.
+            // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
+            // expiram em ~24h, a mensagem em si não).
+            this.ensureColumn('player_links', 'banner_message_id', 'TEXT');
 
             console.log('📋 Schema do banco de dados criado');
 

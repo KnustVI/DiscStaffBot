@@ -1,0 +1,156 @@
+TITAN'S PASS - SISTEMA DE PREMIUM
+==================================================
+Explicacao dos planos pagos do bot: Player Premium (por jogador) e Server
+Premium (por servidor). Pagamento e feito por fora (Pix, etc.) e o tier e
+concedido manualmente pelo desenvolvedor do bot - nao ha cobranca automatica
+ainda.
+
+
+1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
+------------------------------------------------
+
+FREE
+- Perfil sincronizado com o Discord (/perfil, /registrar).
+- Badges de servidor e titulos de missao de servidor.
+  (ainda nao implementado - "vindo em breve")
+
+COMPY - R$10/mes
+- Tudo do Free.
+- Badge exclusivo no /perfil.
+  (ainda nao implementado - "vindo em breve")
+- Titulos exclusivos.
+  (ainda nao implementado - "vindo em breve")
+- Descontos em lojinhas parceiras.
+  (ainda nao implementado - "vindo em breve")
+- Participa do sorteio mensal de pacote de skins do Path of Titans.
+  (ainda nao implementado - "vindo em breve")
+
+RAPTOR - R$25/mes
+- Tudo do Compy.
+- Perfil 100% personalizado com imagens proprias.
+  Banner de perfil JA IMPLEMENTADO: aparece acima do card no /perfil. Usa o
+  banner do proprio Discord automaticamente, se o jogador tiver um; ou pode
+  enviar uma imagem propria via /perfil-banner (e remover com o mesmo
+  comando, sem anexar nada). Fora do Raptor no banner nenhum aparece.
+- Badge exclusivo, titulos exclusivos.
+  (ainda nao implementado - "vindo em breve")
+
+O QUE JA FUNCIONA HOJE, DE VERDADE:
+- O tier em si (concessao/expiracao/consulta) - ver secao 3.
+- O /perfil mostra o tier atual do jogador, se for Compy ou Raptor.
+- Banner de perfil personalizado (Raptor) via /perfil-banner - precisa que o
+  desenvolvedor do bot configure BANNER_STORAGE_CHANNEL_ID no .env (canal
+  onde as imagens enviadas sao guardadas). Guarda so o ID da mensagem, nao a
+  URL - links de anexo do Discord expiram em ~24h, entao a URL e resolvida
+  na hora (refazendo o fetch da mensagem) toda vez que o /perfil e exibido.
+- Loja, badge exclusivo, titulos e sorteio sao so a FUNDACAO (o sistema de
+  tier), ainda NAO tem loja/badge/titulos/sorteio implementados de fato.
+
+
+2) SERVER PREMIUM (por servidor Discord)
+------------------------------------------------
+
+FREE
+- Logs de strikes, unstrikes, reportchat e alteracoes de config.
+  (sem log de automod, alerta de player problematico, reputacao ou acoes
+  automaticas em jogo - essas coisas nem existem neste tier)
+- Report-chat: limite de 1 chat aberto (report + revisao de punicao juntos),
+  cooldown de 4h entre aberturas.
+- Punicao: SEM niveis de severidade de verdade (o campo existe no comando
+  mas nao afeta pontos, ja que reputacao esta desativada), SEM cargo
+  temporario de punicao, SEM RCON automatico, SEM automod/cargos
+  automaticos, SEM analises, SEM historico de jogador.
+- Toda punicao com duracao MAIOR que 72h ou permanente exige aprovacao do
+  cargo Supervisor (unica regra de confirmacao neste tier, ja que nao ha
+  niveis de severidade relevantes).
+
+PEGADA - R$25/mes
+- Logs de sistema + logs de jogo.
+- Missoes mensais ativadas. (ainda nao implementado - "vindo em breve")
+- Report-chat: limite de 3 chats abertos, sem cooldown.
+- Punicao: cargo temporario de punicao + niveis de reputacao ativados (5
+  niveis, pontos configuraveis via /config-punishments) + historico de
+  jogador (/historico liberado).
+  Aprovacao de Supervisor exigida pra nivel 4/5 OU duracao >72h/permanente
+  (mesma regra do Free, so que aqui os niveis tambem contam).
+- SEM cargos automaticos de reputacao (exemplar/problematico) - isso e
+  exclusivo do Fossil.
+- SEM automod diario (recuperacao de +1 ponto/dia e cargos automaticos nao
+  rodam neste tier).
+- SEM analise de atividade de staff.
+- SEM RCON automatico.
+
+FOSSIL - R$40/mes
+- Logs completos + historico + analise de atividade de staff + analise de
+  reports + resumo de mortes por webhook (nome do personagem) + analise de
+  jogador + missoes personalizadas + prioridade de suporte.
+  (analise de reports/jogador, resumo de mortes e missoes personalizadas
+  ainda nao implementados - "vindo em breve")
+- Report-chat: sem limite de chats abertos, sem cooldown.
+- Punicao: niveis totalmente personalizaveis pelo admin (quantidade livre,
+  pontos e acoes automaticas configuraveis) + RCON automatico
+  (warn/kick/slay/ban) quando o jogador estiver vinculado via /registrar +
+  automod diario completo (recuperacao de reputacao + cargos automaticos
+  de exemplar/problematico), com a QUANTIDADE de pontos recuperados por dia
+  configuravel em /config-punishments (padrao: 1 ponto/dia).
+  (niveis 100% personalizaveis ainda nao implementados - hoje ainda usa os
+  5 niveis fixos configuraveis; automod diario, recuperacao configuravel e
+  RCON automatico ja funcionam de verdade)
+- Todos os comandos do Path of Titans disponiveis via Discord.
+  (ainda nao implementado - "vindo em breve"; quando existir, avisar
+  administradores pra configurar o acesso em Configuracoes do Servidor >
+  Integracoes > Titan's Pass)
+
+O QUE JA FUNCIONA HOJE, DE VERDADE:
+- Limite de chats abertos + cooldown no report-chat (todos os tiers).
+- Sistema de reputacao ligado/desligado conforme o tier (Free = desligado).
+- Aprovacao de Supervisor por severidade (nivel 4/5) OU duracao (>72h ou
+  permanente), em qualquer tier.
+- /historico liberado so a partir do Pegada.
+- Automod diario (recuperacao de reputacao + cargos automaticos de
+  exemplar/problematico) roda SO no Fossil.
+- RCON automatico em punicao (so Fossil) - a sintaxe exata dos comandos
+  RCON ainda esta pendente de confirmacao com o servidor real do PoT.
+- /premium-status mostra o tier do servidor e os limites concretos.
+
+
+3) COMO CONCEDER/REVOGAR/CONSULTAR UM TIER
+------------------------------------------------
+Comando: /premium (restrito ao desenvolvedor do bot - nenhum admin de
+servidor pode conceder premium, nem pra si mesmo, nem pros proprios
+jogadores)
+
+/premium player grant usuario:<user> tier:<compy|raptor> dias:<opcional> observacao:<opcional>
+/premium player revoke usuario:<user>
+/premium player check usuario:<user>
+
+/premium guild grant servidor_id:<id> tier:<pegada|fossil> dias:<opcional> observacao:<opcional>
+/premium guild revoke servidor_id:<id>
+/premium guild check servidor_id:<id, opcional - padrao: servidor atual>
+
+- "dias" vazio = concessao vitalicia (sem expiracao).
+- servidor_id e um ID numerico digitado a mao (nao precisa estar no
+  servidor no momento de conceder).
+
+Como qualquer um confere o proprio tier (sem ser o desenvolvedor):
+- /perfil - mostra o Player Premium do jogador, se houver.
+- /premium-status - mostra o Server Premium do servidor atual + o Player
+  Premium de quem rodou o comando.
+
+
+4) ATENCAO - SERVIDOR SEM TIER DEFINIDO CAI NO FREE
+------------------------------------------------
+Por decisao do dono do bot: qualquer servidor sem uma linha em guild_premium
+(ou com o tier expirado) e tratado como FREE automaticamente - incluindo
+servidores que ja usavam o bot antes desse sistema existir. Depois de
+colocar esse sistema no ar, rode /premium guild grant pros servidores que
+devem continuar com os limites antigos (ilimitados), assim que possivel -
+sen o eles ficam presos nos limites do Free sem querer.
+
+
+5) NENHUM COMANDO DE TERMINAL E NECESSARIO PRA USAR ISSO
+------------------------------------------------
+Toda concessao/revogacao de premium acontece pelo comando /premium, dentro
+do Discord - nao existe (nem e necessario) nenhum script de terminal pra
+operacao normal deste sistema. Ver FERRAMENTAS.txt se algum dia for criado
+um script auxiliar (ex: concessao em massa/emergencial).

@@ -219,6 +219,10 @@ const ConfigSystem = {
                 await this.handleLimitesModal(interaction);
                 return;
             }
+            if (customId.startsWith('config-punishments:recovery')) {
+                await this.handleRecoveryModal(interaction);
+                return;
+            }
             if (customId === 'config-punishments:reset') {
                 await this.resetPoints(interaction);
                 return;
@@ -291,6 +295,10 @@ const ConfigSystem = {
                 await this.processLimitesModal(interaction);
                 return;
             }
+            if (interaction.customId === 'config-punishments:recovery:modal:submit') {
+                await this.processRecoveryModal(interaction);
+                return;
+            }
             await ResponseManager.error(interaction, 'Modal não reconhecido.');
         } catch (error) {
             console.error('❌ Erro no handleModal:', error);
@@ -342,6 +350,56 @@ const ConfigSystem = {
         
         const modal = new ModalBuilder({ customId: 'config-punishments:limites:modal:submit', title: 'Configurar Limites', components: rows });
         await interaction.showModal(modal);
+    },
+
+    async handleRecoveryModal(interaction) {
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
+        }
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
+            return await ResponseManager.error(interaction, 'A personalização da recuperação diária de reputação é um recurso exclusivo do plano Fossil (é a mesma "manutenção diária" do automod, que só roda nesse tier).');
+        }
+
+        const guildId = interaction.guildId;
+        const recoveryAmount = parseInt(this.getSetting(guildId, 'rep_recovery_amount')) || 1;
+
+        const row = new ActionRowBuilder().addComponents(
+            new TextInputBuilder({
+                customId: 'recovery_amount',
+                label: 'Pontos recuperados por dia (0-100)',
+                style: TextInputStyle.Short,
+                required: true,
+                value: recoveryAmount.toString(),
+                placeholder: 'Ex: 1',
+            })
+        );
+
+        const modal = new ModalBuilder({ customId: 'config-punishments:recovery:modal:submit', title: 'Recuperação Diária de Reputação', components: [row] });
+        await interaction.showModal(modal);
+    },
+
+    async processRecoveryModal(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
+            return await ResponseManager.error(interaction, 'A personalização da recuperação diária de reputação é um recurso exclusivo do plano Fossil.');
+        }
+
+        const recoveryAmount = parseInt(interaction.fields.getTextInputValue('recovery_amount'));
+        if (isNaN(recoveryAmount) || recoveryAmount < 0 || recoveryAmount > 100) {
+            return await ResponseManager.error(interaction, 'A recuperação diária deve ser um número entre 0 e 100.');
+        }
+
+        const oldValue = this.getSetting(interaction.guildId, 'rep_recovery_amount');
+        this.setSetting(interaction.guildId, 'rep_recovery_amount', recoveryAmount.toString());
+        this.clearCache(interaction.guildId);
+
+        const changeMessage = oldValue != recoveryAmount
+            ? `${EMOJIS.circlecheck || '✅'} **Recuperação diária atualizada:** \`${oldValue || 1}\` → \`${recoveryAmount}\` ponto(s)/dia.`
+            : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (oldValue != recoveryAmount) await this.logConfigChange(interaction, [`${EMOJIS.trendingup || '📈'} Recuperação diária: \`${oldValue || 1}\` → \`${recoveryAmount}\` ponto(s)/dia`]);
+        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
     },
 
     async processPointsStrikeModal(interaction) {
@@ -418,6 +476,7 @@ const ConfigSystem = {
         }
         this.setSetting(interaction.guildId, 'limit_exemplar', '95');
         this.setSetting(interaction.guildId, 'limit_problematico', '30');
+        this.setSetting(interaction.guildId, 'rep_recovery_amount', '1');
         this.clearCache(interaction.guildId);
         await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Pontos de Strike e limites de reputação resetados para o padrão.`);
         await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name);
@@ -462,8 +521,12 @@ const ConfigSystem = {
         
         const exemplarLimit    = parseInt(this.getSetting(guildId, 'limit_exemplar'))    || 95;
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
+        const recoveryAmount   = parseInt(this.getSetting(guildId, 'rep_recovery_amount')) || 1;
         const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        const automodEnabled = PremiumSystem.getGuildLimits(guildId).automodEnabled;
 
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
@@ -490,12 +553,21 @@ const ConfigSystem = {
                 `${EMOJIS.sparkles || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
                 `${EMOJIS.trianglealert  || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
             ])
+            .separator()
+            .title(`${EMOJIS.trendingup || '📈'} Recuperação Diária de Reputação`, 2)
+            .block([
+                `${EMOJIS.trendingup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
+                automodEnabled
+                    ? `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Fossil).`
+                    : `${EMOJIS.circlealert || '❌'} Automod diário inativo — exclusivo do plano Fossil (ver /premium-status).`,
+            ])
             .footer(guildName)
             .build();
-        
+
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('config-punishments:strike:modal').setLabel('Editar Níveis de Strike').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder().setCustomId('config-punishments:limites:modal').setLabel('Editar Limites').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+            new ButtonBuilder().setCustomId('config-punishments:recovery:modal').setLabel('Editar Recuperação Diária').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
             new ButtonBuilder().setCustomId('config-punishments:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️')
         );
         

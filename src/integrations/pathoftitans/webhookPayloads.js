@@ -59,9 +59,9 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
 
     let discordUser = null;
     try {
-        const linked = PlayerRegistry.getPlayerByAlderonId(guildId, alderonId);
-        if (linked?.discord_id) {
-            discordUser = await client.users.fetch(linked.discord_id).catch(() => null);
+        const linked = PlayerRegistry.getPlayerByAlderonId(alderonId);
+        if (linked?.user_id) {
+            discordUser = await client.users.fetch(linked.user_id).catch(() => null);
         }
     } catch (err) {
         // sem vínculo encontrado — segue sem info de Discord

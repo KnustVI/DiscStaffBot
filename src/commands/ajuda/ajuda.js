@@ -223,6 +223,14 @@ function buildPageUserSimple(displayName, guildName, emojis) {
         '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera +1 ponto/dia.',
         '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos.',
     ]);
+    builder.separator();
+
+    builder.title(`${emojis.idcard || '🆔'} Registro (/registrar e /perfil)`, 2);
+    builder.block([
+        '• **/registrar** vincula seu Discord ao seu Alderon ID (Path of Titans).',
+        '• **Esse vínculo é global** — faça uma vez só e ele vale em qualquer servidor que tiver o bot, não precisa repetir em cada comunidade.',
+        '• **/perfil** mostra seu cartão de jogador (ou o de outra pessoa).',
+    ]);
 
     builder.footer(guildName);
     return builder;

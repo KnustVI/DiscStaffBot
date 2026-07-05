@@ -13,6 +13,7 @@ const {
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { getAlderonIdSuffix } = require('../pot/potPlayerRegistry');
+const PremiumSystem = require('../premium/premiumSystem');
 
 let EMOJIS = {};
 try {
@@ -25,6 +26,46 @@ try {
 class ReportChatSystem {
     constructor(client) {
         this.client = client;
+    }
+
+    // ==================== LIMITES DE TIER (chats abertos + cooldown) ====================
+    // Report + revisão de punição contam juntos pro mesmo limite (decisão do
+    // dono) — ver PremiumSystem.GUILD_LIMITS.
+
+    countOpenChatsForUser(guildId, userId) {
+        return db.prepare(`
+            SELECT COUNT(*) AS c FROM reports
+            WHERE guild_id = ? AND user_id = ? AND status NOT IN ('closed_no_reason', 'closed_with_reason')
+        `).get(guildId, userId)?.c || 0;
+    }
+
+    getLastChatOpenedAt(guildId, userId) {
+        return db.prepare(`
+            SELECT MAX(created_at) AS ts FROM reports WHERE guild_id = ? AND user_id = ?
+        `).get(guildId, userId)?.ts || null;
+    }
+
+    /**
+     * Checa limite de chats abertos + cooldown pro tier do servidor. Retorna
+     * null se pode abrir, ou uma string de erro pronta pra exibir se não.
+     */
+    checkChatLimits(guildId, userId) {
+        const limits = PremiumSystem.getGuildLimits(guildId);
+
+        const openCount = this.countOpenChatsForUser(guildId, userId);
+        if (openCount >= limits.maxOpenChats) {
+            return `${EMOJIS.circlealert || '❌'} Você já atingiu o limite de chats abertos (reports + revisões) para este servidor (${limits.maxOpenChats}). Feche um chat aberto antes de abrir outro.`;
+        }
+
+        if (limits.chatCooldownMs > 0) {
+            const lastOpenedAt = this.getLastChatOpenedAt(guildId, userId);
+            if (lastOpenedAt && Date.now() - lastOpenedAt < limits.chatCooldownMs) {
+                const retryAt = Math.floor((lastOpenedAt + limits.chatCooldownMs) / 1000);
+                return `${EMOJIS.clockalert || '⏳'} Aguarde antes de abrir outro chat — disponível <t:${retryAt}:R>.`;
+            }
+        }
+
+        return null;
     }
 
     getNextId(guildId) {
@@ -114,7 +155,7 @@ class ReportChatSystem {
         builder.separator();
 
         // ==================== 2. CARD DO JOGADOR (quem abriu) ====================
-        const userAlderonSuffix = getAlderonIdSuffix(guild.id, user.id);
+        const userAlderonSuffix = getAlderonIdSuffix(user.id);
         builder.section(
             `## JOGADOR\n${user.toString()}${userAlderonSuffix ? ` ${userAlderonSuffix}` : ''}\n${user.username}\n(\`${user.id}\`)`,
             AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 128 })),
@@ -326,6 +367,12 @@ class ReportChatSystem {
                 return;
             }
 
+            const limitError = this.checkChatLimits(guild.id, user.id);
+            if (limitError) {
+                await interaction.editReply({ content: limitError, flags: [MessageFlags.Ephemeral] });
+                return;
+            }
+
             const reportNumber = this.getNextId(guild.id);
             const reportId = `#R${reportNumber}`;
             const threadName = `【${reportId}】report-${user.username}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -482,6 +529,12 @@ class ReportChatSystem {
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (!logChannelId) {
                 await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Canal de logs não configurado!`, flags: [MessageFlags.Ephemeral] });
+                return;
+            }
+
+            const limitError = this.checkChatLimits(guild.id, user.id);
+            if (limitError) {
+                await interaction.editReply({ content: limitError, flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -770,11 +823,71 @@ class ReportChatSystem {
             }
 
             await this.sendTempReply(interaction, `${reportId} foi fechado por ${interaction.user}.`, true);
-            
+
         } catch (error) {
             console.error('❌ Erro ao fechar:', error);
             await this.sendTempReply(interaction, `Erro ao fechar o report #${reportNumber}.`, false);
         }
+    }
+
+    // ==================== VÁLVULA DE SEGURANÇA (reports travados) ====================
+    // Agora que o tier Free limita a 1 chat aberto por vez (ver checkChatLimits),
+    // um report travado (thread apagada, painel quebrado, bot reiniciado no meio
+    // do fluxo) bloquearia o usuário pra sempre — estas funções liberam a vaga
+    // independente do tier, sempre disponíveis.
+
+    /**
+     * Libera manualmente um report/revisão travado — usado pelo comando de
+     * staff /report-liberar. Fecha no banco mesmo que a thread não exista
+     * mais ou já esteja travada/arquivada.
+     */
+    forceReleaseReport(guildId, reportNumber, staffId) {
+        const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
+        if (!report) return { success: false, error: 'NOT_FOUND' };
+        if (report.status === 'closed_no_reason' || report.status === 'closed_with_reason') {
+            return { success: false, error: 'ALREADY_CLOSED' };
+        }
+
+        db.prepare(`
+            UPDATE reports SET status = 'closed_no_reason', closed_by = ?, closed_reason = ?, closed_at = ?
+            WHERE guild_id = ? AND report_number = ?
+        `).run(staffId, 'Liberado manualmente pela staff (/report-liberar)', Date.now(), guildId, reportNumber);
+
+        this._tryArchiveThread(guildId, report.thread_id).catch(() => {});
+        this.updateStatus(guildId, `#R${reportNumber}`, 'closed_no_reason').catch(() => {});
+
+        return { success: true };
+    }
+
+    /**
+     * Libera automaticamente um report quando sua thread é apagada
+     * (ver src/events/threadDelete.js) — sem isso, apagar a thread deixaria
+     * o report "aberto" pra sempre no banco.
+     */
+    releaseReportByThreadId(threadId) {
+        const report = db.prepare(`
+            SELECT * FROM reports WHERE thread_id = ? AND status NOT IN ('closed_no_reason', 'closed_with_reason')
+        `).get(threadId);
+        if (!report) return null;
+
+        db.prepare(`
+            UPDATE reports SET status = 'closed_no_reason', closed_reason = ?, closed_at = ?
+            WHERE guild_id = ? AND report_number = ?
+        `).run('Thread excluída - liberado automaticamente', Date.now(), report.guild_id, report.report_number);
+
+        this.updateStatus(report.guild_id, `#R${report.report_number}`, 'closed_no_reason').catch(() => {});
+
+        return report;
+    }
+
+    async _tryArchiveThread(guildId, threadId) {
+        if (!threadId) return;
+        const guild = this.client.guilds.cache.get(guildId);
+        if (!guild) return;
+        const thread = await guild.channels.fetch(threadId).catch(() => null);
+        if (!thread) return;
+        await thread.setLocked(true).catch(() => {});
+        await thread.setArchived(true).catch(() => {});
     }
 
     // ==================== AVALIAR ====================

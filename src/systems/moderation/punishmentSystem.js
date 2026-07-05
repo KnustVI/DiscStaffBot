@@ -6,8 +6,9 @@ const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuild
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 const SessionManager = require('../../utils/sessionManager');
 const SequenceManager = require('../../database/sequences');
-const { getAlderonIdSuffix } = require('../pot/potPlayerRegistry');
+const { getAlderonIdSuffix, getPlayerByDiscordId } = require('../pot/potPlayerRegistry');
 const imageManager = require('../../utils/imageManager');
+const PremiumSystem = require('../premium/premiumSystem');
 
 const PunishmentSystem = {
     
@@ -128,7 +129,7 @@ const PunishmentSystem = {
         builder.separator();
 
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        const alderonSuffix = getAlderonIdSuffix(guildId, target.id);
+        const alderonSuffix = getAlderonIdSuffix(target.id);
         builder.section(
             `# ${target.toString()}${alderonSuffix}\n${target.username}\n(\`${target.id}\`)`,
             AdvancedContainerBuilder.thumbnail(avatar),
@@ -136,7 +137,11 @@ const PunishmentSystem = {
 
         builder.separator();
         builder.text(`**Server:** ${guildName}`);
-        builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
+        if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+            builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
+        } else {
+            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} **Reputação:** disponível a partir do plano Pegada`);
+        }
         builder.text(`${EMOJIS.gavel || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         
         if (history.punishments.length > 0) {
@@ -177,7 +182,7 @@ const PunishmentSystem = {
 
         // ── Apresentação padrão: Usuário alvo da punição ─────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(guildId, target.id) : '';
+        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(target.id) : '';
         builder.section(
             `## ${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
@@ -220,7 +225,7 @@ const PunishmentSystem = {
 
         // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(guildId, target.id) : '';
+        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(target.id) : '';
         builder.section(
             `## JOGADOR\n${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
@@ -333,10 +338,12 @@ const PunishmentSystem = {
             const staff = interaction.user;
             const staffMember = interaction.member;
 
-            // ── Punição severa (Nível 4 - Severa, ou 5 - Permanente): exige
-            // aprovação do cargo Supervisor, a menos que quem esteja
-            // confirmando já SEJA o supervisor (fluxo normal nesse caso). ────
-            if (this.isSevereSeverity(session.severity) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
+            // ── Punição severa (Nível 4/5) OU duração longa (>72h/permanente):
+            // exige aprovação do cargo Supervisor, a menos que quem esteja
+            // confirmando já SEJA o supervisor (fluxo normal nesse caso). Vale
+            // pra qualquer tier — em servidores Free (sem níveis de severidade
+            // relevantes) é a duração que decide sozinha. ────────────────────
+            if (this.requiresSupervisorApproval(session) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
                 return await this.requestSupervisorApproval(interaction, session);
             }
@@ -361,6 +368,20 @@ const PunishmentSystem = {
      */
     isSevereSeverity(severity) {
         return Number(severity) >= 4;
+    },
+
+    /**
+     * Decide se uma punição precisa de aprovação de Supervisor — por
+     * severidade (nível 4/5) OU por duração (>72h ou permanente),
+     * independente do tier. Free não usa níveis de severidade de forma
+     * relevante (sem reputação), então na prática só a duração importa lá.
+     */
+    requiresSupervisorApproval(session) {
+        if (this.isSevereSeverity(session.severity)) return true;
+        const durationStr = String(session.durationStr || '');
+        const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm';
+        if (isPermanent) return true;
+        return this.parseDuration(durationStr) > 72 * 3600000;
     },
 
     async memberHasSupervisorRole(guild, member) {
@@ -578,10 +599,43 @@ const PunishmentSystem = {
 
         const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
 
+        // ── Ação in-game automática via RCON — só pra servidores Fossil.
+        // PENDENTE: sintaxe exata dos comandos RCON do Path of Titans ainda
+        // não foi verificada (ver plano de implementação) — os comandos
+        // abaixo são um placeholder e precisam ser confirmados contra o
+        // servidor real antes de depender deles em produção. ────────────────
+        let ingameActionResult = null;
+        if (jogoAct && jogoAct !== 'none') {
+            if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) {
+                ingameActionResult = 'Ação in-game requer o plano Fossil.';
+            } else {
+                const link = getPlayerByDiscordId(targetId);
+                if (!link) {
+                    ingameActionResult = 'Jogador não vinculado ao Path of Titans (/registrar) — ação in-game não executada.';
+                } else {
+                    try {
+                        const PoTConfigSystem = require('../pot/potConfigSystem');
+                        const rconCommands = {
+                            rcon_warn: `warn ${link.alderon_id} ${reason}`,
+                            rcon_kick: `kick ${link.alderon_id}`,
+                            rcon_slay: `slay ${link.alderon_id}`,
+                            rcon_ban: `ban ${link.alderon_id} ${reason}`,
+                        };
+                        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, rconCommands[jogoAct]);
+                        ingameActionResult = rconResult?.success
+                            ? 'Ação in-game executada.'
+                            : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+                    } catch (err) {
+                        ingameActionResult = `Falha na ação in-game: ${err.message}`;
+                    }
+                }
+            }
+        }
+
         db.logActivity(guild.id, staff.id, 'strike', targetId, {
             command: 'strike', punishmentId: strikeId, severity, pointsLost,
             oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
-            temporaryRoleApplied: roleResult.applied
+            temporaryRoleApplied: roleResult.applied, ingameActionResult
         });
 
         await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
@@ -620,7 +674,7 @@ const PunishmentSystem = {
 
         return {
             success: true, strikeId, targetUser, pointsLost, newPoints,
-            dmDelivered, logSent, roleStatusMsg,
+            dmDelivered, logSent, roleStatusMsg, ingameActionResult,
         };
     },
 
@@ -639,6 +693,7 @@ const PunishmentSystem = {
             dmStatusMsg,
         ];
         if (result.roleStatusMsg) lines.push(result.roleStatusMsg);
+        if (result.ingameActionResult) lines.push(`${emojis.game || '🎮'} ${result.ingameActionResult}`);
         if (!result.logSent) lines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
         return lines;
     },
@@ -686,8 +741,12 @@ const PunishmentSystem = {
 
             db.prepare(`UPDATE punishments SET status = 'revoked', revoked_by = ?, revoked_reason = ?, revoked_at = ?
                 WHERE id = ? AND guild_id = ?`).run(staff.id, reason, Date.now(), punishment.id, guildId);
-            db.prepare(`UPDATE reputation SET points = MIN(100, points + ?) WHERE guild_id = ? AND user_id = ?`)
-                .run(pointsRestored, guildId, punishment.user_id);
+            // Free não deduziu pontos ao aplicar (ver applyPunishment), então
+            // não há nada a restaurar aqui também.
+            if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+                db.prepare(`UPDATE reputation SET points = MIN(100, points + ?) WHERE guild_id = ? AND user_id = ?`)
+                    .run(pointsRestored, guildId, punishment.user_id);
+            }
 
             const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
             if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
@@ -829,11 +888,16 @@ const PunishmentSystem = {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(uuid, guildId, strikeNumber, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
                 
-                db.prepare(`
-                    INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
-                    ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
-                `).run(guildId, targetId, points);
-                
+                // Sistema de pontos de reputação é recurso Pegada+ — em
+                // servidores Free a punição fica registrada, mas os pontos
+                // não são calculados/salvos (decisão do dono).
+                if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+                    db.prepare(`
+                        INSERT INTO reputation (guild_id, user_id, points) VALUES (?, ?, 100)
+                        ON CONFLICT(guild_id, user_id) DO UPDATE SET points = MAX(0, points - ?)
+                    `).run(guildId, targetId, points);
+                }
+
                 return strikeNumber;
             });
             return trans();

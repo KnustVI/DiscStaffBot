@@ -6,7 +6,7 @@ const PlayerRegistrationSystem = require('../../systems/pot/playerRegistrationSy
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('registrar')
-        .setDescription('🆔 Vincula seu Discord ao seu Alderon ID (Path of Titans).'),
+        .setDescription('🆔 Vincula seu Discord ao seu Alderon ID (Path of Titans) — vale em qualquer servidor com o bot.'),
 
     async execute(interaction, client) {
         const { guild, user } = interaction;

@@ -81,15 +81,15 @@ class PlayerRegistrationSystem {
      * consulta/ação pessoal, não faz sentido ser pública no canal).
      */
     async sendPanel(interaction) {
-        const guildId = interaction.guildId;
         const userId = interaction.user.id;
         const guildName = interaction.guild?.name || 'Servidor';
 
-        const player = PlayerRegistry.getPlayerByDiscordId(guildId, userId);
+        const player = PlayerRegistry.getPlayerByDiscordId(userId);
 
         const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
         builder.text('# CADASTRO DE JOGADOR');
         builder.text('Vincula sua conta do Discord ao seu personagem no Path of Titans (Alderon ID), para a staff identificar você nos reports, punições e no histórico.');
+        builder.text(`${EMOJIS.globo || '🌐'} **Esse vínculo é global** — funciona em qualquer servidor que tiver o bot, não precisa registrar de novo em cada comunidade.`);
         builder.separator();
 
         this._appendProfileCard(builder, interaction.user, player);
@@ -132,13 +132,49 @@ class PlayerRegistrationSystem {
      * @param {import('discord.js').User} targetUser
      */
     async sendProfile(interaction, targetUser) {
-        const guildId = interaction.guildId;
         const guildName = interaction.guild?.name || 'Servidor';
         const isSelf = targetUser.id === interaction.user.id;
 
-        const player = PlayerRegistry.getPlayerByDiscordId(guildId, targetUser.id);
+        const player = PlayerRegistry.getPlayerByDiscordId(targetUser.id);
 
         const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
+
+        // ── Banner de perfil — recurso do Player Premium Raptor: banner
+        // personalizado (enviado via /perfil-banner) tem prioridade; sem
+        // banner personalizado, usa o banner do próprio Discord, se houver.
+        // Jogadores fora do Raptor não têm banner nenhum aqui de propósito.
+        // A URL do banner personalizado é resolvida AGORA (não fica salva no
+        // banco) — anexos do Discord expiram em ~24h, só a mensagem em si
+        // não expira. ──────────────────────────────────────────────────────
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (PremiumSystem.isPlayerAtLeast(targetUser.id, 'raptor')) {
+            let bannerUrl = null;
+
+            if (player?.banner_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
+                try {
+                    const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
+                    const storedMessage = await storageChannel.messages.fetch(player.banner_message_id);
+                    bannerUrl = storedMessage.attachments.first()?.url || null;
+                } catch (err) {
+                    bannerUrl = null;
+                }
+            }
+
+            if (!bannerUrl) {
+                try {
+                    const fullUser = await targetUser.fetch();
+                    bannerUrl = fullUser.bannerURL({ size: 512 }) || null;
+                } catch (err) {
+                    bannerUrl = null;
+                }
+            }
+
+            if (bannerUrl) {
+                builder.gallery([bannerUrl]);
+                builder.separator();
+            }
+        }
+
         builder.text('# PERFIL');
         builder.separator();
 
@@ -151,6 +187,13 @@ class PlayerRegistrationSystem {
                     ? `${EMOJIS.messagesquare || 'ℹ️'} Use **/registrar** para vincular seu personagem do Path of Titans.`
                     : `${EMOJIS.messagesquare || 'ℹ️'} Esse usuário ainda não usou **/registrar** para vincular um personagem.`
             );
+        }
+
+        const playerTier = PremiumSystem.getPlayerTier(targetUser.id);
+        if (playerTier !== 'free') {
+            builder.separator();
+            const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
+            builder.text(`${EMOJIS.badge || '🏅'} **Player Premium:** ${tierLabel}`);
         }
 
         builder.separator();
@@ -194,12 +237,11 @@ class PlayerRegistrationSystem {
     }
 
     async handleOpenModal(interaction) {
-        const player = PlayerRegistry.getPlayerByDiscordId(interaction.guildId, interaction.user.id);
+        const player = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
         await interaction.showModal(this.getRegisterModal(player));
     }
 
     async handleModalSubmit(interaction) {
-        const guildId = interaction.guildId;
         const userId = interaction.user.id;
         const guildName = interaction.guild?.name || 'Servidor';
 
@@ -213,12 +255,12 @@ class PlayerRegistrationSystem {
             ));
         }
 
-        const result = PlayerRegistry.registerPlayerManually(guildId, userId, alderonIdRaw, playerName);
+        const result = PlayerRegistry.registerPlayerManually(userId, alderonIdRaw, playerName);
 
         if (!result.success) {
             const messages = {
                 MISSING_FIELDS: 'Preencha os dois campos corretamente.',
-                ALDERON_TAKEN: 'Esse Alderon ID já está vinculado a outra conta do Discord neste servidor. Se isso for um engano, peça para a staff verificar.',
+                ALDERON_TAKEN: 'Esse Alderon ID já está vinculado a outra conta do Discord (o vínculo é global, vale em qualquer servidor). Se isso for um engano, peça para a staff verificar.',
                 DB_ERROR: 'Erro interno ao salvar o cadastro. Tente novamente em instantes.',
             };
             return await interaction.editReply(this._simpleReply(

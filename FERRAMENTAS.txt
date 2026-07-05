@@ -92,7 +92,34 @@ arquivos em src/commands - comandos renomeados ou removidos do codigo somem
 do Discord automaticamente na proxima vez que voce rodar este comando.
 
 
-5) TESTES
+5) MIGRAR VINCULOS DISCORD<->ALDERON ID PARA GLOBAL
+------------------------------------------------
+Script: scripts/migrate-player-links-global.js
+Comando: node scripts/migrate-player-links-global.js
+
+O que faz:
+- O vinculo Discord<->Alderon ID (usado por /registrar e /perfil) passou a
+  ser GLOBAL (tabela player_links), em vez de por servidor (pot_players).
+- Este script le todas as linhas antigas de pot_players que tem discord_id
+  preenchido e migra pra player_links, um vinculo por usuario (o mais
+  recente vence se o mesmo Discord tiver Alderon IDs diferentes em
+  servidores diferentes - bug do modelo antigo que este script corrige).
+- Nao apaga nem altera pot_players - so LE de la e escreve em player_links.
+
+Quando usar:
+- Uma unica vez, em producao, logo depois de subir o deploy que introduziu
+  a tabela player_links - antes de qualquer uso novo de /registrar.
+
+Como usar:
+1. Garanta que o banco ja tem a tabela player_links (roda automaticamente
+   no boot do bot, via schema.js - so rodar o bot uma vez ja resolve isso).
+2. Rode: node scripts/migrate-player-links-global.js
+3. Confira no terminal quantos vinculos foram criados e se apareceu algum
+   aviso de conflito de Alderon ID entre contas diferentes (raro, mas se
+   aparecer precisa de revisao manual no banco).
+
+
+6) TESTES
 ------------------------------------------------
 Comando: npm test
 
