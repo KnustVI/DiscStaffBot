@@ -4,6 +4,7 @@ const db = require('../../database/index');
 const SystemStatus = require('../../systems/monitoring/systemStatus');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -54,7 +55,7 @@ async function resolveLastLogLink(guild, logChannelId, emojis) {
 // Montagem visual
 // ---------------------------------------------------------------------------
 
-function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLink, isHealthy, isDeveloper }) {
+function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLink, isHealthy, isDeveloper, analyticsEnabled }) {
     const healthEmoji  = isHealthy ? '🟢' : '🔴';
     const healthStatus = isHealthy ? 'Saudável' : 'Crítico — Verifique os logs';
 
@@ -90,25 +91,32 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
             .separator();
     }
 
-    builder
-        .title(`${emojis.storage || '🗄️'} Banco de Dados`, 2)
-        .block([
-            `**Tamanho:** ${dbStats?.fileSize ?? 'N/A'}`,
-            `**Tabelas:** ${Object.keys(dbStats?.tables ?? {}).length}`,
-            `**Punições:** ${guildStats.totalPunishments}`,
-            `${emojis.user || '👥'} **Penalizados:** ${guildStats.totalUsers}`,
-            `${emojis.star || '⭐'} **Média:** ${Math.round(guildStats.avgReputation)}/100`,
-            `${emojis.gavel || '⚠️'} **Últimos 30d:** ${guildStats.recentStrikes}`,
-        ])
-        .separator()
-        .title(`${emojis.shieldcheck || '🛡️'} Sistema AutoMod`, 2)
-        .block([
-            `**Próximo Ciclo:** <t:${status.nextAutoModTS}:R>`,
-            `**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:f>` : 'Nenhum registro'}`,
-            `**Logs:** ${lastLogLink}`,
-            `**Health:** ${healthEmoji} ${healthStatus}`,
-        ])
-        .footer(guild.name);
+    if (analyticsEnabled) {
+        builder
+            .title(`${emojis.storage || '🗄️'} Banco de Dados`, 2)
+            .block([
+                `**Tamanho:** ${dbStats?.fileSize ?? 'N/A'}`,
+                `**Tabelas:** ${Object.keys(dbStats?.tables ?? {}).length}`,
+                `**Punições:** ${guildStats.totalPunishments}`,
+                `${emojis.user || '👥'} **Penalizados:** ${guildStats.totalUsers}`,
+                `${emojis.star || '⭐'} **Média:** ${Math.round(guildStats.avgReputation)}/100`,
+                `${emojis.gavel || '⚠️'} **Últimos 30d:** ${guildStats.recentStrikes}`,
+            ])
+            .separator()
+            .title(`${emojis.shieldcheck || '🛡️'} Sistema AutoMod`, 2)
+            .block([
+                `**Próximo Ciclo:** <t:${status.nextAutoModTS}:R>`,
+                `**Última Execução:** ${status.lastRunTS ? `<t:${status.lastRunTS}:f>` : 'Nenhum registro'}`,
+                `**Logs:** ${lastLogLink}`,
+                `**Health:** ${healthEmoji} ${healthStatus}`,
+            ]);
+    } else {
+        builder
+            .title(`${emojis.badge || '🏅'} Análise de Sistemas`, 2)
+            .text(`${emojis.messagesquare || 'ℹ️'} Estatísticas do servidor (punições, reputação, AutoMod) são exclusivas do plano **Fossil**. Use \`/premium-status\` para ver o tier atual.`);
+    }
+
+    builder.footer(guild.name);
 
     return builder;
 }
@@ -145,11 +153,18 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Erro ao coletar dados do sistema.');
             }
 
-            const dbStats      = db.getStats();
-            const guildStats   = collectGuildStats(guildId);
-            const isHealthy    = SystemStatus.isSystemHealthy(client, guildId);
-            const logChannelId = ConfigSystem.getSetting(guildId, 'log_automod');
-            const lastLogLink  = await resolveLastLogLink(guild, logChannelId, emojis);
+            const analyticsEnabled = PremiumSystem.getGuildLimits(guildId).analyticsEnabled;
+            const isHealthy = SystemStatus.isSystemHealthy(client, guildId);
+
+            // Estatísticas de servidor (Banco de Dados/Sistema AutoMod) são
+            // exclusivas do Fossil — nem consulta o banco pras outras.
+            let dbStats = null, guildStats = null, lastLogLink = null;
+            if (analyticsEnabled) {
+                dbStats = db.getStats();
+                guildStats = collectGuildStats(guildId);
+                const logChannelId = ConfigSystem.getSetting(guildId, 'log_automod');
+                lastLogLink = await resolveLastLogLink(guild, logChannelId, emojis);
+            }
 
             const builder = buildStatusPage({
                 guild,
@@ -160,6 +175,7 @@ module.exports = {
                 lastLogLink,
                 isHealthy,
                 isDeveloper,
+                analyticsEnabled,
             });
 
             const payload = builder.build();
@@ -169,7 +185,7 @@ module.exports = {
                 command: 'botstatus',
                 responseTime: Date.now() - startTime,
                 systemHealth: isHealthy,
-                totalPunishments: guildStats.totalPunishments,
+                totalPunishments: guildStats?.totalPunishments ?? null,
             });
 
             console.log(`📊 [BOTSTATUS] ${user.tag} em ${guild.name} | ${Date.now() - startTime}ms`);

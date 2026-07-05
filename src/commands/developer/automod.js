@@ -1,6 +1,7 @@
 // /home/ubuntu/DiscStaffBot/src/commands/developer/automod.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
 // REMOVER esta importação:
 // const { AutoModerationSystem } = require('../../systems/moderation/autoModeration');
 
@@ -19,10 +20,19 @@ module.exports = {
 
     async execute(interaction, client) {
         const { guild } = interaction;
-        
-        const ConfigSystem = require('../../systems/core/configSystem');
         const guildId = guild.id;
-        
+
+        if (!PremiumSystem.getGuildLimits(guildId).automodEnabled) {
+            const denied = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                .text(`${emojis.circlealert || '❌'} A Auto Moderação (recuperação de reputação + cargos automáticos) é um recurso exclusivo do plano **Fossil**. Use \`/premium-status\` para ver o tier atual deste servidor.`)
+                .footer(guild.name);
+            const { components, flags } = denied.build();
+            await interaction.editReply({ components, flags: [flags] });
+            return;
+        }
+
+        const ConfigSystem = require('../../systems/core/configSystem');
+
         const autoMod = global.autoModInstance;
         
         if (!autoMod) {

@@ -44,11 +44,13 @@ function buildPageWelcome(displayName, guildName, emojis, isAdmin) {
         '• **Auto Moderação** — o que roda sozinho todo dia',
         '• **Eventos** — como criar e divulgar eventos da comunidade',
         '• **Status e utilidades** — checar a saúde do bot',
+        '• **Premium** — planos de jogador e de servidor',
         '• **Perguntas Frequentes**',
         '• **Fale com o desenvolvedor** — bugs e sugestões',
     ] : [
         '• **Como funciona o sistema de reputação**',
         '• **Como denunciar alguém ou contestar uma punição**',
+        '• **Premium** — planos de jogador e de servidor',
         '• **Perguntas Frequentes**',
         '• **Fale com o desenvolvedor** — bugs e sugestões',
     ]);
@@ -106,7 +108,7 @@ function buildPageModeration(guildName, emojis) {
 
     builder.title(`${emojis.shieldban || '🛡️'} Punições Severas Precisam de Aprovação`, 2);
     builder.block([
-        '• Strikes de **Nível 4 (Severa)** ou **5 (Permanente)** podem envolver bans muito longos ou permanentes.',
+        '• Strikes de **Nível 4 (Severa)** ou **5 (Permanente)**, OU qualquer duração **maior que 72h**, exigem aprovação do Supervisor — vale pra qualquer plano.',
         '• Quem não tem o cargo **Supervisor** (configurado em /config-roles) tem o pedido enviado para aprovação no canal de log de punições, marcando o Supervisor.',
         '• Quem já é Supervisor aplica direto, sem precisar de aprovação.',
     ]);
@@ -115,8 +117,8 @@ function buildPageModeration(guildName, emojis) {
     builder.title(`${emojis.star || '⭐'} Sistema de Reputação`, 2);
     builder.block([
         '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
-        '• Recuperação: +1 ponto/dia sem punições (via AutoMod)',
-        '• Perda: conforme configuração de strikes',
+        '• Recuperação automática: quantidade configurável/dia sem punições — só roda no plano **Fossil** (ver página de Premium).',
+        '• Perda: conforme configuração de strikes — disponível a partir do plano **Pegada**; no Free o strike fica registrado, mas não mexe em pontos.',
     ]);
 
     builder.footer(guildName);
@@ -155,9 +157,10 @@ function buildPageAutomod(guildName, emojis) {
     builder.title(`${emojis.trendingup || '📈'} Funcionamento`, 2);
     builder.block([
         '• Executa diariamente às **12:00** (horário de Brasília).',
-        '• +1 ponto para quem não tem punições nas últimas 24h.',
+        '• Recupera pontos para quem não tem punições nas últimas 24h — quantidade configurável em /config-punishments (padrão: +1/dia).',
         '• Atribui/remove cargos **Exemplar** e **Problemático** automaticamente, conforme os limites de /config-punishments.',
         '• Envia relatório no canal de log configurado.',
+        `• ${emojis.badge || '🏅'} **Recurso exclusivo do plano Fossil** — ver página de Premium.`,
     ]);
 
     builder.footer(guildName);
@@ -181,6 +184,39 @@ function buildPageEvents(guildName, emojis) {
         '• **Equipe de Eventos** — quem pode usar o /evento.',
         '• **Notificação de Eventos** — marcado automaticamente em cada postagem, para avisar quem tem interesse.',
     ]);
+
+    builder.footer(guildName);
+    return builder;
+}
+
+function buildPagePremium(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(builder, 'PREMIUM', 'O Titan\'s Pass tem dois planos pagos, independentes entre si:');
+
+    builder.title(`${emojis.badge || '🏅'} Player Premium (por jogador, global)`, 2);
+    builder.block([
+        '• **Free** — perfil sincronizado com Discord, badges e títulos de missão de servidor.',
+        '• **Compy (R$10/mês)** — badge exclusivo, títulos exclusivos, descontos e sorteio mensal de skin do PoT. *(vindo em breve)*',
+        '• **Raptor (R$25/mês)** — tudo do Compy + perfil 100% personalizado: banner próprio no `/perfil` (já disponível via `/perfil-banner`) e imagens exclusivas.',
+        `• Esse vínculo é **global** — vale em qualquer servidor com o bot, uma assinatura só.`,
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
+    builder.block([
+        '• **Free** — logs básicos (strike/unstrike/reportchat/config); 1 chat aberto por vez, 4h de cooldown; sem reputação, sem RCON automático.',
+        '• **Pegada (R$25/mês)** — logs de jogo, 3 chats abertos sem cooldown, sistema de reputação ativado, `/historico` liberado.',
+        '• **Fossil (R$40/mês)** — chats ilimitados, automod diário (cargos automáticos de reputação), análise de staff, RCON automático em punições e níveis de punição personalizáveis.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.gauge || '📊'} Como conferir seu tier`, 2);
+    builder.block([
+        '• **/perfil** — mostra seu Player Premium, se houver.',
+        '• **/premium-status** — mostra o Server Premium deste servidor e o seu Player Premium.',
+    ]);
+    builder.separator();
+    builder.text(`${emojis.messagesquare || 'ℹ️'} A concessão hoje é manual — fale com o desenvolvedor do bot (**/reportarbug**, opção Sugestão) pra assinar.`);
 
     builder.footer(guildName);
     return builder;
@@ -219,8 +255,8 @@ function buildPageUserSimple(displayName, guildName, emojis) {
 
     builder.title(`${emojis.star || '⭐'} Reputação`, 2);
     builder.block([
-        '• Sua reputação começa em **100 pontos**.',
-        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera +1 ponto/dia.',
+        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Pegada — ver página de Premium).',
+        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo (só no plano Fossil).',
         '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos.',
     ]);
     builder.separator();
@@ -324,12 +360,14 @@ module.exports = {
                     () => buildPageAutomod(guild.name, emojis),
                     () => buildPageEvents(guild.name, emojis),
                     () => buildPageUtility(guild.name, emojis),
+                    () => buildPagePremium(guild.name, emojis),
                     () => buildPageUserFAQ(guild.name, emojis),
                     () => buildPageContact(guild.name, emojis),
                 );
             } else {
                 pagination.addPages(
                     () => buildPageUserSimple(member.displayName, guild.name, emojis),
+                    () => buildPagePremium(guild.name, emojis),
                     () => buildPageUserFAQ(guild.name, emojis),
                     () => buildPageContact(guild.name, emojis),
                 );
