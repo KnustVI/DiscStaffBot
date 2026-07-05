@@ -175,7 +175,7 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## ${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
+            `## STAFF RESPONSAVEL\n${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
         );
         builder.separator();
@@ -184,14 +184,16 @@ const PunishmentSystem = {
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(target.id) : '';
         builder.section(
-            `## ${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
         builder.text(`## ${EMOJIS.ban || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
         builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
-        builder.text(`**${EMOJIS.trendingdown || '❌'} Pontos subtraídos:** -${pointsLost}`);
-        builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
+        if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+            builder.text(`**${EMOJIS.doublearrowdown || '❌'} Pontos subtraídos:** -${pointsLost}`);
+            builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
+        }
         builder.separator();
         builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**`);
         if (reportId) builder.text(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
@@ -232,8 +234,10 @@ const PunishmentSystem = {
         );
         builder.separator();
         builder.text(`## ${EMOJIS.circlecheck || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
-        builder.text(`**${EMOJIS.restore || '✅'} Pontos restaurados:** +${pointsRestored}`);
-        builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
+        if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+            builder.text(`**${EMOJIS.doublearrowup || '✅'} Pontos restaurados:** +${pointsRestored}`);
+            builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
+        }
         builder.separator();
         builder.text(`**${EMOJIS.messagesquare || '📝'} Punição Original:**`);
         builder.text(`\`\`\`text\n${originalReason}\n\`\`\``);
@@ -355,7 +359,7 @@ const PunishmentSystem = {
                 return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, interaction.guild?.name));
             }
 
-            await interaction.editReply(this._simpleReply(this._buildStrikeSummaryLines(result).join('\n'), COLORS.SUCCESS, interaction.guild?.name));
+            await interaction.editReply(this._simpleReply(this._buildStrikeSummaryLines(result, guild.id).join('\n'), COLORS.SUCCESS, interaction.guild?.name));
         }
     },
 
@@ -448,7 +452,9 @@ const PunishmentSystem = {
         approvalBuilder.text(`**${EMOJIS.user || '👤'} Solicitado por:** ${staff.toString()}`);
         approvalBuilder.text(`**${EMOJIS.user || '👤'} Alvo:** ${targetUser ? targetUser.toString() : `\`${session.targetId}\``}`);
         approvalBuilder.text(`${severityIcons[session.severity]} **Severidade:** ${severityNames[session.severity]}`);
-        approvalBuilder.text(`**${EMOJIS.trendingdown || '📉'} Pontos a perder:** -${session.pointsLost}`);
+        if (PremiumSystem.getGuildLimits(guild.id).reputationEnabled) {
+            approvalBuilder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos a perder:** -${session.pointsLost}`);
+        }
         approvalBuilder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
         approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
         approvalBuilder.separator();
@@ -510,7 +516,7 @@ const PunishmentSystem = {
             return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, guild.name));
         }
 
-        const summaryLines = this._buildStrikeSummaryLines(result);
+        const summaryLines = this._buildStrikeSummaryLines(result, guild.id);
         summaryLines.unshift(`${EMOJIS.circlecheck || '✅'} **Aprovado por ${interaction.user.tag}**`);
         await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, guild.name));
 
@@ -678,7 +684,7 @@ const PunishmentSystem = {
         };
     },
 
-    _buildStrikeSummaryLines(result) {
+    _buildStrikeSummaryLines(result, guildId) {
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
@@ -688,10 +694,12 @@ const PunishmentSystem = {
 
         const lines = [
             `${emojis.circlecheck || '✅'} **Strike #${result.strikeId} aplicado em ${result.targetUser.username}**`,
-            `${emojis.trendingdown || '📉'} ${result.pointsLost} pts perdidos`,
-            `${emojis.star || '⭐'} Reputação: ${result.newPoints}/100`,
-            dmStatusMsg,
         ];
+        if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+            lines.push(`${emojis.doublearrowdown || '📉'} ${result.pointsLost} pts perdidos`);
+            lines.push(`${emojis.star || '⭐'} Reputação: ${result.newPoints}/100`);
+        }
+        lines.push(dmStatusMsg);
         if (result.roleStatusMsg) lines.push(result.roleStatusMsg);
         if (result.ingameActionResult) lines.push(`${emojis.game || '🎮'} ${result.ingameActionResult}`);
         if (!result.logSent) lines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
@@ -800,9 +808,11 @@ const PunishmentSystem = {
 
             const summaryLines = [
                 `${emojis.circlecheck || '✅'} **Strike #${punishmentId} anulado!**`,
-                `${emojis.restore || '📈'} +${pointsRestored} pts | ${emojis.star || '⭐'} Reputação: ${newPoints}/100`,
-                dmStatusMsg,
             ];
+            if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+                summaryLines.push(`${emojis.doublearrowup || '📈'} +${pointsRestored} pts | ${emojis.star || '⭐'} Reputação: ${newPoints}/100`);
+            }
+            summaryLines.push(dmStatusMsg);
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');

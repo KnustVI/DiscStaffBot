@@ -4,6 +4,7 @@ const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -13,11 +14,11 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator').setRequired(true))
         .addIntegerOption(opt => opt.setName('gravidade').setDescription('Nível da infração').setRequired(true)
             .addChoices(
-                { name: 'Nível 1 (-10 pts)', value: 1 },
-                { name: 'Nível 2 (-25 pts)', value: 2 },
-                { name: 'Nível 3 (-40 pts)', value: 3 },
-                { name: 'Nível 4 (-60 pts)', value: 4 },
-                { name: 'Nível 5 (-100 pts)', value: 5 }
+                { name: 'Nível 1 (Leve)', value: 1 },
+                { name: 'Nível 2 (Moderada)', value: 2 },
+                { name: 'Nível 3 (Grave)', value: 3 },
+                { name: 'Nível 4 (Severa)', value: 4 },
+                { name: 'Nível 5 (Permanente)', value: 5 }
             ))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
         .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 10m, 1h, 3d, 0 para Perm)').setRequired(true))
@@ -144,7 +145,9 @@ module.exports = {
             builder.text(`**${emojis.clockalert || '⏳'} Duração:** ${isPermanent ? 'Permanente' : durationStr}`);
             if (reportId) builder.text(`**${emojis.ticket || '🎫'} Report:** ${reportId}`);
             builder.separator();
-            builder.text(`**${emojis.trendingdown || '📉'} Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
+            if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+                builder.text(`**${emojis.doublearrowdown || '📉'} Pontos a perder:** -${pointsToLose} (${currentRep} → ${previewPoints})`);
+            }
             builder.text(`**${emojis.raio || '⚡'} Ação no Discord:** ${discordActNames[discordAct] || discordAct}`);
             builder.text(`**${emojis.game || '🎮'} Ação In-Game:** ${jogoActNames[jogoAct] || jogoAct}`);
 

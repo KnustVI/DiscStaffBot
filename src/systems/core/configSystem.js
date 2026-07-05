@@ -313,7 +313,7 @@ const ConfigSystem = {
 
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'pegada')) {
-            return await ResponseManager.error(interaction, 'Configurar os níveis de Strike é um recurso a partir do plano Pegada.');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
         const guildId = interaction.guildId;
@@ -346,7 +346,7 @@ const ConfigSystem = {
 
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
-            return await ResponseManager.error(interaction, 'Os limites de reputação (cargos automáticos Exemplar/Problemático) são um recurso exclusivo do plano Fossil.');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
         const guildId = interaction.guildId;
@@ -369,7 +369,7 @@ const ConfigSystem = {
 
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
-            return await ResponseManager.error(interaction, 'A personalização da recuperação diária de reputação é um recurso exclusivo do plano Fossil (é a mesma "manutenção diária" do automod, que só roda nesse tier).');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
         const guildId = interaction.guildId;
@@ -393,7 +393,7 @@ const ConfigSystem = {
     async processRecoveryModal(interaction) {
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
-            return await ResponseManager.error(interaction, 'A personalização da recuperação diária de reputação é um recurso exclusivo do plano Fossil.');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
         const recoveryAmount = parseInt(interaction.fields.getTextInputValue('recovery_amount'));
@@ -415,7 +415,7 @@ const ConfigSystem = {
     async processPointsStrikeModal(interaction) {
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'pegada')) {
-            return await ResponseManager.error(interaction, 'Configurar os níveis de Strike é um recurso a partir do plano Pegada.');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
         const novosPontos = {
@@ -455,7 +455,7 @@ const ConfigSystem = {
     async processLimitesModal(interaction) {
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
-            return await ResponseManager.error(interaction, 'Os limites de reputação (cargos automáticos Exemplar/Problemático) são um recurso exclusivo do plano Fossil.');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
         const exemplarLimit = parseInt(interaction.fields.getTextInputValue('exemplar_limit'));
@@ -589,7 +589,7 @@ const ConfigSystem = {
         } else {
             cb
                 .title(`${EMOJIS.medal || '📊'} Limites e Recuperação Diária`, 2)
-                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos do plano **Fossil**. Use \`/premium-status\` para ver o tier atual.`);
+                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos do plano **Fossil**. Use \`/premium\` para ver o tier atual.`);
         }
 
         cb.footer(guildName);

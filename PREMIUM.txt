@@ -139,22 +139,27 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   exemplar/problematico) roda SO no Fossil.
 - RCON automatico em punicao (so Fossil) - a sintaxe exata dos comandos
   RCON ainda esta pendente de confirmacao com o servidor real do PoT.
-- /premium-status mostra o tier do servidor e os limites concretos.
+- /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
+  tier atual do servidor e do jogador que rodou o comando.
+- Todo comando bloqueado pelo tier responde sempre a mesma mensagem:
+  "Este comando nao pode ser usado por um SERVIDOR TIER <TIER ATUAL>, use
+  /premium para saber mais!" (com o tier real do servidor no lugar de
+  <TIER ATUAL> - FREE, PEGADA, etc).
 
 
-3) COMO CONCEDER/REVOGAR/CONSULTAR UM TIER
+3) COMO CONCEDER/REVOGAR/CONSULTAR UM TIER (uso interno, dev do bot)
 ------------------------------------------------
-Comando: /premium (restrito ao desenvolvedor do bot - nenhum admin de
+Comando: /premium-admin (restrito ao desenvolvedor do bot - nenhum admin de
 servidor pode conceder premium, nem pra si mesmo, nem pros proprios
 jogadores)
 
-/premium player grant usuario:<user> tier:<compy|raptor> dias:<opcional> observacao:<opcional>
-/premium player revoke usuario:<user>
-/premium player check usuario:<user>
+/premium-admin player grant usuario:<user> tier:<compy|raptor> dias:<opcional> observacao:<opcional>
+/premium-admin player revoke usuario:<user>
+/premium-admin player check usuario:<user>
 
-/premium guild grant servidor_id:<id> tier:<pegada|fossil> dias:<opcional> observacao:<opcional>
-/premium guild revoke servidor_id:<id>
-/premium guild check servidor_id:<id, opcional - padrao: servidor atual>
+/premium-admin guild grant servidor_id:<id> tier:<pegada|fossil> dias:<opcional> observacao:<opcional>
+/premium-admin guild revoke servidor_id:<id>
+/premium-admin guild check servidor_id:<id, opcional - padrao: servidor atual>
 
 - "dias" vazio = concessao vitalicia (sem expiracao).
 - servidor_id e um ID numerico digitado a mao (nao precisa estar no
@@ -162,8 +167,9 @@ jogadores)
 
 Como qualquer um confere o proprio tier (sem ser o desenvolvedor):
 - /perfil - mostra o Player Premium do jogador, se houver.
-- /premium-status - mostra o Server Premium do servidor atual + o Player
-  Premium de quem rodou o comando.
+- /premium - mostra o catalogo completo (todos os tiers, valores, como
+  adquirir), o Server Premium do servidor atual e o Player Premium de quem
+  rodou o comando.
 
 
 4) ATENCAO - SERVIDOR SEM TIER DEFINIDO CAI NO FREE
@@ -171,14 +177,26 @@ Como qualquer um confere o proprio tier (sem ser o desenvolvedor):
 Por decisao do dono do bot: qualquer servidor sem uma linha em guild_premium
 (ou com o tier expirado) e tratado como FREE automaticamente - incluindo
 servidores que ja usavam o bot antes desse sistema existir. Depois de
-colocar esse sistema no ar, rode /premium guild grant pros servidores que
-devem continuar com os limites antigos (ilimitados), assim que possivel -
-sen o eles ficam presos nos limites do Free sem querer.
+colocar esse sistema no ar, rode /premium-admin guild grant pros servidores
+que devem continuar com os limites antigos (ilimitados), assim que possivel
+- senao eles ficam presos nos limites do Free sem querer.
 
 
 5) NENHUM COMANDO DE TERMINAL E NECESSARIO PRA USAR ISSO
 ------------------------------------------------
-Toda concessao/revogacao de premium acontece pelo comando /premium, dentro
-do Discord - nao existe (nem e necessario) nenhum script de terminal pra
-operacao normal deste sistema. Ver FERRAMENTAS.txt se algum dia for criado
-um script auxiliar (ex: concessao em massa/emergencial).
+Toda concessao/revogacao de premium acontece pelo comando /premium-admin,
+dentro do Discord - nao existe (nem e necessario) nenhum script de terminal
+pra operacao normal deste sistema. Ver FERRAMENTAS.txt se algum dia for
+criado um script auxiliar (ex: concessao em massa/emergencial).
+
+
+6) AQUISICAO (PAGAMENTO)
+------------------------------------------------
+Hoje e 100% manual: o jogador/admin fala com o desenvolvedor do bot (via
+/reportarbug, opcao Sugestao, ou contato direto), combina o pagamento (Pix,
+por enquanto) e o dev concede o tier via /premium-admin.
+
+Assim que terminarmos de separar todo o uso/comandos por tier (este
+trabalho), o proximo passo e automatizar a aquisicao via Ko-fi (taxa menor
+e ja disponivel pro Brasil, diferente do Discord Monetization, que ainda
+nao paga desenvolvedores brasileiros).

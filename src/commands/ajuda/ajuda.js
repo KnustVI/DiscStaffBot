@@ -214,7 +214,7 @@ function buildPagePremium(guildName, emojis) {
     builder.title(`${emojis.gauge || '📊'} Como conferir seu tier`, 2);
     builder.block([
         '• **/perfil** — mostra seu Player Premium, se houver.',
-        '• **/premium-status** — mostra o Server Premium deste servidor e o seu Player Premium.',
+        '• **/premium** — mostra todos os planos, valores, como adquirir, e o Server/Player Premium atuais.',
     ]);
     builder.separator();
     builder.text(`${emojis.messagesquare || 'ℹ️'} A concessão hoje é manual — fale com o desenvolvedor do bot (**/reportarbug**, opção Sugestão) pra assinar.`);

@@ -4,6 +4,8 @@ const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
+const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -74,12 +76,14 @@ module.exports = {
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
-            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser?.tag || punishment.user_id}`);
+            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser?.tag || punishment.user_id}${targetUser ? getAlderonIdSuffix(targetUser.id) : ''}`);
             builder.text(`${severityIcons[punishment.severity] || '❓'} **Strike:** #${punishmentId}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo original:** ${punishment.reason}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo da anulação:** ${reason}`);
             builder.separator();
-            builder.text(`**${emojis.restore || '📈'} Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
+            if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+                builder.text(`**${emojis.doublearrowup || '📈'} Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
+            }
             builder.footer(guild.name, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(

@@ -24,7 +24,7 @@ module.exports = {
 
         if (!PremiumSystem.getGuildLimits(guildId).automodEnabled) {
             const denied = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                .text(`${emojis.circlealert || '❌'} A Auto Moderação (recuperação de reputação + cargos automáticos) é um recurso exclusivo do plano **Fossil**. Use \`/premium-status\` para ver o tier atual deste servidor.`)
+                .text(`${emojis.circlealert || '❌'} ${PremiumSystem.getGuildDenialMessage(guildId)}`)
                 .footer(guild.name);
             const { components, flags } = denied.build();
             await interaction.editReply({ components, flags: [flags] });

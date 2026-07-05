@@ -5,13 +5,14 @@ const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
 
 // ---------------------------------------------------------------------------
 // Montagem visual — separada para reaproveitar entre DM e canal de log
 // ---------------------------------------------------------------------------
 
 function buildRepSetContainer({ target, staff, reason, diffText, currentRep, newPoints, isGain, emojis, guildId, guildName }) {
-    const titleIcon = isGain ? `${emojis.trendingup || '📈'}` : `${emojis.trendingdown || '📉'}`;
+    const titleIcon = isGain ? `${emojis.doublearrowup || '📈'}` : `${emojis.doublearrowdown || '📉'}`;
     const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
     const builder = new AdvancedContainerBuilder({ accentColor: isGain ? COLORS.SUCCESS : COLORS.ERROR });
@@ -73,7 +74,11 @@ module.exports = {
             if (!target) {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
             }
-            
+
+            if (!PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+                return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
+            }
+
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
@@ -113,7 +118,7 @@ module.exports = {
             
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
             
-            const titleIcon = isGain ? `${emojis.trendingup || '📈'}` : `${emojis.trendingdown || '📉'}`;
+            const titleIcon = isGain ? `${emojis.doublearrowup || '📈'}` : `${emojis.doublearrowdown || '📉'}`;
             const titleText = isGain ? 'REPUTAÇÃO AUMENTADA' : 'REPUTAÇÃO REDUZIDA';
 
             const containerBuilder = buildRepSetContainer({

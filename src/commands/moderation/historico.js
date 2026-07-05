@@ -27,7 +27,7 @@ module.exports = {
 
         try {
             if (!PremiumSystem.getGuildLimits(guildId).historyEnabled) {
-                return await ResponseManager.error(interaction, 'O histórico de jogador é um recurso do plano Pegada ou superior. Use `/premium-status` para ver o tier atual deste servidor.');
+                return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
             }
 
             if (!usuarioOpt && !alderonIdOpt) {

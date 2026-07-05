@@ -1,4 +1,4 @@
-// src/commands/developer/premium.js
+// src/commands/developer/premium-admin.js
 /**
  * Concessão/revogação/consulta de Premium — restrito ao desenvolvedor do bot.
  * Pagamento é manual por enquanto (Pix/fora do bot): o dono recebe o
@@ -34,7 +34,7 @@ function buildInfoContainer(title, info, idLabel, idValue) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('premium')
+        .setName('premium-admin')
         .setDescription('🔒 Gerencia Premium (restrito ao desenvolvedor do bot)')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommandGroup(group => group
@@ -80,7 +80,7 @@ module.exports = {
         const { user, guild } = interaction;
 
         if (user.id !== DEVELOPER_ID) {
-            db.logActivity(guild?.id || null, user.id, 'premium_denied', null, { command: 'premium' });
+            db.logActivity(guild?.id || null, user.id, 'premium_denied', null, { command: 'premium-admin' });
             const denied = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
                 .text(`${EMOJIS.circlealert || '❌'} Este comando é restrito ao desenvolvedor do bot.`)
                 .footer(guild?.name || 'Servidor');

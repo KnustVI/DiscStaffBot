@@ -2,7 +2,7 @@
 /**
  * Sistema de tiers Premium — Player Premium (global, por usuário) e Server
  * Premium (por guild). Concessão é sempre manual por enquanto (sem gateway
- * de pagamento) — ver src/commands/developer/premium.js.
+ * de pagamento) — ver src/commands/developer/premium-admin.js.
  *
  * Ponto único de consulta pra qualquer feature que precise saber o tier
  * atual de um jogador ou servidor (isPlayerAtLeast/isGuildAtLeast).
@@ -61,6 +61,16 @@ function isGuildAtLeast(guildId, tier) {
 
 function getGuildLimits(guildId) {
     return GUILD_LIMITS[getGuildTier(guildId)];
+}
+
+/**
+ * Mensagem padrão exibida por QUALQUER comando/botão bloqueado pelo tier
+ * atual do servidor — sempre no mesmo formato, citando o tier real (FREE,
+ * PEGADA...) que está impedindo o uso, e apontando pro /premium.
+ */
+function getGuildDenialMessage(guildId) {
+    const tier = getGuildTier(guildId).toUpperCase();
+    return `Este comando não pode ser usado por um SERVIDOR TIER ${tier}, use /premium para saber mais!`;
 }
 
 function grantPlayerPremium(userId, tier, days, grantedBy, notes = null) {
@@ -142,6 +152,7 @@ module.exports = {
     isPlayerAtLeast,
     isGuildAtLeast,
     getGuildLimits,
+    getGuildDenialMessage,
     grantPlayerPremium,
     grantGuildPremium,
     revokePlayerPremium,

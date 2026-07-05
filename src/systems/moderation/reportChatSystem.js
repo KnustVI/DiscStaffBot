@@ -582,7 +582,9 @@ class ReportChatSystem {
             summaryBuilder.text(`**${EMOJIS.calendar || '📅'} Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
             summaryBuilder.text(`**${EMOJIS.shield || '🛡️'} Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
             summaryBuilder.text(`${severityIcons[punishment.severity] || '❓'} **Severidade:** ${severityNames[punishment.severity] || punishment.severity}`);
-            summaryBuilder.text(`**${EMOJIS.trendingdown || '📉'} Pontos descontados:** -${punishment.points_deducted}`);
+            if (PremiumSystem.getGuildLimits(guild.id).reputationEnabled) {
+                summaryBuilder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos descontados:** -${punishment.points_deducted}`);
+            }
             summaryBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${punishment.reason}\n\`\`\``);
             if (punishment.report_id) summaryBuilder.text(`**${EMOJIS.ticket || '🎫'} Report original:** ${punishment.report_id}`);
             summaryBuilder.text(`**Status:** ${punishment.status === 'revoked' ? `${EMOJIS.circlecheck || '✅'} Já anulado` : `${EMOJIS.trianglealert || '⚠️'} Ativo`}`);

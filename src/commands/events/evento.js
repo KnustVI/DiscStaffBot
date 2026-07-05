@@ -82,10 +82,7 @@ module.exports = {
         const { guild, user, member } = interaction;
 
         if (!PremiumSystem.isGuildAtLeast(guild.id, 'pegada')) {
-            return await ResponseManager.error(
-                interaction,
-                'A criação de eventos (/evento) é um recurso a partir do plano **Pegada**. Use `/premium-status` para ver o tier atual deste servidor.'
-            );
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
         }
 
         const ConfigSystem = require('../../systems/core/configSystem');

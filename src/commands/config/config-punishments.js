@@ -18,7 +18,7 @@ module.exports = {
         }
 
         if (!PremiumSystem.isGuildAtLeast(guild.id, 'pegada')) {
-            return await ResponseManager.error(interaction, 'A configuração de punições/reputação é um recurso a partir do plano **Pegada** — no Free, o strike é só registro (sem pontos de reputação). Use `/premium-status` para ver o tier atual deste servidor.');
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
         }
 
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
