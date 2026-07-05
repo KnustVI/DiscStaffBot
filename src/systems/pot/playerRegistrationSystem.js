@@ -3,19 +3,23 @@
 /**
  * playerRegistrationSystem.js
  *
- * Cadastro MANUAL de jogador via painel + modal (comando /registrar).
- * Complementa o cadastro automático por webhook (ver potPlayerRegistry.js) —
- * funciona independente de o jogador ter linkado o Discord pelo site oficial
- * do Path of Titans ou não.
+ * Vínculo MANUAL de conta via painel + modal (comando /registrar) — liga o
+ * Discord do usuário à conta dele no Path of Titans (Alderon ID). Complementa
+ * o vínculo automático por webhook (ver potPlayerRegistry.js), que acontece
+ * sozinho quando o jogador já conectou o Discord pelo site oficial da
+ * Alderon Games e entra em qualquer servidor com o bot configurado — essa é
+ * a forma mais segura, já que a própria Alderon confirma a titularidade da
+ * conta. O cadastro manual aqui é o caminho alternativo pra quem ainda não
+ * fez esse link oficial.
  *
- * Campos obrigatórios no perfil:
+ * Campos obrigatórios no vínculo:
  *  - Discord: username/ID — sempre o de quem executa o comando, nunca
- *    perguntado (não faz sentido cadastrar em nome de outra pessoa aqui).
- *  - Path of Titans: nome do personagem + Alderon ID (AGID) — pedidos via
- *    modal, únicos dados que o usuário realmente precisa digitar.
+ *    perguntado (não faz sentido vincular em nome de outra pessoa aqui).
+ *  - Path of Titans: nome de exibição no jogo + Alderon ID (AGID) — pedidos
+ *    via modal, únicos dados que o usuário realmente precisa digitar.
  *
  * Verificação em jogo (RCON): ainda NÃO ativada — ver o bloco correspondente
- * em potPlayerRegistry.js. Por enquanto o cadastro aceita o Alderon ID
+ * em potPlayerRegistry.js. Por enquanto o vínculo manual aceita o Alderon ID
  * informado sem confirmar no jogo, e o painel deixa isso claro.
  */
 
@@ -51,23 +55,23 @@ class PlayerRegistrationSystem {
 
     /**
      * Bloco reutilizado tanto pelo painel de /registrar quanto pelo /perfil:
-     * avatar, username, Discord ID, e o status do vínculo com o Path of
-     * Titans (personagem + Alderon ID, se houver).
+     * avatar, username, Discord ID, e o status do vínculo com a conta do
+     * Path of Titans (Alderon ID, se houver).
      *
      * @param {AdvancedContainerBuilder} builder
      * @param {import('discord.js').User} targetUser
      * @param {object|null} player - linha de pot_players, ou null se não registrado
      */
     _appendProfileCard(builder, targetUser, player) {
+        let text = buildIdentityBlock(targetUser);
+        if (!player) {
+            text += `\n${EMOJIS.circlealert || '❌'} Conta ainda não linkada, use /registrar para linkar sua conta ao bot Titan's Pass.`;
+        }
+
         builder.section(
-            buildIdentityBlock(targetUser),
+            text,
             AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })),
         );
-
-        if (!player) {
-            builder.separator();
-            builder.text(`${EMOJIS.circlealert || '❌'} **Ainda não registrado no Path of Titans**`);
-        }
 
         return builder;
     }
@@ -104,7 +108,7 @@ class PlayerRegistrationSystem {
 
         const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
         builder.text('# CADASTRO DE JOGADOR');
-        builder.text('Vincula sua conta do Discord ao seu personagem no Path of Titans (Alderon ID), para a staff identificar você nos reports, punições e no histórico.');
+        builder.text('Vincula sua conta do Discord à sua conta do Path of Titans (Alderon ID) no nosso banco de dados, pra que o bot possa reconhecer você e liberar recursos exclusivos.');
         builder.text(`${EMOJIS.globo || '🌐'} **Esse vínculo é global** — funciona em qualquer servidor que tiver o bot, não precisa registrar de novo em cada comunidade.`);
         builder.separator();
 
@@ -112,13 +116,17 @@ class PlayerRegistrationSystem {
 
         builder.separator();
         if (player) {
-            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Pode atualizar quando quiser — por exemplo, se trocou de personagem principal.`);
+            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Pode atualizar quando quiser — por exemplo, se vinculou uma conta diferente do Path of Titans.`);
         } else {
-            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Clique no botão abaixo pra vincular seu personagem.`);
+            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Clique no botão abaixo pra vincular sua conta.`);
         }
         builder.separator();
         builder.text(
-            `${EMOJIS.trianglealert || '⚠️'} **Importante:** por enquanto o Alderon ID informado não é verificado dentro do jogo — é você quem garante que é o dono desse personagem. Cadastro falso pode ser tratado como violação pela staff.`
+            `${EMOJIS.shieldcheck || '🛡️'} **Forma mais segura:** conecte sua conta do Discord pelo site oficial da Alderon Games e entre em um servidor com o bot configurado — o vínculo é feito automaticamente, sem precisar preencher o cadastro manual abaixo.`
+        );
+        builder.separator();
+        builder.text(
+            `${EMOJIS.trianglealert || '⚠️'} **Importante:** o cadastro manual abaixo não é verificado dentro do jogo — é você quem garante que é o dono dessa conta. Vínculo falso pode ser tratado como violação pela staff.`
         );
 
         const PremiumSystem = require('../premium/premiumSystem');
@@ -153,8 +161,6 @@ class PlayerRegistrationSystem {
      * @param {import('discord.js').User} targetUser
      */
     async sendProfile(interaction, targetUser) {
-        const isSelf = targetUser.id === interaction.user.id;
-
         const player = PlayerRegistry.getPlayerByDiscordId(targetUser.id);
 
         const PremiumSystem = require('../premium/premiumSystem');
@@ -207,15 +213,6 @@ class PlayerRegistrationSystem {
 
         this._appendProfileCard(builder, targetUser, player);
 
-        if (!player) {
-            builder.separator();
-            builder.text(
-                isSelf
-                    ? `${EMOJIS.messagesquare || 'ℹ️'} Use **/registrar** para vincular seu personagem do Path of Titans.`
-                    : `${EMOJIS.messagesquare || 'ℹ️'} Esse usuário ainda não usou **/registrar** para vincular um personagem.`
-            );
-        }
-
         if (playerTier !== 'free') {
             builder.separator();
             const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
@@ -245,7 +242,7 @@ class PlayerRegistrationSystem {
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('nome_jogo')
-                    .setLabel('Nome do seu personagem no jogo')
+                    .setLabel('Seu nome no Path of Titans')
                     .setStyle(TextInputStyle.Short)
                     .setRequired(true)
                     .setMaxLength(100)
@@ -308,7 +305,7 @@ class PlayerRegistrationSystem {
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         builder.text(summary);
-        builder.text(`${EMOJIS.user || '👤'} **Personagem:** ${playerName}`);
+        builder.text(`${EMOJIS.user || '👤'} **Nome no jogo:** ${playerName}`);
         builder.text(`${EMOJIS.idcard || '🆔'} **Alderon ID:** \`${alderonIdRaw}\``);
         builder.footer(guildName);
 

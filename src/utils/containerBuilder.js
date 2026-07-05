@@ -279,6 +279,23 @@ class AdvancedContainerBuilder {
     }
 
     /**
+     * Adiciona uma linha com um menu de seleção (StringSelectMenuBuilder,
+     * RoleSelectMenuBuilder etc.) — sempre sozinho na ActionRow, já que o
+     * Discord só permite um menu de seleção por linha (diferente de
+     * buttons(), que aceita até 5).
+     *
+     * @param {StringSelectMenuBuilder} menu
+     * @returns {this}
+     */
+    selectMenu(menu) {
+        this.components.push({
+            kind: 'actionRow',
+            payload: [menu],
+        });
+        return this;
+    }
+
+    /**
      * Adiciona o rodapé padrão do bot: sempre contém a assinatura
      * "Produzido por KnustVI e T.Mach | Server: {guildName}". Um `extra`
      * opcional (ex: "Página 2/5", "Solicitado por Fulano") é prefixado antes

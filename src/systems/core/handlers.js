@@ -9,6 +9,7 @@ const autoModerationModule = require('../moderation/autoModeration');
 const systemStatus = require('../monitoring/systemStatus');
 const errorLoggerModule = require('./errorLogger');
 const premiumPanel = require('../premium/premiumPanel');
+const ajudaCommand = require('../../commands/ajuda/ajuda');
 
 class InteractionHandler {
     constructor(client) {
@@ -37,6 +38,7 @@ class InteractionHandler {
             'config-roles': configSystem,
             'config-logs': configSystem,
             premium: premiumPanel,
+            ajuda: ajudaCommand,
         };
         
         // Mapeamento de ações para métodos

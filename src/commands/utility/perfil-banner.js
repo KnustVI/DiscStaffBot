@@ -36,7 +36,7 @@ module.exports = {
 
         const link = PlayerRegistry.getPlayerByDiscordId(user.id);
         if (!link) {
-            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular seu personagem do Path of Titans.');
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
         }
 
         const arquivo = interaction.options.getAttachment('arquivo');

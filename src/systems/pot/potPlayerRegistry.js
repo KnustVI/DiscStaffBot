@@ -9,8 +9,12 @@
  *     webhook do PoT é recebido (PlayerLogin, PlayerLogout, ou qualquer outro
  *     evento que traga AlderonId/PlayerName no payload). Só vincula o
  *     discord_id automaticamente se o servidor do jogo enviar esse campo no
- *     payload — o que exige o jogador ter linkado o Discord pelo site oficial
- *     do Path of Titans. Bem menos comum na prática.
+ *     payload — o que exige o jogador ter conectado o Discord pelo site
+ *     oficial da Alderon Games. Quando isso acontece, o vínculo também é
+ *     espelhado na identidade GLOBAL (player_links — ver
+ *     _syncGlobalLinkFromWebhook), a mesma usada por /registrar e /perfil:
+ *     essa é a forma mais segura de vincular a conta, já que é a Alderon
+ *     quem confirma a titularidade, não o próprio jogador.
  *
  *  2. MANUAL (registerPlayerManually): usada pelo comando /registrar — o
  *     jogador informa o próprio Alderon ID pelo Discord. Hoje é aceito sem
@@ -125,6 +129,42 @@ function normalizeEvent(rawPayload, eventType) {
 }
 
 /**
+ * Espelha um vínculo Discord<->Alderon ID confirmado por um webhook (o
+ * jogador conectou o Discord pelo site oficial da Alderon Games) na
+ * identidade GLOBAL (player_links) — a mesma tabela usada por /registrar e
+ * /perfil. Esse é o caminho "automático" citado no painel de /registrar:
+ * mais seguro que o vínculo manual, já que é a própria Alderon quem confirma
+ * a titularidade da conta, não o próprio jogador.
+ *
+ * Nunca sobrescreve um Alderon ID já vinculado a OUTRO Discord (conflito
+ * real, precisa de intervenção manual da staff) — silenciosamente ignora
+ * esse caso, já que aqui não há como avisar ninguém (é um evento de
+ * webhook, não uma interação).
+ *
+ * @param {string} discordId
+ * @param {string} alderonId
+ * @param {string} playerName
+ */
+function _syncGlobalLinkFromWebhook(discordId, alderonId, playerName) {
+    try {
+        const takenBy = db.prepare(`SELECT user_id FROM player_links WHERE alderon_id = ?`).get(alderonId);
+        if (takenBy && takenBy.user_id !== discordId) return;
+
+        const now = Date.now();
+        db.prepare(`
+            INSERT INTO player_links (user_id, alderon_id, player_name, registered_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                alderon_id = excluded.alderon_id,
+                player_name = excluded.player_name,
+                updated_at = excluded.updated_at
+        `).run(discordId, alderonId, playerName, now, Math.floor(now / 1000));
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao sincronizar vínculo automático (webhook) com player_links:', error);
+    }
+}
+
+/**
  * Ponto de entrada único do cadastro automático.
  *
  * Comportamento:
@@ -186,6 +226,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             );
 
             console.log(`🦖 [PoT Registry] Novo jogador cadastrado: ${playerName} (${alderonId})`);
+            if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
             return { created: true, alderonId };
         }
 
@@ -228,6 +269,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             alderonId,
         );
 
+        if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
         return { created: false, alderonId };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao cadastrar/atualizar jogador:', error);

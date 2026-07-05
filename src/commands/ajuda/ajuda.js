@@ -1,13 +1,18 @@
-// /home/ubuntu/DiscStaffBot/src/commands/utility/ajuda.js
-const { SlashCommandBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+// src/commands/ajuda/ajuda.js
+const {
+    SlashCommandBuilder,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    MessageFlags,
+} = require('discord.js');
 const db = require('../../database/index');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
-const { PaginationBuilder } = require('../../utils/paginationBuilder');
 
 // ---------------------------------------------------------------------------
-// Fábrica de páginas — /ajuda funciona como um tutorial completo do bot,
-// terminando sempre com FAQ e o contato com o desenvolvedor (/reportarbug).
-// Administradores veem o tutorial completo (setup + todos os sistemas);
+// Fábrica de tópicos — /ajuda funciona como um guia completo do bot,
+// navegado por um menu de seleção (em vez de páginas com botões). Termina
+// sempre com FAQ e o contato com o desenvolvedor (/reportarbug).
+// Administradores veem o guia completo (setup + todos os sistemas);
 // membros comuns veem uma versão enxuta focada no que eles podem usar.
 // ---------------------------------------------------------------------------
 
@@ -26,14 +31,14 @@ function pageHeader(builder, title, description) {
     return builder;
 }
 
-// ==================== PÁGINAS — ADMIN/STAFF ====================
+// ==================== TÓPICOS — ADMIN/STAFF ====================
 
 function buildPageWelcome(displayName, guildName, emojis, isAdmin) {
     const builder = newPage(emojis);
     pageHeader(
         builder,
         'ASSISTENTE TITAN',
-        `Olá **${displayName}**! Este é o guia completo do bot em **${guildName}** — use os botões abaixo para navegar pelas páginas.`
+        `Olá **${displayName}**! Este é o guia completo do bot em **${guildName}** — use o menu abaixo para escolher o tópico que você procura.`
     );
 
     builder.title(`${emojis.clipboardlist || '📋'} Neste guia você encontra`, 2);
@@ -117,7 +122,7 @@ function buildPageModeration(guildName, emojis) {
     builder.title(`${emojis.star || '⭐'} Sistema de Reputação`, 2);
     builder.block([
         '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
-        '• Recuperação automática: quantidade configurável/dia sem punições — só roda no plano **Caçador** (ver página de Premium).',
+        '• Recuperação automática: quantidade configurável/dia sem punições — só roda no plano **Caçador** (ver tópico Premium).',
         '• Perda: conforme configuração de strikes — disponível a partir do plano **Rastreador**; no Free o strike fica registrado, mas não mexe em pontos.',
     ]);
 
@@ -160,7 +165,7 @@ function buildPageAutomod(guildName, emojis) {
         '• Recupera pontos para quem não tem punições nas últimas 24h — quantidade configurável em /config-punishments (padrão: +1/dia).',
         '• Atribui/remove cargos **Exemplar** e **Problemático** automaticamente, conforme os limites de /config-punishments.',
         '• Envia relatório no canal de log configurado.',
-        `• ${emojis.badge || '🏅'} **Recurso exclusivo do plano Caçador** — ver página de Premium.`,
+        `• ${emojis.badge || '🏅'} **Recurso exclusivo do plano Caçador** — ver tópico Premium.`,
     ]);
 
     builder.footer(guildName);
@@ -173,7 +178,7 @@ function buildPageEvents(guildName, emojis) {
 
     builder.title(`${emojis.calendardays || '📅'} /evento`, 2);
     builder.block([
-        '• Disponível em **todos os planos**, mas o nível do sistema muda por tier (ver página de Premium).',
+        '• Disponível em **todos os planos**, mas o nível do sistema muda por tier (ver tópico Premium).',
         '• **Free** — só publica no fórum escolhido (título, descrição, imagem e data), sem evento agendado do Discord.',
         `• ${emojis.badge || '🏅'} **Rastreador/Caçador** — publica no fórum **e** cria um Evento agendado nativo do Discord (pede também o local: um **canal de voz/palco** ou um **texto livre**), marcando o cargo de Notificação de Eventos.`,
         '• Imagem: PNG/JPEG, até 1920x1279.',
@@ -236,7 +241,7 @@ function buildPageUtility(guildName, emojis) {
     return builder;
 }
 
-// ==================== PÁGINAS — MEMBROS COMUNS ====================
+// ==================== TÓPICOS — MEMBROS COMUNS ====================
 
 function buildPageUserSimple(displayName, guildName, emojis) {
     const builder = newPage(emojis);
@@ -256,7 +261,7 @@ function buildPageUserSimple(displayName, guildName, emojis) {
 
     builder.title(`${emojis.star || '⭐'} Reputação`, 2);
     builder.block([
-        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Rastreador — ver página de Premium).',
+        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Rastreador — ver tópico Premium).',
         '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo (só no plano Caçador).',
         '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos.',
     ]);
@@ -294,7 +299,7 @@ function buildPageUserFAQ(guildName, emojis) {
     return builder;
 }
 
-// ==================== PÁGINA COMPARTILHADA — CONTATO ====================
+// ==================== TÓPICO COMPARTILHADO — CONTATO ====================
 
 function buildPageContact(guildName, emojis) {
     const builder = newPage(emojis);
@@ -318,6 +323,60 @@ function buildPageContact(guildName, emojis) {
 
     builder.footer(guildName);
     return builder;
+}
+
+// ---------------------------------------------------------------------------
+// Menu de tópicos — define, por perfil (admin/membro), a lista de tópicos
+// disponíveis, na ordem em que aparecem no menu de seleção.
+// ---------------------------------------------------------------------------
+
+function getTopics(isAdmin, ctx) {
+    const { displayName, guildName, emojis } = ctx;
+
+    if (isAdmin) {
+        return [
+            { key: 'welcome', label: 'Visão Geral', emoji: emojis.clipboardlist || '📋', build: () => buildPageWelcome(displayName, guildName, emojis, true) },
+            { key: 'setup', label: 'Configuração Inicial', emoji: emojis.settings || '⚙️', build: () => buildPageSetup(guildName, emojis) },
+            { key: 'moderation', label: 'Moderação e Reputação', emoji: emojis.gavel || '⚖️', build: () => buildPageModeration(guildName, emojis) },
+            { key: 'reports', label: 'Sistema de Reports', emoji: emojis.ticket || '🎫', build: () => buildPageReports(guildName, emojis) },
+            { key: 'automod', label: 'Auto Moderação', emoji: emojis.shieldcheck || '🛡️', build: () => buildPageAutomod(guildName, emojis) },
+            { key: 'events', label: 'Eventos', emoji: emojis.calendardays || '📅', build: () => buildPageEvents(guildName, emojis) },
+            { key: 'utility', label: 'Status e Utilidades', emoji: emojis.gauge || '📊', build: () => buildPageUtility(guildName, emojis) },
+            { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
+            { key: 'faq', label: 'Perguntas Frequentes', emoji: emojis.circlealert || '❓', build: () => buildPageUserFAQ(guildName, emojis) },
+            { key: 'contact', label: 'Fale com o Desenvolvedor', emoji: emojis.compass || '💡', build: () => buildPageContact(guildName, emojis) },
+        ];
+    }
+
+    return [
+        { key: 'welcome', label: 'Visão Geral', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
+        { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
+        { key: 'faq', label: 'Perguntas Frequentes', emoji: emojis.circlealert || '❓', build: () => buildPageUserFAQ(guildName, emojis) },
+        { key: 'contact', label: 'Fale com o Desenvolvedor', emoji: emojis.compass || '💡', build: () => buildPageContact(guildName, emojis) },
+    ];
+}
+
+function buildTopicSelectMenu(topics, selectedKey, invokerId) {
+    return new StringSelectMenuBuilder()
+        .setCustomId(`ajuda:topic:${invokerId}`)
+        .setPlaceholder('Escolha um tópico...')
+        .addOptions(topics.map(t => new StringSelectMenuOptionBuilder()
+            .setLabel(t.label)
+            .setValue(t.key)
+            .setEmoji(t.emoji)
+            .setDefault(t.key === selectedKey)
+        ));
+}
+
+/**
+ * Monta o payload completo (container do tópico + menu de seleção) pronto
+ * pra enviar/editar. `topics` já vem filtrado por perfil (admin/membro).
+ */
+function renderTopicPayload(topics, topicKey, invokerId) {
+    const topic = topics.find(t => t.key === topicKey) || topics[0];
+    const builder = topic.build();
+    builder.selectMenu(buildTopicSelectMenu(topics, topic.key, invokerId));
+    return builder.build();
 }
 
 // ---------------------------------------------------------------------------
@@ -346,40 +405,10 @@ module.exports = {
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
             const isAdmin = member.permissions.has('Administrator');
+            const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
 
-            const pagination = new PaginationBuilder({
-                accentColor: COLORS.DEFAULT,
-                timeout: 180000,
-            });
-
-            if (isAdmin) {
-                pagination.addPages(
-                    () => buildPageWelcome(member.displayName, guild.name, emojis, true),
-                    () => buildPageSetup(guild.name, emojis),
-                    () => buildPageModeration(guild.name, emojis),
-                    () => buildPageReports(guild.name, emojis),
-                    () => buildPageAutomod(guild.name, emojis),
-                    () => buildPageEvents(guild.name, emojis),
-                    () => buildPageUtility(guild.name, emojis),
-                    () => buildPagePremium(guild.name, emojis),
-                    () => buildPageUserFAQ(guild.name, emojis),
-                    () => buildPageContact(guild.name, emojis),
-                );
-            } else {
-                pagination.addPages(
-                    () => buildPageUserSimple(member.displayName, guild.name, emojis),
-                    () => buildPagePremium(guild.name, emojis),
-                    () => buildPageUserFAQ(guild.name, emojis),
-                    () => buildPageContact(guild.name, emojis),
-                );
-            }
-
-            pagination.setButtons({
-                prev: { label: 'Anterior', style: ButtonStyle.Secondary },
-                next: { label: 'Próxima', style: ButtonStyle.Primary },
-            });
-
-            await pagination.start(interaction);
+            const payload = renderTopicPayload(topics, 'welcome', user.id);
+            await interaction.editReply(payload);
 
             console.log(`📊 [AJUDA] ${user.tag} em ${guild.name} (${isAdmin ? 'admin' : 'usuário comum'})`);
 
@@ -404,5 +433,39 @@ module.exports = {
                 console.error('❌ Erro ao responder fallback de erro:', err);
             }
         }
+    },
+
+    /**
+     * Roteado pelo InteractionHandler (customId `ajuda:topic:<invokerId>`) —
+     * troca o tópico exibido na mesma mensagem quando alguém usa o menu de
+     * seleção. `interactionCreate.js` já chama deferUpdate() antes disso.
+     */
+    async handleComponent(interaction, action, invokerId) {
+        if (action !== 'topic') {
+            return await interaction.followUp({ content: 'Ação desconhecida.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+
+        // Só quem rodou /ajuda pode trocar o tópico dessa mensagem — mesma
+        // regra de "dono da interação" usada em outros painéis com id
+        // embutido no customId (ex: pot_reset_*).
+        if (interaction.user.id !== invokerId) {
+            return await interaction.followUp({
+                content: 'Apenas quem executou /ajuda pode usar este menu — rode o comando você mesmo.',
+                flags: MessageFlags.Ephemeral,
+            }).catch(() => {});
+        }
+
+        let emojis = {};
+        try {
+            emojis = require('../../database/emojis.js').EMOJIS ?? {};
+        } catch { /* sem emojis */ }
+
+        const { guild, member } = interaction;
+        const isAdmin = member.permissions.has('Administrator');
+        const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
+
+        const topicKey = interaction.values?.[0] || 'welcome';
+        const payload = renderTopicPayload(topics, topicKey, invokerId);
+        await interaction.editReply(payload);
     },
 };
