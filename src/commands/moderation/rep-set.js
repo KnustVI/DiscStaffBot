@@ -4,8 +4,8 @@ const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
-const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
+const { buildIdentityBlock } = require('../../utils/userIdentity');
 
 // ---------------------------------------------------------------------------
 // Montagem visual — separada para reaproveitar entre DM e canal de log
@@ -21,16 +21,15 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────────
     const staffAvatar = staff.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
     builder.section(
-        `## STAFF RESPONSAVEL\n${staff.toString()}\n${staff.username}\n(\`${staff.id}\`)`,
+        `## STAFF RESPONSAVEL\n${buildIdentityBlock(staff)}`,
         AdvancedContainerBuilder.thumbnail(staffAvatar),
     );
     builder.separator();
 
     // ── Apresentação padrão: Usuário alvo do ajuste ──────────────────────────
     const targetAvatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-    const targetAlderonSuffix = getAlderonIdSuffix(target.id);
     builder.section(
-        `## JOGADOR\n${target.toString()}${targetAlderonSuffix}\n${target.username}\n(\`${target.id}\`)`,
+        `## JOGADOR\n${buildIdentityBlock(target)}`,
         AdvancedContainerBuilder.thumbnail(targetAvatar),
     );
     builder.separator();

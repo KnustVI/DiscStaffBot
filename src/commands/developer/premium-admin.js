@@ -20,12 +20,12 @@ function formatExpiry(expiresAt) {
     return `<t:${Math.floor(expiresAt / 1000)}:R>`;
 }
 
-function buildInfoContainer(title, info, idLabel, idValue) {
+function buildInfoContainer(title, info, idLabel, idValue, tierLabel = null) {
     const builder = new AdvancedContainerBuilder({ accentColor: info.tier === 'free' ? COLORS.DEFAULT : COLORS.SUCCESS });
     builder.text(`# ${title}`);
     builder.separator();
     builder.text(`**${idLabel}:** \`${idValue}\``);
-    builder.text(`**Tier:** ${info.tier}`);
+    builder.text(`**Tier:** ${tierLabel || info.tier}`);
     builder.text(`**Expira:** ${formatExpiry(info.expires_at)}`);
     if (info.granted_by) builder.text(`**Concedido por:** <@${info.granted_by}>`);
     if (info.notes) builder.text(`**Observações:** ${info.notes}`);
@@ -64,7 +64,7 @@ module.exports = {
                 .setDescription('Concede Server Premium a um servidor')
                 .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor Discord').setRequired(true))
                 .addStringOption(opt => opt.setName('tier').setDescription('Tier').setRequired(true)
-                    .addChoices({ name: 'Pegada', value: 'pegada' }, { name: 'Fossil', value: 'fossil' }))
+                    .addChoices({ name: 'Rastreador', value: 'pegada' }, { name: 'Caçador', value: 'fossil' }))
                 .addIntegerOption(opt => opt.setName('dias').setDescription('Duração em dias (vazio = vitalício)').setRequired(false))
                 .addStringOption(opt => opt.setName('observacao').setDescription('Observação (ex: forma de pagamento)').setRequired(false)))
             .addSubcommand(sub => sub
@@ -129,13 +129,37 @@ module.exports = {
                 const observacao = interaction.options.getString('observacao');
                 PremiumSystem.grantGuildPremium(servidorId, tier, dias, user.id, observacao);
                 db.logActivity(servidorId, user.id, 'premium_grant', null, { scope: 'guild', tier, dias });
-                builder = buildInfoContainer('SERVER PREMIUM CONCEDIDO', PremiumSystem.getGuildPremiumInfo(servidorId), 'Servidor', servidorId);
+                builder = buildInfoContainer('SERVER PREMIUM CONCEDIDO', PremiumSystem.getGuildPremiumInfo(servidorId), 'Servidor', servidorId, PremiumSystem.GUILD_TIER_DISPLAY[tier]);
+
+                // ── Bônus: o DONO do servidor ganha o Player Premium
+                // correspondente (Rastreador→Compy, Caçador→Raptor), sem rebaixar
+                // um tier melhor que ele já tenha por conta própria. Expira
+                // junto com o Server Premium (mesma quantidade de dias). ────
+                const bonusPlayerTier = PremiumSystem.GUILD_TO_PLAYER_TIER[tier];
+                if (bonusPlayerTier) {
+                    const targetGuild = client.guilds.cache.get(servidorId) || await client.guilds.fetch(servidorId).catch(() => null);
+                    if (targetGuild?.ownerId) {
+                        if (!PremiumSystem.isPlayerAtLeast(targetGuild.ownerId, bonusPlayerTier)) {
+                            PremiumSystem.grantPlayerPremium(
+                                targetGuild.ownerId, bonusPlayerTier, dias, user.id,
+                                `Bônus por Server Premium ${tier} em ${servidorId}`
+                            );
+                            db.logActivity(servidorId, user.id, 'premium_grant', targetGuild.ownerId, { scope: 'player', tier: bonusPlayerTier, dias, reason: 'guild_owner_bonus' });
+                            builder.text(`${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor (<@${targetGuild.ownerId}>) recebeu Player Premium **${bonusPlayerTier}** junto.`);
+                        } else {
+                            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} O dono do servidor já tinha Player Premium igual ou melhor — bônus não aplicado.`);
+                        }
+                    } else {
+                        builder.text(`${EMOJIS.trianglealert || '⚠️'} Não foi possível identificar o dono do servidor (bot não está nele) — bônus de Player Premium não aplicado automaticamente.`);
+                    }
+                }
             } else if (sub === 'revoke') {
                 PremiumSystem.revokeGuildPremium(servidorId, user.id);
                 db.logActivity(servidorId, user.id, 'premium_revoke', null, { scope: 'guild' });
-                builder = buildInfoContainer('SERVER PREMIUM REVOGADO', PremiumSystem.getGuildPremiumInfo(servidorId), 'Servidor', servidorId);
+                builder = buildInfoContainer('SERVER PREMIUM REVOGADO', PremiumSystem.getGuildPremiumInfo(servidorId), 'Servidor', servidorId, PremiumSystem.GUILD_TIER_DISPLAY.free);
             } else {
-                builder = buildInfoContainer('SERVER PREMIUM', PremiumSystem.getGuildPremiumInfo(servidorId), 'Servidor', servidorId);
+                const guildInfo = PremiumSystem.getGuildPremiumInfo(servidorId);
+                builder = buildInfoContainer('SERVER PREMIUM', guildInfo, 'Servidor', servidorId, PremiumSystem.GUILD_TIER_DISPLAY[guildInfo.tier]);
             }
         }
 

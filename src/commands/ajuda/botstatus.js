@@ -113,7 +113,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
     } else {
         builder
             .title(`${emojis.badge || '🏅'} Análise de Sistemas`, 2)
-            .text(`${emojis.messagesquare || 'ℹ️'} Estatísticas do servidor (punições, reputação, AutoMod) são exclusivas do plano **Fossil**. Use \`/premium\` para ver o tier atual.`);
+            .text(`${emojis.messagesquare || 'ℹ️'} Estatísticas do servidor (punições, reputação, AutoMod) são exclusivas do plano **Caçador**. Use \`/premium\` para ver o tier atual.`);
     }
 
     builder.footer(guild.name);

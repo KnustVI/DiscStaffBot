@@ -73,10 +73,12 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
     const suffix = titleSuffixes[potEvent] || potEvent;
     const nameLines = [`## ${playerName} ${suffix}`];
     if (discordUser) {
-        // Sem menção (@usuário) de propósito — isso pingaria o jogador a
-        // cada login/logout, o que pode incomodar. Só username + ID, sem
-        // notificação.
-        nameLines.push(`${resolveEmoji(guild, 'circleuser', '👤')} ${discordUser.tag} (\`${discordUser.id}\`)`);
+        // Padrão de identificação do bot (mesmo formato usado em strike,
+        // unstrike, repset, histórico, perfil...). NOTA: usa @menção, o que
+        // notifica o jogador a cada login/logout/saída deste servidor.
+        nameLines.push(`## ${discordUser.toString()} | ${resolveEmoji(guild, 'PotLogo', '🦖')} \`${alderonId || 'N/A'}\``);
+        nameLines.push(`${resolveEmoji(guild, 'DiscLogo', '💬')} ${discordUser.username} | ${resolveEmoji(guild, 'game', '🎮')} ${playerName}`);
+        nameLines.push(`${resolveEmoji(guild, 'circlecheck', '✅')} Conta linkada!`);
     }
 
     const builder = new AdvancedContainerBuilder({ accentColor: color });

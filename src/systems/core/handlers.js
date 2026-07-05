@@ -8,6 +8,7 @@ const punishmentSystem = require('../moderation/punishmentSystem');
 const autoModerationModule = require('../moderation/autoModeration');
 const systemStatus = require('../monitoring/systemStatus');
 const errorLoggerModule = require('./errorLogger');
+const premiumPanel = require('../premium/premiumPanel');
 
 class InteractionHandler {
     constructor(client) {
@@ -35,6 +36,7 @@ class InteractionHandler {
             'config-punishments': configSystem,
             'config-roles': configSystem,
             'config-logs': configSystem,
+            premium: premiumPanel,
         };
         
         // Mapeamento de ações para métodos

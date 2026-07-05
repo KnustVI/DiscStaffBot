@@ -77,7 +77,7 @@ FREE
 - /config-punishments BLOQUEADO neste tier (nada a configurar, ja que
   reputacao esta desativada).
 
-PEGADA - R$25/mes
+RASTREADOR - R$25/mes
 - Logs de sistema + logs de jogo.
 - Missoes mensais ativadas. (ainda nao implementado - "vindo em breve")
 - Report-chat: limite de 3 chats abertos, sem cooldown.
@@ -91,14 +91,16 @@ PEGADA - R$25/mes
   disso. Limites de cargo automatico e recuperacao diaria NAO aparecem
   editaveis neste tier.
 - SEM cargos automaticos de reputacao (exemplar/problematico) - isso e
-  exclusivo do Fossil.
+  exclusivo do Caçador.
 - SEM automod diario (recuperacao de +1 ponto/dia e cargos automaticos nao
   rodam neste tier).
 - SEM analise de atividade de staff.
 - SEM RCON automatico.
 - /evento (criacao de eventos da comunidade) liberado a partir daqui.
+- BONUS: o DONO do servidor Discord ganha Player Premium Compy automaticamente
+  ao comprar o Rastreador (JA IMPLEMENTADO - ver secao 3).
 
-FOSSIL - R$40/mes
+CAÇADOR - R$40/mes
 - Logs completos + historico + analise de atividade de staff + analise de
   reports + resumo de mortes por webhook (nome do personagem) + analise de
   jogador + missoes personalizadas + prioridade de suporte.
@@ -121,30 +123,32 @@ FOSSIL - R$40/mes
   (ainda nao implementado - "vindo em breve"; quando existir, avisar
   administradores pra configurar o acesso em Configuracoes do Servidor >
   Integracoes > Titan's Pass)
+- BONUS: o DONO do servidor Discord ganha Player Premium Raptor automaticamente
+  ao comprar o Caçador (JA IMPLEMENTADO - ver secao 3).
 
 O QUE JA FUNCIONA HOJE, DE VERDADE:
 - Limite de chats abertos + cooldown no report-chat (todos os tiers).
 - Sistema de reputacao ligado/desligado conforme o tier (Free = desligado).
 - Aprovacao de Supervisor por severidade (nivel 4/5) OU duracao (>72h ou
   permanente), em qualquer tier.
-- /historico liberado so a partir do Pegada.
-- /evento (criacao de eventos) liberado so a partir do Pegada.
-- /config-punishments BLOQUEADO no Free; no Pegada so edita os 5 niveis de
+- /historico liberado so a partir do Rastreador.
+- /evento (criacao de eventos) liberado so a partir do Rastreador.
+- /config-punishments BLOQUEADO no Free; no Rastreador so edita os 5 niveis de
   severidade (pontos); Limites e Recuperacao Diaria so aparecem/editam no
-  Fossil.
-- /automod nega em servidores Free/Pegada (recurso exclusivo do Fossil).
+  Caçador.
+- /automod nega em servidores Free/Rastreador (recurso exclusivo do Caçador).
 - /botstatus so mostra estatisticas do servidor (Banco de Dados/Sistema
-  AutoMod) pra servidores Fossil.
+  AutoMod) pra servidores Caçador.
 - Automod diario (recuperacao de reputacao + cargos automaticos de
-  exemplar/problematico) roda SO no Fossil.
-- RCON automatico em punicao (so Fossil) - a sintaxe exata dos comandos
+  exemplar/problematico) roda SO no Caçador.
+- RCON automatico em punicao (so Caçador) - a sintaxe exata dos comandos
   RCON ainda esta pendente de confirmacao com o servidor real do PoT.
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando.
 - Todo comando bloqueado pelo tier responde sempre a mesma mensagem:
   "Este comando nao pode ser usado por um SERVIDOR TIER <TIER ATUAL>, use
   /premium para saber mais!" (com o tier real do servidor no lugar de
-  <TIER ATUAL> - FREE, PEGADA, etc).
+  <TIER ATUAL> - FREE, RASTREADOR, etc).
 
 
 3) COMO CONCEDER/REVOGAR/CONSULTAR UM TIER (uso interno, dev do bot)
@@ -164,6 +168,13 @@ jogadores)
 - "dias" vazio = concessao vitalicia (sem expiracao).
 - servidor_id e um ID numerico digitado a mao (nao precisa estar no
   servidor no momento de conceder).
+- Ao rodar "guild grant" com tier pegada/fossil, o DONO do servidor Discord
+  (guild.ownerId) recebe automaticamente o Player Premium correspondente
+  (Rastreador->Compy, Caçador->Raptor), pela mesma quantidade de dias, SEM
+  rebaixar um tier melhor que ele ja tenha por conta propria. So funciona
+  se o bot conseguir identificar o dono (precisa estar no servidor ou o
+  servidor precisa ser resolvivel via client.guilds.fetch) - caso
+  contrario, o comando avisa que o bonus nao foi aplicado.
 
 Como qualquer um confere o proprio tier (sem ser o desenvolvedor):
 - /perfil - mostra o Player Premium do jogador, se houver.
@@ -200,3 +211,23 @@ Assim que terminarmos de separar todo o uso/comandos por tier (este
 trabalho), o proximo passo e automatizar a aquisicao via Ko-fi (taxa menor
 e ja disponivel pro Brasil, diferente do Discord Monetization, que ainda
 nao paga desenvolvedores brasileiros).
+
+
+7) BANNERS/FOOTERS DE IMAGEM E IDENTIFICACAO PADRAO DE USUARIO
+------------------------------------------------
+- /premium (visao geral e Server Premium) mostra um banner de topo que
+  representa o tier ATUAL do servidor (assets banner_premium_server_free/
+  rastreador/cacador). Todo container do /premium e do /perfil usa uma
+  imagem de rodape por tier de Player Premium (footer_free/compy/raptor) NO
+  LUGAR do rodape de texto padrao do bot ("Produzido por...").
+- Todo container que mostra um usuario (strike, unstrike, repset, historico,
+  reportchat, perfil/registrar) usa o mesmo formato padrao:
+  mencao do Discord + ID Alderon (se registrado) na primeira linha, nome de
+  usuario + nome do personagem na segunda, e "Conta linkada!" na terceira
+  (as duas ultimas so aparecem se a pessoa tiver /registrar feito).
+- Esse formato depende dos emojis de aplicacao "PotLogo" e "DiscLogo" (ver
+  Discord Developer Portal > Application > Emojis) - se ainda nao tiverem
+  sido sincronizados no ambiente atual, rode "npm run sync-emojis" (funciona
+  so onde o .env com TOKEN/CLIENT_ID existir, tipicamente o VPS de producao)
+  para os IDs reais aparecerem; ate la, o bot usa emojis unicode de reserva
+  (🦖/💬) automaticamente, sem quebrar nada.

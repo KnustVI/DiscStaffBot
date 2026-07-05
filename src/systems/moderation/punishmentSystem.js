@@ -6,9 +6,10 @@ const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuild
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 const SessionManager = require('../../utils/sessionManager');
 const SequenceManager = require('../../database/sequences');
-const { getAlderonIdSuffix, getPlayerByDiscordId } = require('../pot/potPlayerRegistry');
+const { getPlayerByDiscordId } = require('../pot/potPlayerRegistry');
 const imageManager = require('../../utils/imageManager');
 const PremiumSystem = require('../premium/premiumSystem');
+const { buildIdentityBlock } = require('../../utils/userIdentity');
 
 const PunishmentSystem = {
     
@@ -129,9 +130,8 @@ const PunishmentSystem = {
         builder.separator();
 
         const avatar = target.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        const alderonSuffix = getAlderonIdSuffix(target.id);
         builder.section(
-            `# ${target.toString()}${alderonSuffix}\n${target.username}\n(\`${target.id}\`)`,
+            buildIdentityBlock(target),
             AdvancedContainerBuilder.thumbnail(avatar),
         );
 
@@ -140,7 +140,7 @@ const PunishmentSystem = {
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             builder.text(`${repEmoji} **Reputação Atual:** ${history.reputation}/100 pontos`);
         } else {
-            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} **Reputação:** disponível a partir do plano Pegada`);
+            builder.text(`${EMOJIS.messagesquare || 'ℹ️'} **Reputação:** disponível a partir do plano Rastreador`);
         }
         builder.text(`${EMOJIS.gavel || '⚠️'} **Total de Punições:** ${history.totalRecords}`);
         
@@ -175,16 +175,15 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## STAFF RESPONSAVEL\n${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
+            `## STAFF RESPONSAVEL\n${buildIdentityBlock(moderator)}`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
         );
         builder.separator();
 
         // ── Apresentação padrão: Usuário alvo da punição ─────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(target.id) : '';
         builder.section(
-            `## JOGADOR\n${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${buildIdentityBlock(target)}`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -220,16 +219,15 @@ const PunishmentSystem = {
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
         builder.section(
-            `## STAFF RESPONSAVEL\n${moderator.toString()}\n${moderator.username}\n(\`${moderator.id}\`)`,
+            `## STAFF RESPONSAVEL\n${buildIdentityBlock(moderator)}`,
             AdvancedContainerBuilder.thumbnail(moderatorAvatar),
         );
         builder.separator();
 
         // ── Apresentação padrão: Usuário alvo da anulação ────────────────────
         const targetAvatar = target?.displayAvatarURL?.({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
-        const targetAlderonSuffix = target?.id ? getAlderonIdSuffix(target.id) : '';
         builder.section(
-            `## JOGADOR\n${target?.toString() || 'Desconhecido'}${targetAlderonSuffix}\n${target?.username || '?'}\n(\`${target?.id || '?'}\`)`,
+            `## JOGADOR\n${buildIdentityBlock(target)}`,
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
@@ -613,7 +611,7 @@ const PunishmentSystem = {
         let ingameActionResult = null;
         if (jogoAct && jogoAct !== 'none') {
             if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) {
-                ingameActionResult = 'Ação in-game requer o plano Fossil.';
+                ingameActionResult = 'Ação in-game requer o plano Caçador.';
             } else {
                 const link = getPlayerByDiscordId(targetId);
                 if (!link) {

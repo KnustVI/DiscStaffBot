@@ -138,8 +138,12 @@ module.exports = {
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
             builder.separator();
-            const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
-            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser.tag}${getAlderonIdSuffix(targetUser.id)}`);
+            const { buildIdentityBlock } = require('../../utils/userIdentity');
+            builder.section(
+                `## JOGADOR\n${buildIdentityBlock(targetUser)}`,
+                AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
+            );
+            builder.separator();
             builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo:** ${reason}`);
             builder.text(`**${emojis.clockalert || '⏳'} Duração:** ${isPermanent ? 'Permanente' : durationStr}`);

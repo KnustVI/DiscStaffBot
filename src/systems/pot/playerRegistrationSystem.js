@@ -31,6 +31,7 @@ const {
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PlayerRegistry = require('./potPlayerRegistry');
 const imageManager = require('../../utils/imageManager');
+const { buildIdentityBlock } = require('../../utils/userIdentity');
 
 let EMOJIS = {};
 try {
@@ -59,20 +60,34 @@ class PlayerRegistrationSystem {
      */
     _appendProfileCard(builder, targetUser, player) {
         builder.section(
-            `## ${targetUser.toString()}\n${targetUser.username}\n(\`${targetUser.id}\`)`,
+            buildIdentityBlock(targetUser),
             AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })),
         );
         builder.separator();
 
-        if (player) {
-            builder.text(`${EMOJIS.circlecheck || '✅'} **Registrado no Path of Titans**`);
-            builder.text(`${EMOJIS.user || '👤'} **Personagem:** ${player.player_name}`);
-            builder.text(`${EMOJIS.idcard || '🆔'} **Alderon ID:** \`${player.alderon_id}\``);
-        } else {
+        if (!player) {
             builder.text(`${EMOJIS.circlealert || '❌'} **Ainda não registrado no Path of Titans**`);
         }
 
         return builder;
+    }
+
+    /**
+     * Imagem de rodapé por tier (assets footer_free/compy/raptor) — usada no
+     * lugar do footer de texto ("Produzido por...") em todo container
+     * relacionado a premium/perfil do jogador. Retorna os attachments extras
+     * que o chamador precisa mesclar em payload.files.
+     */
+    _appendFooterImage(builder, playerTier) {
+        const footerKey = `footer_${playerTier}`;
+        const footerUrl = imageManager.getUrl(footerKey);
+        const footerAttachment = imageManager.getAttachment(footerKey);
+        const extraFiles = [];
+        if (footerUrl) {
+            builder.gallery([footerUrl]);
+            if (footerAttachment) extraFiles.push(footerAttachment);
+        }
+        return extraFiles;
     }
 
     // ==================== PAINEL DE CADASTRO (/registrar) ====================
@@ -105,7 +120,11 @@ class PlayerRegistrationSystem {
         builder.text(
             `${EMOJIS.trianglealert || '⚠️'} **Importante:** por enquanto o Alderon ID informado não é verificado dentro do jogo — é você quem garante que é o dono desse personagem. Cadastro falso pode ser tratado como violação pela staff.`
         );
-        builder.footer(guildName);
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        const playerTier = PremiumSystem.getPlayerTier(userId);
+        builder.separator();
+        const extraFiles = this._appendFooterImage(builder, playerTier);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -117,6 +136,7 @@ class PlayerRegistrationSystem {
 
         const payload = builder.build();
         payload.components = [...payload.components, row];
+        payload.files = [...(payload.files || []), ...extraFiles];
         payload.flags = payload.flags | MessageFlags.Ephemeral;
 
         await interaction.editReply(payload);
@@ -133,7 +153,6 @@ class PlayerRegistrationSystem {
      * @param {import('discord.js').User} targetUser
      */
     async sendProfile(interaction, targetUser) {
-        const guildName = interaction.guild?.name || 'Servidor';
         const isSelf = targetUser.id === interaction.user.id;
 
         const player = PlayerRegistry.getPlayerByDiscordId(targetUser.id);
@@ -205,16 +224,11 @@ class PlayerRegistrationSystem {
 
         builder.separator();
         builder.text(`${EMOJIS.sparkles || '✨'} *Títulos e emblemas exclusivos chegando em breve!*`);
-        builder.footer(guildName);
 
-        // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor). ──
-        const footerKey = `footer_${playerTier}`;
-        const footerUrl = imageManager.getUrl(footerKey);
-        const footerAttachment = imageManager.getAttachment(footerKey);
-        if (footerUrl) {
-            builder.gallery([footerUrl]);
-            if (footerAttachment) extraFiles.push(footerAttachment);
-        }
+        // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor) —
+        // substitui o footer de texto ("Produzido por..."), não usado aqui. ──────
+        builder.separator();
+        extraFiles.push(...this._appendFooterImage(builder, playerTier));
 
         const payload = builder.build();
         payload.files = [...(payload.files || []), ...extraFiles];

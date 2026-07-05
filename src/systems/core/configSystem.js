@@ -570,7 +570,7 @@ const ConfigSystem = {
             .separator();
 
         // Limites (cargos automáticos Exemplar/Problemático) e recuperação
-        // diária são recursos exclusivos do Fossil — em Pegada, o painel só
+        // diária são recursos exclusivos do Caçador — em Rastreador, o painel só
         // mostra a nota, sem editar (o admin ali só configura o que os 5
         // níveis fazem com a reputação, nada além disso).
         if (automodEnabled) {
@@ -584,12 +584,12 @@ const ConfigSystem = {
                 .title(`${EMOJIS.trendingup || '📈'} Recuperação Diária de Reputação`, 2)
                 .block([
                     `${EMOJIS.trendingup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
-                    `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Fossil).`,
+                    `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Caçador).`,
                 ]);
         } else {
             cb
                 .title(`${EMOJIS.medal || '📊'} Limites e Recuperação Diária`, 2)
-                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos do plano **Fossil**. Use \`/premium\` para ver o tier atual.`);
+                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos do plano **Caçador**. Use \`/premium\` para ver o tier atual.`);
         }
 
         cb.footer(guildName);

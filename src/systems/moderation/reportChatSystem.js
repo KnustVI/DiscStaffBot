@@ -12,8 +12,8 @@ const {
     MessageFlags,
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
-const { getAlderonIdSuffix } = require('../pot/potPlayerRegistry');
 const PremiumSystem = require('../premium/premiumSystem');
+const { buildIdentityBlock } = require('../../utils/userIdentity');
 
 let EMOJIS = {};
 try {
@@ -155,9 +155,8 @@ class ReportChatSystem {
         builder.separator();
 
         // ==================== 2. CARD DO JOGADOR (quem abriu) ====================
-        const userAlderonSuffix = getAlderonIdSuffix(user.id);
         builder.section(
-            `## JOGADOR\n${user.toString()}${userAlderonSuffix ? ` ${userAlderonSuffix}` : ''}\n${user.username}\n(\`${user.id}\`)`,
+            `## JOGADOR\n${buildIdentityBlock(user)}`,
             AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 128 })),
         );
         builder.separator();
@@ -171,8 +170,10 @@ class ReportChatSystem {
                 : '';
 
             if (firstStaffUser) {
+                const identityLines = buildIdentityBlock(firstStaffUser).split('\n');
+                identityLines[0] += firstStaffJoinTime;
                 builder.section(
-                    `## STAFF RESPONSAVEL\n${firstStaffUser.toString()}${firstStaffJoinTime}\n${firstStaffUser.username}\n(\`${firstStaffUser.id}\`)`,
+                    `## STAFF RESPONSAVEL\n${identityLines.join('\n')}`,
                     AdvancedContainerBuilder.thumbnail(firstStaffUser.displayAvatarURL({ size: 128 })),
                 );
             } else {

@@ -5,7 +5,7 @@ const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
-const { getAlderonIdSuffix } = require('../../systems/pot/potPlayerRegistry');
+const { buildIdentityBlock } = require('../../utils/userIdentity');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -76,7 +76,11 @@ module.exports = {
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
-            builder.text(`**${emojis.user || '👤'} Usuário:** ${targetUser?.tag || punishment.user_id}${targetUser ? getAlderonIdSuffix(targetUser.id) : ''}`);
+            builder.section(
+                `## JOGADOR\n${buildIdentityBlock(targetUser || { toString: () => `\`${punishment.user_id}\``, username: '?', id: punishment.user_id })}`,
+                AdvancedContainerBuilder.thumbnail(targetUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
+            );
+            builder.separator();
             builder.text(`${severityIcons[punishment.severity] || '❓'} **Strike:** #${punishmentId}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo original:** ${punishment.reason}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo da anulação:** ${reason}`);

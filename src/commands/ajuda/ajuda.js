@@ -117,8 +117,8 @@ function buildPageModeration(guildName, emojis) {
     builder.title(`${emojis.star || '⭐'} Sistema de Reputação`, 2);
     builder.block([
         '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
-        '• Recuperação automática: quantidade configurável/dia sem punições — só roda no plano **Fossil** (ver página de Premium).',
-        '• Perda: conforme configuração de strikes — disponível a partir do plano **Pegada**; no Free o strike fica registrado, mas não mexe em pontos.',
+        '• Recuperação automática: quantidade configurável/dia sem punições — só roda no plano **Caçador** (ver página de Premium).',
+        '• Perda: conforme configuração de strikes — disponível a partir do plano **Rastreador**; no Free o strike fica registrado, mas não mexe em pontos.',
     ]);
 
     builder.footer(guildName);
@@ -160,7 +160,7 @@ function buildPageAutomod(guildName, emojis) {
         '• Recupera pontos para quem não tem punições nas últimas 24h — quantidade configurável em /config-punishments (padrão: +1/dia).',
         '• Atribui/remove cargos **Exemplar** e **Problemático** automaticamente, conforme os limites de /config-punishments.',
         '• Envia relatório no canal de log configurado.',
-        `• ${emojis.badge || '🏅'} **Recurso exclusivo do plano Fossil** — ver página de Premium.`,
+        `• ${emojis.badge || '🏅'} **Recurso exclusivo do plano Caçador** — ver página de Premium.`,
     ]);
 
     builder.footer(guildName);
@@ -173,7 +173,7 @@ function buildPageEvents(guildName, emojis) {
 
     builder.title(`${emojis.calendardays || '📅'} /evento`, 2);
     builder.block([
-        `• ${emojis.badge || '🏅'} **Recurso a partir do plano Pegada** — ver página de Premium.`,
+        `• ${emojis.badge || '🏅'} **Recurso a partir do plano Rastreador** — ver página de Premium.`,
         '• Pede: canal de fórum, título, descrição breve, imagem (PNG/JPEG, até 1920x1279), data e local.',
         '• O local pode ser um **canal de voz/palco** ou um **texto livre** (ex: um local dentro do jogo).',
         '• Publica automaticamente no fórum escolhido, cria um Evento agendado nativo do Discord e coloca o link dele na própria postagem.',
@@ -206,8 +206,8 @@ function buildPagePremium(guildName, emojis) {
     builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
     builder.block([
         '• **Free** — logs básicos (strike/unstrike/reportchat/config); 1 chat aberto por vez, 4h de cooldown; sem reputação, sem RCON automático.',
-        '• **Pegada (R$25/mês)** — logs de jogo, 3 chats abertos sem cooldown, sistema de reputação ativado, `/historico` liberado, `/evento` liberado.',
-        '• **Fossil (R$40/mês)** — chats ilimitados, automod diário (cargos automáticos de reputação), análise de staff, RCON automático em punições e níveis de punição personalizáveis.',
+        '• **Rastreador (R$25/mês)** — logs de jogo, 3 chats abertos sem cooldown, sistema de reputação ativado, `/historico` liberado, `/evento` liberado. O dono do servidor ganha Player Premium **Compy** de bônus.',
+        '• **Caçador (R$40/mês)** — chats ilimitados, automod diário (cargos automáticos de reputação), análise de staff, RCON automático em punições e níveis de punição personalizáveis. O dono do servidor ganha Player Premium **Raptor** de bônus.',
     ]);
     builder.separator();
 
@@ -256,8 +256,8 @@ function buildPageUserSimple(displayName, guildName, emojis) {
 
     builder.title(`${emojis.star || '⭐'} Reputação`, 2);
     builder.block([
-        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Pegada — ver página de Premium).',
-        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo (só no plano Fossil).',
+        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Rastreador — ver página de Premium).',
+        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo (só no plano Caçador).',
         '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos.',
     ]);
     builder.separator();

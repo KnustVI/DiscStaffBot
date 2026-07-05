@@ -12,6 +12,15 @@ const db = require('../../database/index');
 const PLAYER_TIERS = { free: 0, compy: 1, raptor: 2 };
 const GUILD_TIERS = { free: 0, pegada: 1, fossil: 2 };
 
+// Bônus de compra: o DONO do servidor Discord ganha o Player Premium
+// correspondente ao comprar Server Premium — ver premium-admin.js (guild grant).
+const GUILD_TO_PLAYER_TIER = { pegada: 'compy', fossil: 'raptor' };
+
+// Nomes exibidos ao usuário para cada tier de Server Premium — os valores
+// internos ('free'/'pegada'/'fossil', usados no banco e em todo o código)
+// NÃO mudam, só o rótulo mostrado (Pegada→Rastreador, Fossil→Caçador).
+const GUILD_TIER_DISPLAY = { free: 'Free', pegada: 'Rastreador', fossil: 'Caçador' };
+
 // Limites concretos por tier de servidor — única fonte da verdade consultada
 // pelo reportChatSystem (limite/cooldown de chats), punishmentSystem
 // (reputação, RCON automático), historico.js (histórico de jogador) e
@@ -69,8 +78,9 @@ function getGuildLimits(guildId) {
  * PEGADA...) que está impedindo o uso, e apontando pro /premium.
  */
 function getGuildDenialMessage(guildId) {
-    const tier = getGuildTier(guildId).toUpperCase();
-    return `Este comando não pode ser usado por um SERVIDOR TIER ${tier}, use /premium para saber mais!`;
+    const tier = getGuildTier(guildId);
+    const label = (GUILD_TIER_DISPLAY[tier] || tier).toUpperCase();
+    return `Este comando não pode ser usado por um SERVIDOR TIER ${label}, use /premium para saber mais!`;
 }
 
 function grantPlayerPremium(userId, tier, days, grantedBy, notes = null) {
@@ -147,6 +157,8 @@ module.exports = {
     PLAYER_TIERS,
     GUILD_TIERS,
     GUILD_LIMITS,
+    GUILD_TO_PLAYER_TIER,
+    GUILD_TIER_DISPLAY,
     getPlayerTier,
     getGuildTier,
     isPlayerAtLeast,
