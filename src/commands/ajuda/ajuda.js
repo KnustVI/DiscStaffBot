@@ -173,6 +173,7 @@ function buildPageEvents(guildName, emojis) {
 
     builder.title(`${emojis.calendardays || '📅'} /evento`, 2);
     builder.block([
+        `• ${emojis.badge || '🏅'} **Recurso a partir do plano Pegada** — ver página de Premium.`,
         '• Pede: canal de fórum, título, descrição breve, imagem (PNG/JPEG, até 1920x1279), data e local.',
         '• O local pode ser um **canal de voz/palco** ou um **texto livre** (ex: um local dentro do jogo).',
         '• Publica automaticamente no fórum escolhido, cria um Evento agendado nativo do Discord e coloca o link dele na própria postagem.',
@@ -205,7 +206,7 @@ function buildPagePremium(guildName, emojis) {
     builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
     builder.block([
         '• **Free** — logs básicos (strike/unstrike/reportchat/config); 1 chat aberto por vez, 4h de cooldown; sem reputação, sem RCON automático.',
-        '• **Pegada (R$25/mês)** — logs de jogo, 3 chats abertos sem cooldown, sistema de reputação ativado, `/historico` liberado.',
+        '• **Pegada (R$25/mês)** — logs de jogo, 3 chats abertos sem cooldown, sistema de reputação ativado, `/historico` liberado, `/evento` liberado.',
         '• **Fossil (R$40/mês)** — chats ilimitados, automod diário (cargos automáticos de reputação), análise de staff, RCON automático em punições e níveis de punição personalizáveis.',
     ]);
     builder.separator();

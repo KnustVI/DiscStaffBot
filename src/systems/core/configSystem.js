@@ -310,7 +310,12 @@ const ConfigSystem = {
         if (!interaction.isButton()) {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
         }
-        
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'pegada')) {
+            return await ResponseManager.error(interaction, 'Configurar os níveis de Strike é um recurso a partir do plano Pegada.');
+        }
+
         const guildId = interaction.guildId;
         const DEFAULT_POINTS = { 1: 10, 2: 25, 3: 40, 4: 60, 5: 100 };
         
@@ -338,7 +343,12 @@ const ConfigSystem = {
         if (!interaction.isButton()) {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
         }
-        
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
+            return await ResponseManager.error(interaction, 'Os limites de reputação (cargos automáticos Exemplar/Problemático) são um recurso exclusivo do plano Fossil.');
+        }
+
         const guildId = interaction.guildId;
         const exemplarLimit = parseInt(this.getSetting(guildId, 'limit_exemplar')) || 95;
         const problematicLimit = parseInt(this.getSetting(guildId, 'limit_problematico')) || 30;
@@ -403,6 +413,11 @@ const ConfigSystem = {
     },
 
     async processPointsStrikeModal(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'pegada')) {
+            return await ResponseManager.error(interaction, 'Configurar os níveis de Strike é um recurso a partir do plano Pegada.');
+        }
+
         const novosPontos = {
             1: parseInt(interaction.fields.getTextInputValue('nivel1')),
             2: parseInt(interaction.fields.getTextInputValue('nivel2')),
@@ -438,6 +453,11 @@ const ConfigSystem = {
     },
 
     async processLimitesModal(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
+            return await ResponseManager.error(interaction, 'Os limites de reputação (cargos automáticos Exemplar/Problemático) são um recurso exclusivo do plano Fossil.');
+        }
+
         const exemplarLimit = parseInt(interaction.fields.getTextInputValue('exemplar_limit'));
         const problematicLimit = parseInt(interaction.fields.getTextInputValue('problematic_limit'));
         
@@ -530,7 +550,7 @@ const ConfigSystem = {
 
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
-        const { components, flags, files } = cb
+        cb
             .section(
                 [
                     '# CONFIGURAÇÃO DE PONTOS E LIMITES',
@@ -547,29 +567,48 @@ const ConfigSystem = {
                 `${severityIcons[4]} **Nível 4 (${severityNames[4]}):** \`${points[4]} pontos\``,
                 `${severityIcons[5]} **Nível 5 (${severityNames[5]}):** \`${points[5]} pontos\``,
             ])
-            .separator()
-            .title(`${EMOJIS.medal || '📊'} Limites de Reputação`, 2)
-            .block([
-                `${EMOJIS.sparkles || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
-                `${EMOJIS.trianglealert  || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
-            ])
-            .separator()
-            .title(`${EMOJIS.trendingup || '📈'} Recuperação Diária de Reputação`, 2)
-            .block([
-                `${EMOJIS.trendingup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
-                automodEnabled
-                    ? `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Fossil).`
-                    : `${EMOJIS.circlealert || '❌'} Automod diário inativo — exclusivo do plano Fossil (ver /premium-status).`,
-            ])
-            .footer(guildName)
-            .build();
+            .separator();
 
-        const row = new ActionRowBuilder().addComponents(
+        // Limites (cargos automáticos Exemplar/Problemático) e recuperação
+        // diária são recursos exclusivos do Fossil — em Pegada, o painel só
+        // mostra a nota, sem editar (o admin ali só configura o que os 5
+        // níveis fazem com a reputação, nada além disso).
+        if (automodEnabled) {
+            cb
+                .title(`${EMOJIS.medal || '📊'} Limites de Reputação`, 2)
+                .block([
+                    `${EMOJIS.sparkles || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
+                    `${EMOJIS.trianglealert  || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
+                ])
+                .separator()
+                .title(`${EMOJIS.trendingup || '📈'} Recuperação Diária de Reputação`, 2)
+                .block([
+                    `${EMOJIS.trendingup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
+                    `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Fossil).`,
+                ]);
+        } else {
+            cb
+                .title(`${EMOJIS.medal || '📊'} Limites e Recuperação Diária`, 2)
+                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos do plano **Fossil**. Use \`/premium-status\` para ver o tier atual.`);
+        }
+
+        cb.footer(guildName);
+        const { components, flags, files } = cb.build();
+
+        const buttons = [
             new ButtonBuilder().setCustomId('config-punishments:strike:modal').setLabel('Editar Níveis de Strike').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder().setCustomId('config-punishments:limites:modal').setLabel('Editar Limites').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder().setCustomId('config-punishments:recovery:modal').setLabel('Editar Recuperação Diária').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+        ];
+        if (automodEnabled) {
+            buttons.push(
+                new ButtonBuilder().setCustomId('config-punishments:limites:modal').setLabel('Editar Limites').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+                new ButtonBuilder().setCustomId('config-punishments:recovery:modal').setLabel('Editar Recuperação Diária').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+            );
+        }
+        buttons.push(
             new ButtonBuilder().setCustomId('config-punishments:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️')
         );
+
+        const row = new ActionRowBuilder().addComponents(...buttons);
         
         // ✅ Painel SEMPRE limpo, sem `content` — mensagem de sucesso vai
         // separada via sendFeedback() (followUp efêmero).

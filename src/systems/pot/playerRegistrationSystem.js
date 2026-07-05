@@ -30,6 +30,7 @@ const {
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PlayerRegistry = require('./potPlayerRegistry');
+const imageManager = require('../../utils/imageManager');
 
 let EMOJIS = {};
 try {
@@ -137,19 +138,22 @@ class PlayerRegistrationSystem {
 
         const player = PlayerRegistry.getPlayerByDiscordId(targetUser.id);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
-
-        // ── Banner de perfil — recurso do Player Premium Raptor: banner
-        // personalizado (enviado via /perfil-banner) tem prioridade; sem
-        // banner personalizado, usa o banner do próprio Discord, se houver.
-        // Jogadores fora do Raptor não têm banner nenhum aqui de propósito.
-        // A URL do banner personalizado é resolvida AGORA (não fica salva no
-        // banco) — anexos do Discord expiram em ~24h, só a mensagem em si
-        // não expira. ──────────────────────────────────────────────────────
         const PremiumSystem = require('../premium/premiumSystem');
-        if (PremiumSystem.isPlayerAtLeast(targetUser.id, 'raptor')) {
-            let bannerUrl = null;
+        const playerTier = PremiumSystem.getPlayerTier(targetUser.id);
 
+        const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
+        const extraFiles = [];
+
+        // ── Banner de perfil — entra no lugar do título "# PERFIL", um por
+        // tier (assets banner_perfil_free/compy/raptor). Só o Raptor pode
+        // trocar o próprio (via /perfil-banner ou puxando do Discord); Compy
+        // poderá comprar outros na lojinha do bot no futuro — por enquanto
+        // usa sempre o banner padrão do tier. A URL de um banner personalizado
+        // é resolvida AGORA, nunca fica salva no banco — anexos do Discord
+        // expiram em ~24h, só a mensagem de armazenamento não expira. ───────
+        let bannerUrl = null;
+
+        if (playerTier === 'raptor') {
             if (player?.banner_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
                 try {
                     const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
@@ -168,15 +172,19 @@ class PlayerRegistrationSystem {
                     bannerUrl = null;
                 }
             }
-
-            if (bannerUrl) {
-                builder.gallery([bannerUrl]);
-                builder.separator();
-            }
         }
 
-        builder.text('# PERFIL');
-        builder.separator();
+        if (!bannerUrl) {
+            const bannerKey = `banner_perfil_${playerTier}`;
+            bannerUrl = imageManager.getUrl(bannerKey);
+            const bannerAttachment = imageManager.getAttachment(bannerKey);
+            if (bannerAttachment) extraFiles.push(bannerAttachment);
+        }
+
+        if (bannerUrl) {
+            builder.gallery([bannerUrl]);
+            builder.separator();
+        }
 
         this._appendProfileCard(builder, targetUser, player);
 
@@ -189,7 +197,6 @@ class PlayerRegistrationSystem {
             );
         }
 
-        const playerTier = PremiumSystem.getPlayerTier(targetUser.id);
         if (playerTier !== 'free') {
             builder.separator();
             const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
@@ -197,10 +204,20 @@ class PlayerRegistrationSystem {
         }
 
         builder.separator();
-        builder.text(`${EMOJIS.sparkles || '✨'} *Perfis personalizáveis (títulos, emblemas, banners) chegando em breve!*`);
+        builder.text(`${EMOJIS.sparkles || '✨'} *Títulos e emblemas exclusivos chegando em breve!*`);
         builder.footer(guildName);
 
+        // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor). ──
+        const footerKey = `footer_${playerTier}`;
+        const footerUrl = imageManager.getUrl(footerKey);
+        const footerAttachment = imageManager.getAttachment(footerKey);
+        if (footerUrl) {
+            builder.gallery([footerUrl]);
+            if (footerAttachment) extraFiles.push(footerAttachment);
+        }
+
         const payload = builder.build();
+        payload.files = [...(payload.files || []), ...extraFiles];
         payload.flags = payload.flags | MessageFlags.Ephemeral;
 
         await interaction.editReply(payload);

@@ -10,6 +10,7 @@ const {
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
 
 let EMOJIS = {};
 try {
@@ -79,6 +80,13 @@ module.exports = {
 
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
+
+        if (!PremiumSystem.isGuildAtLeast(guild.id, 'pegada')) {
+            return await ResponseManager.error(
+                interaction,
+                'A criação de eventos (/evento) é um recurso a partir do plano **Pegada**. Use `/premium-status` para ver o tier atual deste servidor.'
+            );
+        }
 
         const ConfigSystem = require('../../systems/core/configSystem');
 

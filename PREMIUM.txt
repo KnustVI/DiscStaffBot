@@ -11,11 +11,17 @@ ainda.
 
 FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar).
+- Banner de perfil padrao do tier Free (imagem fixa, nao pode trocar).
+- Footer de perfil padrao do tier Free (imagem fixa no rodape do /perfil).
 - Badges de servidor e titulos de missao de servidor.
   (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes
 - Tudo do Free.
+- Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
+  comprar OUTROS banners na lojinha do bot pra trocar por esse.
+  (compra de banners na lojinha ainda nao implementado - "vindo em breve")
+- Footer de perfil padrao do tier Compy.
 - Badge exclusivo no /perfil.
   (ainda nao implementado - "vindo em breve")
 - Titulos exclusivos.
@@ -28,23 +34,28 @@ COMPY - R$10/mes
 RAPTOR - R$25/mes
 - Tudo do Compy.
 - Perfil 100% personalizado com imagens proprias.
-  Banner de perfil JA IMPLEMENTADO: aparece acima do card no /perfil. Usa o
-  banner do proprio Discord automaticamente, se o jogador tiver um; ou pode
-  enviar uma imagem propria via /perfil-banner (e remover com o mesmo
-  comando, sem anexar nada). Fora do Raptor no banner nenhum aparece.
+  Banner de perfil JA IMPLEMENTADO: aparece no lugar do titulo "# PERFIL" no
+  /perfil. Usa o banner do proprio Discord automaticamente, se o jogador
+  tiver um; ou pode enviar uma imagem propria via /perfil-banner (e remover
+  com o mesmo comando, sem anexar nada, voltando ao banner padrao do tier).
+- Footer de perfil padrao do tier Raptor.
 - Badge exclusivo, titulos exclusivos.
   (ainda nao implementado - "vindo em breve")
 
 O QUE JA FUNCIONA HOJE, DE VERDADE:
 - O tier em si (concessao/expiracao/consulta) - ver secao 3.
 - O /perfil mostra o tier atual do jogador, se for Compy ou Raptor.
-- Banner de perfil personalizado (Raptor) via /perfil-banner - precisa que o
+- Banner de perfil (no lugar do titulo) e footer-imagem (no rodape) pra
+  TODOS os tiers - cada um com sua imagem padrao (Free/Compy/Raptor). No
+  Raptor, o banner padrao vira o banner do Discord ou o personalizado
+  (/perfil-banner), se houver.
+- Banner personalizado (Raptor) via /perfil-banner - precisa que o
   desenvolvedor do bot configure BANNER_STORAGE_CHANNEL_ID no .env (canal
   onde as imagens enviadas sao guardadas). Guarda so o ID da mensagem, nao a
   URL - links de anexo do Discord expiram em ~24h, entao a URL e resolvida
   na hora (refazendo o fetch da mensagem) toda vez que o /perfil e exibido.
-- Loja, badge exclusivo, titulos e sorteio sao so a FUNDACAO (o sistema de
-  tier), ainda NAO tem loja/badge/titulos/sorteio implementados de fato.
+- Loja (comprar banners/badges/titulos/sorteio) e so a FUNDACAO (o sistema
+  de tier), ainda NAO tem loja implementada de fato.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -63,6 +74,8 @@ FREE
 - Toda punicao com duracao MAIOR que 72h ou permanente exige aprovacao do
   cargo Supervisor (unica regra de confirmacao neste tier, ja que nao ha
   niveis de severidade relevantes).
+- /config-punishments BLOQUEADO neste tier (nada a configurar, ja que
+  reputacao esta desativada).
 
 PEGADA - R$25/mes
 - Logs de sistema + logs de jogo.
@@ -73,12 +86,17 @@ PEGADA - R$25/mes
   jogador (/historico liberado).
   Aprovacao de Supervisor exigida pra nivel 4/5 OU duracao >72h/permanente
   (mesma regra do Free, so que aqui os niveis tambem contam).
+- /config-punishments liberado, mas SO pra configurar o que os 5 niveis de
+  severidade fazem com a reputacao (pontos perdidos por nivel) - nada alem
+  disso. Limites de cargo automatico e recuperacao diaria NAO aparecem
+  editaveis neste tier.
 - SEM cargos automaticos de reputacao (exemplar/problematico) - isso e
   exclusivo do Fossil.
 - SEM automod diario (recuperacao de +1 ponto/dia e cargos automaticos nao
   rodam neste tier).
 - SEM analise de atividade de staff.
 - SEM RCON automatico.
+- /evento (criacao de eventos da comunidade) liberado a partir daqui.
 
 FOSSIL - R$40/mes
 - Logs completos + historico + analise de atividade de staff + analise de
@@ -96,6 +114,9 @@ FOSSIL - R$40/mes
   (niveis 100% personalizaveis ainda nao implementados - hoje ainda usa os
   5 niveis fixos configuraveis; automod diario, recuperacao configuravel e
   RCON automatico ja funcionam de verdade)
+- /config-punishments completo aqui: niveis de severidade, limites de cargo
+  automatico (Exemplar/Problematico) e recuperacao diaria, tudo editavel -
+  unico tier com acesso aos 3 botoes do painel.
 - Todos os comandos do Path of Titans disponiveis via Discord.
   (ainda nao implementado - "vindo em breve"; quando existir, avisar
   administradores pra configurar o acesso em Configuracoes do Servidor >
@@ -107,6 +128,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - Aprovacao de Supervisor por severidade (nivel 4/5) OU duracao (>72h ou
   permanente), em qualquer tier.
 - /historico liberado so a partir do Pegada.
+- /evento (criacao de eventos) liberado so a partir do Pegada.
+- /config-punishments BLOQUEADO no Free; no Pegada so edita os 5 niveis de
+  severidade (pontos); Limites e Recuperacao Diaria so aparecem/editam no
+  Fossil.
+- /automod nega em servidores Free/Pegada (recurso exclusivo do Fossil).
+- /botstatus so mostra estatisticas do servidor (Banco de Dados/Sistema
+  AutoMod) pra servidores Fossil.
 - Automod diario (recuperacao de reputacao + cargos automaticos de
   exemplar/problematico) roda SO no Fossil.
 - RCON automatico em punicao (so Fossil) - a sintaxe exata dos comandos
