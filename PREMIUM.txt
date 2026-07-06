@@ -31,8 +31,11 @@ RAPTOR - R$25/mes ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
   Banner de perfil JA IMPLEMENTADO: aparece no lugar do titulo "# PERFIL" no
   /perfil. Usa o banner do proprio Discord automaticamente, se o jogador
-  tiver um; ou pode enviar uma imagem propria via /perfil-edit (e remover
-  com o mesmo comando, sem anexar nada, voltando ao banner padrao do tier).
+  tiver um; ou pode enviar uma imagem propria via /perfil-edit, que vira o
+  FUNDO de um banner gerado pelo bot (nickname em destaque por cima, fonte
+  Tilt Warp em caixa alta + selo "RAPTOR", identidade visual da marca) - e
+  remover com o mesmo comando, sem anexar nada, voltando ao banner padrao
+  do tier.
 - Footer de perfil padrao do tier Raptor.
 - Boost de farm por missao Titan concluida. (ainda nao implementado - "vindo em breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
@@ -45,11 +48,15 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   TODOS os tiers - cada um com sua imagem padrao (Free/Compy/Raptor). No
   Raptor, o banner padrao vira o banner do Discord ou o personalizado
   (/perfil-edit), se houver.
-- Banner personalizado (Raptor) via /perfil-edit - precisa que o
-  desenvolvedor do bot configure BANNER_STORAGE_CHANNEL_ID no .env (canal
-  onde as imagens enviadas sao guardadas). Guarda so o ID da mensagem, nao a
-  URL - links de anexo do Discord expiram em ~24h, entao a URL e resolvida
-  na hora (refazendo o fetch da mensagem) toda vez que o /perfil e exibido.
+- Banner personalizado (Raptor) via /perfil-edit - a imagem enviada e
+  processada com @napi-rs/canvas (fontes Tilt Warp/Poppins, bundladas em
+  assets/fonts/) e vira o fundo de um banner com o nickname do jogador em
+  destaque; o resultado ja pronto (nao o arquivo cru) e o que fica guardado.
+  Precisa que o desenvolvedor do bot configure BANNER_STORAGE_CHANNEL_ID no
+  .env (canal onde as imagens geradas sao guardadas). Guarda so o ID da
+  mensagem, nao a URL - links de anexo do Discord expiram em ~24h, entao a
+  URL e resolvida na hora (refazendo o fetch da mensagem) toda vez que o
+  /perfil e exibido.
 - Loja (comprar banners/badges/titulos/sorteio) e so a FUNDACAO (o sistema
   de tier), ainda NAO tem loja implementada de fato.
 
@@ -293,3 +300,19 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   tinham premium concedido foram migrados automaticamente no boot do bot
   (DatabaseManager.migrateGuildPremiumTierNames, idempotente - roda toda
   vez, mas so tem efeito na primeira execucao apos a atualizacao).
+
+
+10) BANNER DE PERFIL GERADO (nickname + identidade visual da marca)
+------------------------------------------------
+- /perfil-edit (Raptor) nao guarda mais a imagem enviada "crua": ela agora
+  e usada como FUNDO de um banner gerado na hora com @napi-rs/canvas
+  (src/utils/bannerRenderer.js), com o nickname do jogador em destaque
+  (fonte Tilt Warp, sempre caixa alta), o @handle do Discord como subtitulo
+  (fonte Poppins) e um selo "RAPTOR" - seguindo a paleta de cores oficial da
+  marca (Mostarda/Light/Neutro/Dark). So aceita png/jpg/webp agora (gif
+  saiu, ja que o texto e desenhado por cima e a animacao se perderia mesmo).
+- As fontes reais (Tilt Warp + toda a familia Poppins usada: Regular/
+  Medium/SemiBold) ficam bundladas em assets/fonts/ (licenca OFL, arquivos
+  OFL-TiltWarp.txt/OFL-Poppins.txt junto) - nao dependem de nada instalado
+  no sistema operacional do servidor onde o bot roda.
+- Nova dependencia real (nao-dev): @napi-rs/canvas.

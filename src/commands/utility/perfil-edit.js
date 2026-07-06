@@ -4,19 +4,22 @@
  * troca o banner (renomeado de /perfil-banner pra receber mais
  * personalizações futuras sem precisar de um novo comando a cada uma).
  * Sem anexo enviado: usa o banner do próprio Discord (se o jogador tiver um
- * configurado). Com anexo: substitui pelo arquivo enviado.
+ * configurado). Com anexo: a imagem enviada vira o FUNDO de um banner gerado
+ * (nickname em destaque por cima, ver bannerRenderer.js) — não é mais
+ * salva "crua".
  *
  * Anexos de interação do Discord (e qualquer anexo de mensagem, na real) têm
  * URL assinada com validade de ~24h (parâmetros ex/is/hm) — guardar a URL
  * direto no banco quebraria depois de um dia. Por isso reenviamos a imagem
- * pra um canal fixo do bot (ver BANNER_STORAGE_CHANNEL_ID no .env) e
- * guardamos só o ID da MENSAGEM — a URL fresca é resolvida na hora, sempre
- * que o /perfil for exibido (refazendo o fetch da mensagem).
+ * (já composta) pra um canal fixo do bot (ver BANNER_STORAGE_CHANNEL_ID no
+ * .env) e guardamos só o ID da MENSAGEM — a URL fresca é resolvida na hora,
+ * sempre que o /perfil for exibido (refazendo o fetch da mensagem).
  */
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const ResponseManager = require('../../utils/responseManager');
+const { renderProfileBanner } = require('../../utils/bannerRenderer');
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -48,8 +51,8 @@ module.exports = {
             return await ResponseManager.success(interaction, `${EMOJIS.circlecheck || '✅'} Banner personalizado removido. Se você tiver um banner configurado no próprio Discord, ele volta a aparecer no seu /perfil.`);
         }
 
-        if (!arquivo.contentType || !arquivo.contentType.startsWith('image/')) {
-            return await ResponseManager.error(interaction, 'O arquivo enviado precisa ser uma imagem (png, jpg, webp, gif).');
+        if (!arquivo.contentType || !['image/png', 'image/jpeg', 'image/webp'].includes(arquivo.contentType)) {
+            return await ResponseManager.error(interaction, 'O arquivo enviado precisa ser uma imagem estática (png, jpg ou webp) — o texto do seu nickname é desenhado por cima, então formatos animados (gif) não são aceitos aqui.');
         }
 
         const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
@@ -63,9 +66,22 @@ module.exports = {
         }
 
         try {
+            const response = await fetch(arquivo.url);
+            if (!response.ok) {
+                return await ResponseManager.error(interaction, 'Não foi possível baixar a imagem enviada. Tente novamente.');
+            }
+            const backgroundBuffer = Buffer.from(await response.arrayBuffer());
+
+            const bannerBuffer = await renderProfileBanner({
+                backgroundBuffer,
+                nickname: link.player_name || user.displayName || user.username,
+                subtitle: `@${user.username}`,
+                badgeLabel: 'Raptor',
+            });
+
             const stored = await storageChannel.send({
                 content: `Banner de \`${user.tag}\` (\`${user.id}\`)`,
-                files: [{ attachment: arquivo.url, name: arquivo.name || 'banner.png' }],
+                files: [new AttachmentBuilder(bannerBuffer, { name: 'banner.png' })],
             });
 
             if (!stored.attachments.first()) {
