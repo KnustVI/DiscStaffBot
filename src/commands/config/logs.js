@@ -1,14 +1,9 @@
-// /home/ubuntu/DiscStaffBot/src/commands/config/config-roles.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+// src/commands/config/logs.js — subcomando /config logs
+const { PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('config-roles')
-        .setDescription('⚙️ Configura os cargos do sistema.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
 
@@ -21,9 +16,8 @@ module.exports = {
 
         const ConfigSystem = require('../../systems/core/configSystem');
 
-        // Painel dividido em 3 abas (Reputação Automática, Moderação, Eventos)
-        // — ver ROLE_TABS em configSystem.js. Começa na aba de Moderação, que
-        // tem o cargo obrigatório (Staff).
-        await ConfigSystem.refreshRolesPanel(interaction, null, 'moderation');
-    }
+        // Painel único (sem abas) — ver LOG_FIELDS/refreshLogsPanel em
+        // configSystem.js.
+        await ConfigSystem.refreshLogsPanel(interaction, null, guild.name);
+    },
 };

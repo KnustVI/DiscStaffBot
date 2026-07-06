@@ -267,10 +267,10 @@ class AutoModerationSystem {
             // é recurso exclusivo do tier Fossil — servidores Free/Pegada não
             // têm reputação automática nem "automod diário". A quantidade
             // recuperada por dia é configurável por servidor (padrão 1 ponto),
-            // via /config-punishments — por isso o UPDATE roda por guild, não
+            // via /config punishments — por isso o UPDATE roda por guild, não
             // mais como uma query global única.
             const fossilGuildIds = db.prepare(`
-                SELECT guild_id FROM guild_premium WHERE tier = 'fossil' AND (expires_at IS NULL OR expires_at > ?)
+                SELECT guild_id FROM guild_premium WHERE tier = 'cacador' AND (expires_at IS NULL OR expires_at > ?)
             `).all(Date.now()).map(row => row.guild_id);
 
             for (const gId of fossilGuildIds) {
@@ -367,7 +367,7 @@ class AutoModerationSystem {
      * ✅ UNIFICADO: o relatório agora vai para o canal "Geral" (chave
      * 'log_channel'), via ConfigSystem.getUnifiedGeneralLogChannel().
      * Antes ia para 'log_automod', que deixou de ser configurável
-     * separadamente no painel /config-logs (mantido só como fallback legado
+     * separadamente no painel /config logs (mantido só como fallback legado
      * para guilds que já tinham configurado antes da unificação).
      *
      * ✅ EXPANDIDO: além do resumo de recuperação/cargos que já existia,

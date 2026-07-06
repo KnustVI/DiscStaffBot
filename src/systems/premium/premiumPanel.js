@@ -92,11 +92,11 @@ function appendAcquire(builder) {
     return builder;
 }
 
-function navRow() {
+function navRow(activeView = 'main') {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('premium:view:main').setLabel('Status').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
-        new ButtonBuilder().setCustomId('premium:view:server').setLabel('Server Premium').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.tv || '🖥️'),
-        new ButtonBuilder().setCustomId('premium:view:player').setLabel('Player Premium').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
+        new ButtonBuilder().setCustomId('premium:view:main').setLabel('Status').setStyle(activeView === 'main' ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
+        new ButtonBuilder().setCustomId('premium:view:server').setLabel('Server Premium').setStyle(activeView === 'server' ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(EMOJIS.tv || '🖥️'),
+        new ButtonBuilder().setCustomId('premium:view:player').setLabel('Player Premium').setStyle(activeView === 'player' ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
     );
 }
 
@@ -129,43 +129,45 @@ function buildServerContainer(guild, user) {
 
     builder.text([
         '# SERVER PREMIUM',
-        'Plano por servidor Discord — melhora o atendimento e a moderação da comunidade.',
+        'Melhore tudo que puder no seu servidor! Plano por servidor Discord, independente do Player Premium.',
     ].join('\n'));
     extraFiles.push(...appendServerBanner(builder, guild));
 
     builder.title(`${TIER_ICON.base} Free`, 2);
     builder.block([
-        '• Logs de sistemas.',
-        '**Sistema básico de reporte:**',
-        '• Limite de 1 chat de reporte.',
-        '• Limite de 1 revisão de punição.',
-        '• Tempo de espera de 1h para abrir chats.',
-        '**Sistema básico de punição:**',
-        '• Registros de punição.',
-        '• Não aplica ações de punição como ban/kick/mute.',
-        '**Sistema básico de eventos:**',
-        '• Cria evento em fórum de forma padrão, com anexo de imagem.',
+        '**Missões:**',
+        '• Missões mensais do Titan\'s Pass. *(vindo em breve)*',
+        '**Reportes:**',
+        '• Até 1 chat de reporte ativo.',
+        '• Até 1 revisão de punição ativa.',
+        '• Cooldown de 6h.',
+        '**Punições:**',
+        '• Registro de punições.',
+        '**Eventos:**',
+        '• Cria eventos em fóruns.',
+        '• Suporte para imagem de capa do evento.',
+        '**Integração Path of Titans:**',
+        '• Logs de jogo.',
     ]);
     builder.separator();
 
     builder.title(`${TIER_ICON.medium} Rastreador — R$25/mês`, 2);
     builder.block([
         '**Tudo do Free +**',
-        '• Logs de jogo.',
-        '• Missões mensais do Titan\'s Pass ativadas. *(vindo em breve)*',
-        '**Sistema médio de reporte:**',
-        '• Limite de 3 chats de reporte.',
-        '• Limite de 3 revisões de punição.',
-        '• Sem tempo de espera!',
-        '• Pontuação de reputação.',
-        '**Sistema médio de punição:**',
+        '**Missões:**',
+        '• 1 missão mensal exclusiva para o servidor. *(vindo em breve)*',
+        '**Reportes:**',
+        '• Até 3 chats de reporte ativos.',
+        '• Até 3 revisões de punição ativas.',
+        '• Sem tempo de espera.',
+        '**Punições:**',
+        '• Sistema de pontos de reputação.',
         '• Cargo temporário de punição.',
         '• Até 5 níveis de punição configuráveis.',
-        '• Não aplica ações de punição como ban/kick/mute.',
-        '**Sistema médio de eventos:**',
-        '• Cria eventos em fóruns.',
-        '• Cria evento no Discord.',
-        '• Marca jogadores com cargo selecionado.',
+        '• Histórico de punições.',
+        '**Eventos:**',
+        '• Cria eventos diretamente no Discord.',
+        '• Marca automaticamente jogadores com o cargo selecionado.',
         `• ${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor ganha Player Premium **Compy** de graça.`,
     ]);
     builder.separator();
@@ -173,25 +175,26 @@ function buildServerContainer(guild, user) {
     builder.title(`${TIER_ICON.top} Caçador — R$40/mês`, 2);
     builder.block([
         '**Tudo do Rastreador +**',
-        '• Análise de atividade de staff.',
-        '• 1 missão mensal exclusiva do seu servidor. *(vindo em breve)*',
-        '• Prioridade de suporte!',
-        '**Sistema completo de reporte:**',
-        '• Sem limite de chats.',
-        '• Sem tempo de espera!',
-        '• Resumo de logs dos possíveis envolvidos direto no chat de reporte. *(vindo em breve)*',
-        '**Sistema completo de punição:**',
+        '**Missões:**',
+        '• 2 missões mensais exclusivas para o servidor. *(vindo em breve)*',
+        '**Reportes:**',
+        '• Chats de reporte ilimitados.',
+        '• Sem tempo de espera.',
+        '• Resumo automático dos logs dos possíveis envolvidos direto no chat. *(vindo em breve)*',
+        '• Personalização de banners e mensagem do painel. *(vindo em breve)*',
+        '**Punições:**',
         '• Cargo temporário de punição.',
-        '• Níveis de punição totalmente personalizados. *(vindo em breve — hoje ainda são os 5 níveis fixos configuráveis)*',
+        '• Níveis de punição totalmente personalizáveis. *(vindo em breve — hoje ainda são os 5 níveis fixos configuráveis)*',
         '• Cargos de reputação automáticos.',
-        '• Sistema de pontos de reputação.',
-        '• Históricos de quebras de jogador.',
-        '• Aplica punições em jogo ou Discord!',
-        '**Sistema completo de eventos:**',
-        '• Cria eventos em fórum.',
-        '• Cria evento no Discord.',
-        '• Anuncia criação, começo e fim do evento. *(vindo em breve)*',
-        '• Pode ser configurado um botão de TP para o local do evento. *(vindo em breve)*',
+        '• Aplicação automática de punições no jogo ou no Discord.',
+        '**Eventos:**',
+        '• Anuncia automaticamente a criação, o início e o encerramento dos eventos. *(vindo em breve)*',
+        '• Marca jogadores em anúncios. *(vindo em breve)*',
+        '• Faz postagem em redes sociais. *(vindo em breve)*',
+        '**Integração Path of Titans:**',
+        '• Comandos em jogo. *(vindo em breve)*',
+        '• Punições aplicáveis em jogo (RCON).',
+        '• Comando de TP integrado à criação de eventos. *(vindo em breve)*',
         `• ${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor ganha Player Premium **Raptor** de graça.`,
     ]);
     builder.separator();
@@ -199,6 +202,7 @@ function buildServerContainer(guild, user) {
     appendStatus(builder, guild, user);
     builder.separator();
     appendAcquire(builder);
+    builder.text(`${EMOJIS.trianglealert || '⚠️'} Necessário ser um Host de Path of Titans pra adquirir o Server Premium.`);
 
     builder.separator();
     extraFiles.push(...appendFooterImage(builder, user));
@@ -214,7 +218,7 @@ function buildPlayerContainer(guild, user) {
     builder.section(
         [
             '# PLAYER PREMIUM',
-            'Plano por jogador, global — vale em qualquer servidor com o bot.',
+            'Personalize seu perfil e participe das missões mensais do bot! Vale globalmente, em qualquer servidor com o bot.',
         ].join('\n'),
         AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png')
     );
@@ -223,8 +227,8 @@ function buildPlayerContainer(guild, user) {
     builder.title(`${TIER_ICON.base} Free`, 2);
     builder.block([
         '• Perfil sincronizado com Discord.',
-        '• Server Badges. *(vindo em breve)*',
-        '• Títulos de missões de servers. *(vindo em breve)*',
+        '• Badges de missões. *(vindo em breve)*',
+        '• Títulos de missões. *(vindo em breve)*',
         '• Farme de caçadas por hora de jogo. *(vindo em breve)*',
     ]);
     builder.separator();
@@ -242,7 +246,7 @@ function buildPlayerContainer(guild, user) {
     builder.title(`${TIER_ICON.top} Raptor — R$25/mês`, 2);
     builder.block([
         '**Tudo do Compy +**',
-        '• Perfil 100% personalizável com suas próprias imagens: puxa do Discord automaticamente, ou envie o seu via `/perfil-banner`.',
+        '• Perfil 100% personalizável com suas próprias imagens: puxa do Discord automaticamente, ou envie o seu via `/perfil-edit`.',
         '• Boost de farm por missão Titan concluída. *(vindo em breve)*',
         '• Sorteio semanal de pacote de skins do Path of Titans. *(vindo em breve)*',
     ]);
@@ -260,12 +264,13 @@ function buildPlayerContainer(guild, user) {
 // ==================== ENVIO / NAVEGAÇÃO ====================
 
 function payloadFor(view, guild, user) {
-    const { builder, extraFiles } = view === 'server' ? buildServerContainer(guild, user)
-        : view === 'player' ? buildPlayerContainer(guild, user)
+    const resolvedView = view === 'server' ? 'server' : view === 'player' ? 'player' : 'main';
+    const { builder, extraFiles } = resolvedView === 'server' ? buildServerContainer(guild, user)
+        : resolvedView === 'player' ? buildPlayerContainer(guild, user)
         : buildMainContainer(guild, user);
 
     const { components, flags, files } = builder.build();
-    return { components: [...components, navRow()], flags, files: [...(files || []), ...extraFiles] };
+    return { components: [...components, navRow(resolvedView)], flags, files: [...(files || []), ...extraFiles] };
 }
 
 async function sendPanel(interaction, view = 'main') {

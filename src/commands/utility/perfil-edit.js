@@ -1,6 +1,8 @@
-// src/commands/utility/perfil-banner.js
+// src/commands/utility/perfil-edit.js
 /**
- * Banner personalizado de perfil — recurso do Player Premium Raptor.
+ * Personalização de perfil — recurso do Player Premium Raptor. Hoje só
+ * troca o banner (renomeado de /perfil-banner pra receber mais
+ * personalizações futuras sem precisar de um novo comando a cada uma).
  * Sem anexo enviado: usa o banner do próprio Discord (se o jogador tiver um
  * configurado). Com anexo: substitui pelo arquivo enviado.
  *
@@ -21,8 +23,8 @@ try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('perfil-banner')
-        .setDescription('🖼️ Define ou remove o banner personalizado do seu perfil (Player Premium Raptor).')
+        .setName('perfil-edit')
+        .setDescription('🖼️ Personaliza seu perfil (banner) — Player Premium Raptor.')
         .addAttachmentOption(opt => opt.setName('arquivo')
             .setDescription('Imagem para usar como banner (deixe vazio para remover o banner personalizado)')
             .setRequired(false)),
@@ -73,7 +75,7 @@ module.exports = {
             PlayerRegistry.setBannerMessageId(user.id, stored.id);
             await ResponseManager.success(interaction, `${EMOJIS.circlecheck || '✅'} Banner de perfil atualizado! Use **/perfil** pra ver como ficou.`);
         } catch (error) {
-            console.error('❌ [PerfilBanner] Erro ao salvar banner:', error);
+            console.error('❌ [PerfilEdit] Erro ao salvar banner:', error);
             await ResponseManager.error(interaction, 'Erro ao salvar o banner. Tente novamente em instantes.');
         }
     },

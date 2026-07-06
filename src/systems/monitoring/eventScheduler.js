@@ -11,7 +11,7 @@
  * Este worker roda a cada minuto, olha os eventos agendados de cada
  * servidor e:
  *  - ~30 minutos antes do início: avisa o cargo Equipe de Eventos
- *    (/config-roles) no canal de logs gerais (/config-logs), uma vez por
+ *    (/config roles) no canal de logs gerais (/config logs), uma vez por
  *    evento.
  *  - Se já passou da hora de início e o evento ainda está "Agendado":
  *    tenta iniciar automaticamente (status -> Ativo).

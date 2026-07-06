@@ -96,11 +96,12 @@ class InteractionHandler {
         // que precisam ser públicos (ex: /reportchat) são enviados à parte via
         // channel.send() dentro do próprio comando, então não são afetados por
         // este flag — só a mensagem de confirmação da interação fica privada.
-        // 'potserver' cobre os subcomandos setup/logs/status/reset
-        // (interaction.commandName é sempre 'potserver', nunca o nome do subcomando).
+        // 'potserver' cobre os subcomandos setup/logs/status/reset e 'config'
+        // cobre roles/logs/punishments (interaction.commandName é sempre o
+        // nome do comando pai, nunca o nome do subcomando).
         const ephemeralCommands = [
             'strike', 'unstrike', 'repset',
-            'config-roles', 'config-logs', 'config-punishments', 'automod',
+            'config',
             'reset-db', 'reset-reports', 'botstatus', 'potserver',
             'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
         ];

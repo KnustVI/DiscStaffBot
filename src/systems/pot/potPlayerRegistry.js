@@ -444,7 +444,7 @@ function getPlayerByDiscordId(discordId) {
 
 /**
  * Define (ou remove, se messageId for null) o banner de perfil personalizado
- * do jogador — recurso do Player Premium Raptor (ver /perfil-banner). Guarda
+ * do jogador — recurso do Player Premium Raptor (ver /perfil-edit). Guarda
  * o ID da mensagem no canal de armazenamento (BANNER_STORAGE_CHANNEL_ID),
  * NÃO a URL do anexo — URLs de anexo do Discord expiram (~24h), a mensagem
  * em si não; a URL é resolvida na hora, refazendo o fetch da mensagem

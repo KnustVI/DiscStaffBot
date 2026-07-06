@@ -842,31 +842,8 @@ class ReportChatSystem {
     // ==================== VÁLVULA DE SEGURANÇA (reports travados) ====================
     // Agora que o tier Free limita a 1 chat aberto por vez (ver checkChatLimits),
     // um report travado (thread apagada, painel quebrado, bot reiniciado no meio
-    // do fluxo) bloquearia o usuário pra sempre — estas funções liberam a vaga
-    // independente do tier, sempre disponíveis.
-
-    /**
-     * Libera manualmente um report/revisão travado — usado pelo comando de
-     * staff /report-liberar. Fecha no banco mesmo que a thread não exista
-     * mais ou já esteja travada/arquivada.
-     */
-    forceReleaseReport(guildId, reportNumber, staffId) {
-        const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
-        if (!report) return { success: false, error: 'NOT_FOUND' };
-        if (report.status === 'closed_no_reason' || report.status === 'closed_with_reason') {
-            return { success: false, error: 'ALREADY_CLOSED' };
-        }
-
-        db.prepare(`
-            UPDATE reports SET status = 'closed_no_reason', closed_by = ?, closed_reason = ?, closed_at = ?
-            WHERE guild_id = ? AND report_number = ?
-        `).run(staffId, 'Liberado manualmente pela staff (/report-liberar)', Date.now(), guildId, reportNumber);
-
-        this._tryArchiveThread(guildId, report.thread_id).catch(() => {});
-        this.updateStatus(guildId, `#R${reportNumber}`, 'closed_no_reason').catch(() => {});
-
-        return { success: true };
-    }
+    // do fluxo) bloquearia o usuário pra sempre — a função abaixo libera a vaga
+    // automaticamente, independente do tier.
 
     /**
      * Libera automaticamente um report quando sua thread é apagada

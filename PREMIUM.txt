@@ -13,8 +13,8 @@ FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar).
 - Banner de perfil padrao do tier Free (imagem fixa, nao pode trocar).
 - Footer de perfil padrao do tier Free (imagem fixa no rodape do /perfil).
-- Server Badges. (ainda nao implementado - "vindo em breve")
-- Titulos de missoes de servidor. (ainda nao implementado - "vindo em breve")
+- Badges de missoes. (ainda nao implementado - "vindo em breve")
+- Titulos de missoes. (ainda nao implementado - "vindo em breve")
 - Farme de cacadas por hora de jogo. (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes ("Tudo do Free +")
@@ -31,7 +31,7 @@ RAPTOR - R$25/mes ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
   Banner de perfil JA IMPLEMENTADO: aparece no lugar do titulo "# PERFIL" no
   /perfil. Usa o banner do proprio Discord automaticamente, se o jogador
-  tiver um; ou pode enviar uma imagem propria via /perfil-banner (e remover
+  tiver um; ou pode enviar uma imagem propria via /perfil-edit (e remover
   com o mesmo comando, sem anexar nada, voltando ao banner padrao do tier).
 - Footer de perfil padrao do tier Raptor.
 - Boost de farm por missao Titan concluida. (ainda nao implementado - "vindo em breve")
@@ -44,8 +44,8 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - Banner de perfil (no lugar do titulo) e footer-imagem (no rodape) pra
   TODOS os tiers - cada um com sua imagem padrao (Free/Compy/Raptor). No
   Raptor, o banner padrao vira o banner do Discord ou o personalizado
-  (/perfil-banner), se houver.
-- Banner personalizado (Raptor) via /perfil-banner - precisa que o
+  (/perfil-edit), se houver.
+- Banner personalizado (Raptor) via /perfil-edit - precisa que o
   desenvolvedor do bot configure BANNER_STORAGE_CHANNEL_ID no .env (canal
   onde as imagens enviadas sao guardadas). Guarda so o ID da mensagem, nao a
   URL - links de anexo do Discord expiram em ~24h, entao a URL e resolvida
@@ -57,104 +57,108 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 2) SERVER PREMIUM (por servidor Discord)
 ------------------------------------------------
 
+Organizado em 5 categorias (Missoes, Reportes, Punicoes, Eventos, Integracao
+Path of Titans), cada tier acima leva "tudo do anterior +" o que estiver
+listado abaixo dele.
+
 FREE
-- Logs de sistemas (strikes, unstrikes, reportchat e alteracoes de config).
-- Sistema BASICO de reporte: limite de 1 chat de reporte E 1 revisao de
-  punicao (contadores SEPARADOS - pode ter os dois abertos ao mesmo tempo,
-  so nao pode abrir um 2o do MESMO tipo), tempo de espera de 1h entre
-  aberturas (conta pra qualquer um dos dois tipos).
-- Sistema BASICO de punicao: registra a punicao normalmente, mas NAO aplica
-  acoes automaticas no Discord (timeout/kick/ban - o campo existe no
-  comando /strike, mas e ignorado neste tier) nem no jogo (RCON). Sem
-  sistema de reputacao (pontos nao sao calculados/salvos).
-- Sistema BASICO de eventos: /evento cria so a postagem no forum (com
-  anexo de imagem) - sem evento agendado do Discord, sem marcar cargo de
-  notificacao.
+- Missoes: missoes mensais do Titan's Pass. (ainda nao implementado -
+  "vindo em breve")
+- Reportes: ate 1 chat de reporte ativo, ate 1 revisao de punicao ativa
+  (contadores SEPARADOS - pode ter os dois abertos ao mesmo tempo, so nao
+  pode abrir um 2o do MESMO tipo), cooldown de 6h entre aberturas (conta
+  pra qualquer um dos dois tipos).
+- Punicoes: registro de punicoes. NAO aplica acoes automaticas no Discord
+  (timeout/kick/ban - o campo existe no comando /strike, mas e ignorado
+  neste tier) nem no jogo (RCON). Sem sistema de reputacao (pontos nao sao
+  calculados/salvos).
+- Eventos: /evento cria eventos em foruns, com suporte a imagem de capa -
+  sem evento agendado do Discord, sem marcar cargo de notificacao.
+- Integracao Path of Titans: logs de jogo (recebidos normalmente via
+  webhook, sem bloqueio de tier).
 - Toda punicao com duracao MAIOR que 72h ou permanente exige aprovacao do
   cargo Supervisor (unica regra de confirmacao neste tier, ja que nao ha
   niveis de severidade relevantes).
-- /config-punishments BLOQUEADO neste tier (nada a configurar, ja que
+- /config punishments BLOQUEADO neste tier (nada a configurar, ja que
   reputacao esta desativada).
 
 RASTREADOR - R$25/mes ("Tudo do Free +")
-- Logs de jogo (alem dos logs de sistema do Free).
-- Missoes mensais do Titan's Pass ativadas. (ainda nao implementado -
-  "vindo em breve")
-- Sistema MEDIO de reporte: limite de 3 chats de reporte E 3 revisoes de
-  punicao (contadores separados), sem tempo de espera. Pontuacao de
-  reputacao ativada.
-- Sistema MEDIO de punicao: cargo temporario de punicao + ate 5 niveis de
-  punicao configuraveis (pontos por nivel, via /config-punishments) +
-  reputacao ativada. AINDA sem aplicar acoes automaticas no Discord
-  (timeout/kick/ban) - isso so no Cacador.
+- Missoes: 1 missao mensal exclusiva para o servidor. (ainda nao
+  implementado - "vindo em breve")
+- Reportes: ate 3 chats de reporte ativos, ate 3 revisoes de punicao
+  ativas (contadores separados), sem tempo de espera.
+- Punicoes: sistema de pontos de reputacao ativado, cargo temporario de
+  punicao, ate 5 niveis de punicao configuraveis (pontos por nivel, via
+  /config punishments), historico de punicoes (/historico liberado). AINDA
+  sem aplicar acoes automaticas no Discord (timeout/kick/ban) - isso so no
+  Cacador.
   Aprovacao de Supervisor exigida pra nivel 4/5 OU duracao >72h/permanente
   (mesma regra do Free, so que aqui os niveis tambem contam).
-- Sistema MEDIO de eventos: /evento passa a criar TAMBEM o evento agendado
-  do Discord e marcar o cargo de notificacao configurado (alem da postagem
-  no forum).
-- /config-punishments liberado, mas SO pra configurar o que os 5 niveis de
+- Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
+  marcar automaticamente o cargo de notificacao configurado (alem da
+  postagem no forum).
+- /config punishments liberado, mas SO pra configurar o que os 5 niveis de
   severidade fazem com a reputacao (pontos perdidos por nivel) - nada alem
   disso. Limites de cargo automatico e recuperacao diaria NAO aparecem
   editaveis neste tier.
-- SEM cargos automaticos de reputacao (exemplar/problematico), SEM
-  historico de jogador (/historico), SEM analise de atividade de staff,
-  SEM automod diario, SEM RCON automatico - tudo isso e exclusivo do
-  Cacador agora.
+- SEM cargos automaticos de reputacao (exemplar/problematico), SEM analise
+  de atividade de staff, SEM automod diario, SEM RCON automatico - tudo
+  isso e exclusivo do Cacador.
 - BONUS: o DONO do servidor Discord ganha Player Premium Compy automaticamente
   ao comprar o Rastreador (JA IMPLEMENTADO - ver secao 3).
 
 CAÇADOR - R$40/mes ("Tudo do Rastreador +")
-- Analise de atividade de staff.
-- 1 missao mensal exclusiva do seu servidor. (ainda nao implementado -
-  "vindo em breve")
-- Prioridade de suporte!
-- Sistema COMPLETO de reporte: sem limite de chats nem de revisoes, sem
-  tempo de espera. Resumo de logs dos possiveis envolvidos direto no chat
-  de reporte. (o resumo de logs ainda nao implementado - "vindo em breve")
-- Sistema COMPLETO de punicao: cargo temporario de punicao, niveis de
-  punicao totalmente personalizados (hoje ainda sao os 5 niveis fixos
-  configuraveis - personalizacao total "vindo em breve"), cargos de
-  reputacao automaticos (Exemplar/Problematico), sistema de pontos de
-  reputacao, historico de quebras de jogador (/historico liberado), e
-  agora SIM aplica punicoes automaticas no jogo (RCON) OU no Discord
-  (timeout/kick/ban via /strike, campo "discord_act").
-  Automod diario (recuperacao de reputacao + cargos automaticos) com a
-  QUANTIDADE de pontos recuperados por dia configuravel em
-  /config-punishments (padrao: 1 ponto/dia).
-- Sistema COMPLETO de eventos: fórum + evento agendado do Discord (igual
-  ao Rastreador), MAIS anuncio automatico de criacao/comeco/fim do evento
-  e um botao de TP pro local do evento. (esses dois ainda nao
-  implementados - "vindo em breve")
-- /config-punishments completo aqui: niveis de severidade, limites de cargo
+- Missoes: 2 missoes mensais exclusivas para o servidor. (ainda nao
+  implementado - "vindo em breve")
+- Analise de atividade de staff. Prioridade de suporte!
+- Reportes: chats de reporte ilimitados, sem tempo de espera. Resumo
+  automatico dos logs dos possiveis envolvidos direto no chat, e
+  personalizacao de banners/mensagem do painel de reportchat. (esses dois
+  ainda nao implementados - "vindo em breve")
+- Punicoes: cargo temporario de punicao, niveis de punicao totalmente
+  personalizaveis (hoje ainda sao os 5 niveis fixos configuraveis -
+  personalizacao total "vindo em breve"), cargos de reputacao automaticos
+  (Exemplar/Problematico), e agora SIM aplicacao automatica de punicoes no
+  jogo (RCON) OU no Discord (timeout/kick/ban via /strike, campo
+  "discord_act"). Automod diario (recuperacao de reputacao + cargos
+  automaticos) com a QUANTIDADE de pontos recuperados por dia configuravel
+  em /config punishments (padrao: 1 ponto/dia).
+- Eventos: anuncia automaticamente criacao/inicio/encerramento dos
+  eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
+  (esses tres ainda nao implementados - "vindo em breve")
+- Integracao Path of Titans: comandos em jogo via Discord e comando de TP
+  integrado a criacao de eventos (ainda nao implementados - "vindo em
+  breve"); punicoes aplicaveis em jogo via RCON (JA IMPLEMENTADO).
+- /config punishments completo aqui: niveis de severidade, limites de cargo
   automatico (Exemplar/Problematico) e recuperacao diaria, tudo editavel -
   unico tier com acesso aos 3 botoes do painel.
-- Todos os comandos do Path of Titans disponiveis via Discord.
-  (ainda nao implementado - "vindo em breve"; quando existir, avisar
-  administradores pra configurar o acesso em Configuracoes do Servidor >
-  Integracoes > Titan's Pass)
 - BONUS: o DONO do servidor Discord ganha Player Premium Raptor automaticamente
   ao comprar o Caçador (JA IMPLEMENTADO - ver secao 3).
+
+IMPORTANTE: pra adquirir o Server Premium (qualquer tier pago), e preciso
+ser um HOST de Path of Titans (dono/operador de um servidor do jogo) - nao
+e um requisito tecnico do bot, so faz sentido pro publico-alvo do plano.
 
 O QUE JA FUNCIONA HOJE, DE VERDADE:
 - Limite de chats de reporte e de revisoes de punicao SEPARADOS por tier
   (Free 1+1, Rastreador 3+3, Cacador ilimitado) + cooldown de abertura
-  (Free 1h, Rastreador/Cacador sem cooldown).
+  (Free 6h, Rastreador/Cacador sem cooldown).
 - Sistema de reputacao ligado a partir do Rastreador (Free = desligado).
 - Acoes automaticas no Discord via /strike (timeout/kick/ban) SO no
   Cacador - em Free/Rastreador a punicao e so registrada, sem aplicar a
   acao escolhida (avisado na propria tela de confirmacao do /strike).
 - Aprovacao de Supervisor por severidade (nivel 4/5) OU duracao (>72h ou
   permanente), em qualquer tier.
-- /historico liberado SO a partir do Cacador (ver secao 2 - mudou de tier
-  nesta ultima revisao).
+- /historico liberado a partir do Rastreador (nao e mais exclusivo do
+  Cacador - mudou de tier nesta revisao, pra bater com o planejamento
+  atual de features).
 - /evento liberado em TODOS os tiers, mas com 3 niveis: Free so posta no
   forum (sem evento agendado do Discord, sem marcar cargo); Rastreador e
   Cacador criam tambem o evento agendado do Discord + marcam o cargo de
   notificacao.
-- /config-punishments BLOQUEADO no Free; no Rastreador so edita os 5 niveis de
+- /config punishments BLOQUEADO no Free; no Rastreador so edita os 5 niveis de
   severidade (pontos); Limites e Recuperacao Diaria so aparecem/editam no
   Caçador.
-- /automod nega em servidores Free/Rastreador (recurso exclusivo do Caçador).
 - /botstatus so mostra estatisticas do servidor (Banco de Dados/Sistema
   AutoMod) pra servidores Caçador.
 - Automod diario (recuperacao de reputacao + cargos automaticos de
@@ -163,7 +167,8 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   RCON ainda esta pendente de confirmacao com o servidor real do PoT.
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando, com 3 botoes de
-  navegacao (Status, Server Premium, Player Premium).
+  navegacao (Status, Server Premium, Player Premium) - o painel sempre
+  abre no botao Status (visao geral), destacado visualmente como aba ativa.
 - Todo comando bloqueado pelo tier responde sempre a mesma mensagem:
   "Este comando esta disponivel apenas para servidores com um plano Premium
   ativo. Use /premium para conhecer os beneficios e opcoes disponiveis."
@@ -179,14 +184,14 @@ jogadores)
 /premium-admin player revoke usuario:<user>
 /premium-admin player check usuario:<user>
 
-/premium-admin guild grant servidor_id:<id> tier:<pegada|fossil> dias:<opcional> observacao:<opcional>
+/premium-admin guild grant servidor_id:<id> tier:<rastreador|cacador> dias:<opcional> observacao:<opcional>
 /premium-admin guild revoke servidor_id:<id>
 /premium-admin guild check servidor_id:<id, opcional - padrao: servidor atual>
 
 - "dias" vazio = concessao vitalicia (sem expiracao).
 - servidor_id e um ID numerico digitado a mao (nao precisa estar no
   servidor no momento de conceder).
-- Ao rodar "guild grant" com tier pegada/fossil, o DONO do servidor Discord
+- Ao rodar "guild grant" com tier rastreador/cacador, o DONO do servidor Discord
   (guild.ownerId) recebe automaticamente o Player Premium correspondente
   (Rastreador->Compy, Caçador->Raptor), pela mesma quantidade de dias, SEM
   rebaixar um tier melhor que ele ja tenha por conta propria. So funciona
@@ -262,3 +267,24 @@ dependia de uma flag "analyticsEnabled" que nunca tinha sido definida em
 PremiumSystem.GUILD_LIMITS - ou seja, NENHUM servidor via essa secao,
 nem os Cacador. Corrigido nesta revisao (analyticsEnabled: true so no
 Cacador) - servidores Cacador agora realmente veem essas estatisticas.
+
+
+9) COMANDOS ENXUGADOS (consolidacao)
+------------------------------------------------
+- /config-roles, /config-logs e /config-punishments viraram um comando so:
+  /config, com subcomandos "roles", "logs" e "punishments" (mesmo padrao
+  do /potserver). A logica de cada painel nao mudou, so a forma de chamar.
+- /automod (comando manual de diagnostico) foi removido - a manutencao
+  diaria automatica continua rodando normalmente (roda sozinha, sem
+  precisar de comando), so o gatilho manual/diagnostico saiu.
+- /report-liberar foi removido - a valvula de seguranca AUTOMATICA (libera
+  o report sozinho quando a thread e apagada, ver src/events/threadDelete.js)
+  continua funcionando normalmente; so o comando de liberacao MANUAL saiu.
+- /perfil-banner foi renomeado pra /perfil-edit, pra caber futuras
+  personalizacoes de perfil alem do banner sem precisar de outro comando.
+- Os valores internos de tier de Server Premium no banco (guild_premium.tier)
+  mudaram de 'pegada'/'fossil' (nomes de planejamento antigos) pra
+  'rastreador'/'cacador', batendo com os nomes atuais. Servidores que ja
+  tinham premium concedido foram migrados automaticamente no boot do bot
+  (DatabaseManager.migrateGuildPremiumTierNames, idempotente - roda toda
+  vez, mas so tem efeito na primeira execucao apos a atualizacao).

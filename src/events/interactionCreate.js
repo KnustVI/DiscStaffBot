@@ -212,7 +212,7 @@ module.exports = {
             if (interaction.customId === 'config-logs:punishments') { await ConfigSystem.setLogChannel(interaction, 'log_punishments'); return; }
             if (interaction.customId === 'config-logs:automod') { await ConfigSystem.setLogChannel(interaction, 'log_automod'); return; }
             if (interaction.customId === 'config-logs:reports') { await ConfigSystem.setLogChannel(interaction, 'log_reports'); return; }
-            if (interaction.customId === 'config-logs:criar') { await ConfigSystem.createLogChannels(interaction); return; }
+            if (interaction.customId === 'config-logs:criar') { await ConfigSystem.confirmCreateLogChannels(interaction); return; }
             if (interaction.customId === 'config-punishments:strike:modal:submit') { await ConfigSystem.processPointsStrikeModal(interaction); return; }
             if (interaction.customId === 'config-punishments:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
 

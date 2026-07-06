@@ -109,16 +109,34 @@ class DatabaseManager {
             // está ativado (ver potPlayerRegistry.js). Ver /registrar.
             this.ensureColumn('pot_players', 'verification_code', 'TEXT');
             this.ensureColumn('pot_players', 'verified_ingame', 'INTEGER DEFAULT 0');
-            // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-banner.
+            // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-edit.
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).
             this.ensureColumn('player_links', 'banner_message_id', 'TEXT');
+
+            // Renomeia os valores internos de tier de Server Premium já
+            // gravados (pegada/fossil eram nomes de planejamento antigos —
+            // ver PremiumSystem.GUILD_TIERS). Idempotente: depois da primeira
+            // execução não sobra nenhuma linha 'pegada'/'fossil' pra migrar.
+            this.migrateGuildPremiumTierNames();
 
             console.log('📋 Schema do banco de dados criado');
 
         } catch (error) {
             console.error('❌ Erro ao criar tabelas:', error);
             throw error;
+        }
+    }
+
+    // Migra os valores antigos de guild_premium.tier ('pegada'/'fossil') pros
+    // nomes atuais ('rastreador'/'cacador') — ver PremiumSystem.GUILD_TIERS.
+    // Idempotente: chamar em toda inicialização é seguro.
+    migrateGuildPremiumTierNames() {
+        try {
+            this.db.prepare(`UPDATE guild_premium SET tier = 'rastreador' WHERE tier = 'pegada'`).run();
+            this.db.prepare(`UPDATE guild_premium SET tier = 'cacador' WHERE tier = 'fossil'`).run();
+        } catch (err) {
+            // Tabela ainda não existe na primeiríssima execução — ignorar.
         }
     }
 

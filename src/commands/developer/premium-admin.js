@@ -64,7 +64,7 @@ module.exports = {
                 .setDescription('Concede Server Premium a um servidor')
                 .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor Discord').setRequired(true))
                 .addStringOption(opt => opt.setName('tier').setDescription('Tier').setRequired(true)
-                    .addChoices({ name: 'Rastreador', value: 'pegada' }, { name: 'Caçador', value: 'fossil' }))
+                    .addChoices({ name: 'Rastreador', value: 'rastreador' }, { name: 'Caçador', value: 'cacador' }))
                 .addIntegerOption(opt => opt.setName('dias').setDescription('Duração em dias (vazio = vitalício)').setRequired(false))
                 .addStringOption(opt => opt.setName('observacao').setDescription('Observação (ex: forma de pagamento)').setRequired(false)))
             .addSubcommand(sub => sub

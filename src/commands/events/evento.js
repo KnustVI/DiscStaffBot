@@ -94,7 +94,7 @@ module.exports = {
         if (!eventRoleId) {
             return await ResponseManager.error(
                 interaction,
-                'O cargo da Equipe de Eventos ainda não foi configurado. Peça a um administrador para configurar em /config-roles (aba Eventos) antes de criar eventos.'
+                'O cargo da Equipe de Eventos ainda não foi configurado. Peça a um administrador para configurar em /config roles (aba Eventos) antes de criar eventos.'
             );
         }
         if (!member.roles.cache.has(eventRoleId)) {
@@ -292,7 +292,7 @@ module.exports = {
                 `Só assim o Discord notifica automaticamente quem clicou em "Me Interessa".`
             );
             if (!notifyRoleId) {
-                summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config-roles, aba Eventos) — ninguém foi marcado na postagem.`);
+                summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config roles, aba Eventos) — ninguém foi marcado na postagem.`);
             }
         } else {
             summaryBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Evento agendado do Discord e marcação de cargo exigem o plano Rastreador ou superior. Use \`/premium\` para saber mais.`);

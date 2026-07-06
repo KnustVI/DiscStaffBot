@@ -168,7 +168,7 @@ module.exports = {
                 `${emojis.gauge || '📊'} ${currentRep} → ${newPoints} (${diffText})`,
                 dmStatusMsg,
             ];
-            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config logs).`);
 
             await interaction.editReply({ 
                 content: summaryLines.join('\n'),

@@ -174,7 +174,7 @@ module.exports = {
                 builder.separator();
                 builder.text(
                     `${emojis.shieldban || '🛡️'} **Requer aprovação de Supervisor**\n` +
-                    `Esta punição é **${severityNames[severity]}** e/ou tem duração longa (>72h ou permanente). Como você não possui o cargo Supervisor (/config-roles), ao confirmar o pedido será enviado para o canal de log de punições, marcando o cargo Supervisor — a punição só será aplicada depois de aprovada.`
+                    `Esta punição é **${severityNames[severity]}** e/ou tem duração longa (>72h ou permanente). Como você não possui o cargo Supervisor (/config roles), ao confirmar o pedido será enviado para o canal de log de punições, marcando o cargo Supervisor — a punição só será aplicada depois de aprovada.`
                 );
             }
 

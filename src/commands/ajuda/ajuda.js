@@ -9,11 +9,12 @@ const db = require('../../database/index');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
 // ---------------------------------------------------------------------------
-// Fábrica de tópicos — /ajuda funciona como um guia completo do bot,
-// navegado por um menu de seleção (em vez de páginas com botões). Termina
-// sempre com FAQ e o contato com o desenvolvedor (/reportarbug).
-// Administradores veem o guia completo (setup + todos os sistemas);
-// membros comuns veem uma versão enxuta focada no que eles podem usar.
+// Fábrica de tópicos — /ajuda funciona como um guia do bot, navegado por um
+// menu de seleção. Poucos tópicos, de propósito: cada um agrupa vários
+// assuntos relacionados (ex: "Sistemas do Servidor" cobre ReportChat,
+// AutoMod e Eventos juntos) em vez de uma página por comando.
+// Administradores veem o guia completo; membros comuns veem uma versão
+// enxuta focada no que eles podem usar.
 // ---------------------------------------------------------------------------
 
 const FALLBACK_ICON = 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -38,69 +39,26 @@ function buildPageWelcome(displayName, guildName, emojis, isAdmin) {
     pageHeader(
         builder,
         'ASSISTENTE TITAN',
-        `Olá **${displayName}**! Este é o guia completo do bot em **${guildName}** — use o menu abaixo para escolher o tópico que você procura.`
+        isAdmin
+            ? `Olá **${displayName}**! Este é o guia do bot em **${guildName}** — use o menu abaixo pra escolher o tópico que você procura.`
+            : `Olá **${displayName}**! Sou o sistema de gestão de **${guildName}** — use o menu abaixo pra escolher o tópico que você procura.`
     );
-
-    builder.title(`${emojis.clipboardlist || '📋'} Neste guia você encontra`, 2);
-    builder.block(isAdmin ? [
-        '• **Configuração inicial** — o que configurar e em que ordem',
-        '• **Moderação e Reputação** — strike, unstrike, punições severas',
-        '• **Sistema de Reports** — como o ReportChat funciona pro staff',
-        '• **Auto Moderação** — o que roda sozinho todo dia',
-        '• **Eventos** — como criar e divulgar eventos da comunidade',
-        '• **Status e utilidades** — checar a saúde do bot',
-        '• **Premium** — planos de jogador e de servidor',
-        '• **Perguntas Frequentes**',
-        '• **Fale com o desenvolvedor** — bugs e sugestões',
-    ] : [
-        '• **Como funciona o sistema de reputação**',
-        '• **Como denunciar alguém ou contestar uma punição**',
-        '• **Premium** — planos de jogador e de servidor',
-        '• **Perguntas Frequentes**',
-        '• **Fale com o desenvolvedor** — bugs e sugestões',
-    ]);
-
     builder.footer(guildName);
     return builder;
 }
 
-function buildPageSetup(guildName, emojis) {
+function buildPageSetupModeration(guildName, emojis) {
     const builder = newPage(emojis);
-    pageHeader(builder, 'CONFIGURAÇÃO INICIAL', 'Apenas administradores podem usar estes comandos. Siga essa ordem na primeira configuração:');
+    pageHeader(builder, 'CONFIGURAÇÃO & MODERAÇÃO', 'Setup inicial (administradores) e o dia a dia de quem tem o cargo Staff:');
 
-    builder.title(`${emojis.shield || '🛡️'} 1. /config-roles`, 2);
+    builder.title(`${emojis.settings || '⚙️'} Setup inicial (nessa ordem)`, 2);
     builder.block([
-        '• Define quais cargos do servidor controlam cada permissão do bot.',
-        '• **Staff é obrigatório** — sem ele, ninguém consegue moderar.',
-        `• ${emojis.messagesquare || 'ℹ️'} **Importante:** esses cargos servem só para o bot saber quem pode usar cada comando. Eles não precisam ser (nem representar) um cargo "oficial" do servidor — você pode reaproveitar um cargo que já existe ou criar um novo só pra isso. É 100% customizável.`,
-        '• Painel dividido em 3 abas: Reputação Automática, Moderação e Eventos.',
+        '• **/config roles** — cargos que controlam cada permissão do bot (Staff é obrigatório). Não precisam ser cargos "oficiais" do servidor — 100% customizável.',
+        '• **/config logs** — canais de log: Geral/AutoMod, Punições e ReportChat (tem botão pra criar os 3 automaticamente).',
+        '• **/config punishments** — pontos por nível de strike e limites de reputação (Exemplar/Problemático).',
+        '• **/reportchat** — publica o painel de denúncias no canal atual.',
     ]);
     builder.separator();
-
-    builder.title(`${emojis.filetext || '📝'} 2. /config-logs`, 2);
-    builder.block([
-        '• Define os canais que recebem logs: Geral/AutoMod, Punições e ReportChat.',
-        '• Tem um botão para criar os 3 canais automaticamente, se preferir.',
-    ]);
-    builder.separator();
-
-    builder.title(`${emojis.gavel || '⚖️'} 3. /config-punishments`, 2);
-    builder.block([
-        '• Ajusta os pontos perdidos por nível de strike (1 a 5).',
-        '• Ajusta os limites de reputação para os cargos Exemplar e Problemático.',
-    ]);
-    builder.separator();
-
-    builder.title(`${emojis.ticket || '🎫'} 4. /reportchat`, 2);
-    builder.text('• Publica o painel de denúncias para os usuários no canal atual.');
-
-    builder.footer(guildName);
-    return builder;
-}
-
-function buildPageModeration(guildName, emojis) {
-    const builder = newPage(emojis);
-    pageHeader(builder, 'MODERAÇÃO E REPUTAÇÃO', 'Apenas usuários com o cargo **Staff** (configurado em /config-roles) podem usar:');
 
     builder.title(`${emojis.gavel || '⚠️'} Comandos de Punição`, 2);
     builder.block([
@@ -112,84 +70,49 @@ function buildPageModeration(guildName, emojis) {
     builder.separator();
 
     builder.title(`${emojis.shieldban || '🛡️'} Punições Severas Precisam de Aprovação`, 2);
-    builder.block([
-        '• Strikes de **Nível 4 (Severa)** ou **5 (Permanente)**, OU qualquer duração **maior que 72h**, exigem aprovação do Supervisor — vale pra qualquer plano.',
-        '• Quem não tem o cargo **Supervisor** (configurado em /config-roles) tem o pedido enviado para aprovação no canal de log de punições, marcando o Supervisor.',
-        '• Quem já é Supervisor aplica direto, sem precisar de aprovação.',
-    ]);
+    builder.text('• Nível **4 (Severa)**/**5 (Permanente)**, ou duração **maior que 72h**, exigem aprovação do Supervisor (cargo configurado em /config roles) — quem já é Supervisor aplica direto, sem aprovação.');
     builder.separator();
 
     builder.title(`${emojis.star || '⭐'} Sistema de Reputação`, 2);
     builder.block([
-        '• Máximo: **100 pontos** | Mínimo: **0 pontos**',
-        '• Recuperação automática: quantidade configurável/dia sem punições — só roda no plano **Caçador** (ver tópico Premium).',
-        '• Perda: conforme configuração de strikes — disponível a partir do plano **Rastreador**; no Free o strike fica registrado, mas não mexe em pontos.',
+        '• Máximo: **100 pontos** | Mínimo: **0 pontos**.',
+        '• Perda por strike a partir do plano **Rastreador** (no Free, o strike fica registrado, mas não mexe em pontos).',
+        '• Recuperação automática diária só no plano **Caçador** (ver tópico Premium).',
     ]);
 
     builder.footer(guildName);
     return builder;
 }
 
-function buildPageReports(guildName, emojis) {
+function buildPageSystems(guildName, emojis) {
     const builder = newPage(emojis);
-    pageHeader(builder, 'SISTEMA DE REPORTS', 'Como o ReportChat funciona para o staff:');
+    pageHeader(builder, 'SISTEMAS DO SERVIDOR', 'ReportChat, Auto Moderação, Eventos e utilidades do bot:');
 
-    builder.title(`${emojis.ticket || '🎫'} Fluxo`, 2);
+    builder.title(`${emojis.ticket || '🎫'} ReportChat`, 2);
     builder.block([
-        '• O usuário abre um report pelo painel publicado com /reportchat.',
-        '• Uma thread privada é criada e um resumo aparece no canal de logs (config-logs).',
-        '• Clique em **Entrar no Reporte** para atender — o cargo Staff é necessário.',
-        '• Use **Fechar** (sem motivo) ou **Fechar com Motivo** para encerrar; o fechamento com motivo pergunta também sobre punição aplicada.',
-        '• O usuário pode avaliar o atendimento depois de encerrado.',
+        '• O usuário abre pelo painel publicado com /reportchat; a staff atende clicando em **Entrar no Reporte**.',
+        '• **Fechar** (sem motivo) ou **Fechar com Motivo** encerram — o segundo também pergunta sobre a punição aplicada.',
+        '• Botão **Revisar Punição** abre o mesmo fluxo, mas pra contestar um strike específico.',
     ]);
     builder.separator();
 
-    builder.title(`${emojis.circlecheck || '✅'} Revisão de Punição`, 2);
-    builder.text('• O botão "Revisar Punição" no painel abre o mesmo fluxo de thread, mas para contestar um strike específico — informando o número do strike.');
-
-    builder.footer(guildName);
-    return builder;
-}
-
-function buildPageAutomod(guildName, emojis) {
-    const builder = newPage(emojis);
-    pageHeader(builder, 'AUTO MODERAÇÃO', 'Sistema automático de gerenciamento de reputação:');
-
-    builder.title(`${emojis.settings || '⚙️'} Comandos`, 2);
-    builder.text('• **/automod test** — Verifica configurações e canal de log');
-    builder.separator();
-
-    builder.title(`${emojis.trendingup || '📈'} Funcionamento`, 2);
+    builder.title(`${emojis.trendingup || '📈'} Auto Moderação`, 2);
     builder.block([
-        '• Executa diariamente às **12:00** (horário de Brasília).',
-        '• Recupera pontos para quem não tem punições nas últimas 24h — quantidade configurável em /config-punishments (padrão: +1/dia).',
-        '• Atribui/remove cargos **Exemplar** e **Problemático** automaticamente, conforme os limites de /config-punishments.',
-        '• Envia relatório no canal de log configurado.',
-        `• ${emojis.badge || '🏅'} **Recurso exclusivo do plano Caçador** — ver tópico Premium.`,
-    ]);
-
-    builder.footer(guildName);
-    return builder;
-}
-
-function buildPageEvents(guildName, emojis) {
-    const builder = newPage(emojis);
-    pageHeader(builder, 'EVENTOS', 'Criação e divulgação de eventos da comunidade:');
-
-    builder.title(`${emojis.calendardays || '📅'} /evento`, 2);
-    builder.block([
-        '• Disponível em **todos os planos**, mas o nível do sistema muda por tier (ver tópico Premium).',
-        '• **Free** — só publica no fórum escolhido (título, descrição, imagem e data), sem evento agendado do Discord.',
-        `• ${emojis.badge || '🏅'} **Rastreador/Caçador** — publica no fórum **e** cria um Evento agendado nativo do Discord (pede também o local: um **canal de voz/palco** ou um **texto livre**), marcando o cargo de Notificação de Eventos.`,
-        '• Imagem: PNG/JPEG, até 1920x1279.',
+        '• Roda sozinha, diariamente às **12:00** (horário de Brasília).',
+        '• Recupera pontos de reputação e atribui/remove os cargos Exemplar/Problemático, conforme /config punishments.',
+        `• ${emojis.badge || '🏅'} Recurso exclusivo do plano **Caçador**.`,
     ]);
     builder.separator();
 
-    builder.title(`${emojis.partypopper || '🎉'} Cargos (configurados em /config-roles, aba Eventos)`, 2);
+    builder.title(`${emojis.calendardays || '📅'} Eventos (/evento)`, 2);
     builder.block([
-        '• **Equipe de Eventos** — quem pode usar o /evento (obrigatório em qualquer plano).',
-        '• **Notificação de Eventos** — marcado automaticamente em cada postagem; só a partir do plano Rastreador (Free não marca ninguém).',
+        '• **Free** — só publica no fórum escolhido (título, descrição, imagem e data).',
+        `• ${emojis.badge || '🏅'} **Rastreador/Caçador** — cria também um Evento agendado nativo do Discord e marca automaticamente o cargo de Notificação de Eventos (cargos configurados em /config roles).`,
     ]);
+    builder.separator();
+
+    builder.title(`${emojis.gauge || '📊'} Status e Utilidades`, 2);
+    builder.text('• **/botstatus** — saúde do bot: uptime, latência, memória e status do AutoMod. **/ping** — latência rápida.');
 
     builder.footer(guildName);
     return builder;
@@ -203,16 +126,17 @@ function buildPagePremium(guildName, emojis) {
     builder.block([
         '• **Free** — perfil sincronizado com Discord. *(server badges, títulos e boost de farm: vindo em breve)*',
         '• **Compy (R$10/mês)** — tudo do Free + perfil personalizável pela loja, badge/títulos exclusivos e boost de farm por troféu. *(vindo em breve)*',
-        '• **Raptor (R$25/mês)** — tudo do Compy + perfil 100% personalizado (banner próprio, já disponível via `/perfil-banner`), boost de farm por missão e sorteio semanal de skin do PoT. *(os dois últimos: vindo em breve)*',
+        '• **Raptor (R$25/mês)** — tudo do Compy + perfil 100% personalizado (banner próprio, já disponível via `/perfil-edit`), boost de farm por missão e sorteio semanal de skin do PoT. *(os dois últimos: vindo em breve)*',
         `• Esse vínculo é **global** — vale em qualquer servidor com o bot, uma assinatura só.`,
     ]);
     builder.separator();
 
     builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
     builder.block([
-        '• **Free** — logs de sistema; 1 chat de reporte + 1 revisão de punição abertos por vez, 1h de cooldown; sem reputação, sem ações automáticas de punição (Discord ou jogo); `/evento` só posta no fórum.',
-        '• **Rastreador (R$25/mês)** — tudo do Free + logs de jogo, 3 chats + 3 revisões sem cooldown, reputação ativada, `/evento` cria também o evento agendado do Discord.',
-        '• **Caçador (R$40/mês)** — tudo do Rastreador + chats/revisões ilimitados, `/historico` liberado, automod diário, análise de staff, ações automáticas de punição no Discord e no jogo (RCON). O dono do servidor ganha Player Premium **Raptor** de bônus (Rastreador dá **Compy**).',
+        '• **Free** — logs de sistema (inclui logs de jogo); 1 chat de reporte + 1 revisão de punição abertos por vez, 6h de cooldown; sem reputação, sem ações automáticas de punição (Discord ou jogo); `/evento` só posta no fórum.',
+        '• **Rastreador (R$25/mês)** — tudo do Free + 3 chats + 3 revisões sem cooldown, reputação ativada, `/historico` liberado, `/evento` cria também o evento agendado do Discord.',
+        '• **Caçador (R$40/mês)** — tudo do Rastreador + chats/revisões ilimitados, automod diário, análise de staff, ações automáticas de punição no Discord e no jogo (RCON). O dono do servidor ganha Player Premium **Raptor** de bônus (Rastreador dá **Compy**).',
+        `• ${emojis.trianglealert || '⚠️'} É preciso ser um Host de Path of Titans pra adquirir qualquer tier pago do Server Premium.`,
     ]);
     builder.separator();
 
@@ -228,20 +152,7 @@ function buildPagePremium(guildName, emojis) {
     return builder;
 }
 
-function buildPageUtility(guildName, emojis) {
-    const builder = newPage(emojis);
-    pageHeader(builder, 'STATUS E UTILIDADES', 'Comandos para checar a saúde do bot:');
-
-    builder.block([
-        '• **/botstatus** — Verifica saúde do bot e sistemas: uptime, latência, memória, status do AutoMod e estatísticas.',
-        '• **/ping** — Latência rápida do bot.',
-    ]);
-
-    builder.footer(guildName);
-    return builder;
-}
-
-// ==================== TÓPICOS — MEMBROS COMUNS ====================
+// ==================== TÓPICO — MEMBROS COMUNS ====================
 
 function buildPageUserSimple(displayName, guildName, emojis) {
     const builder = newPage(emojis);
@@ -278,47 +189,32 @@ function buildPageUserSimple(displayName, guildName, emojis) {
     return builder;
 }
 
-function buildPageUserFAQ(guildName, emojis) {
+// ==================== TÓPICO COMPARTILHADO — AJUDA & SUPORTE ====================
+
+function buildPageHelp(guildName, emojis) {
     const builder = newPage(emojis);
-    pageHeader(builder, 'PERGUNTAS FREQUENTES', 'Dúvidas comuns sobre reports e reputação:');
+    pageHeader(builder, 'AJUDA & SUPORTE', 'Dúvidas comuns e como falar com o desenvolvedor:');
 
     const faq = [
         ['Como eu denuncio outro jogador?', 'Procure o painel de reports fixado no servidor e clique em "Reportar Jogador". Preencha o formulário com regra quebrada, data, local e descrição.'],
         ['Recebi um strike que acho injusto, o que eu faço?', 'No mesmo painel de reports, use o botão "Revisar Punição" e informe o número do strike. A staff vai analisar numa thread privada com você.'],
         ['Minha reputação caiu, por quê?', 'Toda punição (strike) reduz reputação. Use "Revisar Punição" se achar que foi um engano.'],
-        ['Como recupero minha reputação?', 'O sistema devolve +1 ponto por dia em que você não recebe nenhuma punição nova.'],
+        ['Como recupero minha reputação?', 'O sistema devolve pontos automaticamente com o tempo, sem receber nenhuma punição nova (recurso do plano Caçador).'],
         ['Fechei o report sem querer, dá pra reabrir?', 'Não — abra um novo report pelo painel, explicando a situação.'],
     ];
 
     for (const [pergunta, resposta] of faq) {
         builder.text(`**${emojis.circlealert || '❓'} ${pergunta}**\n${resposta}`);
-        builder.separator();
     }
-
-    builder.footer(guildName);
-    return builder;
-}
-
-// ==================== TÓPICO COMPARTILHADO — CONTATO ====================
-
-function buildPageContact(guildName, emojis) {
-    const builder = newPage(emojis);
-    pageHeader(builder, 'FALE COM O DESENVOLVEDOR', 'Encontrou um bug ou tem uma sugestão? É rapidinho:');
+    builder.separator();
 
     builder.section(
         [
             `## ${emojis.compass || '💡'} /reportarbug`,
-            'Envia sua mensagem direto para o desenvolvedor, com o tipo (Bug ou Sugestão) e uma descrição.',
+            'Encontrou um bug ou tem uma sugestão? Envia direto pro desenvolvedor — escolha **Reportar Bug/Erro** ou **Sugerir Melhoria** e descreva com o máximo de detalhes possível.',
         ].join('\n'),
         AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
     );
-    builder.separator();
-    builder.block([
-        '• Escolha **Reportar Bug/Erro** para algo que não está funcionando como deveria.',
-        '• Escolha **Sugerir Melhoria** para ideias de novos recursos ou ajustes.',
-        '• Descreva com o máximo de detalhes possível — isso ajuda (e muito) a resolver mais rápido.',
-    ]);
-    builder.separator();
     builder.text(`${emojis.circlecheck || '✅'} Toda sugestão e todo report são lidos — obrigado por ajudar a melhorar o bot!`);
 
     builder.footer(guildName);
@@ -335,24 +231,18 @@ function getTopics(isAdmin, ctx) {
 
     if (isAdmin) {
         return [
-            { key: 'welcome', label: 'Visão Geral', emoji: emojis.clipboardlist || '📋', build: () => buildPageWelcome(displayName, guildName, emojis, true) },
-            { key: 'setup', label: 'Configuração Inicial', emoji: emojis.settings || '⚙️', build: () => buildPageSetup(guildName, emojis) },
-            { key: 'moderation', label: 'Moderação e Reputação', emoji: emojis.gavel || '⚖️', build: () => buildPageModeration(guildName, emojis) },
-            { key: 'reports', label: 'Sistema de Reports', emoji: emojis.ticket || '🎫', build: () => buildPageReports(guildName, emojis) },
-            { key: 'automod', label: 'Auto Moderação', emoji: emojis.shieldcheck || '🛡️', build: () => buildPageAutomod(guildName, emojis) },
-            { key: 'events', label: 'Eventos', emoji: emojis.calendardays || '📅', build: () => buildPageEvents(guildName, emojis) },
-            { key: 'utility', label: 'Status e Utilidades', emoji: emojis.gauge || '📊', build: () => buildPageUtility(guildName, emojis) },
+            { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageWelcome(displayName, guildName, emojis, true) },
+            { key: 'setup', label: 'Configuração & Moderação', emoji: emojis.gavel || '⚖️', build: () => buildPageSetupModeration(guildName, emojis) },
+            { key: 'systems', label: 'Sistemas do Servidor', emoji: emojis.trendingup || '📈', build: () => buildPageSystems(guildName, emojis) },
             { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
-            { key: 'faq', label: 'Perguntas Frequentes', emoji: emojis.circlealert || '❓', build: () => buildPageUserFAQ(guildName, emojis) },
-            { key: 'contact', label: 'Fale com o Desenvolvedor', emoji: emojis.compass || '💡', build: () => buildPageContact(guildName, emojis) },
+            { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
         ];
     }
 
     return [
-        { key: 'welcome', label: 'Visão Geral', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
+        { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
         { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
-        { key: 'faq', label: 'Perguntas Frequentes', emoji: emojis.circlealert || '❓', build: () => buildPageUserFAQ(guildName, emojis) },
-        { key: 'contact', label: 'Fale com o Desenvolvedor', emoji: emojis.compass || '💡', build: () => buildPageContact(guildName, emojis) },
+        { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
     ];
 }
 

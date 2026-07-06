@@ -27,16 +27,16 @@ try {
 }
 
 /**
- * Definição dos 3 grupos (abas) do painel /config-roles — separados porque
+ * Definição dos 3 grupos (abas) do painel /config roles — separados porque
  * um único painel com os 6 RoleSelectMenus (staff, strike, exemplar,
  * problematico, supervisor, event) ultrapassaria a quantidade segura de
  * ActionRows por mensagem. Cada aba tem no máximo 3 selects + 1 linha de
  * botões de navegação + o container = 5 componentes de topo, mesmo padrão
- * já usado em /config-logs.
+ * já usado em /config logs.
  */
 const ROLE_TABS = {
     automod: {
-        label: 'Reputação Automática',
+        label: 'Cargos Automáticos',
         icon: 'trendingup',
         headerTitle: '# CARGOS AUTOMÁTICOS - REPUTAÇÃO',
         headerDesc: 'Estes cargos são atribuídos e removidos automaticamente pelo sistema, com base na reputação do membro e nas punições ativas. Não é necessário atribuí-los manualmente.',
@@ -48,12 +48,12 @@ const ROLE_TABS = {
             },
             {
                 key: 'role_exemplar', icon: 'sparkles', label: 'Exemplar',
-                desc: 'Atribuído automaticamente a membros com reputação acima do limite configurado em /config-punishments. Indica bom comportamento.',
+                desc: 'Atribuído automaticamente a membros com reputação acima do limite configurado em /config punishments. Indica bom comportamento.',
                 customId: 'config-roles:exemplar',
             },
             {
                 key: 'role_problematico', icon: 'trianglealert', label: 'Problemático',
-                desc: 'Atribuído automaticamente a membros com reputação abaixo do limite configurado em /config-punishments. Sinaliza comportamento problemático.',
+                desc: 'Atribuído automaticamente a membros com reputação abaixo do limite configurado em /config punishments. Sinaliza comportamento problemático.',
                 customId: 'config-roles:problematico',
             },
         ],
@@ -101,7 +101,7 @@ const ROLE_LABELS = Object.fromEntries(
 );
 
 /**
- * Definição dos 3 canais do painel /config-logs — mesmo padrão de
+ * Definição dos 3 canais do painel /config logs — mesmo padrão de
  * ROLE_TABS.fields, um select embutido no container logo abaixo da
  * descrição/status de cada canal (ver refreshLogsPanel).
  */
@@ -297,10 +297,18 @@ const ConfigSystem = {
                 return;
             }
             if (customId === 'config-logs:criar') {
+                await this.confirmCreateLogChannels(interaction);
+                return;
+            }
+            if (customId === 'config-logs:criar:confirm') {
                 await this.createLogChannels(interaction);
                 return;
             }
-            
+            if (customId === 'config-logs:criar:cancel') {
+                await this.refreshLogsPanel(interaction, `${EMOJIS.circlealert || '❌'} Criação automática cancelada.`, interaction.guild.name);
+                return;
+            }
+
             await ResponseManager.error(interaction, `Ação não reconhecida: ${customId}`);
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
@@ -335,7 +343,7 @@ const ConfigSystem = {
         }
 
         const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'pegada')) {
+        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'rastreador')) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
@@ -437,7 +445,7 @@ const ConfigSystem = {
 
     async processPointsStrikeModal(interaction) {
         const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'pegada')) {
+        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'rastreador')) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
         }
 
@@ -647,7 +655,7 @@ const ConfigSystem = {
     },
 
     /**
-     * Descobre em qual aba do /config-roles vive uma determinada chave de
+     * Descobre em qual aba do /config roles vive uma determinada chave de
      * cargo (usado para reabrir a mesma aba depois de salvar uma seleção).
      */
     _tabForRoleKey(roleKey) {
@@ -671,11 +679,19 @@ const ConfigSystem = {
             [tabData.headerTitle, tabData.headerDesc].join('\n'),
             rolesBuilder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
         );
-        rolesBuilder.text(
-            `${EMOJIS.messagesquare || 'ℹ️'} **Importante:** os cargos abaixo precisam estar configurados para os comandos correspondentes funcionarem. ` +
-            `Eles servem **apenas** para o bot saber quem pode usar cada comando — não precisam ser (nem representar) um cargo "oficial" do servidor. ` +
-            `Você pode escolher **qualquer** cargo já existente, ou criar um novo específico só para isso: é 100% customizável.`
-        );
+        if (tabKey === 'automod') {
+            rolesBuilder.text(
+                `${EMOJIS.messagesquare || 'ℹ️'} **Sobre estes cargos:** são auto-atribuíveis pelo sistema de reputação — o bot atribui e remove sozinho, a staff não precisa mexer manualmente. ` +
+                `O cargo de **Strike (Temporário)** funciona em qualquer plano. Já **Exemplar** e **Problemático** só são atribuídos automaticamente pelo Automod diário no plano **Caçador** — ` +
+                `em Free e Rastreador dá pra configurar os cargos aqui, mas eles só passam a ser atribuídos de verdade quando o servidor tiver o Caçador (${EMOJIS.badge || '🏅'} use \`/premium\` pra saber mais).`
+            );
+        } else {
+            rolesBuilder.text(
+                `${EMOJIS.messagesquare || 'ℹ️'} **Importante:** os cargos abaixo precisam estar configurados para os comandos correspondentes funcionarem. ` +
+                `Eles servem **apenas** para o bot saber quem pode usar cada comando — não precisam ser (nem representar) um cargo "oficial" do servidor. ` +
+                `Você pode escolher **qualquer** cargo já existente, ou criar um novo específico só para isso: é 100% customizável.`
+            );
+        }
         rolesBuilder.separator();
 
         for (const field of tabData.fields) {
@@ -833,6 +849,51 @@ const ConfigSystem = {
     },
 
     /**
+     * Confirmação antes de criar os canais automaticamente — explica o que
+     * o botão vai fazer, avisa sobre permissões de acesso (por padrão só o
+     * bot enxerga os canais) e sobre a posição deles na lista de canais,
+     * antes de criar algo de fato.
+     */
+    async confirmCreateLogChannels(interaction) {
+        const guild = interaction.guild;
+
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.section(
+            [
+                '# CRIAR CANAIS DE LOG AUTOMATICAMENTE',
+                'Isso vai criar uma categoria nova ("LOGS DO SISTEMA") com 3 canais de texto dentro — Geral/AutoMod, Punições e ReportChat — e já configurar os 3 automaticamente aqui no painel.',
+            ].join('\n'),
+            builder.assetThumbnail('icone_logs') || AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
+        );
+        builder.separator();
+        builder.text(
+            `${EMOJIS.trianglealert || '⚠️'} **Atenção às permissões:** por padrão, esses canais ficam visíveis **só para o bot** — nem a staff consegue ver. ` +
+            `Depois de criados, configure manualmente quem (cargo de Staff, Admin etc.) deve ter acesso a cada um.`
+        );
+        builder.text(
+            `${EMOJIS.messagesquare || 'ℹ️'} A categoria e os canais sempre aparecem no **fim** da lista de canais do servidor, mas você pode renomear e reposicionar todos eles como preferir depois — isso não afeta o funcionamento do sistema.`
+        );
+        builder.footer(guild.name);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('config-logs:criar:confirm').setLabel('Confirmar e Criar').setStyle(ButtonStyle.Success).setEmoji(EMOJIS.circlecheck || '✅'),
+            new ButtonBuilder().setCustomId('config-logs:criar:cancel').setLabel('Cancelar').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.circlealert || '❌'),
+        );
+
+        const { components, flags } = builder.build();
+        const replyData = { components: [...components, row], flags: [flags] };
+
+        // Chamado a partir de um customId especial-casado em interactionCreate.js
+        // (antes do deferUpdate() genérico) — a interação chega fresca aqui,
+        // então usa update(), não editReply(). Mesmo padrão de refreshLogsPanel.
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(replyData);
+        } else {
+            await interaction.update(replyData);
+        }
+    },
+
+    /**
      * Cria os canais de log automaticamente.
      *
      * ✅ UNIFICADO: não cria mais um canal separado "logs-automod".
@@ -905,6 +966,8 @@ const ConfigSystem = {
                     `${EMOJIS.gavel  || '⚖️'} **Punições:** <#${punishments.id}>`,
                     `${EMOJIS.ticket    || '🎫'} **Reports:** <#${reports.id}>`,
                 ])
+                .separator()
+                .text(`${EMOJIS.trianglealert || '⚠️'} Lembre-se de configurar o acesso desses canais (cargo de Staff, Admin etc.) — por padrão só o bot consegue ver.`)
                 .footer(guild.name)
                 .build();
             

@@ -365,7 +365,7 @@ const PunishmentSystem = {
 
     /**
      * Severidade 4 (Severa) e 5 (Permanente) cobrem bans muito longos ou
-     * permanentes — exigem aprovação do cargo Supervisor (ver /config-roles,
+     * permanentes — exigem aprovação do cargo Supervisor (ver /config roles,
      * aba Moderação) quando aplicadas por um Staff comum.
      */
     isSevereSeverity(severity) {
@@ -414,7 +414,7 @@ const PunishmentSystem = {
 
         if (!supervisorRoleId || !logChannelId) {
             return await interaction.editReply(this._simpleReply(
-                `${EMOJIS.circlealert || '❌'} Esta punição é severa e precisa de aprovação de um Supervisor, mas o cargo Supervisor e/ou o canal de log de punições ainda não foram configurados (${EMOJIS.gavel || '⚖️'} veja /config-roles e /config-logs). Peça a um administrador para configurar antes de tentar novamente.`,
+                `${EMOJIS.circlealert || '❌'} Esta punição é severa e precisa de aprovação de um Supervisor, mas o cargo Supervisor e/ou o canal de log de punições ainda não foram configurados (${EMOJIS.gavel || '⚖️'} veja /config roles e /config logs). Peça a um administrador para configurar antes de tentar novamente.`,
                 COLORS.ERROR, guild.name,
             ));
         }
@@ -422,7 +422,7 @@ const PunishmentSystem = {
         const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
         if (!logChannel) {
             return await interaction.editReply(this._simpleReply(
-                `${EMOJIS.circlealert || '❌'} O canal de log de punições configurado não foi encontrado. Peça a um administrador para reconfigurar em /config-logs.`,
+                `${EMOJIS.circlealert || '❌'} O canal de log de punições configurado não foi encontrado. Peça a um administrador para reconfigurar em /config logs.`,
                 COLORS.ERROR, guild.name,
             ));
         }
@@ -706,7 +706,7 @@ const PunishmentSystem = {
         lines.push(dmStatusMsg);
         if (result.roleStatusMsg) lines.push(result.roleStatusMsg);
         if (result.ingameActionResult) lines.push(`${emojis.game || '🎮'} ${result.ingameActionResult}`);
-        if (!result.logSent) lines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+        if (!result.logSent) lines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config logs).`);
         return lines;
     },
 
@@ -746,7 +746,7 @@ const PunishmentSystem = {
             // ── Usa o valor REAL gravado na punição (points_deducted), não um
             // mapa fixo — garante que a devolução bate com o que foi de fato
             // descontado, mesmo se os pontos de severidade tiverem sido
-            // reconfigurados depois em /config-punishments. ────────────────────
+            // reconfigurados depois em /config punishments. ────────────────────
             const pointsRestored = punishment.points_deducted || 0;
             const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, punishment.user_id)?.points || 100;
             const newPoints = Math.min(100, currentRep + pointsRestored);
@@ -817,7 +817,7 @@ const PunishmentSystem = {
                 summaryLines.push(`${emojis.doublearrowup || '📈'} +${pointsRestored} pts | ${emojis.star || '⭐'} Reputação: ${newPoints}/100`);
             }
             summaryLines.push(dmStatusMsg);
-            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config-logs).`);
+            if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
             await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, interaction.guild?.name));
@@ -827,7 +827,7 @@ const PunishmentSystem = {
     // ==================== MÉTODOS DE NEGÓCIO ====================
 
     /**
-     * Atribui o cargo temporário de Strike (configurado via /config-roles,
+     * Atribui o cargo temporário de Strike (configurado via /config roles,
      * chave 'strike_role') ao membro punido, e registra a expiração na
      * tabela temporary_roles para remoção automática pelo worker (initWorker).
      *

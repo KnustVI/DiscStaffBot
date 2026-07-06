@@ -171,7 +171,7 @@ class PlayerRegistrationSystem {
 
         // ── Banner de perfil — entra no lugar do título "# PERFIL", um por
         // tier (assets banner_perfil_free/compy/raptor). Só o Raptor pode
-        // trocar o próprio (via /perfil-banner ou puxando do Discord); Compy
+        // trocar o próprio (via /perfil-edit ou puxando do Discord); Compy
         // poderá comprar outros na lojinha do bot no futuro — por enquanto
         // usa sempre o banner padrão do tier. A URL de um banner personalizado
         // é resolvida AGORA, nunca fica salva no banco — anexos do Discord

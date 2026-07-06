@@ -10,16 +10,19 @@
 const db = require('../../database/index');
 
 const PLAYER_TIERS = { free: 0, compy: 1, raptor: 2 };
-const GUILD_TIERS = { free: 0, pegada: 1, fossil: 2 };
+const GUILD_TIERS = { free: 0, rastreador: 1, cacador: 2 };
 
 // Bônus de compra: o DONO do servidor Discord ganha o Player Premium
 // correspondente ao comprar Server Premium — ver premium-admin.js (guild grant).
-const GUILD_TO_PLAYER_TIER = { pegada: 'compy', fossil: 'raptor' };
+const GUILD_TO_PLAYER_TIER = { rastreador: 'compy', cacador: 'raptor' };
 
-// Nomes exibidos ao usuário para cada tier de Server Premium — os valores
-// internos ('free'/'pegada'/'fossil', usados no banco e em todo o código)
-// NÃO mudam, só o rótulo mostrado (Pegada→Rastreador, Fossil→Caçador).
-const GUILD_TIER_DISPLAY = { free: 'Free', pegada: 'Rastreador', fossil: 'Caçador' };
+// Nomes exibidos ao usuário para cada tier de Server Premium. Os valores
+// internos ('free'/'rastreador'/'cacador', usados no banco e em todo o
+// código) já batem 1:1 com o rótulo — antes eram 'pegada'/'fossil'
+// (nomes de planejamento antigos); migrados nesta revisão, incluindo as
+// linhas já gravadas em guild_premium (ver DatabaseManager.createAllTables
+// → migrateGuildPremiumTierNames, idempotente).
+const GUILD_TIER_DISPLAY = { free: 'Free', rastreador: 'Rastreador', cacador: 'Caçador' };
 
 // Limites concretos por tier de servidor — única fonte da verdade consultada
 // pelo reportChatSystem (limite de chats/revisões + cooldown), punishmentSystem
@@ -31,20 +34,20 @@ const GUILD_TIER_DISPLAY = { free: 'Free', pegada: 'Rastreador', fossil: 'Caçad
 // punição têm contadores SEPARADOS (não é mais um limite combinado).
 const GUILD_LIMITS = {
     free: {
-        maxOpenReports: 1, maxOpenReviews: 1, chatCooldownMs: 3600000,
+        maxOpenReports: 1, maxOpenReviews: 1, chatCooldownMs: 21600000,
         discordActionsEnabled: false, autoRcon: false,
         reputationEnabled: false, automodEnabled: false, historyEnabled: false,
         analyticsEnabled: false,
         eventTier: 'basic',
     },
-    pegada: {
+    rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
         discordActionsEnabled: false, autoRcon: false,
-        reputationEnabled: true, automodEnabled: false, historyEnabled: false,
+        reputationEnabled: true, automodEnabled: false, historyEnabled: true,
         analyticsEnabled: false,
         eventTier: 'medium',
     },
-    fossil: {
+    cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
         discordActionsEnabled: true, autoRcon: true,
         reputationEnabled: true, automodEnabled: true, historyEnabled: true,
@@ -95,8 +98,8 @@ function getGuildLimits(guildId) {
 
 /**
  * Mensagem padrão exibida por QUALQUER comando/botão bloqueado pelo tier
- * atual do servidor — sempre no mesmo formato, citando o tier real (FREE,
- * PEGADA...) que está impedindo o uso, e apontando pro /premium.
+ * atual do servidor — sempre no mesmo formato genérico, apontando pro
+ * /premium (não cita mais o tier específico do servidor).
  */
 function getGuildDenialMessage(guildId) {
     return 'Este comando está disponível apenas para servidores com um plano Premium ativo. Use /premium para conhecer os benefícios e opções disponíveis.';
