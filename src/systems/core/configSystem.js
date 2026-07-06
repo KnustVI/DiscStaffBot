@@ -577,7 +577,9 @@ const ConfigSystem = {
         const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
 
         const PremiumSystem = require('../premium/premiumSystem');
-        const automodEnabled = PremiumSystem.getGuildLimits(guildId).automodEnabled;
+        const guildLimits = PremiumSystem.getGuildLimits(guildId);
+        const automodEnabled = guildLimits.automodEnabled;
+        const reputationEnabled = guildLimits.reputationEnabled;
 
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
@@ -600,10 +602,10 @@ const ConfigSystem = {
             ])
             .separator();
 
-        // Limites (cargos automáticos Exemplar/Problemático) e recuperação
-        // diária são recursos exclusivos do Caçador — em Rastreador, o painel só
-        // mostra a nota, sem editar (o admin ali só configura o que os 5
-        // níveis fazem com a reputação, nada além disso).
+        // Cargos automáticos (Exemplar/Problemático) e a EDIÇÃO da
+        // recuperação diária são exclusivos do Caçador. A recuperação em si
+        // (fixa, 1 ponto/dia) já roda a partir do Rastreador — ver
+        // autoModeration.js → executeDailyMaintenance.
         if (automodEnabled) {
             cb
                 .title(`${EMOJIS.medal || '📊'} Limites de Reputação`, 2)
@@ -617,10 +619,17 @@ const ConfigSystem = {
                     `${EMOJIS.trendingup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
                     `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Caçador).`,
                 ]);
+        } else if (reputationEnabled) {
+            cb
+                .title(`${EMOJIS.trendingup || '📈'} Recuperação Diária de Reputação`, 2)
+                .block([
+                    `${EMOJIS.trendingup || '📈'} **Pontos por dia:** \`1\` (fixo neste plano)`,
+                    `${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária **configurável** são exclusivos do plano **Caçador**. Use \`/premium\` para ver o tier atual.`,
+                ]);
         } else {
             cb
                 .title(`${EMOJIS.medal || '📊'} Limites e Recuperação Diária`, 2)
-                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos do plano **Caçador**. Use \`/premium\` para ver o tier atual.`);
+                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos a partir do plano **Rastreador**. Use \`/premium\` para ver o tier atual.`);
         }
 
         cb.footer(guildName);

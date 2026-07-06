@@ -71,7 +71,14 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
 
     const playerName = d.PlayerName || 'Desconhecido';
     const suffix = titleSuffixes[potEvent] || potEvent;
-    const nameLines = [`## ${playerName} ${suffix}`];
+
+    // Quando linkado, o padrão de identidade abaixo já mostra o nome do
+    // jogador (linha do :game:) e o Alderon ID (linha do :PotLogo:) — o
+    // título fica só com o evento, sem repetir o nome, e a linha solta de
+    // "Alderon ID" mais abaixo é omitida. Sem vínculo, nada disso existe
+    // ainda, então o título carrega o nome normalmente e a linha de
+    // Alderon ID continua sendo a única fonte dessa informação.
+    const nameLines = discordUser ? [`## ${suffix}`] : [`## ${playerName} ${suffix}`];
     if (discordUser) {
         // Padrão de identificação do bot (mesmo formato usado em strike,
         // unstrike, repset, histórico, perfil...). NOTA: usa @menção, o que
@@ -85,8 +92,10 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
     builder.section(nameLines.join('\n'), AdvancedContainerBuilder.thumbnail(avatarUrl));
     builder.separator();
     builder.text(`${resolveEmoji(guild, 'tv', '🖥️')} **Servidor:** ${d.ServerName || 'Desconhecido'}`);
-    builder.text(`${resolveEmoji(guild, 'idcard', '🆔')} **Alderon ID:** \`${alderonId || 'N/A'}\``);
-    builder.text(`${resolveEmoji(guild, 'crown', '👑')} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
+    if (!discordUser) {
+        builder.text(`${resolveEmoji(guild, 'PotLogo', '🦖')} **Alderon ID:** \`${alderonId || 'N/A'}\``);
+    }
+    builder.text(`${resolveEmoji(guild, 'shield', '🛡️')} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
 
     // Só o PlayerLeave traz esses dois campos (documentados oficialmente):
     // SafeLog (desconexão graciosa, pelo menu, vs. queda abrupta/crash) e
@@ -117,7 +126,7 @@ function formatMessage(potEvent, data, guild) {
 
     const formatters = {
         // ── Login / Logout ──
-        PlayerLogin:   () => `${e('DinoFootprint', '🎮')} **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${e('crown', '👑')}` : ''}`,
+        PlayerLogin:   () => `${e('DinoFootprint', '🎮')} **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${e('shield', '🛡️')}` : ''}`,
         PlayerLogout:  () => `${e('logout', '👋')} **${d.PlayerName}** saiu do servidor`,
         PlayerLeave:   () => `${e('logout', '🚶')} **${d.PlayerName}** desconectou`,
 
@@ -154,8 +163,8 @@ function formatMessage(potEvent, data, guild) {
         BadAverageTick:          () => `${e('trendingdown', '📉')} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
 
         // ── Admin ──
-        AdminSpectate: () => `${e('eye', '👁️')} **${d.AdminName}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
-        AdminCommand:  () => `${e('crown', '👑')} **${d.AdminName}** executou: \`${d.Command}\``,
+        AdminSpectate: () => `${e('shield', '🛡️')} **${d.AdminName}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
+        AdminCommand:  () => `${e('shield', '🛡️')} **${d.AdminName}** executou: \`${d.Command}\``,
 
         // ── Nest ──
         CreateNest:    () => `${e('Nest', '🪺')} **${d.PlayerName}** criou um ninho`,

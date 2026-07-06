@@ -306,7 +306,7 @@ class PlayerRegistrationSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         builder.text(summary);
         builder.text(`${EMOJIS.user || '👤'} **Nome no jogo:** ${playerName}`);
-        builder.text(`${EMOJIS.idcard || '🆔'} **Alderon ID:** \`${alderonIdRaw}\``);
+        builder.text(`${EMOJIS.PotLogo || '🦖'} **Alderon ID:** \`${alderonIdRaw}\``);
         builder.footer(guildName);
 
         await interaction.editReply(builder.build());

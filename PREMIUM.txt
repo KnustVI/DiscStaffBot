@@ -89,9 +89,11 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   ativas (contadores separados), sem tempo de espera.
 - Punicoes: sistema de pontos de reputacao ativado, cargo temporario de
   punicao, ate 5 niveis de punicao configuraveis (pontos por nivel, via
-  /config punishments), historico de punicoes (/historico liberado). AINDA
-  sem aplicar acoes automaticas no Discord (timeout/kick/ban) - isso so no
-  Cacador.
+  /config punishments), historico de punicoes (/historico liberado).
+  Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
+  (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
+  AINDA sem aplicar acoes automaticas no Discord (timeout/kick/ban) - isso
+  so no Cacador.
   Aprovacao de Supervisor exigida pra nivel 4/5 OU duracao >72h/permanente
   (mesma regra do Free, so que aqui os niveis tambem contam).
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
@@ -99,11 +101,12 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   postagem no forum).
 - /config punishments liberado, mas SO pra configurar o que os 5 niveis de
   severidade fazem com a reputacao (pontos perdidos por nivel) - nada alem
-  disso. Limites de cargo automatico e recuperacao diaria NAO aparecem
-  editaveis neste tier.
+  disso. Limites de cargo automatico e a EDICAO da quantidade recuperada
+  por dia NAO aparecem editaveis neste tier (a recuperacao em si roda
+  mesmo assim, fixa em 1 ponto/dia).
 - SEM cargos automaticos de reputacao (exemplar/problematico), SEM analise
-  de atividade de staff, SEM automod diario, SEM RCON automatico - tudo
-  isso e exclusivo do Cacador.
+  de atividade de staff, SEM RCON automatico - tudo isso e exclusivo do
+  Cacador.
 - BONUS: o DONO do servidor Discord ganha Player Premium Compy automaticamente
   ao comprar o Rastreador (JA IMPLEMENTADO - ver secao 3).
 
@@ -157,12 +160,14 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   Cacador criam tambem o evento agendado do Discord + marcam o cargo de
   notificacao.
 - /config punishments BLOQUEADO no Free; no Rastreador so edita os 5 niveis de
-  severidade (pontos); Limites e Recuperacao Diaria so aparecem/editam no
-  Caçador.
+  severidade (pontos), sem editar Limites nem a quantidade da Recuperacao
+  Diaria (aparecem so como informacao); ambos ficam editaveis no Caçador.
 - /botstatus so mostra estatisticas do servidor (Banco de Dados/Sistema
   AutoMod) pra servidores Caçador.
-- Automod diario (recuperacao de reputacao + cargos automaticos de
-  exemplar/problematico) roda SO no Caçador.
+- Recuperacao diaria de reputacao roda a partir do Rastreador: FIXA em 1
+  ponto/dia nesse tier, e configuravel via /config punishments no Caçador
+  (padrao tambem 1 ponto/dia). Cargos automaticos de reputacao
+  (exemplar/problematico) continuam exclusivos do Caçador.
 - RCON automatico em punicao (so Caçador) - a sintaxe exata dos comandos
   RCON ainda esta pendente de confirmacao com o servidor real do PoT.
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o

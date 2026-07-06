@@ -77,7 +77,7 @@ function buildPageSetupModeration(guildName, emojis) {
     builder.block([
         '• Máximo: **100 pontos** | Mínimo: **0 pontos**.',
         '• Perda por strike a partir do plano **Rastreador** (no Free, o strike fica registrado, mas não mexe em pontos).',
-        '• Recuperação automática diária só no plano **Caçador** (ver tópico Premium).',
+        '• Recuperação automática diária a partir do plano **Rastreador**: fixa em **1 ponto/dia**. No plano **Caçador**, essa quantidade é configurável em /config punishments (ver tópico Premium).',
     ]);
 
     builder.footer(guildName);
@@ -99,8 +99,8 @@ function buildPageSystems(guildName, emojis) {
     builder.title(`${emojis.trendingup || '📈'} Auto Moderação`, 2);
     builder.block([
         '• Roda sozinha, diariamente às **12:00** (horário de Brasília).',
-        '• Recupera pontos de reputação e atribui/remove os cargos Exemplar/Problemático, conforme /config punishments.',
-        `• ${emojis.badge || '🏅'} Recurso exclusivo do plano **Caçador**.`,
+        '• Recupera pontos de reputação a partir do plano **Rastreador** (fixo, 1 ponto/dia).',
+        `• ${emojis.badge || '🏅'} No plano **Caçador**, a quantidade recuperada é configurável, e o bot também atribui/remove os cargos Exemplar/Problemático automaticamente, conforme /config punishments.`,
     ]);
     builder.separator();
 
@@ -173,8 +173,8 @@ function buildPageUserSimple(displayName, guildName, emojis) {
     builder.title(`${emojis.star || '⭐'} Reputação`, 2);
     builder.block([
         '• Sua reputação começa em **100 pontos** (recurso a partir do plano Rastreador — ver tópico Premium).',
-        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo (só no plano Caçador).',
-        '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos.',
+        '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo.',
+        '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos (só no plano Caçador).',
     ]);
     builder.separator();
 
@@ -199,7 +199,7 @@ function buildPageHelp(guildName, emojis) {
         ['Como eu denuncio outro jogador?', 'Procure o painel de reports fixado no servidor e clique em "Reportar Jogador". Preencha o formulário com regra quebrada, data, local e descrição.'],
         ['Recebi um strike que acho injusto, o que eu faço?', 'No mesmo painel de reports, use o botão "Revisar Punição" e informe o número do strike. A staff vai analisar numa thread privada com você.'],
         ['Minha reputação caiu, por quê?', 'Toda punição (strike) reduz reputação. Use "Revisar Punição" se achar que foi um engano.'],
-        ['Como recupero minha reputação?', 'O sistema devolve pontos automaticamente com o tempo, sem receber nenhuma punição nova (recurso do plano Caçador).'],
+        ['Como recupero minha reputação?', 'O sistema devolve pontos automaticamente com o tempo, sem receber nenhuma punição nova (a partir do plano Rastreador).'],
         ['Fechei o report sem querer, dá pra reabrir?', 'Não — abra um novo report pelo painel, explicando a situação.'],
     ];
 

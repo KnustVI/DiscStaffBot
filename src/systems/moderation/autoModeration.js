@@ -263,18 +263,19 @@ class AutoModerationSystem {
         let totalRolesRemoved = 0;
 
         try {
-            // Manutenção diária (recuperação de reputação + cargos automáticos)
-            // é recurso exclusivo do tier Fossil — servidores Free/Pegada não
-            // têm reputação automática nem "automod diário". A quantidade
-            // recuperada por dia é configurável por servidor (padrão 1 ponto),
-            // via /config punishments — por isso o UPDATE roda por guild, não
-            // mais como uma query global única.
-            const fossilGuildIds = db.prepare(`
-                SELECT guild_id FROM guild_premium WHERE tier = 'cacador' AND (expires_at IS NULL OR expires_at > ?)
-            `).all(Date.now()).map(row => row.guild_id);
+            // Recuperação diária de reputação: Rastreador recebe um valor
+            // FIXO (1 ponto/dia, não editável); Caçador usa a quantidade
+            // configurável via /config punishments (padrão 1 ponto/dia,
+            // mesmo valor). Cargos automáticos (Exemplar/Problemático)
+            // continuam exclusivos do Caçador — ver loop de cargos abaixo.
+            const recoveryGuilds = db.prepare(`
+                SELECT guild_id, tier FROM guild_premium WHERE tier IN ('rastreador', 'cacador') AND (expires_at IS NULL OR expires_at > ?)
+            `).all(Date.now());
 
-            for (const gId of fossilGuildIds) {
-                const recoveryAmount = parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1;
+            for (const { guild_id: gId, tier } of recoveryGuilds) {
+                const recoveryAmount = tier === 'cacador'
+                    ? (parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1)
+                    : 1;
                 const result = db.prepare(`
                     UPDATE reputation
                     SET points = MIN(100, points + ?)
@@ -287,6 +288,18 @@ class AutoModerationSystem {
                     )
                 `).run(recoveryAmount, gId);
                 totalRepRecovered += result.changes;
+
+                // Garante que o servidor apareça no relatório diário mesmo
+                // sem nenhuma mudança de cargo (o loop de cargos abaixo só
+                // roda pro Caçador) — sem isso o Rastreador nunca veria
+                // confirmação nenhuma da recuperação.
+                const guild = this.client.guilds.cache.get(gId);
+                if (guild) {
+                    if (!stats[gId]) {
+                        stats[gId] = { added: 0, removed: 0, guildName: guild.name, exemplarAdded: 0, problematicAdded: 0 };
+                    }
+                    stats[gId].recoveryAmount = recoveryAmount;
+                }
             }
             console.log(`📈 [AutoMod] ${totalRepRecovered} usuários recuperaram pontos.`);
         } catch (err) {
@@ -385,22 +398,14 @@ class AutoModerationSystem {
             try {
                 const logChanId = ConfigSystem.getUnifiedGeneralLogChannel(gId);
                 if (!logChanId) continue;
-                
+
                 const channel = await this.client.channels.fetch(logChanId).catch(() => null);
                 if (!channel) continue;
 
-                // ── Status atual do servidor (contagem total, não só do dia) ────
-                const limitProb = parseInt(ConfigSystem.getSetting(gId, 'limit_problematico')) || 30;
-                const problematicCount = db.prepare(`
-                    SELECT COUNT(*) as count FROM reputation 
-                    WHERE guild_id = ? AND points <= ?
-                `).get(gId, limitProb)?.count || 0;
-
-                const limitEx = parseInt(ConfigSystem.getSetting(gId, 'limit_exemplar')) || 95;
-                const exemplarCount = db.prepare(`
-                    SELECT COUNT(*) as count FROM reputation 
-                    WHERE guild_id = ? AND points >= ?
-                `).get(gId, limitEx)?.count || 0;
+                // Cargos automáticos (Exemplar/Problemático) são exclusivos
+                // do Caçador — Rastreador só recebe a recuperação de pontos,
+                // sem essas seções (não fazem sentido pra esse tier).
+                const automodEnabled = PremiumSystem.getGuildLimits(gId).automodEnabled;
 
                 // ── Ranking de staff (top 5 por punições aplicadas, 7 dias) ──────
                 let rankingLines = [];
@@ -416,24 +421,41 @@ class AutoModerationSystem {
                     console.error('❌ [AutoMod] Erro ao buscar ranking de staff:', err);
                 }
 
-                const recoveryAmount = parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1;
+                const recoveryAmount = data.recoveryAmount ?? (parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1);
 
                 const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
                 builder.title(`${EMOJIS.circlecheck || '✅'} Manutenção Diária Concluída`, 1);
                 builder.separator();
                 builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+${recoveryAmount}pt**.`);
-                builder.text(`${EMOJIS.trophy || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
-                builder.text(`${EMOJIS.medal || '📊'} **Detalhes:** ${EMOJIS.sparkles || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.trianglealert || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
-                builder.separator();
-
-                builder.title(`${EMOJIS.trianglealert || '⚠️'} Status Atual do Servidor`, 2);
-                builder.text(`${EMOJIS.sparkles || '🎖️'} **Exemplares atualmente:** \`${exemplarCount}\``);
-                if (problematicCount > 0) {
-                    builder.text(`${EMOJIS.trianglealert || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
-                } else {
-                    builder.text(`${EMOJIS.circlecheck || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
+                if (automodEnabled) {
+                    builder.text(`${EMOJIS.trophy || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
+                    builder.text(`${EMOJIS.medal || '📊'} **Detalhes:** ${EMOJIS.sparkles || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.trianglealert || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
                 }
                 builder.separator();
+
+                if (automodEnabled) {
+                    // ── Status atual do servidor (contagem total, não só do dia) ──
+                    const limitProb = parseInt(ConfigSystem.getSetting(gId, 'limit_problematico')) || 30;
+                    const problematicCount = db.prepare(`
+                        SELECT COUNT(*) as count FROM reputation
+                        WHERE guild_id = ? AND points <= ?
+                    `).get(gId, limitProb)?.count || 0;
+
+                    const limitEx = parseInt(ConfigSystem.getSetting(gId, 'limit_exemplar')) || 95;
+                    const exemplarCount = db.prepare(`
+                        SELECT COUNT(*) as count FROM reputation
+                        WHERE guild_id = ? AND points >= ?
+                    `).get(gId, limitEx)?.count || 0;
+
+                    builder.title(`${EMOJIS.trianglealert || '⚠️'} Status Atual do Servidor`, 2);
+                    builder.text(`${EMOJIS.sparkles || '🎖️'} **Exemplares atualmente:** \`${exemplarCount}\``);
+                    if (problematicCount > 0) {
+                        builder.text(`${EMOJIS.trianglealert || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
+                    } else {
+                        builder.text(`${EMOJIS.circlecheck || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
+                    }
+                    builder.separator();
+                }
 
                 builder.title(`${EMOJIS.trophy || '🏆'} Top Staff (últimos 7 dias)`, 2);
                 if (rankingLines.length > 0) {
