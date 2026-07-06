@@ -100,6 +100,29 @@ const ROLE_LABELS = Object.fromEntries(
     Object.values(ROLE_TABS).flatMap(tab => tab.fields.map(f => [f.key, f.label])),
 );
 
+/**
+ * Definição dos 3 canais do painel /config-logs — mesmo padrão de
+ * ROLE_TABS.fields, um select embutido no container logo abaixo da
+ * descrição/status de cada canal (ver refreshLogsPanel).
+ */
+const LOG_FIELDS = [
+    {
+        key: 'log_channel', icon: 'megaphone', label: 'Geral / AutoMod',
+        desc: 'Recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos atribuídos/removidos, ranking de staff).',
+        customId: 'config-logs:geral',
+    },
+    {
+        key: 'log_punishments', icon: 'gavel', label: 'Punições',
+        desc: 'Recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
+        customId: 'config-logs:punishments',
+    },
+    {
+        key: 'log_reports', icon: 'ticket', label: 'ReportChat',
+        desc: 'Recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
+        customId: 'config-logs:reports',
+    },
+];
+
 const ConfigSystem = {
     getSetting(guildId, key) {
         try {
@@ -655,18 +678,14 @@ const ConfigSystem = {
         );
         rolesBuilder.separator();
 
-        const selectRows = [];
         for (const field of tabData.fields) {
             const currentId = this.getSetting(guildId, field.key);
             rolesBuilder.text(`**${EMOJIS[field.icon] || ''} ${field.label}** — ${field.desc}`);
             rolesBuilder.text(`${EMOJIS.gauge || '📊'} **Atual:** ${fmt(currentId)}`);
-            rolesBuilder.separator();
-
-            selectRows.push(
-                new ActionRowBuilder().addComponents(
-                    new RoleSelectMenuBuilder().setCustomId(field.customId).setPlaceholder(`Selecionar cargo: ${field.label}`)
-                )
+            rolesBuilder.selectMenu(
+                new RoleSelectMenuBuilder().setCustomId(field.customId).setPlaceholder(`Selecionar cargo: ${field.label}`)
             );
+            rolesBuilder.separator();
         }
 
         rolesBuilder.footer(interaction.guild.name);
@@ -682,8 +701,11 @@ const ConfigSystem = {
             )
         );
 
-        // ✅ Painel SEMPRE limpo, sem `content`.
-        const replyData = { components: [...components, tabRow, ...selectRows], flags, files };
+        // ✅ Painel SEMPRE limpo, sem `content`. Os selects de cada cargo já
+        // vêm embutidos no container (ver rolesBuilder.selectMenu() acima) —
+        // só a navegação entre abas fica fora, por ser uma ação do painel
+        // como um todo, não de um cargo específico.
+        const replyData = { components: [...components, tabRow], flags, files };
 
         try {
             if (interaction.deferred || interaction.replied) {
@@ -730,45 +752,47 @@ const ConfigSystem = {
      */
     async refreshLogsPanel(interaction, successMessage, guildName) {
         const guildId = interaction.guildId;
-        const logGeral       = this.getUnifiedGeneralLogChannel(guildId);
-        const logPunishments = this.getSetting(guildId, 'log_punishments');
-        const logReports     = this.getSetting(guildId, 'log_reports');
+
+        const currentValues = {
+            log_channel: this.getUnifiedGeneralLogChannel(guildId),
+            log_punishments: this.getSetting(guildId, 'log_punishments'),
+            log_reports: this.getSetting(guildId, 'log_reports'),
+        };
 
         const fmt = (channelId) => channelId
             ? `<#${channelId}>`
             : `${EMOJIS.circlealert || '❌'} Não definido`;
-        
+
         const logsBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        const { components, flags, files } = logsBuilder
-            .section(
-                [
-                    '# CANAIS DE LOG',
-                    'Configure os canais que recebem os registros de atividade do servidor.',
-                ].join('\n'),
-                logsBuilder.assetThumbnail('icone_logs') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
-            )
-            .separator()
-            .block([
-                '**Geral** — recebe logs de alterações de configuração, atualizações de sistema, eventos diversos e o relatório diário de AutoModeração (recuperação de pontos, cargos atribuídos/removidos, ranking de staff).',
-                '**Punições** — recebe logs relacionados a strikes, unstrikes, ajustes de reputação e ações disciplinares.',
-                '**ReportChat** — recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
-            ])
-            .separator()
-            .block([
-                `${EMOJIS.megaphone  || '📜'} **Geral / AutoMod:** ${fmt(logGeral)}`,
-                `${EMOJIS.gavel  || '⚖️'} **Punições:** ${fmt(logPunishments)}`,
-                `${EMOJIS.ticket    || '🚩'} **ReportChat:** ${fmt(logReports)}`,
-            ])
-            .footer(guildName)
-            .build();
-        
-        const geralRow       = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:geral').setPlaceholder('Selecionar canal de logs gerais / automod').addChannelTypes(ChannelType.GuildText));
-        const punishmentsRow = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:punishments').setPlaceholder('Selecionar canal de logs de punições').addChannelTypes(ChannelType.GuildText));
-        const reportsRow     = new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('config-logs:reports').setPlaceholder('Selecionar canal de logs de reports').addChannelTypes(ChannelType.GuildText));
-        const buttonRow      = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plus || '➕'));
-        
-        // ✅ Painel SEMPRE limpo, sem `content`.
-        const replyData = { components: [...components, geralRow, punishmentsRow, reportsRow, buttonRow], flags, files };
+        logsBuilder.section(
+            [
+                '# CANAIS DE LOG',
+                'Configure os canais que recebem os registros de atividade do servidor.',
+            ].join('\n'),
+            logsBuilder.assetThumbnail('icone_logs') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+        );
+        logsBuilder.separator();
+
+        for (const field of LOG_FIELDS) {
+            logsBuilder.text(`**${EMOJIS[field.icon] || ''} ${field.label}** — ${field.desc}`);
+            logsBuilder.text(`${EMOJIS.gauge || '📊'} **Atual:** ${fmt(currentValues[field.key])}`);
+            logsBuilder.selectMenu(
+                new ChannelSelectMenuBuilder().setCustomId(field.customId).setPlaceholder(`Selecionar canal: ${field.label}`).addChannelTypes(ChannelType.GuildText)
+            );
+            logsBuilder.separator();
+        }
+
+        logsBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Prefere não escolher um por um? Use o botão abaixo pra criar os 3 automaticamente.`);
+        logsBuilder.footer(guildName);
+        const { components, flags, files } = logsBuilder.build();
+
+        const buttonRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('config-logs:criar').setLabel('Criar Canais Automaticamente').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.plus || '➕'));
+
+        // ✅ Painel SEMPRE limpo, sem `content`. Os selects de cada canal já
+        // vêm embutidos no container (ver logsBuilder.selectMenu() acima) —
+        // só o botão de criação automática fica fora, por ser uma ação do
+        // painel como um todo, não de um canal específico.
+        const replyData = { components: [...components, buttonRow], flags, files };
 
         try {
             if (interaction.deferred || interaction.replied) {

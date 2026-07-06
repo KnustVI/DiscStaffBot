@@ -284,14 +284,22 @@ class AdvancedContainerBuilder {
      * Discord só permite um menu de seleção por linha (diferente de
      * buttons(), que aceita até 5).
      *
+     * Se footer() já tiver sido chamado antes (ordem comum quando o menu é
+     * montado só depois do container, ex: /ajuda trocando de tópico), o
+     * select entra ANTES do rodapé, não depois — o rodapé do bot deve
+     * sempre ser a última coisa visível no container.
+     *
      * @param {StringSelectMenuBuilder} menu
      * @returns {this}
      */
     selectMenu(menu) {
-        this.components.push({
-            kind: 'actionRow',
-            payload: [menu],
-        });
+        const entry = { kind: 'actionRow', payload: [menu] };
+        const footerIndex = this.components.findIndex(c => c.isFooter);
+        if (footerIndex !== -1) {
+            this.components.splice(footerIndex, 0, entry);
+        } else {
+            this.components.push(entry);
+        }
         return this;
     }
 
@@ -311,6 +319,7 @@ class AdvancedContainerBuilder {
         this.components.push({
             kind: 'textDisplay',
             payload: `-# ${text}`,
+            isFooter: true,
         });
         return this;
     }
