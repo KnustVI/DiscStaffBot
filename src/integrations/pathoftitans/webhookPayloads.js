@@ -67,7 +67,12 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
         // sem vínculo encontrado — segue sem info de Discord
     }
 
-    const avatarUrl = discordUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    // Sem vínculo, não há avatar de Discord pra mostrar — usa o ícone do
+    // próprio servidor (Discord genérico só como último fallback, se o
+    // servidor também não tiver ícone configurado).
+    const avatarUrl = discordUser
+        ? discordUser.displayAvatarURL({ size: 128 })
+        : (guild?.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png');
 
     const playerName = d.PlayerName || 'Desconhecido';
     const suffix = titleSuffixes[potEvent] || potEvent;
@@ -75,9 +80,9 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
     // Quando linkado, o padrão de identidade abaixo já mostra o nome do
     // jogador (linha do :game:) e o Alderon ID (linha do :PotLogo:) — o
     // título fica só com o evento, sem repetir o nome, e a linha solta de
-    // "Alderon ID" mais abaixo é omitida. Sem vínculo, nada disso existe
-    // ainda, então o título carrega o nome normalmente e a linha de
-    // Alderon ID continua sendo a única fonte dessa informação.
+    // "Alderon ID" mais abaixo é omitida. Sem vínculo, o mesmo vale: a linha
+    // de identificação (nome do jogo + Alderon ID) já cobre essa informação,
+    // então a linha solta de "Alderon ID" mais abaixo também é omitida.
     const nameLines = discordUser ? [`## ${suffix}`] : [`## ${playerName} ${suffix}`];
     if (discordUser) {
         // Padrão de identificação do bot (mesmo formato usado em strike,
@@ -85,16 +90,14 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
         // notifica o jogador a cada login/logout/saída deste servidor.
         nameLines.push(`## ${discordUser.toString()} | ${resolveEmoji(guild, 'PotLogo', '🦖')} \`${alderonId || 'N/A'}\``);
         nameLines.push(`${resolveEmoji(guild, 'DiscLogo', '💬')} ${discordUser.username} | ${resolveEmoji(guild, 'game', '🎮')} ${playerName}`);
-        nameLines.push(`${resolveEmoji(guild, 'circlecheck', '✅')} Conta linkada!`);
+    } else {
+        nameLines.push(`${resolveEmoji(guild, 'game', '🎮')} ${playerName} | ${resolveEmoji(guild, 'PotLogo', '🦖')} \`${alderonId || 'N/A'}\``);
     }
 
     const builder = new AdvancedContainerBuilder({ accentColor: color });
     builder.section(nameLines.join('\n'), AdvancedContainerBuilder.thumbnail(avatarUrl));
     builder.separator();
     builder.text(`${resolveEmoji(guild, 'tv', '🖥️')} **Servidor:** ${d.ServerName || 'Desconhecido'}`);
-    if (!discordUser) {
-        builder.text(`${resolveEmoji(guild, 'PotLogo', '🦖')} **Alderon ID:** \`${alderonId || 'N/A'}\``);
-    }
     builder.text(`${resolveEmoji(guild, 'shield', '🛡️')} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
 
     // Só o PlayerLeave traz esses dois campos (documentados oficialmente):

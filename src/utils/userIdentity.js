@@ -6,7 +6,13 @@
  *
  *   ## <mention> | {PotLogo} {alderon_id}   (2ª metade só se registrado)
  *   {DiscLogo} username | {game} nome do personagem   (2ª metade só se registrado)
- *   {circlecheck} Conta linkada!   (só se registrado)
+ *
+ * Sem vínculo registrado, só a 1ª linha aparece (com o "Desconhecido"/mention
+ * cru) — cabe ao chamador acrescentar seu próprio aviso de "não linkado" se
+ * fizer sentido no contexto (ver _appendProfileCard em
+ * playerRegistrationSystem.js). Quando HÁ vínculo, nenhuma linha extra
+ * confirma isso — a própria presença do Alderon ID/nome do jogo já deixa
+ * claro que a conta está linkada.
  *
  * Sempre combinado com um thumbnail do avatar via
  * AdvancedContainerBuilder.thumbnail(user.displayAvatarURL(...)) no section()
@@ -30,10 +36,7 @@ function buildIdentityBlock(discordUser) {
     let line2 = `${EMOJIS.DiscLogo || '💬'} ${discordUser?.username || '?'}`;
     if (linked) line2 += ` | ${EMOJIS.game || '🎮'} ${linked.player_name}`;
 
-    const lines = [line1, line2];
-    if (linked) lines.push(`${EMOJIS.circlecheck || '✅'} Conta linkada!`);
-
-    return lines.join('\n');
+    return [line1, line2].join('\n');
 }
 
 module.exports = { buildIdentityBlock };
