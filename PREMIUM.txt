@@ -393,3 +393,16 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   Todas processadas do jeito que /perfil-edit ja fazia pro upload (teto de
   1200px + webp) - as 12 fotos originais (~72MB no total, ate 10MB cada)
   viraram ~1.5MB no total.
+
+
+12) PAINEIS DO /premium VIRARAM IMAGEM (tabela e view)
+------------------------------------------------
+- Os paineis "Server Premium" e "Player Premium" do /premium nao listam
+  mais os beneficios de cada tier em texto (bullet point gigante) - agora
+  mostram uma imagem unica (TABELA SERVER PREMIUM.webp e VIEW PLAYER
+  PREMIUM.webp, em assets/images/) com a mesma informacao, feita fora do
+  bot. Painel continua mostrando Status e Como Adquirir em texto (isso
+  precisa ser dinamico, nao da pra virar imagem).
+- Se o conteudo dos planos mudar, precisa gerar uma imagem nova e
+  substituir o arquivo (mesmo nome) - nao tem mais texto pra editar aqui
+  no codigo.

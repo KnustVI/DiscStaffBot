@@ -20,15 +20,6 @@ function formatExpiry(expiresAt) {
 const TIER_LABELS = PremiumSystem.GUILD_TIER_DISPLAY;
 const PLAYER_TIER_LABELS = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
 
-// Ícones por "degrau" de tier (mesmo padrão visual pros dois planos: tier
-// base/Free, tier médio, tier top) — TapejaraSkull e CarniSkull ainda
-// dependem de `npm run sync-emojis` se ainda não tiverem sido sincronizados.
-const TIER_ICON = {
-    base: EMOJIS.HerbSkull || '🦴',
-    medium: EMOJIS.TapejaraSkull || '🟡',
-    top: EMOJIS.CarniSkull || '🔴',
-};
-
 // Banners de topo por tier de Server Premium (representam o tier ATUAL do
 // servidor onde o /premium foi rodado) — assets banner_premium_server_*.
 const SERVER_TIER_BANNER_KEYS = {
@@ -133,73 +124,13 @@ function buildServerContainer(guild, user) {
     ].join('\n'));
     extraFiles.push(...appendServerBanner(builder, guild));
 
-    builder.title(`${TIER_ICON.base} Free`, 2);
-    builder.block([
-        '**Missões:**',
-        '• Missões mensais do Titan\'s Pass. *(vindo em breve)*',
-        '**Reportes:**',
-        '• Até 1 chat de reporte ativo.',
-        '• Até 1 revisão de punição ativa.',
-        '• Cooldown de 6h.',
-        '**Punições:**',
-        '• Registro de punições.',
-        '**Eventos:**',
-        '• Cria eventos em fóruns.',
-        '• Suporte para imagem de capa do evento.',
-        '**Integração Path of Titans:**',
-        '• Logs de jogo.',
-    ]);
-    builder.separator();
-
-    builder.title(`${TIER_ICON.medium} Rastreador — R$25/mês`, 2);
-    builder.block([
-        '**Tudo do Free +**',
-        '**Missões:**',
-        '• 1 missão mensal exclusiva para o servidor. *(vindo em breve)*',
-        '**Reportes:**',
-        '• Até 3 chats de reporte ativos.',
-        '• Até 3 revisões de punição ativas.',
-        '• Sem tempo de espera.',
-        '**Punições:**',
-        '• Sistema de pontos de reputação.',
-        '• Recuperação diária de reputação (fixa, 1 ponto/dia).',
-        '• Cargo temporário de punição.',
-        '• Até 5 níveis de punição configuráveis.',
-        '• Histórico de punições.',
-        '**Eventos:**',
-        '• Cria eventos diretamente no Discord.',
-        '• Marca automaticamente jogadores com o cargo selecionado.',
-        `• ${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor ganha Player Premium **Compy** de graça.`,
-    ]);
-    builder.separator();
-
-    builder.title(`${TIER_ICON.top} Caçador — R$40/mês`, 2);
-    builder.block([
-        '**Tudo do Rastreador +**',
-        '**Missões:**',
-        '• 2 missões mensais exclusivas para o servidor. *(vindo em breve)*',
-        '**Reportes:**',
-        '• Chats de reporte ilimitados.',
-        '• Sem tempo de espera.',
-        '• Resumo automático dos logs dos possíveis envolvidos direto no chat. *(vindo em breve)*',
-        '• Personalização de banners e mensagem do painel. *(vindo em breve)*',
-        '**Punições:**',
-        '• Recuperação diária de reputação configurável (padrão 1 ponto/dia).',
-        '• Cargo temporário de punição.',
-        '• Níveis de punição totalmente personalizáveis. *(vindo em breve — hoje ainda são os 5 níveis fixos configuráveis)*',
-        '• Cargos de reputação automáticos.',
-        '• Aplicação automática de punições no jogo ou no Discord.',
-        '**Eventos:**',
-        '• Anuncia automaticamente a criação, o início e o encerramento dos eventos. *(vindo em breve)*',
-        '• Marca jogadores em anúncios. *(vindo em breve)*',
-        '• Faz postagem em redes sociais. *(vindo em breve)*',
-        '**Integração Path of Titans:**',
-        '• Comandos em jogo. *(vindo em breve)*',
-        '• Punições aplicáveis em jogo (RCON).',
-        '• Comando de TP integrado à criação de eventos. *(vindo em breve)*',
-        `• ${EMOJIS.badge || '🏅'} **Bônus:** o dono do servidor ganha Player Premium **Raptor** de graça.`,
-    ]);
-    builder.separator();
+    const tabelaUrl = imageManager.getUrl('tabela_server_premium');
+    const tabelaAttachment = imageManager.getAttachment('tabela_server_premium');
+    if (tabelaUrl) {
+        builder.gallery([tabelaUrl]);
+        if (tabelaAttachment) extraFiles.push(tabelaAttachment);
+        builder.separator();
+    }
 
     appendStatus(builder, guild, user);
     builder.separator();
@@ -226,33 +157,13 @@ function buildPlayerContainer(guild, user) {
     );
     builder.separator();
 
-    builder.title(`${TIER_ICON.base} Free`, 2);
-    builder.block([
-        '• Perfil sincronizado com Discord.',
-        '• Badges de missões. *(vindo em breve)*',
-        '• Títulos de missões. *(vindo em breve)*',
-        '• Farme de caçadas por hora de jogo. *(vindo em breve)*',
-    ]);
-    builder.separator();
-
-    builder.title(`${TIER_ICON.medium} Compy — R$10/mês`, 2);
-    builder.block([
-        '**Tudo do Free +**',
-        '• Perfil personalizável pela loja. *(vindo em breve)*',
-        '• Badge exclusivo. *(vindo em breve)*',
-        '• Títulos exclusivos. *(vindo em breve)*',
-        '• Boost de farm por troféu entregue. *(vindo em breve)*',
-    ]);
-    builder.separator();
-
-    builder.title(`${TIER_ICON.top} Raptor — R$25/mês`, 2);
-    builder.block([
-        '**Tudo do Compy +**',
-        '• Perfil 100% personalizável com suas próprias imagens: puxa do Discord automaticamente, ou envie o seu via `/perfil-edit`.',
-        '• Boost de farm por missão Titan concluída. *(vindo em breve)*',
-        '• Sorteio semanal de pacote de skins do Path of Titans. *(vindo em breve)*',
-    ]);
-    builder.separator();
+    const viewUrl = imageManager.getUrl('view_player_premium');
+    const viewAttachment = imageManager.getAttachment('view_player_premium');
+    if (viewUrl) {
+        builder.gallery([viewUrl]);
+        if (viewAttachment) extraFiles.push(viewAttachment);
+        builder.separator();
+    }
 
     appendStatus(builder, guild, user);
     builder.separator();
