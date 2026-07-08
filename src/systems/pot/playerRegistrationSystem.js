@@ -23,6 +23,8 @@
  * informado sem confirmar no jogo, e o painel deixa isso claro.
  */
 
+const path = require('path');
+const fs = require('fs');
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -31,11 +33,20 @@ const {
     TextInputBuilder,
     TextInputStyle,
     MessageFlags,
+    AttachmentBuilder,
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PlayerRegistry = require('./potPlayerRegistry');
 const imageManager = require('../../utils/imageManager');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
+const { renderProfileCard } = require('../../utils/profileCardRenderer');
+const PunishmentSystem = require('../moderation/punishmentSystem');
+
+const DEFAULT_CARD_PHOTOS = {
+    free: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'BANNER PERFIL FREE.webp'),
+    compy: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'BANNER PERFIL COMPY.webp'),
+    raptor: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'BANNER PERFIL RAPTOR.webp'),
+};
 
 let EMOJIS = {};
 try {
@@ -153,6 +164,44 @@ class PlayerRegistrationSystem {
     // ==================== PERFIL (/perfil) ====================
 
     /**
+     * Resolve os bytes da foto de fundo do card, em ordem de prioridade:
+     * foto personalizada (Raptor, via /perfil-edit) → banner do próprio
+     * Discord (só Raptor) → foto padrão do tier. Nunca guarda a URL de um
+     * anexo do Discord no banco (expira em ~24h) — só o ID da mensagem de
+     * armazenamento, resolvido de novo a cada /perfil.
+     */
+    async _resolveCardPhotoBuffer(interaction, targetUser, player, playerTier) {
+        if (playerTier === 'raptor') {
+            if (player?.banner_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
+                try {
+                    const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
+                    const storedMessage = await storageChannel.messages.fetch(player.banner_message_id);
+                    const url = storedMessage.attachments.first()?.url;
+                    if (url) {
+                        const res = await fetch(url);
+                        if (res.ok) return Buffer.from(await res.arrayBuffer());
+                    }
+                } catch (err) {
+                    // segue pro próximo fallback
+                }
+            }
+
+            try {
+                const fullUser = await targetUser.fetch();
+                const url = fullUser.bannerURL({ size: 512 });
+                if (url) {
+                    const res = await fetch(url);
+                    if (res.ok) return Buffer.from(await res.arrayBuffer());
+                }
+            } catch (err) {
+                // segue pro fallback padrão do tier
+            }
+        }
+
+        return fs.readFileSync(DEFAULT_CARD_PHOTOS[playerTier] || DEFAULT_CARD_PHOTOS.free);
+    }
+
+    /**
      * Monta e envia o cartão de perfil de um usuário (o próprio ou outro).
      * Só leitura — sem botão de ação; para cadastrar/atualizar é sempre
      * /registrar (evita ter dois fluxos de escrita fazendo a mesma coisa).
@@ -169,58 +218,57 @@ class PlayerRegistrationSystem {
         const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
         const extraFiles = [];
 
-        // ── Banner de perfil — entra no lugar do título "# PERFIL", um por
-        // tier (assets banner_perfil_free/compy/raptor). Só o Raptor pode
-        // trocar o próprio (via /perfil-edit ou puxando do Discord); Compy
-        // poderá comprar outros na lojinha do bot no futuro — por enquanto
-        // usa sempre o banner padrão do tier. A URL de um banner personalizado
-        // é resolvida AGORA, nunca fica salva no banco — anexos do Discord
-        // expiram em ~24h, só a mensagem de armazenamento não expira. ───────
-        let bannerUrl = null;
-
-        if (playerTier === 'raptor') {
-            if (player?.banner_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
-                try {
-                    const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
-                    const storedMessage = await storageChannel.messages.fetch(player.banner_message_id);
-                    bannerUrl = storedMessage.attachments.first()?.url || null;
-                } catch (err) {
-                    bannerUrl = null;
-                }
-            }
-
-            if (!bannerUrl) {
-                try {
-                    const fullUser = await targetUser.fetch();
-                    bannerUrl = fullUser.bannerURL({ size: 512 }) || null;
-                } catch (err) {
-                    bannerUrl = null;
-                }
+        // ── Card de perfil (moldura + foto + badges + estrelas de honra),
+        // entra no lugar do título "# PERFIL". Só existe pra quem já linkou
+        // a conta — sem Alderon ID/nome no jogo não tem o que desenhar no
+        // card. Quando renderiza o card, a identificação (Alderon ID/Discord)
+        // já vem NELE, então o bloco de identificação abaixo não repete essa
+        // parte (só o avatar some; sem vínculo, cai no fallback de sempre). ──
+        let cardRendered = false;
+        if (player) {
+            try {
+                const photoBuffer = await this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier);
+                const cardBuffer = await renderProfileCard({
+                    tier: playerTier,
+                    photoBuffer,
+                    nickname: player.player_name || targetUser.username,
+                    alderonId: player.alderon_id,
+                    discordUsername: targetUser.username,
+                    titleLabel: 'Em breve (missões)',
+                    levelLabel: 'Nível 1',
+                    speciesLabel: PlayerRegistry.getLatestDinosaurType(player.alderon_id) || 'Ainda sem registro',
+                    honorStars: PunishmentSystem.getGlobalHonorStars(targetUser.id),
+                });
+                extraFiles.push(new AttachmentBuilder(cardBuffer, { name: 'perfil-card.png' }));
+                builder.gallery(['attachment://perfil-card.png']);
+                builder.separator();
+                cardRendered = true;
+            } catch (error) {
+                console.error('❌ [PlayerRegistration] Erro ao gerar card de perfil:', error);
             }
         }
 
-        if (!bannerUrl) {
+        if (!cardRendered) {
+            // Sem vínculo (ou falha ao gerar o card) — volta pro banner estático
+            // padrão do tier + bloco de identificação completo de sempre.
             const bannerKey = `banner_perfil_${playerTier}`;
-            bannerUrl = imageManager.getUrl(bannerKey);
+            const bannerUrl = imageManager.getUrl(bannerKey);
             const bannerAttachment = imageManager.getAttachment(bannerKey);
             if (bannerAttachment) extraFiles.push(bannerAttachment);
-        }
-
-        if (bannerUrl) {
-            builder.gallery([bannerUrl]);
+            if (bannerUrl) {
+                builder.gallery([bannerUrl]);
+                builder.separator();
+            }
+            this._appendProfileCard(builder, targetUser, player);
             builder.separator();
+            builder.text(`${EMOJIS.sparkles || '✨'} *Títulos e emblemas exclusivos chegando em breve!*`);
         }
-
-        this._appendProfileCard(builder, targetUser, player);
 
         if (playerTier !== 'free') {
             builder.separator();
             const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
             builder.text(`${EMOJIS.badge || '🏅'} **Player Premium:** ${tierLabel}`);
         }
-
-        builder.separator();
-        builder.text(`${EMOJIS.sparkles || '✨'} *Títulos e emblemas exclusivos chegando em breve!*`);
 
         // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor) —
         // substitui o footer de texto ("Produzido por..."), não usado aqui. ──────

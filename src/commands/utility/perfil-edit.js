@@ -1,25 +1,30 @@
 // src/commands/utility/perfil-edit.js
 /**
  * Personalização de perfil — recurso do Player Premium Raptor. Hoje só
- * troca o banner (renomeado de /perfil-banner pra receber mais
- * personalizações futuras sem precisar de um novo comando a cada uma).
- * Sem anexo enviado: usa o banner do próprio Discord (se o jogador tiver um
- * configurado). Com anexo: a imagem enviada vira o FUNDO de um banner gerado
- * (nickname em destaque por cima, ver bannerRenderer.js) — não é mais
- * salva "crua".
+ * troca a foto de fundo do card de perfil (renomeado de /perfil-banner pra
+ * receber mais personalizações futuras sem precisar de um novo comando a
+ * cada uma). Sem anexo enviado: usa o banner do próprio Discord (se o
+ * jogador tiver um configurado). Com anexo: a imagem enviada vira a foto de
+ * fundo do card.
+ *
+ * A composição de verdade (moldura, nome, badges, estrelas de honra em cima
+ * da foto) acontece na hora que o /perfil é exibido, não aqui — ver
+ * profileCardRenderer.js/playerRegistrationSystem.sendProfile. Isso é
+ * necessário porque parte do que é desenhado por cima (estrelas de honra)
+ * muda com o tempo; pré-compor a imagem só uma vez, no upload, deixaria
+ * esses dados desatualizados. Aqui só guardamos a foto crua.
  *
  * Anexos de interação do Discord (e qualquer anexo de mensagem, na real) têm
  * URL assinada com validade de ~24h (parâmetros ex/is/hm) — guardar a URL
  * direto no banco quebraria depois de um dia. Por isso reenviamos a imagem
- * (já composta) pra um canal fixo do bot (ver BANNER_STORAGE_CHANNEL_ID no
- * .env) e guardamos só o ID da MENSAGEM — a URL fresca é resolvida na hora,
- * sempre que o /perfil for exibido (refazendo o fetch da mensagem).
+ * pra um canal fixo do bot (ver BANNER_STORAGE_CHANNEL_ID no .env) e
+ * guardamos só o ID da MENSAGEM — a URL fresca é resolvida na hora, sempre
+ * que o /perfil for exibido (refazendo o fetch da mensagem).
  */
-const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const ResponseManager = require('../../utils/responseManager');
-const { renderProfileBanner } = require('../../utils/bannerRenderer');
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -27,16 +32,16 @@ try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil-edit')
-        .setDescription('🖼️ Personaliza seu perfil (banner) — Player Premium Raptor.')
+        .setDescription('🖼️ Personaliza seu perfil (foto do card) — Player Premium Raptor.')
         .addAttachmentOption(opt => opt.setName('arquivo')
-            .setDescription('Imagem para usar como banner (deixe vazio para remover o banner personalizado)')
+            .setDescription('Imagem para usar como foto do card (deixe vazio para remover a personalizada)')
             .setRequired(false)),
 
     async execute(interaction, client) {
         const { user } = interaction;
 
         if (!PremiumSystem.isPlayerAtLeast(user.id, 'raptor')) {
-            return await ResponseManager.error(interaction, 'Banner de perfil personalizado é um recurso exclusivo do Player Premium Raptor.');
+            return await ResponseManager.error(interaction, 'Foto de perfil personalizada é um recurso exclusivo do Player Premium Raptor.');
         }
 
         const link = PlayerRegistry.getPlayerByDiscordId(user.id);
@@ -48,40 +53,27 @@ module.exports = {
 
         if (!arquivo) {
             PlayerRegistry.setBannerMessageId(user.id, null);
-            return await ResponseManager.success(interaction, `${EMOJIS.circlecheck || '✅'} Banner personalizado removido. Se você tiver um banner configurado no próprio Discord, ele volta a aparecer no seu /perfil.`);
+            return await ResponseManager.success(interaction, `${EMOJIS.circlecheck || '✅'} Foto personalizada removida. Se você tiver um banner configurado no próprio Discord, ele volta a aparecer no seu /perfil.`);
         }
 
         if (!arquivo.contentType || !['image/png', 'image/jpeg', 'image/webp'].includes(arquivo.contentType)) {
-            return await ResponseManager.error(interaction, 'O arquivo enviado precisa ser uma imagem estática (png, jpg ou webp) — o texto do seu nickname é desenhado por cima, então formatos animados (gif) não são aceitos aqui.');
+            return await ResponseManager.error(interaction, 'O arquivo enviado precisa ser uma imagem estática (png, jpg ou webp) — as estrelas de honra são desenhadas por cima dela, então formatos animados (gif) não são aceitos aqui.');
         }
 
         const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
         if (!storageChannelId) {
-            return await ResponseManager.error(interaction, 'O armazenamento de banners ainda não foi configurado pelo desenvolvedor do bot (BANNER_STORAGE_CHANNEL_ID). Tente novamente mais tarde.');
+            return await ResponseManager.error(interaction, 'O armazenamento de fotos ainda não foi configurado pelo desenvolvedor do bot (BANNER_STORAGE_CHANNEL_ID). Tente novamente mais tarde.');
         }
 
         const storageChannel = await client.channels.fetch(storageChannelId).catch(() => null);
         if (!storageChannel) {
-            return await ResponseManager.error(interaction, 'Não foi possível acessar o canal de armazenamento de banners. Avise o desenvolvedor do bot.');
+            return await ResponseManager.error(interaction, 'Não foi possível acessar o canal de armazenamento de fotos. Avise o desenvolvedor do bot.');
         }
 
         try {
-            const response = await fetch(arquivo.url);
-            if (!response.ok) {
-                return await ResponseManager.error(interaction, 'Não foi possível baixar a imagem enviada. Tente novamente.');
-            }
-            const backgroundBuffer = Buffer.from(await response.arrayBuffer());
-
-            const bannerBuffer = await renderProfileBanner({
-                backgroundBuffer,
-                nickname: link.player_name || user.displayName || user.username,
-                subtitle: `@${user.username}`,
-                badgeLabel: 'Raptor',
-            });
-
             const stored = await storageChannel.send({
-                content: `Banner de \`${user.tag}\` (\`${user.id}\`)`,
-                files: [new AttachmentBuilder(bannerBuffer, { name: 'banner.png' })],
+                content: `Foto de perfil de \`${user.tag}\` (\`${user.id}\`)`,
+                files: [{ attachment: arquivo.url, name: arquivo.name || 'foto.png' }],
             });
 
             if (!stored.attachments.first()) {
@@ -89,10 +81,10 @@ module.exports = {
             }
 
             PlayerRegistry.setBannerMessageId(user.id, stored.id);
-            await ResponseManager.success(interaction, `${EMOJIS.circlecheck || '✅'} Banner de perfil atualizado! Use **/perfil** pra ver como ficou.`);
+            await ResponseManager.success(interaction, `${EMOJIS.circlecheck || '✅'} Foto de perfil atualizada! Use **/perfil** pra ver como ficou.`);
         } catch (error) {
-            console.error('❌ [PerfilEdit] Erro ao salvar banner:', error);
-            await ResponseManager.error(interaction, 'Erro ao salvar o banner. Tente novamente em instantes.');
+            console.error('❌ [PerfilEdit] Erro ao salvar foto:', error);
+            await ResponseManager.error(interaction, 'Erro ao salvar a foto. Tente novamente em instantes.');
         }
     },
 };

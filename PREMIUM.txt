@@ -29,13 +29,11 @@ COMPY - R$10/mes ("Tudo do Free +")
 
 RAPTOR - R$25/mes ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
-  Banner de perfil JA IMPLEMENTADO: aparece no lugar do titulo "# PERFIL" no
-  /perfil. Usa o banner do proprio Discord automaticamente, se o jogador
-  tiver um; ou pode enviar uma imagem propria via /perfil-edit, que vira o
-  FUNDO de um banner gerado pelo bot (nickname em destaque por cima, fonte
-  Tilt Warp em caixa alta + selo "RAPTOR", identidade visual da marca) - e
-  remover com o mesmo comando, sem anexar nada, voltando ao banner padrao
-  do tier.
+  JA IMPLEMENTADO: o /perfil mostra um CARD completo (moldura, foto,
+  badges de Titulo/Nivel/Especie, estrelas de honra, nome e identificacao)
+  no lugar do banner simples. So o Raptor pode trocar a FOTO de fundo desse
+  card (via /perfil-edit ou puxando o banner do proprio Discord); Free e
+  Compy usam sempre a foto padrao do tier.
 - Footer de perfil padrao do tier Raptor.
 - Boost de farm por missao Titan concluida. (ainda nao implementado - "vindo em breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
@@ -44,20 +42,41 @@ RAPTOR - R$25/mes ("Tudo do Compy +")
 O QUE JA FUNCIONA HOJE, DE VERDADE:
 - O tier em si (concessao/expiracao/consulta) - ver secao 3.
 - O /perfil mostra o tier atual do jogador, se for Compy ou Raptor.
-- Banner de perfil (no lugar do titulo) e footer-imagem (no rodape) pra
-  TODOS os tiers - cada um com sua imagem padrao (Free/Compy/Raptor). No
-  Raptor, o banner padrao vira o banner do Discord ou o personalizado
-  (/perfil-edit), se houver.
-- Banner personalizado (Raptor) via /perfil-edit - a imagem enviada e
-  processada com @napi-rs/canvas (fontes Tilt Warp/Poppins, bundladas em
-  assets/fonts/) e vira o fundo de um banner com o nickname do jogador em
-  destaque; o resultado ja pronto (nao o arquivo cru) e o que fica guardado.
-  Precisa que o desenvolvedor do bot configure BANNER_STORAGE_CHANNEL_ID no
-  .env (canal onde as imagens geradas sao guardadas). Guarda so o ID da
-  mensagem, nao a URL - links de anexo do Discord expiram em ~24h, entao a
-  URL e resolvida na hora (refazendo o fetch da mensagem) toda vez que o
-  /perfil e exibido.
-- Loja (comprar banners/badges/titulos/sorteio) e so a FUNDACAO (o sistema
+- Card de perfil (no lugar do titulo "# PERFIL") pra quem ja vinculou a
+  conta (/registrar) - moldura/badges/icones vem dos SVGs reais de design
+  em assets/cards/{tier}.svg (Free/Compy/Raptor, cada um com sua cor), sem
+  nenhuma parte redesenhada a mao. O que o bot desenha por cima na hora:
+    - a FOTO, recortada exatamente na moldura do card (foto padrao do tier
+      pra Free/Compy; no Raptor, pode ser a foto personalizada via
+      /perfil-edit, o banner do proprio Discord, ou a padrao, nessa ordem);
+    - as 5 ESTRELAS DE HONRA - JA REAL, calculada de verdade (nao e
+      placeholder): conta punicoes ATIVAS do jogador em TODOS os
+      servidores (honra e global, nao por servidor) e converte em 1 a 5
+      estrelas (0 punicoes = 5 estrelas, 8+ = 1 estrela);
+    - a ESPECIE (badge inferior) - JA REAL quando disponivel: ultimo
+      dinossauro jogado (dinosaur_type), pego do servidor mais recente em
+      que o jogador teve atividade; mostra "Ainda sem registro" se nao
+      houver nenhum;
+    - TITULO e NIVEL (badges superiores) - ainda PLACEHOLDER fixo ("Em
+      breve (missoes)" / "Nivel 1"), esperando os sistemas de missao e de
+      XP por hora jogada serem desenhados;
+    - nome do jogador e identificacao (Alderon ID + usuario do Discord) -
+      desenhados dentro do proprio card (nao repete essas informacoes fora
+      dele, no bloco de baixo).
+  Sem vinculo (jogador nao rodou /registrar ainda), ou se a geracao do card
+  falhar por algum motivo, o /perfil volta pro banner estatico simples de
+  sempre + o bloco de identificacao completo (com o aviso de "ainda nao
+  linkado").
+- Foto personalizada (Raptor) via /perfil-edit - guarda a imagem ENVIADA
+  CRUA (sem processar), porque a composicao final (estrelas, nome, badges)
+  acontece na hora que o /perfil e exibido, nao no upload - assim as
+  estrelas de honra sempre refletem o numero atual de punicoes, mesmo numa
+  foto enviada ha meses. Precisa que o desenvolvedor do bot configure
+  BANNER_STORAGE_CHANNEL_ID no .env (canal onde as fotos ficam guardadas).
+  Guarda so o ID da mensagem, nao a URL - links de anexo do Discord expiram
+  em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
+  toda vez que o /perfil e exibido.
+- Loja (comprar fotos/badges/titulos/sorteio) e so a FUNDACAO (o sistema
   de tier), ainda NAO tem loja implementada de fato.
 
 
@@ -302,17 +321,34 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   vez, mas so tem efeito na primeira execucao apos a atualizacao).
 
 
-10) BANNER DE PERFIL GERADO (nickname + identidade visual da marca)
+10) CARD DE PERFIL (moldura real do Figma + dados dinamicos)
 ------------------------------------------------
-- /perfil-edit (Raptor) nao guarda mais a imagem enviada "crua": ela agora
-  e usada como FUNDO de um banner gerado na hora com @napi-rs/canvas
-  (src/utils/bannerRenderer.js), com o nickname do jogador em destaque
-  (fonte Tilt Warp, sempre caixa alta), o @handle do Discord como subtitulo
-  (fonte Poppins) e um selo "RAPTOR" - seguindo a paleta de cores oficial da
-  marca (Mostarda/Light/Neutro/Dark). So aceita png/jpg/webp agora (gif
-  saiu, ja que o texto e desenhado por cima e a animacao se perderia mesmo).
-- As fontes reais (Tilt Warp + toda a familia Poppins usada: Regular/
-  Medium/SemiBold) ficam bundladas em assets/fonts/ (licenca OFL, arquivos
-  OFL-TiltWarp.txt/OFL-Poppins.txt junto) - nao dependem de nada instalado
-  no sistema operacional do servidor onde o bot roda.
-- Nova dependencia real (nao-dev): @napi-rs/canvas.
+- O /perfil passou a mostrar um CARD completo (nao so um banner simples) pra
+  quem ja vinculou a conta: moldura, badges de Titulo/Nivel/Especie, 5
+  estrelas de honra, foto, nome e identificacao - um por tier (Free/Compy/
+  Raptor), cada um com sua cor. Ver secao 1 (Player Premium > RAPTOR) pra
+  detalhes de quais partes ja sao dado real (foto/estrelas/especie) e quais
+  ainda sao placeholder (titulo/nivel).
+- A moldura/badges/icones vem dos arquivos de design de verdade
+  (assets/cards/free.svg, compy.svg, raptor.svg - exportados do Figma),
+  processados por src/utils/profileCardRenderer.js: o texto que no Figma sai
+  "gravado" como vetor (nao editavel) e removido e redesenhado com dado real
+  na mesma posicao/cor (extraida do proprio arquivo, nao chutada), e a foto
+  do jogador entra recortada exatamente na moldura recortada do card.
+- As 5 estrelas usam arte propria (assets/cards/star-full.svg/star-empty.svg)
+  em vez do gradiente dourado original do Figma - esse gradiente usa um
+  truque (foreignObject + mix-blend-mode) que o renderizador de SVG do bot
+  (librsvg, via sharp) nao suporta; a arte de estrela reconstroi as mesmas
+  cores com um gradiente SVG padrao, compativel.
+- /perfil-edit (Raptor) agora guarda a imagem enviada CRUA (sem processar) -
+  a composicao final acontece a cada /perfil, nao no upload, porque as
+  estrelas de honra mudam com o tempo (pre-compor uma vez deixaria elas
+  desatualizadas). So aceita png/jpg/webp (gif nao, ja que estrelas/badges
+  sao desenhados por cima e a animacao se perderia mesmo).
+- As fontes reais (Tilt Warp + Poppins Medium/SemiBold) ficam bundladas em
+  assets/fonts/ (licenca OFL, arquivos OFL-TiltWarp.txt/OFL-Poppins.txt
+  junto) - nao dependem de nada instalado no sistema operacional do
+  servidor onde o bot roda.
+- Novas dependencias reais (nao-dev): @napi-rs/canvas e sharp (sharp era
+  so dev-dependency antes, usada apenas pelo script de conversao pra webp;
+  agora tambem roda em producao, pra rasterizar os SVGs do card).

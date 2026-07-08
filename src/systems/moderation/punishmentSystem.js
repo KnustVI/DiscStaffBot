@@ -65,7 +65,23 @@ const PunishmentSystem = {
         const nextValue = SequenceManager.getNextValue(guildId, 'punishments');
         return nextValue;
     },
-    
+
+    /**
+     * "Honra" do card de perfil (/perfil) — ao contrário da reputação (pontos,
+     * por servidor), a honra é GLOBAL: conta punições ATIVAS (não anuladas)
+     * do usuário em TODOS os servidores, sem filtro de guild_id. Quanto menos
+     * punições ativas, mais estrelas (0 a 5).
+     */
+    getGlobalHonorStars(userId) {
+        const row = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE user_id = ? AND status = 'active'`).get(userId);
+        const activeCount = row?.count || 0;
+        if (activeCount === 0) return 5;
+        if (activeCount <= 2) return 4;
+        if (activeCount <= 4) return 3;
+        if (activeCount <= 7) return 2;
+        return 1;
+    },
+
     // ==================== GERADORES DE UI (CONTAINER) ====================
 
     /**

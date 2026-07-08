@@ -482,11 +482,37 @@ function getAlderonIdSuffix(discordId) {
     return player ? `|ID ALDERON:${player.alderon_id}` : '';
 }
 
+/**
+ * Última espécie de dino jogada (dinosaur_type), pra exibir no card do
+ * /perfil. dinosaur_type é atividade por servidor (pot_players), então aqui
+ * agregamos globalmente: pega a linha mais recente (por updated_at) entre
+ * TODOS os servidores em que esse Alderon ID já jogou, ignorando linhas sem
+ * espécie registrada ainda.
+ *
+ * @param {string} alderonId
+ * @returns {string|null}
+ */
+function getLatestDinosaurType(alderonId) {
+    if (!alderonId) return null;
+    try {
+        const row = db.prepare(`
+            SELECT dinosaur_type FROM pot_players
+            WHERE alderon_id = ? AND dinosaur_type IS NOT NULL AND dinosaur_type != ''
+            ORDER BY updated_at DESC LIMIT 1
+        `).get(alderonId);
+        return row?.dinosaur_type || null;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar espécie mais recente:', error);
+        return null;
+    }
+}
+
 module.exports = {
     upsertPlayerFromEvent,
     getPlayerByDiscordId,
     getPlayerByAlderonId,
     getAlderonIdSuffix,
+    getLatestDinosaurType,
     registerPlayerManually,
     setBannerMessageId,
     // Verificação em jogo (RCON) — preparado, ainda não ativado no fluxo real.

@@ -1,0 +1,213 @@
+// src/utils/profileCardRenderer.js
+/**
+ * Gera o card de perfil (banner do /perfil) a partir dos SVGs reais
+ * exportados do Figma em assets/cards/{tier}.svg — moldura, sombra, badges
+ * e ícones de missão vêm 100% desses arquivos, sem redesenho. Este módulo só
+ * substitui as partes que precisam ser dinâmicas por jogador:
+ *
+ *  - a foto (recortada exatamente na moldura recortada do card);
+ *  - as 5 estrelas de honra (troca cheia/vazia pela contagem real);
+ *  - os textos das 3 badges (Título/Nível/Espécie) e do nome/identificação,
+ *    que no Figma saem como texto convertido em vetor (não editável).
+ *
+ * O texto original do Figma é removido do SVG e redesenhado com
+ * @napi-rs/canvas nas MESMAS posições/cores, extraídas do próprio arquivo —
+ * nada de coordenada fixa "no olho": ver extractCardMeta().
+ *
+ * O gradiente dourado das estrelas do Figma usa um truque (foreignObject +
+ * mix-blend-mode) que o librsvg (usado pelo sharp pra rasterizar o SVG) não
+ * suporta — por isso as estrelas têm arte própria em assets/cards/star-*.svg
+ * (mesmo formato, gradiente reconstruído com um <linearGradient> padrão).
+ */
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+const { createCanvas, GlobalFonts, loadImage } = require('@napi-rs/canvas');
+
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+const FONTS_DIR = path.join(PROJECT_ROOT, 'assets', 'fonts');
+const CARDS_DIR = path.join(PROJECT_ROOT, 'assets', 'cards');
+
+GlobalFonts.registerFromPath(path.join(FONTS_DIR, 'TiltWarp.ttf'), 'Tilt Warp');
+GlobalFonts.registerFromPath(path.join(FONTS_DIR, 'Poppins-Medium.ttf'), 'Poppins Medium');
+GlobalFonts.registerFromPath(path.join(FONTS_DIR, 'Poppins-SemiBold.ttf'), 'Poppins SemiBold');
+
+const TIER_FILES = {
+    free: 'free.svg',
+    compy: 'compy.svg',
+    raptor: 'raptor.svg',
+};
+
+const SCALE = 2; // upscala o SVG (rasterizado em escala nativa) pra sair nítido
+const STAR_SIZE = 46; // em unidades do card (716 de largura), antes do SCALE
+
+// ==================== estrelas — pré-rasterizadas uma vez ====================
+
+let starImagesPromise = null;
+function loadStarImages() {
+    if (!starImagesPromise) {
+        starImagesPromise = Promise.all([
+            sharp(path.join(CARDS_DIR, 'star-full.svg')).png().toBuffer().then(loadImage),
+            sharp(path.join(CARDS_DIR, 'star-empty.svg')).png().toBuffer().then(loadImage),
+        ]);
+    }
+    return starImagesPromise;
+}
+
+// ==================== extração de metadados do SVG do Figma ====================
+
+async function bboxOfPath(d, viewW, viewH) {
+    const svg = `<svg width="${viewW}" height="${viewH}" xmlns="http://www.w3.org/2000/svg"><path d="${d}" fill="#ffffff"/></svg>`;
+    const { info } = await sharp(Buffer.from(svg)).extractChannel(3).trim({ threshold: 1 }).toBuffer({ resolveWithObject: true });
+    return {
+        x: info.trimOffsetLeft !== undefined ? -info.trimOffsetLeft : 0,
+        y: info.trimOffsetTop !== undefined ? -info.trimOffsetTop : 0,
+        width: info.width,
+        height: info.height,
+    };
+}
+
+async function extractCardMeta(svg) {
+    const [, viewW, viewH] = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, 716, 458];
+    const frameMatch = svg.match(/<path d="(M[^"]+)" fill="black" fill-opacity="0\.01"/);
+    const solidPaths = [...svg.matchAll(/<path d="([^"]+)" fill="(#[0-9A-Fa-f]{6})"\/>/g)];
+    // Ordem estável no arquivo: 0,1,2 = textos das badges (Título/Nível/Espécie);
+    // 3 = nome do jogador; 4,5 = as 2 linhas de identificação (Alderon/Discord).
+    const badgeRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="309" height="43" rx="9.5" fill=/g)];
+    const iconRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="3[23]" height="33" fill="url\(#pattern/g)];
+    const starTopMatch = [...svg.matchAll(/<path d="M([0-9.]+) ([0-9.]+)(?:[LH][0-9.]+(?: [0-9.]+)?)+Z" data-figma-gradient-fill/g)];
+
+    if (!frameMatch) throw new Error('profileCardRenderer: moldura (frame path) não encontrada no SVG');
+    if (solidPaths.length < 6) throw new Error(`profileCardRenderer: esperava 6 textos vetorizados, achei ${solidPaths.length}`);
+    if (badgeRectMatch.length < 3) throw new Error(`profileCardRenderer: esperava 3 badges, achei ${badgeRectMatch.length}`);
+    if (iconRectMatch.length < 2) throw new Error(`profileCardRenderer: esperava 2 ícones de identificação, achei ${iconRectMatch.length}`);
+    if (starTopMatch.length < 5) throw new Error(`profileCardRenderer: esperava 5 estrelas, achei ${starTopMatch.length}`);
+
+    const bboxes = [];
+    for (const p of solidPaths) bboxes.push({ color: p[2], bbox: await bboxOfPath(p[1], viewW, viewH) });
+
+    return {
+        frameD: frameMatch[1],
+        solidPaths,
+        bboxes,
+        badgeBoxes: badgeRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: 309, h: 43 })),
+        iconBoxes: iconRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: 32, h: 33 })),
+        starTops: starTopMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]) })),
+    };
+}
+
+// ==================== edição cirúrgica do SVG (remove o que vira dinâmico) ====================
+
+function stripStarGroup(svg, filterIndex) {
+    const marker = svg.match(new RegExp(`<g filter="url\\(#filter${filterIndex}_dd_\\d+_\\d+\\)">`));
+    if (!marker) return svg; // já removido / não encontrado — segue sem quebrar
+    const start = svg.indexOf(marker[0]);
+    let cursor = start;
+    // grupo = <g filter><g clip-path><g transform><foreignObject/></g></g><path/><path/><path/></g>
+    // 3 ocorrências de "</g>" fecham (nessa ordem) o transform-g, o clip-path-g e o próprio filter-g.
+    for (let i = 0; i < 3; i++) cursor = svg.indexOf('</g>', cursor) + 4;
+    return svg.slice(0, start) + svg.slice(cursor);
+}
+
+function stripPathByPrefix(svg, dPrefix) {
+    const needle = `<path d="${dPrefix}`;
+    const start = svg.indexOf(needle);
+    if (start === -1) throw new Error('profileCardRenderer: path não encontrado pra remover: ' + dPrefix.slice(0, 40));
+    const end = svg.indexOf('/>', start);
+    return svg.slice(0, start) + svg.slice(end + 2);
+}
+
+// ==================== render principal ====================
+
+/**
+ * @param {object} opts
+ * @param {'free'|'compy'|'raptor'} opts.tier
+ * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
+ * @param {string} opts.nickname
+ * @param {string} opts.alderonId
+ * @param {string} opts.discordUsername
+ * @param {string} opts.titleLabel
+ * @param {string} opts.levelLabel
+ * @param {string} opts.speciesLabel
+ * @param {number} opts.honorStars - 0 a 5
+ * @returns {Promise<Buffer>} PNG do card pronto
+ */
+async function renderProfileCard({ tier, photoBuffer, nickname, alderonId, discordUsername, titleLabel, levelLabel, speciesLabel, honorStars }) {
+    const svgPath = path.join(CARDS_DIR, TIER_FILES[tier] || TIER_FILES.free);
+    let svg = fs.readFileSync(svgPath, 'utf8');
+    const meta = await extractCardMeta(svg);
+
+    for (let i = 1; i <= 5; i++) svg = stripStarGroup(svg, i);
+    for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
+
+    const photoPng = await sharp(photoBuffer).png().toBuffer();
+    const clipInsert = `
+<clipPath id="profileCardPortraitClip"><path d="${meta.frameD}"/></clipPath>
+<g clip-path="url(#profileCardPortraitClip)">
+<image href="data:image/png;base64,${photoPng.toString('base64')}" x="20" y="26" width="356" height="268" preserveAspectRatio="xMidYMid slice"/>
+</g>
+`;
+    const frameGroupStart = svg.indexOf('<g filter="url(#filter0_ddi');
+    const frameCloseIdx = svg.indexOf('</g>', frameGroupStart) + 4;
+    svg = svg.slice(0, frameCloseIdx) + clipInsert + svg.slice(frameCloseIdx);
+
+    // Rasteriza em escala nativa (density/filter em escalas diferentes geram
+    // artefatos de antialiasing) e só depois amplia o bitmap resultante.
+    const nativePng = await sharp(Buffer.from(svg)).png().toBuffer();
+    const nativeMeta = await sharp(nativePng).metadata();
+    const basePng = await sharp(nativePng)
+        .resize(nativeMeta.width * SCALE, nativeMeta.height * SCALE)
+        .png()
+        .toBuffer();
+    const base = await loadImage(basePng);
+
+    const canvas = createCanvas(base.width, base.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(base, 0, 0);
+
+    const [starFull, starEmpty] = await loadStarImages();
+    const starSize = STAR_SIZE * SCALE;
+    for (let i = 0; i < meta.starTops.length; i++) {
+        const top = meta.starTops[i];
+        const cx = top.x * SCALE;
+        const cy = (top.y + 13.5) * SCALE; // centro aproximado abaixo da ponta superior
+        const img = i < honorStars ? starFull : starEmpty;
+        ctx.drawImage(img, cx - starSize / 2, cy - starSize / 2, starSize, starSize);
+    }
+
+    // Texto das badges — baseline ancorada na geometria da pílula (não na caixa
+    // do texto original), porque a caixa varia com descendentes ("y", "g"...)
+    // e desalinha o texto de reposição conforme a palavra.
+    ctx.textBaseline = 'alphabetic';
+    const badgeLabels = [titleLabel, levelLabel, speciesLabel];
+    const BADGE_FONT = 18;
+    const BADGE_BASELINE_OFFSET = 6;
+    for (let i = 0; i < 3; i++) {
+        const { color, bbox } = meta.bboxes[i];
+        const pill = meta.badgeBoxes[i];
+        ctx.fillStyle = color;
+        ctx.font = `${BADGE_FONT * SCALE}px "Poppins SemiBold"`;
+        ctx.fillText(badgeLabels[i], bbox.x * SCALE, (pill.y + pill.h / 2 + BADGE_BASELINE_OFFSET) * SCALE);
+    }
+
+    // Nome (Tilt Warp, sempre caixa alta) — ancorado acima do primeiro ícone de identificação.
+    const nickBox = meta.bboxes[3];
+    ctx.fillStyle = nickBox.color;
+    ctx.font = `${46 * SCALE}px "Tilt Warp"`;
+    ctx.fillText(nickname.toUpperCase(), nickBox.bbox.x * SCALE, (meta.iconBoxes[0].y - 6) * SCALE);
+
+    // Linhas de identificação — mesma lógica de âncora geométrica das badges.
+    const IDENTITY_FONT = 17;
+    const IDENTITY_BASELINE_OFFSET = 6;
+    ctx.font = `${IDENTITY_FONT * SCALE}px "Poppins Medium"`;
+    const line1 = meta.bboxes[4];
+    ctx.fillStyle = line1.color;
+    ctx.fillText(alderonId, line1.bbox.x * SCALE, (meta.iconBoxes[0].y + meta.iconBoxes[0].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE);
+    const line2 = meta.bboxes[5];
+    ctx.fillStyle = line2.color;
+    ctx.fillText(discordUsername, line2.bbox.x * SCALE, (meta.iconBoxes[1].y + meta.iconBoxes[1].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE);
+
+    return canvas.toBuffer('image/png');
+}
+
+module.exports = { renderProfileCard };
