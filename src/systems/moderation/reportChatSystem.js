@@ -318,12 +318,21 @@ class ReportChatSystem {
 
     // ==================== PAINEL ====================
 
-    getPanel(guildName, guildIcon) {
+    getPanel(guildName, guildIcon, guildId) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
-        builder.banner('title_report_chat');
+        // Banner e mensagem são personalizáveis a partir do Caçador (ver
+        // /config reportchat) — fora desse tier (ou sem nada configurado
+        // ainda), cai sempre no padrão do bot. A checagem de tier acontece
+        // AQUI (na leitura), não só na escrita: se o servidor perder o
+        // Caçador, volta pro padrão sozinho, sem precisar resetar nada.
+        const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
+        const bannerKey = (isCustomizable && ConfigSystem.getSetting(guildId, 'report_chat_banner_key')) || 'title_report_chat';
+        const customMessage = isCustomizable ? ConfigSystem.getSetting(guildId, 'report_chat_message') : null;
+
+        builder.banner(bannerKey);
         builder.text(`## ${EMOJIS.ticket || '🎫'} Denúncia de jogador`);
-        builder.text([
+        builder.text(customMessage || [
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
             `- **Preencha o Formulário**: Responda o formulário enviado pelo bot.`,
             `- **Descreva a Situação**: Explique o que aconteceu.`,
