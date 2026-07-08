@@ -12,7 +12,10 @@
  * profileCardRenderer.js/playerRegistrationSystem.sendProfile. Isso é
  * necessário porque parte do que é desenhado por cima (estrelas de honra)
  * muda com o tempo; pré-compor a imagem só uma vez, no upload, deixaria
- * esses dados desatualizados. Aqui só guardamos a foto crua.
+ * esses dados desatualizados. Aqui só redimensionamos (a foto nunca aparece
+ * maior que a moldura do card) e reencodamos em webp antes de guardar — sem
+ * cortar/desenhar nada por cima, só evitando guardar um arquivo gigante à
+ * toa.
  *
  * Anexos de interação do Discord (e qualquer anexo de mensagem, na real) têm
  * URL assinada com validade de ~24h (parâmetros ex/is/hm) — guardar a URL
@@ -21,10 +24,18 @@
  * guardamos só o ID da MENSAGEM — a URL fresca é resolvida na hora, sempre
  * que o /perfil for exibido (refazendo o fetch da mensagem).
  */
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
+const sharp = require('sharp');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const ResponseManager = require('../../utils/responseManager');
+
+// A foto só é exibida recortada num retângulo de ~356x268 (moldura do card,
+// ver profileCardRenderer.js) — não faz sentido guardar um arquivo de vários
+// MB/4K só pra isso. Reduz pra um teto generoso (ainda nítido em telas HiDPI)
+// e reencoda em webp antes de guardar, sem alterar a foto que o usuário vê.
+const MAX_DIMENSION = 1200;
+const WEBP_QUALITY = 88;
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -71,9 +82,19 @@ module.exports = {
         }
 
         try {
+            const response = await fetch(arquivo.url);
+            if (!response.ok) {
+                return await ResponseManager.error(interaction, 'Não foi possível baixar a imagem enviada. Tente novamente.');
+            }
+            const rawBuffer = Buffer.from(await response.arrayBuffer());
+            const optimizedBuffer = await sharp(rawBuffer)
+                .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: WEBP_QUALITY })
+                .toBuffer();
+
             const stored = await storageChannel.send({
                 content: `Foto de perfil de \`${user.tag}\` (\`${user.id}\`)`,
-                files: [{ attachment: arquivo.url, name: arquivo.name || 'foto.png' }],
+                files: [new AttachmentBuilder(optimizedBuffer, { name: 'foto.webp' })],
             });
 
             if (!stored.attachments.first()) {

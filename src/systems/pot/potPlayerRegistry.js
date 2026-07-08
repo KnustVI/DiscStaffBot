@@ -119,12 +119,22 @@ function normalizeEvent(rawPayload, eventType) {
         else if (OFFLINE_EVENTS.has(eventType)) isOnline = 0;
     }
 
+    // DinosaurType/DinosaurGrowth só vêm no payload do PlayerRespawn — nos
+    // demais eventos ficam undefined, e upsertPlayerFromEvent trata isso
+    // como "não mexe no valor já salvo" (nunca sobrescreve com null).
+    const dinosaurType = rawPayload.DinosaurType ? String(rawPayload.DinosaurType).trim() : null;
+    const dinosaurGrowth = rawPayload.DinosaurGrowth !== undefined && rawPayload.DinosaurGrowth !== null
+        ? Number(rawPayload.DinosaurGrowth)
+        : null;
+
     return {
         alderonId: String(alderonId).trim(),
         playerName: String(playerName).trim(),
         isOnline,
         sessionSeconds: extractSessionSeconds(rawPayload),
         discordId: extractDiscordId(rawPayload),
+        dinosaurType,
+        dinosaurGrowth: Number.isNaN(dinosaurGrowth) ? null : dinosaurGrowth,
     };
 }
 
@@ -195,7 +205,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         return null;
     }
 
-    const { alderonId, playerName, isOnline, sessionSeconds, discordId } = normalized;
+    const { alderonId, playerName, isOnline, sessionSeconds, discordId, dinosaurType, dinosaurGrowth } = normalized;
     const now = Date.now();
 
     try {
@@ -208,14 +218,17 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             db.prepare(`
                 INSERT INTO pot_players (
                     guild_id, alderon_id, player_name, discord_id,
+                    dinosaur_type, dinosaur_growth,
                     last_seen, total_playtime, is_online,
                     linked_at, first_login_at, updated_at, admin_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                 guildId,
                 alderonId,
                 playerName,
                 discordId || null,
+                dinosaurType,
+                dinosaurGrowth,
                 now,
                 sessionSeconds || 0,
                 isOnline === null ? 0 : isOnline,
@@ -247,10 +260,18 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             newLinkedAt = now;
         }
 
+        // Só sobrescreve espécie/growth quando o evento realmente trouxe esse
+        // dado (PlayerRespawn) — em login/logout/etc ficam null e mantemos
+        // o que já estava salvo.
+        const newDinosaurType = dinosaurType !== null ? dinosaurType : existing.dinosaur_type;
+        const newDinosaurGrowth = dinosaurGrowth !== null ? dinosaurGrowth : existing.dinosaur_growth;
+
         db.prepare(`
             UPDATE pot_players SET
                 player_name = ?,
                 discord_id = ?,
+                dinosaur_type = ?,
+                dinosaur_growth = ?,
                 last_seen = ?,
                 total_playtime = ?,
                 is_online = ?,
@@ -260,6 +281,8 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         `).run(
             playerName,
             newDiscordId,
+            newDinosaurType,
+            newDinosaurGrowth,
             now,
             newTotalPlaytime,
             newIsOnline,
@@ -483,28 +506,82 @@ function getAlderonIdSuffix(discordId) {
 }
 
 /**
- * Última espécie de dino jogada (dinosaur_type), pra exibir no card do
- * /perfil. dinosaur_type é atividade por servidor (pot_players), então aqui
- * agregamos globalmente: pega a linha mais recente (por updated_at) entre
- * TODOS os servidores em que esse Alderon ID já jogou, ignorando linhas sem
- * espécie registrada ainda.
+ * Estatísticas do jogador pro card do /perfil, agregadas GLOBALMENTE — cada
+ * linha de pot_players é atividade de UM servidor, mas o /perfil é global.
+ * Status/espécie/growth vêm da linha mais recente (updated_at) entre todos
+ * os servidores em que esse Alderon ID já jogou; tempo de jogo/kills/deaths
+ * são a SOMA entre todos os servidores (estatística de carreira, não só do
+ * servidor mais recente).
  *
  * @param {string} alderonId
- * @returns {string|null}
+ * @returns {{ isOnline: boolean, dinosaurType: string|null, dinosaurGrowth: number|null, totalPlaytime: number, kills: number, deaths: number }}
  */
-function getLatestDinosaurType(alderonId) {
-    if (!alderonId) return null;
+function getGlobalPlayerStats(alderonId) {
+    const empty = { isOnline: false, dinosaurType: null, dinosaurGrowth: null, totalPlaytime: 0, kills: 0, deaths: 0 };
+    if (!alderonId) return empty;
     try {
-        const row = db.prepare(`
-            SELECT dinosaur_type FROM pot_players
-            WHERE alderon_id = ? AND dinosaur_type IS NOT NULL AND dinosaur_type != ''
-            ORDER BY updated_at DESC LIMIT 1
+        const latest = db.prepare(`
+            SELECT is_online, dinosaur_type, dinosaur_growth FROM pot_players
+            WHERE alderon_id = ? ORDER BY updated_at DESC LIMIT 1
         `).get(alderonId);
-        return row?.dinosaur_type || null;
+        const totals = db.prepare(`
+            SELECT SUM(total_playtime) as playtime, SUM(kills) as kills, SUM(deaths) as deaths
+            FROM pot_players WHERE alderon_id = ?
+        `).get(alderonId);
+
+        return {
+            isOnline: !!latest?.is_online,
+            dinosaurType: latest?.dinosaur_type || null,
+            dinosaurGrowth: latest?.dinosaur_growth ?? null,
+            totalPlaytime: totals?.playtime || 0,
+            kills: totals?.kills || 0,
+            deaths: totals?.deaths || 0,
+        };
     } catch (error) {
-        console.error('❌ [PoT Registry] Erro ao buscar espécie mais recente:', error);
-        return null;
+        console.error('❌ [PoT Registry] Erro ao buscar estatísticas globais:', error);
+        return empty;
     }
+}
+
+/**
+ * Contabiliza um evento PlayerKilled — +1 kill pro matador, +1 death pra
+ * vítima, no servidor (guild) onde o evento aconteceu. Identifica os dois
+ * jogadores por KillerAlderonId/VictimAlderonId (campos oficiais do payload
+ * PlayerKilled — diferente dos demais eventos, que usam só "AlderonId").
+ * Cria a linha em pot_players se ainda não existir (jogador pode nunca ter
+ * disparado um PlayerLogin registrado, em teoria).
+ *
+ * @param {string} guildId
+ * @param {object} rawPayload
+ */
+function recordKillEvent(guildId, rawPayload) {
+    if (!guildId || !rawPayload) return;
+    const killerAlderonId = rawPayload.KillerAlderonId ? String(rawPayload.KillerAlderonId).trim() : null;
+    const victimAlderonId = rawPayload.VictimAlderonId ? String(rawPayload.VictimAlderonId).trim() : null;
+    const killerName = rawPayload.KillerName ? String(rawPayload.KillerName).trim() : 'Desconhecido';
+    const victimName = rawPayload.VictimName ? String(rawPayload.VictimName).trim() : 'Desconhecido';
+    const now = Date.now();
+
+    const bump = (alderonId, playerName, column) => {
+        if (!alderonId) return;
+        try {
+            const result = db.prepare(`
+                UPDATE pot_players SET ${column} = ${column} + 1, updated_at = ? WHERE guild_id = ? AND alderon_id = ?
+            `).run(Math.floor(now / 1000), guildId, alderonId);
+
+            if (result.changes === 0) {
+                db.prepare(`
+                    INSERT INTO pot_players (guild_id, alderon_id, player_name, ${column}, last_seen, first_login_at, updated_at)
+                    VALUES (?, ?, ?, 1, ?, ?, ?)
+                `).run(guildId, alderonId, playerName, now, now, Math.floor(now / 1000));
+            }
+        } catch (error) {
+            console.error(`❌ [PoT Registry] Erro ao contabilizar ${column} de ${playerName}:`, error);
+        }
+    };
+
+    bump(killerAlderonId, killerName, 'kills');
+    bump(victimAlderonId, victimName, 'deaths');
 }
 
 module.exports = {
@@ -512,7 +589,8 @@ module.exports = {
     getPlayerByDiscordId,
     getPlayerByAlderonId,
     getAlderonIdSuffix,
-    getLatestDinosaurType,
+    getGlobalPlayerStats,
+    recordKillEvent,
     registerPlayerManually,
     setBannerMessageId,
     // Verificação em jogo (RCON) — preparado, ainda não ativado no fluxo real.

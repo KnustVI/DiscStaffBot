@@ -109,6 +109,12 @@ class DatabaseManager {
             // está ativado (ver potPlayerRegistry.js). Ver /registrar.
             this.ensureColumn('pot_players', 'verification_code', 'TEXT');
             this.ensureColumn('pot_players', 'verified_ingame', 'INTEGER DEFAULT 0');
+            // Kills/deaths por servidor, contabilizados a partir do evento de
+            // webhook PlayerKilled (KillerAlderonId/VictimAlderonId) — ver
+            // potPlayerRegistry.recordKillEvent. Usados no card do /perfil
+            // (agregados globalmente entre servidores).
+            this.ensureColumn('pot_players', 'kills', 'INTEGER DEFAULT 0');
+            this.ensureColumn('pot_players', 'deaths', 'INTEGER DEFAULT 0');
             // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-edit.
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).

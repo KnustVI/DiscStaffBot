@@ -1,9 +1,11 @@
 // src/utils/profileCardRenderer.js
 /**
  * Gera o card de perfil (banner do /perfil) a partir dos SVGs reais
- * exportados do Figma em assets/cards/{tier}.svg — moldura, sombra, badges
- * e ícones de missão vêm 100% desses arquivos, sem redesenho. Este módulo só
- * substitui as partes que precisam ser dinâmicas por jogador:
+ * exportados do Figma em assets/cards/{tier}.svg — moldura, sombra e badges
+ * vêm 100% desses arquivos, sem redesenho (a fileira de 6 ícones de missão
+ * do Figma é removida do render — ver stripMissionIcons — até o sistema de
+ * emblemas/missões existir de verdade). Este módulo só substitui as partes
+ * que precisam ser dinâmicas por jogador:
  *
  *  - a foto (recortada exatamente na moldura recortada do card);
  *  - as 5 estrelas de honra (troca cheia/vazia pela contagem real);
@@ -117,6 +119,16 @@ function stripPathByPrefix(svg, dPrefix) {
     return svg.slice(0, start) + svg.slice(end + 2);
 }
 
+// Fileira de 6 ícones (troféu/espada/etc) abaixo da foto — placeholder de um
+// futuro sistema de emblemas/missões que ainda não existe. Removida do
+// render por enquanto (pedido explícito: "remova dos perfis por hora").
+// Identificados pelo traço compartilhado (só eles usam essa cor+espessura
+// sem preenchimento), não por posição — mais robusto a pequenos ajustes de
+// layout entre os 3 SVGs de tier.
+function stripMissionIcons(svg) {
+    return svg.replace(/<path[^>]*stroke="#DCA15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\/>/g, '');
+}
+
 // ==================== render principal ====================
 
 /**
@@ -139,6 +151,7 @@ async function renderProfileCard({ tier, photoBuffer, nickname, alderonId, disco
 
     for (let i = 1; i <= 5; i++) svg = stripStarGroup(svg, i);
     for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
+    svg = stripMissionIcons(svg);
 
     const photoPng = await sharp(photoBuffer).png().toBuffer();
     const clipInsert = `

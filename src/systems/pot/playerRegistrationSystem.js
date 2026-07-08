@@ -43,9 +43,17 @@ const { renderProfileCard } = require('../../utils/profileCardRenderer');
 const PunishmentSystem = require('../moderation/punishmentSystem');
 
 const DEFAULT_CARD_PHOTOS = {
-    free: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'BANNER PERFIL FREE.webp'),
-    compy: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'BANNER PERFIL COMPY.webp'),
-    raptor: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'BANNER PERFIL RAPTOR.webp'),
+    free: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'FOTO PERFIL FREE.webp'),
+    compy: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'FOTO PERFIL COMPY.webp'),
+    raptor: path.join(__dirname, '..', '..', '..', 'assets', 'images', 'FOTO PERFIL RAPTOR.webp'),
+};
+
+// Cor do container do /perfil por tier — mesma paleta da marca usada no
+// card em si (Light/Mostarda/Terracota).
+const TIER_ACCENT_COLORS = {
+    free: 0xF8DCC0,
+    compy: 0xDCA15E,
+    raptor: 0x803E30,
 };
 
 let EMOJIS = {};
@@ -56,6 +64,31 @@ try {
 }
 
 const ALDERON_ID_REGEX = /^\d{3}-\d{3}-\d{3}$/;
+
+function formatPlaytime(totalSeconds) {
+    const seconds = Number(totalSeconds) || 0;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours === 0 && minutes === 0) return '—';
+    return `${hours}h ${minutes}m`;
+}
+
+// Estágios oficiais do PoT (confirmado): 1.0 = Full Adult, 0.5 = Half grown
+// (Adolescent/Sub-Adult), 0.1 = Hatchling/Baby. Só 3 pontos de referência
+// foram confirmados, então os limiares entre estágios usam o ponto médio
+// entre eles (0.75 entre Subadulto/Adulto, 0.3 entre Filhote/Subadulto).
+function formatGrowth(growth) {
+    if (growth === null || growth === undefined) return '—';
+    if (growth >= 0.75) return 'Adulto';
+    if (growth >= 0.3) return 'Subadulto';
+    return 'Filhote';
+}
+
+function formatKD(kills, deaths) {
+    if (deaths > 0) return (kills / deaths).toFixed(2);
+    if (kills > 0) return kills.toFixed(2);
+    return '—';
+}
 
 class PlayerRegistrationSystem {
     constructor(client) {
@@ -215,8 +248,17 @@ class PlayerRegistrationSystem {
         const PremiumSystem = require('../premium/premiumSystem');
         const playerTier = PremiumSystem.getPlayerTier(targetUser.id);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
+        const builder = new AdvancedContainerBuilder({ accentColor: TIER_ACCENT_COLORS[playerTier] || COLORS.DEFAULT });
         const extraFiles = [];
+
+        // Um separator() só é adicionado ANTES de cada bloco a partir do 2º —
+        // evita separadores vazios (dois seguidos, ou um sobrando no fim)
+        // quando algum bloco opcional (ex: texto de tier, no Free) não entra.
+        let needsSeparator = false;
+        const addSeparatorIfNeeded = () => {
+            if (needsSeparator) builder.separator();
+            needsSeparator = true;
+        };
 
         // ── Card de perfil (moldura + foto + badges + estrelas de honra),
         // entra no lugar do título "# PERFIL". Só existe pra quem já linkou
@@ -225,8 +267,10 @@ class PlayerRegistrationSystem {
         // já vem NELE, então o bloco de identificação abaixo não repete essa
         // parte (só o avatar some; sem vínculo, cai no fallback de sempre). ──
         let cardRendered = false;
+        let stats = null;
         if (player) {
             try {
+                stats = PlayerRegistry.getGlobalPlayerStats(player.alderon_id);
                 const photoBuffer = await this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier);
                 const cardBuffer = await renderProfileCard({
                     tier: playerTier,
@@ -236,43 +280,60 @@ class PlayerRegistrationSystem {
                     discordUsername: targetUser.username,
                     titleLabel: 'Em breve (missões)',
                     levelLabel: 'Nível 1',
-                    speciesLabel: PlayerRegistry.getLatestDinosaurType(player.alderon_id) || 'Ainda sem registro',
+                    speciesLabel: stats.dinosaurType || 'Ainda sem registro',
                     honorStars: PunishmentSystem.getGlobalHonorStars(targetUser.id),
                 });
                 extraFiles.push(new AttachmentBuilder(cardBuffer, { name: 'perfil-card.png' }));
+                addSeparatorIfNeeded();
                 builder.gallery(['attachment://perfil-card.png']);
-                builder.separator();
                 cardRendered = true;
             } catch (error) {
                 console.error('❌ [PlayerRegistration] Erro ao gerar card de perfil:', error);
             }
         }
 
-        if (!cardRendered) {
+        if (cardRendered) {
+            // ── Estatísticas do jogador (status/dino atual/growth/tempo de
+            // jogo/kills/deaths/KD), com o avatar do Discord ao lado — dados
+            // globais (agregados entre todos os servidores). ──────────────
+            const statusLine = stats.isOnline ? `${EMOJIS.circlecheck || '🟢'} Online` : `${EMOJIS.circlealert || '⚫'} Offline`;
+            const statsText = [
+                `**Status:** ${statusLine}`,
+                `**Dinossauro atual:** ${stats.dinosaurType || '—'}`,
+                `**Growth:** ${formatGrowth(stats.dinosaurGrowth)}`,
+                `**Tempo de jogo:** ${formatPlaytime(stats.totalPlaytime)}`,
+                `**Kills:** ${stats.kills}`,
+                `**Deaths:** ${stats.deaths}`,
+                `**K/D:** ${formatKD(stats.kills, stats.deaths)}`,
+            ].join('\n');
+            addSeparatorIfNeeded();
+            builder.section(statsText, AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })));
+        } else {
             // Sem vínculo (ou falha ao gerar o card) — volta pro banner estático
             // padrão do tier + bloco de identificação completo de sempre.
-            const bannerKey = `banner_perfil_${playerTier}`;
+            const bannerKey = `foto_perfil_${playerTier}`;
             const bannerUrl = imageManager.getUrl(bannerKey);
             const bannerAttachment = imageManager.getAttachment(bannerKey);
             if (bannerAttachment) extraFiles.push(bannerAttachment);
             if (bannerUrl) {
+                addSeparatorIfNeeded();
                 builder.gallery([bannerUrl]);
-                builder.separator();
             }
+            addSeparatorIfNeeded();
             this._appendProfileCard(builder, targetUser, player);
-            builder.separator();
+            addSeparatorIfNeeded();
             builder.text(`${EMOJIS.sparkles || '✨'} *Títulos e emblemas exclusivos chegando em breve!*`);
         }
 
         if (playerTier !== 'free') {
-            builder.separator();
+            addSeparatorIfNeeded();
             const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
             builder.text(`${EMOJIS.badge || '🏅'} **Player Premium:** ${tierLabel}`);
         }
 
         // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor) —
         // substitui o footer de texto ("Produzido por..."), não usado aqui. ──────
-        builder.separator();
+        addSeparatorIfNeeded();
         extraFiles.push(...this._appendFooterImage(builder, playerTier));
 
         const payload = builder.build();

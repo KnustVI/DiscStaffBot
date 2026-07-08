@@ -182,12 +182,26 @@ class PoTGatewayServer {
             const data = this._extractFieldsFromDiscordFormat(rawData) || rawData;
 
             // 1. Registro automático do jogador nos eventos relevantes
-            const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerKilled', 'PlayerChat', 'PlayerCommand'];
+            // PlayerRespawn carrega DinosaurType/DinosaurGrowth (espécie/growth
+            // atuais, mostrados no card do /perfil) — sem isso na lista, esses
+            // dois campos nunca eram atualizados.
+            const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerKilled', 'PlayerChat', 'PlayerCommand', 'PlayerRespawn'];
             if (playerEvents.includes(potEvent)) {
                 try {
                     PlayerRegistry.upsertPlayerFromEvent(guildId, data, potEvent);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Registro de jogador falhou:', err.message);
+                }
+            }
+
+            // 1b. PlayerKilled identifica matador/vítima por KillerAlderonId/
+            // VictimAlderonId (não por "AlderonId" like os demais eventos), então
+            // kills/deaths são contabilizados à parte, não pelo upsert genérico acima.
+            if (potEvent === 'PlayerKilled') {
+                try {
+                    PlayerRegistry.recordKillEvent(guildId, data);
+                } catch (err) {
+                    console.warn('⚠️ [Gateway] Contagem de kill/death falhou:', err.message);
                 }
             }
 

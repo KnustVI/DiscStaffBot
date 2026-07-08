@@ -340,9 +340,12 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   truque (foreignObject + mix-blend-mode) que o renderizador de SVG do bot
   (librsvg, via sharp) nao suporta; a arte de estrela reconstroi as mesmas
   cores com um gradiente SVG padrao, compativel.
-- /perfil-edit (Raptor) agora guarda a imagem enviada CRUA (sem processar) -
-  a composicao final acontece a cada /perfil, nao no upload, porque as
-  estrelas de honra mudam com o tempo (pre-compor uma vez deixaria elas
+- /perfil-edit (Raptor) guarda a imagem enviada redimensionada (teto de
+  1200px no lado maior - a foto so aparece recortada num espaco pequeno no
+  card, nao faz sentido guardar um arquivo gigante) e reconvertida pra webp,
+  sem cortar nem desenhar nada por cima. A composicao final (estrelas,
+  nome, badges) acontece a cada /perfil, nao no upload, porque as estrelas
+  de honra mudam com o tempo (pre-compor uma vez deixaria elas
   desatualizadas). So aceita png/jpg/webp (gif nao, ja que estrelas/badges
   sao desenhados por cima e a animacao se perderia mesmo).
 - As fontes reais (Tilt Warp + Poppins Medium/SemiBold) ficam bundladas em
@@ -352,3 +355,41 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
 - Novas dependencias reais (nao-dev): @napi-rs/canvas e sharp (sharp era
   so dev-dependency antes, usada apenas pelo script de conversao pra webp;
   agora tambem roda em producao, pra rasterizar os SVGs do card).
+
+
+11) CARD DE PERFIL - AJUSTES E DADOS REAIS DE JOGO
+------------------------------------------------
+- Fileira de 6 icones (trofeu/espada/etc, placeholder de um futuro sistema
+  de emblemas/missoes) removida do card por enquanto - volta quando esse
+  sistema existir de verdade.
+- Cor do container do /perfil agora segue o tier sempre (Free #F8DCC0,
+  Compy #DCA15E, Raptor #803E30), nao so quando tem card renderizado.
+- Corrigidos 2 separadores vazios que apareciam no painel (Free, e quando o
+  card falhava ao gerar).
+- Abaixo do card, quando o jogador tem vinculo, mostra um bloco de
+  estatisticas (com o avatar do Discord ao lado): Status (online/offline),
+  Dinossauro atual, Growth, Tempo de jogo, Kills, Deaths e K/D. Growth
+  mostra o estagio (Filhote/Subadulto/Adulto) com base nos 3 pontos
+  oficiais confirmados do PoT (1.0 = Full Adult, 0.5 = Half grown/
+  Adolescent/Sub-Adult, 0.1 = Hatchling/Baby) - os limiares entre estagios
+  usam o ponto medio entre eles (0.75 e 0.3), ja que so esses 3 valores
+  foram confirmados.
+- Dinossauro atual/Growth/Status agora sao dado real de webhook (antes
+  eram colunas do banco que existiam mas nunca eram escritas por
+  nenhum evento) - vem do PlayerRespawn (DinosaurType/DinosaurGrowth),
+  que passou a acionar o cadastro automatico do jogador junto com
+  login/logout/kill/chat/comando.
+- Kills/Deaths sao NOVOS (colunas kills/deaths em pot_players, antes nao
+  existiam) - contados a partir do evento PlayerKilled
+  (KillerAlderonId/VictimAlderonId, campos oficiais desse evento -
+  diferente dos demais, que usam so "AlderonId"). Tempo de jogo, kills e
+  deaths mostrados no /perfil sao a SOMA entre todos os servidores
+  (estatistica de carreira); status/especie/growth sao da atividade mais
+  recente entre os servidores.
+- Fotos padrao dos 3 tiers trocadas por screenshots reais do jogo
+  (assets/images/FOTO PERFIL FREE/COMPY/RAPTOR.webp), sorteadas
+  aleatoriamente entre um pool de 12 fotos (assets/images/FOTO PERFIL
+  01..12.webp - guardadas pra variedade futura, ex: lojinha do Compy).
+  Todas processadas do jeito que /perfil-edit ja fazia pro upload (teto de
+  1200px + webp) - as 12 fotos originais (~72MB no total, ate 10MB cada)
+  viraram ~1.5MB no total.
