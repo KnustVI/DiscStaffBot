@@ -94,10 +94,11 @@ FREE
   (contadores SEPARADOS - pode ter os dois abertos ao mesmo tempo, so nao
   pode abrir um 2o do MESMO tipo), cooldown de 6h entre aberturas (conta
   pra qualquer um dos dois tipos).
-- Punicoes: registro de punicoes. NAO aplica acoes automaticas no Discord
-  (timeout/kick/ban - o campo existe no comando /strike, mas e ignorado
-  neste tier) nem no jogo (RCON). Sem sistema de reputacao (pontos nao sao
-  calculados/salvos).
+- Punicoes: registro de punicoes via /strike discord (sem niveis - so
+  usuario/motivo/duracao, duracao obrigatoria). NAO aplica acoes automaticas
+  no Discord (timeout/kick/ban) nem no jogo (RCON). Sem sistema de
+  reputacao (pontos nao sao calculados/salvos). Sem niveis de punicao
+  customizados (0 niveis permitidos - ver secao 14).
 - Eventos: /evento cria eventos em foruns, com suporte a imagem de capa -
   sem evento agendado do Discord, sem marcar cargo de notificacao.
 - Integracao Path of Titans: logs de jogo (recebidos normalmente via
@@ -114,14 +115,20 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
 - Reportes: ate 3 chats de reporte ativos, ate 3 revisoes de punicao
   ativas (contadores separados), sem tempo de espera.
 - Punicoes: sistema de pontos de reputacao ativado, cargo temporario de
-  punicao, ate 5 niveis de punicao configuraveis (pontos por nivel, via
-  /config punishments), historico de punicoes (/historico liberado).
+  punicao, ate 4 niveis de punicao TOTALMENTE customizaveis (nome,
+  severidade, pontos, duracao e acao em jogo via RCON - configurados em
+  /config punishments, criados via botao "Criar Nivel"), historico de
+  punicoes (/historico liberado). /strike ganha os subcomandos ingame
+  (pune so pelo Alderon ID) e discord (pune um membro, usando os niveis
+  criados). Acao em jogo via RCON JA ATIVA aqui (antes so no Cacador).
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
   AINDA sem aplicar acoes automaticas no Discord (timeout/kick/ban) - isso
   so no Cacador.
-  Aprovacao de Supervisor exigida pra nivel 4/5 OU duracao >72h/permanente
-  (mesma regra do Free, so que aqui os niveis tambem contam).
+  Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
+  duracao >72h/permanente (mesma regra do Free, so que aqui os niveis
+  tambem contam). /strike personalizado (modo manual completo, restrito ao
+  cargo Supervisor) tambem liberado a partir daqui.
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
   postagem no forum).
@@ -140,27 +147,30 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
 - Missoes: 2 missoes mensais exclusivas para o servidor. (ainda nao
   implementado - "vindo em breve")
 - Analise de atividade de staff. Prioridade de suporte!
-- Reportes: chats de reporte ilimitados, sem tempo de espera. Resumo
-  automatico dos logs dos possiveis envolvidos direto no chat, e
-  personalizacao de banners/mensagem do painel de reportchat. (esses dois
-  ainda nao implementados - "vindo em breve")
-- Punicoes: cargo temporario de punicao, niveis de punicao totalmente
-  personalizaveis (hoje ainda sao os 5 niveis fixos configuraveis -
-  personalizacao total "vindo em breve"), cargos de reputacao automaticos
+- Reportes: chats de reporte ilimitados, sem tempo de espera. Personalizacao
+  de banner/mensagem do painel de reportchat JA IMPLEMENTADO (ver
+  /config reportchat - detalhe na secao "O QUE JA FUNCIONA HOJE" abaixo).
+  Resumo automatico dos logs dos possiveis envolvidos direto no chat ainda
+  nao implementado ("vindo em breve").
+- Punicoes: cargo temporario de punicao, ate 10 niveis de punicao
+  totalmente customizaveis (JA IMPLEMENTADO - mesmo sistema do Rastreador,
+  so que com o dobro do limite de niveis), cargos de reputacao automaticos
   (Exemplar/Problematico), e agora SIM aplicacao automatica de punicoes no
-  jogo (RCON) OU no Discord (timeout/kick/ban via /strike, campo
-  "discord_act"). Automod diario (recuperacao de reputacao + cargos
-  automaticos) com a QUANTIDADE de pontos recuperados por dia configuravel
-  em /config punishments (padrao: 1 ponto/dia).
+  Discord (timeout/kick/ban via /strike personalizado, campo "discord_act")
+  - a acao em jogo via RCON ja esta disponivel desde o Rastreador. Automod
+  diario (recuperacao de reputacao + cargos automaticos) com a QUANTIDADE
+  de pontos recuperados por dia configuravel em /config punishments
+  (padrao: 1 ponto/dia).
 - Eventos: anuncia automaticamente criacao/inicio/encerramento dos
   eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
   (esses tres ainda nao implementados - "vindo em breve")
 - Integracao Path of Titans: comandos em jogo via Discord e comando de TP
   integrado a criacao de eventos (ainda nao implementados - "vindo em
   breve"); punicoes aplicaveis em jogo via RCON (JA IMPLEMENTADO).
-- /config punishments completo aqui: niveis de severidade, limites de cargo
-  automatico (Exemplar/Problematico) e recuperacao diaria, tudo editavel -
-  unico tier com acesso aos 3 botoes do painel.
+- /config punishments completo aqui: ate 10 niveis de punicao customizados,
+  limites de cargo automatico (Exemplar/Problematico) e recuperacao diaria,
+  tudo editavel - unico tier com acesso aos botoes de Limites/Recuperacao
+  alem da criacao de niveis.
 - BONUS: o DONO do servidor Discord ganha Player Premium Raptor automaticamente
   ao comprar o Caçador (JA IMPLEMENTADO - ver secao 3).
 
@@ -176,8 +186,19 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - Acoes automaticas no Discord via /strike (timeout/kick/ban) SO no
   Cacador - em Free/Rastreador a punicao e so registrada, sem aplicar a
   acao escolhida (avisado na propria tela de confirmacao do /strike).
-- Aprovacao de Supervisor por severidade (nivel 4/5) OU duracao (>72h ou
-  permanente), em qualquer tier.
+- Acao em jogo (RCON) a partir do Rastreador - antes so no Cacador.
+- Aprovacao de Supervisor por severidade (niveis Grave/Severa) OU duracao
+  (>72h ou permanente), em qualquer tier.
+- Niveis de punicao TOTALMENTE customizaveis (nome, severidade, pontos,
+  duracao, acao em jogo) a partir do Rastreador (ate 4; ate 10 no Cacador;
+  0 no Free) - substituiu os antigos 5 niveis fixos hardcoded. Sem migracao
+  automatica dos pontos configurados antes desta revisao (settings antigos
+  strike_points_1..5 ficam inertes no banco; cada servidor recria os
+  niveis do zero em /config punishments).
+- /strike virou 1 comando com 3 subcomandos: ingame (pune so pelo Alderon
+  ID, RCON puro), discord (pune um membro do Discord - fluxo simplificado
+  no Free, com niveis a partir do Rastreador) e personalizado (modo manual
+  completo, restrito ao cargo Supervisor, a partir do Rastreador).
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
   atual de features).
@@ -185,17 +206,29 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   forum (sem evento agendado do Discord, sem marcar cargo); Rastreador e
   Cacador criam tambem o evento agendado do Discord + marcam o cargo de
   notificacao.
-- /config punishments BLOQUEADO no Free; no Rastreador so edita os 5 niveis de
-  severidade (pontos), sem editar Limites nem a quantidade da Recuperacao
-  Diaria (aparecem so como informacao); ambos ficam editaveis no Caçador.
+- /config punishments BLOQUEADO no Free; no Rastreador cria/edita ate 4
+  niveis de punicao customizados, sem editar Limites nem a quantidade da
+  Recuperacao Diaria (aparecem so como informacao); no Caçador, ate 10
+  niveis + Limites + Recuperacao Diaria, tudo editavel.
 - /botstatus so mostra estatisticas do servidor (Banco de Dados/Sistema
   AutoMod) pra servidores Caçador.
 - Recuperacao diaria de reputacao roda a partir do Rastreador: FIXA em 1
   ponto/dia nesse tier, e configuravel via /config punishments no Caçador
   (padrao tambem 1 ponto/dia). Cargos automaticos de reputacao
   (exemplar/problematico) continuam exclusivos do Caçador.
-- RCON automatico em punicao (so Caçador) - a sintaxe exata dos comandos
-  RCON ainda esta pendente de confirmacao com o servidor real do PoT.
+- RCON automatico em punicao a partir do Rastreador (ver secao 14) - a
+  sintaxe dos comandos (kick/ban/ServerMute/SystemMessage) veio das docs
+  oficiais do PoT, mas o formato exato do campo de duracao/tempo ainda
+  precisa ser confirmado contra um servidor real antes de confiar 100% em
+  producao.
+- /config reportchat (so Caçador) - troca o banner e a mensagem de abertura
+  do painel de report-chat (o mesmo que /reportchat posta no canal).
+  Banner: escolhe entre o padrao do bot ou o mesmo pool de fotos de dino
+  usado no card do /perfil (as 12 numeradas + Free/Compy/Raptor, 16 opcoes
+  no total - ver secao 1). Mensagem: texto livre (modal), vazio = volta pro
+  texto padrao. Se o servidor perder o Caçador, o painel volta sozinho pro
+  banner/mensagem padrao (a checagem de tier acontece na LEITURA, nao so na
+  escrita - nao precisa resetar nada manualmente).
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando, com 3 botoes de
   navegacao (Status, Server Premium, Player Premium) - o painel sempre
@@ -406,3 +439,67 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
 - Se o conteudo dos planos mudar, precisa gerar uma imagem nova e
   substituir o arquivo (mesmo nome) - nao tem mais texto pra editar aqui
   no codigo.
+
+
+13) /config GANHOU O SUBCOMANDO "reportchat" (Caçador)
+------------------------------------------------
+- Novo: /config reportchat, so pra servidores Caçador - painel com um menu
+  de selecao (banner) e um botao "Editar Mensagem" (abre modal) pra
+  personalizar o painel de report-chat. Botao "Resetar Padrao" volta os
+  dois pro padrao do bot.
+- IMPORTANTE: como isso adiciona um subcomando novo a um comando que ja
+  existe (/config), precisa rodar "node deploy.js" pra o Discord reconhecer
+  a opcao nova - sem isso, /config reportchat nao aparece pros usuarios
+  mesmo com o codigo ja no ar.
+
+
+14) NIVEIS DE PUNICAO CUSTOMIZADOS + /strike EM 3 SUBCOMANDOS
+------------------------------------------------
+- Os 5 niveis de severidade fixos e hardcoded (Leve/Moderada/Grave/Severa/
+  Permanente) foram substituidos por niveis de punicao TOTALMENTE
+  customizaveis por servidor: nome, severidade (Leve/Moderada/Grave/Severa),
+  pontos de reputacao, duracao (vazio = permanente) e acao em jogo via RCON
+  (SystemMessage/Kick/Ban/ServerMute). Criados/editados em
+  /config punishments (botao "Criar Nivel" / "Editar").
+- Limite de niveis por tier: Free = 0 (bloqueado), Rastreador = ate 4,
+  Caçador = ate 10.
+- CORTE LIMPO, SEM MIGRACAO: os settings antigos strike_points_1..5 ficam
+  inertes no banco (nunca mais lidos) - cada servidor recria os niveis do
+  zero. Punicoes ja aplicadas ANTES desta revisao mantem a severidade
+  numerica antiga (1-5) congelada pra exibicao no historico; punicoes
+  NOVAS sempre gravam severity=0 (sentinela) e usam as colunas de texto
+  (level_name/level_severity/level_action/duration_str), que sao um
+  SNAPSHOT do nivel no momento do strike - editar um nivel depois NAO
+  reescreve punicoes ja aplicadas com a versao antiga dele.
+- Aprovacao de Supervisor exigida pra niveis de severidade Grave ou Severa,
+  OU duracao >72h/permanente (qualquer tier, incluindo Free - la so a
+  duracao decide, ja que nao ha niveis).
+- /strike virou 1 comando com 3 subcomandos (mesmo padrao de /config e
+  /potserver):
+  - /strike ingame: pune so pelo Alderon ID (sem precisar que o alvo esteja
+    no servidor Discord) - resolve o vinculo global via /registrar, mostra
+    um menu de selecao com os niveis do servidor, aplica a acao em jogo via
+    RCON. So a partir do Rastreador (precisa ter niveis criados).
+  - /strike discord: pune um membro do Discord. No Free, fluxo simplificado
+    sem niveis (usuario+motivo+duracao, duracao obrigatoria, sem pontos,
+    sem acao em jogo). A partir do Rastreador, mostra o mesmo menu de
+    niveis do /strike ingame; duracao informada manualmente sobrescreve a
+    do nivel.
+  - /strike personalizado: modo manual completo (duracao/acao no Discord/
+    acao em jogo, todos sobrescrevendo o nivel escolhido como base) -
+    restrito a quem tem o cargo Supervisor configurado (/config roles),
+    a partir do Rastreador.
+- Sintaxe real dos comandos RCON (substituindo o placeholder nunca
+  confirmado que existia antes desta revisao), pesquisada nas docs
+  oficiais do Path of Titans:
+    kick <Username/AGID> <motivo>
+    ban <Username/AGID> <duracao> <motivo admin> <motivo jogador>
+    ServerMute <Username/AGID> <tempo> <motivo admin> <motivo jogador>
+    SystemMessage <user> <mensagem>
+  PENDENTE: o formato exato do campo de duracao/tempo NAO esta confirmado
+  pelas docs - precisa ser testado contra um servidor real do PoT antes de
+  confiar 100% em producao.
+- IMPORTANTE: como o /strike antigo (comando unico) foi substituido por um
+  comando com subcomandos, precisa rodar "node deploy.js" pra o Discord
+  atualizar a estrutura do comando - sem isso, os clientes Discord podem
+  mostrar a versao antiga em cache.

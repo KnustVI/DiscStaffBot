@@ -6,6 +6,7 @@ const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
+const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -71,8 +72,6 @@ module.exports = {
                 reason,
             }, 120000);
 
-            const severityIcons = [emojis.thumbsup || '⚪', emojis.severidadebaixa || '🟢', emojis.severidademedia || '🟡', emojis.severidadelaranja || '🟠', emojis.severidadealta || '🔴', emojis.Dead || '💀'];
-
             const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
@@ -81,7 +80,8 @@ module.exports = {
                 AdvancedContainerBuilder.thumbnail(targetUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
             );
             builder.separator();
-            builder.text(`${severityIcons[punishment.severity] || '❓'} **Strike:** #${punishmentId}`);
+            const severityIcon = PunishmentSystem.severityIconFor({ levelSeverity: punishment.level_severity, severity: punishment.severity });
+            builder.text(`${severityIcon} **Strike:** #${punishmentId}${punishment.level_name ? ` (${punishment.level_name})` : ''}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo original:** ${punishment.reason}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo da anulação:** ${reason}`);
             builder.separator();

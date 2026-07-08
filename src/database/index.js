@@ -74,7 +74,8 @@ class DatabaseManager {
                 'pot_tokens',
                 'player_links',
                 'player_premium',
-                'guild_premium'
+                'guild_premium',
+                'punishment_levels'
             ];
             
             for (const table of tables) {
@@ -119,6 +120,16 @@ class DatabaseManager {
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).
             this.ensureColumn('player_links', 'banner_message_id', 'TEXT');
+            // Snapshot do nível de punição customizado usado no momento do strike
+            // (ver punishmentLevels.js) — congelado na hora de aplicar, pra editar
+            // um nível depois não reescrever punições já aplicadas. A coluna
+            // `severity` (INTEGER) antiga fica congelada nas linhas legadas;
+            // linhas novas gravam 0 nela (sentinela) e usam level_severity (texto).
+            this.ensureColumn('punishments', 'level_id', 'INTEGER');
+            this.ensureColumn('punishments', 'level_name', 'TEXT');
+            this.ensureColumn('punishments', 'level_severity', 'TEXT');
+            this.ensureColumn('punishments', 'level_action', 'TEXT');
+            this.ensureColumn('punishments', 'duration_str', 'TEXT');
 
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —

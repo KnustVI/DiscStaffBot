@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/systems/moderation/punishmentSystem.js
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 const db = require('../../database/index.js');
 const { EMOJIS } = require('../../database/emojis.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
@@ -10,6 +10,7 @@ const { getPlayerByDiscordId } = require('../pot/potPlayerRegistry');
 const imageManager = require('../../utils/imageManager');
 const PremiumSystem = require('../premium/premiumSystem');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
+const PunishmentLevels = require('./punishmentLevels');
 
 const PunishmentSystem = {
     
@@ -80,6 +81,25 @@ const PunishmentSystem = {
         if (activeCount <= 4) return 3;
         if (activeCount <= 7) return 2;
         return 1;
+    },
+
+    /**
+     * Ícone por severidade — fonte única, com 3 ramos: nível novo (texto,
+     * ver punishmentLevels.SEVERITY_ICONS), linha legada (severidade
+     * numérica 1-5 do sistema antigo, só pra punições já aplicadas antes
+     * desta revisão) ou nenhuma (Free, sem conceito de nível/severidade).
+     *
+     * @param {{ levelSeverity?: string|null, severity?: number|null }} obj
+     */
+    severityIconFor({ levelSeverity, severity }) {
+        if (levelSeverity) {
+            return PunishmentLevels.SEVERITY_ICONS[levelSeverity] || EMOJIS.gavel || '⚖️';
+        }
+        if (severity && Number(severity) > 0) {
+            const legacyIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
+            return legacyIcons[Number(severity)] || '❓';
+        }
+        return EMOJIS.messagesquare || '📝';
     },
 
     // ==================== GERADORES DE UI (CONTAINER) ====================
@@ -164,9 +184,9 @@ const PunishmentSystem = {
             builder.separator();
             for (const p of history.punishments) {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
-                const severityIcon = [EMOJIS.thumbsup || '⚪', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'][p.severity] || '❓';
+                const severityIcon = this.severityIconFor({ levelSeverity: p.level_severity, severity: p.severity });
                 const strikeNum = p.strike_number || p.id;
-                builder.text(`${severityIcon} Strike #${strikeNum} | ${date}`);
+                builder.text(`${severityIcon} Strike #${strikeNum}${p.level_name ? ` (${p.level_name})` : ''} | ${date}`);
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);
                 if (p.report_id) builder.text(`┃ Report: \`${p.report_id}\``);
                 if (p.status === 'revoked') builder.text(`┃ Status: ${EMOJIS.circlecheck || '✅'} Anulado`);
@@ -181,10 +201,7 @@ const PunishmentSystem = {
         return builder;
     },
 
-    generateStrikeUnifiedContainer(target, moderator, strikeNumber, severity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId) {
-        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
-
+    generateStrikeUnifiedContainer(target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
         builder.banner('title_strike');
 
@@ -204,7 +221,11 @@ const PunishmentSystem = {
         );
         builder.separator();
         builder.text(`## ${EMOJIS.ban || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
-        builder.text(`${severityIcons[severity]} **Severidade:** ${severityNames[severity]}`);
+        if (levelSeverity) {
+            builder.text(`${this.severityIconFor({ levelSeverity })} **Nível:** ${levelName} (${levelSeverity})`);
+        } else {
+            builder.text(`${EMOJIS.messagesquare || '📝'} **Tipo:** Registro simples (sem nível de punição)`);
+        }
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             builder.text(`**${EMOJIS.doublearrowdown || '❌'} Pontos subtraídos:** -${pointsLost}`);
             builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints + pointsLost} → ${newPoints}`);
@@ -213,8 +234,8 @@ const PunishmentSystem = {
         builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**`);
         if (reportId) builder.text(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
-        
-        const actions = this.getPunishmentActions(severity, discordAct, discordActionResult);
+
+        const actions = this.getPunishmentActions(jogoAct, ingameActionResult, discordAct, discordActionResult);
         if (actions && actions !== `- ${EMOJIS.messagesquare || '📝'} **Apenas Registro:** Nenhuma ação automática aplicada`) {
             builder.separator();
             builder.text(`**${EMOJIS.trianglealert || '⚠️'} Ações Aplicadas:**`);
@@ -222,9 +243,9 @@ const PunishmentSystem = {
                 if (action.trim()) builder.text(action);
             }
         }
-        
+
         builder.footer(guildName);
-        
+
         return builder;
     },
     
@@ -263,20 +284,23 @@ const PunishmentSystem = {
         return builder;
     },
     
-    getPunishmentActions(severity, discordAct, discordActionResult) {
+    /**
+     * Monta o texto de "Ações Aplicadas" a partir do que foi REALMENTE
+     * executado (jogoAct/discordAct + os resultados de fato retornados por
+     * _executeStrike) — antes esse texto era inferido só a partir da
+     * severidade numérica, de forma cosmética e desconectada da ação real
+     * escolhida (bug corrigido nesta revisão).
+     */
+    getPunishmentActions(jogoAct, ingameActionResult, discordAct, discordActionResult) {
         const actions = [];
-        
-        if (severity >= 1 && severity <= 2) {
-            actions.push(`- ${EMOJIS.messagesquare || '📝'} **Registro:** Infração registrada no sistema`);
-        }
-        if (severity >= 3) {
-            actions.push(`- ${EMOJIS.trianglealert || '⚠️'} **Aviso Formal:** Comportamento inadequado registrado`);
-        }
-        if (severity >= 4) {
-            actions.push(`- ${EMOJIS.micoff || '🔇'} **Mute Temporário:** Usuário silenciado por tempo determinado`);
-        }
-        if (severity >= 5) {
-            actions.push(`- ${EMOJIS.ban || '🚫'} **Banimento Permanente:** Usuário removido permanentemente`);
+
+        if (jogoAct && jogoAct !== 'none') {
+            const icon = EMOJIS.game || '🎮';
+            if (ingameActionResult && !ingameActionResult.toLowerCase().startsWith('falha')) {
+                actions.push(`- ${icon} **Ação em jogo (${jogoAct}):** ${ingameActionResult}`);
+            } else if (ingameActionResult) {
+                actions.push(`- ${EMOJIS.circlealert || '❌'} **Ação em jogo (${jogoAct}):** ${ingameActionResult}`);
+            }
         }
 
         if (discordAct && discordAct !== 'none') {
@@ -322,6 +346,9 @@ const PunishmentSystem = {
                 case 'confirm':
                     await this.handleStrikeConfirmation(interaction, subAction);
                     break;
+                case 'level_select':
+                    await this.handleLevelSelect(interaction, subAction);
+                    break;
                 case 'unstrike_confirm':
                     await this.handleUnstrikeConfirmation(interaction, subAction);
                     break;
@@ -338,6 +365,160 @@ const PunishmentSystem = {
             console.error('❌ Erro no handleComponent:', error);
             await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, COLORS.ERROR, interaction.guild?.name));
         }
+    },
+
+    /**
+     * Mostra o select-menu com os níveis de punição do servidor — usado por
+     * ingame.js/discord.js/personalizado.js depois de já terem staged os
+     * dados básicos (SessionManager, chave 'strike_staging'). A escolha do
+     * nível é processada por handleLevelSelect (customId
+     * `punishment:level_select:<subcommand>`).
+     */
+    async showLevelSelector(interaction, subcommand) {
+        const guildId = interaction.guildId;
+        const levels = PunishmentLevels.getLevels(guildId);
+        if (levels.length === 0) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Este servidor ainda não tem nenhum nível de punição configurado. Peça a um administrador para criar em /config punishments.`,
+                COLORS.ERROR, interaction.guild?.name,
+            ));
+        }
+
+        const menu = new StringSelectMenuBuilder()
+            .setCustomId(`punishment:level_select:${subcommand}`)
+            .setPlaceholder('Selecione o nível de punição')
+            .addOptions(levels.map((level) => new StringSelectMenuOptionBuilder()
+                .setLabel(level.name)
+                .setDescription(`${level.severity} | -${level.points} pts | ${level.duration_str || 'Permanente'}`)
+                .setValue(String(level.id))));
+
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.title(`${EMOJIS.gavel || '⚖️'} Escolha o nível de punição`, 1);
+        builder.text('Selecione abaixo qual nível de punição customizado deste servidor será aplicado.');
+        builder.selectMenu(menu);
+        builder.footer(interaction.guild.name, 'Esta seleção expira em 2 minutos.');
+
+        const { components, flags } = builder.build();
+        await interaction.editReply({ components, flags: [flags] });
+    },
+
+    /**
+     * Select-menu de nível (usado por /strike ingame/discord/personalizado) —
+     * o staff já staged os dados básicos (alvo, motivo, overrides) em
+     * SessionManager sob 'strike_staging' antes de mostrar este menu; ao
+     * escolher um nível, mescla os dois e mostra a MESMA prévia de
+     * confirmação usada em qualquer fluxo (buildStrikeConfirmPreview).
+     */
+    async handleLevelSelect(interaction, subcommand) {
+        const guild = interaction.guild;
+        const staff = interaction.user;
+
+        const staging = SessionManager.get(staff.id, guild.id, 'strike_staging', 'strike_staging');
+        if (!staging) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, COLORS.ERROR, guild?.name));
+        }
+
+        const levelId = interaction.values?.[0];
+        const level = PunishmentLevels.getLevel(guild.id, levelId);
+        if (!level) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Este nível não existe mais.`, COLORS.ERROR, guild?.name));
+        }
+
+        const session = this._mergeLevelIntoSession(staging, level);
+        SessionManager.delete(staff.id, guild.id, 'strike_staging', 'strike_staging');
+        SessionManager.set(staff.id, guild.id, 'strike_pending', 'strike_pending', session, 120000);
+
+        const preview = await this.buildStrikeConfirmPreview(session, guild, interaction.member);
+        await interaction.editReply(preview);
+    },
+
+    /**
+     * Combina o nível escolhido com os dados staged pelo subcomando de
+     * /strike — overrides manuais (duração/ação no jogo, só em
+     * /strike personalizado) sempre têm prioridade sobre o valor do nível.
+     */
+    _mergeLevelIntoSession(staging, level) {
+        return {
+            targetId: staging.targetId,
+            // /strike ingame não pede motivo digitado (só Alderon ID) — usa o
+            // nome do nível como motivo nesse caso.
+            reason: staging.reason || `Punição aplicada: ${level.name}`,
+            reportId: staging.reportId || null,
+            levelId: level.id,
+            levelName: level.name,
+            levelSeverity: level.severity,
+            levelAction: staging.jogoActOverride || level.action || 'none',
+            pointsLost: level.points,
+            durationStr: staging.durationOverride || level.duration_str || '',
+            discordAct: staging.discordAct || 'none',
+            jogoAct: staging.jogoActOverride || level.action || 'none',
+            alderonId: staging.alderonId || null,
+        };
+    },
+
+    /**
+     * Monta o container + botões de confirmação de um /strike (qualquer um
+     * dos 3 subcomandos, ou o fluxo simplificado do Free) — extraído do que
+     * antes era montado inline dentro do antigo comando único /strike, agora
+     * reaproveitado por ingame.js/discord.js/personalizado.js e por
+     * handleLevelSelect.
+     *
+     * @returns {Promise<{ components: object[], flags: number[] }>} pronto para editReply/reply
+     */
+    async buildStrikeConfirmPreview(session, guild, staffMember) {
+        const guildId = guild.id;
+        const targetUser = await guild.client.users.fetch(session.targetId).catch(() => null);
+        const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, session.targetId)?.points || 100;
+        const previewPoints = Math.max(0, currentRep - (session.pointsLost || 0));
+        const durationLower = String(session.durationStr || '').toLowerCase();
+        const isPermanent = durationLower === '' || durationLower === '0' || durationLower === 'perm';
+
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.title(`${EMOJIS.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
+        builder.separator();
+        builder.section(
+            `## JOGADOR\n${buildIdentityBlock(targetUser || { toString: () => `\`${session.targetId}\``, username: '?', id: session.targetId })}`,
+            AdvancedContainerBuilder.thumbnail(targetUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
+        );
+        builder.separator();
+        if (session.levelSeverity) {
+            builder.text(`${this.severityIconFor({ levelSeverity: session.levelSeverity })} **Nível:** ${session.levelName} (${session.levelSeverity})`);
+        } else {
+            builder.text(`${EMOJIS.messagesquare || '📝'} **Tipo:** Registro simples (sem nível de punição)`);
+        }
+        builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:** ${session.reason}`);
+        builder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${isPermanent ? 'Permanente' : session.durationStr}`);
+        if (session.reportId) builder.text(`**${EMOJIS.ticket || '🎫'} Report:** ${session.reportId}`);
+        builder.separator();
+        if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
+            builder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos a perder:** -${session.pointsLost || 0} (${currentRep} → ${previewPoints})`);
+        }
+        builder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
+        if (session.discordAct && session.discordAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).discordActionsEnabled) {
+            builder.text(`${EMOJIS.trianglealert || '⚠️'} Ações automáticas no Discord (timeout/kick/ban) exigem o plano Caçador — a ação escolhida não será aplicada, só o registro da punição.`);
+        }
+        builder.text(`**${EMOJIS.game || '🎮'} Ação In-Game:** ${session.jogoAct === 'none' || !session.jogoAct ? 'Nenhuma' : session.jogoAct}`);
+        if (session.jogoAct && session.jogoAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).autoRcon) {
+            builder.text(`${EMOJIS.trianglealert || '⚠️'} Ação em jogo (RCON) exige o plano Rastreador — a ação escolhida não será aplicada, só o registro da punição.`);
+        }
+
+        if (this.requiresSupervisorApproval(session) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
+            builder.separator();
+            builder.text(
+                `${EMOJIS.shieldban || '🛡️'} **Requer aprovação de Supervisor**\n` +
+                `Esta punição tem severidade Grave/Severa e/ou duração longa (>72h ou permanente). Como você não possui o cargo Supervisor (/config roles), ao confirmar o pedido será enviado para o canal de log de punições, marcando o cargo Supervisor — a punição só será aplicada depois de aprovada.`
+            );
+        }
+
+        builder.footer(guild.name, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('punishment:confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(EMOJIS.circlecheck || '✅'),
+            new ButtonBuilder().setCustomId('punishment:confirm:cancel').setLabel('Cancelar').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.circlealert || '❌'),
+        );
+
+        const { components, flags } = builder.build();
+        return { components: [...components, row], flags: [flags] };
     },
 
     async handleStrikeConfirmation(interaction, action) {
@@ -380,24 +561,25 @@ const PunishmentSystem = {
     // ==================== APROVAÇÃO DE SUPERVISOR (PUNIÇÕES SEVERAS) ====================
 
     /**
-     * Severidade 4 (Severa) e 5 (Permanente) cobrem bans muito longos ou
-     * permanentes — exigem aprovação do cargo Supervisor (ver /config roles,
-     * aba Moderação) quando aplicadas por um Staff comum.
+     * Severidades Grave e Severa exigem aprovação do cargo Supervisor (ver
+     * /config roles, aba Moderação) quando aplicadas por um Staff comum.
+     * Servidores Free não têm nível/severidade (ver punishmentLevels.js,
+     * bloqueado nesse tier) — `severity` vem null/undefined nesse caso.
      */
     isSevereSeverity(severity) {
-        return Number(severity) >= 4;
+        return ['grave', 'severa'].includes(String(severity || '').toLowerCase());
     },
 
     /**
      * Decide se uma punição precisa de aprovação de Supervisor — por
-     * severidade (nível 4/5) OU por duração (>72h ou permanente),
-     * independente do tier. Free não usa níveis de severidade de forma
-     * relevante (sem reputação), então na prática só a duração importa lá.
+     * severidade (Grave/Severa) OU por duração (>72h ou permanente),
+     * independente do tier. Free não tem nível de severidade, então na
+     * prática só a duração importa lá.
      */
     requiresSupervisorApproval(session) {
-        if (this.isSevereSeverity(session.severity)) return true;
+        if (this.isSevereSeverity(session.levelSeverity)) return true;
         const durationStr = String(session.durationStr || '');
-        const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm';
+        const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm' || durationStr === '';
         if (isPermanent) return true;
         return this.parseDuration(durationStr) > 72 * 3600000;
     },
@@ -451,26 +633,25 @@ const PunishmentSystem = {
         }, 15 * 60 * 1000);
 
         const targetUser = await interaction.client.users.fetch(session.targetId).catch(() => null);
-        const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-        const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
+        const severityLabel = session.levelSeverity ? `${session.levelName} (${session.levelSeverity})` : 'Duração longa/permanente';
 
         const approvalBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         approvalBuilder.section(
             [
                 '# APROVAÇÃO NECESSÁRIA: PUNIÇÃO SEVERA',
-                `<@&${supervisorRoleId}> um Staff solicitou uma punição de nível **${severityNames[session.severity]}**, que precisa de aprovação antes de ser aplicada.`,
+                `<@&${supervisorRoleId}> um Staff solicitou uma punição de nível **${severityLabel}**, que precisa de aprovação antes de ser aplicada.`,
             ].join('\n'),
             targetUser ? AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 128 })) : null,
         );
         approvalBuilder.separator();
         approvalBuilder.text(`**${EMOJIS.user || '👤'} Solicitado por:** ${staff.toString()}`);
         approvalBuilder.text(`**${EMOJIS.user || '👤'} Alvo:** ${targetUser ? targetUser.toString() : `\`${session.targetId}\``}`);
-        approvalBuilder.text(`${severityIcons[session.severity]} **Severidade:** ${severityNames[session.severity]}`);
+        approvalBuilder.text(`${this.severityIconFor({ levelSeverity: session.levelSeverity })} **Nível:** ${severityLabel}`);
         if (PremiumSystem.getGuildLimits(guild.id).reputationEnabled) {
             approvalBuilder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos a perder:** -${session.pointsLost}`);
         }
         approvalBuilder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
-        approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
+        approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${!session.durationStr || session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
         approvalBuilder.separator();
         approvalBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${session.reason}\n\`\`\``);
         approvalBuilder.footer(guild.name, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
@@ -484,7 +665,7 @@ const PunishmentSystem = {
         await logChannel.send({ components: [...components, row], flags: [flags] });
 
         return await interaction.editReply(this._simpleReply(
-            `${emojis.clockalert || '⏳'} Esta é uma punição **severa** (${severityNames[session.severity]}). Como você não possui o cargo Supervisor, o pedido foi enviado para aprovação no canal de log de punições, marcando o cargo Supervisor. A punição só será aplicada depois que um Supervisor aprovar.`,
+            `${emojis.clockalert || '⏳'} Esta é uma punição **severa** (${severityLabel}). Como você não possui o cargo Supervisor, o pedido foi enviado para aprovação no canal de log de punições, marcando o cargo Supervisor. A punição só será aplicada depois que um Supervisor aprovar.`,
             COLORS.DEFAULT, guild.name,
         ));
     },
@@ -551,7 +732,7 @@ const PunishmentSystem = {
      *
      * @param {import('discord.js').Guild} guild
      * @param {import('discord.js').User} staff - Creditado como moderator_id
-     * @param {object} session - { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost }
+     * @param {object} session - { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId }
      * @returns {Promise<object>} resultado com { success, error } ou os dados usados no resumo
      */
     async _executeStrike(guild, staff, session) {
@@ -561,7 +742,7 @@ const PunishmentSystem = {
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-        const { targetId, reason, severity, durationStr, reportId, discordAct, jogoAct, pointsLost } = session;
+        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId } = session;
 
         const targetUser = await guild.client.users.fetch(targetId).catch(() => null);
         if (!targetUser) {
@@ -573,12 +754,14 @@ const PunishmentSystem = {
         const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guild.id, targetId)?.points || 100;
         const newPoints = Math.max(0, currentRep - pointsLost);
 
+        const durationLower = String(durationStr || '').toLowerCase();
         let durationMs = 0;
-        if (durationStr !== '0' && durationStr.toLowerCase() !== 'perm') {
+        if (durationLower !== '0' && durationLower !== 'perm' && durationLower !== '') {
             durationMs = this.parseDuration(durationStr);
         }
 
-        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, severity, reportId || null, pointsLost);
+        const levelSnapshot = levelId ? { id: levelId, name: levelName, severity: levelSeverity, action: levelAction, durationStr } : null;
+        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, levelSnapshot, reportId || null, pointsLost);
         if (!strikeId) {
             return { success: false, error: 'Erro ao aplicar punição no banco de dados.' };
         }
@@ -587,11 +770,10 @@ const PunishmentSystem = {
         // report (já validado em strike.js), grava a punição aplicada
         // de volta no próprio report para consulta futura. ──────────────
         if (reportId) {
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
             const linkedReportNumber = parseInt(String(reportId).replace(/^#?R/i, ''));
             if (!isNaN(linkedReportNumber)) {
                 db.prepare(`UPDATE reports SET punishment = ? WHERE guild_id = ? AND report_number = ?`)
-                    .run(`Strike #${strikeId} (${severityNames[severity] || severity})`, guild.id, linkedReportNumber);
+                    .run(`Strike #${strikeId}${levelName ? ` (${levelName})` : ''}`, guild.id, linkedReportNumber);
             }
         }
 
@@ -625,32 +807,39 @@ const PunishmentSystem = {
 
         const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
 
-        // ── Ação in-game automática via RCON — só pra servidores Fossil.
-        // PENDENTE: sintaxe exata dos comandos RCON do Path of Titans ainda
-        // não foi verificada (ver plano de implementação) — os comandos
-        // abaixo são um placeholder e precisam ser confirmados contra o
-        // servidor real antes de depender deles em produção. ────────────────
+        // ── Ação in-game automática via RCON — a partir do Rastreador (ver
+        // premiumSystem.js, GUILD_LIMITS.autoRcon). Sintaxe real dos comandos
+        // do Path of Titans (docs oficiais: chat-commands/source-rcon) — o
+        // formato exato do campo de duração/tempo NÃO está confirmado pelas
+        // docs, precisa ser validado contra um servidor real antes de
+        // confiar 100% em produção. ──────────────────────────────────────────
         let ingameActionResult = null;
         if (jogoAct && jogoAct !== 'none') {
             if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) {
-                ingameActionResult = 'Ação in-game requer o plano Caçador.';
+                ingameActionResult = 'Ação in-game requer o plano Rastreador.';
             } else {
-                const link = getPlayerByDiscordId(targetId);
+                const link = alderonId ? { alderon_id: alderonId } : getPlayerByDiscordId(targetId);
                 if (!link) {
                     ingameActionResult = 'Jogador não vinculado ao Path of Titans (/registrar) — ação in-game não executada.';
                 } else {
                     try {
                         const PoTConfigSystem = require('../pot/potConfigSystem');
+                        const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? 'perm' : durationStr;
                         const rconCommands = {
-                            rcon_warn: `warn ${link.alderon_id} ${reason}`,
-                            rcon_kick: `kick ${link.alderon_id}`,
-                            rcon_slay: `slay ${link.alderon_id}`,
-                            rcon_ban: `ban ${link.alderon_id} ${reason}`,
+                            SystemMessage: `SystemMessage ${link.alderon_id} ${reason}`,
+                            Kick: `kick ${link.alderon_id} ${reason}`,
+                            Ban: `ban ${link.alderon_id} ${durationToken} ${reason} ${reason}`,
+                            ServerMute: `ServerMute ${link.alderon_id} ${durationToken} ${reason} ${reason}`,
                         };
-                        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, rconCommands[jogoAct]);
-                        ingameActionResult = rconResult?.success
-                            ? 'Ação in-game executada.'
-                            : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+                        const command = rconCommands[jogoAct];
+                        if (!command) {
+                            ingameActionResult = `Ação in-game "${jogoAct}" desconhecida.`;
+                        } else {
+                            const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, command);
+                            ingameActionResult = rconResult?.success
+                                ? 'Ação in-game executada.'
+                                : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+                        }
                     } catch (err) {
                         ingameActionResult = `Falha na ação in-game: ${err.message}`;
                     }
@@ -659,7 +848,7 @@ const PunishmentSystem = {
         }
 
         db.logActivity(guild.id, staff.id, 'strike', targetId, {
-            command: 'strike', punishmentId: strikeId, severity, pointsLost,
+            command: 'strike', punishmentId: strikeId, levelName, levelSeverity, pointsLost,
             oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
             temporaryRoleApplied: roleResult.applied, ingameActionResult
         });
@@ -667,8 +856,9 @@ const PunishmentSystem = {
         await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
 
         const containerBuilder = this.generateStrikeUnifiedContainer(
-            targetUser, staff, strikeId, severity, reason, reportId || null,
-            pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id
+            targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
+            pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id,
+            jogoAct, ingameActionResult
         );
         const { components, flags, files: filesPayload } = containerBuilder.build();
 
@@ -903,21 +1093,31 @@ const PunishmentSystem = {
         return (multipliers[type] || 3600000) * timeValue;
     },
     
-    applyPunishment(guildId, targetId, moderatorId, reason, severity, reportId, points) {
+    /**
+     * @param {object|null} levelSnapshot - { id, name, severity, action, durationStr } ou null (Free,
+     *   sem conceito de nível). Congelado no momento do strike — editar o nível depois não reescreve
+     *   punições já aplicadas (ver punishment_levels em schema.js). `severity` (coluna numérica antiga)
+     *   sempre grava 0 (sentinela) em linhas novas; o texto vive em level_severity.
+     */
+    applyPunishment(guildId, targetId, moderatorId, reason, levelSnapshot, reportId, points) {
         try {
             const trans = db.transaction(() => {
                 const maxStrike = db.prepare(`
                     SELECT MAX(strike_number) as max FROM punishments WHERE guild_id = ?
                 `).get(guildId);
                 const strikeNumber = (maxStrike?.max || 0) + 1;
-                
+
                 const uuid = require('../../database/index').generateUUID();
-                
+
                 db.prepare(`
-                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).run(uuid, guildId, strikeNumber, targetId, moderatorId, reason, severity, points, reportId, Date.now(), 'active');
-                
+                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status, level_id, level_name, level_severity, level_action, duration_str)
+                    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(
+                    uuid, guildId, strikeNumber, targetId, moderatorId, reason, points, reportId, Date.now(), 'active',
+                    levelSnapshot?.id || null, levelSnapshot?.name || null, levelSnapshot?.severity || null,
+                    levelSnapshot?.action || null, levelSnapshot?.durationStr || null,
+                );
+
                 // Sistema de pontos de reputação é recurso Pegada+ — em
                 // servidores Free a punição fica registrada, mas os pontos
                 // não são calculados/salvos (decisão do dono).

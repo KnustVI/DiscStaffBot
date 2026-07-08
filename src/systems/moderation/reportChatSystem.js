@@ -588,8 +588,9 @@ class ReportChatSystem {
             `).run(guild.id, reportNumber, 'punishment_review', punishment.id, user.id, thread.id, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
 
             // ==================== RESUMO DA PUNIÇÃO ====================
-            const severityNames = ['', 'Leve', 'Moderada', 'Grave', 'Severa', 'Permanente'];
-            const severityIcons = ['', EMOJIS.severidadebaixa || '🟢', EMOJIS.severidademedia || '🟡', EMOJIS.severidadelaranja || '🟠', EMOJIS.severidadealta || '🔴', EMOJIS.Dead || '💀'];
+            const PunishmentSystem = require('./punishmentSystem');
+            const severityIcon = PunishmentSystem.severityIconFor({ levelSeverity: punishment.level_severity, severity: punishment.severity });
+            const severityLabel = punishment.level_severity || (punishment.severity ? `Nível ${punishment.severity}` : 'Registro simples');
             const moderator = await this.client.users.fetch(punishment.moderator_id).catch(() => null);
 
             const summaryBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
@@ -597,7 +598,7 @@ class ReportChatSystem {
             summaryBuilder.separator();
             summaryBuilder.text(`**${EMOJIS.calendar || '📅'} Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
             summaryBuilder.text(`**${EMOJIS.shield || '🛡️'} Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
-            summaryBuilder.text(`${severityIcons[punishment.severity] || '❓'} **Severidade:** ${severityNames[punishment.severity] || punishment.severity}`);
+            summaryBuilder.text(`${severityIcon} **Severidade:** ${severityLabel}`);
             if (PremiumSystem.getGuildLimits(guild.id).reputationEnabled) {
                 summaryBuilder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos descontados:** -${punishment.points_deducted}`);
             }

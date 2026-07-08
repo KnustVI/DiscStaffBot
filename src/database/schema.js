@@ -307,6 +307,24 @@ const SCHEMA = {
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
     `,
+
+    // ==================== NÍVEIS DE PUNIÇÃO CUSTOMIZADOS (POR SERVIDOR) ====================
+    punishment_levels: `
+        CREATE TABLE IF NOT EXISTS punishment_levels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT UNIQUE NOT NULL,
+            guild_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            points INTEGER NOT NULL DEFAULT 0,
+            duration_str TEXT,
+            action TEXT,
+            created_at INTEGER NOT NULL,
+            created_by TEXT,
+            updated_at INTEGER,
+            updated_by TEXT
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -371,6 +389,9 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_player_premium_expires ON player_premium(expires_at)`,
     `CREATE INDEX IF NOT EXISTS idx_guild_premium_tier ON guild_premium(tier)`,
     `CREATE INDEX IF NOT EXISTS idx_guild_premium_expires ON guild_premium(expires_at)`,
+
+    // Punishment Levels
+    `CREATE INDEX IF NOT EXISTS idx_punishment_levels_guild ON punishment_levels(guild_id)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };

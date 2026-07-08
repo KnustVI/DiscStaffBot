@@ -39,13 +39,15 @@ const GUILD_LIMITS = {
         reputationEnabled: false, automodEnabled: false, historyEnabled: false,
         analyticsEnabled: false,
         eventTier: 'basic',
+        maxPunishmentLevels: 0,
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
-        discordActionsEnabled: false, autoRcon: false,
+        discordActionsEnabled: false, autoRcon: true,
         reputationEnabled: true, automodEnabled: false, historyEnabled: true,
         analyticsEnabled: false,
         eventTier: 'medium',
+        maxPunishmentLevels: 4,
     },
     cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
@@ -53,6 +55,7 @@ const GUILD_LIMITS = {
         reputationEnabled: true, automodEnabled: true, historyEnabled: true,
         analyticsEnabled: true,
         eventTier: 'full',
+        maxPunishmentLevels: 10,
     },
 };
 

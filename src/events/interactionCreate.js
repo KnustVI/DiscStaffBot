@@ -201,7 +201,12 @@ module.exports = {
 
             // ==================== CONFIGURAÇÕES ====================
 
-            if (interaction.customId === 'config-punishments:strike:modal') { await ConfigSystem.handleStrikeModal(interaction); return; }
+            if (interaction.customId === 'config-punishments:level:create:modal') { await ConfigSystem.handleCreateLevelModal(interaction); return; }
+            if (interaction.customId?.startsWith('config-punishments:level:edit:modal:') && !interaction.customId.startsWith('config-punishments:level:edit:modal:submit:')) {
+                const levelId = interaction.customId.split(':')[4];
+                await ConfigSystem.handleEditLevelModal(interaction, levelId);
+                return;
+            }
             if (interaction.customId === 'config-punishments:limites:modal') { await ConfigSystem.handleLimitesModal(interaction); return; }
             if (interaction.customId === 'config-punishments:reset') { await ConfigSystem.resetPoints(interaction); return; }
             if (interaction.customId === 'config-roles:staff') { await ConfigSystem.setRole(interaction, 'staff_role'); return; }
@@ -213,8 +218,8 @@ module.exports = {
             if (interaction.customId === 'config-logs:automod') { await ConfigSystem.setLogChannel(interaction, 'log_automod'); return; }
             if (interaction.customId === 'config-logs:reports') { await ConfigSystem.setLogChannel(interaction, 'log_reports'); return; }
             if (interaction.customId === 'config-logs:criar') { await ConfigSystem.confirmCreateLogChannels(interaction); return; }
-            if (interaction.customId === 'config-punishments:strike:modal:submit') { await ConfigSystem.processPointsStrikeModal(interaction); return; }
             if (interaction.customId === 'config-punishments:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
+            if (interaction.customId === 'config-reportchat:message:modal') { await ConfigSystem.handleReportChatMessageModal(interaction); return; }
 
             // ==================== PATH OF TITANS - RESET ====================
 
