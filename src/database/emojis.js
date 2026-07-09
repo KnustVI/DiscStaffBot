@@ -14,6 +14,7 @@ const formatEmoji = (id, name, animated = false) => {
 
 // Objeto com todos os emojis
 const EMOJIS = {
+    Atack: formatEmoji('1524799754431758426', 'Atack', false),
     award: formatEmoji('1522487435446059088', 'award', false),
     backup: formatEmoji('1522487278419709992', 'backup', false),
     badge: formatEmoji('1522487931397214250', 'badge', false),
@@ -57,6 +58,7 @@ const EMOJIS = {
     DiscLogo: formatEmoji('1523229898225881249', 'DiscLogo', false),
     displaysettings: formatEmoji('1522487284505641000', 'displaysettings', false),
     doublearrowdown: formatEmoji('1522488102965350500', 'doublearrowdown', false),
+    DoubleArrowRigth: formatEmoji('1524799736220221550', 'DoubleArrowRigth', false),
     doublearrowup: formatEmoji('1522488111882567811', 'doublearrowup', false),
     edit: formatEmoji('1522487285675856074', 'edit', false),
     egg: formatEmoji('1522487489472757883', 'egg', false),
@@ -108,6 +110,7 @@ const EMOJIS = {
     milestone: formatEmoji('1522487633979117601', 'milestone', false),
     minus: formatEmoji('1522487791580221602', 'minus', false),
     Nest: formatEmoji('1522508105748058184', 'Nest', false),
+    Olho: formatEmoji('1524799721242234930', 'Olho', false),
     packagecheck: formatEmoji('1522487578450722886', 'packagecheck', false),
     packagex: formatEmoji('1522487580006944788', 'packagex', false),
     paginaanterior: formatEmoji('1522522010163482654', 'paginaanterior', false),
