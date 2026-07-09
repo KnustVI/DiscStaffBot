@@ -36,7 +36,9 @@ const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 // entre qualquer um dos participantes (não é uma janela fixa), pra cobrir
 // o combate/afogamento inteiro, não cortar no meio. Ver
 // _bufferDamageEvent/_recordKillIntoEncounter/_flushEncounter.
-const DAMAGE_BATCH_IDLE_MS = 7 * 60 * 1000;
+// TEMPORÁRIO: baixado pra 3min a pedido do dono pra facilitar teste dos
+// relatórios de combate/dano em produção — voltar pra 7min depois.
+const DAMAGE_BATCH_IDLE_MS = 3 * 60 * 1000;
 
 class PoTGatewayServer {
     constructor(client) {
