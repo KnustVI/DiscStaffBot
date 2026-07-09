@@ -1215,3 +1215,32 @@ frente, nao so este relatorio):
 - Verificado com os scripts das seções 26/31 - "Adulto"/"Sub-Adulto"/
   "Adolescente" aparecendo corretamente em vez de percentuais em ambos
   os painéis (combate/dano e morte), sem regressão no resto do layout.
+
+
+34) MODO ESPECTADOR: NÃO É BUG - O JOGO NÃO MANDA WEBHOOK NENHUM PRA ISSO
+------------------------------------------------
+- Dono reportou que "modo espectador não puxa o nome de quem usou".
+  Investigação ao vivo (pedi pra ele filtrar `pm2 logs discord-bot |
+  grep <seu AlderonId>` e depois entrar/sair do modo espectador como
+  admin de verdade): NENHUM evento chegou no gateway além do
+  PlayerRespawn normal do próprio personagem - nem AdminSpectate, nem
+  nenhum outro. Ou seja, o SERVIDOR do Path of Titans não envia webhook
+  NENHUM quando um admin liga/desliga o modo espectador - não é um
+  problema de campo errado nem de rota no bot, é uma ação que o jogo
+  simplesmente não reporta.
+- Isso também explica e corrige uma suposição errada da seção 19: o
+  AdminSpectate confirmado ao vivo (Action "Enabled/Disabled Nametags")
+  não é sobre modo espectador - é sobre ligar/desligar NAMETAGS. A doc
+  oficial do PoT junta as duas coisas (nametags E modo espectador) sob o
+  mesmo nome de evento "AdminSpectate", mas na prática só a parte de
+  nametags dispara webhook. Os labels "Entered/Exited Spectator Mode" em
+  ADMIN_ACTION_LABELS (webhookPayloads.js) continuam no código como
+  fallback inofensivo (caso ALGUMA versão/config do jogo realmente
+  mande isso um dia), mas na prática nunca deve bater.
+- PENDENTE de confirmação final: pedido ao dono pra testar ligar/
+  desligar NAMETAGS (não modo espectador) pra confirmar que o pipeline
+  do AdminSpectate está saudável de ponta a ponta e a ausência é
+  especificamente do modo espectador, não de todo o evento.
+- NENHUMA mudança de código feita nesta seção - registrado só como
+  descoberta, pra não perder tempo tentando "consertar" um campo que
+  não existe porque o jogo não manda.
