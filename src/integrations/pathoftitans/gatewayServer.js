@@ -80,15 +80,19 @@ class PoTGatewayServer {
         });
 
         // ── Log de debug (ativar com DEBUG_POT=true no .env) ──────────────
-        // Só o essencial pra confirmar que o evento chegou e foi entendido —
-        // rawBody completo só quando o parse falhar (fields vazio), que é
-        // quando ele realmente ajuda a diagnosticar.
+        // Mostra o corpo bruto INTEIRO (campos + valores, não só a
+        // contagem) sempre que houver algo — é o único jeito de conferir os
+        // nomes de campo reais que o servidor do jogo manda pra um evento
+        // específico, já que a doc oficial nem sempre bate 100% com o que
+        // cada versão do servidor realmente envia (histórico: Format=
+        // "Discord" vs "General", PlayerAlderonId vs AlderonId em
+        // PlayerLeave...). Corpo vazio/não reconhecido mostra o rawBody.
         this.app.use((req, res, next) => {
             if (process.env.DEBUG_POT === 'true') {
                 const fieldCount = Object.keys(req.body || {}).length;
                 const evt = req.query.evt || '-';
                 if (fieldCount > 0) {
-                    console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} (${fieldCount} campos recebidos)`);
+                    console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} (${fieldCount} campos): ${JSON.stringify(req.body)}`);
                 } else {
                     console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} — corpo vazio/não reconhecido. rawBody=${JSON.stringify(req.rawBody ?? '(vazio)')}`);
                 }
@@ -195,6 +199,14 @@ class PoTGatewayServer {
             // que o resto do código espera). Normaliza pra sempre trabalhar
             // com campos soltos daqui pra frente. ──────────────────────────
             const data = this._extractFieldsFromDiscordFormat(rawData) || rawData;
+
+            // 0b. Campos REALMENTE usados pelos formatters (webhookPayloads.js)
+            // depois de qualquer normalização — o log acima (linha ~90) mostra
+            // o corpo cru; este mostra o que sobra depois do Format="Discord"
+            // ser desmontado, que é o que decide o que aparece na mensagem.
+            if (process.env.DEBUG_POT === 'true') {
+                console.log(`📡 [Gateway] campos resolvidos pra ${potEvent}: ${JSON.stringify(data)}`);
+            }
 
             // 1. Registro automático do jogador nos eventos relevantes
             // PlayerRespawn carrega DinosaurType/DinosaurGrowth (espécie/growth
