@@ -1192,3 +1192,26 @@ frente, nao so este relatorio):
 - Verificado com o mesmo script da secao 31 nos 2 cenarios (com e sem
   assassino) - separadores aparecendo exatamente nas posicoes do layout
   pedido nos dois casos.
+
+
+33) GROWTH NUNCA MAIS EM PORCENTAGEM - SEMPRE NOME DO ESTAGIO, EM TODOS OS LOGS
+------------------------------------------------
+- Pedido explicito do dono, valendo pra TODOS os logs que o bot cria
+  (nao só o que estava sendo mexido no momento): toda vez que "growth"
+  for exibido, mostrar o NOME do estagio (Filhote/Juvenil/Adolescente/
+  Sub-Adulto/Adulto conforme os limiares 0/0.25/0.50/0.80/1 ja
+  confirmados na secao 26) em vez de porcentagem.
+- formatGrowthPercent() REMOVIDA de webhookPayloads.js (só tinha 3 usos,
+  todos trocados por formatGrowthStage - função virou código morto,
+  apagada em vez de deixada sem uso):
+  - Painel de morte (buildKillPanel, secao 31/32): "(Growth%)" vira
+    "(Adulto)" etc nas linhas de Vítima/Matador.
+  - participantSpeciesLine() (relatório de combate/dano, seções 26/27):
+    "Espécie — Growth: 80% (Sub-Adulto)" vira só "Espécie — Growth:
+    Sub-Adulto" (removida a porcentagem, mantido só o nome do estágio).
+  - formatGrowth() em playerRegistrationSystem.js (/perfil) já usava
+    nome de estágio desde a correção da seção 26 - não precisou mudar,
+    só os limiares já tinham sido corrigidos lá.
+- Verificado com os scripts das seções 26/31 - "Adulto"/"Sub-Adulto"/
+  "Adolescente" aparecendo corretamente em vez de percentuais em ambos
+  os painéis (combate/dano e morte), sem regressão no resto do layout.

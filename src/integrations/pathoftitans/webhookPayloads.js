@@ -349,7 +349,7 @@ function formatEmbed(potEvent, data, guild) {
 // "X=12345.670 Y=-890.120 Z=345.000" (Respawn/Leave/Quest) ou
 // "(X=..,Y=..,Z=..)" (PlayerKilled) — mesmo regex de extractEventLocation
 // em gatewayServer.js, duplicado aqui de propósito pra manter
-// webhookPayloads.js autocontido (mesmo padrão de formatGrowthPercent).
+// webhookPayloads.js autocontido (mesmo padrão de formatGrowthStage).
 // Formato de SAÍDA mantido igual ao cru do jogo a pedido do dono.
 const KILL_LOCATION_RE = /X=(-?[\d.]+)[,\s]+Y=(-?[\d.]+)[,\s]+Z=(-?[\d.]+)/;
 function formatLocationString(raw) {
@@ -399,7 +399,7 @@ function buildKillPanel(data, guild) {
     builder.title('Vítima', 3);
     builder.text(
         `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}\n` +
-        `${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthPercent(d.VictimGrowth)})`
+        `${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
     );
     builder.separator();
 
@@ -407,7 +407,7 @@ function buildKillPanel(data, guild) {
         builder.title('Matador', 3);
         builder.text(
             `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}\n` +
-            `${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthPercent(d.KillerGrowth)})`
+            `${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
         );
         builder.separator();
     }
@@ -420,19 +420,12 @@ function buildKillPanel(data, guild) {
 
 // ==================== RELATÓRIO DE COMBATE/DANO (encontro) ====================
 
-// Mesmos limiares usados no card de /perfil (playerRegistrationSystem.js) —
-// duplicado aqui de propósito pra manter webhookPayloads.js autocontido
-// (não depende de outro sistema só por causa de uma função de 3 linhas).
-// 1.0 = Full Adult, 0.5 = Half grown/Sub-Adult, 0.1 = Hatchling/Baby.
-function formatGrowthPercent(growth) {
-    if (growth === null || growth === undefined) return '—';
-    return `${Math.round(growth * 100)}%`;
-}
-
 // Referência oficial confirmada pelo dono (vale pra TODOS os comandos/logs
 // do bot, ver também formatGrowth em playerRegistrationSystem.js — duplicado
-// aqui de propósito, mesmo motivo do formatGrowthPercent acima): 0 =
-// Filhote, 0.25 = Juvenil, 0.50 = Adolescente, 0.80 = Sub-Adulto, 1 = Adulto.
+// aqui de propósito pra manter webhookPayloads.js autocontido, mesmo padrão
+// já usado nesse arquivo): 0 = Filhote, 0.25 = Juvenil, 0.50 = Adolescente,
+// 0.80 = Sub-Adulto, 1 = Adulto. Growth NUNCA aparece em porcentagem em
+// nenhum log do bot — sempre o nome do estágio (pedido explícito do dono).
 function formatGrowthStage(growth) {
     if (growth === null || growth === undefined) return null;
     if (growth >= 1) return 'Adulto';
@@ -448,18 +441,20 @@ function formatDuration(ms) {
 }
 
 /**
- * Linha "🍖 Espécie — Growth: 80% (Sub-Adulto)" de um participante — usada
- * em qualquer lugar do relatório que mencione a espécie de um dinossauro
- * (a pedido do dono: "sempre traga o emoji carni e herbi antes"). diet vem
- * de extractDinoIdentity() em gatewayServer.js — PENDENTE/não confirmado
- * pra eventos de combate (ver comentário lá), então o emoji só aparece
- * quando esse campo existir de verdade no payload; sem ele, cai no mesmo
- * fallback silencioso de sempre (sem emoji, resto da linha normal).
+ * Linha "🍖 Espécie — Growth: Sub-Adulto" de um participante — usada em
+ * qualquer lugar do relatório que mencione a espécie de um dinossauro (a
+ * pedido do dono: "sempre traga o emoji carni e herbi antes"). Growth
+ * SEMPRE em nome de estágio, nunca porcentagem (pedido explícito do dono,
+ * ver formatGrowthStage). diet vem de extractDinoIdentity() em
+ * gatewayServer.js — PENDENTE/não confirmado pra eventos de combate (ver
+ * comentário lá), então o emoji só aparece quando esse campo existir de
+ * verdade no payload; sem ele, cai no mesmo fallback silencioso de sempre
+ * (sem emoji, resto da linha normal).
  */
 function participantSpeciesLine(p, guild) {
     const dietPrefix = dietEmoji(p.diet, guild);
-    const stage = formatGrowthStage(p.dinosaurGrowth);
-    return `${dietPrefix ? dietPrefix + ' ' : ''}${p.dinosaurType || 'Desconhecido'} — Growth: ${formatGrowthPercent(p.dinosaurGrowth)}${stage ? ` (${stage})` : ''}`;
+    const stage = formatGrowthStage(p.dinosaurGrowth) || '—';
+    return `${dietPrefix ? dietPrefix + ' ' : ''}${p.dinosaurType || 'Desconhecido'} — Growth: ${stage}`;
 }
 
 /**
