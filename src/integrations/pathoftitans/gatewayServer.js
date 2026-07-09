@@ -264,7 +264,19 @@ class PoTGatewayServer {
 
             // 2. Busca o webhook Discord configurado para este grupo
             const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, groupId);
-            if (!webhookUrl) return; // grupo não configurado, ignora silenciosamente
+            if (!webhookUrl) {
+                // Pra PlayerDamagedPlayer/PlayerKilled isso é especialmente
+                // importante de logar: sem webhook aqui, o golpe/morte NEM
+                // CHEGA a entrar no encontro (_bufferDamageEvent só é chamado
+                // mais abaixo) — ou seja, se o webhook cair/sumir no meio de
+                // uma sessão, os combates seguintes desaparecem sem deixar
+                // rastro nenhum. Log permanente pra distinguir esse caso de
+                // "encontro criado mas ainda não fechou" nos logs do flush.
+                if (potEvent === 'PlayerDamagedPlayer' || potEvent === 'PlayerKilled') {
+                    console.warn(`⚔️ [Gateway] ${potEvent} recebido (guild ${guildId}, grupo ${groupId}) mas SEM webhook configurado pro grupo "${groupId}" — evento descartado, nem entra no encontro.`);
+                }
+                return; // grupo não configurado, ignora silenciosamente
+            }
 
             // 2b. PlayerDamagedPlayer nunca é enviado na hora — combates e
             // dano contínuo (afogamento, fome...) mandam um evento por golpe,
@@ -323,6 +335,11 @@ class PoTGatewayServer {
             timer: null,
         };
         this.damageEncounters.set(id, encounter);
+        // Log SEMPRE ativo (não só com DEBUG_POT) — encontros são raros o
+        // bastante pra não virar spam, e ter um rastro de "isso foi criado"
+        // é essencial pra diagnosticar um relatório que nunca chegou (ver
+        // PREMIUM.txt, seção sobre isso).
+        console.log(`⚔️ [Gateway] Novo encontro de combate ${id} (guild ${guildId}, grupo ${groupId})`);
         return encounter;
     }
 
@@ -399,18 +416,33 @@ class PoTGatewayServer {
 
     async _flushEncounter(encounterId) {
         const encounter = this.damageEncounters.get(encounterId);
-        if (!encounter) return;
+        if (!encounter) {
+            console.warn(`⚔️ [Gateway] _flushEncounter chamado pra ${encounterId}, mas ele já não existe mais (flush duplicado ou já removido) — ignorando.`);
+            return;
+        }
         this.damageEncounters.delete(encounterId);
         if (encounter.timer) clearTimeout(encounter.timer);
 
+        // Log SEMPRE ativo — mesmo motivo do log de criação em
+        // _findOrCreateEncounter: sem isso, um relatório que nunca chega no
+        // Discord não deixa NENHUM rastro no console, impossível saber se o
+        // encontro nem chegou a fechar, fechou sem webhook configurado, ou
+        // fechou e falhou ao entregar.
+        console.log(`⚔️ [Gateway] Fechando encontro ${encounterId} — ${encounter.participants.size} participante(s), ${encounter.events.length} evento(s)`);
+
         try {
             const webhookUrl = PoTConfigSystem.getWebhookForGroup(encounter.guildId, encounter.groupId);
-            if (!webhookUrl) return;
+            if (!webhookUrl) {
+                console.warn(`⚔️ [Gateway] Encontro ${encounterId} fechado, mas o grupo "${encounter.groupId}" não tem webhook configurado nesta guild — relatório NÃO enviado.`);
+                return;
+            }
 
             const guild = this.client.guilds.cache.get(encounter.guildId);
             const embed = WebhookPayloads.buildDamageReportEmbed(encounter, guild);
             await this._deliverMessage(webhookUrl, { embeds: [embed.toJSON()] });
+            console.log(`⚔️ [Gateway] Relatório do encontro ${encounterId} entregue.`);
         } catch (error) {
+            console.error(`⚔️ [Gateway] Falha ao entregar relatório do encontro ${encounterId}:`, error.message);
             ErrorLogger.error('pot_gateway', 'flushEncounter', error, { guildId: encounter.guildId });
         }
     }

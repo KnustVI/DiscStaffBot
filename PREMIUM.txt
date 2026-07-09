@@ -780,3 +780,54 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   nao tinha completado os 7 minutos de inatividade, que e o
   comportamento esperado - so o aviso IMEDIATO de morte sai na hora, o
   relatorio agregado sempre demora).
+
+
+24) LOGS PERMANENTES DE CICLO DE VIDA DO ENCONTRO DE COMBATE (diagnostico)
+------------------------------------------------
+- Motivo: caso relatado de um encontro (Spino vs Eotriceratops, sem morte)
+  cujo relatorio nunca chegou no Discord, enquanto outro encontro logo
+  antes (Spino vs Raptor, com morte) funcionou normalmente (aviso de
+  morte + relatorio). Antes desta secao, NENHUM dos dois casos deixava
+  qualquer rastro no console fora do DEBUG_POT (que precisa estar ligado
+  E reproduzido de novo pra servir de algo) - impossivel saber, so pelos
+  logs de producao normais, se um encontro chegou a ser criado, se
+  fechou sem webhook configurado, ou se simplesmente ainda nao bateu os
+  7 minutos de inatividade.
+- Adicionados logs SEMPRE ativos (nao dependem de DEBUG_POT) em
+  gatewayServer.js:
+  - "⚔️ Novo encontro de combate <id>" - toda vez que
+    _findOrCreateEncounter cria um encontro do zero (nao dispara quando
+    um evento so entra num encontro ja existente).
+  - "⚔️ Fechando encontro <id> - N participante(s), M evento(s)" -
+    sempre que _flushEncounter roda pra valer (timer de 7 min estourou
+    ou flush manual).
+  - "⚔️ Encontro <id> fechado, mas o grupo "<grupo>" nao tem webhook
+    configurado - relatorio NAO enviado" - cobre o caso antes 100% mudo
+    de _flushEncounter desistir na hora de enviar por falta de webhook.
+  - "⚔️ Relatorio do encontro <id> entregue." - confirmacao de sucesso.
+  - "⚔️ <PlayerDamagedPlayer/PlayerKilled> recebido mas SEM webhook
+    configurado pro grupo - evento descartado, nem entra no encontro." -
+    achado durante essa investigacao: o _routeToDiscord ja checava o
+    webhook do grupo ANTES do branch que bufferiza PlayerDamagedPlayer
+    (_bufferDamageEvent), entao se o webhook nao resolver naquele
+    instante o golpe nem chega a entrar em nenhum encontro (diferente do
+    "sem webhook no flush" acima, que e um encontro que JA existia).
+    PlayerKilled e uma excecao: _recordKillIntoEncounter roda ANTES
+    dessa checagem de webhook (linha mais acima em _routeToDiscord), ou
+    seja, uma morte sempre entra no encontro mesmo sem webhook - so os
+    golpes de PlayerDamagedPlayer que podem ser descartados assim. Essa
+    assimetria e pre-existente, so ficou visivel fazendo esse
+    diagnostico; nao foi alterada nesta secao, so logada.
+- Verificado com 2 scripts diretos (scratchpad): um simulando o combate
+  de 3 jogadores da secao 21 (confirma os logs de criacao/flush/entrega
+  no caminho de sucesso) e um novo simulando guild sem webhook
+  configurado pro grupo "combate" (confirma o aviso de descarte e o
+  aviso de flush-sem-webhook, sem gerar excecao nem mensagem fantasma).
+- NAO resolve sozinho o caso relatado - serve pra, da proxima vez que
+  acontecer, dizer com certeza qual dos 3 cenarios foi: (a) so faltou
+  esperar os 7 minutos [mais provavel, "log de criacao apareceu, log de
+  fechamento ainda nao"], (b) o bot reiniciou no meio do encontro
+  [encontro fica so em memoria, nunca persistido - reinicio perde ele
+  sem log nenhum, memoria/mapa some junto com o processo], ou (c) o
+  webhook do grupo "combate" ficou indisponivel bem na hora [log de
+  descarte ou de flush-sem-webhook vai aparecer].
