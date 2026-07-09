@@ -31,13 +31,14 @@ const DISABLED_EVENTS = new Set(['PlayerProfanity']);
 /**
  * Nome/ID do dinossauro (não confundir com AlderonId, que é do JOGADOR) e
  * dieta de um dos lados de um evento de combate (Source/Target/Killer/
- * Victim). PENDENTE: nenhum desses 3 campos é documentado oficialmente pra
- * PlayerDamagedPlayer/PlayerKilled — os nomes abaixo são um chute educado
- * (mesmo padrão de prefixo já confirmado em Name/AlderonId/DinosaurType/
- * Growth), ainda não confirmado ao vivo. Se nenhum bater, tudo fica null e
- * simplesmente não aparece no relatório — nunca quebra a mensagem. Testar
- * com DEBUG_POT=true num combate real e ajustar aqui se os campos reais
- * tiverem outro nome.
+ * Victim). CONFIRMADO ao vivo (DEBUG_POT, Atlas Brasil) que
+ * PlayerDamagedPlayer NÃO manda nenhum dos três — o payload real tem
+ * exatamente 15 campos (Name/AlderonId/DinosaurType/Role/IsAdmin/Growth de
+ * cada lado + DamageType/DamageAmount/ServerGuid), sem CharacterName/
+ * CharacterId/Diet em nenhuma variação. Os nomes abaixo continuam aqui só
+ * porque PlayerKilled ainda NÃO foi confirmado (pode ter campos diferentes
+ * de PlayerDamagedPlayer) — sem nenhum bater, tudo fica null e some do
+ * relatório, nunca quebra a mensagem.
  */
 function extractDinoIdentity(data, prefix) {
     return {
@@ -47,25 +48,42 @@ function extractDinoIdentity(data, prefix) {
     };
 }
 
+// "X=12345.670 Y=-890.120 Z=345.000" — formato REAL confirmado do campo
+// "Location" em PlayerRespawn/PlayerLeave/PlayerQuestComplete/Failed
+// (DEBUG_POT, Atlas Brasil). PlayerDamagedPlayer/PlayerKilled não têm esse
+// campo (nem nenhum outro de local, confirmado pra PlayerDamagedPlayer —
+// ver extractEventLocation abaixo), mas se o PoT algum dia passar a mandar
+// local em combate, o formato mais provável é este mesmo (é o único usado
+// em qualquer evento do jogo até agora).
+const LOCATION_STRING_RE = /X=(-?[\d.]+)\s+Y=(-?[\d.]+)\s+Z=(-?[\d.]+)/;
+
 /**
- * Local (mapa/POI/coordenadas) de um evento de combate. PENDENTE, mesmo
- * aviso do extractDinoIdentity acima: nenhum desses campos é documentado
- * oficialmente, chute educado ainda não confirmado ao vivo. Sem nenhum
- * campo reconhecido, retorna tudo null e a seção "Local" do relatório some
+ * Local (mapa/POI/coordenadas) de um evento de combate. CONFIRMADO ao vivo
+ * que PlayerDamagedPlayer NÃO manda NENHUM campo de local (mesma checagem
+ * de 15 campos da extractDinoIdentity acima) — MapName/POI/Location só
+ * existem em Respawn/Leave/Quest, eventos completamente diferentes. Mantido
+ * aqui só pra cobrir PlayerKilled, ainda não confirmado. Sem nenhum campo
+ * reconhecido, retorna tudo null e a seção "Local" do relatório some
  * inteira (ver buildDamageReportPayload em webhookPayloads.js).
  */
 function extractEventLocation(data) {
     const mapName = data.MapName || data.Map || null;
-    const poiName = data.POIName || data.POI || data.Location || data.LocationName || null;
-    const x = data.LocationX ?? data.PosX ?? data.X ?? null;
-    const y = data.LocationY ?? data.PosY ?? data.Y ?? null;
-    const z = data.LocationZ ?? data.PosZ ?? data.Z ?? null;
-    const hasCoords = x !== null && y !== null;
-    return {
-        mapName,
-        poiName,
-        coords: hasCoords ? `X: ${Math.round(x)}, Y: ${Math.round(y)}${z !== null ? `, Z: ${Math.round(z)}` : ''}` : null,
-    };
+    const poiName = data.POI || data.POIName || data.LocationName || null;
+
+    let coords = null;
+    const match = typeof data.Location === 'string' ? data.Location.match(LOCATION_STRING_RE) : null;
+    if (match) {
+        coords = `X: ${Math.round(Number(match[1]))}, Y: ${Math.round(Number(match[2]))}, Z: ${Math.round(Number(match[3]))}`;
+    } else {
+        const x = data.LocationX ?? data.PosX ?? null;
+        const y = data.LocationY ?? data.PosY ?? null;
+        const z = data.LocationZ ?? data.PosZ ?? null;
+        if (x !== null && y !== null) {
+            coords = `X: ${Math.round(x)}, Y: ${Math.round(y)}${z !== null ? `, Z: ${Math.round(z)}` : ''}`;
+        }
+    }
+
+    return { mapName, poiName, coords };
 }
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;

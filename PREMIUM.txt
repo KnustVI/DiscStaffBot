@@ -970,3 +970,43 @@ frente, nao so este relatorio):
   jogadores + dano isolado) - fallback unicode aparecendo corretamente
   nas 2 chaves novas, "de vida" removido, "eye" renderizando com o ID
   real (ja sincronizado).
+
+
+28) CAMPOS REAIS CONFIRMADOS - PlayerDamagedPlayer (log de producao, Atlas Brasil)
+------------------------------------------------
+- O dono mandou um trecho grande de log real (DEBUG_POT) - confirma
+  EXATAMENTE 15 campos em TODA ocorrencia de PlayerDamagedPlayer, sem
+  variacao nenhuma entre elas:
+  SourceName, SourceAlderonId, SourceDinosaurType, SourceRole,
+  SourceIsAdmin, SourceGrowth, DamageType, DamageAmount, TargetName,
+  TargetAlderonId, TargetDinosaurType, TargetRole, TargetIsAdmin,
+  TargetGrowth, ServerGuid.
+- CONFIRMADO AUSENTE (nao existe de jeito nenhum nesse evento): nome/ID
+  do dino (CharacterName/CharacterId e variantes), Diet, e qualquer
+  campo de local (MapName/POI/Location/coordenadas). Ou seja, a secao
+  "LOCAL" do relatorio de combate/dano e o emoji de dieta no cabecalho
+  dos participantes NUNCA vao aparecer de verdade pra dano vindo de
+  PlayerDamagedPlayer - so ficam la cobrindo a possibilidade de
+  PlayerKilled ter campos diferentes (ainda nao confirmado - nao veio
+  nenhum PlayerKilled nesse trecho de log, ver pedido feito ao dono).
+- 2 campos novos confirmados que o bot NAO usa em lugar nenhum ainda:
+  SourceRole/TargetRole (cargo customizado do jogador dentro do PROPRIO
+  jogo, ex: "Nitro", "Estagiario", ou vazio) e SourceIsAdmin/
+  TargetIsAdmin (bool). Nao adicionado ao relatorio agora (fora do que
+  foi pedido) - achado registrado aqui caso vire pedido depois.
+- BUG ENCONTRADO E CORRIGIDO por causa dessa confirmacao: o campo real
+  "Location" (visto em PlayerRespawn/PlayerLeave/PlayerQuestComplete/
+  Failed nesse mesmo log) e uma STRING tipo "X=12345.670 Y=-890.120
+  Z=345.000", NAO campos separados LocationX/LocationY/LocationZ como eu
+  tinha adivinhado. extractEventLocation() em gatewayServer.js estava
+  ALEM DISSO com um bug real: tratava esse campo "Location" como se
+  fosse nome de POI (fallback errado), quando na verdade e a string de
+  coordenadas - um POI real vem no campo separado "POI" (confirmado,
+  nao "POIName"). Corrigido: agora faz parse por regex de "X=.. Y=..
+  Z=.." quando "Location" e string, com o formato antigo (campos
+  separados) mantido como fallback secundario (caso algum evento futuro
+  use esse formato em vez do string).
+- Verificado com script direto: parse da string real de Location bate
+  certinho (X/Y/Z arredondados), e um PlayerDamagedPlayer com os 15
+  campos reais confirma que diet/characterName/dinosaurId/location
+  ficam todos null (nunca quebra, so nao aparece no relatorio).
