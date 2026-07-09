@@ -2,12 +2,15 @@
 /**
  * /strike — comando único com 3 subcomandos, cada um com um propósito
  * diferente (ver PunishmentSystem em src/systems/moderation/):
- *   - ingame:        pune só pelo Alderon ID (RCON puro, sem vínculo Discord necessário no alvo).
- *   - discord:       pune um membro do Discord (fluxo simplificado no Free, com nível no Rastreador+).
+ *   - strike:        registro simples de punição (sem nível, sem ação em
+ *                     jogo/Discord) — disponível em QUALQUER tier, incluindo Free.
+ *   - ingame:        pune só pelo Alderon ID, usando um nível (ação em jogo via RCON).
  *   - personalizado: modo manual completo, restrito ao cargo Supervisor.
- * Mesmo padrão de src/commands/config/index.js (/config): este arquivo só
- * registra o comando e despacha pro subcomando; a lógica de verdade vive em
- * cada arquivo irmão e em src/systems/moderation/punishmentSystem.js.
+ * Só ingame/personalizado aplicam ações automáticas (RCON/Discord) — ambos
+ * dependem de níveis (Rastreador+). Mesmo padrão de src/commands/config/index.js
+ * (/config): este arquivo só registra o comando e despacha pro subcomando; a
+ * lógica de verdade vive em cada arquivo irmão e em
+ * src/systems/moderation/punishmentSystem.js.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
@@ -20,16 +23,16 @@ module.exports = {
         .setDescription('⚖️ Aplica uma punição a um jogador.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addSubcommand(sub => sub
-            .setName('ingame')
-            .setDescription('Pune um jogador pelo Alderon ID (ação em jogo via RCON).')
-            .addStringOption(opt => opt.setName('alderon_id').setDescription('Alderon ID do jogador').setRequired(true))
-            .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
-        .addSubcommand(sub => sub
-            .setName('discord')
-            .setDescription('Pune um membro do Discord.')
+            .setName('strike')
+            .setDescription('Registra uma punição simples (sem ação automática) — disponível em qualquer plano.')
             .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator').setRequired(true))
             .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
             .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 10m, 1h, 3d — vazio/0 = permanente)').setRequired(false))
+            .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
+        .addSubcommand(sub => sub
+            .setName('ingame')
+            .setDescription('Pune um jogador pelo Alderon ID (ação em jogo via RCON).')
+            .addStringOption(opt => opt.setName('alderon_id').setDescription('Alderon ID do jogador').setRequired(true))
             .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('personalizado')
@@ -57,16 +60,16 @@ module.exports = {
     async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();
 
+        const strikeHandler = require('./strike');
         const ingameHandler = require('./ingame');
-        const discordHandler = require('./discord');
         const personalizadoHandler = require('./personalizado');
 
         switch (subcommand) {
+            case 'strike':
+                await strikeHandler.execute(interaction, client);
+                break;
             case 'ingame':
                 await ingameHandler.execute(interaction, client);
-                break;
-            case 'discord':
-                await discordHandler.execute(interaction, client);
                 break;
             case 'personalizado':
                 await personalizadoHandler.execute(interaction, client);

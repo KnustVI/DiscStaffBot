@@ -369,10 +369,10 @@ const PunishmentSystem = {
 
     /**
      * Mostra o select-menu com os níveis de punição do servidor — usado por
-     * ingame.js/discord.js/personalizado.js depois de já terem staged os
-     * dados básicos (SessionManager, chave 'strike_staging'). A escolha do
-     * nível é processada por handleLevelSelect (customId
-     * `punishment:level_select:<subcommand>`).
+     * ingame.js/personalizado.js (não por strike.js, que é registro puro sem
+     * nível) depois de já terem staged os dados básicos (SessionManager,
+     * chave 'strike_staging'). A escolha do nível é processada por
+     * handleLevelSelect (customId `punishment:level_select:<subcommand>`).
      */
     async showLevelSelector(interaction, subcommand) {
         const guildId = interaction.guildId;
@@ -458,10 +458,9 @@ const PunishmentSystem = {
 
     /**
      * Monta o container + botões de confirmação de um /strike (qualquer um
-     * dos 3 subcomandos, ou o fluxo simplificado do Free) — extraído do que
-     * antes era montado inline dentro do antigo comando único /strike, agora
-     * reaproveitado por ingame.js/discord.js/personalizado.js e por
-     * handleLevelSelect.
+     * dos 3 subcomandos) — extraído do que antes era montado inline dentro
+     * do antigo comando único /strike, agora reaproveitado por
+     * strike.js/ingame.js/personalizado.js e por handleLevelSelect.
      *
      * @returns {Promise<{ components: object[], flags: number[] }>} pronto para editReply/reply
      */

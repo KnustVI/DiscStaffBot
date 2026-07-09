@@ -24,7 +24,7 @@ module.exports = {
             if (!link) {
                 return await ResponseManager.error(
                     interaction,
-                    'Nenhuma conta Discord vinculada a este Alderon ID. Use /strike discord (se o jogador estiver no servidor), /strike personalizado, ou peça para o jogador rodar /registrar primeiro.',
+                    'Nenhuma conta Discord vinculada a este Alderon ID. Use /strike strike (se o jogador estiver no servidor), /strike personalizado, ou peça para o jogador rodar /registrar primeiro.',
                 );
             }
 

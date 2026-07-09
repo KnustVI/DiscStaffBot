@@ -94,8 +94,8 @@ FREE
   (contadores SEPARADOS - pode ter os dois abertos ao mesmo tempo, so nao
   pode abrir um 2o do MESMO tipo), cooldown de 6h entre aberturas (conta
   pra qualquer um dos dois tipos).
-- Punicoes: registro de punicoes via /strike discord (sem niveis - so
-  usuario/motivo/duracao, duracao obrigatoria). NAO aplica acoes automaticas
+- Punicoes: registro de punicoes via /strike strike (sem niveis - so
+  usuario/motivo/duracao, vazio = permanente). NAO aplica acoes automaticas
   no Discord (timeout/kick/ban) nem no jogo (RCON). Sem sistema de
   reputacao (pontos nao sao calculados/salvos). Sem niveis de punicao
   customizados (0 niveis permitidos - ver secao 14).
@@ -118,9 +118,9 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   punicao, ate 4 niveis de punicao TOTALMENTE customizaveis (nome,
   severidade, pontos, duracao e acao em jogo via RCON - configurados em
   /config punishments, criados via botao "Criar Nivel"), historico de
-  punicoes (/historico liberado). /strike ganha os subcomandos ingame
-  (pune so pelo Alderon ID) e discord (pune um membro, usando os niveis
-  criados). Acao em jogo via RCON JA ATIVA aqui (antes so no Cacador).
+  punicoes (/historico liberado). /strike ganha o subcomando ingame (pune
+  so pelo Alderon ID, usando os niveis criados). Acao em jogo via RCON JA
+  ATIVA aqui (antes so no Cacador).
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
   AINDA sem aplicar acoes automaticas no Discord (timeout/kick/ban) - isso
@@ -195,10 +195,12 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   automatica dos pontos configurados antes desta revisao (settings antigos
   strike_points_1..5 ficam inertes no banco; cada servidor recria os
   niveis do zero em /config punishments).
-- /strike virou 1 comando com 3 subcomandos: ingame (pune so pelo Alderon
-  ID, RCON puro), discord (pune um membro do Discord - fluxo simplificado
-  no Free, com niveis a partir do Rastreador) e personalizado (modo manual
-  completo, restrito ao cargo Supervisor, a partir do Rastreador).
+- /strike virou 1 comando com 3 subcomandos: strike (registro simples, sem
+  nivel/acao automatica, disponivel em QUALQUER tier), ingame (pune so pelo
+  Alderon ID, usa um nivel pra aplicar acao em jogo via RCON, a partir do
+  Rastreador) e personalizado (modo manual completo, restrito ao cargo
+  Supervisor, a partir do Rastreador). Ingame/personalizado sao os unicos
+  que aplicam acoes automaticas - strike e so registro.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
   atual de features).
@@ -476,15 +478,15 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   duracao decide, ja que nao ha niveis).
 - /strike virou 1 comando com 3 subcomandos (mesmo padrao de /config e
   /potserver):
+  - /strike strike: registro simples de punicao (usuario+motivo+duracao,
+    vazio = permanente) - sem nivel, sem pontos extra, sem nenhuma acao
+    automatica (nem no Discord, nem em jogo). Disponivel em QUALQUER tier,
+    incluindo Free - ao contrario dos outros dois, nunca depende de niveis
+    configurados.
   - /strike ingame: pune so pelo Alderon ID (sem precisar que o alvo esteja
     no servidor Discord) - resolve o vinculo global via /registrar, mostra
     um menu de selecao com os niveis do servidor, aplica a acao em jogo via
     RCON. So a partir do Rastreador (precisa ter niveis criados).
-  - /strike discord: pune um membro do Discord. No Free, fluxo simplificado
-    sem niveis (usuario+motivo+duracao, duracao obrigatoria, sem pontos,
-    sem acao em jogo). A partir do Rastreador, mostra o mesmo menu de
-    niveis do /strike ingame; duracao informada manualmente sobrescreve a
-    do nivel.
   - /strike personalizado: modo manual completo (duracao/acao no Discord/
     acao em jogo, todos sobrescrevendo o nivel escolhido como base) -
     restrito a quem tem o cargo Supervisor configurado (/config roles),

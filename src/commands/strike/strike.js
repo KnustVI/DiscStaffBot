@@ -1,8 +1,13 @@
-// src/commands/strike/discord.js — /strike discord
+// src/commands/strike/strike.js — /strike strike
+// Registro simples de punição — disponível em QUALQUER tier (incluindo
+// Free), sem nível/severidade, sem pontos extras além da dedução padrão de
+// reputação (se o tier tiver reputationEnabled) e sem nenhuma ação
+// automática (nem no Discord, nem em jogo). Ao contrário de /strike ingame
+// e /strike personalizado — que usam um nível pra aplicar ação em jogo via
+// RCON — este subcomando é puramente registro.
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
-const PremiumSystem = require('../../systems/premium/premiumSystem');
 
 module.exports = {
     async execute(interaction, client) {
@@ -17,14 +22,6 @@ module.exports = {
         try {
             if (!targetUser) {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
-            }
-
-            const isFree = !PremiumSystem.isGuildAtLeast(guildId, 'rastreador');
-            if (isFree && !durationStr) {
-                return await ResponseManager.error(
-                    interaction,
-                    'Em servidores sem plano Rastreador/Caçador não há níveis de punição pra puxar uma duração padrão — informe a `duracao` manualmente.',
-                );
             }
 
             if (reportId) {
@@ -50,52 +47,33 @@ module.exports = {
                 staff.id !== guild.ownerId;
 
             if (isStaffHigher) {
-                db.logActivity(guildId, staff.id, 'strike_denied', targetUser.id, { command: 'strike_discord', reason: 'Hierarquia insuficiente' });
+                db.logActivity(guildId, staff.id, 'strike_denied', targetUser.id, { command: 'strike', reason: 'Hierarquia insuficiente' });
                 return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
 
-            const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
-
-            if (isFree) {
-                // ── Fluxo simplificado (sem níveis): sem pontos, sem ação em
-                // jogo. "discordAct" fica marcado como timeout, mas só é
-                // aplicado de fato se o tier tiver discordActionsEnabled
-                // (Caçador) — em Free isso é sempre bloqueado, então na
-                // prática vira só registro (ver PunishmentSystem._executeStrike). ──
-                const session = {
-                    targetId: targetUser.id,
-                    reason,
-                    reportId,
-                    levelId: null,
-                    levelName: null,
-                    levelSeverity: null,
-                    levelAction: null,
-                    pointsLost: 0,
-                    durationStr,
-                    discordAct: 'timeout',
-                    jogoAct: 'none',
-                    alderonId: null,
-                };
-                sessionManager.set(staff.id, guildId, 'strike_pending', 'strike_pending', session, 120000);
-                const preview = await PunishmentSystem.buildStrikeConfirmPreview(session, guild, staffMember);
-                return await interaction.editReply(preview);
-            }
-
-            // ── Rastreador/Caçador: mostra o select-menu de níveis; a
-            // duração informada (se houver) sobrescreve a do nível. ──────────
-            sessionManager.set(staff.id, guildId, 'strike_staging', 'strike_staging', {
+            // ── Registro puro: sem nível, sem pontos extras, sem ação
+            // automática no Discord nem em jogo — vale pra qualquer tier. ──────
+            const session = {
                 targetId: targetUser.id,
                 reason,
                 reportId,
+                levelId: null,
+                levelName: null,
+                levelSeverity: null,
+                levelAction: null,
+                pointsLost: 0,
+                durationStr,
                 discordAct: 'none',
-                jogoActOverride: null,
-                durationOverride: durationStr,
+                jogoAct: 'none',
                 alderonId: null,
-            }, 120000);
+            };
+            sessionManager.set(staff.id, guildId, 'strike_pending', 'strike_pending', session, 120000);
 
-            await PunishmentSystem.showLevelSelector(interaction, 'discord');
+            const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
+            const preview = await PunishmentSystem.buildStrikeConfirmPreview(session, guild, staffMember);
+            await interaction.editReply(preview);
         } catch (error) {
-            console.error('❌ Erro no /strike discord:', error);
+            console.error('❌ Erro no /strike strike:', error);
             const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao preparar aplicação de strike. A equipe foi notificada.');
