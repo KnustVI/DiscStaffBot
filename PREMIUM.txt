@@ -694,9 +694,24 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
 - Funcao dietEmoji() exportada de webhookPayloads.js pra reaproveitar em
   outros lugares que mostrem especie (ex: /perfil) se pedido no futuro -
   hoje so aplicada nos logs de webhook, que foi o pedido.
-- PENDENTE (mesmo aviso de sempre com campos do PoT): o valor exato do
-  campo "Diet" no payload real (se realmente vem "Carnivore"/"Herbivore"/
-  "Omnivore" com essa grafia, ou algo diferente) ainda nao foi confirmado
-  ao vivo contra o Atlas Brasil - so testado com dados de exemplo. Se
-  aparecer sem emoji onde deveria ter, mandar o log com DEBUG_POT=true
-  (mesmo processo da secao 19) pra eu ajustar certeiro.
+- CONFIRMADO ao vivo contra o Atlas Brasil (DEBUG_POT=true): o campo
+  "Diet" realmente vem como "Carnivore" (grafia exata) em PlayerRespawn,
+  PlayerLeave e PlayerQuestComplete/Failed - visto em Thalassodromeus,
+  Sachicasaurus, Livyatan e Spinosaurus, todos corretos. Nao apareceu
+  nenhum "Herbivore"/"Omnivore" real ainda pra confirmar esses dois, mas
+  o padrao bate com a doc oficial.
+
+
+21) 2 ACHADOS AO CONFERIR LOGS AO VIVO (DEBUG_POT) - 1 corrigido, 1 so confirmado
+------------------------------------------------
+- NOVO tipo de dano visto ao vivo, NAO documentado nos 10 oficiais do PoT
+  (secao 6/7): "DT_IMPACT" - valores de dano altos (33 a 87), consistente
+  com investida/colisao entre dinossauros. Antes disso, esse tipo
+  aparecia cru ("DT_IMPACT") no relatorio de combate e no campo Causa de
+  PlayerKilled. Adicionado como "Impacto" no mapa de traducao.
+- AdminCommand CONFIRMADO ao vivo (comando "bring" de admin): usa mesmo
+  AdminName/AdminAlderonId, diferente do AdminSpectate (que apesar de
+  estar no mesmo grupo "Admin" da doc oficial, usa PlayerName/
+  PlayerAlderonId - secao 19). O fallback pro par PlayerName/
+  PlayerAlderonId no codigo continua so por seguranca, nunca precisou na
+  pratica pra esse evento.

@@ -47,6 +47,10 @@ const DAMAGE_TYPE_LABELS = {
     DT_TRAMPLE: 'Pisoteio',
     DT_SPIKES: 'Espinhos',
     DT_ARMORPIERCING: 'Perfurante',
+    // Visto ao vivo no Atlas Brasil, NÃO documentado nos 10 oficiais —
+    // valores de dano altos (30-90+), consistente com investida/colisão
+    // entre dinossauros.
+    DT_IMPACT: 'Impacto',
 };
 
 function formatDamageType(type) {
@@ -243,11 +247,12 @@ function formatMessage(potEvent, data, guild) {
         // AdminName/AdminAlderonId como a doc oficial diz — ver
         // ADMIN_ACTION_LABELS acima).
         AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}`,
-        // AdminCommand ainda não teve o payload real confirmado ao vivo —
-        // segue o mesmo padrão observado no AdminSpectate (PlayerName/
-        // PlayerAlderonId) por inferência; se também estiver errado,
-        // ajustar aqui do mesmo jeito.
-        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** executou: \`${d.Command}\``,
+        // Campo confirmado ao vivo: AdminCommand usa AdminName/
+        // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
+        // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/
+        // PlayerAlderonId) — o fallback pro par PlayerName/PlayerAlderonId
+        // fica só por segurança, nunca visto na prática pra este evento.
+        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName || d.PlayerName, d.AdminAlderonId || d.PlayerAlderonId)}** executou: \`${d.Command}\``,
 
         // ── Nest ──
         CreateNest:    () => `${e('Nest', '🪺')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** criou um ninho`,
