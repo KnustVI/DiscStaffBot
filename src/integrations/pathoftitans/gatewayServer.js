@@ -23,12 +23,13 @@ const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave'])
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 
-// Janela de agrupamento de PlayerDamagedPlayer: cada golpe entre o mesmo par
-// atacante/alvo reinicia esse tempo — o relatório só é enviado depois de
-// ficar esse tanto sem NOVO golpe entre os dois (não é uma janela fixa),
-// pra cobrir o combate/afogamento inteiro, não cortar no meio. Ver
-// _bufferDamageEvent/_flushDamageBatchByKey.
-const DAMAGE_BATCH_IDLE_MS = 5 * 60 * 1000;
+// Janela de agrupamento de PlayerDamagedPlayer/PlayerKilled: cada evento
+// novo entre jogadores já ligados a um "encontro" reinicia esse tempo — o
+// relatório só é enviado depois de ficar esse tanto sem NENHUM evento novo
+// entre qualquer um dos participantes (não é uma janela fixa), pra cobrir
+// o combate/afogamento inteiro, não cortar no meio. Ver
+// _bufferDamageEvent/_recordKillIntoEncounter/_flushEncounter.
+const DAMAGE_BATCH_IDLE_MS = 7 * 60 * 1000;
 
 class PoTGatewayServer {
     constructor(client) {
@@ -36,10 +37,18 @@ class PoTGatewayServer {
         this.app = null;
         this.server = null;
         this.isRunning = false;
-        // Map<string, { guildId, groupId, sourceName, sourceAlderonId,
-        //   targetName, targetAlderonId, hits: [{damageType, damageAmount}],
-        //   firstAt, timer }>
-        this.damageBatches = new Map();
+        // Map<encounterId, {
+        //   guildId, groupId,
+        //   participants: Map<playerKey, { name, alderonId, dinosaurType, dinosaurGrowth }>,
+        //   events: [ { type: 'damage', sourceKey, targetKey, damageType, damageAmount, at }
+        //            | { type: 'kill', killerKey, victimKey, damageType, at } ],
+        //   firstAt, timer,
+        // }>
+        // "Encontro" (não mais por par atacante/alvo): qualquer novo evento
+        // que envolva um jogador JÁ participante de um encontro aberto entra
+        // NELE, mesmo que o outro lado seja um terceiro jogador novo — assim
+        // uma briga de 3+ jogadores vira UM relatório só, não um por par.
+        this.damageEncounters = new Map();
     }
 
     start(port = 8080) {
@@ -155,10 +164,10 @@ class PoTGatewayServer {
             this.server.close();
             this.isRunning = false;
         }
-        for (const batch of this.damageBatches.values()) {
-            if (batch.timer) clearTimeout(batch.timer);
+        for (const encounter of this.damageEncounters.values()) {
+            if (encounter.timer) clearTimeout(encounter.timer);
         }
-        this.damageBatches.clear();
+        this.damageEncounters.clear();
     }
 
     // ==================== NORMALIZAÇÃO Format="Discord" ====================
@@ -230,14 +239,12 @@ class PoTGatewayServer {
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Contagem de kill/death falhou:', err.message);
                 }
-                // A morte encerra o combate entre os dois — manda o relatório
-                // de dano acumulado (se houver) na hora, em vez de esperar o
-                // resto da janela de inatividade.
-                this._flushDamageBatchesForPair(
-                    guildId,
-                    data.KillerAlderonId || data.KillerName,
-                    data.VictimAlderonId || data.VictimName,
-                );
+                // A morte vira mais um evento na linha do tempo do encontro
+                // (não encerra mais o encontro na hora — outros participantes
+                // podem continuar brigando entre si) - ver _recordKillIntoEncounter.
+                // O aviso IMEDIATO de morte (embed "Morte em Combate") continua
+                // sendo mandado normalmente logo abaixo, sem esperar o relatório.
+                this._recordKillIntoEncounter(guildId, groupId, data);
             }
 
             // 2. Busca o webhook Discord configurado para este grupo
@@ -275,77 +282,121 @@ class PoTGatewayServer {
         }
     }
 
-    // ==================== RELATÓRIO DE DANO/COMBATE (batching) ====================
+    // ==================== RELATÓRIO DE DANO/COMBATE (encontros) ====================
 
     /**
-     * Acumula um golpe de PlayerDamagedPlayer no lote do par atacante/alvo
-     * (identificados por Alderon ID quando disponível, senão pelo nome) e
-     * (re)inicia o timer de inatividade — cada novo golpe entre os mesmos
-     * dois adia o envio, então o relatório só sai quando o combate/dano
-     * realmente parar (ou quando um dos dois morrer, ver
-     * _flushDamageBatchesForPair).
+     * Acha um encontro já aberto (nesta guild) que já tenha QUALQUER um dos
+     * dois identificadores como participante, ou cria um novo. É isso que
+     * faz uma briga de 3+ jogadores (A bate em B, B bate em C) virar UM
+     * relatório só — quando o evento entre B e C chega, B já é participante
+     * do encontro criado pelo evento entre A e B, então C entra no MESMO
+     * encontro em vez de abrir um novo.
+     */
+    _findOrCreateEncounter(guildId, groupId, keyA, keyB) {
+        for (const encounter of this.damageEncounters.values()) {
+            if (encounter.guildId !== guildId) continue;
+            if (encounter.participants.has(keyA) || encounter.participants.has(keyB)) {
+                return encounter;
+            }
+        }
+        const id = `${guildId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+        const encounter = {
+            id, guildId, groupId,
+            participants: new Map(),
+            events: [],
+            firstAt: Date.now(),
+            timer: null,
+        };
+        this.damageEncounters.set(id, encounter);
+        return encounter;
+    }
+
+    /**
+     * Registra/atualiza um participante do encontro — sempre mantém o
+     * growth mais RECENTE visto (o dinossauro cresce durante o encontro),
+     * mas nunca apaga nome/ID/espécie já conhecidos com um valor vazio.
+     */
+    _upsertParticipant(encounter, key, name, alderonId, dinosaurType, growth) {
+        if (!key) return;
+        const existing = encounter.participants.get(key) || {};
+        encounter.participants.set(key, {
+            name: name || existing.name || 'Desconhecido',
+            alderonId: alderonId || existing.alderonId || null,
+            dinosaurType: dinosaurType || existing.dinosaurType || null,
+            dinosaurGrowth: (growth !== undefined && growth !== null) ? growth : (existing.dinosaurGrowth ?? null),
+        });
+    }
+
+    _resetEncounterTimer(encounter) {
+        if (encounter.timer) clearTimeout(encounter.timer);
+        encounter.timer = setTimeout(() => this._flushEncounter(encounter.id), DAMAGE_BATCH_IDLE_MS);
+    }
+
+    /**
+     * Acumula um golpe de PlayerDamagedPlayer no encontro do par atacante/
+     * alvo (ou cria um novo, ou junta a um encontro já aberto de um dos
+     * dois — ver _findOrCreateEncounter) e reinicia o timer de inatividade.
      */
     _bufferDamageEvent(guildId, groupId, data) {
         const sourceKey = data.SourceAlderonId || data.SourceName || 'desconhecido';
         const targetKey = data.TargetAlderonId || data.TargetName || 'desconhecido';
-        const key = `${guildId}:${sourceKey}->${targetKey}`;
 
-        let batch = this.damageBatches.get(key);
-        if (!batch) {
-            batch = {
-                guildId, groupId,
-                sourceName: data.SourceName || 'Desconhecido',
-                sourceAlderonId: data.SourceAlderonId || null,
-                targetName: data.TargetName || 'Desconhecido',
-                targetAlderonId: data.TargetAlderonId || null,
-                hits: [],
-                firstAt: Date.now(),
-                timer: null,
-            };
-            this.damageBatches.set(key, batch);
-        }
+        const encounter = this._findOrCreateEncounter(guildId, groupId, sourceKey, targetKey);
+        this._upsertParticipant(encounter, sourceKey, data.SourceName, data.SourceAlderonId, data.SourceDinosaurType, data.SourceGrowth);
+        this._upsertParticipant(encounter, targetKey, data.TargetName, data.TargetAlderonId, data.TargetDinosaurType, data.TargetGrowth);
 
         // DamageAmount pode chegar como float do motor do jogo (ex: 9.999998)
         // — arredonda pra inteiro, que é como dano é sempre exibido no jogo.
         const damageAmount = Math.round(Number(data.DamageAmount) || 0);
-        batch.hits.push({ damageType: data.DamageType || 'DT_GENERIC', damageAmount });
+        encounter.events.push({
+            type: 'damage', sourceKey, targetKey,
+            damageType: data.DamageType || 'DT_GENERIC', damageAmount,
+            at: Date.now(),
+        });
 
-        if (batch.timer) clearTimeout(batch.timer);
-        batch.timer = setTimeout(() => this._flushDamageBatchByKey(key), DAMAGE_BATCH_IDLE_MS);
-    }
-
-    async _flushDamageBatchByKey(key) {
-        const batch = this.damageBatches.get(key);
-        if (!batch) return;
-        this.damageBatches.delete(key);
-        if (batch.timer) clearTimeout(batch.timer);
-
-        try {
-            const webhookUrl = PoTConfigSystem.getWebhookForGroup(batch.guildId, batch.groupId);
-            if (!webhookUrl) return;
-
-            const guild = this.client.guilds.cache.get(batch.guildId);
-            const embed = WebhookPayloads.buildDamageReportEmbed(batch, guild);
-            await this._deliverMessage(webhookUrl, { embeds: [embed.toJSON()] });
-        } catch (error) {
-            ErrorLogger.error('pot_gateway', 'flushDamageBatch', error, { guildId: batch.guildId });
-        }
+        this._resetEncounterTimer(encounter);
     }
 
     /**
-     * Manda na hora qualquer lote pendente entre dois identificadores
-     * (Alderon ID ou nome), nas duas ordens possíveis — chamado quando um
-     * PlayerKilled acontece entre os mesmos dois jogadores, já que a morte
-     * encerra o combate e não faz sentido esperar o resto da janela de
-     * inatividade pra mandar o relatório.
+     * Registra uma morte na linha do tempo do encontro (junta ou cria, mesmo
+     * critério de _bufferDamageEvent) — NÃO manda o relatório na hora mais:
+     * outros participantes do mesmo encontro podem continuar brigando entre
+     * si depois dessa morte, então só o timer de inatividade decide quando
+     * fechar. O aviso imediato de morte (embed "Morte em Combate") é
+     * independente disso e continua sendo mandado na hora, ver _routeToDiscord.
      */
-    _flushDamageBatchesForPair(guildId, idA, idB) {
-        for (const [key, batch] of this.damageBatches.entries()) {
-            if (batch.guildId !== guildId) continue;
-            const src = batch.sourceAlderonId || batch.sourceName;
-            const tgt = batch.targetAlderonId || batch.targetName;
-            const matches = (src === idA && tgt === idB) || (src === idB && tgt === idA);
-            if (matches) this._flushDamageBatchByKey(key);
+    _recordKillIntoEncounter(guildId, groupId, data) {
+        const killerKey = data.KillerAlderonId || data.KillerName || 'desconhecido';
+        const victimKey = data.VictimAlderonId || data.VictimName || 'desconhecido';
+
+        const encounter = this._findOrCreateEncounter(guildId, groupId, killerKey, victimKey);
+        this._upsertParticipant(encounter, killerKey, data.KillerName, data.KillerAlderonId, data.KillerDinosaurType, data.KillerGrowth);
+        this._upsertParticipant(encounter, victimKey, data.VictimName, data.VictimAlderonId, data.VictimDinosaurType, data.VictimGrowth);
+
+        encounter.events.push({
+            type: 'kill', killerKey, victimKey,
+            damageType: data.DamageType || 'DT_GENERIC',
+            at: Date.now(),
+        });
+
+        this._resetEncounterTimer(encounter);
+    }
+
+    async _flushEncounter(encounterId) {
+        const encounter = this.damageEncounters.get(encounterId);
+        if (!encounter) return;
+        this.damageEncounters.delete(encounterId);
+        if (encounter.timer) clearTimeout(encounter.timer);
+
+        try {
+            const webhookUrl = PoTConfigSystem.getWebhookForGroup(encounter.guildId, encounter.groupId);
+            if (!webhookUrl) return;
+
+            const guild = this.client.guilds.cache.get(encounter.guildId);
+            const embed = WebhookPayloads.buildDamageReportEmbed(encounter, guild);
+            await this._deliverMessage(webhookUrl, { embeds: [embed.toJSON()] });
+        } catch (error) {
+            ErrorLogger.error('pot_gateway', 'flushEncounter', error, { guildId: encounter.guildId });
         }
     }
 

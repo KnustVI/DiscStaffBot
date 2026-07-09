@@ -583,38 +583,56 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   final direto em player_links (global), nao mais em pot_players.
 
 
-17) WEBHOOK "COMBATE" - RELATORIO DE DANO AGRUPADO (evita flood) + TIPOS DE DANO TRADUZIDOS
+17) WEBHOOK "COMBATE" - RELATORIO DE DANO AGRUPADO POR ENCONTRO (evita flood) + TIPOS DE DANO TRADUZIDOS
 ------------------------------------------------
 - Cada golpe de PlayerDamagedPlayer (dano entre jogadores, OU dano proprio/
   ambiental - afogamento, fome, sede, queda... quando origem e alvo sao o
   mesmo jogador) NAO manda mais uma mensagem por golpe no canal de log
   "Combate" - isso floodava o canal num combate ou afogamento longo.
-- Agora os golpes entre o MESMO PAR atacante/alvo (identificados por
-  Alderon ID quando disponivel, senao pelo nome) ficam acumulados em
-  memoria, e cada novo golpe entre os dois REINICIA um temporizador de 5
-  minutos. So quando passam 5 minutos sem NENHUM golpe novo entre os
-  mesmos dois, o bot manda UM "Relatorio de Combate" (ou "Relatorio de
-  Dano", se for dano proprio/ambiental) com: tipos de dano (traduzidos,
-  com quantidade de golpes e soma por tipo), dano total, numero de golpes
-  e duracao do combate/episodio.
-- Se um PlayerKilled acontece entre os mesmos dois jogadores antes dos 5
-  minutos, o relatorio pendente e mandado NA HORA (nao espera o resto da
-  janela) - a morte encerra o combate, entao nao faz sentido segurar.
+- Agrupamento por ENCONTRO, nao mais por par atacante/alvo (revisado):
+  se A bate em B e depois B bate em C, os tres (A/B/C) entram no MESMO
+  encontro/relatorio, em vez de virar 2 relatorios separados (A-B e B-C).
+  Qualquer evento novo (dano OU morte) que envolva um jogador ja
+  participante de um encontro aberto entra NELE; so cria um encontro novo
+  se nenhum dos dois lados ja estiver em algum.
+- Cada evento novo entre QUALQUER participante do encontro REINICIA um
+  temporizador de 7 minutos (era 5, aumentado por ainda estar gerando
+  mensagens demais). So quando passam 7 minutos sem NENHUM evento novo
+  entre os participantes, o bot manda UM "Relatorio de Combate".
+- PlayerKilled NAO manda mais o relatorio na hora - vira so mais um
+  evento na linha do tempo do encontro (outros participantes podem
+  continuar brigando entre si depois de uma morte). O aviso IMEDIATO de
+  morte ("Morte em Combate", embed vermelho separado) continua sendo
+  mandado na hora, sem esperar o relatorio - as duas coisas convivem.
+- Estrutura do relatorio final:
+  1. "Jogadores envolvidos": identificacao (nome + Alderon ID) + especie +
+     growth de CADA participante do encontro, na ordem em que entraram.
+  2. Um campo por segmento de evento, NA ORDEM CRONOLOGICA de primeira
+     aparicao: cada morte e seu proprio campo ("💀 Morte"); cada par
+     atacante/alvo de dano (incluindo dano proprio/ambiental) vira um
+     campo so, mesmo com varios golpes - agregado por tipo de dano
+     (quantidade + soma), do mesmo jeito que ja era antes por par.
+  3. Dano total, numero de golpes (sem contar mortes) e duracao do
+     encontro inteiro, no fim.
 - DamageAmount (que pode chegar como float do motor do jogo, tipo
   9.999998) e sempre arredondado pra numero inteiro na exibicao - dano no
   jogo em si e sempre inteiro.
-- Tipos de dano traduzidos (os 10 documentados oficialmente pelo PoT):
+- Tipos de dano traduzidos (os 10 documentados oficialmente pelo PoT MAIS
+  "DT_IMPACT", visto ao vivo mas nao documentado - ver secao 21):
   Ataque, Afogamento, Sangramento, Sede, Fome, Fratura (queda), Generico,
-  Pisoteio, Espinhos, Perfurante - usado tanto no relatorio de combate
-  quanto no campo "Causa" do embed de PlayerKilled (antes mostrava o
-  codigo cru, tipo "DT_ATTACK").
+  Pisoteio, Espinhos, Perfurante, Impacto - usado tanto no relatorio de
+  combate quanto no campo "Causa" do embed de PlayerKilled.
+- Embed de "Morte em Combate" tambem ganhou growth + especie de cada
+  lado (Vitima e Assassino), usando os campos oficiais VictimDinosaurType/
+  VictimGrowth e KillerDinosaurType/KillerGrowth - antes so mostrava
+  nome+ID e a causa da morte.
 - Isso e so pro grupo "Combate" (PlayerDamagedPlayer/PlayerKilled) - os
   outros grupos de webhook continuam mandando uma mensagem por evento,
   sem agrupamento (nao pediram flood neles ate agora).
 - Estado do agrupamento fica em memoria (Map dentro do GatewayServer, nao
   no banco) - se o bot reiniciar no meio de um combate, o que ja tinha
-  sido acumulado se perde (proximo golpe comeca um lote novo). Aceitavel
-  pra esse caso de uso; nao e informacao critica.
+  sido acumulado se perde (proximo evento comeca um encontro novo).
+  Aceitavel pra esse caso de uso; nao e informacao critica.
 
 
 18) TODO LOG DE WEBHOOK AGORA MOSTRA O ALDERON ID JUNTO DO NOME

@@ -282,12 +282,17 @@ function formatEmbed(potEvent, data, guild) {
 
     // Embed extra apenas para eventos que ganham com contexto visual
     if (potEvent === 'PlayerKilled' && d.VictimName && d.KillerName) {
+        // Espécie + growth de cada lado — campos confirmados na doc oficial
+        // (VictimDinosaurType/VictimGrowth, KillerDinosaurType/KillerGrowth).
+        const victimSpecies = `${d.VictimDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.VictimGrowth)})`;
+        const killerSpecies = `${d.KillerDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.KillerGrowth)})`;
+
         return new EmbedBuilder()
             .setColor(0xFF0000)
             .setTitle(`${e('Dead', '💀')} Morte em Combate`)
             .addFields(
-                { name: 'Vítima', value: nameWithId(d.VictimName, d.VictimAlderonId), inline: true },
-                { name: 'Assassino', value: nameWithId(d.KillerName, d.KillerAlderonId), inline: true },
+                { name: 'Vítima', value: `${nameWithId(d.VictimName, d.VictimAlderonId)}\n${victimSpecies}`, inline: true },
+                { name: 'Assassino', value: `${nameWithId(d.KillerName, d.KillerAlderonId)}\n${killerSpecies}`, inline: true },
                 { name: 'Causa', value: formatDamageType(d.DamageType), inline: true }
             )
             .setTimestamp();
@@ -304,64 +309,113 @@ function formatEmbed(potEvent, data, guild) {
     return null;
 }
 
-// ==================== RELATÓRIO DE COMBATE/DANO (batch) ====================
+// ==================== RELATÓRIO DE COMBATE/DANO (encontro) ====================
+
+// Mesmos limiares usados no card de /perfil (playerRegistrationSystem.js) —
+// duplicado aqui de propósito pra manter webhookPayloads.js autocontido
+// (não depende de outro sistema só por causa de uma função de 3 linhas).
+// 1.0 = Full Adult, 0.5 = Half grown/Sub-Adult, 0.1 = Hatchling/Baby.
+function formatGrowthPercent(growth) {
+    if (growth === null || growth === undefined) return '—';
+    return `${Math.round(growth * 100)}%`;
+}
+
+function formatDuration(ms) {
+    const safeMs = Math.max(0, ms);
+    return safeMs < 60000 ? `${Math.round(safeMs / 1000)}s` : `${Math.round(safeMs / 60000)}min`;
+}
 
 /**
- * Monta o embed de um lote de PlayerDamagedPlayer acumulado (ver
- * gatewayServer._bufferDamageEvent) — todos os golpes entre o mesmo par
- * atacante/alvo dentro da janela de agrupamento viram UM relatório, em vez
- * de uma mensagem por golpe (evita flood no canal de log em combates/
- * afogamentos com muitos hits seguidos).
+ * Monta o embed de um ENCONTRO acumulado (ver gatewayServer._bufferDamageEvent/
+ * _recordKillIntoEncounter) — todo dano/morte entre jogadores conectados
+ * (A bate em B, B bate em C → A/B/C entram no MESMO encontro) dentro da
+ * janela de agrupamento vira UM relatório só, em vez de uma mensagem por
+ * golpe ou um relatório por par (evita flood E fragmentação em combates
+ * de 3+ jogadores).
  *
- * @param {object} batch - { sourceName, sourceAlderonId, targetName,
- *   targetAlderonId, hits: [{ damageType, damageAmount }], firstAt }
+ * @param {object} encounter - { participants: Map<key, {name, alderonId,
+ *   dinosaurType, dinosaurGrowth}>, events: [...], firstAt }
  * @param {import('discord.js').Guild} guild
  * @returns {import('discord.js').EmbedBuilder}
  */
-function buildDamageReportEmbed(batch, guild) {
+function buildDamageReportEmbed(encounter, guild) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
+    const participant = (key) => encounter.participants.get(key) || { name: 'Desconhecido', alderonId: null };
+    const participantLabel = (key) => nameWithId(participant(key).name, participant(key).alderonId);
 
-    // Dano próprio/ambiental (afogamento, fome, sede, queda...) — PoT manda
-    // o mesmo nome/Alderon ID como origem E alvo nesses casos.
-    const isSelfDamage = batch.sourceAlderonId
-        ? batch.sourceAlderonId === batch.targetAlderonId
-        : batch.sourceName === batch.targetName;
+    // ── Cabeçalho: identificação + espécie + growth de cada jogador
+    // envolvido no encontro, na ordem em que entraram nele. ────────────────
+    // Sem emoji de dieta aqui de propósito — eventos de combate (Damaged/
+    // Killed) não trazem o campo "Diet" no payload oficial (ver seção 20 do
+    // PREMIUM.txt), então não tem como mostrar sem adivinhar por espécie.
+    const participantLines = [...encounter.participants.values()].map((p) =>
+        `${nameWithId(p.name, p.alderonId)} — ${p.dinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(p.dinosaurGrowth)})`
+    );
 
-    const byType = new Map();
-    let total = 0;
-    for (const hit of batch.hits) {
-        total += hit.damageAmount;
-        const entry = byType.get(hit.damageType) || { count: 0, sum: 0 };
-        entry.count += 1;
-        entry.sum += hit.damageAmount;
-        byType.set(hit.damageType, entry);
+    // ── Eventos agrupados em segmentos, na ordem de PRIMEIRA aparição —
+    // cada morte é seu próprio segmento (evento único); cada par atacante/
+    // alvo de dano vira um segmento só, mesmo com múltiplos golpes. ────────
+    const segments = new Map();
+    let killCounter = 0;
+    let totalDamage = 0;
+    let totalHits = 0;
+
+    for (const ev of encounter.events) {
+        if (ev.type === 'kill') {
+            killCounter += 1;
+            segments.set(`kill:${killCounter}`, {
+                kind: 'kill',
+                name: `${e('Dead', '💀')} Morte`,
+                value: `**${participantLabel(ev.victimKey)}** foi morto por **${participantLabel(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`,
+            });
+            continue;
+        }
+
+        totalDamage += ev.damageAmount;
+        totalHits += 1;
+
+        const segKey = `dmg:${ev.sourceKey}->${ev.targetKey}`;
+        let seg = segments.get(segKey);
+        if (!seg) {
+            const isSelf = ev.sourceKey === ev.targetKey;
+            seg = {
+                kind: 'damage',
+                name: isSelf
+                    ? `${participantLabel(ev.targetKey)} — dano próprio/ambiente`
+                    : `${participantLabel(ev.sourceKey)} → ${participantLabel(ev.targetKey)}`,
+                byType: new Map(),
+            };
+            segments.set(segKey, seg);
+        }
+        const typeEntry = seg.byType.get(ev.damageType) || { count: 0, sum: 0 };
+        typeEntry.count += 1;
+        typeEntry.sum += ev.damageAmount;
+        seg.byType.set(ev.damageType, typeEntry);
     }
-    const typeLines = [...byType.entries()]
-        .map(([type, { count, sum }]) => `${formatDamageType(type)}: ${count}x (total **${sum}**)`)
-        .join('\n');
 
-    const durationMs = Math.max(0, Date.now() - batch.firstAt);
-    const durationLabel = durationMs < 60000
-        ? `${Math.round(durationMs / 1000)}s`
-        : `${Math.round(durationMs / 60000)}min`;
-
-    const title = isSelfDamage
-        ? `${e('swords', '⚔️')} Relatório de Dano`
-        : `${e('swords', '⚔️')} Relatório de Combate`;
-    const description = isSelfDamage
-        ? `**${nameWithId(batch.targetName, batch.targetAlderonId)}** sofreu dano por conta própria/ambiente`
-        : `**${nameWithId(batch.sourceName, batch.sourceAlderonId)}** causou dano em **${nameWithId(batch.targetName, batch.targetAlderonId)}**`;
+    const fields = [
+        { name: 'Jogadores envolvidos', value: participantLines.join('\n') || 'Desconhecido', inline: false },
+    ];
+    for (const seg of segments.values()) {
+        if (seg.kind === 'kill') {
+            fields.push({ name: seg.name, value: seg.value, inline: false });
+            continue;
+        }
+        const typeLines = [...seg.byType.entries()]
+            .map(([type, { count, sum }]) => `${formatDamageType(type)}: ${count}x (total **${sum}**)`)
+            .join('\n');
+        fields.push({ name: seg.name, value: typeLines || 'Desconhecido', inline: false });
+    }
+    fields.push(
+        { name: 'Dano total', value: `${totalDamage}`, inline: true },
+        { name: 'Golpes', value: `${totalHits}`, inline: true },
+        { name: 'Duração', value: formatDuration(Date.now() - encounter.firstAt), inline: true },
+    );
 
     return new EmbedBuilder()
         .setColor(0xFF8800)
-        .setTitle(title)
-        .setDescription(description)
-        .addFields(
-            { name: 'Tipos de dano', value: typeLines || 'Desconhecido', inline: false },
-            { name: 'Dano total', value: `${total}`, inline: true },
-            { name: 'Golpes', value: `${batch.hits.length}`, inline: true },
-            { name: 'Duração', value: durationLabel, inline: true },
-        )
+        .setTitle(`${e('swords', '⚔️')} Relatório de Combate`)
+        .addFields(fields)
         .setTimestamp();
 }
 
