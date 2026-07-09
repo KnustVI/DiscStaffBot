@@ -337,7 +337,14 @@ function formatMessage(potEvent, data, guild) {
         // espectador no momento de outra ação (ex: mexendo nametags) — é a
         // única visibilidade indireta possível já que o jogo não notifica
         // a ação em si.
-        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${d.bSpectatorMode ? ` *(em modo espectador)*` : ''}${roleSuffix(d.Role)}`,
+        // Mesmo layout de heading+bullet do AdminCommand logo abaixo (pedido
+        // do dono: vale pra qualquer log de comando/ação de admin, não só
+        // AdminCommand).
+        AdminSpectate: () => {
+            const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
+            const action = `${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${d.bSpectatorMode ? ` *(em modo espectador)*` : ''}`;
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}: ${action}`;
+        },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
         // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/
