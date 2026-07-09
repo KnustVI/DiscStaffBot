@@ -276,14 +276,24 @@ function formatMessage(potEvent, data, guild) {
 
         // ── Chat ──
         // Formato de 2 linhas: canal (+ "Sussurro" quando for whisper) na
-        // primeira, identificação + mensagem na segunda.
+        // primeira, identificação + mensagem na segunda. Canal "Group"
+        // (confirmado ao vivo — ChannelName vem literalmente "Group") usa
+        // emoji diferente (messagesquare) do resto dos canais
+        // (messagecircle), a pedido do dono.
         PlayerChat: () => {
             const channelName = d.ChannelName || 'Chat';
+            const chatEmoji = channelName === 'Group'
+                ? e('messagesquare', '🗨️')
+                : e('messagecircle', '💬');
             const channelLine = d.FromWhisper
-                ? `${e('messagecircle', '💬')} ${channelName} - Sussurro${whisperTargetSuffix(d)}`
-                : `${e('messagecircle', '💬')} ${channelName}`;
+                ? `${chatEmoji} ${channelName} - Sussurro${whisperTargetSuffix(d)}`
+                : `${chatEmoji} ${channelName}`;
             const idPart = d.AlderonId ? ` \`${d.AlderonId}\`` : '';
-            return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}`;
+            // Role NÃO confirmado ao vivo em PlayerChat (payload real tem 8
+            // campos, sem Role, tanto em "Global" quanto "Group") — mantido
+            // por consistência/pedido do dono; roleSuffix() só não mostra
+            // nada se o campo não vier, nunca quebra.
+            return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}${roleSuffix(d.Role)}`;
         },
         // PlayerProfanity DESATIVADO temporariamente (ver DISABLED_EVENTS em
         // gatewayServer.js) — filtro de profanidade do jogo com falsos

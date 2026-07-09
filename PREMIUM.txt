@@ -1318,3 +1318,21 @@ frente, nao so este relatorio):
 - Verificado com script direto: AdminCommand com Role "Balanceamento"
   (mostra), AdminCommand com Role "None" (não mostra), PlayerCommand
   com/sem Role (mesmo comportamento nos dois).
+
+
+38) ROLE NO PlayerChat + EMOJI DIFERENTE PRO CANAL "Group"
+------------------------------------------------
+- Pedido do dono: PlayerChat também ganha roleSuffix() (mesma função da
+  seção 37) na segunda linha, depois da mensagem. CONFIRMADO ao vivo que
+  o payload real de PlayerChat NÃO tem o campo "Role" (nem no canal
+  "Global" nem no "Group" - sempre 8 campos exatos) - adicionado mesmo
+  assim por pedido explícito/consistência; roleSuffix() só não mostra
+  nada enquanto o campo não existir, nunca quebra a mensagem.
+- Canal de grupo (ChannelName === "Group", confirmado ao vivo que é
+  esse o valor literal) agora usa o emoji "messagesquare" na primeira
+  linha, em vez do "messagecircle" usado pros demais canais (Global,
+  sussurro, etc). Chave já existia em emojis.js, sem precisar de sync.
+- Verificado com script direto: canal Global sem Role (comportamento
+  igual a antes), canal Group (emoji messagesquare confirmado), canal
+  Group com Role hipotético (mostra "— Cargo: X"), sussurro (continua
+  messagecircle, não afetado pela troca de emoji do Group).
