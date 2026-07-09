@@ -110,6 +110,16 @@ class DatabaseManager {
             // está ativado (ver potPlayerRegistry.js). Ver /registrar.
             this.ensureColumn('pot_players', 'verification_code', 'TEXT');
             this.ensureColumn('pot_players', 'verified_ingame', 'INTEGER DEFAULT 0');
+            // Espécie/growth do dinossauro atual — foram adicionadas ao
+            // CREATE TABLE de pot_players numa revisão anterior, mas SEM um
+            // ensureColumn correspondente: CREATE TABLE IF NOT EXISTS não
+            // adiciona coluna em tabela já existente, então bancos de
+            // produção criados antes dessa revisão nunca ganharam essas 2
+            // colunas de verdade (erro real visto em produção: "no such
+            // column: dinosaur_type"). Preenchidas via PlayerRespawn — ver
+            // potPlayerRegistry.js.
+            this.ensureColumn('pot_players', 'dinosaur_type', 'TEXT');
+            this.ensureColumn('pot_players', 'dinosaur_growth', 'REAL DEFAULT 0');
             // Kills/deaths por servidor, contabilizados a partir do evento de
             // webhook PlayerKilled (KillerAlderonId/VictimAlderonId) — ver
             // potPlayerRegistry.recordKillEvent. Usados no card do /perfil
