@@ -386,9 +386,16 @@ function buildDamageReportEmbed(encounter, guild) {
     let killCounter = 0;
     let totalDamage = 0;
     let totalHits = 0;
+    // Se NENHUM evento envolver dois jogadores diferentes (nem morte, nem
+    // dano de um em outro) o encontro inteiro é só dano próprio/ambiente
+    // (queda, sangramento, fome...) — nesse caso o título vira "Relatório
+    // de Dano" em vez de "Relatório de Combate", já que não houve combate
+    // de verdade entre jogadores.
+    let hasOtherPlayerInvolved = false;
 
     for (const ev of encounter.events) {
         if (ev.type === 'kill') {
+            hasOtherPlayerInvolved = true;
             killCounter += 1;
             segments.set(`kill:${killCounter}`, {
                 kind: 'kill',
@@ -401,10 +408,12 @@ function buildDamageReportEmbed(encounter, guild) {
         totalDamage += ev.damageAmount;
         totalHits += 1;
 
+        const isSelf = ev.sourceKey === ev.targetKey;
+        if (!isSelf) hasOtherPlayerInvolved = true;
+
         const segKey = `dmg:${ev.sourceKey}->${ev.targetKey}`;
         let seg = segments.get(segKey);
         if (!seg) {
-            const isSelf = ev.sourceKey === ev.targetKey;
             seg = {
                 kind: 'damage',
                 name: isSelf
@@ -439,9 +448,13 @@ function buildDamageReportEmbed(encounter, guild) {
         { name: 'Duração', value: formatDuration(Date.now() - encounter.firstAt), inline: true },
     );
 
+    const title = hasOtherPlayerInvolved
+        ? `${e('swords', '⚔️')} Relatório de Combate`
+        : `${e('swords', '⚔️')} Relatório de Dano`;
+
     return new EmbedBuilder()
         .setColor(0xFF8800)
-        .setTitle(`${e('swords', '⚔️')} Relatório de Combate`)
+        .setTitle(title)
         .addFields(fields)
         .setTimestamp();
 }

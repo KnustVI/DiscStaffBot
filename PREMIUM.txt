@@ -831,3 +831,26 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   sem log nenhum, memoria/mapa some junto com o processo], ou (c) o
   webhook do grupo "combate" ficou indisponivel bem na hora [log de
   descarte ou de flush-sem-webhook vai aparecer].
+
+
+25) TITULO DO RELATORIO MUDA PRA "Relatorio de Dano" QUANDO NAO HA COMBATE ENTRE JOGADORES
+------------------------------------------------
+- Pedido do dono: se o encontro inteiro so teve dano proprio/ambiente
+  (queda, sangramento, fome, afogamento...) sem nenhum outro jogador
+  envolvido, o titulo do painel deixa de ser "Relatorio de Combate" e
+  vira "Relatorio de Dano" - reflete melhor que nao houve combate de
+  verdade.
+- Regra em buildDamageReportEmbed (webhookPayloads.js): o encontro so
+  mantem o titulo "Relatorio de Combate" se pelo menos 1 evento
+  envolver DOIS jogadores diferentes - ou seja, qualquer morte (kill
+  sempre e por outro jogador) ou qualquer dano com sourceKey != targetKey.
+  Se todos os eventos forem sourceKey === targetKey (dano proprio), vira
+  "Relatorio de Dano". Basta 1 evento envolvendo outro jogador em
+  qualquer ponto do encontro (mesmo misturado com varios de dano
+  proprio) pra manter "Relatorio de Combate" - nao precisa ser maioria.
+- Resto do relatorio (cabecalho de participantes, segmentos, dano
+  total/golpes/duracao) nao muda em nada, so o titulo.
+- Testado com 4 cenarios num script direto: so dano proprio (Dano), PvP
+  sem morte (Combate), self-damage + PvP misturado no mesmo encontro
+  (Combate), e so morte sem golpe de dano na timeline (Combate) - todos
+  bateram o esperado.
