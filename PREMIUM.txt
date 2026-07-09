@@ -1292,3 +1292,28 @@ frente, nao so este relatorio):
 - Verificado com 3 cenários (nametags sem spectator, nametags COM
   spectator, exemplo completo da doc) - o texto some quando
   bSpectatorMode é false/ausente, aparece corretamente quando true.
+
+
+37) CARGO DO JOGADOR (Role) ADICIONADO EM TODO LOG DE COMANDO
+------------------------------------------------
+- Pedido do dono: qualquer log de comando mostra o cargo customizado do
+  jogador dentro do PRÓPRIO jogo (campo "Role" - já confirmado ao vivo
+  em vários eventos, ex: "Nitro", "Balanceamento", "Diretor",
+  "Estagiário"). Nova função roleSuffix() em webhookPayloads.js -
+  " — Cargo: X", omite quando o valor é "None" (jogador sem cargo) ou
+  ausente, pra não poluir o log com "Cargo: None" toda hora.
+- Aplicado em:
+  - AdminCommand (confirmado com Role no payload real, ex: "heal" com
+    Role "Balanceamento").
+  - PlayerCommand (campo "Role" NÃO confirmado ainda pra esse evento
+    especificamente, mas segue o mesmo padrão já visto em todo evento
+    de jogador único - PlayerRespawn/Leave/Quest/DamagedPlayer/
+    AdminCommand/AdminSpectate sempre usam "Role" sem prefixo pra
+    eventos de 1 jogador só. Se o campo não vier, roleSuffix()
+    simplesmente não mostra nada, nunca quebra).
+- NÃO aplicado em AdminSpectate - pedido foi especificamente "log de
+  comando", e Spectate não é execução de comando (é toggle de
+  nametags/estado). Avisar se quiser Role lá também.
+- Verificado com script direto: AdminCommand com Role "Balanceamento"
+  (mostra), AdminCommand com Role "None" (não mostra), PlayerCommand
+  com/sem Role (mesmo comportamento nos dois).

@@ -136,6 +136,20 @@ function dinoIdentitySuffix(characterName, characterId) {
     return ` (${label})`;
 }
 
+/**
+ * " — Cargo: X" — cargo customizado do jogador dentro do PRÓPRIO jogo
+ * (campo "Role", confirmado ao vivo em vários eventos: PlayerDamagedPlayer
+ * como Source/TargetRole, AdminCommand/AdminSpectate como Role — ex:
+ * "Nitro", "Balanceamento", "Diretor", "Estagiário"). Pedido do dono: todo
+ * log de comando mostra o cargo do jogador. "None" (valor visto em jogadores
+ * sem cargo nenhum) e vazio/ausente não mostram nada — não é informação
+ * útil pra staff ver "Cargo: None" toda hora.
+ */
+function roleSuffix(role) {
+    if (!role || role === 'None') return '';
+    return ` — Cargo: ${role}`;
+}
+
 // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
 
 /**
@@ -277,7 +291,7 @@ function formatMessage(potEvent, data, guild) {
         PlayerProfanity: () => `${e('shieldban', '🔞')} **${nameWithId(d.PlayerName, d.AlderonId)}** tentou enviar mensagem bloqueada`,
 
         // ── Comandos ──
-        PlayerCommand: () => `${e('raio', '⚡')} **${nameWithId(d.PlayerName, d.AlderonId)}:** \`${d.Message}\``,
+        PlayerCommand: () => `${e('raio', '⚡')} **${nameWithId(d.PlayerName, d.AlderonId)}:** \`${d.Message}\`${roleSuffix(d.Role)}`,
 
         // ── Grupo ──
         PlayerJoinedGroup: () => `${e('users', '👥')} **${nameWithId(d.Player, d.PlayerAlderonId)}** entrou no grupo de **${nameWithId(d.Leader, d.LeaderAlderonId)}**`,
@@ -319,7 +333,7 @@ function formatMessage(potEvent, data, guild) {
         // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/
         // PlayerAlderonId) — o fallback pro par PlayerName/PlayerAlderonId
         // fica só por segurança, nunca visto na prática pra este evento.
-        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName || d.PlayerName, d.AdminAlderonId || d.PlayerAlderonId)}** executou: \`${d.Command}\``,
+        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName || d.PlayerName, d.AdminAlderonId || d.PlayerAlderonId)}** executou: \`${d.Command}\`${roleSuffix(d.Role)}`,
 
         // ── Nest ──
         CreateNest:    () => `${e('Nest', '🪺')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** criou um ninho`,
