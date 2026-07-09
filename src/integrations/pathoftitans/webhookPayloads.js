@@ -243,7 +243,7 @@ function formatMessage(potEvent, data, guild) {
             const channelLine = d.FromWhisper
                 ? `${e('messagecircle', '💬')} ${channelName} - Sussurro${whisperTargetSuffix(d)}`
                 : `${e('messagecircle', '💬')} ${channelName}`;
-            const idPart = d.AlderonId ? ` / \`${d.AlderonId}\`` : '';
+            const idPart = d.AlderonId ? ` \`${d.AlderonId}\`` : '';
             return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}`;
         },
         // PlayerProfanity DESATIVADO temporariamente (ver DISABLED_EVENTS em
