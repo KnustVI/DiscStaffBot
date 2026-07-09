@@ -615,3 +615,35 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   no banco) - se o bot reiniciar no meio de um combate, o que ja tinha
   sido acumulado se perde (proximo golpe comeca um lote novo). Aceitavel
   pra esse caso de uso; nao e informacao critica.
+
+
+18) TODO LOG DE WEBHOOK AGORA MOSTRA O ALDERON ID JUNTO DO NOME
+------------------------------------------------
+- Todo evento de webhook que tem um Alderon ID disponivel no payload
+  oficial do PoT agora mostra ele junto do nome do jogador em TODOS os
+  logs (nao so login/logout/combate, que ja mostravam antes) - formato
+  "NomeDoJogador `123-456-789`". Nome sozinho nao identifica ninguem de
+  forma confiavel (pode repetir); Alderon ID sim.
+- Cobre: PlayerKilled (vitima+assassino), PlayerQuestComplete/Failed,
+  PlayerRespawn, PlayerWaystone (quem convidou+quem foi teletransportado),
+  PlayerChat, PlayerProfanity, PlayerCommand, PlayerJoinedGroup/
+  LeftGroup (jogador+lider), ServerModerate, AdminSpectate, AdminCommand,
+  CreateNest, DestroyNest, NestInvite, PlayerJoinNest, UpdateNest, e o
+  Relatorio de Combate/Dano (secao 17). Eventos sem jogador (ServerStart/
+  Restart/Error, SecurityAlert, BadAverageTick) continuam sem ID, nao se
+  aplica. Sem Alderon ID disponivel no payload, mostra so o nome (nunca
+  quebra a mensagem).
+- 2 bugs pre-existentes corrigidos de bandeja, achados ao conferir o
+  payload oficial de cada evento contra o codigo:
+  - ServerModerate: o codigo lia d.PlayerName, mas esse evento NUNCA
+    manda esse campo (so AlderonId) - a mensagem sempre mostrava
+    "undefined". Corrigido pra mostrar o Alderon ID (unica identificacao
+    que esse evento realmente traz).
+  - NestInvite: o codigo lia d.InvitedPlayer, campo que nao existe no
+    payload oficial (os certos sao PlayerName/PlayerAlderonId pra quem
+    recebe o convite, e InviterPlayerName/InviterPlayerAlderonId pra quem
+    convidou) - a mensagem sempre mostrava "undefined" no lugar de quem
+    foi convidado.
+- Login/Logout/Leave (container V2) e o Relatorio de Combate/Dano ja
+  mostravam o Alderon ID desde que foram implementados - nao precisaram
+  de ajuste nesta revisao, so os grupos de texto simples (legado).

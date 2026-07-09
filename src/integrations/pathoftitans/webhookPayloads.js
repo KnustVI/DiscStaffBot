@@ -53,6 +53,18 @@ function formatDamageType(type) {
     return DAMAGE_TYPE_LABELS[type] || type || 'Desconhecida';
 }
 
+/**
+ * Nome do jogador + Alderon ID junto, formato padrão usado em TODO log de
+ * webhook (não só quem está vinculado ao Discord) — sem o Alderon ID, o
+ * nome de jogador sozinho não identifica ninguém de forma confiável
+ * (mesmo nome pode ser reusado). Sem ID disponível no payload, mostra só
+ * o nome (nunca quebra a mensagem por falta do campo).
+ */
+function nameWithId(name, alderonId) {
+    const safeName = name || 'Desconhecido';
+    return alderonId ? `${safeName} \`${alderonId}\`` : safeName;
+}
+
 // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
 
 /**
@@ -146,57 +158,61 @@ function formatMessage(potEvent, data, guild) {
     const d = data || {};
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
 
+    // Login/Logout/Leave NÃO entram aqui — já são tratados via
+    // buildLoginEventPayload (container V2, já mostra nome + Alderon ID) e
+    // nunca chegam nesta função (ver CONTAINER_EVENTS em gatewayServer.js).
     const formatters = {
-        // ── Login / Logout ──
-        PlayerLogin:   () => `${e('DinoFootprint', '🎮')} **${d.PlayerName}** entrou no servidor${d.bServerAdmin ? ` ${e('shield', '🛡️')}` : ''}`,
-        PlayerLogout:  () => `${e('logout', '👋')} **${d.PlayerName}** saiu do servidor`,
-        PlayerLeave:   () => `${e('logout', '🚶')} **${d.PlayerName}** desconectou`,
-
         // ── Combate ──
         // PlayerDamagedPlayer NÃO entra aqui de propósito — é interceptado
         // antes, em gatewayServer._routeToDiscord, e vira um Relatório de
         // Combate/Dano agrupado (ver buildDamageReportEmbed abaixo) em vez de
         // uma mensagem por golpe (evita flood no canal de log).
-        PlayerKilled: () => `${e('Dead', '💀')} **${d.VictimName}** foi morto por **${d.KillerName}**\n${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``,
+        PlayerKilled: () => `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** foi morto por **${nameWithId(d.KillerName, d.KillerAlderonId)}**\n${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``,
 
         // ── Quest ──
-        PlayerQuestComplete: () => `${e('listchecks', '📜')} **${d.PlayerName}** completou a missão **${d.Quest}**`,
-        PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${d.PlayerName}** falhou na missão **${d.Quest}**`,
+        PlayerQuestComplete: () => `${e('listchecks', '📜')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** completou a missão **${d.Quest}**`,
+        PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**`,
 
         // ── Respawn ──
-        PlayerRespawn:  () => `${e('refreshccw', '🔄')} **${d.PlayerName}** ressurgiu como **${d.DinosaurType}**`,
-        PlayerWaystone: () => `${e('Waystone', '✨')} **${d.InviterName}** teletransportou **${d.TeleportedPlayerName}**`,
+        PlayerRespawn:  () => `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como **${d.DinosaurType}**`,
+        PlayerWaystone: () => `${e('Waystone', '✨')} **${nameWithId(d.InviterName, d.InviterAlderonId)}** teletransportou **${nameWithId(d.TeleportedPlayerName, d.TeleportedPlayerAlderonId)}**`,
 
         // ── Chat ──
-        PlayerChat:      () => `${e('messagecircle', '💬')} **${d.PlayerName}:** ${d.Message}`,
-        PlayerProfanity: () => `${e('shieldban', '🔞')} **${d.PlayerName}** tentou enviar mensagem bloqueada`,
+        PlayerChat:      () => `${e('messagecircle', '💬')} **${nameWithId(d.PlayerName, d.AlderonId)}:** ${d.Message}`,
+        PlayerProfanity: () => `${e('shieldban', '🔞')} **${nameWithId(d.PlayerName, d.AlderonId)}** tentou enviar mensagem bloqueada`,
 
         // ── Comandos ──
-        PlayerCommand: () => `${e('raio', '⚡')} **${d.PlayerName}:** \`${d.Message}\``,
+        PlayerCommand: () => `${e('raio', '⚡')} **${nameWithId(d.PlayerName, d.AlderonId)}:** \`${d.Message}\``,
 
         // ── Grupo ──
-        PlayerJoinedGroup: () => `${e('users', '👥')} **${d.Player}** entrou no grupo de **${d.Leader}**`,
-        PlayerLeftGroup:   () => `${e('users', '👥')} **${d.Player}** saiu do grupo`,
+        PlayerJoinedGroup: () => `${e('users', '👥')} **${nameWithId(d.Player, d.PlayerAlderonId)}** entrou no grupo de **${nameWithId(d.Leader, d.LeaderAlderonId)}**`,
+        PlayerLeftGroup:   () => `${e('users', '👥')} **${nameWithId(d.Player, d.PlayerAlderonId)}** saiu do grupo`,
 
         // ── Servidor ──
         ServerStart:             () => `🟢 Servidor **iniciou** | Mapa: \`${d.Map || 'desconhecido'}\``,
         ServerRestart:           () => `${e('refreshccw', '🔄')} Servidor **reiniciando**...`,
         ServerRestartCountdown:  () => `${e('clockalert', '⏳')} Servidor reinicia em **${d.CountdownTime || '?'}s**`,
-        ServerModerate:          () => `${e('shieldcheck', '🛡️')} Moderação automática: **${d.PlayerName}** — ${d.Reason || 'sem motivo'}`,
+        // ServerModerate não traz PlayerName no payload oficial (só
+        // AlderonId) — mostra o ID puro, é a única identificação disponível.
+        ServerModerate:          () => `${e('shieldcheck', '🛡️')} Moderação automática: \`${d.AlderonId || 'Desconhecido'}\` — ${d.Type || d.Action || 'ação'} — ${d.AdminReason || d.UserReason || 'sem motivo'}`,
         ServerError:             () => `${e('filewarning', '⚠️')} **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
         SecurityAlert:           () => `${e('siren', '🚨')} **ALERTA DE SEGURANÇA:** ${d.SecurityAlert || 'suspeita detectada'}`,
         BadAverageTick:          () => `${e('trendingdown', '📉')} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
 
         // ── Admin ──
-        AdminSpectate: () => `${e('shield', '🛡️')} **${d.AdminName}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
-        AdminCommand:  () => `${e('shield', '🛡️')} **${d.AdminName}** executou: \`${d.Command}\``,
+        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName, d.AdminAlderonId)}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
+        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName, d.AdminAlderonId)}** executou: \`${d.Command}\``,
 
         // ── Nest ──
-        CreateNest:    () => `${e('Nest', '🪺')} **${d.PlayerName}** criou um ninho`,
-        DestroyNest:   () => `💥 Ninho de **${d.PlayerName}** foi destruído`,
-        NestInvite:    () => `${e('mensagem', '📨')} **${d.PlayerName}** convidou **${d.InvitedPlayer}** para o ninho`,
-        PlayerJoinNest: () => `${e('circlecheck', '✅')} **${d.PlayerName}** entrou em um ninho`,
-        UpdateNest:    () => `${e('filetext', '📝')} Ninho de **${d.PlayerName}** foi atualizado`,
+        CreateNest:    () => `${e('Nest', '🪺')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** criou um ninho`,
+        DestroyNest:   () => `💥 Ninho de **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** foi destruído`,
+        // Doc oficial: quem recebe o convite vem em PlayerName/PlayerAlderonId,
+        // quem convidou vem em InviterPlayerName/InviterPlayerAlderonId (não
+        // existe campo "InvitedPlayer" — a versão anterior lia um campo que o
+        // payload real nunca manda).
+        NestInvite:    () => `${e('mensagem', '📨')} **${nameWithId(d.InviterPlayerName, d.InviterPlayerAlderonId)}** convidou **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** para o ninho`,
+        PlayerJoinNest: () => `${e('circlecheck', '✅')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** entrou em um ninho`,
+        UpdateNest:    () => `${e('filetext', '📝')} Ninho de **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** foi atualizado`,
     };
 
     const fn = formatters[potEvent];
@@ -219,8 +235,8 @@ function formatEmbed(potEvent, data, guild) {
             .setColor(0xFF0000)
             .setTitle(`${e('Dead', '💀')} Morte em Combate`)
             .addFields(
-                { name: 'Vítima', value: d.VictimName, inline: true },
-                { name: 'Assassino', value: d.KillerName, inline: true },
+                { name: 'Vítima', value: nameWithId(d.VictimName, d.VictimAlderonId), inline: true },
+                { name: 'Assassino', value: nameWithId(d.KillerName, d.KillerAlderonId), inline: true },
                 { name: 'Causa', value: formatDamageType(d.DamageType), inline: true }
             )
             .setTimestamp();
@@ -282,8 +298,8 @@ function buildDamageReportEmbed(batch, guild) {
         ? `${e('swords', '⚔️')} Relatório de Dano`
         : `${e('swords', '⚔️')} Relatório de Combate`;
     const description = isSelfDamage
-        ? `**${batch.targetName}** sofreu dano por conta própria/ambiente`
-        : `**${batch.sourceName}** causou dano em **${batch.targetName}**`;
+        ? `**${nameWithId(batch.targetName, batch.targetAlderonId)}** sofreu dano por conta própria/ambiente`
+        : `**${nameWithId(batch.sourceName, batch.sourceAlderonId)}** causou dano em **${nameWithId(batch.targetName, batch.targetAlderonId)}**`;
 
     return new EmbedBuilder()
         .setColor(0xFF8800)
