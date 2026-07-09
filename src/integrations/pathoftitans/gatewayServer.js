@@ -230,7 +230,13 @@ class PoTGatewayServer {
             // PlayerRespawn carrega DinosaurType/DinosaurGrowth (espécie/growth
             // atuais, mostrados no card do /perfil) — sem isso na lista, esses
             // dois campos nunca eram atualizados.
-            const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerKilled', 'PlayerChat', 'PlayerCommand', 'PlayerRespawn'];
+            // PlayerKilled NÃO entra aqui de propósito — esse evento nunca tem
+            // um campo "AlderonId"/"PlayerAlderonId" solto (só KillerAlderonId/
+            // VictimAlderonId), então upsertPlayerFromEvent SEMPRE falhava e
+            // logava "Payload sem AlderonId — ignorando" em TODA morte, sem
+            // nunca fazer nada de útil (kills/deaths já são contados à parte,
+            // corretamente, em recordKillEvent — ver 1b abaixo).
+            const playerEvents = ['PlayerLogin', 'PlayerLogout', 'PlayerLeave', 'PlayerChat', 'PlayerCommand', 'PlayerRespawn'];
             if (playerEvents.includes(potEvent)) {
                 try {
                     PlayerRegistry.upsertPlayerFromEvent(guildId, data, potEvent);

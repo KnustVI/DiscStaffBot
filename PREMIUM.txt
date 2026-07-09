@@ -759,3 +759,24 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   (nunca quebra a mensagem). Se sussurrar no jogo e o nome não aparecer,
   mandar o log com DEBUG_POT=true (mesmo processo de sempre) pra eu achar
   o campo certo.
+
+
+23) CORRECAO: "Payload sem AlderonId" logado em TODA morte (ruido, inofensivo)
+------------------------------------------------
+- PlayerKilled estava na lista de eventos que disparam o registro
+  automatico de jogador (upsertPlayerFromEvent) - mas esse evento NUNCA
+  tem um campo "AlderonId"/"PlayerAlderonId" solto, so KillerAlderonId/
+  VictimAlderonId (nomes diferentes, ja tratados corretamente à parte em
+  recordKillEvent, que conta kills/deaths certinho). Resultado: TODA
+  morte no servidor gerava o aviso "⚠️ Payload sem AlderonId (evento:
+  PlayerKilled) — ignorando" no log, sem nunca fazer nada de util -
+  ruido, mas nao causava nenhum problema real (kills/deaths continuavam
+  sendo contados certinho, e a mensagem/relatorio de combate continuavam
+  sendo mandados normalmente).
+- Corrigido: PlayerKilled tirado dessa lista. O aviso nao aparece mais.
+- IMPORTANTE: esse aviso NAO tem relacao com mensagens de combate que
+  eventualmente nao cheguem no Discord - se isso acontecer de novo,
+  precisa investigar separado (ver se o "Relatorio de Combate" so ainda
+  nao tinha completado os 7 minutos de inatividade, que e o
+  comportamento esperado - so o aviso IMEDIATO de morte sai na hora, o
+  relatorio agregado sempre demora).
