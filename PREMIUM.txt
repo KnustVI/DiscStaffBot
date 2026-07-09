@@ -733,3 +733,29 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   PlayerAlderonId - secao 19). O fallback pro par PlayerName/
   PlayerAlderonId no codigo continua so por seguranca, nunca precisou na
   pratica pra esse evento.
+
+
+22) WEBHOOK "CHAT" - PlayerProfanity DESATIVADO + PlayerChat REFORMATADO
+------------------------------------------------
+- PlayerProfanity DESATIVADO temporariamente (a pedido do dono) - o
+  filtro de profanidade do PROPRIO jogo tem falsos positivos demais pra
+  valer a pena logar por enquanto. O webhook continua sendo recebido
+  normalmente, so nao gera mensagem nenhuma no Discord. Reversivel: tirar
+  "PlayerProfanity" do Set DISABLED_EVENTS em gatewayServer.js reativa -
+  o formatter da mensagem continua no codigo, pronto pra usar.
+  DISABLED_EVENTS e um mecanismo generico (qualquer evento pode ser
+  desativado assim), nao especifico de PlayerProfanity.
+- PlayerChat mudou de 1 linha pra 2:
+    :emoji: NomeDoCanal
+    NomeDoJogador / `AlderonId`: mensagem
+  Se for sussurro (FromWhisper=true), a primeira linha vira
+  ":emoji: NomeDoCanal - Sussurro (para Fulano)" - o "(para Fulano)" só
+  aparece se o payload trouxer o nome de quem recebeu.
+- PENDENTE (mesmo aviso de sempre): a doc oficial do PoT NÃO documenta um
+  campo de destinatário pra PlayerChat quando FromWhisper=true - o codigo
+  tenta alguns nomes de campo comuns (WhisperTarget/WhisperTargetName/
+  ToPlayerName/RecipientName/TargetName) como chute educado, ainda NAO
+  confirmado ao vivo. Se nenhum bater, so nao mostra o "(para Fulano)"
+  (nunca quebra a mensagem). Se sussurrar no jogo e o nome não aparecer,
+  mandar o log com DEBUG_POT=true (mesmo processo de sempre) pra eu achar
+  o campo certo.

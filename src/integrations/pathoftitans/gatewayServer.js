@@ -21,6 +21,13 @@ const WebhookPayloads = require('./webhookPayloads');
 // formato de texto simples por enquanto — reformulação prevista pra todos.
 const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave']);
 
+// Eventos temporariamente desativados a pedido do dono — chegam normalmente
+// (o webhook do jogo continua sendo recebido/processado), mas não geram
+// mensagem nenhuma no Discord. PlayerProfanity: o filtro de profanidade do
+// PRÓPRIO jogo tem falsos positivos demais pra valer a pena logar por
+// enquanto. Pra reativar, é só tirar o evento daqui.
+const DISABLED_EVENTS = new Set(['PlayerProfanity']);
+
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 
 // Janela de agrupamento de PlayerDamagedPlayer/PlayerKilled: cada evento
@@ -201,6 +208,8 @@ class PoTGatewayServer {
 
     async _routeToDiscord(guildId, groupId, potEvent, rawData) {
         try {
+            if (DISABLED_EVENTS.has(potEvent)) return;
+
             // 0. O Game.ini pode estar configurado com Format="Discord" — nesse
             // modo o servidor manda um payload já pronto pra postar direto num
             // webhook ({content, username, embeds:[{description: "**Chave:**

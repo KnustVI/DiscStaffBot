@@ -79,6 +79,21 @@ function dietEmoji(diet, guild) {
     return '';
 }
 
+/**
+ * " (para Fulano)" quando o payload de um PlayerChat com FromWhisper=true
+ * também disser pra quem foi o sussurro. PENDENTE: o campo oficial da doc
+ * do PoT NÃO documenta um nome de destinatário pra PlayerChat — os
+ * candidatos abaixo são um chute educado (nomes comuns em payloads
+ * parecidos), ainda não confirmados ao vivo. Se nenhum bater, cai no
+ * fallback (sem nome, só "Sussurro") — nunca quebra a mensagem. Testar com
+ * DEBUG_POT=true numa mensagem sussurrada e ajustar aqui se o campo real
+ * tiver outro nome.
+ */
+function whisperTargetSuffix(d) {
+    const target = d.WhisperTarget || d.WhisperTargetName || d.ToPlayerName || d.RecipientName || d.TargetName || null;
+    return target ? ` (para ${target})` : '';
+}
+
 // CONFIRMADO via DEBUG_POT contra o servidor real do Atlas Brasil: apesar
 // da doc oficial do PoT dizer que AdminSpectate traz "AdminName"/
 // "AdminAlderonId" e Action binário "Entered/Exited Spectator Mode", o
@@ -221,7 +236,19 @@ function formatMessage(potEvent, data, guild) {
         PlayerWaystone: () => `${e('Waystone', '✨')} **${nameWithId(d.InviterName, d.InviterAlderonId)}** teletransportou **${nameWithId(d.TeleportedPlayerName, d.TeleportedPlayerAlderonId)}**`,
 
         // ── Chat ──
-        PlayerChat:      () => `${e('messagecircle', '💬')} **${nameWithId(d.PlayerName, d.AlderonId)}:** ${d.Message}`,
+        // Formato de 2 linhas: canal (+ "Sussurro" quando for whisper) na
+        // primeira, identificação + mensagem na segunda.
+        PlayerChat: () => {
+            const channelName = d.ChannelName || 'Chat';
+            const channelLine = d.FromWhisper
+                ? `${e('messagecircle', '💬')} ${channelName} - Sussurro${whisperTargetSuffix(d)}`
+                : `${e('messagecircle', '💬')} ${channelName}`;
+            const idPart = d.AlderonId ? ` / \`${d.AlderonId}\`` : '';
+            return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}`;
+        },
+        // PlayerProfanity DESATIVADO temporariamente (ver DISABLED_EVENTS em
+        // gatewayServer.js) — filtro de profanidade do jogo com falsos
+        // positivos demais. Formatter mantido pronto pra quando reativar.
         PlayerProfanity: () => `${e('shieldban', '🔞')} **${nameWithId(d.PlayerName, d.AlderonId)}** tentou enviar mensagem bloqueada`,
 
         // ── Comandos ──
