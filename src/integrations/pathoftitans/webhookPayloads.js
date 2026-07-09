@@ -343,7 +343,12 @@ function formatMessage(potEvent, data, guild) {
         // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/
         // PlayerAlderonId) — o fallback pro par PlayerName/PlayerAlderonId
         // fica só por segurança, nunca visto na prática pra este evento.
-        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName || d.PlayerName, d.AdminAlderonId || d.PlayerAlderonId)}** executou: \`${d.Command}\`${roleSuffix(d.Role)}`,
+        // Layout pedido pelo dono: heading com emoji + cargo, bullet com
+        // identificação + comando.
+        AdminCommand: () => {
+            const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.AdminName || d.PlayerName, d.AdminAlderonId || d.PlayerAlderonId)}: \`${d.Command}\``;
+        },
 
         // ── Nest ──
         CreateNest:    () => `${e('Nest', '🪺')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** criou um ninho`,

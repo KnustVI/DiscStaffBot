@@ -1353,3 +1353,22 @@ frente, nao so este relatorio):
 - Verificado com script direto: Global mostra globo (com e sem
   sussurro), Group continua messagesquare, nenhuma linha mostra mais
   "— Cargo".
+
+
+40) LAYOUT NOVO DO AdminCommand (heading + bullet)
+------------------------------------------------
+- Pedido do dono, formato exato:
+    ### {emoji} {Cargo}
+    - {Nome} `{AlderonId}`: `{comando}`
+  Trocado o "**Nome** executou: `comando` — Cargo: X" de uma linha só
+  (seção 37) por esse layout de 2 linhas. Cargo vira o título (heading
+  nível 3) em vez de sufixo no final; sem Role/Role="None" cai no
+  fallback "Staff" (heading sempre precisa de algum texto, não dá pra
+  omitir a linha toda como o roleSuffix() fazia antes).
+- roleSuffix() continua em uso em PlayerCommand e AdminSpectate (não
+  mudou) - só o AdminCommand ganhou esse formato de heading próprio.
+- "###" funciona normal em mensagem de texto puro do Discord (não
+  precisa de Components V2 pra isso - suporte a headings em markdown de
+  mensagem comum já existe faz tempo).
+- Verificado com script direto: AdminCommand com Role "Balanceamento" e
+  sem Role (cai em "Staff") - layout batendo exatamente com o pedido.
