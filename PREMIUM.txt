@@ -1274,3 +1274,21 @@ frente, nao so este relatorio):
   de debug ao vivo.
 - Verificado com script direto simulando os dois formatos de campo -
   ambos resolvem o nome do admin corretamente.
+
+
+36) bSpectatorMode ADICIONADO NA LINHA DO AdminSpectate (visibilidade indireta)
+------------------------------------------------
+- Dono notou que nem o formatter confirmado (nametags) nem o fallback
+  da seção 35 mostravam o campo "bSpectatorMode" — presente no payload
+  real (sempre false nos testes até agora) e no exemplo da doc (true).
+  Confirmado que AdminCommand NÃO tem esse campo (só 5 campos exatos,
+  sem espaço pra ele) — só AdminSpectate carrega.
+- Já que o jogo não manda um evento dedicado quando um admin entra/sai
+  do modo espectador (seção 34), esse flag é a ÚNICA visibilidade
+  indireta possível: se um admin mexe nametags (ou qualquer outra
+  Action de AdminSpectate) ENQUANTO já está em modo espectador, agora
+  aparece " *(em modo espectador)*" no final da linha.
+  Ex: "🛡️ KnustVI desativou os nametags *(em modo espectador)*"
+- Verificado com 3 cenários (nametags sem spectator, nametags COM
+  spectator, exemplo completo da doc) - o texto some quando
+  bSpectatorMode é false/ausente, aparece corretamente quando true.

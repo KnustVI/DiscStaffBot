@@ -306,7 +306,14 @@ function formatMessage(potEvent, data, guild) {
         // AdminAlderonId) em vez do padrão confirmado. Fallback pro par
         // Admin* cobre esse caso sem custo nenhum, mesmo padrão já usado
         // em AdminCommand logo abaixo.
-        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}`,
+        // bSpectatorMode (confirmado presente no payload, sempre false nos
+        // testes reais até agora — doc mostra true no exemplo de spectator
+        // mode) NUNCA era mostrado: mesmo sem um evento dedicado de
+        // entrar/sair, esse flag ainda diz se o admin JÁ ESTAVA em modo
+        // espectador no momento de outra ação (ex: mexendo nametags) — é a
+        // única visibilidade indireta possível já que o jogo não notifica
+        // a ação em si.
+        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${d.bSpectatorMode ? ` *(em modo espectador)*` : ''}`,
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
         // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/
