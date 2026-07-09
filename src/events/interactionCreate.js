@@ -56,6 +56,14 @@ module.exports = {
                 return;
             }
 
+            // ==================== CADASTRO DE JOGADOR - CONFIRMAR CÓDIGO (ABRIR MODAL) ====================
+            if (interaction.customId === 'player_register:confirm_code') {
+                const PlayerRegistrationSystem = require('../systems/pot/playerRegistrationSystem');
+                const playerRegistration = new PlayerRegistrationSystem(client);
+                await playerRegistration.handleConfirmCodeButton(interaction);
+                return;
+            }
+
             // ==================== BOTÕES NA DM (COM GUILD_ID) ====================
 
             if (interaction.customId?.startsWith('close_reason:')) {
@@ -196,6 +204,14 @@ module.exports = {
                 const PlayerRegistrationSystem = require('../systems/pot/playerRegistrationSystem');
                 const playerRegistration = new PlayerRegistrationSystem(client);
                 await playerRegistration.handleModalSubmit(interaction);
+                return;
+            }
+
+            if (interaction.customId === 'player_register_verify_modal') {
+                await interaction.deferReply({ flags: 64 });
+                const PlayerRegistrationSystem = require('../systems/pot/playerRegistrationSystem');
+                const playerRegistration = new PlayerRegistrationSystem(client);
+                await playerRegistration.handleVerifyCodeSubmit(interaction);
                 return;
             }
 

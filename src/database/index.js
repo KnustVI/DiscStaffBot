@@ -137,6 +137,13 @@ class DatabaseManager {
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).
             this.ensureColumn('player_links', 'banner_message_id', 'TEXT');
+            // Verificação em jogo (RCON) do vínculo Discord<->Alderon ID —
+            // global (a identidade é global, mesmo que a confirmação em si
+            // dependa do RCON de um servidor específico). 1 quando o vínculo
+            // veio confirmado pela própria Alderon (webhook com DiscordId) ou
+            // quando o jogador confirmou o código enviado in-game via
+            // /registrar. Ver potPlayerRegistry.js.
+            this.ensureColumn('player_links', 'verified_ingame', 'INTEGER DEFAULT 0');
             // Snapshot do nível de punição customizado usado no momento do strike
             // (ver punishmentLevels.js) — congelado na hora de aplicar, pra editar
             // um nível depois não reescrever punições já aplicadas. A coluna

@@ -37,6 +37,8 @@ const {
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PlayerRegistry = require('./potPlayerRegistry');
+const PoTConfigSystem = require('./potConfigSystem');
+const sessionManager = require('../../utils/sessionManager');
 const imageManager = require('../../utils/imageManager');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
 const { renderProfileCard } = require('../../utils/profileCardRenderer');
@@ -166,11 +168,11 @@ class PlayerRegistrationSystem {
         }
         builder.separator();
         builder.text(
-            `${EMOJIS.shieldcheck || '🛡️'} **Forma mais segura:** conecte sua conta do Discord pelo site oficial da Alderon Games e entre em um servidor com o bot configurado — o vínculo é feito automaticamente, sem precisar preencher o cadastro manual abaixo.`
+            `${EMOJIS.shieldcheck || '🛡️'} **Forma mais rápida:** conecte sua conta do Discord pelo site oficial da Alderon Games e entre em um servidor com o bot configurado — o vínculo é feito automaticamente, sem precisar preencher o cadastro manual abaixo.`
         );
         builder.separator();
         builder.text(
-            `${EMOJIS.trianglealert || '⚠️'} **Importante:** o cadastro manual abaixo não é verificado dentro do jogo — é você quem garante que é o dono dessa conta. Vínculo falso pode ser tratado como violação pela staff.`
+            `${EMOJIS.trianglealert || '⚠️'} **Verificação em jogo obrigatória:** o cadastro manual abaixo só é concluído depois de você confirmar um código enviado dentro do jogo — por isso, esteja online no servidor de jogo configurado aqui antes de preencher.`
         );
 
         const PremiumSystem = require('../premium/premiumSystem');
@@ -394,9 +396,18 @@ class PlayerRegistrationSystem {
         await interaction.showModal(this.getRegisterModal(player));
     }
 
+    /**
+     * Passo 1 do cadastro manual: valida o Alderon ID digitado e, se tudo
+     * bater (formato, sem conflito, servidor com RCON configurado, jogador
+     * online nesse servidor agora), gera e manda um código de verificação
+     * via RCON — a verificação em jogo é OBRIGATÓRIA, nada é salvo em
+     * player_links ainda. Os dados ficam staged em SessionManager até o
+     * jogador confirmar o código (ver handleVerifyCodeSubmit).
+     */
     async handleModalSubmit(interaction) {
         const userId = interaction.user.id;
-        const guildName = interaction.guild?.name || 'Servidor';
+        const guild = interaction.guild;
+        const guildName = guild?.name || 'Servidor';
 
         const playerName = interaction.fields.getTextInputValue('nome_jogo').trim();
         const alderonIdRaw = interaction.fields.getTextInputValue('alderon_id').trim();
@@ -408,12 +419,120 @@ class PlayerRegistrationSystem {
             ));
         }
 
-        const result = PlayerRegistry.registerPlayerManually(userId, alderonIdRaw, playerName);
+        // ── Mesmo conflito checado dentro de registerPlayerManually, mas
+        // verificado ANTES de gastar um código/RCON à toa. ─────────────────
+        const takenBy = PlayerRegistry.getPlayerByAlderonId(alderonIdRaw);
+        if (takenBy && takenBy.user_id !== userId) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Esse Alderon ID já está vinculado a outra conta do Discord (o vínculo é global, vale em qualquer servidor). Se isso for um engano, peça para a staff verificar.`,
+                COLORS.ERROR, guildName,
+            ));
+        }
+
+        // ── Verificação em jogo é obrigatória: precisa de RCON configurado
+        // NESTE servidor e do jogador online NELE agora — sem isso o código
+        // não tem como chegar até o jogador. Também é daqui que vem o
+        // USERNAME real (webhook) usado como alvo do SystemMessage — o
+        // comando espera o nome de usuário da Alderon Games/nome em jogo,
+        // não o Alderon ID (diferente de kick/ban, que aceitam AGID). ──────
+        const onlinePlayer = PlayerRegistry.getOnlinePotPlayer(guild.id, alderonIdRaw);
+        if (!onlinePlayer) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} **Verificação em jogo obrigatória.** Não encontramos esse Alderon ID online no servidor de jogo configurado em **${guildName}** agora. Entre no jogo (nesse servidor) e tente \`/registrar\` de novo.`,
+                COLORS.ERROR, guildName,
+            ));
+        }
+        const gameUsername = onlinePlayer.player_name || playerName;
+
+        const code = PlayerRegistry.generateVerificationCode();
+        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, `SystemMessage ${gameUsername} Seu codigo de verificacao Titan's Pass: ${code}`);
+
+        if (!rconResult?.success) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Não foi possível enviar o código de verificação para o jogo agora (${rconResult?.error || 'erro desconhecido'}). Tente novamente em instantes.`,
+                COLORS.ERROR, guildName,
+            ));
+        }
+
+        sessionManager.set(userId, guild.id, 'player_verify', 'pending', {
+            playerName, alderonId: alderonIdRaw, code,
+        }, 10 * 60 * 1000);
+
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.text(`${EMOJIS.messagesquare || '📨'} **Código enviado!**`);
+        builder.text(`Olhe o chat do jogo — mandamos um código de verificação pra \`${alderonIdRaw}\`. Clique no botão abaixo e digite o código pra concluir o cadastro.`);
+        builder.text(`${EMOJIS.clockalert || '⏳'} O código expira em 10 minutos.`);
+        builder.footer(guildName);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('player_register:confirm_code')
+                .setLabel('Confirmar código')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji(EMOJIS.circlecheck || '✅'),
+        );
+
+        const payload = builder.build();
+        payload.components = [...payload.components, row];
+        await interaction.editReply(payload);
+    }
+
+    // ==================== VERIFICAÇÃO EM JOGO (PASSO 2) ====================
+
+    getVerifyCodeModal() {
+        return new ModalBuilder().setCustomId('player_register_verify_modal').setTitle('Confirmar Código').addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('codigo')
+                    .setLabel('Código recebido no jogo')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMinLength(6)
+                    .setMaxLength(6)
+                    .setPlaceholder('Ex: 483920'),
+            ),
+        );
+    }
+
+    async handleConfirmCodeButton(interaction) {
+        const session = sessionManager.get(interaction.user.id, interaction.guildId, 'player_verify', 'pending');
+        if (!session) {
+            return await interaction.reply({
+                content: `${EMOJIS.circlealert || '❌'} Sessão expirada ou não encontrada. Use /registrar de novo pra gerar um código novo.`,
+                flags: 64,
+            });
+        }
+        await interaction.showModal(this.getVerifyCodeModal());
+    }
+
+    async handleVerifyCodeSubmit(interaction) {
+        const userId = interaction.user.id;
+        const guildId = interaction.guildId;
+        const guildName = interaction.guild?.name || 'Servidor';
+
+        const session = sessionManager.get(userId, guildId, 'player_verify', 'pending');
+        if (!session) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Sessão expirada. Use /registrar de novo pra gerar um código novo.`,
+                COLORS.ERROR, guildName,
+            ));
+        }
+
+        const submittedCode = interaction.fields.getTextInputValue('codigo').trim();
+        if (submittedCode !== session.code) {
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlealert || '❌'} Código incorreto. Confira o chat do jogo e tente de novo (clique em "Confirmar código" na mensagem anterior).`,
+                COLORS.ERROR, guildName,
+            ));
+        }
+
+        const result = PlayerRegistry.registerPlayerManually(userId, session.alderonId, session.playerName, true);
+        sessionManager.delete(userId, guildId, 'player_verify', 'pending');
 
         if (!result.success) {
             const messages = {
                 MISSING_FIELDS: 'Preencha os dois campos corretamente.',
-                ALDERON_TAKEN: 'Esse Alderon ID já está vinculado a outra conta do Discord (o vínculo é global, vale em qualquer servidor). Se isso for um engano, peça para a staff verificar.',
+                ALDERON_TAKEN: 'Esse Alderon ID já está vinculado a outra conta do Discord nesse meio tempo. Se isso for um engano, peça para a staff verificar.',
                 DB_ERROR: 'Erro interno ao salvar o cadastro. Tente novamente em instantes.',
             };
             return await interaction.editReply(this._simpleReply(
@@ -423,15 +542,16 @@ class PlayerRegistrationSystem {
         }
 
         const summary = result.created
-            ? `${EMOJIS.circlecheck || '✅'} **Cadastro criado!**`
+            ? `${EMOJIS.circlecheck || '✅'} **Cadastro verificado e criado!**`
             : result.relinked
-                ? `${EMOJIS.circlecheck || '✅'} **Cadastro atualizado** para o novo Alderon ID.`
-                : `${EMOJIS.circlecheck || '✅'} **Cadastro atualizado!**`;
+                ? `${EMOJIS.circlecheck || '✅'} **Cadastro verificado e atualizado** para o novo Alderon ID.`
+                : `${EMOJIS.circlecheck || '✅'} **Cadastro verificado e atualizado!**`;
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         builder.text(summary);
-        builder.text(`${EMOJIS.user || '👤'} **Nome no jogo:** ${playerName}`);
-        builder.text(`${EMOJIS.PotLogo || '🦖'} **Alderon ID:** \`${alderonIdRaw}\``);
+        builder.text(`${EMOJIS.user || '👤'} **Nome no jogo:** ${session.playerName}`);
+        builder.text(`${EMOJIS.PotLogo || '🦖'} **Alderon ID:** \`${session.alderonId}\``);
+        builder.text(`${EMOJIS.shieldcheck || '🛡️'} Verificado em jogo.`);
         builder.footer(guildName);
 
         await interaction.editReply(builder.build());

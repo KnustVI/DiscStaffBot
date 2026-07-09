@@ -161,12 +161,17 @@ function _syncGlobalLinkFromWebhook(discordId, alderonId, playerName) {
         if (takenBy && takenBy.user_id !== discordId) return;
 
         const now = Date.now();
+        // verified_ingame = 1: este vínculo veio confirmado pela própria
+        // Alderon (o jogador conectou o Discord pelo site oficial deles) —
+        // fonte pelo menos tão confiável quanto o código in-game do /registrar
+        // manual (ver registerPlayerManually).
         db.prepare(`
-            INSERT INTO player_links (user_id, alderon_id, player_name, registered_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO player_links (user_id, alderon_id, player_name, verified_ingame, registered_at, updated_at)
+            VALUES (?, ?, ?, 1, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 alderon_id = excluded.alderon_id,
                 player_name = excluded.player_name,
+                verified_ingame = 1,
                 updated_at = excluded.updated_at
         `).run(discordId, alderonId, playerName, now, Math.floor(now / 1000));
     } catch (error) {
@@ -333,10 +338,13 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
  * @param {string} discordId
  * @param {string} alderonId - Já validado no formato xxx-xxx-xxx pelo chamador
  * @param {string} playerName
+ * @param {boolean} [verified=false] - true quando já passou pela verificação
+ *   em jogo via RCON (ver /registrar, fluxo obrigatório de código) — grava
+ *   verified_ingame=1. Sempre false se chamado sem esse parâmetro.
  * @returns {{ success: boolean, created?: boolean, relinked?: boolean, error?: string }}
  *   error, quando presente, é um código curto: 'MISSING_FIELDS' | 'ALDERON_TAKEN' | 'DB_ERROR'
  */
-function registerPlayerManually(discordId, alderonId, playerName) {
+function registerPlayerManually(discordId, alderonId, playerName, verified = false) {
     if (!discordId || !alderonId || !playerName) {
         return { success: false, error: 'MISSING_FIELDS' };
     }
@@ -359,13 +367,14 @@ function registerPlayerManually(discordId, alderonId, playerName) {
         const relinked = !!(byDiscord && byDiscord.alderon_id !== alderonId);
 
         db.prepare(`
-            INSERT INTO player_links (user_id, alderon_id, player_name, registered_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO player_links (user_id, alderon_id, player_name, verified_ingame, registered_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 alderon_id = excluded.alderon_id,
                 player_name = excluded.player_name,
+                verified_ingame = excluded.verified_ingame,
                 updated_at = excluded.updated_at
-        `).run(discordId, alderonId, playerName, now, Math.floor(now / 1000));
+        `).run(discordId, alderonId, playerName, verified ? 1 : 0, now, Math.floor(now / 1000));
 
         return { success: true, created: !byDiscord, relinked };
     } catch (error) {
@@ -393,24 +402,26 @@ function getPlayerByAlderonId(alderonId) {
 }
 
 // ---------------------------------------------------------------------------
-// VERIFICAÇÃO EM JOGO (RCON) — PREPARADO, AINDA NÃO ATIVADO.
+// VERIFICAÇÃO EM JOGO (RCON) — ATIVA, obrigatória no cadastro manual.
 //
-// O cadastro manual (/registrar) hoje aceita o Alderon ID informado pelo
-// próprio usuário sem confirmar que ele realmente é o dono daquele
-// personagem no jogo. A ideia é fechar esse buraco com um código de uso
-// único enviado no chat do jogo via RCON, que o jogador digita de volta no
-// Discord para confirmar.
+// O /registrar manual (registerPlayerManually) exige confirmar que quem está
+// cadastrando é o dono de fato do Alderon ID: o bot gera um código, manda via
+// RCON (`SystemMessage <username> <código>` — o comando espera o USERNAME da
+// Alderon Games/nome em jogo, NÃO o Alderon ID, diferente de kick/ban que
+// aceitam <Username/AGID> — ver PoTConfigSystem.executeRconCommand) para o
+// jogador NO SERVIDOR ONDE o /registrar foi rodado — por isso o jogador
+// precisa estar ONLINE nesse servidor específico no momento (ver
+// getOnlinePotPlayer abaixo, que também devolve o player_name REAL vindo do
+// webhook — mais confiável que o nome digitado à mão no modal). O código em
+// si é staged no SessionManager entre o modal de cadastro e o modal de
+// confirmação (ver playerRegistrationSystem.js) — não passa pelo banco,
+// então não precisa de coluna própria; só o resultado final (verified_ingame,
+// em player_links, GLOBAL) é persistido, via
+// registerPlayerManually(..., verified=true).
 //
-// As funções abaixo só mexem no banco (gerar/guardar/confirmar o código) —
-// nenhuma delas é chamada pelo fluxo atual de /registrar. O envio de fato
-// pelo RCON (`PoTRconClient.sendCommand`) depende de termos uma conexão
-// RCON confiável em produção, o que ainda está pendente (ver conversas
-// anteriores sobre ECONNREFUSED). Quando isso for resolvido, o fluxo de
-// /registrar precisa ser ajustado para: gerar o código com
-// generateVerificationCode(), guardar com setVerificationCode(), mandar via
-// RCON (broadcast ou whisper — checar o comando certo na doc do PoT), e só
-// marcar verified_ingame=1 (confirmVerification) depois do jogador informar
-// o código de volta no Discord.
+// Vínculos confirmados automaticamente pela própria Alderon (webhook com
+// DiscordId — ver _syncGlobalLinkFromWebhook) já são marcados verified_ingame
+// = 1 direto, sem precisar desse fluxo — são pelo menos tão confiáveis.
 // ---------------------------------------------------------------------------
 
 /**
@@ -422,42 +433,28 @@ function generateVerificationCode() {
 }
 
 /**
- * Guarda o código de verificação pendente para um jogador já cadastrado.
- * @returns {boolean} sucesso
+ * Busca o jogador ONLINE agora no servidor de jogo configurado para esta
+ * guild — pré-condição pra mandar o código de verificação via RCON (sem
+ * isso, o SystemMessage não chega a ninguém, mas o comando RCON "funciona"
+ * mesmo assim, dando uma falsa sensação de sucesso). Devolve a linha inteira
+ * (não só um booleano) porque player_name é o USERNAME real vindo do
+ * webhook — é ele, não o Alderon ID, que o comando SystemMessage espera
+ * como alvo.
+ *
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @returns {{ player_name: string } | null} null se não encontrado/offline
  */
-function setVerificationCode(guildId, alderonId, code) {
+function getOnlinePotPlayer(guildId, alderonId) {
+    if (!guildId || !alderonId) return null;
     try {
-        const result = db.prepare(`
-            UPDATE pot_players SET verification_code = ? WHERE guild_id = ? AND alderon_id = ?
-        `).run(code, guildId, alderonId);
-        return result.changes > 0;
-    } catch (error) {
-        console.error('❌ [PoT Registry] Erro ao salvar código de verificação:', error);
-        return false;
-    }
-}
-
-/**
- * Confirma a verificação em jogo se o código bater, e limpa o código usado.
- * Continua guild-scoped de propósito — verification_code/verified_ingame são
- * campos de pot_players (atividade por servidor), não de player_links.
- * @returns {boolean} true se o código conferiu e a verificação foi confirmada
- */
-function confirmVerification(guildId, alderonId, submittedCode) {
-    try {
-        const player = db.prepare(`
-            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        const row = db.prepare(`
+            SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ? AND is_online = 1
         `).get(guildId, alderonId);
-        if (!player || !player.verification_code || player.verification_code !== String(submittedCode).trim()) {
-            return false;
-        }
-        db.prepare(`
-            UPDATE pot_players SET verified_ingame = 1, verification_code = NULL WHERE guild_id = ? AND alderon_id = ?
-        `).run(guildId, alderonId);
-        return true;
+        return row || null;
     } catch (error) {
-        console.error('❌ [PoT Registry] Erro ao confirmar verificação:', error);
-        return false;
+        console.error('❌ [PoT Registry] Erro ao checar status online:', error);
+        return null;
     }
 }
 
@@ -619,10 +616,9 @@ module.exports = {
     recordKillEvent,
     registerPlayerManually,
     setBannerMessageId,
-    // Verificação em jogo (RCON) — preparado, ainda não ativado no fluxo real.
+    // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
-    setVerificationCode,
-    confirmVerification,
+    getOnlinePotPlayer,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     ONLINE_EVENTS,

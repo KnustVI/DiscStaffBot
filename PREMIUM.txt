@@ -534,3 +534,50 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   Strike não aplicado: Cargo temporário de Strike requer o plano
   Rastreador.") - mesmo padrao ja usado pra acao no Discord/acao em jogo
   quando bloqueadas pelo tier.
+
+
+16) /registrar - VERIFICACAO EM JOGO OBRIGATORIA (RCON)
+------------------------------------------------
+- O cadastro manual do /registrar (informar seu proprio Alderon ID) agora
+  EXIGE confirmar que voce e o dono de fato daquele personagem no jogo -
+  antes disso era aceito sem nenhuma confirmacao (so a palavra do usuario).
+- Como funciona: ao preencher o modal (nome + Alderon ID), o bot:
+  1. Confere se o Alderon ID ja esta vinculado a OUTRA conta do Discord
+     (rejeita, igual antes).
+  2. Confere se esse Alderon ID esta ONLINE agora no servidor de jogo
+     configurado NESTE Discord (via webhook - pot_players.is_online). Se
+     nao estiver, pede pra entrar no jogo e tentar de novo - NAO da pra
+     mandar o codigo pra quem esta offline. Essa mesma consulta ja devolve
+     o USERNAME real do jogador (pot_players.player_name, vindo do proprio
+     webhook do jogo - mais confiavel que o nome digitado a mao no modal).
+  3. Gera um codigo de 6 digitos e manda via RCON
+     (SystemMessage <username> <codigo>) pro jogador, dentro do jogo -
+     CONFIRMADO que SystemMessage espera o username da Alderon Games/nome
+     em jogo como alvo, NAO o Alderon ID (diferente de kick/ban, que
+     aceitam <Username/AGID> nos dois formatos).
+  4. Mostra um botao "Confirmar codigo" - o jogador digita o codigo
+     recebido num modal novo. Se bater, o cadastro e salvo (com
+     verified_ingame=1); se nao bater, pode tentar de novo (codigo valido
+     por 10 minutos, staged em SessionManager - nada fica na tela de
+     ninguem alem do proprio jogador nem no banco ate confirmar).
+- IMPORTANTE: como a verificacao depende do RCON de UM servidor especifico,
+  e o Alderon ID precisa estar online ALI na hora, isso so funciona quando
+  rodado num Discord com PoT+RCON configurado (/potserver setup) E o
+  jogador conectado nesse servidor de jogo no momento. Rodar /registrar
+  num Discord sem RCON configurado, ou estando offline, sempre falha com
+  uma mensagem clara explicando o motivo - nao ha mais cadastro "so por
+  confianca" nesse fluxo.
+- Vinculos feitos automaticamente via webhook (quando o jogador conecta o
+  Discord pelo site oficial da Alderon Games) continuam funcionando igual
+  e ja saem marcados verified_ingame=1 direto - sao uma fonte pelo menos
+  tao confiavel quanto o codigo in-game, sem precisar desse fluxo manual.
+- Nova coluna verified_ingame em player_links (GLOBAL - a identidade e
+  global mesmo que a confirmacao dependa do RCON de um servidor
+  especifico; verificar uma vez, em qualquer servidor com RCON, vale em
+  todo lugar). Vinculos antigos (de antes desta revisao) ficam com
+  verified_ingame=0 por padrao - nao foram invalidados nem precisam
+  reverificar pra continuar funcionando, so nao carregam o selo.
+- As funcoes antigas setVerificationCode/confirmVerification (guild-scoped,
+  em pot_players) foram REMOVIDAS - o desenho novo usa SessionManager pro
+  codigo pendente (nao precisa de coluna no banco) e grava o resultado
+  final direto em player_links (global), nao mais em pot_players.
