@@ -1237,10 +1237,12 @@ frente, nao so este relatorio):
   ADMIN_ACTION_LABELS (webhookPayloads.js) continuam no código como
   fallback inofensivo (caso ALGUMA versão/config do jogo realmente
   mande isso um dia), mas na prática nunca deve bater.
-- PENDENTE de confirmação final: pedido ao dono pra testar ligar/
-  desligar NAMETAGS (não modo espectador) pra confirmar que o pipeline
-  do AdminSpectate está saudável de ponta a ponta e a ausência é
-  especificamente do modo espectador, não de todo o evento.
+- CONFIRMADO (teste ao vivo do dono, ligando e desligando nametags):
+  os 2 eventos chegaram certinhos, "Enabled Nametags" e "Disabled
+  Nametags", com PlayerName/PlayerAlderonId corretos ("KnustVI"/
+  "500-735-822") nos dois. Pipeline do AdminSpectate confirmado saudável
+  de ponta a ponta — a ausência é mesmo só do modo espectador
+  especificamente, não de todo o evento.
 - NENHUMA mudança de código feita nesta seção - registrado só como
   descoberta, pra não perder tempo tentando "consertar" um campo que
   não existe porque o jogo não manda.
