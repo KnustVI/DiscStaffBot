@@ -327,7 +327,7 @@ function formatMessage(potEvent, data, guild) {
         // espectador no momento de outra ação (ex: mexendo nametags) — é a
         // única visibilidade indireta possível já que o jogo não notifica
         // a ação em si.
-        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${d.bSpectatorMode ? ` *(em modo espectador)*` : ''}`,
+        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${d.bSpectatorMode ? ` *(em modo espectador)*` : ''}${roleSuffix(d.Role)}`,
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
         // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/

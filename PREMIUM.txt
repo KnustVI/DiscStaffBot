@@ -1311,9 +1311,10 @@ frente, nao so este relatorio):
     AdminCommand/AdminSpectate sempre usam "Role" sem prefixo pra
     eventos de 1 jogador só. Se o campo não vier, roleSuffix()
     simplesmente não mostra nada, nunca quebra).
-- NÃO aplicado em AdminSpectate - pedido foi especificamente "log de
-  comando", e Spectate não é execução de comando (é toggle de
-  nametags/estado). Avisar se quiser Role lá também.
+- Estendido também pro AdminSpectate logo em seguida, a pedido do dono
+  (ficaria estranho mostrar Role em Command mas não em Spectate, já que
+  os dois ficam no mesmo grupo "Admin"). Fica no final da linha, depois
+  do indicador de "(em modo espectador)" da seção 36.
 - Verificado com script direto: AdminCommand com Role "Balanceamento"
   (mostra), AdminCommand com Role "None" (não mostra), PlayerCommand
   com/sem Role (mesmo comportamento nos dois).
