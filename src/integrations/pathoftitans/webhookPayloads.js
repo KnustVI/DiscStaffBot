@@ -220,7 +220,7 @@ function formatMessage(potEvent, data, guild) {
         // ── Combate ──
         // PlayerDamagedPlayer NÃO entra aqui de propósito — é interceptado
         // antes, em gatewayServer._routeToDiscord, e vira um Relatório de
-        // Combate/Dano agrupado (ver buildDamageReportEmbed abaixo) em vez de
+        // Combate/Dano agrupado (ver buildDamageReportPayload abaixo) em vez de
         // uma mensagem por golpe (evita flood no canal de log).
         PlayerKilled: () => `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** foi morto por **${nameWithId(d.KillerName, d.KillerAlderonId)}**\n${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``,
 
@@ -347,50 +347,98 @@ function formatGrowthPercent(growth) {
     return `${Math.round(growth * 100)}%`;
 }
 
+// Referência oficial confirmada pelo dono (vale pra TODOS os comandos/logs
+// do bot, ver também formatGrowth em playerRegistrationSystem.js — duplicado
+// aqui de propósito, mesmo motivo do formatGrowthPercent acima): 0 =
+// Filhote, 0.25 = Juvenil, 0.50 = Adolescente, 0.80 = Sub-Adulto, 1 = Adulto.
+function formatGrowthStage(growth) {
+    if (growth === null || growth === undefined) return null;
+    if (growth >= 1) return 'Adulto';
+    if (growth >= 0.80) return 'Sub-Adulto';
+    if (growth >= 0.50) return 'Adolescente';
+    if (growth >= 0.25) return 'Juvenil';
+    return 'Filhote';
+}
+
 function formatDuration(ms) {
     const safeMs = Math.max(0, ms);
     return safeMs < 60000 ? `${Math.round(safeMs / 1000)}s` : `${Math.round(safeMs / 60000)}min`;
 }
 
 /**
- * Monta o embed de um ENCONTRO acumulado (ver gatewayServer._bufferDamageEvent/
+ * Linha "🍖 Espécie — Growth: 80% (Sub-Adulto)" de um participante — usada
+ * em qualquer lugar do relatório que mencione a espécie de um dinossauro
+ * (a pedido do dono: "sempre traga o emoji carni e herbi antes"). diet vem
+ * de extractDinoIdentity() em gatewayServer.js — PENDENTE/não confirmado
+ * pra eventos de combate (ver comentário lá), então o emoji só aparece
+ * quando esse campo existir de verdade no payload; sem ele, cai no mesmo
+ * fallback silencioso de sempre (sem emoji, resto da linha normal).
+ */
+function participantSpeciesLine(p, guild) {
+    const dietPrefix = dietEmoji(p.diet, guild);
+    const stage = formatGrowthStage(p.dinosaurGrowth);
+    return `${dietPrefix ? dietPrefix + ' ' : ''}${p.dinosaurType || 'Desconhecido'} — Growth: ${formatGrowthPercent(p.dinosaurGrowth)}${stage ? ` (${stage})` : ''}`;
+}
+
+/**
+ * Linha "NomeDoDino `IDDoDino`" de um participante — só existe se o
+ * payload realmente trouxe essas informações (ver extractDinoIdentity em
+ * gatewayServer.js, também PENDENTE/não confirmado). Retorna null quando
+ * não há nada pra mostrar, pra quem chamar decidir se omite a linha.
+ */
+function participantDinoIdentityLine(p) {
+    if (!p.characterName && !p.dinosaurId) return null;
+    return `${p.characterName || 'Desconhecido'}${p.dinosaurId ? ` \`${p.dinosaurId}\`` : ''}`;
+}
+
+/**
+ * Local (mapa/POI/coordenadas) do encontro — usa o último evento da
+ * timeline que tiver QUALQUER campo de local reconhecido (mais perto de
+ * onde o combate terminou). PENDENTE/não confirmado (ver extractEventLocation
+ * em gatewayServer.js) — sem nenhum campo reconhecido em nenhum evento,
+ * retorna null e a seção "Local" inteira some do relatório.
+ */
+function findEncounterLocation(encounter) {
+    for (let i = encounter.events.length - 1; i >= 0; i -= 1) {
+        const loc = encounter.events[i].location;
+        if (loc && (loc.mapName || loc.poiName || loc.coords)) return loc;
+    }
+    return null;
+}
+
+/**
+ * Monta o painel (Components V2, via AdvancedContainerBuilder) de um
+ * ENCONTRO acumulado (ver gatewayServer._bufferDamageEvent/
  * _recordKillIntoEncounter) — todo dano/morte entre jogadores conectados
  * (A bate em B, B bate em C → A/B/C entram no MESMO encontro) dentro da
  * janela de agrupamento vira UM relatório só, em vez de uma mensagem por
  * golpe ou um relatório por par (evita flood E fragmentação em combates
- * de 3+ jogadores).
+ * de 3+ jogadores). Se nenhum outro jogador esteve envolvido (só dano
+ * próprio/ambiente), vira um "Relatório de Dano Isolado" mais enxuto, sem
+ * seção de participantes múltiplos nem de local.
  *
  * @param {object} encounter - { participants: Map<key, {name, alderonId,
- *   dinosaurType, dinosaurGrowth}>, events: [...], firstAt }
+ *   dinosaurType, dinosaurGrowth, diet, characterName, dinosaurId}>,
+ *   events: [...], firstAt }
  * @param {import('discord.js').Guild} guild
- * @returns {import('discord.js').EmbedBuilder}
+ * @returns {{ components: object[], flags: number }}
  */
-function buildDamageReportEmbed(encounter, guild) {
+function buildDamageReportPayload(encounter, guild) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
     const participant = (key) => encounter.participants.get(key) || { name: 'Desconhecido', alderonId: null };
     const participantLabel = (key) => nameWithId(participant(key).name, participant(key).alderonId);
 
-    // ── Cabeçalho: identificação + espécie + growth de cada jogador
-    // envolvido no encontro, na ordem em que entraram nele. ────────────────
-    // Sem emoji de dieta aqui de propósito — eventos de combate (Damaged/
-    // Killed) não trazem o campo "Diet" no payload oficial (ver seção 20 do
-    // PREMIUM.txt), então não tem como mostrar sem adivinhar por espécie.
-    const participantLines = [...encounter.participants.values()].map((p) =>
-        `${nameWithId(p.name, p.alderonId)} — ${p.dinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(p.dinosaurGrowth)})`
-    );
-
     // ── Eventos agrupados em segmentos, na ordem de PRIMEIRA aparição —
     // cada morte é seu próprio segmento (evento único); cada par atacante/
-    // alvo de dano vira um segmento só, mesmo com múltiplos golpes. ────────
+    // alvo de dano vira um segmento só, mesmo com múltiplos golpes. Cada
+    // golpe guarda o horário REAL (relógio do servidor, não tempo de jogo)
+    // em que chegou, pra listar depois. ─────────────────────────────────────
     const segments = new Map();
     let killCounter = 0;
-    let totalDamage = 0;
-    let totalHits = 0;
     // Se NENHUM evento envolver dois jogadores diferentes (nem morte, nem
     // dano de um em outro) o encontro inteiro é só dano próprio/ambiente
-    // (queda, sangramento, fome...) — nesse caso o título vira "Relatório
-    // de Dano" em vez de "Relatório de Combate", já que não houve combate
-    // de verdade entre jogadores.
+    // (queda, sangramento, fome...) — vira "Relatório de Dano Isolado" em
+    // vez de "Relatório de Combate", já que não houve combate de verdade.
     let hasOtherPlayerInvolved = false;
 
     for (const ev of encounter.events) {
@@ -399,14 +447,10 @@ function buildDamageReportEmbed(encounter, guild) {
             killCounter += 1;
             segments.set(`kill:${killCounter}`, {
                 kind: 'kill',
-                name: `${e('Dead', '💀')} Morte`,
-                value: `**${participantLabel(ev.victimKey)}** foi morto por **${participantLabel(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`,
+                text: `${e('Dead', '💀')} Morte\n**${participantLabel(ev.victimKey)}** foi morto por **${participantLabel(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`,
             });
             continue;
         }
-
-        totalDamage += ev.damageAmount;
-        totalHits += 1;
 
         const isSelf = ev.sourceKey === ev.targetKey;
         if (!isSelf) hasOtherPlayerInvolved = true;
@@ -416,47 +460,98 @@ function buildDamageReportEmbed(encounter, guild) {
         if (!seg) {
             seg = {
                 kind: 'damage',
-                name: isSelf
-                    ? `${participantLabel(ev.targetKey)} — dano próprio/ambiente`
-                    : `${participantLabel(ev.sourceKey)} → ${participantLabel(ev.targetKey)}`,
+                header: isSelf
+                    ? `- ${participantLabel(ev.targetKey)} — dano próprio/ambiente`
+                    : `- ${participantLabel(ev.sourceKey)} >>> ${participantLabel(ev.targetKey)}`,
                 byType: new Map(),
             };
             segments.set(segKey, seg);
         }
-        const typeEntry = seg.byType.get(ev.damageType) || { count: 0, sum: 0 };
+        const typeEntry = seg.byType.get(ev.damageType) || { count: 0, sum: 0, hitTimes: [] };
         typeEntry.count += 1;
         typeEntry.sum += ev.damageAmount;
+        typeEntry.hitTimes.push(ev.at);
         seg.byType.set(ev.damageType, typeEntry);
     }
 
-    const fields = [
-        { name: 'Jogadores envolvidos', value: participantLines.join('\n') || 'Desconhecido', inline: false },
-    ];
-    for (const seg of segments.values()) {
-        if (seg.kind === 'kill') {
-            fields.push({ name: seg.name, value: seg.value, inline: false });
-            continue;
+    // Cada linha de tipo de dano vira "Tipo | Nx | Y de vida | horários reais
+    // de cada golpe" — <t:...:T> deixa o Discord mostrar o horário já
+    // convertido pro fuso de quem está lendo, sem o bot precisar adivinhar
+    // fuso horário nenhum. Lista limitada a 10 horários por linha (evita um
+    // campo gigante em dano contínuo tipo fome/afogamento com dezenas de
+    // ticks) — o resto vira só uma contagem "+N".
+    const MAX_TIMES_SHOWN = 10;
+    const typeLines = (byType) => [...byType.entries()].map(([type, { count, sum, hitTimes }]) => {
+        const shown = hitTimes.slice(0, MAX_TIMES_SHOWN).map((t) => `<t:${Math.floor(t / 1000)}:T>`).join(', ');
+        const extra = hitTimes.length > MAX_TIMES_SHOWN ? ` +${hitTimes.length - MAX_TIMES_SHOWN}` : '';
+        return `${formatDamageType(type)} | ${count}x | ${sum} de vida | ${shown}${extra}`;
+    });
+
+    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+
+    if (hasOtherPlayerInvolved) {
+        builder.title('RELATÓRIO DE COMBATE', 1);
+        builder.text(
+            'O relatório de combate é feito com atraso e não reflete 100% do que ocorreu em um combate e pode cometer erros — em caso de quebra de regra, avalie sempre um vídeo e outros fatos e logs.\n' +
+            'Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.'
+        );
+        builder.separator();
+
+        builder.title('JOGADORES ENVOLVIDOS', 2);
+        for (const key of encounter.participants.keys()) {
+            const p = participant(key);
+            builder.title(`${nameWithId(p.name, p.alderonId)}`, 3);
+            const lines = [participantSpeciesLine(p, guild)];
+            const identityLine = participantDinoIdentityLine(p);
+            if (identityLine) lines.push(identityLine);
+            builder.text(lines.join('\n'));
         }
-        const typeLines = [...seg.byType.entries()]
-            .map(([type, { count, sum }]) => `${formatDamageType(type)}: ${count}x (total **${sum}**)`)
-            .join('\n');
-        fields.push({ name: seg.name, value: typeLines || 'Desconhecido', inline: false });
+        builder.separator();
+
+        const location = findEncounterLocation(encounter);
+        if (location) {
+            builder.title('LOCAL', 2);
+            const mapPoi = [location.mapName, location.poiName].filter(Boolean).join(' - ');
+            if (mapPoi) builder.text(`- ${e('map', '🗺️')} ${mapPoi}`);
+            if (location.coords) builder.text(`- ${e('mappin', '📍')} ${location.coords}`);
+            builder.separator();
+        }
+
+        builder.title('RELATÓRIO DE DANO', 2);
+        for (const seg of segments.values()) {
+            if (seg.kind === 'kill') {
+                builder.text(seg.text);
+                continue;
+            }
+            builder.text([seg.header, ...typeLines(seg.byType)].join('\n'));
+        }
+    } else {
+        // Encontro isolado: só existe UM participante possível (dano
+        // próprio nunca envolve outro jogador), então não há seção de
+        // "jogadores envolvidos" nem de "local" — vai direto pro cabeçalho
+        // do jogador e a lista de dano.
+        builder.title('RELATÓRIO DE DANO ISOLADO', 1);
+        builder.text('Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.');
+
+        const [onlyKey] = encounter.participants.keys();
+        const p = participant(onlyKey);
+        builder.title(`${nameWithId(p.name, p.alderonId)}`, 3);
+        const lines = [participantSpeciesLine(p, guild)];
+        const identityLine = participantDinoIdentityLine(p);
+        if (identityLine) lines.push(identityLine);
+        builder.text(lines.join('\n'));
+        builder.separator();
+
+        for (const seg of segments.values()) {
+            builder.text(typeLines(seg.byType).join('\n'));
+        }
     }
-    fields.push(
-        { name: 'Dano total', value: `${totalDamage}`, inline: true },
-        { name: 'Golpes', value: `${totalHits}`, inline: true },
-        { name: 'Duração', value: formatDuration(Date.now() - encounter.firstAt), inline: true },
-    );
 
-    const title = hasOtherPlayerInvolved
-        ? `${e('swords', '⚔️')} Relatório de Combate`
-        : `${e('swords', '⚔️')} Relatório de Dano`;
+    builder.separator();
+    builder.footer(guild?.name || 'Servidor');
 
-    return new EmbedBuilder()
-        .setColor(0xFF8800)
-        .setTitle(title)
-        .addFields(fields)
-        .setTimestamp();
+    const { components, flags } = builder.build();
+    return { components: components.map((c) => c.toJSON()), flags };
 }
 
-module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportEmbed, formatDamageType, dietEmoji };
+module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportPayload, formatDamageType, dietEmoji };

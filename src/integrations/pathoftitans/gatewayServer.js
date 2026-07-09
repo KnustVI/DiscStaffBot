@@ -28,6 +28,46 @@ const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave'])
 // enquanto. Pra reativar, é só tirar o evento daqui.
 const DISABLED_EVENTS = new Set(['PlayerProfanity']);
 
+/**
+ * Nome/ID do dinossauro (não confundir com AlderonId, que é do JOGADOR) e
+ * dieta de um dos lados de um evento de combate (Source/Target/Killer/
+ * Victim). PENDENTE: nenhum desses 3 campos é documentado oficialmente pra
+ * PlayerDamagedPlayer/PlayerKilled — os nomes abaixo são um chute educado
+ * (mesmo padrão de prefixo já confirmado em Name/AlderonId/DinosaurType/
+ * Growth), ainda não confirmado ao vivo. Se nenhum bater, tudo fica null e
+ * simplesmente não aparece no relatório — nunca quebra a mensagem. Testar
+ * com DEBUG_POT=true num combate real e ajustar aqui se os campos reais
+ * tiverem outro nome.
+ */
+function extractDinoIdentity(data, prefix) {
+    return {
+        characterName: data[`${prefix}CharacterName`] || data[`${prefix}DinosaurName`] || data[`${prefix}DinoName`] || null,
+        dinosaurId: data[`${prefix}CharacterId`] || data[`${prefix}DinosaurId`] || data[`${prefix}DinoId`] || null,
+        diet: data[`${prefix}Diet`] || data[`${prefix}DinosaurDiet`] || null,
+    };
+}
+
+/**
+ * Local (mapa/POI/coordenadas) de um evento de combate. PENDENTE, mesmo
+ * aviso do extractDinoIdentity acima: nenhum desses campos é documentado
+ * oficialmente, chute educado ainda não confirmado ao vivo. Sem nenhum
+ * campo reconhecido, retorna tudo null e a seção "Local" do relatório some
+ * inteira (ver buildDamageReportPayload em webhookPayloads.js).
+ */
+function extractEventLocation(data) {
+    const mapName = data.MapName || data.Map || null;
+    const poiName = data.POIName || data.POI || data.Location || data.LocationName || null;
+    const x = data.LocationX ?? data.PosX ?? data.X ?? null;
+    const y = data.LocationY ?? data.PosY ?? data.Y ?? null;
+    const z = data.LocationZ ?? data.PosZ ?? data.Z ?? null;
+    const hasCoords = x !== null && y !== null;
+    return {
+        mapName,
+        poiName,
+        coords: hasCoords ? `X: ${Math.round(x)}, Y: ${Math.round(y)}${z !== null ? `, Z: ${Math.round(z)}` : ''}` : null,
+    };
+}
+
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 
 // Janela de agrupamento de PlayerDamagedPlayer/PlayerKilled: cada evento
@@ -348,16 +388,20 @@ class PoTGatewayServer {
     /**
      * Registra/atualiza um participante do encontro — sempre mantém o
      * growth mais RECENTE visto (o dinossauro cresce durante o encontro),
-     * mas nunca apaga nome/ID/espécie já conhecidos com um valor vazio.
+     * mas nunca apaga nome/ID/espécie/dieta/identidade do dino já
+     * conhecidos com um valor vazio.
      */
-    _upsertParticipant(encounter, key, name, alderonId, dinosaurType, growth) {
+    _upsertParticipant(encounter, key, info) {
         if (!key) return;
         const existing = encounter.participants.get(key) || {};
         encounter.participants.set(key, {
-            name: name || existing.name || 'Desconhecido',
-            alderonId: alderonId || existing.alderonId || null,
-            dinosaurType: dinosaurType || existing.dinosaurType || null,
-            dinosaurGrowth: (growth !== undefined && growth !== null) ? growth : (existing.dinosaurGrowth ?? null),
+            name: info.name || existing.name || 'Desconhecido',
+            alderonId: info.alderonId || existing.alderonId || null,
+            dinosaurType: info.dinosaurType || existing.dinosaurType || null,
+            dinosaurGrowth: (info.growth !== undefined && info.growth !== null) ? info.growth : (existing.dinosaurGrowth ?? null),
+            diet: info.diet || existing.diet || null,
+            characterName: info.characterName || existing.characterName || null,
+            dinosaurId: info.dinosaurId || existing.dinosaurId || null,
         });
     }
 
@@ -376,8 +420,16 @@ class PoTGatewayServer {
         const targetKey = data.TargetAlderonId || data.TargetName || 'desconhecido';
 
         const encounter = this._findOrCreateEncounter(guildId, groupId, sourceKey, targetKey);
-        this._upsertParticipant(encounter, sourceKey, data.SourceName, data.SourceAlderonId, data.SourceDinosaurType, data.SourceGrowth);
-        this._upsertParticipant(encounter, targetKey, data.TargetName, data.TargetAlderonId, data.TargetDinosaurType, data.TargetGrowth);
+        this._upsertParticipant(encounter, sourceKey, {
+            name: data.SourceName, alderonId: data.SourceAlderonId,
+            dinosaurType: data.SourceDinosaurType, growth: data.SourceGrowth,
+            ...extractDinoIdentity(data, 'Source'),
+        });
+        this._upsertParticipant(encounter, targetKey, {
+            name: data.TargetName, alderonId: data.TargetAlderonId,
+            dinosaurType: data.TargetDinosaurType, growth: data.TargetGrowth,
+            ...extractDinoIdentity(data, 'Target'),
+        });
 
         // DamageAmount pode chegar como float do motor do jogo (ex: 9.999998)
         // — arredonda pra inteiro, que é como dano é sempre exibido no jogo.
@@ -386,6 +438,7 @@ class PoTGatewayServer {
             type: 'damage', sourceKey, targetKey,
             damageType: data.DamageType || 'DT_GENERIC', damageAmount,
             at: Date.now(),
+            location: extractEventLocation(data),
         });
 
         this._resetEncounterTimer(encounter);
@@ -404,13 +457,22 @@ class PoTGatewayServer {
         const victimKey = data.VictimAlderonId || data.VictimName || 'desconhecido';
 
         const encounter = this._findOrCreateEncounter(guildId, groupId, killerKey, victimKey);
-        this._upsertParticipant(encounter, killerKey, data.KillerName, data.KillerAlderonId, data.KillerDinosaurType, data.KillerGrowth);
-        this._upsertParticipant(encounter, victimKey, data.VictimName, data.VictimAlderonId, data.VictimDinosaurType, data.VictimGrowth);
+        this._upsertParticipant(encounter, killerKey, {
+            name: data.KillerName, alderonId: data.KillerAlderonId,
+            dinosaurType: data.KillerDinosaurType, growth: data.KillerGrowth,
+            ...extractDinoIdentity(data, 'Killer'),
+        });
+        this._upsertParticipant(encounter, victimKey, {
+            name: data.VictimName, alderonId: data.VictimAlderonId,
+            dinosaurType: data.VictimDinosaurType, growth: data.VictimGrowth,
+            ...extractDinoIdentity(data, 'Victim'),
+        });
 
         encounter.events.push({
             type: 'kill', killerKey, victimKey,
             damageType: data.DamageType || 'DT_GENERIC',
             at: Date.now(),
+            location: extractEventLocation(data),
         });
 
         this._resetEncounterTimer(encounter);
@@ -440,8 +502,8 @@ class PoTGatewayServer {
             }
 
             const guild = this.client.guilds.cache.get(encounter.guildId);
-            const embed = WebhookPayloads.buildDamageReportEmbed(encounter, guild);
-            await this._deliverMessage(webhookUrl, { embeds: [embed.toJSON()] });
+            const payload = WebhookPayloads.buildDamageReportPayload(encounter, guild);
+            await this._deliverMessage(webhookUrl, payload);
             console.log(`⚔️ [Gateway] Relatório do encontro ${encounterId} entregue.`);
         } catch (error) {
             console.error(`⚔️ [Gateway] Falha ao entregar relatório do encontro ${encounterId}:`, error.message);

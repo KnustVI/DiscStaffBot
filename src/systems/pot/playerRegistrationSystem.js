@@ -75,14 +75,16 @@ function formatPlaytime(totalSeconds) {
     return `${hours}h ${minutes}m`;
 }
 
-// Estágios oficiais do PoT (confirmado): 1.0 = Full Adult, 0.5 = Half grown
-// (Adolescent/Sub-Adult), 0.1 = Hatchling/Baby. Só 3 pontos de referência
-// foram confirmados, então os limiares entre estágios usam o ponto médio
-// entre eles (0.75 entre Subadulto/Adulto, 0.3 entre Filhote/Subadulto).
+// Estágios de crescimento confirmados pelo dono (referência oficial para
+// TODOS os comandos/logs do bot): 0 = Filhote, 0.25 = Juvenil,
+// 0.50 = Adolescente, 0.80 = Sub-Adulto, 1 = Adulto. Valores contínuos entre
+// esses pontos usam o limiar mais próximo abaixo.
 function formatGrowth(growth) {
     if (growth === null || growth === undefined) return '—';
-    if (growth >= 0.75) return 'Adulto';
-    if (growth >= 0.3) return 'Subadulto';
+    if (growth >= 1) return 'Adulto';
+    if (growth >= 0.80) return 'Sub-Adulto';
+    if (growth >= 0.50) return 'Adolescente';
+    if (growth >= 0.25) return 'Juvenil';
     return 'Filhote';
 }
 

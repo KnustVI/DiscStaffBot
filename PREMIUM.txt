@@ -854,3 +854,88 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   sem morte (Combate), self-damage + PvP misturado no mesmo encontro
   (Combate), e so morte sem golpe de dano na timeline (Combate) - todos
   bateram o esperado.
+
+
+26) RELATORIO DE COMBATE/DANO REESCRITO COMPLETO - Components V2, growth em
+    estagios, dieta nos paineis, identidade do dino, horario real por golpe
+------------------------------------------------
+Pedido do dono (referencia pra TODOS os comandos/logs do bot daqui pra
+frente, nao so este relatorio):
+- Estagios de crescimento oficiais: 0 = Filhote, 0.25 = Juvenil,
+  0.50 = Adolescente, 0.80 = Sub-Adulto, 1 = Adulto. Substitui os 3
+  estagios "adivinhados" que existiam antes (Adulto >=0.75, Subadulto
+  >=0.3, Filhote abaixo disso). Atualizado em playerRegistrationSystem.js
+  (formatGrowth, usado no card /perfil) e duplicado em
+  webhookPayloads.js (formatGrowthStage, mesmo padrao de duplicacao
+  proposital ja usado pra formatGrowthPercent).
+- Emoji de dieta: Carnivore/Herbivore/egg(Onivoro) sao pra "Diet" cru (ex:
+  um campo solto tipo "Dieta: X") - nao mudou nada aqui, nenhum lugar do
+  bot mostra isso cru hoje. CarniSkull/HerbSkull continuam sendo o que
+  prefixa a ESPECIE do dinossauro sempre que ela e mencionada nos paineis
+  (dietEmoji(), ja existia, sem mudanca na funcao em si - so passou a ser
+  chamada nos participantes do relatorio de combate/dano tambem).
+- LIMITACAO IMPORTANTE: eventos de combate (PlayerDamagedPlayer/
+  PlayerKilled) nao tem confirmado NENHUM campo de dieta no payload
+  oficial (diferente de PlayerRespawn, que tem "Diet" solto). Adicionado
+  extractDinoIdentity() em gatewayServer.js tentando SourceDiet/TargetDiet/
+  KillerDiet/VictimDiet (e variantes DinosaurDiet) como chute educado,
+  igual ao padrao ja usado pra whisperTargetSuffix - PENDENTE/nao
+  confirmado ao vivo. Sem esse campo, o emoji so nao aparece (nunca quebra
+  a mensagem). O bot tambem NAO guarda a dieta de cada jogador no banco
+  (pot_players so guarda dinosaur_type/growth, nao diet), entao nao da pra
+  "lembrar" a dieta de fora do proprio evento.
+- Nome/ID do dino (character, nao confundir com AlderonId que e do
+  JOGADOR) e local (mapa/POI/coordenadas) do combate: mesma logica -
+  extractDinoIdentity()/extractEventLocation() em gatewayServer.js tentam
+  varios nomes de campo candidatos (CharacterName/DinosaurName/DinoName,
+  CharacterId/DinosaurId/DinoId, MapName/Map, POIName/Location/
+  LocationName, LocationX/PosX/X + Y/Z), tudo PENDENTE/nao confirmado.
+  Sem nenhum campo bater, a linha de identidade do dino some (fica so
+  especie+growth) e a secao inteira "LOCAL" some do relatorio - nunca
+  aparece com "Desconhecido" feio no lugar.
+- Horario REAL (relogio, nao tempo de jogo) de CADA golpe aplicado: cada
+  evento de dano ja guardava "at: Date.now()" (usado pra duracao) - agora
+  cada linha de tipo de dano lista o horario de cada golpe daquele tipo
+  usando a sintaxe nativa do Discord <t:UNIX:T>, que o PROPRIO Discord
+  converte pro fuso horario de quem esta lendo (sem o bot ter que
+  adivinhar fuso nenhum). Limitado a 10 horarios por linha (dano continuo
+  tipo fome/afogamento pode ter dezenas de ticks) - o resto vira "+N".
+- O PAINEL INTEIRO trocou de EmbedBuilder pra AdvancedContainerBuilder
+  (Components V2), seguindo a convencao do resto do bot. Layout exato
+  pedido pelo dono:
+  RELATORIO DE COMBATE (quando outro jogador esta envolvido):
+    # RELATORIO DE COMBATE + aviso de atraso/imprecisao
+    ## JOGADORES ENVOLVIDOS -> ### Jogador `AlderonID` por participante,
+      com especie+growth(estagio) e (se disponivel) nome/ID do dino
+    ## LOCAL -> mapa/POI + coordenadas (so aparece se algum campo bater)
+    ## RELATORIO DE DANO -> segmentos na ordem cronologica de primeira
+      aparicao (kill continua exatamente como era: "💀 Morte / Vitima foi
+      morto por Assassino / Causa: X"; dano vira "- Atacante >>> Alvo"
+      seguido de "Tipo | Nx | Y de vida | horarios")
+  RELATORIO DE DANO ISOLADO (SO dano proprio/ambiente, nenhum outro
+  jogador envolvido - so pode ter 1 participante, dano proprio nunca
+  envolve outro jogador):
+    # RELATORIO DE DANO ISOLADO + aviso de imprecisao (sem o aviso de
+      atraso, que so faz sentido pra combate de verdade)
+    ### Jogador `AlderonID` -> especie+growth(estagio) + nome/ID do dino
+    Lista de "Tipo | Nx | Y de vida | horarios" direto, sem cabecalho de
+      segmento (so tem 1 jogador possivel, nao precisa dizer "consigo
+      mesmo" de novo)
+  Sem secao de "Dano total/Golpes/Duracao" em nenhum dos dois - o dono
+  nao pediu isso no layout novo, removido (existia na versao anterior).
+- Funcao renomeada: buildDamageReportEmbed -> buildDamageReportPayload
+  (retorna {components, flags} pronto pra _deliverMessage, no lugar de um
+  EmbedBuilder que o chamador precisava envolver em {embeds:[...]}).
+  gatewayServer._flushEncounter atualizado pra passar o payload direto.
+- Testado com script direto simulando o combate de 3 jogadores da secao
+  21 (agora com CharacterName/CharacterId/Diet/mapa/coordenadas de
+  exemplo) e o cenario de dano isolado - conferido visualmente que a
+  ordem cronologica, os emojis de dieta condicionais, a linha de
+  identidade do dino condicional, a secao LOCAL condicional e os
+  horarios reais por golpe saem certos nos dois formatos. Limiares de
+  growth testados em 0/0.1/0.24/0.25/0.49/0.5/0.79/0.8/0.99/1/null.
+- NAO MEXIDO (fora do pedido, fica pra depois se quiser): o card /perfil
+  mostra especie+growth(estagio) mas NAO tem emoji de dieta antes da
+  especie (pot_players nao guarda dieta no banco, so dinosaur_type/
+  growth - precisaria de uma coluna nova + capturar "Diet" no
+  upsertPlayerFromEvent de PlayerRespawn pra isso funcionar ali tambem).
