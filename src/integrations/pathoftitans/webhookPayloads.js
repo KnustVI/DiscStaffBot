@@ -276,24 +276,24 @@ function formatMessage(potEvent, data, guild) {
 
         // ── Chat ──
         // Formato de 2 linhas: canal (+ "Sussurro" quando for whisper) na
-        // primeira, identificação + mensagem na segunda. Canal "Group"
-        // (confirmado ao vivo — ChannelName vem literalmente "Group") usa
-        // emoji diferente (messagesquare) do resto dos canais
-        // (messagecircle), a pedido do dono.
+        // primeira, identificação + mensagem na segunda. CONFIRMADO ao vivo
+        // que PlayerChat NÃO tem campo "Role" (payload real sempre 8
+        // campos, tanto em "Global" quanto "Group") — sem roleSuffix() de
+        // propósito, ao contrário dos outros logs de comando (seção 37/38).
+        // Emoji por canal: "Group" usa messagesquare, "Global" usa globo,
+        // qualquer outro canal cai no messagecircle genérico.
         PlayerChat: () => {
             const channelName = d.ChannelName || 'Chat';
             const chatEmoji = channelName === 'Group'
                 ? e('messagesquare', '🗨️')
-                : e('messagecircle', '💬');
+                : channelName === 'Global'
+                    ? e('globo', '🌐')
+                    : e('messagecircle', '💬');
             const channelLine = d.FromWhisper
                 ? `${chatEmoji} ${channelName} - Sussurro${whisperTargetSuffix(d)}`
                 : `${chatEmoji} ${channelName}`;
             const idPart = d.AlderonId ? ` \`${d.AlderonId}\`` : '';
-            // Role NÃO confirmado ao vivo em PlayerChat (payload real tem 8
-            // campos, sem Role, tanto em "Global" quanto "Group") — mantido
-            // por consistência/pedido do dono; roleSuffix() só não mostra
-            // nada se o campo não vier, nunca quebra.
-            return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}${roleSuffix(d.Role)}`;
+            return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}`;
         },
         // PlayerProfanity DESATIVADO temporariamente (ver DISABLED_EVENTS em
         // gatewayServer.js) — filtro de profanidade do jogo com falsos

@@ -1336,3 +1336,20 @@ frente, nao so este relatorio):
   igual a antes), canal Group (emoji messagesquare confirmado), canal
   Group com Role hipotético (mostra "— Cargo: X"), sussurro (continua
   messagecircle, não afetado pela troca de emoji do Group).
+
+
+39) ROLE REMOVIDO DO PlayerChat + CANAL "Global" GANHA EMOJI PRÓPRIO (globo)
+------------------------------------------------
+- Dono confirmou que PlayerChat de verdade não tem campo "Role" (nunca
+  vai vir) - roleSuffix() removido de lá (voltou a ser só
+  "**Nome`ID`**: mensagem", sem sufixo de cargo). Continua em
+  PlayerCommand/AdminCommand/AdminSpectate (seções 37/38), que têm o
+  campo confirmado ou pelo menos plausível.
+- Emoji por canal agora tem 3 casos: "Group" → messagesquare (seção 38,
+  mantido), "Global" → globo (novo, chave já existente em emojis.js),
+  qualquer outro canal não reconhecido → messagecircle genérico
+  (fallback, cobre canais que ainda não vimos, ex: Local/Trade/Alliance
+  se existirem).
+- Verificado com script direto: Global mostra globo (com e sem
+  sussurro), Group continua messagesquare, nenhuma linha mostra mais
+  "— Cargo".
