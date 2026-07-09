@@ -1093,3 +1093,125 @@ frente, nao so este relatorio):
   linha. Reconferido tambem que o cenario de combate 3 jogadores da
   secao 26 (com assassino de verdade) continua funcionando sem
   regressao.
+
+
+30) TITULO DO DANO ISOLADO TROCA PRA CHAVE "olho" + FORMATO DE COORDENADA CRU
+------------------------------------------------
+- Chave do emoji do titulo "RELATORIO DE DANO ISOLADO" trocada de "eye"
+  (ja existia em emojis.js) pra "olho" - o dono tem um emoji proprio
+  chamado assim, diferente do "eye" generico. Mesma situacao das chaves
+  "Atack"/"Double-ArrowRigth" da secao 27: "olho" ainda NAO esta em
+  emojis.js, precisa rodar `npm run sync-emojis` no host - ate la cai no
+  fallback unicode (👁️) sem quebrar nada.
+- Formato de coordenadas na secao "LOCAL" do relatorio voltou a ficar
+  igual ao formato cru do proprio jogo: "(X=1235,Y=-679,Z=345)" em vez
+  do "X: 1235, Y: -679, Z: 345" mais "bonito" que eu tinha feito -
+  pedido explicito do dono pra manter o formato original. Só mudou a
+  formatacao de saida em extractEventLocation() (gatewayServer.js) - o
+  parse de entrada (aceita tanto "X=.. Y=.. Z=.." quanto "(X=..,Y=..,Z=..)"
+  como formato cru recebido do jogo) continua igual.
+- Verificado com os mesmos scripts das secoes 26/29 - coordenadas saindo
+  como "(X=1235,Y=-679)" e titulo do dano isolado caindo no fallback
+  unicode corretamente.
+
+
+31) PAINEL PROPRIO PARA PlayerKilled (Components V2) + correcao da chave do double-arrow
+------------------------------------------------
+- Nome real da chave do emoji de seta dupla confirmado por screenshot do
+  Portal: "DoubleArrowRigth" (SEM hifen) - eu tinha adivinhado
+  "Double-ArrowRigth" (com hifen) na secao 27, errado. Corrigido no
+  separador "- Atacante » Alvo" do relatorio de dano/combate.
+- PlayerKilled ganhou painel proprio em Components V2
+  (buildKillPanel em webhookPayloads.js), substituindo a mensagem de
+  texto + embed antiga (removidas as duas - formatMessage.PlayerKilled e
+  o branch PlayerKilled de formatEmbed viraram codigo morto, apagados).
+  Interceptado em gatewayServer._routeToDiscord ANTES do caminho
+  generico de texto+embed (mesma posicao logica de CONTAINER_EVENTS),
+  porque Components V2 nao pode se misturar com content/embeds na mesma
+  mensagem.
+- Layout pedido pelo dono:
+    # 💀 MORTE EM COMBATE (ou MORTE POR AMBIENTE)
+    Dano: {DamageType traduzido}
+    ### Local: {VictimPOI} - {VictimLocation, formato cru (X=..,Y=..,Z=..)}
+    Separador
+    **Vítima**
+    - {VictimName} | {VictimAlderonId} | {VictimRole}
+    {VictimDinosaurType} - {DinosaurVictimName} ({VictimGrowth}%)
+    **Matador** (só se houver assassino de verdade)
+    - {KillerName} | {KillerAlderonId} | {KillerRole}
+    {KillerDinosaurType} - {KillerCharacterName} ({KillerGrowth}%)
+    Separador
+    Footer padrão
+- DECISAO IMPORTANTE confirmada com o dono via pergunta direta: o pedido
+  original descrevia Vítima e Matador "lado a lado", mas o Components V2
+  NAO tem como fazer 2 blocos de texto lado a lado de verdade - a Section
+  do Components V2 só aceita 1 bloco de texto + 1 acessório de IMAGEM ou
+  BOTÃO à direita (nunca outro texto). Lado a lado de verdade só existe
+  com "inline fields" de embed clássico, que não pode se misturar com
+  Components V2 na mesma mensagem. Dono escolheu manter Components V2 de
+  verdade (como pedido) com Vítima/Matador EMPILHADOS (um embaixo do
+  outro) em vez de trocar pra embed clássico só pra ganhar o lado a lado.
+- Titulo/tipo de morte reaproveita a mesma logica hasKiller já usada
+  desde a secao 29 (morte por ambiente = KillerName/KillerAlderonId
+  vazios) - quando não há assassino, o bloco "Matador" inteiro é
+  omitido, não só o titulo.
+- Nova funcao formatLocationString() em webhookPayloads.js, duplicada de
+  extractEventLocation() (gatewayServer.js) só pra manter
+  webhookPayloads.js autocontido (mesmo padrao de sempre) - aceita os 2
+  formatos crus confirmados (com/sem parenteses, virgula ou espaco) e
+  devolve sempre no formato "(X=..,Y=..,Z=..)".
+- Verificado com script direto nos 2 cenarios reais (morte por ambiente
+  sem assassino + morte em combate com Role preenchido "Nitro") - titulo,
+  local, bloco Vítima e bloco Matador (presente/ausente conforme o caso)
+  todos conferidos. Separadores confirmados presentes na estrutura JSON
+  bruta do container (tipo 14 do Components V2) nas posicoes certas.
+
+
+32) AJUSTE DE LAYOUT DO PAINEL DE MORTE (secao 31) - separadores em volta de Vitima/Matador
+------------------------------------------------
+- Pedido do dono: "Local" deixa de ser um heading (### Local: ...) e
+  vira uma linha de texto simples ("Local: ..."); "Vítima" e "Matador"
+  passam a ser headings (### Vítima / ### Matador) cada um com seu
+  proprio separador antes E depois (nao um bloco de texto só com
+  "**Vítima**" em negrito como estava). Novo layout exato:
+    # Titulo
+    Dano: ...
+    Local: ...
+    Separador
+    ### Vítima
+    - Nome | ID | Cargo
+    Especie - NomeDoDino (Growth%)
+    Separador
+    ### Matador (só se houver assassino)
+    - Nome | ID | Cargo
+    Especie - NomeDoDino (Growth%)
+    Separador
+    Footer
+  Quando não há Matador, o separador que já vinha depois do bloco
+  Vítima serve como o separador antes do footer - não duplica.
+- Verificado com o mesmo script da secao 31 nos 2 cenarios (com e sem
+  assassino) - separadores aparecendo exatamente nas posicoes do layout
+  pedido nos dois casos.
+
+
+33) GROWTH NUNCA MAIS EM PORCENTAGEM - SEMPRE NOME DO ESTAGIO, EM TODOS OS LOGS
+------------------------------------------------
+- Pedido explicito do dono, valendo pra TODOS os logs que o bot cria
+  (nao só o que estava sendo mexido no momento): toda vez que "growth"
+  for exibido, mostrar o NOME do estagio (Filhote/Juvenil/Adolescente/
+  Sub-Adulto/Adulto conforme os limiares 0/0.25/0.50/0.80/1 ja
+  confirmados na secao 26) em vez de porcentagem.
+- formatGrowthPercent() REMOVIDA de webhookPayloads.js (só tinha 3 usos,
+  todos trocados por formatGrowthStage - função virou código morto,
+  apagada em vez de deixada sem uso):
+  - Painel de morte (buildKillPanel, secao 31/32): "(Growth%)" vira
+    "(Adulto)" etc nas linhas de Vítima/Matador.
+  - participantSpeciesLine() (relatório de combate/dano, seções 26/27):
+    "Espécie — Growth: 80% (Sub-Adulto)" vira só "Espécie — Growth:
+    Sub-Adulto" (removida a porcentagem, mantido só o nome do estágio).
+  - formatGrowth() em playerRegistrationSystem.js (/perfil) já usava
+    nome de estágio desde a correção da seção 26 - não precisou mudar,
+    só os limiares já tinham sido corrigidos lá.
+- Verificado com os scripts das seções 26/31 - "Adulto"/"Sub-Adulto"/
+  "Adolescente" aparecendo corretamente em vez de percentuais em ambos
+  os painéis (combate/dano e morte), sem regressão no resto do layout.
