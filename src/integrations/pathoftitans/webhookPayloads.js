@@ -53,6 +53,20 @@ function formatDamageType(type) {
     return DAMAGE_TYPE_LABELS[type] || type || 'Desconhecida';
 }
 
+// CONFIRMADO via DEBUG_POT contra o servidor real do Atlas Brasil: apesar
+// da doc oficial do PoT dizer que AdminSpectate traz "AdminName"/
+// "AdminAlderonId" e Action binário "Entered/Exited Spectator Mode", o
+// payload real usa PlayerName/PlayerAlderonId (igual aos demais eventos
+// de jogador) e Action com valores tipo "Enabled Nametags"/"Disabled
+// Nametags" — não documentados. Mapeia os valores já vistos ao vivo;
+// qualquer Action novo cai no fallback (mostra o texto cru, nunca quebra).
+const ADMIN_ACTION_LABELS = {
+    'Enabled Nametags': 'ativou os nametags',
+    'Disabled Nametags': 'desativou os nametags',
+    'Entered Spectator Mode': 'entrou no modo espectador',
+    'Exited Spectator Mode': 'saiu do modo espectador',
+};
+
 /**
  * Nome do jogador + Alderon ID junto, formato padrão usado em TODO log de
  * webhook (não só quem está vinculado ao Discord) — sem o Alderon ID, o
@@ -200,8 +214,15 @@ function formatMessage(potEvent, data, guild) {
         BadAverageTick:          () => `${e('trendingdown', '📉')} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
 
         // ── Admin ──
-        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName, d.AdminAlderonId)}** ${d.Action === 'Entered Spectator Mode' ? 'entrou no modo espectador' : 'saiu do modo espectador'}`,
-        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.AdminName, d.AdminAlderonId)}** executou: \`${d.Command}\``,
+        // Campo confirmado ao vivo: PlayerName/PlayerAlderonId (não
+        // AdminName/AdminAlderonId como a doc oficial diz — ver
+        // ADMIN_ACTION_LABELS acima).
+        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}`,
+        // AdminCommand ainda não teve o payload real confirmado ao vivo —
+        // segue o mesmo padrão observado no AdminSpectate (PlayerName/
+        // PlayerAlderonId) por inferência; se também estiver errado,
+        // ajustar aqui do mesmo jeito.
+        AdminCommand:  () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** executou: \`${d.Command}\``,
 
         // ── Nest ──
         CreateNest:    () => `${e('Nest', '🪺')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** criou um ninho`,

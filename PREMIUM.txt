@@ -647,3 +647,28 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
 - Login/Logout/Leave (container V2) e o Relatorio de Combate/Dano ja
   mostravam o Alderon ID desde que foram implementados - nao precisaram
   de ajuste nesta revisao, so os grupos de texto simples (legado).
+
+
+19) CORRECAO: AdminSpectate mostrava "undefined"/"Desconhecido" (doc oficial errada)
+------------------------------------------------
+- Testado ao vivo contra o servidor real do Atlas Brasil (com DEBUG_POT=
+  true): a doc oficial do PoT diz que AdminSpectate traz AdminName/
+  AdminAlderonId, mas o payload REAL manda PlayerName/PlayerAlderonId
+  (igual aos demais eventos de jogador) - por isso a mensagem sempre
+  mostrava "undefined" (ou "Desconhecido", depois da secao 18). Corrigido
+  pros campos certos, confirmados pelo payload real.
+- O campo Action tambem nao e o binario "Entered/Exited Spectator Mode"
+  que a doc sugere - valores reais vistos: "Enabled Nametags"/"Disabled
+  Nametags" (o admin ligando/desligando os nametags dos outros jogadores
+  pra ele, um recurso do modo espectador). Mapeados pra portugues; Action
+  novo/nao mapeado mostra o texto cru, nunca quebra a mensagem.
+- AdminCommand usa o MESMO padrao por inferencia (ainda sem confirmacao
+  ao vivo) - fallback PlayerName/PlayerAlderonId com AdminName/
+  AdminAlderonId como reserva, cobre os dois casos sem quebrar. Se
+  tambem estiver errado, é so reportar.
+- Log de debug do gateway (DEBUG_POT=true) melhorado nesta revisao: antes
+  so mostrava a CONTAGEM de campos recebidos, nunca o conteudo - impossivel
+  diagnosticar isso sem ver o payload de verdade. Agora mostra o corpo
+  bruto completo E os campos resolvidos (depois do Format="Discord" ser
+  desmontado, se for o caso) pra cada evento - foi assim que esse bug foi
+  encontrado e corrigido.
