@@ -1010,3 +1010,86 @@ frente, nao so este relatorio):
   certinho (X/Y/Z arredondados), e um PlayerDamagedPlayer com os 15
   campos reais confirma que diet/characterName/dinosaurId/location
   ficam todos null (nunca quebra, so nao aparece no relatorio).
+
+
+29) CAMPOS REAIS CONFIRMADOS - PlayerKilled + PlayerLeave (log real, Atlas Brasil)
+------------------------------------------------
+- Dono confirmou (log real) os campos de PlayerKilled - MUITO diferentes
+  do que eu tinha adivinhado antes:
+  TimeOfDay, DamageType, VictimPOI, VictimName, VictimAlderonId,
+  DinosaurVictimName, VictimDinosaurType, VictimRole, VictimIsAdmin,
+  VictimGrowth, VictimLocation, KillerName, KillerAlderonId,
+  KillerCharacterName, KillerDinosaurType, KillerRole, KillerIsAdmin,
+  KillerGrowth, KillerLocation, KillDistance, ServerGuid.
+- ACHADO CRITICO: nome do dino da VITIMA vem em "DinosaurVictimName" (nao
+  "VictimCharacterName"/"VictimDinosaurName" como o padrao de prefixo
+  sugeria), enquanto o nome do dino do MATADOR vem em
+  "KillerCharacterName" (esse sim no padrao esperado) - inconsistencia
+  REAL do proprio jogo, nao erro meu. NENHUM ID de dino existe em
+  PlayerKilled pra nenhum dos lados (confirmado ausente, so o nome
+  mesmo). Diet tambem confirmado ausente nos dois lados. Corrigido em
+  extractDinoIdentity() (gatewayServer.js) e no formatEmbed do
+  PlayerKilled (webhookPayloads.js).
+- ACHADO CRITICO #2 (bug real, nao só falta de campo): morte por
+  ambiente (queda/fome/afogamento/sede, sem outro jogador envolvido) vem
+  com KillerName/KillerAlderonId como STRING VAZIA "" e KillerGrowth
+  como -1 (sentinela) - meu codigo anterior tratava isso como "assassino
+  desconhecido" e mostrava "foi morto por Desconhecido", o que é
+  enganoso (implica um assassino nao identificado, quando na verdade nao
+  ha assassino nenhum). Corrigido em 3 lugares:
+  - formatMessage.PlayerKilled (webhookPayloads.js): agora detecta
+    hasKiller e mostra "morreu (sem assassino)" em vez de "foi morto por
+    Desconhecido".
+  - formatEmbed PlayerKilled (webhookPayloads.js): agora dispara mesmo
+    sem KillerName (antes o `&& d.KillerName` no gate simplesmente
+    pulava o embed inteiro em morte por ambiente) - titulo vira "Morte
+    por Ambiente" e o campo "Assassino" é omitido (nao mostrado com
+    "Desconhecido").
+  - _recordKillIntoEncounter (gatewayServer.js): NAO cria mais um
+    participante fantasma "desconhecido"/growth -1 no encontro quando
+    nao ha assassino de verdade - o evento de kill fica com
+    killerKey=null, e buildDamageReportPayload (webhookPayloads.js) para
+    de contar isso como "outro jogador envolvido", entao uma morte por
+    ambiente PURA (sem nenhum dano de outro jogador no mesmo encontro)
+    agora vira corretamente "RELATORIO DE DANO ISOLADO" em vez de
+    "RELATORIO DE COMBATE" com um assassino inventado.
+  - BUG DE CRASH encontrado e corrigido durante a verificacao dessa
+    mudanca: o branch "isolado" de buildDamageReportPayload assumia que
+    TODO segmento tinha "byType" (formato de dano) - com morte por
+    ambiente agora podendo cair nesse branch, um segmento "kill" (sem
+    byType) chegava la e quebrava com "Cannot read properties of
+    undefined (reading 'entries')". Corrigido pra tratar segmento kind
+    'kill' igual ao branch de combate (mostra o texto da morte direto).
+- VictimLocation/KillerLocation vem num formato DIFERENTE do "Location"
+  de Respawn/Leave/Quest: "(X=-227406.641113,Y=-15547.44159,Z=4662.364509)"
+  - com parenteses e virgula, nao espaco. extractEventLocation() agora
+  aceita os dois formatos (regex com [,\s]+ como separador). Tambem nao
+  tem "MapName" (so "VictimPOI", sem prefixo pro lado do matador) -
+  extractEventLocation() ganhou um parametro de prefixo opcional, e uma
+  extractKillLocation() nova tenta o lado do matador primeiro (mais
+  preciso de onde o combate rolou), cai pro lado da vitima se KillerLocation
+  estiver vazio (sempre o caso em morte por ambiente).
+- PlayerLeave CONFIRMADO com CharacterID (capital ID, nao "CharacterId")
+  e CharacterName SEM prefixo (evento de 1 jogador so, diferente do
+  Killer/Victim de PlayerKilled) - mesmo padrao ja confirmado em
+  PlayerRespawn/PlayerQuestComplete/Failed. Adicionado ao container de
+  PlayerLeave (buildLoginEventPayload) uma linha nova "🦶 Dinossauro:
+  Nome `ID`" - só aparece quando presente (Login/Logout nao tem esse
+  campo, jogador ainda nao tinha spawnado um dino).
+- Nova funcao compartilhada dinoIdentitySuffix(nome, id) em
+  webhookPayloads.js - " (Nome `ID`)" ou so " (Nome)" sem ID disponivel,
+  '' se não houver nada. Aplicada em PlayerRespawn, PlayerQuestComplete,
+  PlayerQuestFailed (usando CharacterName/CharacterID confirmados) e no
+  formatEmbed de PlayerKilled (usando DinosaurVictimName/
+  KillerCharacterName, sem ID disponivel ali).
+- Achado NAO aplicado (fora do pedido, so registrado): PlayerDamagedPlayer
+  tem SourceRole/TargetRole (cargo customizado do jogador dentro do
+  jogo, ex "Nitro") e SourceIsAdmin/TargetIsAdmin, nenhum usado em
+  lugar nenhum do bot ainda.
+- Verificado com script direto usando os payloads REAIS colados pelo
+  dono (morte por ambiente completa + PlayerLeave completo) - mensagem
+  imediata, embed rico, relatorio de encontro (vira Dano Isolado
+  corretamente) e container de PlayerLeave todos conferidos linha a
+  linha. Reconferido tambem que o cenario de combate 3 jogadores da
+  secao 26 (com assassino de verdade) continua funcionando sem
+  regressao.

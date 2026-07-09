@@ -120,6 +120,22 @@ function nameWithId(name, alderonId) {
     return alderonId ? `${safeName} \`${alderonId}\`` : safeName;
 }
 
+/**
+ * " (NomeDoDino `IDDoDino`)" — identificação do DINOSSAURO em si (distinto
+ * do jogador, que já é identificado por nameWithId). Pedido do dono: sempre
+ * que characterName/characterId vierem no payload, mostrar como
+ * identificação do dino. CONFIRMADO ao vivo (DEBUG_POT, Atlas Brasil) em
+ * PlayerRespawn/PlayerLeave/PlayerQuestComplete/PlayerQuestFailed (campos
+ * "CharacterName"/"CharacterID", sem prefixo) — CONFIRMADO AUSENTE em
+ * PlayerDamagedPlayer. Retorna '' quando não há nada pra mostrar (nunca
+ * quebra a mensagem).
+ */
+function dinoIdentitySuffix(characterName, characterId) {
+    if (!characterName && !characterId) return '';
+    const label = characterId ? `${characterName || 'Desconhecido'} \`${characterId}\`` : characterName;
+    return ` (${label})`;
+}
+
 // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
 
 /**
@@ -199,6 +215,13 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
         if (typeof d.FromDeath === 'boolean' && d.FromDeath) {
             builder.text(`${resolveEmoji(guild, 'Dead', '💀')} **Saiu logo após morrer**`);
         }
+        // Identificação do DINO em si (CharacterName/CharacterID, confirmado
+        // ao vivo só em PlayerLeave dentro deste grupo — Login/Logout não
+        // têm esse campo, o jogador ainda não tinha um dino ativo).
+        const dinoLine = dinoIdentitySuffix(d.CharacterName, d.CharacterID).trim();
+        if (dinoLine) {
+            builder.text(`${resolveEmoji(guild, 'DinoFootprint', '🦶')} **Dinossauro:** ${dinoLine.replace(/^\(|\)$/g, '')}`);
+        }
     }
 
     builder.footer(guild?.name || d.ServerName || 'Servidor');
@@ -222,16 +245,28 @@ function formatMessage(potEvent, data, guild) {
         // antes, em gatewayServer._routeToDiscord, e vira um Relatório de
         // Combate/Dano agrupado (ver buildDamageReportPayload abaixo) em vez de
         // uma mensagem por golpe (evita flood no canal de log).
-        PlayerKilled: () => `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** foi morto por **${nameWithId(d.KillerName, d.KillerAlderonId)}**\n${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``,
+        // CONFIRMADO ao vivo: morte por ambiente (queda/fome/afogamento sem
+        // outro jogador envolvido) manda KillerName/KillerAlderonId como
+        // string vazia "" e KillerGrowth como -1 (sentinela) — sem essa
+        // checagem, a mensagem dizia "foi morto por Desconhecido", como se
+        // houvesse um assassino não identificado (errado: não há assassino
+        // nenhum).
+        PlayerKilled: () => {
+            const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
+            const cause = `${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``;
+            return hasKiller
+                ? `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** foi morto por **${nameWithId(d.KillerName, d.KillerAlderonId)}**\n${cause}`
+                : `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** morreu (sem assassino)\n${cause}`;
+        },
 
         // ── Quest ──
-        PlayerQuestComplete: () => `${e('listchecks', '📜')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** completou a missão **${d.Quest}**`,
-        PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**`,
+        PlayerQuestComplete: () => `${e('listchecks', '📜')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** completou a missão **${d.Quest}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`,
+        PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`,
 
         // ── Respawn ──
         PlayerRespawn:  () => {
             const diet = dietEmoji(d.Diet, guild);
-            return `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como ${diet ? `${diet} ` : ''}**${d.DinosaurType}**`;
+            return `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como ${diet ? `${diet} ` : ''}**${d.DinosaurType}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`;
         },
         PlayerWaystone: () => `${e('Waystone', '✨')} **${nameWithId(d.InviterName, d.InviterAlderonId)}** teletransportou **${nameWithId(d.TeleportedPlayerName, d.TeleportedPlayerAlderonId)}**`,
 
@@ -308,20 +343,36 @@ function formatEmbed(potEvent, data, guild) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
 
     // Embed extra apenas para eventos que ganham com contexto visual
-    if (potEvent === 'PlayerKilled' && d.VictimName && d.KillerName) {
+    if (potEvent === 'PlayerKilled' && d.VictimName) {
         // Espécie + growth de cada lado — campos confirmados na doc oficial
         // (VictimDinosaurType/VictimGrowth, KillerDinosaurType/KillerGrowth).
-        const victimSpecies = `${d.VictimDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.VictimGrowth)})`;
-        const killerSpecies = `${d.KillerDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.KillerGrowth)})`;
+        // Identificação do DINO em si: CONFIRMADO ao vivo (DEBUG_POT, Atlas
+        // Brasil) que o nome do dino da vítima vem em "DinosaurVictimName"
+        // (não "VictimCharacterName"/"VictimDinosaurName" — nomenclatura
+        // inconsistente do próprio jogo) e o do matador em
+        // "KillerCharacterName" (esse sim no padrão esperado). Nenhum dos
+        // dois lados manda um ID de dino em PlayerKilled (confirmado
+        // ausente) — só o nome mesmo.
+        // Morte por ambiente (queda/fome/afogamento): CONFIRMADO ao vivo que
+        // KillerName/KillerAlderonId vêm como "" e KillerGrowth como -1
+        // (sentinela) — nesse caso omite o campo "Assassino" inteiro em vez
+        // de mostrar "Desconhecido".
+        const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
+        const victimSpecies = `${d.VictimDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.VictimGrowth)})${dinoIdentitySuffix(d.DinosaurVictimName, null)}`;
+
+        const fields = [
+            { name: 'Vítima', value: `${nameWithId(d.VictimName, d.VictimAlderonId)}\n${victimSpecies}`, inline: true },
+        ];
+        if (hasKiller) {
+            const killerSpecies = `${d.KillerDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.KillerGrowth)})${dinoIdentitySuffix(d.KillerCharacterName, null)}`;
+            fields.push({ name: 'Assassino', value: `${nameWithId(d.KillerName, d.KillerAlderonId)}\n${killerSpecies}`, inline: true });
+        }
+        fields.push({ name: 'Causa', value: formatDamageType(d.DamageType), inline: true });
 
         return new EmbedBuilder()
             .setColor(0xFF0000)
-            .setTitle(`${e('Dead', '💀')} Morte em Combate`)
-            .addFields(
-                { name: 'Vítima', value: `${nameWithId(d.VictimName, d.VictimAlderonId)}\n${victimSpecies}`, inline: true },
-                { name: 'Assassino', value: `${nameWithId(d.KillerName, d.KillerAlderonId)}\n${killerSpecies}`, inline: true },
-                { name: 'Causa', value: formatDamageType(d.DamageType), inline: true }
-            )
+            .setTitle(`${e('Dead', '💀')} ${hasKiller ? 'Morte em Combate' : 'Morte por Ambiente'}`)
+            .addFields(fields)
             .setTimestamp();
     }
 
@@ -443,12 +494,17 @@ function buildDamageReportPayload(encounter, guild) {
 
     for (const ev of encounter.events) {
         if (ev.type === 'kill') {
-            hasOtherPlayerInvolved = true;
             killCounter += 1;
-            segments.set(`kill:${killCounter}`, {
-                kind: 'kill',
-                text: `${e('Dead', '💀')} Morte\n**${participantLabel(ev.victimKey)}** foi morto por **${participantLabel(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`,
-            });
+            // killerKey null = morte por ambiente (queda/fome/afogamento,
+            // confirmado ao vivo pelo KillerName/KillerAlderonId virem "" —
+            // ver _recordKillIntoEncounter) — não conta como "outro jogador
+            // envolvido" (fica Dano Isolado se não houver mais nada no
+            // encontro) e não tenta mostrar um "assassino" que não existe.
+            const text = ev.killerKey
+                ? `${e('Dead', '💀')} Morte\n**${participantLabel(ev.victimKey)}** foi morto por **${participantLabel(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`
+                : `${e('Dead', '💀')} Morte\n**${participantLabel(ev.victimKey)}** morreu (sem assassino)\nCausa: ${formatDamageType(ev.damageType)}`;
+            if (ev.killerKey) hasOtherPlayerInvolved = true;
+            segments.set(`kill:${killCounter}`, { kind: 'kill', text });
             continue;
         }
 
@@ -543,6 +599,14 @@ function buildDamageReportPayload(encounter, guild) {
         builder.separator();
 
         for (const seg of segments.values()) {
+            // Morte por ambiente sem nenhum dano registrado antes dela
+            // (ex: fome/sede matando direto) também pode cair aqui — mesmo
+            // segmento "kill" usado no relatório de combate, só que sem
+            // "outro jogador envolvido" (ver hasOtherPlayerInvolved acima).
+            if (seg.kind === 'kill') {
+                builder.text(seg.text);
+                continue;
+            }
             builder.text(typeLines(seg.byType).join('\n'));
         }
     }
