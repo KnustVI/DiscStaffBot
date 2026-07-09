@@ -392,24 +392,26 @@ function buildKillPanel(data, guild) {
 
     const localParts = [d.VictimPOI, formatLocationString(d.VictimLocation)].filter(Boolean);
     if (localParts.length > 0) {
-        builder.title(`Local: ${localParts.join(' - ')}`, 3);
+        builder.text(`Local: ${localParts.join(' - ')}`);
     }
     builder.separator();
 
+    builder.title('Vítima', 3);
     builder.text(
-        `**Vítima**\n` +
         `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}\n` +
         `${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthPercent(d.VictimGrowth)})`
     );
+    builder.separator();
+
     if (hasKiller) {
+        builder.title('Matador', 3);
         builder.text(
-            `**Matador**\n` +
             `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}\n` +
             `${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthPercent(d.KillerGrowth)})`
         );
+        builder.separator();
     }
 
-    builder.separator();
     builder.footer(guild?.name || d.ServerName || 'Servidor');
 
     const { components, flags } = builder.build();

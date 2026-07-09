@@ -1165,3 +1165,30 @@ frente, nao so este relatorio):
   local, bloco Vítima e bloco Matador (presente/ausente conforme o caso)
   todos conferidos. Separadores confirmados presentes na estrutura JSON
   bruta do container (tipo 14 do Components V2) nas posicoes certas.
+
+
+32) AJUSTE DE LAYOUT DO PAINEL DE MORTE (secao 31) - separadores em volta de Vitima/Matador
+------------------------------------------------
+- Pedido do dono: "Local" deixa de ser um heading (### Local: ...) e
+  vira uma linha de texto simples ("Local: ..."); "Vítima" e "Matador"
+  passam a ser headings (### Vítima / ### Matador) cada um com seu
+  proprio separador antes E depois (nao um bloco de texto só com
+  "**Vítima**" em negrito como estava). Novo layout exato:
+    # Titulo
+    Dano: ...
+    Local: ...
+    Separador
+    ### Vítima
+    - Nome | ID | Cargo
+    Especie - NomeDoDino (Growth%)
+    Separador
+    ### Matador (só se houver assassino)
+    - Nome | ID | Cargo
+    Especie - NomeDoDino (Growth%)
+    Separador
+    Footer
+  Quando não há Matador, o separador que já vinha depois do bloco
+  Vítima serve como o separador antes do footer - não duplica.
+- Verificado com o mesmo script da secao 31 nos 2 cenarios (com e sem
+  assassino) - separadores aparecendo exatamente nas posicoes do layout
+  pedido nos dois casos.
