@@ -1246,3 +1246,31 @@ frente, nao so este relatorio):
 - NENHUMA mudança de código feita nesta seção - registrado só como
   descoberta, pra não perder tempo tentando "consertar" um campo que
   não existe porque o jogo não manda.
+
+
+35) FALLBACK DE CAMPO PRO CASO DE "Entered/Exited Spectator Mode" ALGUM DIA DISPARAR
+------------------------------------------------
+- Dono mostrou a doc oficial do PoT pro AdminSpectate: documenta
+  "Entered Spectator Mode" com campos AdminName/AdminAlderonId (exemplo
+  oficial: {"AdminName":"Test1","AdminAlderonId":"048-236-424","Action":
+  "Entered Spectator Mode","DinosaurType":"Dilophosaurus",
+  "bSpectatorMode":true,"Role":"Admin",...}). Isso é diferente do que
+  confirmamos ao vivo pra "Enabled/Disabled Nametags" (mesmo evento
+  AdminSpectate, PlayerName/PlayerAlderonId - ver seção 19/34).
+- O formatter de AdminSpectate (webhookPayloads.js) só lia PlayerName/
+  PlayerAlderonId, sem fallback nenhum pro par AdminName/AdminAlderonId
+  da doc. Como já vimos NESTE MESMO evento a doc errar o nome do campo
+  pra uma Action (nametags) e acertar pra outra (AdminCommand, evento
+  diferente mas mesmo grupo), não dá pra confiar que "Entered/Exited
+  Spectator Mode" (se algum dia disparar, seja neste servidor ou em
+  outro) vai usar PlayerName/PlayerAlderonId em vez de AdminName/
+  AdminAlderonId da doc - pode ser qualquer um dos dois.
+- Corrigido: fallback adicionado (mesmo padrão já usado em
+  AdminCommand) - tenta PlayerName/PlayerAlderonId primeiro (confirmado
+  pra nametags), cai pra AdminName/AdminAlderonId se não vier
+  (cobrindo a variante da doc). Custo zero, só deixa o código pronto
+  caso o evento de spectator mode comece a disparar um dia (troca de
+  versão do jogo, outro servidor, etc.) sem precisar de mais um ciclo
+  de debug ao vivo.
+- Verificado com script direto simulando os dois formatos de campo -
+  ambos resolvem o nome do admin corretamente.

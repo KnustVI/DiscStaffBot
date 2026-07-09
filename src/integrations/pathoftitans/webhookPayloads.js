@@ -295,10 +295,18 @@ function formatMessage(potEvent, data, guild) {
         BadAverageTick:          () => `${e('trendingdown', '📉')} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
 
         // ── Admin ──
-        // Campo confirmado ao vivo: PlayerName/PlayerAlderonId (não
-        // AdminName/AdminAlderonId como a doc oficial diz — ver
-        // ADMIN_ACTION_LABELS acima).
-        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}`,
+        // Campo confirmado ao vivo pra "Enabled/Disabled Nametags":
+        // PlayerName/PlayerAlderonId (não AdminName/AdminAlderonId como a
+        // doc oficial diz — ver ADMIN_ACTION_LABELS acima). A doc também
+        // documenta uma variante "Entered/Exited Spectator Mode" pro MESMO
+        // evento, nunca vista disparar ao vivo (confirmado: o jogo não
+        // manda webhook nenhum quando um admin ativa modo espectador nesse
+        // servidor) — mas SE ela disparar em outro servidor/versão, pode
+        // muito bem vir com os nomes de campo da doc (AdminName/
+        // AdminAlderonId) em vez do padrão confirmado. Fallback pro par
+        // Admin* cobre esse caso sem custo nenhum, mesmo padrão já usado
+        // em AdminCommand logo abaixo.
+        AdminSpectate: () => `${e('shield', '🛡️')} **${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}** ${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}`,
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
         // que apesar de estar no mesmo grupo "Admin" da doc usa PlayerName/
