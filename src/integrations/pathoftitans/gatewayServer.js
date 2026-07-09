@@ -386,6 +386,19 @@ class PoTGatewayServer {
                 return;
             }
 
+            // 3b. PlayerKilled ganhou painel próprio em Components V2 (ver
+            // buildKillPanel em webhookPayloads.js) — precisa ser
+            // interceptado ANTES do caminho genérico de texto+embed logo
+            // abaixo, porque Components V2 não pode se misturar com
+            // content/embeds na mesma mensagem (ResponseManager/Discord
+            // rejeitam).
+            if (potEvent === 'PlayerKilled') {
+                const guild = this.client.guilds.cache.get(guildId);
+                const payload = WebhookPayloads.buildKillPanel(data, guild);
+                await this._deliverMessage(webhookUrl, payload);
+                return;
+            }
+
             const guild = this.client.guilds.cache.get(guildId);
             const message = WebhookPayloads.formatMessage(potEvent, data, guild);
             const embed = WebhookPayloads.formatEmbed(potEvent, data, guild);

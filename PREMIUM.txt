@@ -1113,3 +1113,55 @@ frente, nao so este relatorio):
 - Verificado com os mesmos scripts das secoes 26/29 - coordenadas saindo
   como "(X=1235,Y=-679)" e titulo do dano isolado caindo no fallback
   unicode corretamente.
+
+
+31) PAINEL PROPRIO PARA PlayerKilled (Components V2) + correcao da chave do double-arrow
+------------------------------------------------
+- Nome real da chave do emoji de seta dupla confirmado por screenshot do
+  Portal: "DoubleArrowRigth" (SEM hifen) - eu tinha adivinhado
+  "Double-ArrowRigth" (com hifen) na secao 27, errado. Corrigido no
+  separador "- Atacante » Alvo" do relatorio de dano/combate.
+- PlayerKilled ganhou painel proprio em Components V2
+  (buildKillPanel em webhookPayloads.js), substituindo a mensagem de
+  texto + embed antiga (removidas as duas - formatMessage.PlayerKilled e
+  o branch PlayerKilled de formatEmbed viraram codigo morto, apagados).
+  Interceptado em gatewayServer._routeToDiscord ANTES do caminho
+  generico de texto+embed (mesma posicao logica de CONTAINER_EVENTS),
+  porque Components V2 nao pode se misturar com content/embeds na mesma
+  mensagem.
+- Layout pedido pelo dono:
+    # 💀 MORTE EM COMBATE (ou MORTE POR AMBIENTE)
+    Dano: {DamageType traduzido}
+    ### Local: {VictimPOI} - {VictimLocation, formato cru (X=..,Y=..,Z=..)}
+    Separador
+    **Vítima**
+    - {VictimName} | {VictimAlderonId} | {VictimRole}
+    {VictimDinosaurType} - {DinosaurVictimName} ({VictimGrowth}%)
+    **Matador** (só se houver assassino de verdade)
+    - {KillerName} | {KillerAlderonId} | {KillerRole}
+    {KillerDinosaurType} - {KillerCharacterName} ({KillerGrowth}%)
+    Separador
+    Footer padrão
+- DECISAO IMPORTANTE confirmada com o dono via pergunta direta: o pedido
+  original descrevia Vítima e Matador "lado a lado", mas o Components V2
+  NAO tem como fazer 2 blocos de texto lado a lado de verdade - a Section
+  do Components V2 só aceita 1 bloco de texto + 1 acessório de IMAGEM ou
+  BOTÃO à direita (nunca outro texto). Lado a lado de verdade só existe
+  com "inline fields" de embed clássico, que não pode se misturar com
+  Components V2 na mesma mensagem. Dono escolheu manter Components V2 de
+  verdade (como pedido) com Vítima/Matador EMPILHADOS (um embaixo do
+  outro) em vez de trocar pra embed clássico só pra ganhar o lado a lado.
+- Titulo/tipo de morte reaproveita a mesma logica hasKiller já usada
+  desde a secao 29 (morte por ambiente = KillerName/KillerAlderonId
+  vazios) - quando não há assassino, o bloco "Matador" inteiro é
+  omitido, não só o titulo.
+- Nova funcao formatLocationString() em webhookPayloads.js, duplicada de
+  extractEventLocation() (gatewayServer.js) só pra manter
+  webhookPayloads.js autocontido (mesmo padrao de sempre) - aceita os 2
+  formatos crus confirmados (com/sem parenteses, virgula ou espaco) e
+  devolve sempre no formato "(X=..,Y=..,Z=..)".
+- Verificado com script direto nos 2 cenarios reais (morte por ambiente
+  sem assassino + morte em combate com Role preenchido "Nitro") - titulo,
+  local, bloco Vítima e bloco Matador (presente/ausente conforme o caso)
+  todos conferidos. Separadores confirmados presentes na estrutura JSON
+  bruta do container (tipo 14 do Components V2) nas posicoes certas.

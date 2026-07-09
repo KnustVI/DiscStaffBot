@@ -244,20 +244,10 @@ function formatMessage(potEvent, data, guild) {
         // PlayerDamagedPlayer NÃO entra aqui de propósito — é interceptado
         // antes, em gatewayServer._routeToDiscord, e vira um Relatório de
         // Combate/Dano agrupado (ver buildDamageReportPayload abaixo) em vez de
-        // uma mensagem por golpe (evita flood no canal de log).
-        // CONFIRMADO ao vivo: morte por ambiente (queda/fome/afogamento sem
-        // outro jogador envolvido) manda KillerName/KillerAlderonId como
-        // string vazia "" e KillerGrowth como -1 (sentinela) — sem essa
-        // checagem, a mensagem dizia "foi morto por Desconhecido", como se
-        // houvesse um assassino não identificado (errado: não há assassino
-        // nenhum).
-        PlayerKilled: () => {
-            const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
-            const cause = `${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``;
-            return hasKiller
-                ? `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** foi morto por **${nameWithId(d.KillerName, d.KillerAlderonId)}**\n${cause}`
-                : `${e('Dead', '💀')} **${nameWithId(d.VictimName, d.VictimAlderonId)}** morreu (sem assassino)\n${cause}`;
-        },
+        // uma mensagem por golpe (evita flood no canal de log). PlayerKilled
+        // TAMBÉM não entra mais aqui — ganhou painel próprio em Components V2
+        // (ver buildKillPanel abaixo, interceptado em gatewayServer._routeToDiscord
+        // antes deste caminho de texto+embed).
 
         // ── Quest ──
         PlayerQuestComplete: () => `${e('listchecks', '📜')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** completou a missão **${d.Quest}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`,
@@ -342,39 +332,8 @@ function formatEmbed(potEvent, data, guild) {
     const d = data || {};
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
 
-    // Embed extra apenas para eventos que ganham com contexto visual
-    if (potEvent === 'PlayerKilled' && d.VictimName) {
-        // Espécie + growth de cada lado — campos confirmados na doc oficial
-        // (VictimDinosaurType/VictimGrowth, KillerDinosaurType/KillerGrowth).
-        // Identificação do DINO em si: CONFIRMADO ao vivo (DEBUG_POT, Atlas
-        // Brasil) que o nome do dino da vítima vem em "DinosaurVictimName"
-        // (não "VictimCharacterName"/"VictimDinosaurName" — nomenclatura
-        // inconsistente do próprio jogo) e o do matador em
-        // "KillerCharacterName" (esse sim no padrão esperado). Nenhum dos
-        // dois lados manda um ID de dino em PlayerKilled (confirmado
-        // ausente) — só o nome mesmo.
-        // Morte por ambiente (queda/fome/afogamento): CONFIRMADO ao vivo que
-        // KillerName/KillerAlderonId vêm como "" e KillerGrowth como -1
-        // (sentinela) — nesse caso omite o campo "Assassino" inteiro em vez
-        // de mostrar "Desconhecido".
-        const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
-        const victimSpecies = `${d.VictimDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.VictimGrowth)})${dinoIdentitySuffix(d.DinosaurVictimName, null)}`;
-
-        const fields = [
-            { name: 'Vítima', value: `${nameWithId(d.VictimName, d.VictimAlderonId)}\n${victimSpecies}`, inline: true },
-        ];
-        if (hasKiller) {
-            const killerSpecies = `${d.KillerDinosaurType || 'Desconhecido'} (Growth: ${formatGrowthPercent(d.KillerGrowth)})${dinoIdentitySuffix(d.KillerCharacterName, null)}`;
-            fields.push({ name: 'Assassino', value: `${nameWithId(d.KillerName, d.KillerAlderonId)}\n${killerSpecies}`, inline: true });
-        }
-        fields.push({ name: 'Causa', value: formatDamageType(d.DamageType), inline: true });
-
-        return new EmbedBuilder()
-            .setColor(0xFF0000)
-            .setTitle(`${e('Dead', '💀')} ${hasKiller ? 'Morte em Combate' : 'Morte por Ambiente'}`)
-            .addFields(fields)
-            .setTimestamp();
-    }
+    // PlayerKilled NÃO gera mais embed aqui — ganhou painel próprio em
+    // Components V2 (ver buildKillPanel abaixo).
 
     if (potEvent === 'ServerError' || potEvent === 'SecurityAlert') {
         return new EmbedBuilder()
@@ -385,6 +344,76 @@ function formatEmbed(potEvent, data, guild) {
     }
 
     return null;
+}
+
+// "X=12345.670 Y=-890.120 Z=345.000" (Respawn/Leave/Quest) ou
+// "(X=..,Y=..,Z=..)" (PlayerKilled) — mesmo regex de extractEventLocation
+// em gatewayServer.js, duplicado aqui de propósito pra manter
+// webhookPayloads.js autocontido (mesmo padrão de formatGrowthPercent).
+// Formato de SAÍDA mantido igual ao cru do jogo a pedido do dono.
+const KILL_LOCATION_RE = /X=(-?[\d.]+)[,\s]+Y=(-?[\d.]+)[,\s]+Z=(-?[\d.]+)/;
+function formatLocationString(raw) {
+    const match = typeof raw === 'string' ? raw.match(KILL_LOCATION_RE) : null;
+    if (!match) return null;
+    return `(X=${Math.round(Number(match[1]))},Y=${Math.round(Number(match[2]))},Z=${Math.round(Number(match[3]))})`;
+}
+
+/**
+ * Painel (Components V2) de um PlayerKilled — substitui a antiga mensagem
+ * de texto + embed. CONFIRMADO ao vivo (DEBUG_POT, Atlas Brasil): morte por
+ * ambiente (queda/fome/afogamento) manda KillerName/KillerAlderonId como ""
+ * e KillerGrowth como -1 — nesse caso omite o bloco "Matador" inteiro (não
+ * existe assassino nenhum) e o título vira "MORTE POR AMBIENTE". Nome do
+ * dino da vítima vem em "DinosaurVictimName" (não "VictimCharacterName" —
+ * nomenclatura inconsistente do próprio jogo), do matador em
+ * "KillerCharacterName" — nenhum ID de dino existe em PlayerKilled pra
+ * nenhum dos dois lados.
+ *
+ * Layout pedido pelo dono é EMPILHADO (Vítima acima, Matador abaixo) — o
+ * Components V2 não tem um jeito nativo de colocar dois blocos de texto
+ * lado a lado (Section só permite 1 texto + 1 acessório de imagem/botão à
+ * direita, não texto+texto); lado a lado de verdade só com embed clássico
+ * (inline fields), que não pode se misturar com Components V2 na mesma
+ * mensagem — decisão confirmada com o dono.
+ *
+ * @param {object} data
+ * @param {import('discord.js').Guild} guild
+ * @returns {{ components: object[], flags: number }}
+ */
+function buildKillPanel(data, guild) {
+    const d = data || {};
+    const e = (key, fallback) => resolveEmoji(guild, key, fallback);
+    const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
+
+    const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
+
+    builder.title(`${e('Dead', '💀')} ${hasKiller ? 'MORTE EM COMBATE' : 'MORTE POR AMBIENTE'}`, 1);
+    builder.text(`Dano: ${formatDamageType(d.DamageType)}`);
+
+    const localParts = [d.VictimPOI, formatLocationString(d.VictimLocation)].filter(Boolean);
+    if (localParts.length > 0) {
+        builder.title(`Local: ${localParts.join(' - ')}`, 3);
+    }
+    builder.separator();
+
+    builder.text(
+        `**Vítima**\n` +
+        `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}\n` +
+        `${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthPercent(d.VictimGrowth)})`
+    );
+    if (hasKiller) {
+        builder.text(
+            `**Matador**\n` +
+            `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}\n` +
+            `${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthPercent(d.KillerGrowth)})`
+        );
+    }
+
+    builder.separator();
+    builder.footer(guild?.name || d.ServerName || 'Servidor');
+
+    const { components, flags } = builder.build();
+    return { components: components.map((c) => c.toJSON()), flags };
 }
 
 // ==================== RELATÓRIO DE COMBATE/DANO (encontro) ====================
@@ -518,7 +547,7 @@ function buildDamageReportPayload(encounter, guild) {
                 kind: 'damage',
                 header: isSelf
                     ? `- ${participantLabel(ev.targetKey)} — dano próprio/ambiente`
-                    : `- ${participantLabel(ev.sourceKey)} ${e('Double-ArrowRigth', '»')} ${participantLabel(ev.targetKey)}`,
+                    : `- ${participantLabel(ev.sourceKey)} ${e('DoubleArrowRigth', '»')} ${participantLabel(ev.targetKey)}`,
                 byType: new Map(),
             };
             segments.set(segKey, seg);
@@ -618,4 +647,4 @@ function buildDamageReportPayload(encounter, guild) {
     return { components: components.map((c) => c.toJSON()), flags };
 }
 
-module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportPayload, formatDamageType, dietEmoji };
+module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportPayload, buildKillPanel, formatDamageType, dietEmoji };
