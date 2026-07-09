@@ -1036,6 +1036,10 @@ const PunishmentSystem = {
      * Atribui o cargo temporário de Strike (configurado via /config roles,
      * chave 'strike_role') ao membro punido, e registra a expiração na
      * tabela temporary_roles para remoção automática pelo worker (initWorker).
+     * Recurso do plano Rastreador+ (ver PremiumSystem.GUILD_LIMITS.
+     * temporaryRoleEnabled) — em Free não aplica, mas ainda avisa o motivo
+     * (mesmo padrão de discordAct/jogoAct, que também avisam "requer plano X"
+     * em vez de falhar silenciosamente).
      *
      * Se durationMs <= 0 (punição permanente / "0" / "perm"), o cargo NÃO é
      * aplicado como temporário — a tabela temporary_roles existe apenas para
@@ -1049,6 +1053,11 @@ const PunishmentSystem = {
      */
     async applyTemporaryRole(guild, targetMember, durationMs) {
         const ConfigSystem = require('../core/configSystem');
+
+        if (!PremiumSystem.getGuildLimits(guild.id).temporaryRoleEnabled) {
+            return { applied: false, roleId: null, expiresAt: null, error: 'Cargo temporário de Strike requer o plano Rastreador.' };
+        }
+
         const strikeRoleId = ConfigSystem.getSetting(guild.id, 'strike_role');
 
         if (!strikeRoleId) {

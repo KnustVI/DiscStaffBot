@@ -132,14 +132,14 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
   postagem no forum).
-- /config punishments liberado, mas SO pra configurar o que os 5 niveis de
-  severidade fazem com a reputacao (pontos perdidos por nivel) - nada alem
-  disso. Limites de cargo automatico e a EDICAO da quantidade recuperada
-  por dia NAO aparecem editaveis neste tier (a recuperacao em si roda
-  mesmo assim, fixa em 1 ponto/dia).
+- /config punishments liberado aqui, mas SO pra criar/editar os ate 4
+  niveis de punicao customizados - nada alem disso. Limites de cargo
+  automatico e a EDICAO da quantidade recuperada por dia NAO aparecem
+  editaveis neste tier (a recuperacao em si roda mesmo assim, fixa em 1
+  ponto/dia).
 - SEM cargos automaticos de reputacao (exemplar/problematico), SEM analise
-  de atividade de staff, SEM RCON automatico - tudo isso e exclusivo do
-  Cacador.
+  de atividade de staff - isso e exclusivo do Cacador. RCON automatico JA
+  ATIVO desde este tier (ver acima).
 - BONUS: o DONO do servidor Discord ganha Player Premium Compy automaticamente
   ao comprar o Rastreador (JA IMPLEMENTADO - ver secao 3).
 
@@ -312,20 +312,20 @@ nao paga desenvolvedores brasileiros).
   imagem de rodape por tier de Player Premium (footer_free/compy/raptor) NO
   LUGAR do rodape de texto padrao do bot ("Produzido por...").
 - Todo container que mostra um usuario (strike, unstrike, repset, historico,
-  reportchat, perfil/registrar) usa o mesmo formato padrao:
-  mencao do Discord + ID Alderon (se registrado) na primeira linha, nome de
-  usuario + nome do personagem na segunda, e "Conta linkada!" na terceira
-  (as duas ultimas so aparecem se a pessoa tiver /registrar feito).
+  reportchat, perfil/registrar) usa o mesmo formato padrao (2 linhas):
+  mencao do Discord + ID Alderon na primeira linha (so aparece se
+  registrado), nome de usuario + nome do personagem na segunda (idem). Sem
+  vinculo, so a primeira linha aparece (sem o ID Alderon) - nao ha linha
+  extra tipo "Conta linkada!", a propria presenca do ID Alderon/nome do
+  personagem ja deixa claro que a conta esta vinculada.
 - Esse formato depende dos emojis de aplicacao "PotLogo" e "DiscLogo" (ver
-  Discord Developer Portal > Application > Emojis) - se ainda nao tiverem
-  sido sincronizados no ambiente atual, rode "npm run sync-emojis" (funciona
-  so onde o .env com TOKEN/CLIENT_ID existir, tipicamente o VPS de producao)
-  para os IDs reais aparecerem; ate la, o bot usa emojis unicode de reserva
-  (🦖/💬) automaticamente, sem quebrar nada.
+  Discord Developer Portal > Application > Emojis) - JA SINCRONIZADOS em
+  producao (rodar "npm run sync-emojis" de novo so e necessario se algum
+  emoji novo for adicionado no futuro). Fallback unicode (🦖/💬) continua
+  existindo no codigo por seguranca, mas nao deveria aparecer em producao.
 - Os titulos de cada tier no /premium usam emojis de aplicacao proprios:
   HerbSkull (tier Free/base), TapejaraSkull (tier medio - Compy/Rastreador)
-  e CarniSkull (tier top - Raptor/Cacador). TapejaraSkull tambem depende de
-  "npm run sync-emojis" - sem ele cai no unicode de reserva (🟡).
+  e CarniSkull (tier top - Raptor/Cacador) - tambem ja sincronizados.
 
 
 8) CORRECAO: /botstatus NUNCA mostrava estatisticas (bug antigo)
@@ -507,3 +507,18 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   comando com subcomandos, precisa rodar "node deploy.js" pra o Discord
   atualizar a estrutura do comando - sem isso, os clientes Discord podem
   mostrar a versao antiga em cache.
+
+
+15) CORRECAO: cargo temporario de Strike aplicava mesmo no Free (bug)
+------------------------------------------------
+- applyTemporaryRole (o cargo configurado em /config roles > strike_role,
+  atribuido enquanto a punicao esta ativa) nao tinha NENHUMA checagem de
+  tier - se o servidor tivesse esse cargo configurado, ele era aplicado de
+  verdade em QUALQUER tier, inclusive Free, contradizendo a documentacao
+  (cargo temporario sempre foi descrito como recurso do Rastreador+).
+- Corrigido: nova flag PremiumSystem.GUILD_LIMITS.temporaryRoleEnabled
+  (false no Free, true no Rastreador/Cacador). Em Free, o cargo NAO e mais
+  aplicado, mas o resumo do /strike continua avisando o motivo ("Cargo de
+  Strike não aplicado: Cargo temporário de Strike requer o plano
+  Rastreador.") - mesmo padrao ja usado pra acao no Discord/acao em jogo
+  quando bloqueadas pelo tier.
