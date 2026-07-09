@@ -34,6 +34,25 @@ function resolveEmoji(guild, key, fallback) {
     return found ? found.toString() : fallback;
 }
 
+// Os 10 tipos de dano documentados oficialmente pelo PoT (PlayerKilled/
+// PlayerDamagedPlayer) — ver https://hosting.pathoftitans.wiki/guide/webhooks.
+const DAMAGE_TYPE_LABELS = {
+    DT_ATTACK: 'Ataque',
+    DT_OXYGEN: 'Afogamento',
+    DT_BLEED: 'Sangramento',
+    DT_THIRST: 'Sede',
+    DT_HUNGER: 'Fome',
+    DT_BREAKLEGS: 'Fratura (queda)',
+    DT_GENERIC: 'Genérico',
+    DT_TRAMPLE: 'Pisoteio',
+    DT_SPIKES: 'Espinhos',
+    DT_ARMORPIERCING: 'Perfurante',
+};
+
+function formatDamageType(type) {
+    return DAMAGE_TYPE_LABELS[type] || type || 'Desconhecida';
+}
+
 // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
 
 /**
@@ -134,8 +153,11 @@ function formatMessage(potEvent, data, guild) {
         PlayerLeave:   () => `${e('logout', '🚶')} **${d.PlayerName}** desconectou`,
 
         // ── Combate ──
-        PlayerKilled:        () => `${e('Dead', '💀')} **${d.VictimName}** foi morto por **${d.KillerName}**\n${e('build', '🔧')} Causa: \`${d.DamageType}\``,
-        PlayerDamagedPlayer: () => `${e('swords', '⚔️')} **${d.SourceName}** causou **${d.DamageAmount}** de dano em **${d.TargetName}**`,
+        // PlayerDamagedPlayer NÃO entra aqui de propósito — é interceptado
+        // antes, em gatewayServer._routeToDiscord, e vira um Relatório de
+        // Combate/Dano agrupado (ver buildDamageReportEmbed abaixo) em vez de
+        // uma mensagem por golpe (evita flood no canal de log).
+        PlayerKilled: () => `${e('Dead', '💀')} **${d.VictimName}** foi morto por **${d.KillerName}**\n${e('build', '🔧')} Causa: \`${formatDamageType(d.DamageType)}\``,
 
         // ── Quest ──
         PlayerQuestComplete: () => `${e('listchecks', '📜')} **${d.PlayerName}** completou a missão **${d.Quest}**`,
@@ -199,7 +221,7 @@ function formatEmbed(potEvent, data, guild) {
             .addFields(
                 { name: 'Vítima', value: d.VictimName, inline: true },
                 { name: 'Assassino', value: d.KillerName, inline: true },
-                { name: 'Causa', value: d.DamageType || 'Desconhecida', inline: true }
+                { name: 'Causa', value: formatDamageType(d.DamageType), inline: true }
             )
             .setTimestamp();
     }
@@ -215,4 +237,65 @@ function formatEmbed(potEvent, data, guild) {
     return null;
 }
 
-module.exports = { buildLoginEventPayload, formatMessage, formatEmbed };
+// ==================== RELATÓRIO DE COMBATE/DANO (batch) ====================
+
+/**
+ * Monta o embed de um lote de PlayerDamagedPlayer acumulado (ver
+ * gatewayServer._bufferDamageEvent) — todos os golpes entre o mesmo par
+ * atacante/alvo dentro da janela de agrupamento viram UM relatório, em vez
+ * de uma mensagem por golpe (evita flood no canal de log em combates/
+ * afogamentos com muitos hits seguidos).
+ *
+ * @param {object} batch - { sourceName, sourceAlderonId, targetName,
+ *   targetAlderonId, hits: [{ damageType, damageAmount }], firstAt }
+ * @param {import('discord.js').Guild} guild
+ * @returns {import('discord.js').EmbedBuilder}
+ */
+function buildDamageReportEmbed(batch, guild) {
+    const e = (key, fallback) => resolveEmoji(guild, key, fallback);
+
+    // Dano próprio/ambiental (afogamento, fome, sede, queda...) — PoT manda
+    // o mesmo nome/Alderon ID como origem E alvo nesses casos.
+    const isSelfDamage = batch.sourceAlderonId
+        ? batch.sourceAlderonId === batch.targetAlderonId
+        : batch.sourceName === batch.targetName;
+
+    const byType = new Map();
+    let total = 0;
+    for (const hit of batch.hits) {
+        total += hit.damageAmount;
+        const entry = byType.get(hit.damageType) || { count: 0, sum: 0 };
+        entry.count += 1;
+        entry.sum += hit.damageAmount;
+        byType.set(hit.damageType, entry);
+    }
+    const typeLines = [...byType.entries()]
+        .map(([type, { count, sum }]) => `${formatDamageType(type)}: ${count}x (total **${sum}**)`)
+        .join('\n');
+
+    const durationMs = Math.max(0, Date.now() - batch.firstAt);
+    const durationLabel = durationMs < 60000
+        ? `${Math.round(durationMs / 1000)}s`
+        : `${Math.round(durationMs / 60000)}min`;
+
+    const title = isSelfDamage
+        ? `${e('swords', '⚔️')} Relatório de Dano`
+        : `${e('swords', '⚔️')} Relatório de Combate`;
+    const description = isSelfDamage
+        ? `**${batch.targetName}** sofreu dano por conta própria/ambiente`
+        : `**${batch.sourceName}** causou dano em **${batch.targetName}**`;
+
+    return new EmbedBuilder()
+        .setColor(0xFF8800)
+        .setTitle(title)
+        .setDescription(description)
+        .addFields(
+            { name: 'Tipos de dano', value: typeLines || 'Desconhecido', inline: false },
+            { name: 'Dano total', value: `${total}`, inline: true },
+            { name: 'Golpes', value: `${batch.hits.length}`, inline: true },
+            { name: 'Duração', value: durationLabel, inline: true },
+        )
+        .setTimestamp();
+}
+
+module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportEmbed, formatDamageType };

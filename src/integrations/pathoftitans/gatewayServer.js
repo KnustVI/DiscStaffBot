@@ -23,12 +23,23 @@ const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave'])
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 
+// Janela de agrupamento de PlayerDamagedPlayer: cada golpe entre o mesmo par
+// atacante/alvo reinicia esse tempo — o relatório só é enviado depois de
+// ficar esse tanto sem NOVO golpe entre os dois (não é uma janela fixa),
+// pra cobrir o combate/afogamento inteiro, não cortar no meio. Ver
+// _bufferDamageEvent/_flushDamageBatchByKey.
+const DAMAGE_BATCH_IDLE_MS = 5 * 60 * 1000;
+
 class PoTGatewayServer {
     constructor(client) {
         this.client = client;
         this.app = null;
         this.server = null;
         this.isRunning = false;
+        // Map<string, { guildId, groupId, sourceName, sourceAlderonId,
+        //   targetName, targetAlderonId, hits: [{damageType, damageAmount}],
+        //   firstAt, timer }>
+        this.damageBatches = new Map();
     }
 
     start(port = 8080) {
@@ -140,6 +151,10 @@ class PoTGatewayServer {
             this.server.close();
             this.isRunning = false;
         }
+        for (const batch of this.damageBatches.values()) {
+            if (batch.timer) clearTimeout(batch.timer);
+        }
+        this.damageBatches.clear();
     }
 
     // ==================== NORMALIZAÇÃO Format="Discord" ====================
@@ -203,11 +218,29 @@ class PoTGatewayServer {
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Contagem de kill/death falhou:', err.message);
                 }
+                // A morte encerra o combate entre os dois — manda o relatório
+                // de dano acumulado (se houver) na hora, em vez de esperar o
+                // resto da janela de inatividade.
+                this._flushDamageBatchesForPair(
+                    guildId,
+                    data.KillerAlderonId || data.KillerName,
+                    data.VictimAlderonId || data.VictimName,
+                );
             }
 
             // 2. Busca o webhook Discord configurado para este grupo
             const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, groupId);
             if (!webhookUrl) return; // grupo não configurado, ignora silenciosamente
+
+            // 2b. PlayerDamagedPlayer nunca é enviado na hora — combates e
+            // dano contínuo (afogamento, fome...) mandam um evento por golpe,
+            // e isso flooda o canal de log. Em vez disso, acumula por par
+            // atacante/alvo e manda UM relatório depois de um tempo sem novo
+            // golpe entre os dois (ver _bufferDamageEvent). ──────────────────
+            if (potEvent === 'PlayerDamagedPlayer') {
+                this._bufferDamageEvent(guildId, groupId, data);
+                return;
+            }
 
             // 3. Login/Logout/Leave já usam o container novo (Components V2);
             // os demais grupos continuam no formato antigo por enquanto.
@@ -227,6 +260,80 @@ class PoTGatewayServer {
 
         } catch (error) {
             ErrorLogger.error('pot_gateway', 'routeToDiscord', error, { guildId, groupId, potEvent });
+        }
+    }
+
+    // ==================== RELATÓRIO DE DANO/COMBATE (batching) ====================
+
+    /**
+     * Acumula um golpe de PlayerDamagedPlayer no lote do par atacante/alvo
+     * (identificados por Alderon ID quando disponível, senão pelo nome) e
+     * (re)inicia o timer de inatividade — cada novo golpe entre os mesmos
+     * dois adia o envio, então o relatório só sai quando o combate/dano
+     * realmente parar (ou quando um dos dois morrer, ver
+     * _flushDamageBatchesForPair).
+     */
+    _bufferDamageEvent(guildId, groupId, data) {
+        const sourceKey = data.SourceAlderonId || data.SourceName || 'desconhecido';
+        const targetKey = data.TargetAlderonId || data.TargetName || 'desconhecido';
+        const key = `${guildId}:${sourceKey}->${targetKey}`;
+
+        let batch = this.damageBatches.get(key);
+        if (!batch) {
+            batch = {
+                guildId, groupId,
+                sourceName: data.SourceName || 'Desconhecido',
+                sourceAlderonId: data.SourceAlderonId || null,
+                targetName: data.TargetName || 'Desconhecido',
+                targetAlderonId: data.TargetAlderonId || null,
+                hits: [],
+                firstAt: Date.now(),
+                timer: null,
+            };
+            this.damageBatches.set(key, batch);
+        }
+
+        // DamageAmount pode chegar como float do motor do jogo (ex: 9.999998)
+        // — arredonda pra inteiro, que é como dano é sempre exibido no jogo.
+        const damageAmount = Math.round(Number(data.DamageAmount) || 0);
+        batch.hits.push({ damageType: data.DamageType || 'DT_GENERIC', damageAmount });
+
+        if (batch.timer) clearTimeout(batch.timer);
+        batch.timer = setTimeout(() => this._flushDamageBatchByKey(key), DAMAGE_BATCH_IDLE_MS);
+    }
+
+    async _flushDamageBatchByKey(key) {
+        const batch = this.damageBatches.get(key);
+        if (!batch) return;
+        this.damageBatches.delete(key);
+        if (batch.timer) clearTimeout(batch.timer);
+
+        try {
+            const webhookUrl = PoTConfigSystem.getWebhookForGroup(batch.guildId, batch.groupId);
+            if (!webhookUrl) return;
+
+            const guild = this.client.guilds.cache.get(batch.guildId);
+            const embed = WebhookPayloads.buildDamageReportEmbed(batch, guild);
+            await this._deliverMessage(webhookUrl, { embeds: [embed.toJSON()] });
+        } catch (error) {
+            ErrorLogger.error('pot_gateway', 'flushDamageBatch', error, { guildId: batch.guildId });
+        }
+    }
+
+    /**
+     * Manda na hora qualquer lote pendente entre dois identificadores
+     * (Alderon ID ou nome), nas duas ordens possíveis — chamado quando um
+     * PlayerKilled acontece entre os mesmos dois jogadores, já que a morte
+     * encerra o combate e não faz sentido esperar o resto da janela de
+     * inatividade pra mandar o relatório.
+     */
+    _flushDamageBatchesForPair(guildId, idA, idB) {
+        for (const [key, batch] of this.damageBatches.entries()) {
+            if (batch.guildId !== guildId) continue;
+            const src = batch.sourceAlderonId || batch.sourceName;
+            const tgt = batch.targetAlderonId || batch.targetName;
+            const matches = (src === idA && tgt === idB) || (src === idB && tgt === idA);
+            if (matches) this._flushDamageBatchByKey(key);
         }
     }
 

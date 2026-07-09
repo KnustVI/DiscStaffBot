@@ -581,3 +581,37 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   em pot_players) foram REMOVIDAS - o desenho novo usa SessionManager pro
   codigo pendente (nao precisa de coluna no banco) e grava o resultado
   final direto em player_links (global), nao mais em pot_players.
+
+
+17) WEBHOOK "COMBATE" - RELATORIO DE DANO AGRUPADO (evita flood) + TIPOS DE DANO TRADUZIDOS
+------------------------------------------------
+- Cada golpe de PlayerDamagedPlayer (dano entre jogadores, OU dano proprio/
+  ambiental - afogamento, fome, sede, queda... quando origem e alvo sao o
+  mesmo jogador) NAO manda mais uma mensagem por golpe no canal de log
+  "Combate" - isso floodava o canal num combate ou afogamento longo.
+- Agora os golpes entre o MESMO PAR atacante/alvo (identificados por
+  Alderon ID quando disponivel, senao pelo nome) ficam acumulados em
+  memoria, e cada novo golpe entre os dois REINICIA um temporizador de 5
+  minutos. So quando passam 5 minutos sem NENHUM golpe novo entre os
+  mesmos dois, o bot manda UM "Relatorio de Combate" (ou "Relatorio de
+  Dano", se for dano proprio/ambiental) com: tipos de dano (traduzidos,
+  com quantidade de golpes e soma por tipo), dano total, numero de golpes
+  e duracao do combate/episodio.
+- Se um PlayerKilled acontece entre os mesmos dois jogadores antes dos 5
+  minutos, o relatorio pendente e mandado NA HORA (nao espera o resto da
+  janela) - a morte encerra o combate, entao nao faz sentido segurar.
+- DamageAmount (que pode chegar como float do motor do jogo, tipo
+  9.999998) e sempre arredondado pra numero inteiro na exibicao - dano no
+  jogo em si e sempre inteiro.
+- Tipos de dano traduzidos (os 10 documentados oficialmente pelo PoT):
+  Ataque, Afogamento, Sangramento, Sede, Fome, Fratura (queda), Generico,
+  Pisoteio, Espinhos, Perfurante - usado tanto no relatorio de combate
+  quanto no campo "Causa" do embed de PlayerKilled (antes mostrava o
+  codigo cru, tipo "DT_ATTACK").
+- Isso e so pro grupo "Combate" (PlayerDamagedPlayer/PlayerKilled) - os
+  outros grupos de webhook continuam mandando uma mensagem por evento,
+  sem agrupamento (nao pediram flood neles ate agora).
+- Estado do agrupamento fica em memoria (Map dentro do GatewayServer, nao
+  no banco) - se o bot reiniciar no meio de um combate, o que ja tinha
+  sido acumulado se perde (proximo golpe comeca um lote novo). Aceitavel
+  pra esse caso de uso; nao e informacao critica.
