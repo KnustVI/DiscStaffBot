@@ -240,6 +240,7 @@ const SCHEMA = {
             verified_ingame INTEGER DEFAULT 0,
             kills INTEGER DEFAULT 0,
             deaths INTEGER DEFAULT 0,
+            dinosaur_active INTEGER DEFAULT 0,
             UNIQUE(guild_id, alderon_id)
         )
     `,

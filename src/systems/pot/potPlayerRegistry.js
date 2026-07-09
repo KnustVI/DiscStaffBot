@@ -208,6 +208,16 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
     const { alderonId, playerName, isOnline, sessionSeconds, discordId, dinosaurType, dinosaurGrowth } = normalized;
     const now = Date.now();
 
+    // ── "Tem dinossauro ativo nesta sessão?" — distingue "jogando" de "na
+    // tela de seleção" no /perfil (dinosaur_type/growth acima NUNCA são
+    // limpos, então sozinhos não bastam). PlayerLogin zera (login cai na
+    // seleção); PlayerRespawn liga (acabou de escolher/spawnar um dino);
+    // outros eventos não mexem nisso (PlayerKilled zera a vítima à parte,
+    // ver recordKillEvent). ──────────────────────────────────────────────
+    let dinosaurActiveOverride = null;
+    if (eventType === 'PlayerLogin') dinosaurActiveOverride = 0;
+    else if (eventType === 'PlayerRespawn') dinosaurActiveOverride = 1;
+
     try {
         const existing = db.prepare(`
             SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
@@ -218,10 +228,10 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             db.prepare(`
                 INSERT INTO pot_players (
                     guild_id, alderon_id, player_name, discord_id,
-                    dinosaur_type, dinosaur_growth,
+                    dinosaur_type, dinosaur_growth, dinosaur_active,
                     last_seen, total_playtime, is_online,
                     linked_at, first_login_at, updated_at, admin_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                 guildId,
                 alderonId,
@@ -229,6 +239,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 discordId || null,
                 dinosaurType,
                 dinosaurGrowth,
+                dinosaurActiveOverride ?? 0,
                 now,
                 sessionSeconds || 0,
                 isOnline === null ? 0 : isOnline,
@@ -265,6 +276,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         // o que já estava salvo.
         const newDinosaurType = dinosaurType !== null ? dinosaurType : existing.dinosaur_type;
         const newDinosaurGrowth = dinosaurGrowth !== null ? dinosaurGrowth : existing.dinosaur_growth;
+        const newDinosaurActive = dinosaurActiveOverride ?? existing.dinosaur_active;
 
         db.prepare(`
             UPDATE pot_players SET
@@ -272,6 +284,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 discord_id = ?,
                 dinosaur_type = ?,
                 dinosaur_growth = ?,
+                dinosaur_active = ?,
                 last_seen = ?,
                 total_playtime = ?,
                 is_online = ?,
@@ -283,6 +296,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             newDiscordId,
             newDinosaurType,
             newDinosaurGrowth,
+            newDinosaurActive,
             now,
             newTotalPlaytime,
             newIsOnline,
@@ -514,14 +528,14 @@ function getAlderonIdSuffix(discordId) {
  * servidor mais recente).
  *
  * @param {string} alderonId
- * @returns {{ isOnline: boolean, dinosaurType: string|null, dinosaurGrowth: number|null, totalPlaytime: number, kills: number, deaths: number }}
+ * @returns {{ isOnline: boolean, dinosaurActive: boolean, dinosaurType: string|null, dinosaurGrowth: number|null, totalPlaytime: number, kills: number, deaths: number }}
  */
 function getGlobalPlayerStats(alderonId) {
-    const empty = { isOnline: false, dinosaurType: null, dinosaurGrowth: null, totalPlaytime: 0, kills: 0, deaths: 0 };
+    const empty = { isOnline: false, dinosaurActive: false, dinosaurType: null, dinosaurGrowth: null, totalPlaytime: 0, kills: 0, deaths: 0 };
     if (!alderonId) return empty;
     try {
         const latest = db.prepare(`
-            SELECT is_online, dinosaur_type, dinosaur_growth FROM pot_players
+            SELECT is_online, dinosaur_type, dinosaur_growth, dinosaur_active FROM pot_players
             WHERE alderon_id = ? ORDER BY updated_at DESC LIMIT 1
         `).get(alderonId);
         const totals = db.prepare(`
@@ -531,6 +545,7 @@ function getGlobalPlayerStats(alderonId) {
 
         return {
             isOnline: !!latest?.is_online,
+            dinosaurActive: !!latest?.dinosaur_active,
             dinosaurType: latest?.dinosaur_type || null,
             dinosaurGrowth: latest?.dinosaur_growth ?? null,
             totalPlaytime: totals?.playtime || 0,
@@ -582,6 +597,17 @@ function recordKillEvent(guildId, rawPayload) {
 
     bump(killerAlderonId, killerName, 'kills');
     bump(victimAlderonId, victimName, 'deaths');
+
+    // Vítima morreu — volta pra tela de seleção de dinossauro (ver
+    // dinosaur_active em upsertPlayerFromEvent/getGlobalPlayerStats).
+    if (victimAlderonId) {
+        try {
+            db.prepare(`UPDATE pot_players SET dinosaur_active = 0 WHERE guild_id = ? AND alderon_id = ?`)
+                .run(guildId, victimAlderonId);
+        } catch (error) {
+            console.error('❌ [PoT Registry] Erro ao zerar dinosaur_active da vítima:', error);
+        }
+    }
 }
 
 module.exports = {

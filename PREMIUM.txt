@@ -404,18 +404,30 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
 - Corrigidos 2 separadores vazios que apareciam no painel (Free, e quando o
   card falhava ao gerar).
 - Abaixo do card, quando o jogador tem vinculo, mostra um bloco de
-  estatisticas (com o avatar do Discord ao lado): Status (online/offline),
-  Dinossauro atual, Growth, Tempo de jogo, Kills, Deaths e K/D. Growth
-  mostra o estagio (Filhote/Subadulto/Adulto) com base nos 3 pontos
+  estatisticas (com o avatar do Discord ao lado) com 3 estados possiveis,
+  em vez de uma lista fixa de campos:
+    - ONLINE + dinossauro ativo: "Jogando agora de "<dino>"" + Growth/Tempo
+      de jogo numa linha + Kills/Deaths/K-D noutra.
+    - ONLINE na tela de selecao (logou mas ainda nao deu respawn, ou morreu
+      e voltou pra selecao): "Jogando agora na seleção de dinossauros." +
+      Kills/Deaths/K-D (sem Growth/Tempo de jogo, que so fazem sentido com
+      um dino ativo).
+    - OFFLINE: "Offline" + "Ultimo dinossauro jogado: <dino>" (o ultimo
+      registrado, nunca some) + Kills/Deaths/K-D.
+  Growth mostra o estagio (Filhote/Subadulto/Adulto) com base nos 3 pontos
   oficiais confirmados do PoT (1.0 = Full Adult, 0.5 = Half grown/
   Adolescent/Sub-Adult, 0.1 = Hatchling/Baby) - os limiares entre estagios
   usam o ponto medio entre eles (0.75 e 0.3), ja que so esses 3 valores
   foram confirmados.
-- Dinossauro atual/Growth/Status agora sao dado real de webhook (antes
-  eram colunas do banco que existiam mas nunca eram escritas por
-  nenhum evento) - vem do PlayerRespawn (DinosaurType/DinosaurGrowth),
-  que passou a acionar o cadastro automatico do jogador junto com
-  login/logout/kill/chat/comando.
+- Tudo isso e dado real de WEBHOOK (nao RCON) - vem do PlayerLogin/Logout/
+  Leave (status online/offline), PlayerRespawn (DinosaurType/DinosaurGrowth
+  + liga a flag dinosaur_active) e PlayerKilled (kills/deaths + zera
+  dinosaur_active da vitima, que volta pra tela de selecao). A coluna
+  dinosaur_type NUNCA e limpa (guarda sempre o ultimo dino jogado, mesmo
+  offline) - por isso existe a coluna separada dinosaur_active, que so diz
+  se ESSE dino esta sendo jogado AGORA (nesta sessao) ou nao; sem ela nao
+  dava pra diferenciar "jogando" de "na tela de selecao" so pelo
+  dinosaur_type (ver potPlayerRegistry.js).
 - Kills/Deaths sao NOVOS (colunas kills/deaths em pot_players, antes nao
   existiam) - contados a partir do evento PlayerKilled
   (KillerAlderonId/VictimAlderonId, campos oficiais desse evento -

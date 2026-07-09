@@ -116,6 +116,13 @@ class DatabaseManager {
             // (agregados globalmente entre servidores).
             this.ensureColumn('pot_players', 'kills', 'INTEGER DEFAULT 0');
             this.ensureColumn('pot_players', 'deaths', 'INTEGER DEFAULT 0');
+            // Distingue "online jogando um dinossauro" de "online na tela de
+            // seleção de dinossauro" — dinosaur_type/growth (acima) NUNCA são
+            // limpos (sempre guardam o ÚLTIMO dino jogado, mesmo offline), então
+            // sozinhos não dão pra saber se o jogador já deu respawn NESTA sessão.
+            // Zerado no PlayerLogin e no PlayerKilled (como vítima — volta pra
+            // seleção), setado em 1 no PlayerRespawn. Ver potPlayerRegistry.js.
+            this.ensureColumn('pot_players', 'dinosaur_active', 'INTEGER DEFAULT 0');
             // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-edit.
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).

@@ -293,19 +293,35 @@ class PlayerRegistrationSystem {
         }
 
         if (cardRendered) {
-            // ── Estatísticas do jogador (status/dino atual/growth/tempo de
-            // jogo/kills/deaths/KD), com o avatar do Discord ao lado — dados
-            // globais (agregados entre todos os servidores). ──────────────
-            const statusLine = stats.isOnline ? `${EMOJIS.circlecheck || '🟢'} Online` : `${EMOJIS.circlealert || '⚫'} Offline`;
-            const statsText = [
-                `**Status:** ${statusLine}`,
-                `**Dinossauro atual:** ${stats.dinosaurType || '—'}`,
-                `**Growth:** ${formatGrowth(stats.dinosaurGrowth)}`,
-                `**Tempo de jogo:** ${formatPlaytime(stats.totalPlaytime)}`,
-                `**Kills:** ${stats.kills}`,
-                `**Deaths:** ${stats.deaths}`,
-                `**K/D:** ${formatKD(stats.kills, stats.deaths)}`,
-            ].join('\n');
+            // ── Estatísticas do jogador, com o avatar do Discord ao lado —
+            // dados globais (agregados entre todos os servidores). 3 estados,
+            // vindos de webhook (não RCON — ver potPlayerRegistry.js):
+            // online+dinossauro ativo (PlayerRespawn), online na tela de
+            // seleção (PlayerLogin sem respawn ainda, ou morreu e voltou pra
+            // seleção — PlayerKilled zera dinosaur_active da vítima), ou
+            // offline (PlayerLogout/Leave). ──────────────────────────────────
+            const kdLine = `**Kills:** ${stats.kills} | **Deaths:** ${stats.deaths} | **K/D:** ${formatKD(stats.kills, stats.deaths)}`;
+
+            let statsText;
+            if (stats.isOnline && stats.dinosaurActive && stats.dinosaurType) {
+                statsText = [
+                    `## ${EMOJIS.circlecheck || '🟢'} Jogando agora de "${stats.dinosaurType}"`,
+                    `**Growth:** ${formatGrowth(stats.dinosaurGrowth)} | **Tempo de jogo:** ${formatPlaytime(stats.totalPlaytime)}`,
+                    kdLine,
+                ].join('\n');
+            } else if (stats.isOnline) {
+                statsText = [
+                    `${EMOJIS.circlecheck || '🟢'} **Jogando agora na seleção de dinossauros.**`,
+                    kdLine,
+                ].join('\n');
+            } else {
+                statsText = [
+                    `${EMOJIS.circlealert || '⚫'} **Offline**`,
+                    `**Último dinossauro jogado:** ${stats.dinosaurType ? `"${stats.dinosaurType}"` : '—'}`,
+                    kdLine,
+                ].join('\n');
+            }
+
             addSeparatorIfNeeded();
             builder.section(statsText, AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })));
         } else {
