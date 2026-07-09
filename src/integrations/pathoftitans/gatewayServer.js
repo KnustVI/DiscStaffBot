@@ -31,41 +31,87 @@ const DISABLED_EVENTS = new Set(['PlayerProfanity']);
 /**
  * Nome/ID do dinossauro (não confundir com AlderonId, que é do JOGADOR) e
  * dieta de um dos lados de um evento de combate (Source/Target/Killer/
- * Victim). PENDENTE: nenhum desses 3 campos é documentado oficialmente pra
- * PlayerDamagedPlayer/PlayerKilled — os nomes abaixo são um chute educado
- * (mesmo padrão de prefixo já confirmado em Name/AlderonId/DinosaurType/
- * Growth), ainda não confirmado ao vivo. Se nenhum bater, tudo fica null e
- * simplesmente não aparece no relatório — nunca quebra a mensagem. Testar
- * com DEBUG_POT=true num combate real e ajustar aqui se os campos reais
- * tiverem outro nome.
+ * Victim). CONFIRMADO ao vivo (DEBUG_POT, Atlas Brasil):
+ * - PlayerDamagedPlayer NÃO manda nenhum dos três — payload real tem
+ *   exatamente 15 campos (Name/AlderonId/DinosaurType/Role/IsAdmin/Growth
+ *   de cada lado + DamageType/DamageAmount/ServerGuid), sem CharacterName/
+ *   CharacterID/Diet em nenhuma variação.
+ * - PlayerKilled manda o NOME do dino (sem ID nenhum, nem vítima nem
+ *   matador) só que com uma inconsistência real do próprio jogo: o nome do
+ *   dino da vítima vem em "DinosaurVictimName" (não "VictimCharacterName"/
+ *   "VictimDinosaurName" como o padrão de prefixo sugeriria), enquanto o do
+ *   matador vem em "KillerCharacterName" (esse sim no padrão esperado).
+ *   Diet também confirmado AUSENTE em PlayerKilled, os dois lados.
+ * Os outros candidatos (DinosaurName/DinoName/CharacterId etc.) ficam como
+ * fallback só por segurança — nunca confirmados, mas nunca quebram nada se
+ * não baterem.
  */
 function extractDinoIdentity(data, prefix) {
+    const victimNameOverride = prefix === 'Victim' ? data.DinosaurVictimName : null;
     return {
-        characterName: data[`${prefix}CharacterName`] || data[`${prefix}DinosaurName`] || data[`${prefix}DinoName`] || null,
-        dinosaurId: data[`${prefix}CharacterId`] || data[`${prefix}DinosaurId`] || data[`${prefix}DinoId`] || null,
+        characterName: victimNameOverride || data[`${prefix}CharacterName`] || data[`${prefix}DinosaurName`] || data[`${prefix}DinoName`] || null,
+        dinosaurId: data[`${prefix}CharacterID`] || data[`${prefix}CharacterId`] || data[`${prefix}DinosaurId`] || data[`${prefix}DinoId`] || null,
         diet: data[`${prefix}Diet`] || data[`${prefix}DinosaurDiet`] || null,
     };
 }
 
+// Formato REAL confirmado (DEBUG_POT, Atlas Brasil) do campo de local — só
+// que em DOIS formatos diferentes dependendo do evento:
+//   PlayerRespawn/PlayerLeave/PlayerQuestComplete/Failed → "Location":
+//     "X=12345.670 Y=-890.120 Z=345.000" (sem parênteses, separado por espaço)
+//   PlayerKilled → "VictimLocation"/"KillerLocation":
+//     "(X=-227406.641113,Y=-15547.44159,Z=4662.364509)" (com parênteses,
+//     separado por vírgula)
+// O regex aceita os dois (aceita vírgula OU espaço como separador, ignora
+// parênteses por não precisar ancorar no início/fim da string).
+const LOCATION_STRING_RE = /X=(-?[\d.]+)[,\s]+Y=(-?[\d.]+)[,\s]+Z=(-?[\d.]+)/;
+
 /**
- * Local (mapa/POI/coordenadas) de um evento de combate. PENDENTE, mesmo
- * aviso do extractDinoIdentity acima: nenhum desses campos é documentado
- * oficialmente, chute educado ainda não confirmado ao vivo. Sem nenhum
- * campo reconhecido, retorna tudo null e a seção "Local" do relatório some
- * inteira (ver buildDamageReportPayload em webhookPayloads.js).
+ * Local (mapa/POI/coordenadas) de um evento — aceita um prefixo opcional
+ * (ex: "Victim"/"Killer" em PlayerKilled, que tem doiS locais possíveis;
+ * vazio pra eventos com um só campo de local sem prefixo, como
+ * PlayerRespawn/Leave/Quest). CONFIRMADO ao vivo que PlayerDamagedPlayer
+ * NÃO manda NENHUM campo de local (mesma checagem de 15 campos da
+ * extractDinoIdentity acima). PlayerKilled CONFIRMADO com "VictimPOI" (sem
+ * MapName) e "VictimLocation"/"KillerLocation" — ver extractKillLocation
+ * abaixo, que escolhe entre os dois lados. Sem nenhum campo reconhecido,
+ * retorna tudo null e a seção "Local" do relatório some inteira (ver
+ * buildDamageReportPayload em webhookPayloads.js).
  */
-function extractEventLocation(data) {
-    const mapName = data.MapName || data.Map || null;
-    const poiName = data.POIName || data.POI || data.Location || data.LocationName || null;
-    const x = data.LocationX ?? data.PosX ?? data.X ?? null;
-    const y = data.LocationY ?? data.PosY ?? data.Y ?? null;
-    const z = data.LocationZ ?? data.PosZ ?? data.Z ?? null;
-    const hasCoords = x !== null && y !== null;
-    return {
-        mapName,
-        poiName,
-        coords: hasCoords ? `X: ${Math.round(x)}, Y: ${Math.round(y)}${z !== null ? `, Z: ${Math.round(z)}` : ''}` : null,
-    };
+function extractEventLocation(data, prefix = '') {
+    const field = (name) => data[`${prefix}${name}`];
+    const mapName = field('MapName') || field('Map') || null;
+    const poiName = field('POI') || field('POIName') || field('LocationName') || null;
+
+    let coords = null;
+    const raw = field('Location');
+    const match = typeof raw === 'string' ? raw.match(LOCATION_STRING_RE) : null;
+    if (match) {
+        coords = `X: ${Math.round(Number(match[1]))}, Y: ${Math.round(Number(match[2]))}, Z: ${Math.round(Number(match[3]))}`;
+    } else {
+        const x = field('LocationX') ?? field('PosX') ?? null;
+        const y = field('LocationY') ?? field('PosY') ?? null;
+        const z = field('LocationZ') ?? field('PosZ') ?? null;
+        if (x !== null && y !== null) {
+            coords = `X: ${Math.round(x)}, Y: ${Math.round(y)}${z !== null ? `, Z: ${Math.round(z)}` : ''}`;
+        }
+    }
+
+    return { mapName, poiName, coords };
+}
+
+/**
+ * Local de um PlayerKilled — CONFIRMADO ao vivo que existem DOIS campos
+ * possíveis (VictimLocation/VictimPOI sempre existem; KillerLocation só
+ * quando há matador de verdade — em morte por ambiente/queda/fome,
+ * KillerName/KillerLocation vêm como string vazia "", KillerGrowth como
+ * -1). Prioriza o lado do matador quando disponível (mais preciso de onde
+ * o combate aconteceu), cai pro lado da vítima senão.
+ */
+function extractKillLocation(data) {
+    const killerLoc = extractEventLocation(data, 'Killer');
+    if (killerLoc.mapName || killerLoc.poiName || killerLoc.coords) return killerLoc;
+    return extractEventLocation(data, 'Victim');
 }
 
 const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
@@ -453,15 +499,25 @@ class PoTGatewayServer {
      * independente disso e continua sendo mandado na hora, ver _routeToDiscord.
      */
     _recordKillIntoEncounter(guildId, groupId, data) {
-        const killerKey = data.KillerAlderonId || data.KillerName || 'desconhecido';
+        // Morte por ambiente (queda/fome/afogamento, sem outro jogador
+        // envolvido): CONFIRMADO ao vivo que KillerName/KillerAlderonId
+        // vêm como string vazia "" (e KillerGrowth como -1, sentinela)
+        // nesse caso — sem essa checagem, o encontro ganhava um
+        // participante fantasma "desconhecido" com growth -1, e o
+        // relatório virava "RELATÓRIO DE COMBATE" mesmo sem nenhum outro
+        // jogador de verdade envolvido (deveria ser "DANO ISOLADO").
+        const hasKiller = Boolean(data.KillerName || data.KillerAlderonId);
+        const killerKey = hasKiller ? (data.KillerAlderonId || data.KillerName) : 'ambiente';
         const victimKey = data.VictimAlderonId || data.VictimName || 'desconhecido';
 
         const encounter = this._findOrCreateEncounter(guildId, groupId, killerKey, victimKey);
-        this._upsertParticipant(encounter, killerKey, {
-            name: data.KillerName, alderonId: data.KillerAlderonId,
-            dinosaurType: data.KillerDinosaurType, growth: data.KillerGrowth,
-            ...extractDinoIdentity(data, 'Killer'),
-        });
+        if (hasKiller) {
+            this._upsertParticipant(encounter, killerKey, {
+                name: data.KillerName, alderonId: data.KillerAlderonId,
+                dinosaurType: data.KillerDinosaurType, growth: data.KillerGrowth,
+                ...extractDinoIdentity(data, 'Killer'),
+            });
+        }
         this._upsertParticipant(encounter, victimKey, {
             name: data.VictimName, alderonId: data.VictimAlderonId,
             dinosaurType: data.VictimDinosaurType, growth: data.VictimGrowth,
@@ -469,10 +525,10 @@ class PoTGatewayServer {
         });
 
         encounter.events.push({
-            type: 'kill', killerKey, victimKey,
+            type: 'kill', killerKey: hasKiller ? killerKey : null, victimKey,
             damageType: data.DamageType || 'DT_GENERIC',
             at: Date.now(),
-            location: extractEventLocation(data),
+            location: extractKillLocation(data),
         });
 
         this._resetEncounterTimer(encounter);
