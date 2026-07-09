@@ -586,7 +586,7 @@ function buildDamageReportPayload(encounter, guild) {
         // próprio nunca envolve outro jogador), então não há seção de
         // "jogadores envolvidos" nem de "local" — vai direto pro cabeçalho
         // do jogador e a lista de dano.
-        builder.title(`${e('eye', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
+        builder.title(`${e('olho', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
         builder.text('Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.');
 
         const [onlyKey] = encounter.participants.keys();

@@ -1093,3 +1093,23 @@ frente, nao so este relatorio):
   linha. Reconferido tambem que o cenario de combate 3 jogadores da
   secao 26 (com assassino de verdade) continua funcionando sem
   regressao.
+
+
+30) TITULO DO DANO ISOLADO TROCA PRA CHAVE "olho" + FORMATO DE COORDENADA CRU
+------------------------------------------------
+- Chave do emoji do titulo "RELATORIO DE DANO ISOLADO" trocada de "eye"
+  (ja existia em emojis.js) pra "olho" - o dono tem um emoji proprio
+  chamado assim, diferente do "eye" generico. Mesma situacao das chaves
+  "Atack"/"Double-ArrowRigth" da secao 27: "olho" ainda NAO esta em
+  emojis.js, precisa rodar `npm run sync-emojis` no host - ate la cai no
+  fallback unicode (👁️) sem quebrar nada.
+- Formato de coordenadas na secao "LOCAL" do relatorio voltou a ficar
+  igual ao formato cru do proprio jogo: "(X=1235,Y=-679,Z=345)" em vez
+  do "X: 1235, Y: -679, Z: 345" mais "bonito" que eu tinha feito -
+  pedido explicito do dono pra manter o formato original. Só mudou a
+  formatacao de saida em extractEventLocation() (gatewayServer.js) - o
+  parse de entrada (aceita tanto "X=.. Y=.. Z=.." quanto "(X=..,Y=..,Z=..)"
+  como formato cru recebido do jogo) continua igual.
+- Verificado com os mesmos scripts das secoes 26/29 - coordenadas saindo
+  como "(X=1235,Y=-679)" e titulo do dano isolado caindo no fallback
+  unicode corretamente.

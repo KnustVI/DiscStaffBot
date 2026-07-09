@@ -83,17 +83,18 @@ function extractEventLocation(data, prefix = '') {
     const mapName = field('MapName') || field('Map') || null;
     const poiName = field('POI') || field('POIName') || field('LocationName') || null;
 
+    // Formato mantido igual ao cru do jogo a pedido do dono: "(X=..,Y=..,Z=..)".
     let coords = null;
     const raw = field('Location');
     const match = typeof raw === 'string' ? raw.match(LOCATION_STRING_RE) : null;
     if (match) {
-        coords = `X: ${Math.round(Number(match[1]))}, Y: ${Math.round(Number(match[2]))}, Z: ${Math.round(Number(match[3]))}`;
+        coords = `(X=${Math.round(Number(match[1]))},Y=${Math.round(Number(match[2]))},Z=${Math.round(Number(match[3]))})`;
     } else {
         const x = field('LocationX') ?? field('PosX') ?? null;
         const y = field('LocationY') ?? field('PosY') ?? null;
         const z = field('LocationZ') ?? field('PosZ') ?? null;
         if (x !== null && y !== null) {
-            coords = `X: ${Math.round(x)}, Y: ${Math.round(y)}${z !== null ? `, Z: ${Math.round(z)}` : ''}`;
+            coords = `(X=${Math.round(x)},Y=${Math.round(y)}${z !== null ? `,Z=${Math.round(z)}` : ''})`;
         }
     }
 
