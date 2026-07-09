@@ -1,10 +1,16 @@
-// src/commands/strike/strike.js — /strike strike
+// src/commands/strike/registro.js — /strike registro
 // Registro simples de punição — disponível em QUALQUER tier (incluindo
 // Free), sem nível/severidade, sem pontos extras além da dedução padrão de
 // reputação (se o tier tiver reputationEnabled) e sem nenhuma ação
 // automática (nem no Discord, nem em jogo). Ao contrário de /strike ingame
 // e /strike personalizado — que usam um nível pra aplicar ação em jogo via
 // RCON — este subcomando é puramente registro.
+//
+// Nota: um /strike "bare" (sem subcomando nenhum) não é possível enquanto
+// ingame/personalizado existirem como subcomandos — a API do Discord não
+// permite misturar opções de topo com subcomandos no mesmo comando. Por
+// isso este vira um subcomando próprio, com nome "registro" (não "strike",
+// pra evitar a redundância de "/strike strike").
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
@@ -47,7 +53,7 @@ module.exports = {
                 staff.id !== guild.ownerId;
 
             if (isStaffHigher) {
-                db.logActivity(guildId, staff.id, 'strike_denied', targetUser.id, { command: 'strike', reason: 'Hierarquia insuficiente' });
+                db.logActivity(guildId, staff.id, 'strike_denied', targetUser.id, { command: 'strike_registro', reason: 'Hierarquia insuficiente' });
                 return await ResponseManager.error(interaction, 'Você não pode punir este membro.');
             }
 
@@ -73,7 +79,7 @@ module.exports = {
             const preview = await PunishmentSystem.buildStrikeConfirmPreview(session, guild, staffMember);
             await interaction.editReply(preview);
         } catch (error) {
-            console.error('❌ Erro no /strike strike:', error);
+            console.error('❌ Erro no /strike registro:', error);
             const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             await ResponseManager.error(interaction, 'Erro ao preparar aplicação de strike. A equipe foi notificada.');

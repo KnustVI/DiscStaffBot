@@ -94,7 +94,7 @@ FREE
   (contadores SEPARADOS - pode ter os dois abertos ao mesmo tempo, so nao
   pode abrir um 2o do MESMO tipo), cooldown de 6h entre aberturas (conta
   pra qualquer um dos dois tipos).
-- Punicoes: registro de punicoes via /strike strike (sem niveis - so
+- Punicoes: registro de punicoes via /strike registro (sem niveis - so
   usuario/motivo/duracao, vazio = permanente). NAO aplica acoes automaticas
   no Discord (timeout/kick/ban) nem no jogo (RCON). Sem sistema de
   reputacao (pontos nao sao calculados/salvos). Sem niveis de punicao
@@ -195,12 +195,14 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   automatica dos pontos configurados antes desta revisao (settings antigos
   strike_points_1..5 ficam inertes no banco; cada servidor recria os
   niveis do zero em /config punishments).
-- /strike virou 1 comando com 3 subcomandos: strike (registro simples, sem
+- /strike virou 1 comando com 3 subcomandos: registro (simples, sem
   nivel/acao automatica, disponivel em QUALQUER tier), ingame (pune so pelo
   Alderon ID, usa um nivel pra aplicar acao em jogo via RCON, a partir do
   Rastreador) e personalizado (modo manual completo, restrito ao cargo
   Supervisor, a partir do Rastreador). Ingame/personalizado sao os unicos
-  que aplicam acoes automaticas - strike e so registro.
+  que aplicam acoes automaticas - registro e so isso mesmo, registro. Um
+  /strike "sem subcomando nenhum" nao e possivel - a API do Discord nao
+  deixa misturar opcoes de topo com subcomandos no mesmo comando.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
   atual de features).
@@ -478,7 +480,7 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   duracao decide, ja que nao ha niveis).
 - /strike virou 1 comando com 3 subcomandos (mesmo padrao de /config e
   /potserver):
-  - /strike strike: registro simples de punicao (usuario+motivo+duracao,
+  - /strike registro: registro simples de punicao (usuario+motivo+duracao,
     vazio = permanente) - sem nivel, sem pontos extra, sem nenhuma acao
     automatica (nem no Discord, nem em jogo). Disponivel em QUALQUER tier,
     incluindo Free - ao contrario dos outros dois, nunca depende de niveis

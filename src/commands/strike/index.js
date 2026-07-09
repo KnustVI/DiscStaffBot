@@ -2,15 +2,19 @@
 /**
  * /strike — comando único com 3 subcomandos, cada um com um propósito
  * diferente (ver PunishmentSystem em src/systems/moderation/):
- *   - strike:        registro simples de punição (sem nível, sem ação em
+ *   - registro:      registro simples de punição (sem nível, sem ação em
  *                     jogo/Discord) — disponível em QUALQUER tier, incluindo Free.
  *   - ingame:        pune só pelo Alderon ID, usando um nível (ação em jogo via RCON).
  *   - personalizado: modo manual completo, restrito ao cargo Supervisor.
  * Só ingame/personalizado aplicam ações automáticas (RCON/Discord) — ambos
- * dependem de níveis (Rastreador+). Mesmo padrão de src/commands/config/index.js
- * (/config): este arquivo só registra o comando e despacha pro subcomando; a
- * lógica de verdade vive em cada arquivo irmão e em
- * src/systems/moderation/punishmentSystem.js.
+ * dependem de níveis (Rastreador+). Um /strike "bare" (sem nenhum
+ * subcomando) não é possível — a API do Discord não permite misturar
+ * opções de topo com subcomandos no mesmo comando, e como ingame/
+ * personalizado já são subcomandos, "registro" também precisa ser (daí o
+ * nome "registro", não "strike" — evita a redundância de "/strike strike").
+ * Mesmo padrão de src/commands/config/index.js (/config): este arquivo só
+ * registra o comando e despacha pro subcomando; a lógica de verdade vive em
+ * cada arquivo irmão e em src/systems/moderation/punishmentSystem.js.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
@@ -23,7 +27,7 @@ module.exports = {
         .setDescription('⚖️ Aplica uma punição a um jogador.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addSubcommand(sub => sub
-            .setName('strike')
+            .setName('registro')
             .setDescription('Registra uma punição simples (sem ação automática) — disponível em qualquer plano.')
             .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator').setRequired(true))
             .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
@@ -60,13 +64,13 @@ module.exports = {
     async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();
 
-        const strikeHandler = require('./strike');
+        const registroHandler = require('./registro');
         const ingameHandler = require('./ingame');
         const personalizadoHandler = require('./personalizado');
 
         switch (subcommand) {
-            case 'strike':
-                await strikeHandler.execute(interaction, client);
+            case 'registro':
+                await registroHandler.execute(interaction, client);
                 break;
             case 'ingame':
                 await ingameHandler.execute(interaction, client);

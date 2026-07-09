@@ -369,7 +369,7 @@ const PunishmentSystem = {
 
     /**
      * Mostra o select-menu com os níveis de punição do servidor — usado por
-     * ingame.js/personalizado.js (não por strike.js, que é registro puro sem
+     * ingame.js/personalizado.js (não por registro.js, que é registro puro sem
      * nível) depois de já terem staged os dados básicos (SessionManager,
      * chave 'strike_staging'). A escolha do nível é processada por
      * handleLevelSelect (customId `punishment:level_select:<subcommand>`).
@@ -460,7 +460,7 @@ const PunishmentSystem = {
      * Monta o container + botões de confirmação de um /strike (qualquer um
      * dos 3 subcomandos) — extraído do que antes era montado inline dentro
      * do antigo comando único /strike, agora reaproveitado por
-     * strike.js/ingame.js/personalizado.js e por handleLevelSelect.
+     * registro.js/ingame.js/personalizado.js e por handleLevelSelect.
      *
      * @returns {Promise<{ components: object[], flags: number[] }>} pronto para editReply/reply
      */
@@ -766,8 +766,9 @@ const PunishmentSystem = {
         }
 
         // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
-        // report (já validado em strike.js), grava a punição aplicada
-        // de volta no próprio report para consulta futura. ──────────────
+        // report (já validado no subcomando de /strike que chamou isto),
+        // grava a punição aplicada de volta no próprio report para consulta
+        // futura. ──────────────────────────────────────────────────────────
         if (reportId) {
             const linkedReportNumber = parseInt(String(reportId).replace(/^#?R/i, ''));
             if (!isNaN(linkedReportNumber)) {
@@ -777,9 +778,9 @@ const PunishmentSystem = {
         }
 
         // ── Ações automáticas no Discord (timeout/kick/ban) via strike só
-        // pra servidores Caçador — mesma checagem já feita em strike.js, mas
-        // repetida aqui (defesa em profundidade) já que este método também é
-        // chamado direto pela aprovação de Supervisor. ──────────────────────
+        // pra servidores Caçador — repetida aqui (defesa em profundidade)
+        // já que este método também é chamado direto pela aprovação de
+        // Supervisor. ────────────────────────────────────────────────────
         let discordActionResult = null;
         if (discordAct && discordAct !== 'none' && !PremiumSystem.getGuildLimits(guild.id).discordActionsEnabled) {
             discordActionResult = `${EMOJIS.trianglealert || '⚠️'} Ação no Discord requer o plano Caçador.`;
