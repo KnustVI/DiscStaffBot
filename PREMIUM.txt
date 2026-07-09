@@ -939,3 +939,34 @@ frente, nao so este relatorio):
   especie (pot_players nao guarda dieta no banco, so dinosaur_type/
   growth - precisaria de uma coluna nova + capturar "Diet" no
   upsertPlayerFromEvent de PlayerRespawn pra isso funcionar ali tambem).
+
+
+27) AJUSTES FINOS NAS LINHAS DE DANO DO RELATORIO (emojis novos + remove "de vida")
+------------------------------------------------
+- Removido o sufixo "de vida" da linha de tipo de dano: "302 de vida" vira
+  so "302" (o numero de golpes/pontos ja fica claro pelas outras colunas
+  do "Tipo | Nx | Y | horarios").
+- "- Atacante >>> Alvo" vira "- Atacante » Alvo", usando o emoji
+  "Double-ArrowRigth" (chave usada exatamente como o dono escreveu -
+  ainda NAO sincronizada em emojis.js, ver abaixo) no lugar do ">>>" de
+  texto puro.
+- Titulo do relatorio ganhou emoji antes do texto: "⚔️ RELATORIO DE
+  COMBATE" (chave "Atack") e "👁️ RELATORIO DE DANO ISOLADO" (chave "eye",
+  essa ja existia em emojis.js antes desta secao).
+- PENDENTE: as chaves "Atack" e "Double-ArrowRigth" ainda NAO existem em
+  emojis.js - o dono disse ter adicionado esses 2 emojis (+ o "eye", que
+  ja existia) no Discord Developer Portal, mas rodar `npm run
+  sync-emojis` (busca os emojis de aplicacao via API do Discord e
+  regenera emojis.js, commitando/pushando sozinho) precisa de TOKEN/
+  CLIENT_ID no .env, que NAO estao disponiveis neste ambiente de
+  desenvolvimento (só no host onde o bot roda de verdade). Até isso
+  rodar, resolveEmoji() cai no fallback unicode (⚔️ e ») sem quebrar nada
+  - assim que sync-emojis rodar no host e as chaves reais baterem (ou
+  nao) com "Atack"/"Double-ArrowRigth", os emojis de verdade passam a
+  aparecer automaticamente, sem precisar mexer no codigo de novo (a
+  MENOS que o nome real cadastrado no Portal seja diferente do que foi
+  escrito aqui - nesse caso, ajustar a chave em webhookPayloads.js).
+- Verificado com o mesmo script da secao 26 (cenario de combate 3
+  jogadores + dano isolado) - fallback unicode aparecendo corretamente
+  nas 2 chaves novas, "de vida" removido, "eye" renderizando com o ID
+  real (ja sincronizado).

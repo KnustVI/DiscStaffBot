@@ -462,7 +462,7 @@ function buildDamageReportPayload(encounter, guild) {
                 kind: 'damage',
                 header: isSelf
                     ? `- ${participantLabel(ev.targetKey)} — dano próprio/ambiente`
-                    : `- ${participantLabel(ev.sourceKey)} >>> ${participantLabel(ev.targetKey)}`,
+                    : `- ${participantLabel(ev.sourceKey)} ${e('Double-ArrowRigth', '»')} ${participantLabel(ev.targetKey)}`,
                 byType: new Map(),
             };
             segments.set(segKey, seg);
@@ -474,23 +474,23 @@ function buildDamageReportPayload(encounter, guild) {
         seg.byType.set(ev.damageType, typeEntry);
     }
 
-    // Cada linha de tipo de dano vira "Tipo | Nx | Y de vida | horários reais
-    // de cada golpe" — <t:...:T> deixa o Discord mostrar o horário já
-    // convertido pro fuso de quem está lendo, sem o bot precisar adivinhar
-    // fuso horário nenhum. Lista limitada a 10 horários por linha (evita um
-    // campo gigante em dano contínuo tipo fome/afogamento com dezenas de
-    // ticks) — o resto vira só uma contagem "+N".
+    // Cada linha de tipo de dano vira "Tipo | Nx | Y | horários reais de cada
+    // golpe" — <t:...:T> deixa o Discord mostrar o horário já convertido pro
+    // fuso de quem está lendo, sem o bot precisar adivinhar fuso horário
+    // nenhum. Lista limitada a 10 horários por linha (evita um campo gigante
+    // em dano contínuo tipo fome/afogamento com dezenas de ticks) — o resto
+    // vira só uma contagem "+N".
     const MAX_TIMES_SHOWN = 10;
     const typeLines = (byType) => [...byType.entries()].map(([type, { count, sum, hitTimes }]) => {
         const shown = hitTimes.slice(0, MAX_TIMES_SHOWN).map((t) => `<t:${Math.floor(t / 1000)}:T>`).join(', ');
         const extra = hitTimes.length > MAX_TIMES_SHOWN ? ` +${hitTimes.length - MAX_TIMES_SHOWN}` : '';
-        return `${formatDamageType(type)} | ${count}x | ${sum} de vida | ${shown}${extra}`;
+        return `${formatDamageType(type)} | ${count}x | ${sum} | ${shown}${extra}`;
     });
 
     const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
     if (hasOtherPlayerInvolved) {
-        builder.title('RELATÓRIO DE COMBATE', 1);
+        builder.title(`${e('Atack', '⚔️')} RELATÓRIO DE COMBATE`, 1);
         builder.text(
             'O relatório de combate é feito com atraso e não reflete 100% do que ocorreu em um combate e pode cometer erros — em caso de quebra de regra, avalie sempre um vídeo e outros fatos e logs.\n' +
             'Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.'
@@ -530,7 +530,7 @@ function buildDamageReportPayload(encounter, guild) {
         // próprio nunca envolve outro jogador), então não há seção de
         // "jogadores envolvidos" nem de "local" — vai direto pro cabeçalho
         // do jogador e a lista de dano.
-        builder.title('RELATÓRIO DE DANO ISOLADO', 1);
+        builder.title(`${e('eye', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
         builder.text('Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.');
 
         const [onlyKey] = encounter.participants.keys();
