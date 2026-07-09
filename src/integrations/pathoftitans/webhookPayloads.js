@@ -53,6 +53,28 @@ function formatDamageType(type) {
     return DAMAGE_TYPE_LABELS[type] || type || 'Desconhecida';
 }
 
+/**
+ * Emoji de dieta (carnívoro/herbívoro/onívoro) pra usar sempre que um log
+ * mencionar a espécie de um dinossauro. Vem do campo "Diet" que o PRÓPRIO
+ * PoT manda no payload (confirmado na doc oficial em PlayerRespawn/
+ * PlayerLeave/eventos de quest/ninho) — de propósito NÃO é uma lista fixa
+ * de espécie→dieta mantida à mão aqui: isso quebraria pra qualquer
+ * dinossauro modado ou lançado depois desta revisão, e o próprio jogo já
+ * manda essa informação certa. Diet ausente ou valor não reconhecido não
+ * quebra a mensagem, só não mostra emoji nenhum.
+ *
+ * @param {string} diet - valor cru do campo Diet ("Carnivore"/"Herbivore"/"Omnivore")
+ * @param {import('discord.js').Guild} guild
+ * @returns {string} emoji (ou string vazia se Diet ausente/desconhecido)
+ */
+function dietEmoji(diet, guild) {
+    const key = String(diet || '').trim();
+    if (key === 'Carnivore') return resolveEmoji(guild, 'CarniSkull', '🍖');
+    if (key === 'Herbivore') return resolveEmoji(guild, 'HerbSkull', '🌿');
+    if (key === 'Omnivore') return resolveEmoji(guild, 'TapejaraSkull', '🍽️');
+    return '';
+}
+
 // CONFIRMADO via DEBUG_POT contra o servidor real do Atlas Brasil: apesar
 // da doc oficial do PoT dizer que AdminSpectate traz "AdminName"/
 // "AdminAlderonId" e Action binário "Entered/Exited Spectator Mode", o
@@ -188,7 +210,10 @@ function formatMessage(potEvent, data, guild) {
         PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**`,
 
         // ── Respawn ──
-        PlayerRespawn:  () => `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como **${d.DinosaurType}**`,
+        PlayerRespawn:  () => {
+            const diet = dietEmoji(d.Diet, guild);
+            return `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como ${diet ? `${diet} ` : ''}**${d.DinosaurType}**`;
+        },
         PlayerWaystone: () => `${e('Waystone', '✨')} **${nameWithId(d.InviterName, d.InviterAlderonId)}** teletransportou **${nameWithId(d.TeleportedPlayerName, d.TeleportedPlayerAlderonId)}**`,
 
         // ── Chat ──
@@ -335,4 +360,4 @@ function buildDamageReportEmbed(batch, guild) {
         .setTimestamp();
 }
 
-module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportEmbed, formatDamageType };
+module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportEmbed, formatDamageType, dietEmoji };

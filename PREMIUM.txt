@@ -672,3 +672,31 @@ Cacador) - servidores Cacador agora realmente veem essas estatisticas.
   bruto completo E os campos resolvidos (depois do Format="Discord" ser
   desmontado, se for o caso) pra cada evento - foi assim que esse bug foi
   encontrado e corrigido.
+
+
+20) EMOJI DE DIETA (CARNIVORO/HERBIVORO/ONIVORO) NOS LOGS COM DINOSSAURO
+------------------------------------------------
+- Sempre que um log mencionar a especie de um dinossauro, mostra o emoji
+  de dieta certo junto: CarniSkull (carnivoro), HerbSkull (herbivoro) ou
+  TapejaraSkull (onivoro) - mesmos emojis de aplicacao ja usados nos
+  titulos de tier do /premium, reaproveitados aqui pro significado literal.
+- DE PROPOSITO nao existe uma lista fixa especie->dieta mantida a mao no
+  codigo - isso quebraria pra dinossauro modado ou lancado depois desta
+  revisao. Em vez disso, usa o campo "Diet" que o PROPRIO PoT ja manda no
+  payload (confirmado na doc oficial em PlayerRespawn/PlayerLeave/eventos
+  de quest e ninho) - o jogo mesmo diz a dieta certa, sem precisar adivinhar.
+- Hoje o unico log que mostra especie em texto e o PlayerRespawn
+  ("ressurgiu como 🍖 Tyrannosaurus"). Diet ausente ou valor nao
+  reconhecido (nem Carnivore/Herbivore/Omnivore) nao quebra a mensagem,
+  so nao mostra emoji nenhum - por ex. eventos de combate (PlayerKilled/
+  PlayerDamagedPlayer) nao trazem "Diet" no payload oficial, entao nao
+  ganham o emoji por enquanto.
+- Funcao dietEmoji() exportada de webhookPayloads.js pra reaproveitar em
+  outros lugares que mostrem especie (ex: /perfil) se pedido no futuro -
+  hoje so aplicada nos logs de webhook, que foi o pedido.
+- PENDENTE (mesmo aviso de sempre com campos do PoT): o valor exato do
+  campo "Diet" no payload real (se realmente vem "Carnivore"/"Herbivore"/
+  "Omnivore" com essa grafia, ou algo diferente) ainda nao foi confirmado
+  ao vivo contra o Atlas Brasil - so testado com dados de exemplo. Se
+  aparecer sem emoji onde deveria ter, mandar o log com DEBUG_POT=true
+  (mesmo processo da secao 19) pra eu ajustar certeiro.
