@@ -15,7 +15,6 @@
  * aplicação) e cai pro unicode genérico se o servidor não tiver um com esse
  * nome — mesmo padrão que a maioria dos containers do bot já usa.
  */
-const { EmbedBuilder } = require('discord.js');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
@@ -284,9 +283,13 @@ function formatMessage(potEvent, data, guild) {
         PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**\n${dinoTypeLine(d.DinosaurType, d.Diet, d.CharacterName, d.CharacterID, guild)}`,
 
         // ── Respawn ──
+        // Identificação do dino (nome+ID) em linha própria, não mais colada
+        // no final da mesma linha — pedido do dono.
         PlayerRespawn:  () => {
             const diet = dietEmoji(d.Diet, guild);
-            return `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como ${diet ? `${diet} ` : ''}**${d.DinosaurType}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`;
+            const mainLine = `${e('refreshccw', '🔄')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** ressurgiu como ${diet ? `${diet} ` : ''}**${d.DinosaurType}**`;
+            const identityLine = dinoIdentitySuffix(d.CharacterName, d.CharacterID).trim();
+            return identityLine ? `${mainLine}\n${identityLine}` : mainLine;
         },
         PlayerWaystone: () => `${e('Waystone', '✨')} **${nameWithId(d.InviterName, d.InviterAlderonId)}** teletransportou **${nameWithId(d.TeleportedPlayerName, d.TeleportedPlayerAlderonId)}**`,
 
@@ -396,22 +399,22 @@ function formatMessage(potEvent, data, guild) {
     }
 }
 
-function formatEmbed(potEvent, data, guild) {
-    const d = data || {};
-    const e = (key, fallback) => resolveEmoji(guild, key, fallback);
-
-    // PlayerKilled NÃO gera mais embed aqui — ganhou painel próprio em
-    // Components V2 (ver buildKillPanel abaixo).
-
-    if (potEvent === 'ServerError' || potEvent === 'SecurityAlert') {
-        return new EmbedBuilder()
-            .setColor(0xFF4444)
-            .setTitle(`${e('siren', '🚨')} ${potEvent === 'SecurityAlert' ? 'Alerta de Segurança' : 'Erro do Servidor'}`)
-            .setDescription(d.ErrorMessage || d.SecurityAlert || 'Sem detalhes')
-            .setTimestamp();
-    }
-
-    return null;
+/**
+ * Painel (Components V2) "cru" pra qualquer log de webhook que não seja
+ * chat (PlayerChat/PlayerProfanity, que continuam texto puro) nem já tenha
+ * container próprio (Login/Logout/Leave, relatório de combate/dano, painel
+ * de morte). Pedido do dono: uniformizar a aparência de todo log simples
+ * sem adicionar título nem footer — só a caixa em volta do texto que já
+ * tínhamos (formatMessage), sem mudar o conteúdo.
+ *
+ * @param {string} message - texto já formatado por formatMessage()
+ * @returns {{ components: object[], flags: number }}
+ */
+function buildSimpleLogPayload(message) {
+    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    builder.text(message);
+    const { components, flags } = builder.build();
+    return { components: components.map((c) => c.toJSON()), flags };
 }
 
 // "X=12345.670 Y=-890.120 Z=345.000" (Respawn/Leave/Quest) ou
@@ -731,4 +734,4 @@ function buildDamageReportPayload(encounter, guild) {
     return { components: components.map((c) => c.toJSON()), flags };
 }
 
-module.exports = { buildLoginEventPayload, formatMessage, formatEmbed, buildDamageReportPayload, buildKillPanel, formatDamageType, dietEmoji };
+module.exports = { buildLoginEventPayload, formatMessage, buildSimpleLogPayload, buildDamageReportPayload, buildKillPanel, formatDamageType, dietEmoji };

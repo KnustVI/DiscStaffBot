@@ -1581,3 +1581,41 @@ frente, nao so este relatorio):
   igual ao padrão já usado em autoModeration.js/configSystem.js pra
   channel.send() direto); ErrorLogger.error() encaminha corretamente;
   ErrorLogger.warn() confirmado que NÃO encaminha (evita spam).
+
+
+49) TODO LOG DE WEBHOOK SIMPLES VIRA CONTAINER (Components V2) - EXCETO CHAT
+------------------------------------------------
+- Pedido do dono: toda linha de log mandada como webhook (PlayerQuest*,
+  PlayerRespawn, PlayerWaystone, PlayerCommand, AdminSpectate/
+  AdminCommand, PlayerJoinedGroup/LeftGroup, Server*, Nest*, etc) deve
+  vir dentro de um container do AdvancedContainerBuilder - SÓ a caixa em
+  volta do texto que já tínhamos, SEM título nem footer. Duas exceções
+  confirmadas: webhook de chat (PlayerChat/PlayerProfanity, continua
+  texto puro) e o que JÁ tinha container próprio antes desta seção
+  (Login/Logout/Leave via buildLoginEventPayload, relatório de combate/
+  dano, painel de morte - PlayerKilled).
+- Nova função buildSimpleLogPayload(message) em webhookPayloads.js -
+  pega o texto já formatado por formatMessage() (sem mudar o conteúdo)
+  e só embrulha num container com 1 bloco de texto. gatewayServer.js
+  atualizado: o caminho genérico (usado por todo evento que não caiu em
+  nenhum branch especial antes) agora chama isso em vez de mandar
+  {content: message}, com a exceção explícita de PlayerChat/
+  PlayerProfanity logo antes.
+- formatEmbed() REMOVIDA inteira de webhookPayloads.js (só tinha
+  ServerError/SecurityAlert depois do PlayerKilled já ter migrado pra
+  painel próprio - e esses 2 eventos JÁ tinham equivalente em texto no
+  formatMessage(), então o embed era literalmente informação duplicada
+  sendo mandada 2x pro mesmo evento). Import de EmbedBuilder também
+  removido do arquivo (ficou sem uso nenhum).
+- Ajuste de conteúdo pedido junto (exemplo dado pelo dono, PlayerRespawn):
+  identificação do dino (nome+ID) sai da mesma linha e vira linha
+  própria dentro do container:
+    Antes: "🔄 Nome `ID` ressurgiu como 🥩 Espécie (NomeDoDino `ID`)"
+    Depois: "🔄 Nome `ID` ressurgiu como 🥩 Espécie"
+            "(NomeDoDino `ID`)"
+- Verificado com script direto: PlayerRespawn bate exatamente com o
+  exemplo do dono (2 linhas dentro do container); PlayerChat confirmado
+  que continua texto puro (não virou container); ServerError confirmado
+  que virou container simples (sem o embed duplicado de antes). Também
+  reconferido que os containers já existentes (painel de morte,
+  relatório de combate/dano) continuam sem regressão nenhuma.

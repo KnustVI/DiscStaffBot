@@ -414,9 +414,19 @@ class PoTGatewayServer {
 
             const guild = this.client.guilds.cache.get(guildId);
             const message = WebhookPayloads.formatMessage(potEvent, data, guild);
-            const embed = WebhookPayloads.formatEmbed(potEvent, data, guild);
-            const payload = { content: message };
-            if (embed) payload.embeds = [embed.toJSON()];
+
+            // PlayerChat/PlayerProfanity continuam texto puro (pedido do
+            // dono, única exceção) — todo o resto vira um container simples
+            // (sem título/footer, só a caixa em volta do texto que já
+            // tínhamos). Login/Logout/Leave, PlayerKilled e o relatório de
+            // combate/dano já têm container próprio, tratados antes deste
+            // ponto — nunca chegam aqui.
+            if (potEvent === 'PlayerChat' || potEvent === 'PlayerProfanity') {
+                await this._deliverMessage(webhookUrl, { content: message });
+                return;
+            }
+
+            const payload = WebhookPayloads.buildSimpleLogPayload(message);
             await this._deliverMessage(webhookUrl, payload);
 
         } catch (error) {
