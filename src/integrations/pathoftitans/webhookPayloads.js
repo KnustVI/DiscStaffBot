@@ -639,17 +639,21 @@ function buildDamageReportPayload(encounter, guild) {
         seg.byType.set(ev.damageType, typeEntry);
     }
 
-    // Cada linha de tipo de dano vira "Tipo | Nx | Y | horários reais de cada
-    // golpe" — <t:...:T> deixa o Discord mostrar o horário já convertido pro
-    // fuso de quem está lendo, sem o bot precisar adivinhar fuso horário
-    // nenhum. Lista limitada a 10 horários por linha (evita um campo gigante
-    // em dano contínuo tipo fome/afogamento com dezenas de ticks) — o resto
-    // vira só uma contagem "+N".
-    const MAX_TIMES_SHOWN = 10;
+    // Cada linha de tipo de dano vira "Tipo | Nx | Y | horários" — <t:...:T>
+    // deixa o Discord mostrar o horário já convertido pro fuso de quem está
+    // lendo, sem o bot precisar adivinhar fuso horário nenhum. Com 3 golpes
+    // ou menos, lista os horários individuais; com mais que isso (dano
+    // contínuo tipo fome/afogamento pode ter dezenas de ticks — ver
+    // screenshot que motivou essa mudança, uma lista de +10 horários ficava
+    // enorme e pouco útil), mostra só o intervalo entre o primeiro e o
+    // último golpe daquele tipo.
+    const MAX_TIMES_LISTED = 3;
     const typeLines = (byType) => [...byType.entries()].map(([type, { count, sum, hitTimes }]) => {
-        const shown = hitTimes.slice(0, MAX_TIMES_SHOWN).map((t) => `<t:${Math.floor(t / 1000)}:T>`).join(', ');
-        const extra = hitTimes.length > MAX_TIMES_SHOWN ? ` +${hitTimes.length - MAX_TIMES_SHOWN}` : '';
-        return `${formatDamageType(type)} | ${count}x | ${sum} | ${shown}${extra}`;
+        const fmt = (t) => `<t:${Math.floor(t / 1000)}:T>`;
+        const timesText = hitTimes.length > MAX_TIMES_LISTED
+            ? `Dano feito entre ${fmt(hitTimes[0])} e ${fmt(hitTimes[hitTimes.length - 1])}`
+            : hitTimes.map(fmt).join(', ');
+        return `${formatDamageType(type)} | ${count}x | ${sum} | ${timesText}`;
     });
 
     const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });

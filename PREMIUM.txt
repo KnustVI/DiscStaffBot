@@ -1492,3 +1492,22 @@ frente, nao so este relatorio):
   emoji aparecendo em toda linha de dano/morte que envolve um
   participante com dieta conhecida, ausente sem regressão pros que não
   tem (ex: KnustVI sem dieta informada no teste).
+
+
+46) LISTA DE HORÁRIOS VIRA INTERVALO QUANDO SÃO MUITOS GOLPES DO MESMO TIPO
+------------------------------------------------
+- Dono mostrou print de um caso real (dano Genérico repetido 40x) onde
+  a lista de horários (secão 26, limitada a 10 + "+N") ainda ficava
+  enorme e pouco legível: "02:49:05, 02:49:06, ..., 02:50:26 +30".
+- Trocado o critério: com MAIS de 3 golpes do mesmo tipo no segmento,
+  em vez de listar horários (ou "+N"), mostra só o intervalo entre o
+  primeiro e o último golpe: "Dano feito entre <t:X:T> e <t:Y:T>". Com
+  3 golpes ou menos, continua listando os horários individuais (mais
+  útil pra cruzar com vídeo quando são poucos golpes).
+- MAX_TIMES_SHOWN (=10, cortava em "+N") removida - substituída por
+  MAX_TIMES_LISTED (=3), critério totalmente diferente (intervalo em
+  vez de corte de lista).
+- Verificado com script direto: 40 golpes de "Genérico" viram "Dano
+  feito entre <primeiro horário> e <último horário>", enquanto 1 golpe
+  de "Espinhos" no mesmo relatório continua listando o horário
+  individual normalmente.
