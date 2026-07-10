@@ -1511,3 +1511,29 @@ frente, nao so este relatorio):
   feito entre <primeiro horário> e <último horário>", enquanto 1 golpe
   de "Espinhos" no mesmo relatório continua listando o horário
   individual normalmente.
+
+
+47) RELATÓRIO DE COMBATE/DANO VIRA FEATURE RASTREADOR+ (bloqueado no Free)
+------------------------------------------------
+- Pedido do dono: relatório de combate/dano (RELATÓRIO DE COMBATE e
+  RELATÓRIO DE DANO ISOLADO, seções 26+) só deve funcionar em
+  servidores Rastreador ou Caçador - Free não deve receber. Novo flag
+  damageReportEnabled em GUILD_LIMITS (premiumSystem.js):
+  false/true/true (free/rastreador/cacador), mesmo padrão já usado pra
+  temporaryRoleEnabled e maxPunishmentLevels.
+- Bloqueio feito na ORIGEM (gatewayServer.js), não só na entrega: no
+  Free, PlayerDamagedPlayer é descartado direto (não entra em nenhum
+  encontro - não serve pra mais nada sozinho, ao contrário de
+  PlayerKilled) e PlayerKilled não chama _recordKillIntoEncounter (não
+  monta timeline de encontro nenhuma). Evita acumular encontros em
+  memória à toa pra servidores que nunca vão receber o relatório.
+- NÃO afetado: o aviso IMEDIATO de morte (painel "Morte em Combate"/
+  "Morte por Ambiente", buildKillPanel, seção 31) continua saindo
+  normalmente em QUALQUER tier - só o relatório AGRUPADO (que soma
+  vários golpes/mortes ao longo de minutos) é que ficou Rastreador+.
+  Contagem de kills/deaths (PlayerRegistry.recordKillEvent, usada em
+  /perfil e stats) também não é afetada, roda em qualquer tier.
+- Verificado com script direto nos 3 tiers (free/rastreador/cacador),
+  tanto pra PlayerDamagedPlayer quanto PlayerKilled: Free nunca cria
+  encontro (0 sempre), Rastreador/Caçador criam normalmente (1), e o
+  painel instantâneo de morte sai em TODOS os tiers (inclusive Free).

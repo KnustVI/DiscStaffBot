@@ -40,6 +40,7 @@ const GUILD_LIMITS = {
         analyticsEnabled: false, temporaryRoleEnabled: false,
         eventTier: 'basic',
         maxPunishmentLevels: 0,
+        damageReportEnabled: false,
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
@@ -48,6 +49,7 @@ const GUILD_LIMITS = {
         analyticsEnabled: false, temporaryRoleEnabled: true,
         eventTier: 'medium',
         maxPunishmentLevels: 4,
+        damageReportEnabled: true,
     },
     cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
@@ -56,6 +58,7 @@ const GUILD_LIMITS = {
         analyticsEnabled: true, temporaryRoleEnabled: true,
         eventTier: 'full',
         maxPunishmentLevels: 10,
+        damageReportEnabled: true,
     },
 };
 

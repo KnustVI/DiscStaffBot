@@ -15,6 +15,7 @@ const PoTTokenManager = require('./tokenManager');
 const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const WebhookPayloads = require('./webhookPayloads');
+const PremiumSystem = require('../../systems/premium/premiumSystem');
 
 // Eventos do grupo "login" que já ganharam o container novo (avatar/Discord
 // vinculado, quando reconhecemos o jogador). Os demais grupos continuam no
@@ -351,8 +352,12 @@ class PoTGatewayServer {
                 // (não encerra mais o encontro na hora — outros participantes
                 // podem continuar brigando entre si) - ver _recordKillIntoEncounter.
                 // O aviso IMEDIATO de morte (embed "Morte em Combate") continua
-                // sendo mandado normalmente logo abaixo, sem esperar o relatório.
-                this._recordKillIntoEncounter(guildId, groupId, data);
+                // sendo mandado normalmente logo abaixo, sem esperar o relatório —
+                // essa parte NÃO é bloqueada por tier, só a entrada no encontro
+                // (relatório de combate/dano em si é Rastreador+, ver abaixo).
+                if (PremiumSystem.getGuildLimits(guildId).damageReportEnabled) {
+                    this._recordKillIntoEncounter(guildId, groupId, data);
+                }
             }
 
             // 2. Busca o webhook Discord configurado para este grupo
@@ -375,8 +380,12 @@ class PoTGatewayServer {
             // dano contínuo (afogamento, fome...) mandam um evento por golpe,
             // e isso flooda o canal de log. Em vez disso, acumula por par
             // atacante/alvo e manda UM relatório depois de um tempo sem novo
-            // golpe entre os dois (ver _bufferDamageEvent). ──────────────────
+            // golpe entre os dois (ver _bufferDamageEvent). Relatório de
+            // combate/dano é feature Rastreador+ (pedido do dono) — no Free,
+            // o evento é só descartado aqui (não serve pra mais nada sozinho,
+            // ao contrário de PlayerKilled que também conta kills/deaths).
             if (potEvent === 'PlayerDamagedPlayer') {
+                if (!PremiumSystem.getGuildLimits(guildId).damageReportEnabled) return;
                 this._bufferDamageEvent(guildId, groupId, data);
                 return;
             }
