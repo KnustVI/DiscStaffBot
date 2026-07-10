@@ -4,6 +4,8 @@ const { ActivityType } = require('discord.js');
 const { startInactiveReportsJob } = require('../systems/monitoring/inactiveReportsJob');
 const { startEventSchedulerWorker } = require('../systems/monitoring/eventScheduler');
 const autoModeration = require('../systems/moderation/autoModeration');
+const ErrorLogger = require('../systems/core/errorLogger');
+const { sendSystemLog } = require('../systems/core/systemLog');
 let handler = null;
 let isReady = false;
 
@@ -184,5 +186,18 @@ module.exports = {
         } catch (err) {
             console.error('❌ Erro ao limpar cache:', err);
         }
+
+        // 11. Liga o ErrorLogger no client (log de sistema pra erros
+        // críticos) e manda o aviso de boot pro canal fixo do dono.
+        ErrorLogger.setClient(client);
+        sendSystemLog(client, (b) => {
+            b.title('✅ Bot iniciado', 2);
+            b.text(
+                `**Servidores:** ${client.guilds.cache.size}\n` +
+                `**Comandos:** ${commandCount}\n` +
+                `**Tempo de boot:** ${elapsedTime}ms`
+            );
+            b.footer(client.user.tag);
+        });
     }
 };

@@ -48,8 +48,19 @@ class ErrorLogger {
         this.logBuffer = [];
         this.bufferSize = 100;
         this.isInitialized = false;
-        
+        // Referência ao client, ligada em ready.js (setClient) — usada só
+        // pra encaminhar erros críticos (nível ERROR) pro canal de log de
+        // sistema fixo (ver systemLog.js). Antes de ready.js rodar, fica
+        // null e o encaminhamento é pulado silenciosamente (erros de boot
+        // muito cedo continuam só no console/arquivo, nunca quebram nada
+        // por falta de client).
+        this._client = null;
+
         this.init();
+    }
+
+    setClient(client) {
+        this._client = client;
     }
     
     async init() {
@@ -117,9 +128,28 @@ class ErrorLogger {
             await this.writeToFile(logEntry);
         }
         
-        // Webhook para erros críticos
+        // Webhook para erros críticos (enableDiscordWebhook nunca é ligado
+        // hoje — nenhum lugar do código passa essa opção — mantido por
+        // compatibilidade caso seja configurado no futuro).
         if (this.options.enableDiscordWebhook && level === 'ERROR' && category === 'error') {
             await this.sendToWebhook(logEntry);
+        }
+
+        // Log de sistema (canal fixo do dono, ver systemLog.js) — só nível
+        // ERROR, senão o canal vira spam com todo WARN/INFO do bot inteiro
+        // (o ErrorLogger é chamado em dezenas de lugares pra coisas rotineiras,
+        // não só falhas graves). Sem client ligado ainda (antes de ready.js
+        // rodar setClient), pula em silêncio.
+        if (level === 'ERROR' && this._client) {
+            const { sendSystemLog } = require('./systemLog');
+            sendSystemLog(this._client, (b) => {
+                b.title('🔴 Erro crítico', 2);
+                b.text(
+                    `**Categoria:** \`${category}\`\n**Contexto:** \`${context}\`\n` +
+                    `**Mensagem:** ${message.slice(0, 500)}`
+                );
+                b.footer('Sistema');
+            });
         }
     }
     

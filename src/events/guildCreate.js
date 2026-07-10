@@ -7,6 +7,7 @@
  */
 const { REST, Routes } = require('discord.js');
 const ErrorLogger = require('../systems/core/errorLogger');
+const { sendSystemLog } = require('../systems/core/systemLog');
 
 module.exports = {
     name: 'guildCreate',
@@ -24,5 +25,11 @@ module.exports = {
         } catch (error) {
             ErrorLogger.error('guild_create', 'registerCommands', error, { guildId: guild.id, guildName: guild.name });
         }
+
+        sendSystemLog(client, (b) => {
+            b.title('➕ Bot entrou em um servidor', 2);
+            b.text(`**Servidor:** ${guild.name} \`${guild.id}\`\n**Membros:** ${guild.memberCount}`);
+            b.footer('Sistema');
+        });
     }
 };

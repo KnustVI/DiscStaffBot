@@ -37,6 +37,7 @@ if (fs.existsSync(commandsPath)) {
             try {
                 const command = require(path.join(folderPath, file));
                 if ('data' in command && 'execute' in command) {
+                    command.category = folder;
                     client.commands.set(command.data.name, command);
                     loadedCommands++;
                 }

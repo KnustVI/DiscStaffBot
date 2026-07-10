@@ -1537,3 +1537,47 @@ frente, nao so este relatorio):
   tanto pra PlayerDamagedPlayer quanto PlayerKilled: Free nunca cria
   encontro (0 sempre), Rastreador/Caçador criam normalmente (1), e o
   painel instantâneo de morte sai em TODOS os tiers (inclusive Free).
+
+
+48) LOG DE SISTEMA NOVO - CANAL FIXO NO SERVIDOR PRINCIPAL DO DONO
+------------------------------------------------
+- Pedido do dono: um canal de log de sistema (diferente do log_channel
+  configurável por guild via /config - este é FIXO, só pro dono
+  acompanhar o bot inteiro) no servidor principal dele. IDs fixos:
+  guild 430534418818400266, canal 1525104070321504428.
+- Novo módulo src/systems/core/systemLog.js - sendSystemLog(client,
+  builderFn) monta um painel via AdvancedContainerBuilder e manda pro
+  canal fixo (busca no cache primeiro, cai pra fetch, cacheia o
+  resultado pra não buscar de novo toda vez). Falha SEMPRE em silêncio
+  (nunca lança) - log de sistema não pode derrubar nada nem travar um
+  comando por causa de canal fora do ar/bot sem permissão/servidor não
+  encontrado.
+- Escopo confirmado com o dono ("os dois juntos"): comandos de
+  developer E eventos gerais do bot. Ligado em 4 pontos:
+  - Uso de QUALQUER comando de src/commands/developer/ (reset-db.js,
+    reset-reports.js, premium-admin.js) - hook genérico em
+    handlers.js.handleCommand(), não precisa editar cada comando
+    individualmente. Novo: index.js agora grava `command.category =
+    <nome da pasta>` em cada comando carregado (não existia antes),
+    usado aqui pra identificar comandos de developer sem lista
+    hardcoded.
+  - Boot do bot (events/ready.js, no fim da inicialização) - servidores
+    conectados, comandos carregados, tempo de boot.
+  - Bot entrou num servidor novo (events/guildCreate.js, já existia pra
+    registrar slash commands - só adicionado o aviso).
+  - Bot saiu/foi removido de um servidor (events/guildDelete.js - NÃO
+    existia antes, criado do zero só com esse propósito).
+  - Erros CRÍTICOS (nível ERROR, não WARN/INFO/DEBUG) via ErrorLogger -
+    novo ErrorLogger.setClient(client) chamado uma vez em ready.js;
+    dentro de log(), toda chamada .error() (não .warn()) agora também
+    encaminha pro canal de sistema, além do console/arquivo de sempre.
+    Antes de ready.js rodar setClient (erros bem no início do boot),
+    o encaminhamento é pulado em silêncio - só console/arquivo mesmo.
+    De propósito só ERROR, não WARN - o ErrorLogger é chamado em
+    dezenas de lugares pra coisas rotineiras (não críticas), WARN
+    encaminhado viraria spam constante no canal.
+- Verificado com script direto: canal não encontrado não lança exceção;
+  sendSystemLog manda o painel certo (Components V2, flags em array
+  igual ao padrão já usado em autoModeration.js/configSystem.js pra
+  channel.send() direto); ErrorLogger.error() encaminha corretamente;
+  ErrorLogger.warn() confirmado que NÃO encaminha (evita spam).
