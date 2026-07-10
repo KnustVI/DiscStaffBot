@@ -1471,3 +1471,24 @@ frente, nao so este relatorio):
   (2) sempre 429 - desiste depois de 4 tentativas totais (1 + 3
   retries), loga aviso; (3) erro 400 - não tenta de novo, só loga
   (comportamento inalterado).
+
+
+45) EMOJI DE DIETA TAMBÉM NAS LINHAS DE DANO/MORTE DO RELATÓRIO (não só no cabeçalho)
+------------------------------------------------
+- Pedido do dono: emoji de dieta em TODA linha de dano/morte, não só no
+  cabeçalho "Jogadores Envolvidos" (que já tinha desde a seção 26). Nova
+  função participantLabelWithDiet() em buildDamageReportPayload
+  (webhookPayloads.js) - mesmo nameWithId() de sempre, com o emoji de
+  dieta na frente quando o participante tiver esse dado.
+- Aplicado em:
+  - Texto de morte dentro do relatório: "Vítima foi morto por Matador"
+    - os dois ganham o emoji.
+  - Cabeçalho de cada segmento de dano: "- Atacante » Alvo" e
+    "- Jogador — dano próprio/ambiente".
+- NÃO duplicado no painel de morte isolado (buildKillPanel, seção 42) -
+  lá o emoji já fica bem perto (linha de baixo, mesmo bloco Vítima/
+  Matador), duplicar na linha de cima seria redundante.
+- Verificado com o script da seção 26/31 (cenário de 3 jogadores) -
+  emoji aparecendo em toda linha de dano/morte que envolve um
+  participante com dieta conhecida, ausente sem regressão pros que não
+  tem (ex: KnustVI sem dieta informada no teste).

@@ -579,6 +579,14 @@ function buildDamageReportPayload(encounter, guild) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
     const participant = (key) => encounter.participants.get(key) || { name: 'Desconhecido', alderonId: null };
     const participantLabel = (key) => nameWithId(participant(key).name, participant(key).alderonId);
+    // Mesmo nome+ID acima, mas com o emoji de dieta na frente — pedido do
+    // dono: todo log de dano/morte também mostra o emoji do dino, não só o
+    // cabeçalho de "Jogadores Envolvidos" (que já tinha desde a seção 26).
+    const participantLabelWithDiet = (key) => {
+        const p = participant(key);
+        const diet = dietEmoji(p.diet, guild);
+        return `${diet ? `${diet} ` : ''}${nameWithId(p.name, p.alderonId)}`;
+    };
 
     // ── Eventos agrupados em segmentos, na ordem de PRIMEIRA aparição —
     // cada morte é seu próprio segmento (evento único); cada par atacante/
@@ -602,8 +610,8 @@ function buildDamageReportPayload(encounter, guild) {
             // envolvido" (fica Dano Isolado se não houver mais nada no
             // encontro) e não tenta mostrar um "assassino" que não existe.
             const text = ev.killerKey
-                ? `${e('Dead', '💀')} Morte\n**${participantLabel(ev.victimKey)}** foi morto por **${participantLabel(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`
-                : `${e('Dead', '💀')} Morte\n**${participantLabel(ev.victimKey)}** morreu (sem assassino)\nCausa: ${formatDamageType(ev.damageType)}`;
+                ? `${e('Dead', '💀')} Morte\n**${participantLabelWithDiet(ev.victimKey)}** foi morto por **${participantLabelWithDiet(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`
+                : `${e('Dead', '💀')} Morte\n**${participantLabelWithDiet(ev.victimKey)}** morreu (sem assassino)\nCausa: ${formatDamageType(ev.damageType)}`;
             if (ev.killerKey) hasOtherPlayerInvolved = true;
             segments.set(`kill:${killCounter}`, { kind: 'kill', text });
             continue;
@@ -618,8 +626,8 @@ function buildDamageReportPayload(encounter, guild) {
             seg = {
                 kind: 'damage',
                 header: isSelf
-                    ? `- ${participantLabel(ev.targetKey)} — dano próprio/ambiente`
-                    : `- ${participantLabel(ev.sourceKey)} ${e('DoubleArrowRigth', '»')} ${participantLabel(ev.targetKey)}`,
+                    ? `- ${participantLabelWithDiet(ev.targetKey)} — dano próprio/ambiente`
+                    : `- ${participantLabelWithDiet(ev.sourceKey)} ${e('DoubleArrowRigth', '»')} ${participantLabelWithDiet(ev.targetKey)}`,
                 byType: new Map(),
             };
             segments.set(segKey, seg);
