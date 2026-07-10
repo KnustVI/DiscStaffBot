@@ -13,6 +13,7 @@ const express = require('express');
 const ErrorLogger = require('../../systems/core/errorLogger');
 const PoTTokenManager = require('./tokenManager');
 const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
+const ConfigSystem = require('../../systems/core/configSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const WebhookPayloads = require('./webhookPayloads');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
@@ -127,10 +128,10 @@ const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 // relatório só é enviado depois de ficar esse tanto sem NENHUM evento novo
 // entre qualquer um dos participantes (não é uma janela fixa), pra cobrir
 // o combate/afogamento inteiro, não cortar no meio. Ver
-// _bufferDamageEvent/_recordKillIntoEncounter/_flushEncounter.
-// TEMPORÁRIO: baixado pra 3min a pedido do dono pra facilitar teste dos
-// relatórios de combate/dano em produção — voltar pra 7min depois.
-const DAMAGE_BATCH_IDLE_MS = 3 * 60 * 1000;
+// _bufferDamageEvent/_recordKillIntoEncounter/_flushEncounter. Valor
+// default (sem override) — configurável por guild via /combat-config
+// (developer), setting "damage_batch_idle_minutes" no ConfigSystem.
+const DEFAULT_DAMAGE_BATCH_IDLE_MINUTES = 5;
 
 class PoTGatewayServer {
     constructor(client) {
@@ -488,9 +489,22 @@ class PoTGatewayServer {
         });
     }
 
+    /**
+     * Janela de inatividade em ms pra essa guild — lê o override configurado
+     * via /combat-config (developer, setting "damage_batch_idle_minutes"),
+     * cai pro default (5min) se não tiver sido configurado ou vier um valor
+     * inválido (nunca deixa o timer travado/inválido por causa de um valor
+     * corrompido no banco).
+     */
+    _getDamageBatchIdleMs(guildId) {
+        const raw = ConfigSystem.getSetting(guildId, 'damage_batch_idle_minutes');
+        const minutes = parseInt(raw, 10);
+        return (Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_DAMAGE_BATCH_IDLE_MINUTES) * 60 * 1000;
+    }
+
     _resetEncounterTimer(encounter) {
         if (encounter.timer) clearTimeout(encounter.timer);
-        encounter.timer = setTimeout(() => this._flushEncounter(encounter.id), DAMAGE_BATCH_IDLE_MS);
+        encounter.timer = setTimeout(() => this._flushEncounter(encounter.id), this._getDamageBatchIdleMs(encounter.guildId));
     }
 
     /**

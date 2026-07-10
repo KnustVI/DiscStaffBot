@@ -1619,3 +1619,34 @@ frente, nao so este relatorio):
   que virou container simples (sem o embed duplicado de antes). Também
   reconferido que os containers já existentes (painel de morte,
   relatório de combate/dano) continuam sem regressão nenhuma.
+
+
+50) JANELA DE INATIVIDADE DO RELATÓRIO VOLTA PRA 5MIN + FICA CONFIGURÁVEL POR GUILD
+------------------------------------------------
+- Pedido do dono: janela volta de 3min (temporário de teste, seção 27)
+  pra 5min como novo DEFAULT — e agora é configurável POR GUILD via
+  comando novo de developer, não mais uma constante fixa.
+- DAMAGE_BATCH_IDLE_MS (constante fixa) virou
+  DEFAULT_DAMAGE_BATCH_IDLE_MINUTES = 5 (só o valor default, usado
+  quando não há override). Novo método _getDamageBatchIdleMs(guildId)
+  em gatewayServer.js lê o setting "damage_batch_idle_minutes" via
+  ConfigSystem (mesmo sistema de settings por guild usado em /config,
+  tabela `settings`) - valor ausente ou inválido (não numérico, <= 0)
+  cai pro default, nunca deixa o timer travado/quebrado.
+  _resetEncounterTimer agora usa esse valor por guild (encounter.guildId
+  já existia no objeto) em vez da constante fixa de antes.
+- Novo comando /combat-config (src/commands/developer/combat-config.js,
+  restrito ao DEVELOPER_ID, mesmo padrão de reset-db/reset-reports/
+  premium-admin) com 3 subcomandos:
+    /combat-config set minutos:<1-60> [servidor_id]  - define o override
+    /combat-config check [servidor_id]                - consulta o valor atual
+    /combat-config reset [servidor_id]                - remove o override, volta pro default
+  servidor_id é opcional em todos (padrão: o servidor onde o comando foi
+  rodado), mesmo padrão já usado em premium-admin.js (guild grant/revoke/
+  check) - permite o dev configurar servidores remotos sem precisar
+  estar neles. Adicionado à lista de comandos ephemeral em handlers.js
+  (mesmo grupo dos outros comandos de developer).
+- Verificado com script direto: sem override cai em 5min (300000ms);
+  override de 10min aplicado corretamente (600000ms); valores inválidos
+  ("abc", "0") e reset (null) sempre caem de volta pro default - nunca
+  quebra o timer.

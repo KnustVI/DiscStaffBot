@@ -104,7 +104,7 @@ class InteractionHandler {
         const ephemeralCommands = [
             'strike', 'unstrike', 'repset',
             'config',
-            'reset-db', 'reset-reports', 'botstatus', 'potserver',
+            'reset-db', 'reset-reports', 'botstatus', 'potserver', 'combat-config',
             'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
         ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
