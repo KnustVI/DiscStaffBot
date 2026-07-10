@@ -1394,3 +1394,23 @@ frente, nao so este relatorio):
   nametags desligado já espectando (bSpectatorMode true, mostra o
   indicador extra), e sem Role (cai em "Staff") - os 3 cenários batendo
   com o layout pedido.
+
+
+42) EMOJI DE DIETA (CarniSkull/HerbSkull) NO PAINEL DE MORTE TAMBÉM
+------------------------------------------------
+- Pedido do dono: em TODO log de webhook que mostrar DinosaurType/
+  espécie, prefixar com o emoji de dieta (CarniSkull/HerbSkull/
+  TapejaraSkull via dietEmoji(), mesma função de sempre). Auditoria
+  encontrou 1 lugar faltando: buildKillPanel (painel de morte, seção
+  31/32) mostrava "Espécie - NomeDoDino (Estágio)" sem nenhum emoji -
+  PlayerRespawn e o relatório de combate/dano já tinham desde antes.
+- Corrigido: linhas de Vítima/Matador agora tentam dietEmoji(d.VictimDiet)
+  e dietEmoji(d.KillerDiet) antes da espécie. CONFIRMADO ausente esses
+  2 campos em PlayerKilled (nem VictimDiet nem KillerDiet existem no
+  payload real, seção 28/29) - chamado mesmo assim por consistência/
+  pedido explícito ("sempre"); dietEmoji() só não mostra nada enquanto
+  o campo não vier, nunca quebra a mensagem.
+- Verificado com script direto: cenário hipotético com VictimDiet/
+  KillerDiet preenchidos (emoji aparece certo, Herbivore/Carnivore) e
+  reconferido que os payloads REAIS (sem esses campos) continuam sem
+  regressão nenhuma no resto do layout.

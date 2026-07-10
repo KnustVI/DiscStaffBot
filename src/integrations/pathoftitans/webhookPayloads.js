@@ -447,10 +447,17 @@ function buildKillPanel(data, guild) {
     }
     builder.separator();
 
+    // Diet NÃO confirmado em PlayerKilled (nem VictimDiet nem KillerDiet
+    // existem no payload real, ver seção 28/29) — chamado mesmo assim por
+    // consistência/pedido do dono ("sempre" que DinosaurType aparecer):
+    // dietEmoji() só não mostra nada enquanto o campo não vier, nunca quebra.
+    const victimDiet = dietEmoji(d.VictimDiet, guild);
+    const killerDiet = dietEmoji(d.KillerDiet, guild);
+
     builder.title('Vítima', 3);
     builder.text(
         `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}\n` +
-        `${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
+        `${victimDiet ? `${victimDiet} ` : ''}${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
     );
     builder.separator();
 
@@ -458,7 +465,7 @@ function buildKillPanel(data, guild) {
         builder.title('Matador', 3);
         builder.text(
             `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}\n` +
-            `${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
+            `${killerDiet ? `${killerDiet} ` : ''}${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
         );
         builder.separator();
     }
