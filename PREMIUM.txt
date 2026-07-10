@@ -1416,3 +1416,58 @@ frente, nao so este relatorio):
   KillerDiet preenchidos (emoji aparece certo, Herbivore/Carnivore) e
   reconferido que os payloads REAIS (sem esses campos) continuam sem
   regressão nenhuma no resto do layout.
+
+
+43) LOG DE MISSÃO EM 2 LINHAS (espécie + nome do dino) + CARGO CONDICIONAL NO CHAT
+------------------------------------------------
+- PlayerQuestComplete/Failed reescritos em 2 linhas, pedido do dono:
+    {emoji} **Jogador `AlderonId`** completou/falhou na missão **Quest**
+    {emoji de dieta} Espécie - NomeDoDino (CharacterID)
+  Confirmado com o dono via pergunta direta que a segunda linha mostra
+  ESPÉCIE (DinosaurType) E nome próprio do dino (CharacterName) juntos,
+  não só um dos dois. Nova função dinoTypeLine() em webhookPayloads.js
+  (distinta de dinoIdentitySuffix, que só mostra nome+ID sem espécie/
+  emoji - continua em uso em PlayerRespawn/PlayerLeave).
+- PlayerChat ganha cargo CONDICIONAL na primeira linha (não mais
+  removido de vez - seção 39 removeu um roleSuffix() no formato errado,
+  isso aqui é um formato novo): "{emoji} {Canal} | {Cargo}" quando o
+  campo Role vier preenchido (e não for "None"). Sem Role, comportamento
+  idêntico a antes (só "{emoji} {Canal}"). Funciona junto com o sufixo
+  de sussurro quando os dois se aplicam.
+- Verificado com script direto: missão falhada com espécie+nome+ID
+  (bate com o exemplo do dono), chat Global sem Role (sem mudança) e
+  com Role (mostra "| Mod. In-Game").
+
+
+44) INVESTIGAÇÃO: RELATÓRIOS DE COMBATE "SUMINDO" COM MUITAS LOGS AO MESMO TEMPO
+------------------------------------------------
+- Dono suspeitou que alguns relatórios de dano nunca chegavam,
+  possivelmente por causa de volume alto de eventos ao mesmo tempo.
+  Investigação encontrou uma causa real e concreta: _postRawToWebhook
+  (gatewayServer.js), usado como fallback sempre que o bot não consegue
+  mandar autenticado (_trySendViaBotChannel falha ou não tem
+  permissão), NÃO tinha NENHUM tratamento pra HTTP 429 (rate limit do
+  Discord) - um 429 caía direto no bloco de log de erro e a mensagem
+  era descartada PRA SEMPRE, sem tentar de novo.
+- Isso bate exatamente com o cenário descrito: vários encontros de
+  combate fechando perto um do outro (ex: fim de uma briga grande com
+  vários relatórios saindo em sequência rápida) tem boa chance de
+  estourar o rate limit do webhook do Discord (rough: 5 requisições por
+  2 segundos por webhook) - cada um que caísse nesse momento
+  simplesmente sumia, sem re-tentativa.
+- IMPORTANTE: o caminho autenticado (_trySendViaBotChannel, quando o
+  bot está no canal com permissão) NÃO tinha esse problema - o REST
+  manager do próprio discord.js já enfileira e re-tenta 429 sozinho.
+  O bug só afetava o fallback de POST cru, usado quando o webhook não é
+  "application-owned" ou o bot não tem acesso ao canal.
+- Corrigido: _postRawToWebhook agora respeita o header "Retry-After"
+  (ou o campo "retry_after" do corpo da resposta, como fallback) e
+  tenta de novo até WEBHOOK_RETRY_LIMIT=3 vezes antes de desistir,
+  esperando o tempo indicado entre tentativas. Erros não-429 continuam
+  sem retry (comportamento antigo, correto - não adianta re-tentar um
+  400/404 igual).
+- Verificado com script direto mockando fetch: (1) 2x 429 seguido de
+  sucesso - entrega na 3ª tentativa, esperando o tempo certo entre elas;
+  (2) sempre 429 - desiste depois de 4 tentativas totais (1 + 3
+  retries), loga aviso; (3) erro 400 - não tenta de novo, só loga
+  (comportamento inalterado).

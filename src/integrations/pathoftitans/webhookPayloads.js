@@ -137,6 +137,20 @@ function dinoIdentitySuffix(characterName, characterId) {
 }
 
 /**
+ * "🦖 Espécie - NomeDoDino (ID)" — linha própria (não sufixo) combinando
+ * emoji de dieta + espécie (DinosaurType) + nome do dino + ID, usada nos
+ * logs de missão (segunda linha, pedido do dono). Omite as partes que não
+ * vierem — nunca quebra a mensagem.
+ */
+function dinoTypeLine(dinosaurType, diet, characterName, characterId, guild) {
+    const dietPrefix = dietEmoji(diet, guild);
+    const species = dinosaurType || 'Desconhecido';
+    const namePart = characterName ? ` - ${characterName}` : '';
+    const idPart = characterId ? ` (${characterId})` : '';
+    return `${dietPrefix ? `${dietPrefix} ` : ''}${species}${namePart}${idPart}`;
+}
+
+/**
  * " — Cargo: X" — cargo customizado do jogador dentro do PRÓPRIO jogo
  * (campo "Role", confirmado ao vivo em vários eventos: PlayerDamagedPlayer
  * como Source/TargetRole, AdminCommand/AdminSpectate como Role — ex:
@@ -264,8 +278,10 @@ function formatMessage(potEvent, data, guild) {
         // antes deste caminho de texto+embed).
 
         // ── Quest ──
-        PlayerQuestComplete: () => `${e('listchecks', '📜')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** completou a missão **${d.Quest}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`,
-        PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**${dinoIdentitySuffix(d.CharacterName, d.CharacterID)}`,
+        // Formato de 2 linhas: jogador + missão na primeira, espécie
+        // (com emoji de dieta) + nome do dino + ID na segunda.
+        PlayerQuestComplete: () => `${e('listchecks', '📜')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** completou a missão **${d.Quest}**\n${dinoTypeLine(d.DinosaurType, d.Diet, d.CharacterName, d.CharacterID, guild)}`,
+        PlayerQuestFailed:   () => `${e('circlealert', '❌')} **${nameWithId(d.PlayerName, d.PlayerAlderonId)}** falhou na missão **${d.Quest}**\n${dinoTypeLine(d.DinosaurType, d.Diet, d.CharacterName, d.CharacterID, guild)}`,
 
         // ── Respawn ──
         PlayerRespawn:  () => {
@@ -275,13 +291,13 @@ function formatMessage(potEvent, data, guild) {
         PlayerWaystone: () => `${e('Waystone', '✨')} **${nameWithId(d.InviterName, d.InviterAlderonId)}** teletransportou **${nameWithId(d.TeleportedPlayerName, d.TeleportedPlayerAlderonId)}**`,
 
         // ── Chat ──
-        // Formato de 2 linhas: canal (+ "Sussurro" quando for whisper) na
-        // primeira, identificação + mensagem na segunda. CONFIRMADO ao vivo
-        // que PlayerChat NÃO tem campo "Role" (payload real sempre 8
-        // campos, tanto em "Global" quanto "Group") — sem roleSuffix() de
-        // propósito, ao contrário dos outros logs de comando (seção 37/38).
-        // Emoji por canal: "Group" usa messagesquare, "Global" usa globo,
-        // qualquer outro canal cai no messagecircle genérico.
+        // Formato de 2 linhas: canal (+ "Sussurro" quando for whisper, +
+        // "| Cargo" quando o campo Role vier) na primeira, identificação +
+        // mensagem na segunda. CONFIRMADO ao vivo que PlayerChat
+        // NORMALMENTE não tem campo "Role" (payload real sempre 8 campos) —
+        // mostrado só quando vier, nunca força nada. Emoji por canal:
+        // "Group" usa messagesquare, "Global" usa globo, qualquer outro
+        // canal cai no messagecircle genérico.
         PlayerChat: () => {
             const channelName = d.ChannelName || 'Chat';
             const chatEmoji = channelName === 'Group'
@@ -289,9 +305,10 @@ function formatMessage(potEvent, data, guild) {
                 : channelName === 'Global'
                     ? e('globo', '🌐')
                     : e('messagecircle', '💬');
+            const rolePart = d.Role && d.Role !== 'None' ? ` | ${d.Role}` : '';
             const channelLine = d.FromWhisper
-                ? `${chatEmoji} ${channelName} - Sussurro${whisperTargetSuffix(d)}`
-                : `${chatEmoji} ${channelName}`;
+                ? `${chatEmoji} ${channelName} - Sussurro${whisperTargetSuffix(d)}${rolePart}`
+                : `${chatEmoji} ${channelName}${rolePart}`;
             const idPart = d.AlderonId ? ` \`${d.AlderonId}\`` : '';
             return `${channelLine}\n**${d.PlayerName || 'Desconhecido'}**${idPart}: ${d.Message}`;
         },

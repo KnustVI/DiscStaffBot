@@ -28,6 +28,10 @@ const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave'])
 // enquanto. Pra reativar, é só tirar o evento daqui.
 const DISABLED_EVENTS = new Set(['PlayerProfanity']);
 
+// Quantas vezes _postRawToWebhook tenta de novo depois de um 429 (rate
+// limit) antes de desistir de vez — ver comentário lá.
+const WEBHOOK_RETRY_LIMIT = 3;
+
 /**
  * Nome/ID do dinossauro (não confundir com AlderonId, que é do JOGADOR) e
  * dieta de um dos lados de um evento de combate (Source/Target/Killer/
@@ -664,7 +668,7 @@ class PoTGatewayServer {
      * ignorado não sobra nada, daí o erro. Doc:
      * https://docs.discord.com/developers/resources/webhook
      * (Execute Webhook, query param with_components). */
-    async _postRawToWebhook(webhookUrl, payload) {
+    async _postRawToWebhook(webhookUrl, payload, attempt = 0) {
         try {
             const url = new URL(this._withApiVersion(webhookUrl));
             if (payload.components) url.searchParams.set('with_components', 'true');
@@ -674,6 +678,28 @@ class PoTGatewayServer {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
+
+            // 429 (rate limit) — CAUSA PROVÁVEL de relatórios que "somem"
+            // quando muitos eventos acontecem ao mesmo tempo (ex: vários
+            // encontros de combate fechando perto um do outro): antes disso,
+            // um 429 caía direto no bloco de baixo, logava um aviso e a
+            // mensagem era descartada pra sempre, sem tentar de novo. Agora
+            // respeita o "Retry-After" que o Discord manda e tenta de novo
+            // (até WEBHOOK_RETRY_LIMIT vezes) antes de desistir. O caminho
+            // autenticado (_trySendViaBotChannel) já não tinha esse
+            // problema — o REST manager do discord.js já lida com rate
+            // limit sozinho — só o POST cru (fallback) ficava exposto.
+            if (response.status === 429 && attempt < WEBHOOK_RETRY_LIMIT) {
+                let retryAfterSeconds = Number(response.headers.get('retry-after'));
+                if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds <= 0) {
+                    const body = await response.json().catch(() => null);
+                    retryAfterSeconds = Number(body?.retry_after) || 1;
+                }
+                const waitMs = Math.ceil(retryAfterSeconds * 1000) + 50;
+                console.warn(`⚠️ [Gateway] Webhook rate limitado (429) — tentando de novo em ${waitMs}ms (tentativa ${attempt + 1}/${WEBHOOK_RETRY_LIMIT})`);
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+                return this._postRawToWebhook(webhookUrl, payload, attempt + 1);
+            }
 
             if (!response.ok) {
                 const text = await response.text();
