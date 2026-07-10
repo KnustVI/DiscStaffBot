@@ -1217,35 +1217,34 @@ frente, nao so este relatorio):
   os painéis (combate/dano e morte), sem regressão no resto do layout.
 
 
-34) MODO ESPECTADOR: NÃO É BUG - O JOGO NÃO MANDA WEBHOOK NENHUM PRA ISSO
+34) MODO ESPECTADOR - CONCLUSÃO REVISADA: O EVENTO FUNCIONA, SÓ NÃO DISPAROU NO 1º TESTE
 ------------------------------------------------
-- Dono reportou que "modo espectador não puxa o nome de quem usou".
-  Investigação ao vivo (pedi pra ele filtrar `pm2 logs discord-bot |
-  grep <seu AlderonId>` e depois entrar/sair do modo espectador como
-  admin de verdade): NENHUM evento chegou no gateway além do
-  PlayerRespawn normal do próprio personagem - nem AdminSpectate, nem
-  nenhum outro. Ou seja, o SERVIDOR do Path of Titans não envia webhook
-  NENHUM quando um admin liga/desliga o modo espectador - não é um
-  problema de campo errado nem de rota no bot, é uma ação que o jogo
-  simplesmente não reporta.
-- Isso também explica e corrige uma suposição errada da seção 19: o
-  AdminSpectate confirmado ao vivo (Action "Enabled/Disabled Nametags")
-  não é sobre modo espectador - é sobre ligar/desligar NAMETAGS. A doc
-  oficial do PoT junta as duas coisas (nametags E modo espectador) sob o
-  mesmo nome de evento "AdminSpectate", mas na prática só a parte de
-  nametags dispara webhook. Os labels "Entered/Exited Spectator Mode" em
-  ADMIN_ACTION_LABELS (webhookPayloads.js) continuam no código como
-  fallback inofensivo (caso ALGUMA versão/config do jogo realmente
-  mande isso um dia), mas na prática nunca deve bater.
-- CONFIRMADO (teste ao vivo do dono, ligando e desligando nametags):
-  os 2 eventos chegaram certinhos, "Enabled Nametags" e "Disabled
-  Nametags", com PlayerName/PlayerAlderonId corretos ("KnustVI"/
-  "500-735-822") nos dois. Pipeline do AdminSpectate confirmado saudável
-  de ponta a ponta — a ausência é mesmo só do modo espectador
-  especificamente, não de todo o evento.
-- NENHUMA mudança de código feita nesta seção - registrado só como
-  descoberta, pra não perder tempo tentando "consertar" um campo que
-  não existe porque o jogo não manda.
+- HISTÓRICO (mantido pra contexto, mas a conclusão abaixo estava
+  incompleta): dono reportou "modo espectador não puxa o nome de quem
+  usou". Testamos ao vivo (grep pelo AlderonId do dono + ele entrando/
+  saindo do modo espectador) e NENHUM evento chegou além de um
+  PlayerRespawn normal — concluí na hora que o jogo simplesmente não
+  manda webhook nenhum pra essa ação.
+- CORRIGIDO: o dono depois mandou print de um log de produção real
+  mostrando "🛡️ Atleticano10 `778-578-984` saiu do modo espectador —
+  Cargo: Mod. In-Game" — ou seja, o evento REALMENTE dispara (pelo
+  menos às vezes) e o mapeamento de campos já estava certo (nome, ID e
+  cargo todos corretos, usando os labels ADMIN_ACTION_LABELS
+  "Entered/Exited Spectator Mode" que eu tinha deixado como fallback
+  "provavelmente nunca usado"). NENHUM bug de código aqui — o pipeline
+  inteiro (extração de campo, tradução do Action, cargo) já funciona
+  perfeitamente quando o evento chega.
+- MISTÉRIO AINDA ABERTO: por que não disparou no teste do dono
+  especificamente. Hipótese mais provável: o jeito que o dono entrou/
+  saiu do modo espectador nesse teste (comando/atalho específico) pode
+  ser diferente do jeito que outros admins fazem, e só um dos métodos
+  dispara o webhook no servidor do jogo — ou é simplesmente
+  inconsistente/instável do lado do PoT (bug conhecido em outros
+  servidores). Perguntado ao dono como o Atleticano10 costuma entrar/
+  sair do modo espectador, pra comparar.
+- NENHUMA mudança de código necessária - o formatter já produz o
+  resultado certo (e desde a seção 41 já usa o layout novo de heading
+  também, esse exemplo específico é de antes dessa migração).
 
 
 35) FALLBACK DE CAMPO PRO CASO DE "Entered/Exited Spectator Mode" ALGUM DIA DISPARAR
@@ -1283,11 +1282,14 @@ frente, nao so este relatorio):
   real (sempre false nos testes até agora) e no exemplo da doc (true).
   Confirmado que AdminCommand NÃO tem esse campo (só 5 campos exatos,
   sem espaço pra ele) — só AdminSpectate carrega.
-- Já que o jogo não manda um evento dedicado quando um admin entra/sai
-  do modo espectador (seção 34), esse flag é a ÚNICA visibilidade
-  indireta possível: se um admin mexe nametags (ou qualquer outra
-  Action de AdminSpectate) ENQUANTO já está em modo espectador, agora
-  aparece " *(em modo espectador)*" no final da linha.
+- Já que na época achávamos que o jogo não mandava um evento dedicado
+  quando um admin entra/sai do modo espectador (seção 34, CORRIGIDO
+  depois — o evento funciona sim, só não disparou naquele teste
+  específico), esse flag também serve como visibilidade indireta: se um
+  admin mexe nametags (ou qualquer outra Action de AdminSpectate)
+  ENQUANTO já está em modo espectador, aparece " *(em modo
+  espectador)*" no final da linha. Continua útil mesmo com a correção
+  da seção 34.
   Ex: "🛡️ KnustVI desativou os nametags *(em modo espectador)*"
 - Verificado com 3 cenários (nametags sem spectator, nametags COM
   spectator, exemplo completo da doc) - o texto some quando
