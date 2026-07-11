@@ -367,28 +367,35 @@ class PlayerRegistrationSystem {
 
     getRegisterModal(existingPlayer) {
         const modal = new ModalBuilder().setCustomId('player_register_modal').setTitle('Cadastro de Jogador');
+
+        // ── NUNCA chamar .setValue('') aqui: o campo do Alderon ID tem
+        // setMinLength(11), e o Discord valida o `value` de PREENCHIMENTO
+        // do modal contra esse limite antes mesmo do modal abrir — uma
+        // string vazia quebra showModal() com 50035/BASE_TYPE_MIN_LENGTH
+        // pra QUALQUER usuário sem cadastro prévio (existingPlayer null).
+        // .setValue() só pode ser chamado quando há valor de verdade. ──────
+        const nomeInput = new TextInputBuilder()
+            .setCustomId('nome_jogo')
+            .setLabel('Seu nome no Path of Titans')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMaxLength(100)
+            .setPlaceholder('Ex: Rexy');
+        if (existingPlayer?.player_name) nomeInput.setValue(existingPlayer.player_name);
+
+        const alderonInput = new TextInputBuilder()
+            .setCustomId('alderon_id')
+            .setLabel('Seu Alderon ID (AGID)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMinLength(11)
+            .setMaxLength(11)
+            .setPlaceholder('Formato: 048-236-424');
+        if (existingPlayer?.alderon_id) alderonInput.setValue(existingPlayer.alderon_id);
+
         modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('nome_jogo')
-                    .setLabel('Seu nome no Path of Titans')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setMaxLength(100)
-                    .setValue(existingPlayer?.player_name || '')
-                    .setPlaceholder('Ex: Rexy'),
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('alderon_id')
-                    .setLabel('Seu Alderon ID (AGID)')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setMinLength(11)
-                    .setMaxLength(11)
-                    .setValue(existingPlayer?.alderon_id || '')
-                    .setPlaceholder('Formato: 048-236-424'),
-            ),
+            new ActionRowBuilder().addComponents(nomeInput),
+            new ActionRowBuilder().addComponents(alderonInput),
         );
         return modal;
     }
