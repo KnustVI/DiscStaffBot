@@ -572,11 +572,21 @@ function findEncounterLocation(encounter) {
  * próprio/ambiente), vira um "Relatório de Dano Isolado" mais enxuto, sem
  * seção de participantes múltiplos nem de local.
  *
+ * CONFIRMADO ao vivo (produção, combate grande com muitos participantes/
+ * segmentos): o Discord rejeita a mensagem inteira com HTTP 400
+ * "BASE_TYPE_BAD_LENGTH" quando um Container tem mais de 40 componentes
+ * filhos (title/text/separator contam cada um como 1) — o relatório
+ * inteiro simplesmente não chegava, sem nenhum aviso visível pro staff
+ * (só um warning no console). Por isso esta função agora PAGINA: em vez
+ * de um container gigante, devolve VÁRIAS mensagens (uma por "parte")
+ * quando o conteúdo não cabe num só, cada uma dentro do limite — nunca
+ * perde participante/segmento nenhum.
+ *
  * @param {object} encounter - { participants: Map<key, {name, alderonId,
  *   dinosaurType, dinosaurGrowth, diet, characterName, dinosaurId}>,
  *   events: [...], firstAt }
  * @param {import('discord.js').Guild} guild
- * @returns {{ components: object[], flags: number }}
+ * @returns {{ components: object[], flags: number }[]} um payload por parte (normalmente só 1)
  */
 function buildDamageReportPayload(encounter, guild) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
@@ -659,60 +669,96 @@ function buildDamageReportPayload(encounter, guild) {
         return `${formatDamageType(type)} | ${count}x | ${sum} | ${timesText}`;
     });
 
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    // ── Paginação: Discord limita um Container a no máximo 40 componentes
+    // filhos (title/text/separator contam 1 cada) — ver aviso no
+    // docblock acima. MAX_PER_PART deixa uma margem de 1 abaixo do limite
+    // real (39) só pra garantir que nunca estoura por erro de contagem de
+    // 1 componente. Sempre que adicionar mais um componente ultrapassaria
+    // esse teto, fecha a parte atual como uma mensagem e abre uma nova
+    // (com um aviso de "continuação" no topo) — nunca corta participante/
+    // segmento no meio, cada um sempre entra inteiro em alguma parte. ────
+    const MAX_PER_PART = 39;
+    const payloads = [];
+    let builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    let count = 0;
+    let part = 1;
+
+    const finalizePart = (isLast) => {
+        if (isLast) {
+            ensureRoom(1);
+            builder.footer(guild?.name || 'Servidor');
+        }
+        const { components, flags } = builder.build();
+        payloads.push({ components: components.map((c) => c.toJSON()), flags });
+    };
+    const startNewPart = () => {
+        part += 1;
+        builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        builder.text(`*(continuação ${part})*`);
+        count = 1;
+    };
+    function ensureRoom(needed = 1) {
+        if (count + needed > MAX_PER_PART) {
+            finalizePart(false);
+            startNewPart();
+        }
+    }
+    const addTitle = (text, level) => { ensureRoom(); builder.title(text, level); count += 1; };
+    const addText = (text) => { ensureRoom(); builder.text(text); count += 1; };
+    const addSeparator = () => { ensureRoom(); builder.separator(); count += 1; };
 
     if (hasOtherPlayerInvolved) {
-        builder.title(`${e('Atack', '⚔️')} RELATÓRIO DE COMBATE`, 1);
-        builder.text(
+        addTitle(`${e('Atack', '⚔️')} RELATÓRIO DE COMBATE`, 1);
+        addText(
             'O relatório de combate é feito com atraso e não reflete 100% do que ocorreu em um combate e pode cometer erros — em caso de quebra de regra, avalie sempre um vídeo e outros fatos e logs.\n' +
             'Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.'
         );
-        builder.separator();
+        addSeparator();
 
-        builder.title('JOGADORES ENVOLVIDOS', 2);
+        addTitle('JOGADORES ENVOLVIDOS', 2);
         for (const key of encounter.participants.keys()) {
             const p = participant(key);
-            builder.title(`${nameWithId(p.name, p.alderonId)}`, 3);
+            addTitle(`${nameWithId(p.name, p.alderonId)}`, 3);
             const lines = [participantSpeciesLine(p, guild)];
             const identityLine = participantDinoIdentityLine(p);
             if (identityLine) lines.push(identityLine);
-            builder.text(lines.join('\n'));
+            addText(lines.join('\n'));
         }
-        builder.separator();
+        addSeparator();
 
         const location = findEncounterLocation(encounter);
         if (location) {
-            builder.title('LOCAL', 2);
+            addTitle('LOCAL', 2);
             const mapPoi = [location.mapName, location.poiName].filter(Boolean).join(' - ');
-            if (mapPoi) builder.text(`- ${e('map', '🗺️')} ${mapPoi}`);
-            if (location.coords) builder.text(`- ${e('mappin', '📍')} ${location.coords}`);
-            builder.separator();
+            if (mapPoi) addText(`- ${e('map', '🗺️')} ${mapPoi}`);
+            if (location.coords) addText(`- ${e('mappin', '📍')} ${location.coords}`);
+            addSeparator();
         }
 
-        builder.title('RELATÓRIO DE DANO', 2);
+        addTitle('RELATÓRIO DE DANO', 2);
         for (const seg of segments.values()) {
             if (seg.kind === 'kill') {
-                builder.text(seg.text);
+                addText(seg.text);
                 continue;
             }
-            builder.text([seg.header, ...typeLines(seg.byType)].join('\n'));
+            addText([seg.header, ...typeLines(seg.byType)].join('\n'));
         }
     } else {
         // Encontro isolado: só existe UM participante possível (dano
         // próprio nunca envolve outro jogador), então não há seção de
         // "jogadores envolvidos" nem de "local" — vai direto pro cabeçalho
         // do jogador e a lista de dano.
-        builder.title(`${e('olho', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
-        builder.text('Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.');
+        addTitle(`${e('olho', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
+        addText('Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.');
 
         const [onlyKey] = encounter.participants.keys();
         const p = participant(onlyKey);
-        builder.title(`${nameWithId(p.name, p.alderonId)}`, 3);
+        addTitle(`${nameWithId(p.name, p.alderonId)}`, 3);
         const lines = [participantSpeciesLine(p, guild)];
         const identityLine = participantDinoIdentityLine(p);
         if (identityLine) lines.push(identityLine);
-        builder.text(lines.join('\n'));
-        builder.separator();
+        addText(lines.join('\n'));
+        addSeparator();
 
         for (const seg of segments.values()) {
             // Morte por ambiente sem nenhum dano registrado antes dela
@@ -720,18 +766,17 @@ function buildDamageReportPayload(encounter, guild) {
             // segmento "kill" usado no relatório de combate, só que sem
             // "outro jogador envolvido" (ver hasOtherPlayerInvolved acima).
             if (seg.kind === 'kill') {
-                builder.text(seg.text);
+                addText(seg.text);
                 continue;
             }
-            builder.text(typeLines(seg.byType).join('\n'));
+            addText(typeLines(seg.byType).join('\n'));
         }
     }
 
-    builder.separator();
-    builder.footer(guild?.name || 'Servidor');
+    addSeparator();
+    finalizePart(true);
 
-    const { components, flags } = builder.build();
-    return { components: components.map((c) => c.toJSON()), flags };
+    return payloads;
 }
 
 module.exports = { buildLoginEventPayload, formatMessage, buildSimpleLogPayload, buildDamageReportPayload, buildKillPanel, formatDamageType, dietEmoji };

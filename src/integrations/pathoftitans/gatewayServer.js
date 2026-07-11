@@ -609,9 +609,15 @@ class PoTGatewayServer {
             }
 
             const guild = this.client.guilds.cache.get(encounter.guildId);
-            const payload = WebhookPayloads.buildDamageReportPayload(encounter, guild);
-            await this._deliverMessage(webhookUrl, payload);
-            console.log(`⚔️ [Gateway] Relatório do encontro ${encounterId} entregue.`);
+            // Combate grande (muitos participantes/segmentos) pode não
+            // caber num Container só (limite real do Discord: 40
+            // componentes filhos) — buildDamageReportPayload agora devolve
+            // uma ou mais "partes", mandadas em sequência, mesma ordem.
+            const payloads = WebhookPayloads.buildDamageReportPayload(encounter, guild);
+            for (const payload of payloads) {
+                await this._deliverMessage(webhookUrl, payload);
+            }
+            console.log(`⚔️ [Gateway] Relatório do encontro ${encounterId} entregue (${payloads.length} parte${payloads.length === 1 ? '' : 's'}).`);
         } catch (error) {
             console.error(`⚔️ [Gateway] Falha ao entregar relatório do encontro ${encounterId}:`, error.message);
             ErrorLogger.error('pot_gateway', 'flushEncounter', error, { guildId: encounter.guildId });

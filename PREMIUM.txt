@@ -1650,3 +1650,42 @@ frente, nao so este relatorio):
   override de 10min aplicado corretamente (600000ms); valores inválidos
   ("abc", "0") e reset (null) sempre caem de volta pro default - nunca
   quebra o timer.
+
+
+51) CAUSA REAL ENCONTRADA E CORRIGIDA: RELATÓRIOS DE COMBATE GRANDES NUNCA CHEGAVAM
+------------------------------------------------
+- Dono reportou "hoje nenhum relatório de dano foi enviado" (servidor
+  Rastreador). Log de produção real revelou a causa exata:
+  "⚠️ [Gateway] Webhook retornou 400: {"message":"Invalid Form Body",
+  "code":50035,"errors":{"components":{"0":{"components":{"_errors":
+  [{"code":"BASE_TYPE_BAD_LENGTH","message":"Must be between 1 and 40
+  in length."}]}}}}}" - o Discord REJEITA a mensagem inteira quando um
+  Container (Components V2) tem mais de 40 componentes filhos (title/
+  text/separator contam 1 cada). Combate grande (muitos participantes
+  e/ou muitos segmentos de dano diferentes) estourava isso com
+  facilidade - cada participante já usa 2 componentes (título + linha
+  de espécie), cada segmento de dano usa 1. NÃO é a mesma causa do 429
+  corrigido na seção 44 (rate limit) - esse era HTTP 400 (payload
+  inválido), nunca teria sido resolvido por retry nenhum, por isso o
+  aviso aparecia e a mensagem morria ali mesmo, sem re-tentativa (certo
+  pro código antigo, já que 400 nunca deveria ser re-tentado - o
+  problema era o CONTEÚDO em si, não um erro passageiro).
+- Corrigido: buildDamageReportPayload (webhookPayloads.js) agora PAGINA
+  - em vez de UM container gigante, monta VÁRIAS "partes" (cada uma seu
+  próprio container, dentro do limite) sempre que o conteúdo não cabe
+  numa só. MAX_PER_PART = 39 (margem de 1 abaixo do limite real de 40,
+  por segurança). Cada parte além da primeira começa com um aviso
+  "(continuação N)"; só a ÚLTIMA parte leva o footer padrão (com espaço
+  reservado pra ele antes de fechar, pra nunca estourar por causa dele).
+  Nenhum participante ou segmento de dano é cortado no meio - tudo
+  sempre entra inteiro em alguma parte.
+- _flushEncounter (gatewayServer.js) atualizado: buildDamageReportPayload
+  agora devolve um ARRAY de payloads (antes era um só) - manda cada
+  parte em sequência (await, uma de cada vez, preserva a ordem).
+- Verificado com script direto simulando uma briga de 20 jogadores (19
+  pares de dano): encontro dividido em 2 partes automaticamente (39 +
+  29 componentes, ambas dentro do limite de 40), NENHUM dos 20 nomes de
+  jogador sumiu (conferido concatenando o texto das duas partes).
+  Reconferido também que combates pequenos (3 jogadores, como todos os
+  testes anteriores desta sessão) continuam saindo em 1 parte só, sem
+  paginação desnecessária.
