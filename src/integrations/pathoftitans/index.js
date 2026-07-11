@@ -70,6 +70,31 @@ class PathOfTitansIntegration {
         return await rcon.sendCommand('status');
     }
 
+    /**
+     * Reconecta o RCON de TODA guild que já tem servidor configurado
+     * (enabled=true) — chamado uma vez no boot (ver events/ready.js).
+     * rconClients é só em memória: sem isso, toda reinicialização do
+     * processo deixa o RCON "quebrado" (mesmo com o servidor de jogo
+     * online) até alguém rodar /potserver status ou /potserver setup na
+     * mão pra cada guild — bug real que já causou falha silenciosa no
+     * envio do código de verificação do /registrar logo após um restart.
+     */
+    async reconnectAllGuilds() {
+        const guildIds = PoTConfigSystem.getAllConfiguredGuildIds();
+        if (guildIds.length === 0) return;
+
+        console.log(`🎮 [PoT] Reconectando RCON de ${guildIds.length} guild(s) configurada(s)...`);
+        for (const guildId of guildIds) {
+            try {
+                const config = PoTConfigSystem.getServerConfig(guildId);
+                const result = await this.initializeForGuild(guildId, config);
+                console.log(`🎮 [PoT] Guild ${guildId} - Reconexão RCON: ${result.success ? 'OK' : `FAIL (${result.error})`}`);
+            } catch (error) {
+                console.error(`❌ [PoT] Erro ao reconectar RCON da guild ${guildId}:`, error.message);
+            }
+        }
+    }
+
     async restartForGuild(guildId) {
         if (this.rconClients.has(guildId)) {
             this.rconClients.delete(guildId);

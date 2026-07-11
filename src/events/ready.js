@@ -33,6 +33,22 @@ module.exports = {
         startEventSchedulerWorker(client);
         startDailyAnalyticsJob(client);
 
+        // Reconecta o RCON de toda guild já configurada — sem isso, todo
+        // restart do bot deixa /registrar (e qualquer outro RCON) quebrado
+        // até alguém rodar /potserver status/setup na mão. Não bloqueia o
+        // resto do boot (fire-and-forget) nem derruba o bot se algum
+        // servidor de jogo estiver offline/inalcançável — mesma filosofia
+        // de falha silenciosa já usada pro resto da integração PoT.
+        try {
+            const { getInstance } = require('../integrations/pathoftitans');
+            const potIntegration = getInstance(client);
+            potIntegration?.reconnectAllGuilds().catch(err => {
+                console.error('❌ [PoT] Erro ao reconectar RCON no boot:', err.message);
+            });
+        } catch (err) {
+            console.log('ℹ️ [PoT] Reconexão de RCON no boot não disponível:', err.message);
+        }
+
         // 1. Inicializar handler central (cache)
         try {
             if (!handler) {

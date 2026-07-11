@@ -141,6 +141,22 @@ class PoTConfigSystem {
         try { return JSON.parse(result.value); } catch { return null; }
     }
 
+    // Lista todos os guild_id com um pot_server_config salvo e enabled=true —
+    // usado no boot pra reconectar RCON de todo mundo automaticamente (ver
+    // PathOfTitansIntegration.reconnectAllGuilds), já que rconClients é só em
+    // memória e some a cada reinício do processo.
+    static getAllConfiguredGuildIds() {
+        const rows = db.prepare(`SELECT guild_id, value FROM settings WHERE key = 'pot_server_config'`).all();
+        const guildIds = [];
+        for (const row of rows) {
+            try {
+                const config = JSON.parse(row.value);
+                if (config?.enabled === true) guildIds.push(row.guild_id);
+            } catch { /* config corrompida/vazia — ignora essa guild */ }
+        }
+        return guildIds;
+    }
+
     static isConfigured(guildId) {
         const config = this.getServerConfig(guildId);
         return config !== null && config.enabled === true;
