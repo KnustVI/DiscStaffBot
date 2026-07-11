@@ -58,8 +58,8 @@ function loadStarImages() {
 
 // ==================== extração de metadados do SVG do Figma ====================
 
-async function bboxOfPath(d, viewW, viewH) {
-    const svg = `<svg width="${viewW}" height="${viewH}" xmlns="http://www.w3.org/2000/svg"><path d="${d}" fill="#ffffff"/></svg>`;
+async function bboxOfPath(d, viewW, viewH, style = 'fill="#ffffff"') {
+    const svg = `<svg width="${viewW}" height="${viewH}" xmlns="http://www.w3.org/2000/svg"><path d="${d}" ${style}/></svg>`;
     const { info } = await sharp(Buffer.from(svg)).extractChannel(3).trim({ threshold: 1 }).toBuffer({ resolveWithObject: true });
     return {
         x: info.trimOffsetLeft !== undefined ? -info.trimOffsetLeft : 0,
@@ -89,6 +89,8 @@ async function extractCardMeta(svg) {
     for (const p of solidPaths) bboxes.push({ color: p[2], bbox: await bboxOfPath(p[1], viewW, viewH) });
 
     return {
+        viewW: Number(viewW),
+        viewH: Number(viewH),
         frameD: frameMatch[1],
         solidPaths,
         bboxes,
@@ -122,11 +124,29 @@ function stripPathByPrefix(svg, dPrefix) {
 // Fileira de 6 ícones (troféu/espada/etc) abaixo da foto — placeholder de um
 // futuro sistema de emblemas/missões que ainda não existe. Removida do
 // render por enquanto (pedido explícito: "remova dos perfis por hora").
-// Identificados pelo traço compartilhado (só eles usam essa cor+espessura
-// sem preenchimento), não por posição — mais robusto a pequenos ajustes de
-// layout entre os 3 SVGs de tier.
-function stripMissionIcons(svg) {
-    return svg.replace(/<path[^>]*stroke="#DCA15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\/>/g, '');
+//
+// BUG CORRIGIDO: filtrar só pelo traço compartilhado (cor+espessura) não
+// bastava — o SVG do Raptor usa o MESMO estilo de traço nos 3 ícones
+// dentro das badges (Título/Nível/Espécie, ~20x20px, y≈39/92/143), então
+// o replace por regex também apagava esses por engano (Free/Compy nunca
+// tiveram ícone nenhum ali, só texto — por isso só o Raptor mostrava esse
+// sintoma: "aparece sem ícones nas badges de missão/nível/dinossauro").
+// Confirmado com bounding box real (rasterizado via sharp, não regex de
+// coordenada — paths com curva/H/V não dão pra medir por regex ingênuo):
+// a fileira de 6 ícones sempre cai em y≈264-287 (logo abaixo da foto, que
+// vai até y=294); os ícones das badges ficam em y≈39-176. ICON_ROW_MIN_Y
+// fica bem no meio dessas duas faixas.
+const ICON_ROW_MIN_Y = 220;
+async function stripMissionIcons(svg, viewW, viewH) {
+    const matches = [...svg.matchAll(/<path d="([^"]+)" stroke="#DCA15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\/>/g)];
+    let result = svg;
+    for (const m of matches) {
+        const bbox = await bboxOfPath(m[1], viewW, viewH, 'fill="none" stroke="#000" stroke-width="2"');
+        if (bbox.y >= ICON_ROW_MIN_Y) {
+            result = result.replace(m[0], '');
+        }
+    }
+    return result;
 }
 
 // ==================== render principal ====================
@@ -151,7 +171,7 @@ async function renderProfileCard({ tier, photoBuffer, nickname, alderonId, disco
 
     for (let i = 1; i <= 5; i++) svg = stripStarGroup(svg, i);
     for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
-    svg = stripMissionIcons(svg);
+    svg = await stripMissionIcons(svg, meta.viewW, meta.viewH);
 
     const photoPng = await sharp(photoBuffer).png().toBuffer();
     const clipInsert = `
