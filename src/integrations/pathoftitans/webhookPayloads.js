@@ -352,17 +352,21 @@ function formatMessage(potEvent, data, guild) {
         // em AdminCommand logo abaixo.
         // bSpectatorMode (confirmado presente no payload, sempre false nos
         // testes reais até agora — doc mostra true no exemplo de spectator
-        // mode) NUNCA era mostrado: mesmo sem um evento dedicado de
-        // entrar/sair, esse flag ainda diz se o admin JÁ ESTAVA em modo
-        // espectador no momento de outra ação (ex: mexendo nametags) — é a
-        // única visibilidade indireta possível já que o jogo não notifica
-        // a ação em si.
+        // mode): mesmo sem um evento dedicado de entrar/sair, esse flag
+        // ainda diz se o admin JÁ ESTAVA em modo espectador no momento de
+        // outra ação (ex: mexendo nametags) — é a única visibilidade
+        // indireta possível já que o jogo não notifica a ação em si.
+        // Pedido do dono: mostrar sempre (Sim/Não), não só quando true —
+        // só omite se o campo nem vier no payload (typeof !== 'boolean').
         // Mesmo layout de heading+bullet do AdminCommand logo abaixo (pedido
         // do dono: vale pra qualquer log de comando/ação de admin, não só
         // AdminCommand).
         AdminSpectate: () => {
             const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
-            const action = `${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${d.bSpectatorMode ? ` *(em modo espectador)*` : ''}`;
+            const spectatorInfo = typeof d.bSpectatorMode === 'boolean'
+                ? ` *(modo espectador: ${d.bSpectatorMode ? 'Sim' : 'Não'})*`
+                : '';
+            const action = `${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${spectatorInfo}`;
             return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}: ${action}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/

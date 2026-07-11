@@ -1726,3 +1726,19 @@ frente, nao so este relatorio):
   conteúdo de combates pequenos (cenário de 3 jogadores) ficou
   idêntico ao de antes, só com a separação em branco entre itens
   dentro do mesmo bloco (leve melhoria visual, não regressão).
+
+
+53) AdminSpectate SEMPRE MOSTRA O STATUS DO MODO ESPECTADOR (Sim/Não, não só quando Sim)
+------------------------------------------------
+- Pedido do dono: no log de nametags (AdminSpectate), informar sempre
+  se o admin está ou não em modo espectador - antes (seção 36) só
+  aparecia "(em modo espectador)" quando bSpectatorMode era true,
+  ficava mudo quando era false (comportamento mais comum nos testes
+  reais até agora).
+- Trocado pra "(modo espectador: Sim)" ou "(modo espectador: Não)",
+  sempre que o campo bSpectatorMode vier como boolean de verdade no
+  payload - só omite (undefined/ausente) se o campo nem existir,
+  nunca mostra "Não" fingido quando na real não se sabe.
+- Verificado com script direto: bSpectatorMode true mostra "Sim",
+  false mostra "Não", campo ausente omite a informação inteira (sem
+  quebrar a mensagem).
