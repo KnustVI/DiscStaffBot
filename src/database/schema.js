@@ -140,6 +140,14 @@ const SCHEMA = {
             satisfaction_score REAL DEFAULT 0,
             metrics TEXT,
             updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            reports_joined INTEGER DEFAULT 0,
+            report_messages_count INTEGER DEFAULT 0,
+            report_response_seconds_sum INTEGER DEFAULT 0,
+            report_response_count INTEGER DEFAULT 0,
+            events_created INTEGER DEFAULT 0,
+            nametag_toggles_spectating INTEGER DEFAULT 0,
+            nametag_toggles_not_spectating INTEGER DEFAULT 0,
+            spectator_seconds INTEGER DEFAULT 0,
             UNIQUE(guild_id, user_id, period, date)
         )
     `,
@@ -327,6 +335,21 @@ const SCHEMA = {
             updated_by TEXT
         )
     `,
+
+    // ==================== SESSÕES DE MODO ESPECTADOR EM ABERTO (ANALYTICS) ====================
+    // Guarda só a sessão ATUALMENTE aberta por admin (guild_id+alderon_id é
+    // chave única — sem histórico linha-a-linha, o total acumulado vai pra
+    // staff_analytics.spectator_seconds ao fechar). Aberta no primeiro
+    // avistamento de bSpectatorMode=true (AdminSpectate); fechada quando o
+    // mesmo Alderon ID dá respawn (PlayerRespawn) — ver analyticsSystem.js.
+    pot_spectator_sessions: `
+        CREATE TABLE IF NOT EXISTS pot_spectator_sessions (
+            guild_id TEXT NOT NULL,
+            alderon_id TEXT NOT NULL,
+            started_at INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, alderon_id)
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -394,6 +417,9 @@ const INDEXES = [
 
     // Punishment Levels
     `CREATE INDEX IF NOT EXISTS idx_punishment_levels_guild ON punishment_levels(guild_id)`,
+
+    // Spectator sessions (analytics)
+    `CREATE INDEX IF NOT EXISTS idx_pot_spectator_sessions_guild ON pot_spectator_sessions(guild_id)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };

@@ -279,6 +279,9 @@ module.exports = {
             startDate: startDate.toISOString(),
         });
 
+        const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
+        AnalyticsSystem.recordEventCreated(guild.id, user.id);
+
         // ==================== RESUMO PARA O STAFF ====================
         const summaryBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
         summaryBuilder.text(`${EMOJIS.circlecheck || '✅'} **Evento "${titulo}" criado com sucesso!**`);

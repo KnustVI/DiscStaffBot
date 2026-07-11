@@ -75,7 +75,8 @@ class DatabaseManager {
                 'player_links',
                 'player_premium',
                 'guild_premium',
-                'punishment_levels'
+                'punishment_levels',
+                'pot_spectator_sessions'
             ];
             
             for (const table of tables) {
@@ -154,6 +155,19 @@ class DatabaseManager {
             this.ensureColumn('punishments', 'level_severity', 'TEXT');
             this.ensureColumn('punishments', 'level_action', 'TEXT');
             this.ensureColumn('punishments', 'duration_str', 'TEXT');
+
+            // Novas métricas de staff analytics (moderação/eventos/modo
+            // espectador) — ver analyticsSystem.js. CREATE TABLE IF NOT
+            // EXISTS não adiciona coluna em bancos já existentes, daí o
+            // ensureColumn de cada uma aqui.
+            this.ensureColumn('staff_analytics', 'reports_joined', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'report_messages_count', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'report_response_seconds_sum', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'report_response_count', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'events_created', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'nametag_toggles_spectating', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'nametag_toggles_not_spectating', 'INTEGER DEFAULT 0');
+            this.ensureColumn('staff_analytics', 'spectator_seconds', 'INTEGER DEFAULT 0');
 
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —

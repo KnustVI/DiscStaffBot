@@ -1829,3 +1829,105 @@ frente, nao so este relatorio):
   placeholder exatamente como especificado pelo dono, na ordem certa,
   com os campos obrigatório/opcional corretos (regra/data_hora/
   descricao obrigatórios; local/personagem opcionais).
+
+
+57) ANALYTICS DE STAFF EXPANDIDO (5 métricas novas + análise diária + histórico)
+------------------------------------------------
+- Dono pediu pra expandir o sistema de analytics de staff (que já
+  existia, mas só contava punições/reports de forma incompleta - ver
+  bug legado abaixo) com 5 métricas novas: quem fez mais punições (já
+  funcionava), quem entrou em mais chats de reports, quem respondeu
+  mais ativamente (mais mensagens em menos tempo em reports), quem
+  programou mais eventos, e quem esteve mais tempo em modo espectador
+  in-game (via nametag/AdminSpectate do webhook).
+- BUG LEGADO encontrado (não é escopo desta mudança, deixado como
+  está): `updateStaffAnalytics` já existente consultava
+  `reports.claimed_by`/`reports.claimed_at`, colunas que NÃO EXISTEM
+  no schema de `reports` (só `closed_by`/`closed_at`) - `reportsClaimed`
+  e `avgResponseTime` sempre falhavam silenciosamente (try/catch,
+  viravam 0/null). Em vez de consertar essas colunas, as métricas
+  novas usam colunas PRÓPRIAS (não reaproveitam as quebradas).
+- Também confirmado que `report_messages` (tabela já existia no
+  schema.js) NUNCA era escrita em lugar nenhum do código - dead table.
+  Agora é populada de verdade em todo mensagem de thread de report
+  (events/messageCreat.js).
+- staff_analytics ganhou 8 colunas novas (ensureColumn em
+  database/index.js, pra bancos já existentes): reports_joined,
+  report_messages_count, report_response_seconds_sum,
+  report_response_count, events_created, nametag_toggles_spectating,
+  nametag_toggles_not_spectating, spectator_seconds.
+- Nova tabela `pot_spectator_sessions` (guild_id+alderon_id como chave
+  única) guarda só a sessão de espectador ATUALMENTE aberta por admin
+  - sem histórico linha-a-linha, o total acumulado vai direto pra
+  staff_analytics.spectator_seconds ao fechar.
+- Lógica de modo espectador (pedido exato do dono): no evento
+  AdminSpectate (nametag), conta ativação com/sem espectador
+  (bSpectatorMode) em quantidade; no primeiro avistamento com
+  bSpectatorMode=true SEM sessão aberta, marca a hora de entrada
+  (INSERT OR IGNORE - avistamentos "true" seguintes não resetam o
+  início); quando o MESMO Alderon ID dá PlayerRespawn (= voltou a
+  jogar um dinossauro = saiu do espectador), soma o tempo decorrido em
+  spectator_seconds e fecha a sessão. Resolução Alderon ID -> Discord
+  via PlayerRegistry.getPlayerByAlderonId (player_links) - sem vínculo,
+  no-op silencioso (mesmo padrão de graceful-degradation do resto da
+  integração PoT).
+- Hooks novos, cada um chamando uma função de incremento nova em
+  AnalyticsSystem:
+  - reportChatSystem.js joinReport() -> recordReportJoin (só na
+    primeira vez que aquele staff entra naquele report, mesma guarda
+    que já existia pro array `staffs`).
+  - events/messageCreat.js -> popula report_messages (INSERT que nunca
+    existia) + recordReportMessage quando quem mandou é staff, com o
+    tempo de resposta = agora menos a mensagem anterior da thread (de
+    qualquer pessoa), não só a primeira resposta.
+  - commands/events/evento.js -> recordEventCreated logo depois do
+    `db.logActivity('event_created', ...)` que já existia.
+  - integrations/pathoftitans/gatewayServer.js -> recordNametagSighting
+    no AdminSpectate e closeSpectatorSession no PlayerRespawn (ver
+    acima), inseridos antes do lookup de webhook do grupo - a contagem
+    acontece mesmo que o grupo "admin" não tenha webhook configurado
+    (mesmo padrão já usado pra recordKillEvent).
+- Contagem de punições ("quem fez mais punições") JÁ funcionava de
+  forma confiável antes desta mudança - `punishmentSystem.js` já
+  chamava `updateStaffAnalytics` no momento de aplicar o strike (não
+  só quando alguém consultava `/historico`), confirmado por leitura
+  direta do código antes de decidir não mexer nisso.
+- Análise diária: novo job `dailyAnalyticsJob.js` (node-cron, mesmo
+  padrão do `inactiveReportsJob.js`), roda 00:05 America/Sao_Paulo,
+  fecha o dia anterior. Só guilds tier Caçador
+  (`PremiumSystem.analyticsEnabled`) e só as que têm `log_channel`
+  configurado (config-log, aba "Geral/AutoMod") recebem; sem atividade
+  de staff no dia, não manda mensagem vazia. Painel com 1 bloco de
+  texto por staff, agrupado em poucos TextDisplays (chunking por
+  tamanho, mesma técnica do relatório de combate - ver seção 51/52) em
+  vez de 1 componente por staff, pra não esbarrar no limite de 40
+  componentes por Container do Discord.
+- Novo subcomando `/historico staff` (dentro do comando `/historico`
+  que já existia) - só tier Caçador. Precisou converter `/historico`
+  inteiro pra subcomandos (`jogador` = comportamento antigo idêntico,
+  `staff` = novo) porque o Discord não permite misturar opções soltas
+  com subcomandos no mesmo comando. `/historico staff` sem parâmetro
+  mostra a soma de TODO o histórico de cada staff (ranking); com
+  `staff:@fulano` mostra só o card daquele staff.
+- Verificado com 2 scripts diretos contra o banco real (guild/staff
+  fake, limpos antes/depois): schema criado 2x seguidas sem erro,
+  colunas e tabela novas presentes; cada função de incremento testada
+  isoladamente (reports_joined, report_messages_count+tempo de
+  resposta com e sem resposta válida, events_created, nametag
+  com/sem espectador, abertura de sessão idempotente - segunda
+  ativação "true" não reseta o início -, fechamento somando ~90s e
+  depois mais ~30s acumulando pra ~120s, alderon sem vínculo Discord
+  = no-op sem throw); agregações (getGuildDailySummary,
+  getStaffHistoryTotals, getAllStaffHistoryTotals) conferidas com os
+  números exatos esperados; os 3 builders de container (diário,
+  staff único, ranking histórico) construídos e serializados sem
+  erro, inclusive pro caso de staff sem nenhum dado; todos os módulos
+  tocados carregam sem erro de sintaxe; `/historico` confirmado com
+  os 2 subcomandos (`jogador`+`staff`) no JSON serializado. Segundo
+  script simulou a sequência completa de mensagens numa thread de
+  report (usuário abre, staff responde 45s depois, staff manda 2ª
+  mensagem 10s depois) e confirmou report_messages com as 3 linhas
+  certas + staff_analytics com contagem e soma de tempo exatas.
+- Pendente (ambiente do dono, não deste código): rodar `node deploy.js`
+  pra registrar a assinatura nova de `/historico` (agora com
+  subcomandos) nos servidores em `GUILD_IDS`.

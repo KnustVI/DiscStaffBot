@@ -340,6 +340,35 @@ class PoTGatewayServer {
                 }
             }
 
+            // 1c. Analytics de staff — modo espectador (nametag). AdminSpectate
+            // usa PlayerAlderonId (confirmado ao vivo, ver formatMessage acima),
+            // com fallback pro par Admin* documentado oficialmente. Conta a
+            // ativação com/sem espectador e abre uma sessão quando entra em
+            // modo espectador pela primeira vez (fechada no PlayerRespawn
+            // abaixo) — ver AnalyticsSystem.recordNametagSighting.
+            if (potEvent === 'AdminSpectate' && typeof data.bSpectatorMode === 'boolean') {
+                try {
+                    const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
+                    const alderonId = data.PlayerAlderonId || data.AdminAlderonId;
+                    if (alderonId) AnalyticsSystem.recordNametagSighting(guildId, alderonId, data.bSpectatorMode);
+                } catch (err) {
+                    console.warn('⚠️ [Gateway] Analytics de nametag falhou:', err.message);
+                }
+            }
+
+            // 1d. PlayerRespawn = o admin voltou a jogar um dinossauro, ou
+            // seja, saiu do modo espectador — fecha a sessão aberta em 1c (se
+            // houver) e soma o tempo decorrido na analytics do staff.
+            if (potEvent === 'PlayerRespawn') {
+                try {
+                    const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
+                    const alderonId = data.AlderonId || data.PlayerAlderonId;
+                    if (alderonId) AnalyticsSystem.closeSpectatorSession(guildId, alderonId);
+                } catch (err) {
+                    console.warn('⚠️ [Gateway] Fechamento de sessão de espectador falhou:', err.message);
+                }
+            }
+
             // 1b. PlayerKilled identifica matador/vítima por KillerAlderonId/
             // VictimAlderonId (não por "AlderonId" like os demais eventos), então
             // kills/deaths são contabilizados à parte, não pelo upsert genérico acima.

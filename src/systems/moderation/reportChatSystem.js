@@ -733,6 +733,9 @@ class ReportChatSystem {
             if (!existingStaff) {
                 staffs.push({ id: user.id, name: user.tag, timestamp: Date.now() });
                 db.prepare(`UPDATE reports SET staffs = ? WHERE guild_id = ? AND report_number = ?`).run(JSON.stringify(staffs), guild.id, reportNumber);
+
+                const AnalyticsSystem = require('./analyticsSystem');
+                AnalyticsSystem.recordReportJoin(guild.id, user.id);
             }
 
             const targetUser = await this.client.users.fetch(report.user_id);

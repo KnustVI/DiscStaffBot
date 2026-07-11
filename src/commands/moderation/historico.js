@@ -12,13 +12,51 @@ const PremiumSystem = require('../../systems/premium/premiumSystem');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('historico')
-        .setDescription('Consulta a reputação e punições de um usuário.')
-        .addUserOption(opt => opt.setName('usuario').setDescription('Usuário a consultar').setRequired(false))
-        .addStringOption(opt => opt.setName('alderon_id')
-            .setDescription('Buscar pelo Alderon ID em vez do usuário do Discord')
-            .setRequired(false)),
+        .setDescription('Consulta o histórico de punições de um jogador ou de atividade de um staff.')
+        .addSubcommand(sub => sub
+            .setName('jogador')
+            .setDescription('Consulta a reputação e punições de um usuário.')
+            .addUserOption(opt => opt.setName('usuario').setDescription('Usuário a consultar').setRequired(false))
+            .addStringOption(opt => opt.setName('alderon_id')
+                .setDescription('Buscar pelo Alderon ID em vez do usuário do Discord')
+                .setRequired(false)))
+        .addSubcommand(sub => sub
+            .setName('staff')
+            .setDescription('Histórico somado de atividade de staff (plano Caçador).')
+            .addUserOption(opt => opt.setName('staff')
+                .setDescription('Staff específico (deixe vazio para ver todos)')
+                .setRequired(false))),
 
     async execute(interaction, client) {
+        const subcommand = interaction.options.getSubcommand();
+        if (subcommand === 'staff') {
+            return this._executeStaffHistory(interaction, client);
+        }
+        return this._executePlayerHistory(interaction, client);
+    },
+
+    async _executeStaffHistory(interaction, client) {
+        const { guild } = interaction;
+        try {
+            if (!PremiumSystem.getGuildLimits(guild.id).analyticsEnabled) {
+                return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
+            }
+
+            const staffOpt = interaction.options.getUser('staff');
+            const builder = staffOpt
+                ? AnalyticsSystem.generateStaffHistoryContainer(guild, staffOpt.id)
+                : AnalyticsSystem.generateStaffHistoryRankingContainer(guild);
+
+            await interaction.editReply(builder.build());
+        } catch (error) {
+            console.error('❌ Erro no historico staff:', error);
+            const ErrorLogger = require('../../systems/core/errorLogger');
+            await ErrorLogger.logInteractionError(interaction, error, 'command');
+            await ResponseManager.error(interaction, 'Erro ao carregar histórico de staff.');
+        }
+    },
+
+    async _executePlayerHistory(interaction, client) {
         const startTime = Date.now();
         const { guild, user, options } = interaction;
         const guildId = guild.id;

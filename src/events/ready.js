@@ -3,6 +3,7 @@ const InteractionHandler = require('../systems/core/handlers');
 const { ActivityType } = require('discord.js');
 const { startInactiveReportsJob } = require('../systems/monitoring/inactiveReportsJob');
 const { startEventSchedulerWorker } = require('../systems/monitoring/eventScheduler');
+const { startDailyAnalyticsJob } = require('../systems/monitoring/dailyAnalyticsJob');
 const autoModeration = require('../systems/moderation/autoModeration');
 const ErrorLogger = require('../systems/core/errorLogger');
 const { sendSystemLog } = require('../systems/core/systemLog');
@@ -30,6 +31,7 @@ module.exports = {
         
         startInactiveReportsJob(client);
         startEventSchedulerWorker(client);
+        startDailyAnalyticsJob(client);
 
         // 1. Inicializar handler central (cache)
         try {
