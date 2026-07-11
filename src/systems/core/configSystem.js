@@ -151,18 +151,18 @@ const LOG_FIELDS = [
  * opção pra "trocar por" — dono pediu remoção por serem repetidas.
  */
 const PLAYER_PHOTO_OPTIONS = [
-    { value: 'foto_perfil_01', label: 'Foto de Perfil 01' },
-    { value: 'foto_perfil_02', label: 'Foto de Perfil 02' },
-    { value: 'foto_perfil_03', label: 'Foto de Perfil 03' },
-    { value: 'foto_perfil_04', label: 'Foto de Perfil 04' },
-    { value: 'foto_perfil_05', label: 'Foto de Perfil 05' },
-    { value: 'foto_perfil_06', label: 'Foto de Perfil 06' },
-    { value: 'foto_perfil_07', label: 'Foto de Perfil 07' },
-    { value: 'foto_perfil_08', label: 'Foto de Perfil 08' },
-    { value: 'foto_perfil_09', label: 'Foto de Perfil 09' },
-    { value: 'foto_perfil_10', label: 'Foto de Perfil 10' },
-    { value: 'foto_perfil_11', label: 'Foto de Perfil 11' },
-    { value: 'foto_perfil_12', label: 'Foto de Perfil 12' },
+    { value: 'foto_perfil_01', label: 'Planeta Âmbar' },
+    { value: 'foto_perfil_02', label: 'Suchomimus' },
+    { value: 'foto_perfil_03', label: 'Desert Hunt' },
+    { value: 'foto_perfil_04', label: 'Rex Beach' },
+    { value: 'foto_perfil_05', label: 'Green Trike' },
+    { value: 'foto_perfil_06', label: 'Yuty Look' },
+    { value: 'foto_perfil_07', label: 'Yuty Snow' },
+    { value: 'foto_perfil_08', label: "Parassaur's Forest" },
+    { value: 'foto_perfil_09', label: 'Desert Migration' },
+    { value: 'foto_perfil_10', label: 'Family Hunt' },
+    { value: 'foto_perfil_11', label: 'Forest Lurker' },
+    { value: 'foto_perfil_12', label: 'Trike Family' },
 ];
 
 /**
