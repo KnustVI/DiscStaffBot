@@ -138,6 +138,12 @@ class DatabaseManager {
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).
             this.ensureColumn('player_links', 'banner_message_id', 'TEXT');
+            // Foto de perfil escolhida num menu pré-definido (Player Premium
+            // Compy) — guarda a CHAVE do imageManager (ex: "foto_perfil_05"),
+            // não um arquivo próprio. Raptor continua com upload/banner do
+            // Discord (banner_message_id, acima); Compy só escolhe entre as
+            // fotos genéricas já existentes em assets/images. Ver /perfil-edit.
+            this.ensureColumn('player_links', 'selected_photo_key', 'TEXT');
             // Verificação em jogo (RCON) do vínculo Discord<->Alderon ID —
             // global (a identidade é global, mesmo que a confirmação em si
             // dependa do RCON de um servidor específico). 1 quando o vínculo

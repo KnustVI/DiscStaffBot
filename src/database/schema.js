@@ -287,6 +287,7 @@ const SCHEMA = {
             alderon_id TEXT NOT NULL UNIQUE,
             player_name TEXT,
             banner_message_id TEXT,
+            selected_photo_key TEXT,
             verified_ingame INTEGER DEFAULT 0,
             registered_at INTEGER,
             updated_at INTEGER DEFAULT (strftime('%s', 'now'))

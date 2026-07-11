@@ -468,7 +468,7 @@ function getPlayerByDiscordId(discordId) {
     if (!discordId) return null;
     try {
         return db.prepare(`
-            SELECT alderon_id, player_name, banner_message_id FROM player_links WHERE user_id = ?
+            SELECT alderon_id, player_name, banner_message_id, selected_photo_key FROM player_links WHERE user_id = ?
         `).get(discordId) || null;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao buscar jogador por discord_id:', error);
@@ -498,6 +498,25 @@ function setBannerMessageId(discordId, messageId) {
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao salvar banner de perfil:', error);
+        return false;
+    }
+}
+
+/**
+ * Foto de perfil escolhida num menu (Player Premium Compy) — guarda a
+ * CHAVE do imageManager (ex: "foto_perfil_05"), não um arquivo próprio.
+ * @param {string} discordId
+ * @param {string|null} photoKey
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setSelectedPhotoKey(discordId, photoKey) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET selected_photo_key = ?, updated_at = ? WHERE user_id = ?
+        `).run(photoKey, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar foto de perfil escolhida:', error);
         return false;
     }
 }
@@ -616,6 +635,7 @@ module.exports = {
     recordKillEvent,
     registerPlayerManually,
     setBannerMessageId,
+    setSelectedPhotoKey,
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,

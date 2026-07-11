@@ -92,6 +92,15 @@ class ImageManager {
     }
 
     /**
+     * Caminho local do arquivo no disco — usado quando é preciso ler os
+     * bytes crus da imagem (ex: compor no canvas do card de perfil), não só
+     * anexar/linkar ela numa mensagem do Discord.
+     */
+    getPath(key) {
+        return this.attachments[key]?.path || null;
+    }
+
+    /**
      * Obtém múltiplos attachments de uma vez
      */
     getAttachments(keys) {

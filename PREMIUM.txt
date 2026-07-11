@@ -22,18 +22,21 @@ COMPY - R$10/mes ("Tudo do Free +")
   comprar OUTROS banners na lojinha do bot pra trocar por esse.
   (compra de banners na lojinha ainda nao implementado - "vindo em breve")
 - Footer de perfil padrao do tier Compy.
-- Perfil personalizavel pela loja. (ainda nao implementado - "vindo em breve")
-- Badge exclusivo. (ainda nao implementado - "vindo em breve")
-- Titulos exclusivos. (ainda nao implementado - "vindo em breve")
-- Boost de farm por trofeu entregue. (ainda nao implementado - "vindo em breve")
+- Foto de fundo do card escolhida num MENU de fotos pre-definidas (mesmo
+  pool usado no banner do /config reportchat - 12 fotos genericas) via
+  /perfil-edit. JA IMPLEMENTADO. Diferente do Raptor: sem upload proprio,
+  so escolher entre as opcoes prontas (ConfigSystem.handlePlayerPhotoSelect,
+  coluna player_links.selected_photo_key).
+- Perfil personalizavel pela loja (badge/titulo exclusivos, boost de farm
+  por trofeu). (ainda nao implementado - "vindo em breve")
 
 RAPTOR - R$25/mes ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
   JA IMPLEMENTADO: o /perfil mostra um CARD completo (moldura, foto,
   badges de Titulo/Nivel/Especie, estrelas de honra, nome e identificacao)
-  no lugar do banner simples. So o Raptor pode trocar a FOTO de fundo desse
-  card (via /perfil-edit ou puxando o banner do proprio Discord); Free e
-  Compy usam sempre a foto padrao do tier.
+  no lugar do banner simples. Raptor troca a FOTO de fundo desse card por
+  UPLOAD PROPRIO (via /perfil-edit ou puxando o banner do proprio Discord);
+  Compy escolhe por MENU (ver acima); Free usa sempre a foto padrao do tier.
 - Footer de perfil padrao do tier Raptor.
 - Boost de farm por missao Titan concluida. (ainda nao implementado - "vindo em breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
@@ -76,8 +79,15 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   Guarda so o ID da mensagem, nao a URL - links de anexo do Discord expiram
   em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
   toda vez que o /perfil e exibido.
+- Foto escolhida por menu (Compy) via /perfil-edit - sem upload, so
+  seleciona uma das 12 fotos genericas ja existentes em assets/images (o
+  mesmo pool usado no banner do /config reportchat). Guarda so a CHAVE do
+  imageManager (player_links.selected_photo_key), nao um arquivo proprio -
+  bem mais leve que o fluxo do Raptor, sem precisar de canal de
+  armazenamento nenhum.
 - Loja (comprar fotos/badges/titulos/sorteio) e so a FUNDACAO (o sistema
-  de tier), ainda NAO tem loja implementada de fato.
+  de tier), ainda NAO tem loja implementada de fato - a foto por menu do
+  Compy (acima) e um recurso PROPRIO, nao depende da loja.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -2106,3 +2116,72 @@ frente, nao so este relatorio):
   (free/rastreador/cacador), `autoRcon`/`maxPunishmentLevels` do
   Rastreador continuam intactos (true/4), módulos tocados carregam sem
   erro de sintaxe.
+
+
+60) FOTO DE PERFIL DO COMPY VIRA MENU (não upload) + LIMPEZA DO PICKER DO REPORTCHAT
+------------------------------------------------
+- Dono pediu 2 coisas relacionadas a imagens:
+  1. Tirar `foto_perfil_free`/`foto_perfil_compy`/`foto_perfil_raptor` do
+     menu de banner do `/config reportchat` (Caçador) — são as fotos
+     PADRÃO de cada tier (fallback fixo quando ninguém personalizou nada),
+     não fazia sentido oferecê-las como "opção pra trocar por" ali, eram
+     repetidas/confusas.
+  2. Player Premium: Compy ganha customização de foto de perfil também,
+     mas por MENU (escolher entre as fotos prontas), não upload — Raptor
+     continua exatamente como estava (upload próprio via `/perfil-edit`).
+- `configSystem.js`: as 12 fotos genéricas (`foto_perfil_01..12`) viraram
+  uma constante própria, `PLAYER_PHOTO_OPTIONS` (exportada, reaproveitável
+  por qualquer sistema), e `REPORT_CHAT_BANNER_OPTIONS` passou a ser só
+  `["Padrão do bot", ...PLAYER_PHOTO_OPTIONS]` — sem duplicar a lista em
+  dois lugares. Novo par `buildPlayerPhotoPickerPayload(currentKey)` +
+  `handlePlayerPhotoSelect(interaction)`, mesmo padrão do picker de banner
+  do reportchat (StringSelectMenu, `.setDefault()` na opção atual),
+  checando `PremiumSystem.isPlayerAtLeast(userId, 'compy')` e exigindo
+  vínculo (`/registrar`) antes de salvar.
+- Novo customId `perfil-edit:photo`, registrado em `handlers.js` (novo
+  sistema `'perfil-edit': configSystem` no mapa de handlers) — segue o
+  padrão `system:action:param` já documentado no CLAUDE.md, sem
+  precisar de branch novo em `interactionCreate.js`.
+- `/perfil-edit` agora ramifica por tier: Free continua bloqueado (mensagem
+  atualizada pra citar os dois caminhos, Compy/menu e Raptor/upload);
+  Compy mostra o painel com o menu direto (ignora a opção `arquivo`, que
+  agora é só do Raptor — descrição da opção também atualizada); Raptor
+  mantido 100% igual (upload/banner do Discord, sem nenhuma mudança de
+  comportamento).
+- Novo: coluna `player_links.selected_photo_key` (`ensureColumn` em
+  `database/index.js` + `CREATE TABLE` em `schema.js`) — guarda só a
+  CHAVE do imageManager escolhida, bem mais leve que o fluxo do Raptor
+  (que precisa de canal de armazenamento + reenvio de mensagem). Nova
+  função `potPlayerRegistry.setSelectedPhotoKey(discordId, key)`, mesmo
+  padrão de `setBannerMessageId`. `getPlayerByDiscordId` (usada tanto por
+  `/perfil-edit` quanto pela montagem do card em `sendProfile`) precisou
+  ganhar a coluna nova no `SELECT` explícito (não usa `SELECT *`) — sem
+  isso o valor salvo nunca voltaria pra tela.
+- `imageManager.js` ganhou `getPath(key)` — devolve o caminho local do
+  arquivo no disco (as outras funções só devolvem URL `attachment://` ou
+  um `AttachmentBuilder` pronto pra Discord, nenhuma delas serve pra ler
+  os BYTES crus da imagem, que é o que `_resolveCardPhotoBuffer` precisa
+  pra montar o card).
+- `playerRegistrationSystem.js._resolveCardPhotoBuffer`: novo ramo pro
+  tier Compy (entre o ramo do Raptor e o fallback padrão) — se houver
+  `selected_photo_key` válida, lê os bytes via `imageManager.getPath` +
+  `fs.readFileSync`; sem escolha ainda, cai no fallback de sempre (foto
+  padrão do tier).
+- Resposta à pergunta do dono ("posso alterar as descrições das
+  imagens?"): SIM, sem risco - o `label` de cada opção (o texto que
+  aparece no menu do Discord, ex: "Foto de Perfil 05") é só um texto
+  solto no código (`PLAYER_PHOTO_OPTIONS`/`REPORT_CHAT_BANNER_OPTIONS` em
+  `configSystem.js`), completamente separado da `value`/chave técnica
+  usada pra buscar o arquivo de verdade (`foto_perfil_05` etc.) - trocar
+  o `label` não quebra nada, é só cosmético. Só NÃO trocar a `value` (teria
+  que bater exatamente com a chave gerada pelo imageManager a partir do
+  nome do arquivo em `assets/images/`) nem renomear os arquivos de imagem
+  em si sem atualizar as chaves junto.
+- Verificado com script direto: coluna nova existe, `imageManager.getPath`
+  retorna caminho válido no disco, `PLAYER_PHOTO_OPTIONS` tem exatamente 12
+  itens sem free/compy/raptor, `setSelectedPhotoKey`+`getPlayerByDiscordId`
+  fazem round-trip certo, `buildPlayerPhotoPickerPayload` constrói sem
+  erro, `handlePlayerPhotoSelect` com interaction fake grava a escolha e
+  manda o feedback certo (fluxo completo, tier Compy), tier Free é
+  bloqueado de verdade (tentativa não grava nada no banco), todos os
+  módulos tocados carregam sem erro de sintaxe.

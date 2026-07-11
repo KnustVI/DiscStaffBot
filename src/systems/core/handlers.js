@@ -39,6 +39,7 @@ class InteractionHandler {
             'config-roles': configSystem,
             'config-logs': configSystem,
             'config-reportchat': configSystem,
+            'perfil-edit': configSystem,
             premium: premiumPanel,
             ajuda: ajudaCommand,
         };

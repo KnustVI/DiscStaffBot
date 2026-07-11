@@ -142,13 +142,15 @@ const LOG_FIELDS = [
 ];
 
 /**
- * Opções de banner pro painel de /config reportchat (Caçador) — a primeira
- * ("Padrão do bot") reseta pra imagem original; as demais são o pool de
- * fotos de dino usado no card do /perfil (assets/images/FOTO PERFIL *.webp),
- * reaproveitado aqui em vez de pedir upload próprio.
+ * Pool de fotos genéricas (assets/images/FOTO PERFIL 01..12.webp) — usado
+ * tanto pelo painel de /config reportchat (Caçador) quanto pelo picker de
+ * foto de perfil do Player Premium Compy (/perfil-edit). As fotos padrão de
+ * cada tier (foto_perfil_free/compy/raptor) ficam DE FORA dessa lista: são
+ * os fallbacks fixos de quando ninguém escolheu nada (ver DEFAULT_CARD_
+ * PHOTOS em playerRegistrationSystem.js), não faz sentido oferecê-las como
+ * opção pra "trocar por" — dono pediu remoção por serem repetidas.
  */
-const REPORT_CHAT_BANNER_OPTIONS = [
-    { value: 'title_report_chat', label: 'Padrão do bot' },
+const PLAYER_PHOTO_OPTIONS = [
     { value: 'foto_perfil_01', label: 'Foto de Perfil 01' },
     { value: 'foto_perfil_02', label: 'Foto de Perfil 02' },
     { value: 'foto_perfil_03', label: 'Foto de Perfil 03' },
@@ -161,13 +163,21 @@ const REPORT_CHAT_BANNER_OPTIONS = [
     { value: 'foto_perfil_10', label: 'Foto de Perfil 10' },
     { value: 'foto_perfil_11', label: 'Foto de Perfil 11' },
     { value: 'foto_perfil_12', label: 'Foto de Perfil 12' },
-    { value: 'foto_perfil_free', label: 'Foto de Perfil (Free)' },
-    { value: 'foto_perfil_compy', label: 'Foto de Perfil (Compy)' },
-    { value: 'foto_perfil_raptor', label: 'Foto de Perfil (Raptor)' },
+];
+
+/**
+ * Opções de banner pro painel de /config reportchat (Caçador) — a primeira
+ * ("Padrão do bot") reseta pra imagem original; as demais são o pool de
+ * fotos genéricas acima, reaproveitado aqui em vez de pedir upload próprio.
+ */
+const REPORT_CHAT_BANNER_OPTIONS = [
+    { value: 'title_report_chat', label: 'Padrão do bot' },
+    ...PLAYER_PHOTO_OPTIONS,
 ];
 
 const ConfigSystem = {
     STAFF_ROLE_KEYS,
+    PLAYER_PHOTO_OPTIONS,
 
     getSetting(guildId, key) {
         try {
@@ -322,7 +332,11 @@ const ConfigSystem = {
     async handleComponent(interaction, action, param) {
         try {
             const customId = interaction.customId;
-            
+
+            if (customId === 'perfil-edit:photo') {
+                await this.handlePlayerPhotoSelect(interaction);
+                return;
+            }
             if (customId.startsWith('config-punishments:limites')) {
                 await this.handleLimitesModal(interaction);
                 return;
@@ -1205,6 +1219,68 @@ const ConfigSystem = {
         } catch (error) {
             console.error('❌ Erro ao limpar cache completo:', error);
         }
+    },
+
+    // ==================== PLAYER PREMIUM — FOTO DE PERFIL (COMPY) ====================
+    // Compy escolhe entre as fotos genéricas (PLAYER_PHOTO_OPTIONS) via menu;
+    // Raptor continua com upload próprio (/perfil-edit, banner_message_id).
+    // Ver playerRegistrationSystem.js._resolveCardPhotoBuffer pra onde essa
+    // escolha é lida na hora de montar o card do /perfil.
+
+    buildPlayerPhotoPickerPayload(currentKey) {
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        cb.text([
+            '# ESCOLHER FOTO DE PERFIL',
+            'Escolha uma das fotos abaixo para usar de fundo no seu card (`/perfil`) — recurso do Player Premium Compy.',
+        ].join('\n'));
+        const currentLabel = PLAYER_PHOTO_OPTIONS.find(opt => opt.value === currentKey)?.label;
+        cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Padrão do tier (nenhuma escolhida ainda)`}`);
+        cb.footer('Player Premium Compy');
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('perfil-edit:photo')
+            .setPlaceholder('Escolha a foto...')
+            .addOptions(PLAYER_PHOTO_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                .setLabel(opt.label)
+                .setValue(opt.value)
+                .setDefault(opt.value === currentKey)
+            ));
+        cb.selectMenu(selectMenu);
+        return cb;
+    },
+
+    async handlePlayerPhotoSelect(interaction) {
+        if (!interaction.isStringSelectMenu()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
+        }
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'compy')) {
+            return await ResponseManager.error(interaction, 'Escolher foto de perfil é um recurso do Player Premium Compy ou superior.');
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        const chosenKey = interaction.values[0];
+        const isValidOption = PLAYER_PHOTO_OPTIONS.some(opt => opt.value === chosenKey);
+        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+            return await ResponseManager.error(interaction, 'Imagem inválida.');
+        }
+
+        PlayerRegistry.setSelectedPhotoKey(interaction.user.id, chosenKey);
+        const label = PLAYER_PHOTO_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+
+        const payload = this.buildPlayerPhotoPickerPayload(chosenKey).build();
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.update(payload);
+        }
+        await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Foto de perfil atualizada:** ${label}. Use \`/perfil\` para ver como ficou.`);
     },
 
     // ==================== REPORT-CHAT — BANNER/MENSAGEM (CAÇADOR) ====================

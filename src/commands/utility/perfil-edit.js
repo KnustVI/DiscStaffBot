@@ -1,11 +1,17 @@
 // src/commands/utility/perfil-edit.js
 /**
- * Personalização de perfil — recurso do Player Premium Raptor. Hoje só
+ * Personalização de perfil — recurso do Player Premium Compy/Raptor. Hoje só
  * troca a foto de fundo do card de perfil (renomeado de /perfil-banner pra
  * receber mais personalizações futuras sem precisar de um novo comando a
- * cada uma). Sem anexo enviado: usa o banner do próprio Discord (se o
- * jogador tiver um configurado). Com anexo: a imagem enviada vira a foto de
- * fundo do card.
+ * cada uma).
+ *
+ * Compy: escolhe entre um menu de fotos pré-definidas (mesmo pool usado no
+ * banner do /config reportchat) — nenhum upload próprio, ver
+ * ConfigSystem.handlePlayerPhotoSelect. O parâmetro `arquivo` é ignorado
+ * pra esse tier.
+ * Raptor: upload próprio (`arquivo`). Sem anexo enviado: usa o banner do
+ * próprio Discord (se o jogador tiver um configurado). Com anexo: a imagem
+ * enviada vira a foto de fundo do card.
  *
  * A composição de verdade (moldura, nome, badges, estrelas de honra em cima
  * da foto) acontece na hora que o /perfil é exibido, não aqui — ver
@@ -43,21 +49,29 @@ try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil-edit')
-        .setDescription('🖼️ Personaliza seu perfil (foto do card) — Player Premium Raptor.')
+        .setDescription('🖼️ Personaliza seu perfil (foto do card) — Player Premium Compy/Raptor.')
         .addAttachmentOption(opt => opt.setName('arquivo')
-            .setDescription('Imagem para usar como foto do card (deixe vazio para remover a personalizada)')
+            .setDescription('[Raptor] Imagem do card (vazio = remove a atual). Ignorado no Compy.')
             .setRequired(false)),
 
     async execute(interaction, client) {
         const { user } = interaction;
 
-        if (!PremiumSystem.isPlayerAtLeast(user.id, 'raptor')) {
-            return await ResponseManager.error(interaction, 'Foto de perfil personalizada é um recurso exclusivo do Player Premium Raptor.');
+        if (!PremiumSystem.isPlayerAtLeast(user.id, 'compy')) {
+            return await ResponseManager.error(interaction, 'Personalizar a foto de perfil é um recurso do Player Premium Compy (menu de fotos) ou Raptor (upload próprio).');
         }
 
         const link = PlayerRegistry.getPlayerByDiscordId(user.id);
         if (!link) {
             return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        // ── Compy: menu de fotos pré-definidas, sem upload próprio — o
+        // parâmetro `arquivo` (só relevante pro Raptor) é ignorado aqui. ──
+        if (!PremiumSystem.isPlayerAtLeast(user.id, 'raptor')) {
+            const ConfigSystem = require('../../systems/core/configSystem');
+            const builder = ConfigSystem.buildPlayerPhotoPickerPayload(link.selected_photo_key);
+            return await interaction.editReply(builder.build());
         }
 
         const arquivo = interaction.options.getAttachment('arquivo');

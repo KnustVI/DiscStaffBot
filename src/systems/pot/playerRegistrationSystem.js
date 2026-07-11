@@ -202,10 +202,12 @@ class PlayerRegistrationSystem {
 
     /**
      * Resolve os bytes da foto de fundo do card, em ordem de prioridade:
-     * foto personalizada (Raptor, via /perfil-edit) → banner do próprio
-     * Discord (só Raptor) → foto padrão do tier. Nunca guarda a URL de um
-     * anexo do Discord no banco (expira em ~24h) — só o ID da mensagem de
-     * armazenamento, resolvido de novo a cada /perfil.
+     * Raptor: foto personalizada (upload via /perfil-edit) → banner do
+     * próprio Discord → foto padrão do tier.
+     * Compy: foto escolhida num menu pré-definido (/perfil-edit,
+     * selected_photo_key) → foto padrão do tier.
+     * Nunca guarda a URL de um anexo do Discord no banco (expira em ~24h) —
+     * só o ID da mensagem de armazenamento, resolvido de novo a cada /perfil.
      */
     async _resolveCardPhotoBuffer(interaction, targetUser, player, playerTier) {
         if (playerTier === 'raptor') {
@@ -230,6 +232,15 @@ class PlayerRegistrationSystem {
                     const res = await fetch(url);
                     if (res.ok) return Buffer.from(await res.arrayBuffer());
                 }
+            } catch (err) {
+                // segue pro fallback padrão do tier
+            }
+        }
+
+        if (playerTier === 'compy' && player?.selected_photo_key && imageManager.hasImage(player.selected_photo_key)) {
+            try {
+                const localPath = imageManager.getPath(player.selected_photo_key);
+                if (localPath) return fs.readFileSync(localPath);
             } catch (err) {
                 // segue pro fallback padrão do tier
             }
