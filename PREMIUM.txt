@@ -1759,3 +1759,33 @@ frente, nao so este relatorio):
 - Verificado com script direto: true mostra shieldcheck, false mostra
   shieldban, ausente mostra "Não definido" - os 3 cenários batendo
   exatamente com o layout pedido.
+
+
+55) DESCRIÇÃO ABAIXO DE PERGUNTA EM MODAL (LabelBuilder) - modal de abrir report
+------------------------------------------------
+- Dono perguntou se dava pra adicionar uma descrição abaixo da pergunta
+  "Termo de boa convivência" no modal de abrir report, sem saber se
+  Discord/discord.js ainda suportava isso. CONFIRMADO: sim, e sem
+  precisar de upgrade nenhum - o discord.js já instalado (14.25.1) tem
+  `LabelBuilder` (Components V2 em modal, campo "description" próprio,
+  diferente de placeholder - não some quando o usuário começa a
+  digitar).
+- getOpenModal() (reportChatSystem.js) migrado inteiro de
+  ActionRowBuilder+TextInputBuilder pro padrão LabelBuilder
+  (`.setLabel()` + `.setTextInputComponent()`, e `.setDescription()` só
+  no campo que precisa) - os OUTROS 4 campos desse modal também
+  migrados (não só o "termo"), pra manter consistência dentro da MESMA
+  tela e evitar misturar o padrão antigo (ActionRow) com o novo (Label)
+  no mesmo modal. Outros modais do arquivo (fechar report, avaliação,
+  etc.) NÃO foram tocados - só o solicitado.
+  customId de cada campo (regra/data_hora/local/descricao/termo)
+  mantido idêntico - o handler de submit (interactionCreate.js, usa
+  `interaction.fields.getTextInputValue(...)`) resolve por customId
+  independente de estar dentro de ActionRow ou Label, sem precisar de
+  nenhuma mudança lá.
+- Verificado com script direto: modal inteiro construído e serializado
+  (.toJSON()) - os 5 campos saem como componente tipo 18 (Label), cada
+  um com seu TextInput (tipo 4) dentro, e SÓ o campo "termo" tem o
+  campo "description" preenchido com o texto pedido pelo dono; os
+  outros 4 não têm "description" nenhuma (comportamento idêntico ao
+  anterior pra eles, só mudou o campo que precisava).

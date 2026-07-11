@@ -1,14 +1,15 @@
 // /home/ubuntu/DiscStaffBot/src/systems/moderation/reportChatSystem.js
 const db = require('../../database/index');
 const ConfigSystem = require('../core/configSystem');
-const { 
-    ChannelType, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    ModalBuilder, 
-    TextInputBuilder, 
+const {
+    ChannelType,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ModalBuilder,
+    TextInputBuilder,
     TextInputStyle,
+    LabelBuilder,
     MessageFlags,
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
@@ -273,13 +274,31 @@ class ReportChatSystem {
     // ==================== MODAIS ====================
 
     getOpenModal() {
+        // Campos migrados de ActionRow+TextInput pra LabelBuilder (Components
+        // V2 em modal, suportado pelo discord.js já instalado — sem precisar
+        // de upgrade) só pro campo "termo" precisar de descrição visível
+        // abaixo da pergunta (setDescription, diferente de placeholder — não
+        // some quando o usuário começa a digitar). Os outros campos também
+        // migrados pro mesmo padrão por consistência dentro do modal (evita
+        // misturar ActionRow antigo com Label novo na mesma tela).
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('regra').setLabel('Qual a regra quebrada?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Regra 5 - Flood')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('data_hora').setLabel('Quando aconteceu?').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 09/04/2026 14:30')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('local').setLabel('Qual local do mapa?').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Floresta Central')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('descricao').setLabel('Descreva a quebra de regra').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Descreva detalhadamente...')),
-            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('termo').setLabel('Termo de boa convivência').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Declaro que as informações são verdadeiras...'))
+        modal.addLabelComponents(
+            new LabelBuilder()
+                .setLabel('Qual a regra quebrada?')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('regra').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Regra 5 - Flood')),
+            new LabelBuilder()
+                .setLabel('Quando aconteceu?')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('data_hora').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 09/04/2026 14:30')),
+            new LabelBuilder()
+                .setLabel('Qual local do mapa?')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('local').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Floresta Central')),
+            new LabelBuilder()
+                .setLabel('Descreva a quebra de regra')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('descricao').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Descreva detalhadamente...')),
+            new LabelBuilder()
+                .setLabel('Termo de boa convivência')
+                .setDescription('Você concorda em ser respeitoso ao usar essa ferramenta de report?')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('termo').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Declaro que as informações são verdadeiras...'))
         );
         return modal;
     }
