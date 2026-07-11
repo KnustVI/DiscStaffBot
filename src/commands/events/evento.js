@@ -90,17 +90,17 @@ module.exports = {
         const ConfigSystem = require('../../systems/core/configSystem');
 
         // ==================== PERMISSÃO: EQUIPE DE EVENTOS ====================
-        const eventRoleId = ConfigSystem.getSetting(guild.id, 'event_role');
-        if (!eventRoleId) {
+        const eventRoleIds = ConfigSystem.getRoleIds(guild.id, 'event_role');
+        if (eventRoleIds.length === 0) {
             return await ResponseManager.error(
                 interaction,
                 'O cargo da Equipe de Eventos ainda não foi configurado. Peça a um administrador para configurar em /config roles (aba Eventos) antes de criar eventos.'
             );
         }
-        if (!member.roles.cache.has(eventRoleId)) {
+        if (!ConfigSystem.memberHasConfiguredRole(guild.id, member, 'event_role')) {
             return await ResponseManager.error(
                 interaction,
-                `Você precisa do cargo <@&${eventRoleId}> (Equipe de Eventos) para usar este comando.`
+                `Você precisa de um dos cargos ${ConfigSystem.mentionRoles(guild.id, 'event_role')} (Equipe de Eventos) para usar este comando.`
             );
         }
 
@@ -224,7 +224,7 @@ module.exports = {
         // ==================== POSTAGEM NO FÓRUM ====================
         // Marcação do cargo de notificação também é 'Sistema médio/completo
         // de eventos' — não disponível no Free.
-        const notifyRoleId = eventTier !== 'basic' ? ConfigSystem.getSetting(guild.id, 'event_notify_role') : null;
+        const notifyRoleIds = eventTier !== 'basic' ? ConfigSystem.getRoleIds(guild.id, 'event_notify_role') : [];
 
         const postBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         // ── Só a imagem enviada pelo autor aparece na postagem — sem avatar
@@ -239,9 +239,9 @@ module.exports = {
         postBuilder.text(`${EMOJIS.calendardays || '📅'} **Data:** <t:${startTs}:F> (<t:${startTs}:R>)`);
         postBuilder.text(`${EMOJIS.mappin || '📍'} **Local:** ${localCanal ? localCanal.toString() : (localDescricao || 'Não informado')}`);
         postBuilder.text(`${EMOJIS.user || '👤'} **Organizado por:** ${user.toString()}`);
-        if (notifyRoleId) {
+        if (notifyRoleIds.length > 0) {
             postBuilder.separator();
-            postBuilder.text(`${EMOJIS.megaphone || '📣'} <@&${notifyRoleId}>`);
+            postBuilder.text(`${EMOJIS.megaphone || '📣'} ${notifyRoleIds.map(id => `<@&${id}>`).join(' ')}`);
         }
         postBuilder.footer(guild.name);
 
@@ -294,7 +294,7 @@ module.exports = {
                 `${EMOJIS.trianglealert || '⚠️'} **Lembrete:** quando a hora chegar, alguém do staff precisa **iniciar o evento manualmente** no Discord (clique no botão **Eventos** no canto superior esquerdo da barra de canais, abra o evento e clique em Iniciar). ` +
                 `Só assim o Discord notifica automaticamente quem clicou em "Me Interessa".`
             );
-            if (!notifyRoleId) {
+            if (notifyRoleIds.length === 0) {
                 summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config roles, aba Eventos) — ninguém foi marcado na postagem.`);
             }
         } else {

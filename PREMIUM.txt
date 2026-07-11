@@ -1931,3 +1931,114 @@ frente, nao so este relatorio):
 - Pendente (ambiente do dono, não deste código): rodar `node deploy.js`
   pra registrar a assinatura nova de `/historico` (agora com
   subcomandos) nos servidores em `GUILD_IDS`.
+
+
+58) CARGOS MULTI-VALOR EM /CONFIG ROLES + CHECAGEM DE CARGO NAS HORAS DE ESPECTADOR + PURGE AUTOMÁTICO + CANAL DE LOG "STAFF"
+------------------------------------------------
+- Dono perguntou como o sistema definia "staff" pra contar horas de modo
+  espectador (seção 57) — resposta: só confiava que o jogo só dispara
+  AdminSpectate pra admins, sem checar cargo NENHUM no Discord. Isso abriu
+  uma mudança grande: /config roles passa a aceitar VÁRIOS cargos por
+  categoria (não só 1), com limite por tier, e a contagem de espectador
+  passa a EXIGIR que o Alderon ID tenha, de verdade, um dos cargos de staff
+  no Discord (logo, o staff precisa estar registrado via /registrar).
+- Rename de exibição: cargo "Staff" (config-roles, aba Moderação) virou
+  "Moderador" — só o RÓTULO mostrado no painel, a chave interna
+  `staff_role` não mudou (evita qualquer migração de dado).
+- Armazenamento multi-valor: cada categoria (staff_role/supervisor_role/
+  event_role/event_notify_role) grava um ARRAY de IDs serializado em JSON
+  na MESMA chave de sempre, em vez de 1 ID cru — migração transparente via
+  `ConfigSystem.getRoleIds()` (um valor legado não-JSON vira array de 1
+  elemento automaticamente, sem script de migração). Cargos automáticos
+  (aba automod: strike/exemplar/problemático) continuam single-valor, só
+  moderação e eventos ganharam multi-valor.
+- Limite por tier (fácil de virar ilimitado no futuro — troca um valor
+  por `Infinity` em `premiumSystem.js`, sem mexer em mais nada):
+  - Free: 1 Moderador / 1 Supervisor / 1 Equipe de Eventos / 1 Notificação.
+  - Rastreador: 3 Moderador / 1 Supervisor / 3 Equipe de Eventos / 1 Notificação.
+  - Caçador: 5 Moderador / 5 Supervisor / 5 Equipe de Eventos / 5 Notificação.
+  Painel `/config roles` usa `RoleSelectMenuBuilder` com
+  `setMinValues(0)/setMaxValues(limite)/setDefaultRoles(...)`, mostra
+  "Atual (X/limite)" com todas as menções, e todo log de config-roles
+  agora lista TODOS os cargos antigos/novos, não só 1.
+- `event_notify_role` ("Notificação de Eventos") ficou de propósito FORA
+  de qualquer lógica de staff/analytics — dono confirmou que sua única
+  função é avisar quem tem interesse em eventos, é audiência, não staff.
+- 13 call sites em 9 arquivos (todos os que antes liam `getSetting(...
+  'staff_role')` + `.has(id)`) migrados pra `ConfigSystem.
+  memberHasConfiguredRole(guildId, member, key)` (permissão) e
+  `ConfigSystem.mentionRoles(guildId, key)` (menções em pings) —
+  messageCreat.js, reportarbug.js, historico.js, reportChatSystem.js (x2),
+  punishmentSystem.js (x3, inclui `memberHasSupervisorRole` e o ping de
+  aprovação de Supervisor), evento.js (x2), eventScheduler.js (x2).
+- Checagem de cargo pras horas de espectador: `AnalyticsSystem.
+  recordNametagSighting`/`closeSpectatorSession` viraram `async` e passam
+  a receber o `client` do bot — resolvem o Alderon ID pro Discord vinculado
+  (player_links) e só creditam contagem/sessão se esse Discord tiver, DE
+  VERDADE, um dos 3 cargos de staff (Moderador/Supervisor/Equipe de
+  Eventos) na guild. `closeSpectatorSession` SEMPRE apaga a sessão aberta
+  (evita registro órfão), mas só soma os segundos se o cargo ainda bater
+  na hora de fechar — cobre o caso de perder o cargo com a sessão aberta.
+  `gatewayServer.js` agora passa `this.client` e usa `await` nesses 2 hooks.
+- CORREÇÃO DE ESCOPO da seção 57 (decidido sem confirmar antes, corrigido
+  agora): a GRAVAÇÃO das métricas de staff (não só a exibição) também
+  virou Caçador-only. BUG REAL encontrado e corrigido durante os testes:
+  o gate só na função `_ensureRow` (que cria a linha do dia) não bastava —
+  se a linha JÁ EXISTIA (criada num dia em que o servidor era Caçador), o
+  UPDATE de cada `record*`/`add*` rodava incondicionalmente e continuava
+  incrementando um servidor já rebaixado. Corrigido adicionando o guard
+  `_isAnalyticsAllowed` no TOPO de cada método (recordReportJoin,
+  recordReportMessage, recordEventCreated, recordNametagToggle,
+  addSpectatorSeconds), não só dentro de `_ensureRow`. Importante: perder
+  o Caçador NUNCA apaga dado já gravado — só impede que ele CRESÇA mais,
+  confirmado com teste direto (grava com Caçador, rebaixa pra Free, dado
+  antigo continua intacto, chamada nova não incrementa).
+- Novo canal configurável em `/config logs`: **Staff** (`log_staff`) — 4º
+  canal, mesmo padrão dos outros 3 (`LOG_FIELDS`, `config-logs:staff`).
+  Passa a ser o destino de TUDO relacionado a staff: a análise diária que
+  antes ia pro canal Geral (`dailyAnalyticsJob.js` ajustado), o log de
+  ganho/perda de cargo, e o aviso de purge. Sem fallback pro canal Geral
+  se não configurado (mesmo comportamento já existente pros outros logs
+  específicos). Botão "Criar Canais Automaticamente" também ajustado de
+  3 pra 4 canais (`logs-staff` incluído).
+- Purge automático ao perder TODOS os cargos de staff: novo
+  `src/events/guildMemberUpdate.js` (não existia handler pra esse evento
+  antes) — compara cargos antigo/novo contra os 3 configurados
+  (Moderador/Supervisor/Equipe de Eventos, `ConfigSystem.
+  STAFF_ROLE_KEYS`); se sobrar pelo menos 1 desses 3, NADA acontece (dono
+  confirmou: só purga ao perder os 3 simultaneamente, não em qualquer
+  perda isolada). Ao perder o ÚLTIMO, `AnalyticsSystem.
+  purgeStaffOnRoleLoss(guild, user)`: apaga a sessão de espectador aberta
+  (sem creditar), manda um log final com a soma de todo o histórico pro
+  `log_staff` (se configurado, best-effort, INDEPENDENTE de tier — é
+  limpeza de dado ligada a perda de CARGO, não feature paga, dono
+  confirmou o escopo), e apaga as linhas de `staff_analytics` desse staff.
+  Escopo do purge CONFIRMADO com o dono: só `staff_analytics` — `punishments`/
+  `reports`/`report_messages` NUNCA são tocados (registro de auditoria
+  permanente, independente do staff que os gerou ainda existir ou não).
+  Log de ganho/perda de cargo (separado do log de despedida do purge) É
+  Caçador-only (`analyticsEnabled`), gated dentro do próprio
+  guildMemberUpdate.js.
+- Novo princípio adicionado ao CLAUDE.md ("Conventions for this repo"):
+  economia de espaço pra dado agregado/derivado (pode apagar quando deixa
+  de ser relevante), mas NUNCA pra registro de auditoria, e NUNCA por
+  causa de downgrade de tier (só por um fato concreto, como perda de cargo).
+- Verificado com 3 scripts diretos contra o banco real (guild/staff fake,
+  limpos antes/depois): (1) armazenamento multi-valor com migração
+  transparente de valor legado, `memberHasConfiguredRole`/`mentionRoles`
+  com member fake; (2) `getRoleLimit` batendo exatamente com a tabela
+  1/1/1/1, 3/1/3/1, 5/5/5/5 pros 3 tiers; (3) o BUG do gate incompleto
+  (acima) reproduzido e depois confirmado corrigido; (4) checagem de cargo
+  pras horas de espectador com client/guild/member mockados — com cargo
+  credita e abre sessão, sem cargo não credita nem abre sessão, perde o
+  cargo entre abrir e fechar não credita mas apaga a sessão, guild Free
+  bloqueia mesmo com cargo certo; (5) `purgeStaffOnRoleLoss` apagando
+  staff_analytics + mandando exatamente 1 log, confirmando que uma punição
+  de controle na tabela `punishments` NÃO foi tocada, e staff sem dado
+  nenhum sendo no-op sem log/erro; (6) `guildMemberUpdate.js` chamado
+  direto com oldMember/newMember fake nos 5 cenários: perde 1 de 2 cargos
+  rastreados (não purga, loga em Caçador), perde o último (purga), guild
+  Free não loga ganho/perda mas AINDA purga (com seu próprio log de
+  despedida, que é tier-independente), e mudança só em
+  event_notify_role não aciona nada. Todos os 15 módulos tocados
+  carregam sem erro de sintaxe.

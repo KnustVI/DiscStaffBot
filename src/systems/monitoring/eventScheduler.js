@@ -55,9 +55,9 @@ async function maybeSendStartReminder(guild, event, startAt, now) {
 
     try {
         const ConfigSystem = require('../core/configSystem');
-        const eventRoleId = ConfigSystem.getSetting(guild.id, 'event_role');
+        const eventRoleIds = ConfigSystem.getRoleIds(guild.id, 'event_role');
         const logChannelId = ConfigSystem.getUnifiedGeneralLogChannel(guild.id);
-        if (!eventRoleId || !logChannelId) return; // não configurado — sem aviso
+        if (eventRoleIds.length === 0 || !logChannelId) return; // não configurado — sem aviso
 
         const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
         if (!logChannel) return;
@@ -65,7 +65,7 @@ async function maybeSendStartReminder(guild, event, startAt, now) {
         const startTs = Math.floor(startAt / 1000);
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.text(`# ${EMOJIS.clockalert || '⏰'} EVENTO COMEÇANDO EM BREVE`);
-        builder.text(`<@&${eventRoleId}> o evento **${event.name}** começa em cerca de 30 minutos!`);
+        builder.text(`${ConfigSystem.mentionRoles(guild.id, 'event_role')} o evento **${event.name}** começa em cerca de 30 minutos!`);
         builder.separator();
         builder.text(`${EMOJIS.calendardays || '📅'} **Início:** <t:${startTs}:F> (<t:${startTs}:R>)`);
         builder.text(`${EMOJIS.wifi || '🔗'} **Evento:** ${event.url}`);

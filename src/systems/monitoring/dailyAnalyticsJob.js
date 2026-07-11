@@ -2,7 +2,7 @@
 /**
  * Envia diariamente a análise resumida de staff (punições, reports,
  * eventos, modo espectador — ver analyticsSystem.js) pro canal de logs
- * gerais (config-log → log_channel) de cada guild. Restrito a servidores
+ * de staff (config-logs → log_staff) de cada guild. Restrito a servidores
  * tier Caçador (pedido do dono — ver premiumSystem.js analyticsEnabled).
  */
 const cron = require('node-cron');
@@ -25,7 +25,7 @@ function startDailyAnalyticsJob(client) {
             try {
                 if (!PremiumSystem.getGuildLimits(guild.id).analyticsEnabled) continue;
 
-                const logChannelId = ConfigSystem.getSetting(guild.id, 'log_channel');
+                const logChannelId = ConfigSystem.getSetting(guild.id, 'log_staff');
                 if (!logChannelId) continue;
 
                 const rows = AnalyticsSystem.getGuildDailySummary(guild.id, date);

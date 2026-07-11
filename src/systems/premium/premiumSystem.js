@@ -41,6 +41,12 @@ const GUILD_LIMITS = {
         eventTier: 'basic',
         maxPunishmentLevels: 0,
         damageReportEnabled: false,
+        // Quantos cargos cada categoria de /config roles aceita (moderação/
+        // eventos) — ver configSystem.js ROLE_TABS[*].fields[*].roleLimitKey.
+        // Pra tornar uma categoria ilimitada no futuro, basta trocar o valor
+        // por Infinity aqui — o painel já limita a UI em 25 (teto do próprio
+        // RoleSelectMenu do Discord), sem precisar mudar código nenhum.
+        roleLimits: { moderador: 1, supervisor: 1, event: 1, eventNotify: 1 },
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
@@ -50,6 +56,7 @@ const GUILD_LIMITS = {
         eventTier: 'medium',
         maxPunishmentLevels: 4,
         damageReportEnabled: true,
+        roleLimits: { moderador: 3, supervisor: 1, event: 3, eventNotify: 1 },
     },
     cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
@@ -59,6 +66,7 @@ const GUILD_LIMITS = {
         eventTier: 'full',
         maxPunishmentLevels: 10,
         damageReportEnabled: true,
+        roleLimits: { moderador: 5, supervisor: 5, event: 5, eventNotify: 5 },
     },
 };
 
@@ -100,6 +108,15 @@ function isGuildAtLeast(guildId, tier) {
 
 function getGuildLimits(guildId) {
     return GUILD_LIMITS[getGuildTier(guildId)];
+}
+
+/**
+ * Limite de cargos configuráveis por categoria em /config roles
+ * ('moderador'|'supervisor'|'event'|'eventNotify' — ver configSystem.js
+ * ROLE_TABS). 1 se a categoria não existir no tier atual (defensivo).
+ */
+function getRoleLimit(guildId, categoryKey) {
+    return getGuildLimits(guildId).roleLimits?.[categoryKey] ?? 1;
 }
 
 /**
@@ -192,6 +209,7 @@ module.exports = {
     isPlayerAtLeast,
     isGuildAtLeast,
     getGuildLimits,
+    getRoleLimit,
     getGuildDenialMessage,
     grantPlayerPremium,
     grantGuildPremium,

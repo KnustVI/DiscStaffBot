@@ -20,11 +20,10 @@ module.exports = {
         
         if (!report) return;
         
-        const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
         const member = await guild.members.fetch(message.author.id).catch(() => null);
         if (!member) return;
-        
-        const isStaff = staffRoleId && member.roles.cache.has(staffRoleId);
+
+        const isStaff = ConfigSystem.memberHasConfiguredRole(guild.id, member, 'staff_role');
         const now = Date.now();
         
         // Determinar o novo status baseado em quem respondeu

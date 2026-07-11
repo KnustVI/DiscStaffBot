@@ -96,7 +96,6 @@ module.exports = {
             db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
 
             const ConfigSystem = require('../../systems/core/configSystem');
-            const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
 
             // ── Monta TODAS as páginas de uma vez (igual ao /ajuda) ─────────────
             const { pages, totalPages, totalRecords, reputation } =
@@ -108,7 +107,7 @@ module.exports = {
                 hasRecords: totalRecords > 0,
             });
 
-            if (staffRoleId && interaction.member.roles.cache.has(staffRoleId)) {
+            if (ConfigSystem.memberHasConfiguredRole(guildId, interaction.member, 'staff_role')) {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
 

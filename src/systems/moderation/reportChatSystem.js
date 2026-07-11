@@ -712,8 +712,7 @@ class ReportChatSystem {
         const { guild, user, member } = interaction;
         
         try {
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            if (!member?.roles?.cache?.has(staffRoleId)) {
+            if (!ConfigSystem.memberHasConfiguredRole(guild.id, member, 'staff_role')) {
                 await this.sendTempReply(interaction, `Você não tem permissão para entrar em reports.`, false);
                 return;
             }
@@ -808,8 +807,7 @@ class ReportChatSystem {
                 return;
             }
 
-            const staffRoleId = ConfigSystem.getSetting(guild.id, 'staff_role');
-            const isStaff = interaction.member?.roles?.cache?.has(staffRoleId);
+            const isStaff = ConfigSystem.memberHasConfiguredRole(guild.id, interaction.member, 'staff_role');
             const closedByMention = interaction.user.toString();
             const status = hasReason ? 'closed_with_reason' : 'closed_no_reason';
             const closedAt = Date.now();

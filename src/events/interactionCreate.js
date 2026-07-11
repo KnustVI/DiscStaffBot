@@ -225,14 +225,15 @@ module.exports = {
             }
             if (interaction.customId === 'config-punishments:limites:modal') { await ConfigSystem.handleLimitesModal(interaction); return; }
             if (interaction.customId === 'config-punishments:reset') { await ConfigSystem.resetPoints(interaction); return; }
-            if (interaction.customId === 'config-roles:staff') { await ConfigSystem.setRole(interaction, 'staff_role'); return; }
-            if (interaction.customId === 'config-roles:strike') { await ConfigSystem.setRole(interaction, 'strike_role'); return; }
-            if (interaction.customId === 'config-roles:exemplar') { await ConfigSystem.setRole(interaction, 'role_exemplar'); return; }
-            if (interaction.customId === 'config-roles:problematico') { await ConfigSystem.setRole(interaction, 'role_problematico'); return; }
+            if (interaction.customId === 'config-roles:staff') { await ConfigSystem.setRoles(interaction, 'staff_role'); return; }
+            if (interaction.customId === 'config-roles:strike') { await ConfigSystem.setRoles(interaction, 'strike_role'); return; }
+            if (interaction.customId === 'config-roles:exemplar') { await ConfigSystem.setRoles(interaction, 'role_exemplar'); return; }
+            if (interaction.customId === 'config-roles:problematico') { await ConfigSystem.setRoles(interaction, 'role_problematico'); return; }
             if (interaction.customId === 'config-logs:geral') { await ConfigSystem.setLogChannel(interaction, 'log_channel'); return; }
             if (interaction.customId === 'config-logs:punishments') { await ConfigSystem.setLogChannel(interaction, 'log_punishments'); return; }
             if (interaction.customId === 'config-logs:automod') { await ConfigSystem.setLogChannel(interaction, 'log_automod'); return; }
             if (interaction.customId === 'config-logs:reports') { await ConfigSystem.setLogChannel(interaction, 'log_reports'); return; }
+            if (interaction.customId === 'config-logs:staff') { await ConfigSystem.setLogChannel(interaction, 'log_staff'); return; }
             if (interaction.customId === 'config-logs:criar') { await ConfigSystem.confirmCreateLogChannels(interaction); return; }
             if (interaction.customId === 'config-punishments:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
             if (interaction.customId === 'config-reportchat:message:modal') { await ConfigSystem.handleReportChatMessageModal(interaction); return; }

@@ -19,9 +19,23 @@ class AnalyticsSystem {
         return `${year}-${month}-${day}`;
     }
 
+    // Qualquer PARTE do sistema de analytics de staff (gravação inclusa, não
+    // só exibição) é Caçador-only — pedido do dono. Se o servidor perder o
+    // Caçador depois, os dados JÁ GRAVADOS não são apagados (ver purge em
+    // guildMemberUpdate.js, que é sobre perder CARGO, não sobre perder tier)
+    // — eles só param de crescer até o servidor voltar a ser Caçador.
+    static _isAnalyticsAllowed(guildId) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        return PremiumSystem.getGuildLimits(guildId).analyticsEnabled;
+    }
+
     // Garante que exista uma linha do dia pra esse staff antes de qualquer
-    // UPDATE incremental abaixo — UPDATE sozinho não cria linha nova.
+    // UPDATE incremental abaixo — UPDATE sozinho não cria linha nova. Ponto
+    // único de gate Caçador-only pra TODOS os record*/add* abaixo (todos
+    // chamam _ensureRow primeiro) — sem gate aqui, nenhuma linha nova é
+    // criada e o UPDATE seguinte de cada método vira um no-op inofensivo.
     static _ensureRow(guildId, userId, date) {
+        if (!this._isAnalyticsAllowed(guildId)) return;
         db.prepare(`
             INSERT INTO staff_analytics (guild_id, user_id, period, date, updated_at)
             VALUES (?, ?, 'day', ?, ?)
@@ -32,7 +46,14 @@ class AnalyticsSystem {
     // ==================== NOVAS MÉTRICAS (incrementais, chamadas pelos hooks) ====================
 
     // Staff entrou (assumiu) num report — ver reportChatSystem.js joinReport().
+    //
+    // IMPORTANTE: o gate Caçador-only de _ensureRow só evita CRIAR uma linha
+    // nova — se a linha já existir (criada num dia em que o servidor ERA
+    // Caçador), o UPDATE abaixo rodaria incondicionalmente e continuaria
+    // incrementando um servidor já rebaixado. Por isso todo record*/add*
+    // também checa _isAnalyticsAllowed no próprio topo, não só via _ensureRow.
     static recordReportJoin(guildId, userId, date = null) {
+        if (!this._isAnalyticsAllowed(guildId)) return;
         const targetDate = date || this.getLocalDate();
         this._ensureRow(guildId, userId, targetDate);
         db.prepare(`
@@ -47,6 +68,7 @@ class AnalyticsSystem {
     // pra comparar (não deveria acontecer, created_at sempre existe, mas
     // fica defensivo).
     static recordReportMessage(guildId, userId, responseSeconds = null, date = null) {
+        if (!this._isAnalyticsAllowed(guildId)) return;
         const targetDate = date || this.getLocalDate();
         this._ensureRow(guildId, userId, targetDate);
         const hasResponse = Number.isFinite(responseSeconds) && responseSeconds >= 0;
@@ -62,6 +84,7 @@ class AnalyticsSystem {
 
     // Staff criou um evento — ver commands/events/evento.js.
     static recordEventCreated(guildId, userId, date = null) {
+        if (!this._isAnalyticsAllowed(guildId)) return;
         const targetDate = date || this.getLocalDate();
         this._ensureRow(guildId, userId, targetDate);
         db.prepare(`
@@ -71,6 +94,7 @@ class AnalyticsSystem {
     }
 
     static recordNametagToggle(guildId, userId, isSpectating, date = null) {
+        if (!this._isAnalyticsAllowed(guildId)) return;
         const targetDate = date || this.getLocalDate();
         this._ensureRow(guildId, userId, targetDate);
         const column = isSpectating ? 'nametag_toggles_spectating' : 'nametag_toggles_not_spectating';
@@ -82,6 +106,7 @@ class AnalyticsSystem {
 
     static addSpectatorSeconds(guildId, userId, seconds, date = null) {
         if (!Number.isFinite(seconds) || seconds <= 0) return;
+        if (!this._isAnalyticsAllowed(guildId)) return;
         const targetDate = date || this.getLocalDate();
         this._ensureRow(guildId, userId, targetDate);
         db.prepare(`
@@ -90,22 +115,49 @@ class AnalyticsSystem {
         `).run(Math.round(seconds), Date.now(), guildId, userId, targetDate);
     }
 
+    // Resolve o Discord vinculado a um AlderonId (player_links) e confirma
+    // que ele REALMENTE tem, no Discord, um dos 3 cargos que contam como
+    // staff (Moderador/Supervisor/Equipe de Eventos — ver
+    // ConfigSystem.memberHasAnyStaffRole). Precisa do client pra buscar o
+    // GuildMember (cache primeiro, fetch só se necessário). Retorna null se
+    // não houver vínculo, membro não encontrado, ou cargo não bater.
+    static async _resolveTrackedStaffMember(client, guildId, alderonId) {
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const linked = PlayerRegistry.getPlayerByAlderonId(alderonId);
+        if (!linked?.user_id) return null;
+
+        const guild = client?.guilds?.cache?.get(guildId);
+        if (!guild) return null;
+
+        const member = guild.members.cache.get(linked.user_id)
+            || await guild.members.fetch(linked.user_id).catch(() => null);
+        if (!member) return null;
+
+        const ConfigSystem = require('../core/configSystem');
+        if (!ConfigSystem.memberHasAnyStaffRole(guildId, member)) return null;
+
+        return member;
+    }
+
     // ── Nametag/modo espectador (evento AdminSpectate) ──────────────────────
-    // Resolve o Alderon ID pro Discord vinculado (PlayerRegistry) e credita a
-    // contagem de nametag com/sem espectador. Quando bSpectatorMode=true e
+    // Só credita contagem/abre sessão se (a) o servidor for tier Caçador e
+    // (b) o AlderonId que ativou/desativou o nametag tiver, DE VERDADE, um
+    // dos cargos de staff no Discord — pedido do dono, fecha a brecha de
+    // confiar só na permissão do próprio jogo. Quando bSpectatorMode=true e
     // ainda não há sessão aberta pra esse admin, abre uma (INSERT OR IGNORE —
     // se já existir uma sessão aberta, o avistamento seguinte não reseta o
-    // horário de início). Sem vínculo Discord, não há quem creditar — no-op
+    // horário de início). Sem vínculo/cargo, não há quem creditar — no-op
     // silencioso (mesmo padrão de graceful-degradation usado no resto da
     // integração PoT).
-    static recordNametagSighting(guildId, alderonId, isSpectating) {
+    static async recordNametagSighting(client, guildId, alderonId, isSpectating) {
         if (!guildId || !alderonId) return;
         try {
-            const PlayerRegistry = require('../pot/potPlayerRegistry');
-            const linked = PlayerRegistry.getPlayerByAlderonId(alderonId);
-            if (linked?.user_id) {
-                this.recordNametagToggle(guildId, linked.user_id, isSpectating);
-            }
+            if (!this._isAnalyticsAllowed(guildId)) return;
+
+            const member = await this._resolveTrackedStaffMember(client, guildId, alderonId);
+            if (!member) return;
+
+            this.recordNametagToggle(guildId, member.id, isSpectating);
 
             if (isSpectating) {
                 db.prepare(`
@@ -120,9 +172,11 @@ class AnalyticsSystem {
 
     // Fecha a sessão de espectador aberta desse Alderon ID (se houver) —
     // chamado no PlayerRespawn, que indica que o admin voltou a jogar um
-    // dinossauro (saiu do modo espectador). Soma o tempo decorrido em
-    // spectator_seconds do staff vinculado.
-    static closeSpectatorSession(guildId, alderonId) {
+    // dinossauro (saiu do modo espectador). A sessão é SEMPRE apagada (evita
+    // registro órfão), mas os segundos só são somados em staff_analytics se
+    // o tier/cargo ainda baterem NA HORA do fechamento (podem ter mudado
+    // enquanto a sessão estava aberta).
+    static async closeSpectatorSession(client, guildId, alderonId) {
         if (!guildId || !alderonId) return;
         try {
             const session = db.prepare(`
@@ -132,20 +186,22 @@ class AnalyticsSystem {
 
             db.prepare(`DELETE FROM pot_spectator_sessions WHERE guild_id = ? AND alderon_id = ?`).run(guildId, alderonId);
 
-            const PlayerRegistry = require('../pot/potPlayerRegistry');
-            const linked = PlayerRegistry.getPlayerByAlderonId(alderonId);
-            if (!linked?.user_id) return;
+            if (!this._isAnalyticsAllowed(guildId)) return;
+
+            const member = await this._resolveTrackedStaffMember(client, guildId, alderonId);
+            if (!member) return;
 
             const elapsedSeconds = (Date.now() - session.started_at) / 1000;
-            this.addSpectatorSeconds(guildId, linked.user_id, elapsedSeconds);
+            this.addSpectatorSeconds(guildId, member.id, elapsedSeconds);
         } catch (err) {
             console.error('❌ [Analytics] Erro ao fechar sessão de espectador:', err.message);
         }
     }
 
     static async updateStaffAnalytics(guildId, userId, date = null) {
+        if (!this._isAnalyticsAllowed(guildId)) return null;
         const targetDate = date || this.getLocalDate();
-        
+
         const punishmentsApplied = db.prepare(`
             SELECT COUNT(*) as count FROM punishments 
             WHERE guild_id = ? AND moderator_id = ? 
@@ -495,6 +551,51 @@ class AnalyticsSystem {
 
         builder.footer(guild.name, 'Soma de todo o histórico');
         return builder;
+    }
+
+    // ==================== PURGE AO PERDER TODOS OS CARGOS DE STAFF ====================
+
+    // Chamado por guildMemberUpdate.js quando um membro tinha pelo menos 1
+    // dos 3 cargos de staff (Moderador/Supervisor/Equipe de Eventos) e ficou
+    // sem NENHUM deles. Independente de tier — isso é limpeza de dado ligada
+    // a PERDA DE CARGO (fato do Discord), não uma feature paga; "economia de
+    // espaço" (ver CLAUDE.md) sempre se aplica aqui, mesmo que o servidor
+    // tenha perdido o Caçador (nesse caso já não havia dado novo sendo
+    // gravado mesmo, ver _isAnalyticsAllowed).
+    static async purgeStaffOnRoleLoss(guild, user) {
+        try {
+            const PlayerRegistry = require('../pot/potPlayerRegistry');
+            const linked = PlayerRegistry.getPlayerByDiscordId(user.id);
+            if (linked?.alderon_id) {
+                // Perdeu o cargo — não é mais staff, descarta qualquer sessão
+                // de espectador aberta sem creditar o tempo.
+                db.prepare(`DELETE FROM pot_spectator_sessions WHERE guild_id = ? AND alderon_id = ?`).run(guild.id, linked.alderon_id);
+            }
+
+            const totals = this.getStaffHistoryTotals(guild.id, user.id);
+            if (!totals) return; // nunca teve nenhum dado registrado, nada a apagar/logar
+
+            const ConfigSystem = require('../core/configSystem');
+            const logChannelId = ConfigSystem.getSetting(guild.id, 'log_staff');
+            if (logChannelId) {
+                const channel = await guild.channels.fetch(logChannelId).catch(() => null);
+                if (channel) {
+                    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+                    builder.title(`${EMOJIS.shieldban || '🛡️'} Staff perdeu o cargo`, 1);
+                    builder.text(`${user} perdeu todos os cargos de staff configurados (Moderador/Supervisor/Equipe de Eventos) — o histórico abaixo foi apagado e não aparece mais no \`/historico staff\`.`);
+                    builder.separator();
+                    builder.text(this._formatStaffBlock(totals));
+                    builder.footer(guild.name, 'Registro final antes da exclusão dos dados');
+                    await channel.send(builder.build()).catch(() => {});
+                }
+            }
+
+            // Sempre apaga, independente do log ter sido enviado — economia
+            // de espaço não pode depender de o canal estar configurado.
+            db.prepare(`DELETE FROM staff_analytics WHERE guild_id = ? AND user_id = ?`).run(guild.id, user.id);
+        } catch (err) {
+            console.error('❌ [Analytics] Erro ao purgar staff que perdeu o cargo:', err.message);
+        }
     }
 }
 

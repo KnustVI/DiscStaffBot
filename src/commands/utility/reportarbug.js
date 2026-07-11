@@ -127,8 +127,7 @@ module.exports = {
             });
             
             const ConfigSystem = require('../../systems/core/configSystem');
-            const staffRoleId = ConfigSystem.getSetting(guildId, 'staff_role');
-            if (staffRoleId && member.roles.cache.has(staffRoleId)) {
+            if (ConfigSystem.memberHasConfiguredRole(guildId, member, 'staff_role')) {
                 const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }

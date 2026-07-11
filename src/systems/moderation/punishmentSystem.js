@@ -586,9 +586,7 @@ const PunishmentSystem = {
     async memberHasSupervisorRole(guild, member) {
         if (!member) return false;
         const ConfigSystem = require('../core/configSystem');
-        const supervisorRoleId = ConfigSystem.getSetting(guild.id, 'supervisor_role');
-        if (!supervisorRoleId) return false;
-        return member.roles?.cache?.has(supervisorRoleId) || false;
+        return ConfigSystem.memberHasConfiguredRole(guild.id, member, 'supervisor_role');
     },
 
     /**
@@ -606,10 +604,10 @@ const PunishmentSystem = {
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-        const supervisorRoleId = ConfigSystem.getSetting(guild.id, 'supervisor_role');
+        const supervisorRoleIds = ConfigSystem.getRoleIds(guild.id, 'supervisor_role');
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
 
-        if (!supervisorRoleId || !logChannelId) {
+        if (supervisorRoleIds.length === 0 || !logChannelId) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Esta punição é severa e precisa de aprovação de um Supervisor, mas o cargo Supervisor e/ou o canal de log de punições ainda não foram configurados (${EMOJIS.gavel || '⚖️'} veja /config roles e /config logs). Peça a um administrador para configurar antes de tentar novamente.`,
                 COLORS.ERROR, guild.name,
@@ -638,7 +636,7 @@ const PunishmentSystem = {
         approvalBuilder.section(
             [
                 '# APROVAÇÃO NECESSÁRIA: PUNIÇÃO SEVERA',
-                `<@&${supervisorRoleId}> um Staff solicitou uma punição de nível **${severityLabel}**, que precisa de aprovação antes de ser aplicada.`,
+                `${ConfigSystem.mentionRoles(guild.id, 'supervisor_role')} um Staff solicitou uma punição de nível **${severityLabel}**, que precisa de aprovação antes de ser aplicada.`,
             ].join('\n'),
             targetUser ? AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 128 })) : null,
         );

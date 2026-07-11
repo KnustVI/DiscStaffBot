@@ -68,14 +68,16 @@ const ROLE_TABS = {
         headerDesc: 'Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas.',
         fields: [
             {
-                key: 'staff_role', icon: 'shield', label: 'Staff (obrigatório)',
-                desc: 'Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem esse cargo configurado, a staff não consegue usar o sistema.',
+                key: 'staff_role', icon: 'shield', label: 'Moderador (obrigatório)',
+                desc: 'Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema. Também conta como staff para a checagem de horas em modo espectador (analytics, plano Caçador).',
                 customId: 'config-roles:staff',
+                roleLimitKey: 'moderador',
             },
             {
                 key: 'supervisor_role', icon: 'shieldban', label: 'Supervisor',
-                desc: 'Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.',
+                desc: 'Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado. Também conta como staff para horas em modo espectador (analytics, plano Caçador).',
                 customId: 'config-roles:supervisor',
+                roleLimitKey: 'supervisor',
             },
         ],
     },
@@ -87,17 +89,25 @@ const ROLE_TABS = {
         fields: [
             {
                 key: 'event_role', icon: 'calendardays', label: 'Equipe de Eventos',
-                desc: 'Permite usar o comando /evento para criar e publicar eventos da comunidade.',
+                desc: 'Permite usar o comando /evento para criar e publicar eventos da comunidade. Também conta como staff para horas em modo espectador (analytics, plano Caçador).',
                 customId: 'config-roles:event',
+                roleLimitKey: 'event',
             },
             {
                 key: 'event_notify_role', icon: 'megaphone', label: 'Notificação de Eventos',
-                desc: 'Marcado automaticamente na postagem do fórum sempre que um novo evento é publicado, para avisar quem tem interesse. Não precisa ter permissão nenhuma, é só um cargo de avisos.',
+                desc: 'Marcado automaticamente na postagem do fórum sempre que um novo evento é publicado, para avisar quem tem interesse. Não precisa ter permissão nenhuma, é só um cargo de avisos — NÃO conta como staff (fica de fora do sistema de analytics/purge).',
                 customId: 'config-roles:event-notify',
+                roleLimitKey: 'eventNotify',
             },
         ],
     },
 };
+
+// Chaves de cargo que contam como "staff" pra fins de analytics (horas de
+// espectador, log de ganho/perda de cargo, purge de histórico ao ficar sem
+// nenhum deles) — ver guildMemberUpdate.js e analyticsSystem.js.
+// event_notify_role fica de fora de propósito: é só um cargo de avisos.
+const STAFF_ROLE_KEYS = ['staff_role', 'supervisor_role', 'event_role'];
 
 const ROLE_LABELS = Object.fromEntries(
     Object.values(ROLE_TABS).flatMap(tab => tab.fields.map(f => [f.key, f.label])),
@@ -123,6 +133,11 @@ const LOG_FIELDS = [
         key: 'log_reports', icon: 'ticket', label: 'ReportChat',
         desc: 'Recebe logs de reports feitos pelos usuários. É onde fica o painel de atendimento dos staffs.',
         customId: 'config-logs:reports',
+    },
+    {
+        key: 'log_staff', icon: 'shield', label: 'Staff',
+        desc: 'Recebe tudo relacionado à equipe: ganho/perda dos cargos de staff (Moderador/Supervisor/Equipe de Eventos), aviso quando um staff perde o histórico por ficar sem nenhum desses cargos, e a análise diária de staff (plano Caçador).',
+        customId: 'config-logs:staff',
     },
 ];
 
@@ -152,6 +167,8 @@ const REPORT_CHAT_BANNER_OPTIONS = [
 ];
 
 const ConfigSystem = {
+    STAFF_ROLE_KEYS,
+
     getSetting(guildId, key) {
         try {
             const cacheKey = `${guildId}_${key}`;
@@ -170,9 +187,9 @@ const ConfigSystem = {
         try {
             const finalValue = value?.toString() || null;
             db.prepare(`
-                INSERT INTO settings (guild_id, key, value) 
+                INSERT INTO settings (guild_id, key, value)
                 VALUES (?, ?, ?)
-                ON CONFLICT(guild_id, key) 
+                ON CONFLICT(guild_id, key)
                 DO UPDATE SET value = excluded.value
             `).run(guildId, key, finalValue);
             cache.set(`${guildId}_${key}`, finalValue);
@@ -181,6 +198,50 @@ const ConfigSystem = {
             console.error(`❌ Erro ao salvar configuração ${key}:`, error);
             return false;
         }
+    },
+
+    /**
+     * Cargos de config-roles agora suportam múltiplos IDs por categoria
+     * (moderação/eventos — ver ROLE_TABS). O valor é gravado na MESMA chave
+     * de settings de sempre, só que como um array serializado em JSON, em
+     * vez de um único ID cru — migração transparente: um valor antigo
+     * (ID cru, não-JSON) é lido como array de 1 elemento, sem precisar de
+     * script de migração nenhum.
+     */
+    getRoleIds(guildId, key) {
+        const raw = this.getSetting(guildId, key);
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+        } catch (err) {
+            // Valor antigo era um ID de cargo cru (não-JSON) — cai no fallback abaixo.
+        }
+        return [raw];
+    },
+
+    setRoleIds(guildId, key, roleIds) {
+        return this.setSetting(guildId, key, JSON.stringify(roleIds));
+    },
+
+    memberHasConfiguredRole(guildId, member, key) {
+        const ids = this.getRoleIds(guildId, key);
+        return ids.length > 0 && ids.some(id => member?.roles?.cache?.has(id));
+    },
+
+    mentionRoles(guildId, key) {
+        const ids = this.getRoleIds(guildId, key);
+        return ids.length > 0 ? ids.map(id => `<@&${id}>`).join(' ') : 'nenhum cargo configurado';
+    },
+
+    /**
+     * True se o membro tem QUALQUER um dos 3 cargos que contam como staff
+     * pra fins de analytics (Moderador/Supervisor/Equipe de Eventos — ver
+     * STAFF_ROLE_KEYS). Usado pela checagem de horas de espectador e pelo
+     * gatilho de purge em guildMemberUpdate.js.
+     */
+    memberHasAnyStaffRole(guildId, member) {
+        return STAFF_ROLE_KEYS.some(key => this.memberHasConfiguredRole(guildId, member, key));
     },
 
     /**
@@ -275,31 +336,31 @@ const ConfigSystem = {
                 return;
             }
             if (customId === 'config-roles:staff') {
-                await this.setRole(interaction, 'staff_role');
+                await this.setRoles(interaction, 'staff_role');
                 return;
             }
             if (customId === 'config-roles:strike') {
-                await this.setRole(interaction, 'strike_role');
+                await this.setRoles(interaction, 'strike_role');
                 return;
             }
             if (customId === 'config-roles:exemplar') {
-                await this.setRole(interaction, 'role_exemplar');
+                await this.setRoles(interaction, 'role_exemplar');
                 return;
             }
             if (customId === 'config-roles:problematico') {
-                await this.setRole(interaction, 'role_problematico');
+                await this.setRoles(interaction, 'role_problematico');
                 return;
             }
             if (customId === 'config-roles:supervisor') {
-                await this.setRole(interaction, 'supervisor_role');
+                await this.setRoles(interaction, 'supervisor_role');
                 return;
             }
             if (customId === 'config-roles:event') {
-                await this.setRole(interaction, 'event_role');
+                await this.setRoles(interaction, 'event_role');
                 return;
             }
             if (customId === 'config-roles:event-notify') {
-                await this.setRole(interaction, 'event_notify_role');
+                await this.setRoles(interaction, 'event_notify_role');
                 return;
             }
             if (customId.startsWith('config-roles:tab:')) {
@@ -318,6 +379,10 @@ const ConfigSystem = {
             }
             if (customId === 'config-logs:reports') {
                 await this.setLogChannel(interaction, 'log_reports');
+                return;
+            }
+            if (customId === 'config-logs:staff') {
+                await this.setLogChannel(interaction, 'log_staff');
                 return;
             }
             if (customId === 'config-logs:criar') {
@@ -772,10 +837,7 @@ const ConfigSystem = {
         const guildId = interaction.guildId;
         const tabKey = ROLE_TABS[tab] ? tab : 'moderation';
         const tabData = ROLE_TABS[tabKey];
-
-        const fmt = (roleId) => roleId
-            ? `<@&${roleId}>`
-            : `${EMOJIS.circlealert || '❌'} Não definido`;
+        const PremiumSystem = require('../premium/premiumSystem');
 
         const rolesBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         rolesBuilder.section(
@@ -792,18 +854,30 @@ const ConfigSystem = {
             rolesBuilder.text(
                 `${EMOJIS.messagesquare || 'ℹ️'} **Importante:** os cargos abaixo precisam estar configurados para os comandos correspondentes funcionarem. ` +
                 `Eles servem **apenas** para o bot saber quem pode usar cada comando — não precisam ser (nem representar) um cargo "oficial" do servidor. ` +
-                `Você pode escolher **qualquer** cargo já existente, ou criar um novo específico só para isso: é 100% customizável.`
+                `Você pode escolher **até o limite do seu plano** (veja abaixo de cada campo), com \`/premium\` pra aumentar esse limite.`
             );
         }
         rolesBuilder.separator();
 
         for (const field of tabData.fields) {
-            const currentId = this.getSetting(guildId, field.key);
+            const currentIds = this.getRoleIds(guildId, field.key);
+            const limit = field.roleLimitKey ? PremiumSystem.getRoleLimit(guildId, field.roleLimitKey) : 1;
+            const maxValues = Math.max(1, Math.min(limit, 25)); // 25 = teto do próprio RoleSelectMenu do Discord
+
+            const currentText = currentIds.length > 0 ? this.mentionRoles(guildId, field.key) : `${EMOJIS.circlealert || '❌'} Não definido`;
+
             rolesBuilder.text(`**${EMOJIS[field.icon] || ''} ${field.label}** — ${field.desc}`);
-            rolesBuilder.text(`${EMOJIS.gauge || '📊'} **Atual:** ${fmt(currentId)}`);
-            rolesBuilder.selectMenu(
-                new RoleSelectMenuBuilder().setCustomId(field.customId).setPlaceholder(`Selecionar cargo: ${field.label}`)
-            );
+            rolesBuilder.text(`${EMOJIS.gauge || '📊'} **Atual (${currentIds.length}/${limit === Infinity ? '∞' : limit}):** ${currentText}`);
+
+            const select = new RoleSelectMenuBuilder()
+                .setCustomId(field.customId)
+                .setPlaceholder(`Selecionar cargo(s): ${field.label}`)
+                .setMinValues(0)
+                .setMaxValues(maxValues);
+            if (currentIds.length > 0) {
+                select.setDefaultRoles(currentIds.slice(0, maxValues));
+            }
+            rolesBuilder.selectMenu(select);
             rolesBuilder.separator();
         }
 
@@ -838,26 +912,29 @@ const ConfigSystem = {
         }
     },
 
-    async setRole(interaction, roleKey) {
-        const selectedRoleId = interaction.values[0];
-        if (!selectedRoleId) {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Nenhum cargo selecionado.`);
-        }
+    async setRoles(interaction, roleKey) {
+        // interaction.values já vem limitado pelo maxValues do próprio
+        // select (definido no painel a partir do limite do tier) — o slice
+        // aqui é só uma defesa extra caso o tier tenha sido rebaixado entre
+        // o painel ser montado e o usuário confirmar a seleção.
+        const PremiumSystem = require('../premium/premiumSystem');
+        const field = Object.values(ROLE_TABS).flatMap(t => t.fields).find(f => f.key === roleKey);
+        const limit = field?.roleLimitKey ? PremiumSystem.getRoleLimit(interaction.guildId, field.roleLimitKey) : 1;
 
-        const role = interaction.guild.roles.cache.get(selectedRoleId);
-        if (!role) {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Cargo não encontrado.`);
-        }
+        const selectedIds = (interaction.values || []).slice(0, limit);
 
-        const oldRoleId = this.getSetting(interaction.guildId, roleKey);
-        this.setSetting(interaction.guildId, roleKey, selectedRoleId);
+        const oldMentions = this.mentionRoles(interaction.guildId, roleKey);
+        this.setRoleIds(interaction.guildId, roleKey, selectedIds);
         this.clearCache(interaction.guildId);
 
-        const oldRoleMention = oldRoleId ? `<@&${oldRoleId}>` : '`não definido`';
-        await this.logConfigChange(interaction, `${EMOJIS.shield || '🎭'} Cargo **${ROLE_LABELS[roleKey]}**: ${oldRoleMention} → ${role}`);
+        const newMentions = selectedIds.length > 0
+            ? selectedIds.map(id => `<@&${id}>`).join(' ')
+            : '`nenhum cargo selecionado`';
+
+        await this.logConfigChange(interaction, `${EMOJIS.shield || '🎭'} Cargo **${ROLE_LABELS[roleKey]}**: ${oldMentions} → ${newMentions}`);
         await this.refreshRolesPanel(
             interaction,
-            `${EMOJIS.circlecheck || '✅'} **${ROLE_LABELS[roleKey]}** alterado para ${role}`,
+            `${EMOJIS.circlecheck || '✅'} **${ROLE_LABELS[roleKey]}** atualizado (${selectedIds.length}/${limit === Infinity ? '∞' : limit})`,
             this._tabForRoleKey(roleKey),
         );
     },
@@ -876,6 +953,7 @@ const ConfigSystem = {
             log_channel: this.getUnifiedGeneralLogChannel(guildId),
             log_punishments: this.getSetting(guildId, 'log_punishments'),
             log_reports: this.getSetting(guildId, 'log_reports'),
+            log_staff: this.getSetting(guildId, 'log_staff'),
         };
 
         const fmt = (channelId) => channelId
@@ -901,7 +979,7 @@ const ConfigSystem = {
             logsBuilder.separator();
         }
 
-        logsBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Prefere não escolher um por um? Use o botão abaixo pra criar os 3 automaticamente.`);
+        logsBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Prefere não escolher um por um? Use o botão abaixo pra criar os 4 automaticamente.`);
         logsBuilder.footer(guildName);
         const { components, flags, files } = logsBuilder.build();
 
@@ -944,6 +1022,7 @@ const ConfigSystem = {
             log_channel:      `${EMOJIS.megaphone  || '📜'} Canal de logs gerais / automod`,
             log_punishments:  `${EMOJIS.gavel  || '⚖️'} Canal de logs de punições`,
             log_reports:      `${EMOJIS.ticket    || '🚩'} Canal de logs de reports`,
+            log_staff:        `${EMOJIS.shield || '🛡️'} Canal de logs de staff`,
         };
 
         const oldChannelMention = oldChannelId ? `<#${oldChannelId}>` : '`não definido`';
@@ -964,7 +1043,7 @@ const ConfigSystem = {
         builder.section(
             [
                 '# CRIAR CANAIS DE LOG AUTOMATICAMENTE',
-                'Isso vai criar uma categoria nova ("LOGS DO SISTEMA") com 3 canais de texto dentro — Geral/AutoMod, Punições e ReportChat — e já configurar os 3 automaticamente aqui no painel.',
+                'Isso vai criar uma categoria nova ("LOGS DO SISTEMA") com 4 canais de texto dentro — Geral/AutoMod, Punições, ReportChat e Staff — e já configurar os 4 automaticamente aqui no painel.',
             ].join('\n'),
             builder.assetThumbnail('icone_logs') || AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }))
         );
@@ -1048,16 +1127,19 @@ const ConfigSystem = {
             const geral       = await guild.channels.create({ name: '📜 logs-gerais',   type: ChannelType.GuildText, parent: category.id });
             const punishments = await guild.channels.create({ name: '⚖️ logs-punicoes', type: ChannelType.GuildText, parent: category.id });
             const reports     = await guild.channels.create({ name: '🚩 logs-reports',  type: ChannelType.GuildText, parent: category.id });
-            
+            const staff       = await guild.channels.create({ name: '🛡️ logs-staff',    type: ChannelType.GuildText, parent: category.id });
+
             this.setSetting(guild.id, 'log_channel',      geral.id);
             this.setSetting(guild.id, 'log_punishments',  punishments.id);
             this.setSetting(guild.id, 'log_reports',      reports.id);
+            this.setSetting(guild.id, 'log_staff',        staff.id);
             this.clearCache(guild.id);
 
             await this.logConfigChange(interaction, [
                 `${EMOJIS.megaphone || '📜'} Geral / AutoMod: → ${geral}`,
                 `${EMOJIS.gavel || '⚖️'} Punições: → ${punishments}`,
                 `${EMOJIS.ticket || '🎫'} Reports: → ${reports}`,
+                `${EMOJIS.shield || '🛡️'} Staff: → ${staff}`,
             ]);
 
             const replyData = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
@@ -1068,6 +1150,7 @@ const ConfigSystem = {
                     `${EMOJIS.megaphone  || '📜'} **Geral / AutoMod:** <#${geral.id}>`,
                     `${EMOJIS.gavel  || '⚖️'} **Punições:** <#${punishments.id}>`,
                     `${EMOJIS.ticket    || '🎫'} **Reports:** <#${reports.id}>`,
+                    `${EMOJIS.shield    || '🛡️'} **Staff:** <#${staff.id}>`,
                 ])
                 .separator()
                 .text(`${EMOJIS.trianglealert || '⚠️'} Lembre-se de configurar o acesso desses canais (cargo de Staff, Admin etc.) — por padrão só o bot consegue ver.`)
@@ -1109,7 +1192,7 @@ const ConfigSystem = {
         if (type === 'geral' || type === 'automod') {
             return this.getUnifiedGeneralLogChannel(guildId);
         }
-        const channelMap = { punishments: 'log_punishments', reports: 'log_reports' };
+        const channelMap = { punishments: 'log_punishments', reports: 'log_reports', staff: 'log_staff' };
         const key = channelMap[type];
         if (!key) return null;
         return this.getSetting(guildId, key) || null;

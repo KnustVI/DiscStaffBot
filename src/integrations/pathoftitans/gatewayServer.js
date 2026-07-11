@@ -350,7 +350,7 @@ class PoTGatewayServer {
                 try {
                     const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
                     const alderonId = data.PlayerAlderonId || data.AdminAlderonId;
-                    if (alderonId) AnalyticsSystem.recordNametagSighting(guildId, alderonId, data.bSpectatorMode);
+                    if (alderonId) await AnalyticsSystem.recordNametagSighting(this.client, guildId, alderonId, data.bSpectatorMode);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Analytics de nametag falhou:', err.message);
                 }
@@ -363,7 +363,7 @@ class PoTGatewayServer {
                 try {
                     const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
                     const alderonId = data.AlderonId || data.PlayerAlderonId;
-                    if (alderonId) AnalyticsSystem.closeSpectatorSession(guildId, alderonId);
+                    if (alderonId) await AnalyticsSystem.closeSpectatorSession(this.client, guildId, alderonId);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Fechamento de sessão de espectador falhou:', err.message);
                 }
