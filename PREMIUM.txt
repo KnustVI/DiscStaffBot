@@ -123,8 +123,10 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   ATIVA aqui (antes so no Cacador).
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
-  AINDA sem aplicar acoes automaticas no Discord (timeout/kick/ban) - isso
-  so no Cacador.
+  Acoes automaticas no Discord (timeout/kick/ban via /strike personalizado,
+  campo "discord_act") JA ATIVAS aqui tambem (antes so no Cacador) - ou
+  seja, tanto a acao em jogo via RCON quanto a acao no Discord ja funcionam
+  desde o Rastreador.
   Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
   duracao >72h/permanente (mesma regra do Free, so que aqui os niveis
   tambem contam). /strike personalizado (modo manual completo, restrito ao
@@ -138,8 +140,8 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   editaveis neste tier (a recuperacao em si roda mesmo assim, fixa em 1
   ponto/dia).
 - SEM cargos automaticos de reputacao (exemplar/problematico), SEM analise
-  de atividade de staff - isso e exclusivo do Cacador. RCON automatico JA
-  ATIVO desde este tier (ver acima).
+  de atividade de staff - isso e exclusivo do Cacador. RCON automatico E
+  acao automatica no Discord JA ATIVOS desde este tier (ver acima).
 - BONUS: o DONO do servidor Discord ganha Player Premium Compy automaticamente
   ao comprar o Rastreador (JA IMPLEMENTADO - ver secao 3).
 
@@ -155,9 +157,9 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
 - Punicoes: cargo temporario de punicao, ate 10 niveis de punicao
   totalmente customizaveis (JA IMPLEMENTADO - mesmo sistema do Rastreador,
   so que com o dobro do limite de niveis), cargos de reputacao automaticos
-  (Exemplar/Problematico), e agora SIM aplicacao automatica de punicoes no
-  Discord (timeout/kick/ban via /strike personalizado, campo "discord_act")
-  - a acao em jogo via RCON ja esta disponivel desde o Rastreador. Automod
+  (Exemplar/Problematico) - acao automatica de punicao no Discord E no jogo
+  via RCON ja vem desde o Rastreador (ver secao Rastreador acima), aqui so
+  ganha os cargos automaticos de reputacao e a analise de staff. Automod
   diario (recuperacao de reputacao + cargos automaticos) com a QUANTIDADE
   de pontos recuperados por dia configuravel em /config punishments
   (padrao: 1 ponto/dia).
@@ -2042,3 +2044,65 @@ frente, nao so este relatorio):
   despedida, que é tier-independente), e mudança só em
   event_notify_role não aciona nada. Todos os 15 módulos tocados
   carregam sem erro de sintaxe.
+
+
+59) AUDITORIA DA TABELA DE PLANOS (imagem de marketing) x CÓDIGO REAL - correções encontradas
+------------------------------------------------
+- Dono pediu uma auditoria completa comparando a imagem da tabela de
+  Server Premium (a mesma usada no `/premium`, asset `tabela_server_
+  premium`) contra o que de fato está implementado, categoria por
+  categoria (Missões/Reportes/Moderação/Eventos/Integração PoT/Bônus).
+  Levantamento cobriu TODOS os arquivos relevantes (premiumSystem.js,
+  evento.js, eventScheduler.js, configSystem.js, autoModeration.js,
+  punishmentSystem.js, premium-admin.js, comandos strike/pot) e
+  confirmou, com file:line, o que já existe e o que não existe.
+- 2 divergências reais encontradas entre a imagem e o código - dono
+  decidiu qual lado corrigir pra cada uma:
+  1. "Até 3 níveis de punição" (Rastreador) na imagem vs
+     `maxPunishmentLevels: 4` no código - RESOLVIDO ajustando a IMAGEM
+     pra "4" (o código já estava certo desde a implementação de níveis
+     customizados, seção 14 - só a imagem de marketing estava
+     desatualizada). Nenhuma mudança de código aqui.
+  2. "Aplicação automática de punições no jogo ou no Discord" listada
+     como exclusiva do Caçador na imagem, mas a ação em jogo (RCON) já
+     era Rastreador+ desde a seção 14 - RESOLVIDO ajustando o CÓDIGO:
+     `discordActionsEnabled` (premiumSystem.js) passa de
+     `false`/`true`/`true` (free/rastreador/cacador) pra
+     `false`/`true`/`true` → ou seja, agora TANTO a ação em jogo quanto
+     a ação no Discord (timeout/kick/ban via /strike personalizado)
+     ficam disponíveis a partir do Rastreador, não só no Caçador. Textos
+     de aviso corrigidos nos 2 pontos que checam esse gate
+     (`punishmentSystem.js` - preview da confirmação de strike E
+     execução de fato) e no `/ajuda` (página Premium), que ainda
+     descrevia essa ação como exclusiva do Caçador.
+- 1 item da tabela CONFIRMADO como já correto, sem mudança necessária:
+  os bullets do Caçador em Eventos que NÃO estão marcados "(em breve)"
+  ("Marca jogadores em anúncios" e "Análises de atividade staff") já
+  estavam implementados - o primeiro é a mesma marcação de cargo de
+  notificação que já roda desde o Rastreador (`eventTier !== 'basic'`),
+  o segundo é o sistema de analytics da seção 57/58 (Caçador-only). Hoje
+  `/evento` se comporta EXATAMENTE igual em Rastreador e Caçador (só
+  Free é diferente) - os 3 bullets restantes do Caçador (anúncio de
+  início/encerramento, marcação extra, postagem em redes sociais)
+  continuam corretamente marcados "em breve", NENHUM foi implementado
+  agora (pedido explícito do dono: não mexer no que está "em breve").
+- Itens confirmados como genuinamente ainda não implementados (sem
+  mudança nesta tarefa, fora do escopo pedido): comando de RCON
+  livre/genérico pro Caçador (hoje Rastreador e Caçador usam o MESMO
+  conjunto fixo de 4 ações de punição, sem diferenciação nenhuma no
+  RCON em si) e comando de TP integrado à criação de eventos - nenhum
+  dos dois existe em lugar nenhum do código.
+- Seções 1 e 2 (a documentação "viva" de tier, no topo deste arquivo,
+  que o dono confirmou ser agora a documentação OFICIAL do bot) também
+  atualizadas pra refletir a correção #2 acima - antes diziam "ação no
+  Discord só no Caçador", agora dizem corretamente "desde o Rastreador".
+- IMPORTANTE, fora do alcance do código: a imagem em si
+  (`assets/images/TABELA SERVER PREMIUM.webp`, usada de verdade no
+  `/premium` via `tabela_server_premium`) é um arquivo binário - a
+  correção do "3 níveis" pra "4" só é aplicada quando o PRÓPRIO DONO
+  substituir esse arquivo de imagem por uma versão atualizada (fora do
+  editor de código).
+- Verificado com script direto: `discordActionsEnabled` = false/true/true
+  (free/rastreador/cacador), `autoRcon`/`maxPunishmentLevels` do
+  Rastreador continuam intactos (true/4), módulos tocados carregam sem
+  erro de sintaxe.

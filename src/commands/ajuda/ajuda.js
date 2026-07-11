@@ -134,8 +134,8 @@ function buildPagePremium(guildName, emojis) {
     builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
     builder.block([
         '• **Free** — logs de sistema (inclui logs de jogo); 1 chat de reporte + 1 revisão de punição abertos por vez, 6h de cooldown; sem reputação, sem ações automáticas de punição (Discord ou jogo); `/evento` só posta no fórum.',
-        '• **Rastreador (R$25/mês)** — tudo do Free + 3 chats + 3 revisões sem cooldown, reputação ativada, `/historico` liberado, `/evento` cria também o evento agendado do Discord.',
-        '• **Caçador (R$40/mês)** — tudo do Rastreador + chats/revisões ilimitados, automod diário, análise de staff, ações automáticas de punição no Discord e no jogo (RCON). O dono do servidor ganha Player Premium **Raptor** de bônus (Rastreador dá **Compy**).',
+        '• **Rastreador (R$25/mês)** — tudo do Free + 3 chats + 3 revisões sem cooldown, reputação ativada, `/historico` liberado, `/evento` cria também o evento agendado do Discord, ações automáticas de punição no Discord e no jogo (RCON) já liberadas pelo `/strike`.',
+        '• **Caçador (R$40/mês)** — tudo do Rastreador + chats/revisões ilimitados, automod diário, análise de staff. O dono do servidor ganha Player Premium **Raptor** de bônus (Rastreador dá **Compy**).',
         `• ${emojis.trianglealert || '⚠️'} É preciso ser um Host de Path of Titans pra adquirir qualquer tier pago do Server Premium.`,
     ]);
     builder.separator();

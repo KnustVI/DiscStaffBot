@@ -50,7 +50,7 @@ const GUILD_LIMITS = {
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
-        discordActionsEnabled: false, autoRcon: true,
+        discordActionsEnabled: true, autoRcon: true,
         reputationEnabled: true, automodEnabled: false, historyEnabled: true,
         analyticsEnabled: false, temporaryRoleEnabled: true,
         eventTier: 'medium',

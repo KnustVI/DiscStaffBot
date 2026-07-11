@@ -494,7 +494,7 @@ const PunishmentSystem = {
         }
         builder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
         if (session.discordAct && session.discordAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).discordActionsEnabled) {
-            builder.text(`${EMOJIS.trianglealert || '⚠️'} Ações automáticas no Discord (timeout/kick/ban) exigem o plano Caçador — a ação escolhida não será aplicada, só o registro da punição.`);
+            builder.text(`${EMOJIS.trianglealert || '⚠️'} Ações automáticas no Discord (timeout/kick/ban) exigem o plano Rastreador ou superior — a ação escolhida não será aplicada, só o registro da punição.`);
         }
         builder.text(`**${EMOJIS.game || '🎮'} Ação In-Game:** ${session.jogoAct === 'none' || !session.jogoAct ? 'Nenhuma' : session.jogoAct}`);
         if (session.jogoAct && session.jogoAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).autoRcon) {
@@ -776,12 +776,12 @@ const PunishmentSystem = {
         }
 
         // ── Ações automáticas no Discord (timeout/kick/ban) via strike só
-        // pra servidores Caçador — repetida aqui (defesa em profundidade)
-        // já que este método também é chamado direto pela aprovação de
-        // Supervisor. ────────────────────────────────────────────────────
+        // a partir do plano Rastreador — repetida aqui (defesa em
+        // profundidade) já que este método também é chamado direto pela
+        // aprovação de Supervisor. ──────────────────────────────────────
         let discordActionResult = null;
         if (discordAct && discordAct !== 'none' && !PremiumSystem.getGuildLimits(guild.id).discordActionsEnabled) {
-            discordActionResult = `${EMOJIS.trianglealert || '⚠️'} Ação no Discord requer o plano Caçador.`;
+            discordActionResult = `${EMOJIS.trianglealert || '⚠️'} Ação no Discord requer o plano Rastreador ou superior.`;
         } else if (discordAct && discordAct !== 'none' && targetMember) {
             try {
                 switch (discordAct) {
