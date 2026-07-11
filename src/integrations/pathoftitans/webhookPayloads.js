@@ -356,18 +356,21 @@ function formatMessage(potEvent, data, guild) {
         // ainda diz se o admin JÁ ESTAVA em modo espectador no momento de
         // outra ação (ex: mexendo nametags) — é a única visibilidade
         // indireta possível já que o jogo não notifica a ação em si.
-        // Pedido do dono: mostrar sempre (Sim/Não), não só quando true —
-        // só omite se o campo nem vier no payload (typeof !== 'boolean').
+        // Pedido do dono: linha própria com emoji (shieldcheck = está em
+        // modo espectador, shieldban = não está, "Não definido" quando o
+        // campo nem vier no payload).
         // Mesmo layout de heading+bullet do AdminCommand logo abaixo (pedido
         // do dono: vale pra qualquer log de comando/ação de admin, não só
         // AdminCommand).
         AdminSpectate: () => {
             const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
-            const spectatorInfo = typeof d.bSpectatorMode === 'boolean'
-                ? ` *(modo espectador: ${d.bSpectatorMode ? 'Sim' : 'Não'})*`
-                : '';
-            const action = `${ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa'}${spectatorInfo}`;
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}: ${action}`;
+            const action = ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa';
+            const spectatorLine = d.bSpectatorMode === true
+                ? `Modo espectador: ${e('shieldcheck', '✅')}`
+                : d.bSpectatorMode === false
+                    ? `Modo espectador: ${e('shieldban', '🚫')}`
+                    : 'Modo espectador: Não definido';
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}: ${action}\n${spectatorLine}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,

@@ -1742,3 +1742,20 @@ frente, nao so este relatorio):
 - Verificado com script direto: bSpectatorMode true mostra "Sim",
   false mostra "Não", campo ausente omite a informação inteira (sem
   quebrar a mensagem).
+
+
+54) AJUSTE DE LAYOUT: MODO ESPECTADOR VIRA LINHA PRÓPRIA COM EMOJI (não mais texto inline)
+------------------------------------------------
+- Pedido do dono, formato exato:
+    ### {emoji} {Cargo}
+    - {Nome} `{AlderonId}`: {ação}
+    Modo espectador: {emoji}
+  Trocado o texto "(modo espectador: Sim/Não)" da seção 53 (grudado no
+  final da linha da ação) por uma 3ª linha própria, com emoji em vez de
+  texto: shieldcheck quando bSpectatorMode é true, shieldban quando é
+  false, "Não definido" (texto puro, sem emoji) quando o campo nem vem
+  no payload. Chaves shieldcheck/shieldban já existiam em emojis.js,
+  sem precisar de sync.
+- Verificado com script direto: true mostra shieldcheck, false mostra
+  shieldban, ausente mostra "Não definido" - os 3 cenários batendo
+  exatamente com o layout pedido.
