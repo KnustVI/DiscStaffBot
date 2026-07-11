@@ -1789,3 +1789,43 @@ frente, nao so este relatorio):
   campo "description" preenchido com o texto pedido pelo dono; os
   outros 4 não têm "description" nenhuma (comportamento idêntico ao
   anterior pra eles, só mudou o campo que precisava).
+
+
+56) REDESIGN COMPLETO DO MODAL DE ABRIR REPORT (descrição geral + descrição por pergunta em todas)
+------------------------------------------------
+- Dono perguntou (antes de pedir pra implementar) se dava pra ter
+  descrição geral logo após o título, ALÉM de descrição por pergunta -
+  CONFIRMADO com teste direto (TextDisplayBuilder pode ir em qualquer
+  posição do modal, junto com LabelBuilder, sem restrição) antes de
+  qualquer código ser alterado.
+- Com a confirmação, dono mandou o redesign completo do modal:
+  - Título mudou de "Abrir Report" pra "Abrir Reporte ao jogador."
+  - Descrição geral nova logo após o título (TextDisplayBuilder, bloco
+    solto, não é descrição de nenhuma pergunta específica): "Descreva
+    o ocorrido com o máximo de detalhes e anexe evidências sempre que
+    possível para auxiliar na análise da equipe."
+  - TODAS as 5 perguntas ganharam descrição própria agora (antes só
+    "termo" tinha, seção 55) + placeholders reescritos/mais completos.
+  - Campo "termo" (Termo de boa convivência) REMOVIDO por completo -
+    substituído por um campo novo "Perdeu algum personagem?"
+    (customId "personagem", opcional, Short) pra localizar logs de
+    growth perdido.
+- Atualizado em 3 lugares:
+  - getOpenModal() (reportChatSystem.js) - modal reescrito inteiro com
+    o layout novo.
+  - interactionCreate.js (handler do submit) - troca
+    `getTextInputValue('termo')` por `getTextInputValue('personagem')`
+    no objeto passado pro openReport().
+  - openReport() (reportChatSystem.js) - linha do painel de
+    informações do report trocada de "Termo de convivência" pra
+    "Personagem perdido" (com fallback "Não informado" quando vazio,
+    mesmo padrão já usado no campo "Local"; emoji DinoFootprint).
+- Confirmado que NENHUMA referência a `data.termo`/`'termo'` sobrou em
+  lugar nenhum do código (grep limpo).
+- Verificado com script direto: modal completo construído e
+  serializado - TextDisplay da descrição geral aparece logo depois do
+  título e antes da 1ª pergunta; as 5 perguntas (regra, data_hora,
+  local, personagem, descricao) saem cada uma com label+description+
+  placeholder exatamente como especificado pelo dono, na ordem certa,
+  com os campos obrigatório/opcional corretos (regra/data_hora/
+  descricao obrigatórios; local/personagem opcionais).

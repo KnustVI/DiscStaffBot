@@ -10,6 +10,7 @@ const {
     TextInputBuilder,
     TextInputStyle,
     LabelBuilder,
+    TextDisplayBuilder,
     MessageFlags,
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
@@ -274,31 +275,38 @@ class ReportChatSystem {
     // ==================== MODAIS ====================
 
     getOpenModal() {
-        // Campos migrados de ActionRow+TextInput pra LabelBuilder (Components
-        // V2 em modal, suportado pelo discord.js já instalado — sem precisar
-        // de upgrade) só pro campo "termo" precisar de descrição visível
-        // abaixo da pergunta (setDescription, diferente de placeholder — não
-        // some quando o usuário começa a digitar). Os outros campos também
-        // migrados pro mesmo padrão por consistência dentro do modal (evita
-        // misturar ActionRow antigo com Label novo na mesma tela).
-        const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Report');
+        // Layout pedido pelo dono: descrição geral logo após o título
+        // (TextDisplayBuilder, bloco de texto solto — não é descrição de
+        // nenhuma pergunta específica) + cada pergunta com sua própria
+        // descrição (LabelBuilder.setDescription(), visível permanentemente
+        // abaixo da pergunta, diferente do placeholder que some ao digitar).
+        // Campo "termo" (Termo de boa convivência) REMOVIDO — substituído
+        // por "personagem" (opcional) nesta revisão do modal.
+        const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Reporte ao jogador.');
+        modal.addTextDisplayComponents(
+            new TextDisplayBuilder().setContent('Descreva o ocorrido com o máximo de detalhes e anexe evidências sempre que possível para auxiliar na análise da equipe.')
+        );
         modal.addLabelComponents(
             new LabelBuilder()
                 .setLabel('Qual a regra quebrada?')
-                .setTextInputComponent(new TextInputBuilder().setCustomId('regra').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Regra 5 - Flood')),
+                .setDescription('Nome ou numeração da regra.')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('regra').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: Regra 4 - Desrespeito em chat.')),
             new LabelBuilder()
                 .setLabel('Quando aconteceu?')
-                .setTextInputComponent(new TextInputBuilder().setCustomId('data_hora').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 09/04/2026 14:30')),
+                .setDescription('Diga o dia e horário para facilitar a busca nos logs.')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('data_hora').setStyle(TextInputStyle.Short).setRequired(true).setPlaceholder('Ex: 04/04/2044 as 04:44')),
             new LabelBuilder()
                 .setLabel('Qual local do mapa?')
-                .setTextInputComponent(new TextInputBuilder().setCustomId('local').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Floresta Central')),
+                .setDescription('Dê o nome da POI ou as coordenadas (podem ser encontradas em logs).')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('local').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Hollow Hills - (X=15121,Y=198475,Z=3195)')),
             new LabelBuilder()
-                .setLabel('Descreva a quebra de regra')
-                .setTextInputComponent(new TextInputBuilder().setCustomId('descricao').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Descreva detalhadamente...')),
+                .setLabel('Perdeu algum personagem?')
+                .setDescription('Informe o nome ou ID do personagem para localizar os logs e verificar a devolução de growth.')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('personagem').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Krawler 8A306AE6A9F84DDA84F2EED839543128')),
             new LabelBuilder()
-                .setLabel('Termo de boa convivência')
-                .setDescription('Você concorda em ser respeitoso ao usar essa ferramenta de report?')
-                .setTextInputComponent(new TextInputBuilder().setCustomId('termo').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Declaro que as informações são verdadeiras...'))
+                .setLabel('Descreva a quebra de regra:')
+                .setDescription('Descreva detalhadamente!')
+                .setTextInputComponent(new TextInputBuilder().setCustomId('descricao').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Ex: Ao caçar um herbívoro, outro herbívoro do mesmo grupo me matou por vingança.'))
         );
         return modal;
     }
@@ -449,8 +457,8 @@ class ReportChatSystem {
             infoBuilder.text(`**${EMOJIS.messagesquare || '📝'} Regra quebrada:** ${data.regra}`);
             infoBuilder.text(`**${EMOJIS.clock || '⏰'} Quando aconteceu:** ${data.dataHora}`);
             infoBuilder.text(`**${EMOJIS.mappin || '📍'} Local:** ${data.local || 'Não informado'}`);
+            infoBuilder.text(`**${EMOJIS.DinoFootprint || '🦶'} Personagem perdido:** ${data.personagem || 'Não informado'}`);
             infoBuilder.text(`**${EMOJIS.descricao || '📋'} Descrição:** ${data.descricao}`);
-            infoBuilder.text(`**${EMOJIS.gavel || '⚖️'} Termo de convivência:** ${data.termo}`);
             infoBuilder.footer(guild.name);
             
             const { components: infoComponents, flags: infoFlags } = infoBuilder.build();

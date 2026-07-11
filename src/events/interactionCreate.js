@@ -139,8 +139,8 @@ module.exports = {
                     regra: interaction.fields.getTextInputValue('regra'),
                     dataHora: interaction.fields.getTextInputValue('data_hora'),
                     local: interaction.fields.getTextInputValue('local'),
-                    descricao: interaction.fields.getTextInputValue('descricao'),
-                    termo: interaction.fields.getTextInputValue('termo')
+                    personagem: interaction.fields.getTextInputValue('personagem'),
+                    descricao: interaction.fields.getTextInputValue('descricao')
                 });
                 return;
             }
