@@ -562,6 +562,34 @@ function findEncounterLocation(encounter) {
 }
 
 /**
+ * Junta strings (uma por "item" — um participante, um segmento de dano...)
+ * em blocos de texto o MAIOR possível sem passar de maxChars, separando
+ * itens dentro do mesmo bloco por uma linha em branco (pra manter a
+ * separação visual que cada item tinha quando era seu próprio componente).
+ * Cada bloco devolvido vira UM componente TextDisplay só — é isso que evita
+ * "1 componente por item" (a raiz do bug de combates grandes estourarem o
+ * limite de 40 componentes de um Container, ver buildDamageReportPayload).
+ */
+function chunkIntoBlocks(items, maxChars) {
+    const SEP = '\n\n';
+    const blocks = [];
+    let current = [];
+    let currentLen = 0;
+    for (const item of items) {
+        const addedLen = item.length + (current.length > 0 ? SEP.length : 0);
+        if (current.length > 0 && currentLen + addedLen > maxChars) {
+            blocks.push(current.join(SEP));
+            current = [];
+            currentLen = 0;
+        }
+        current.push(item);
+        currentLen += item.length + (current.length > 1 ? SEP.length : 0);
+    }
+    if (current.length > 0) blocks.push(current.join(SEP));
+    return blocks;
+}
+
+/**
  * Monta o painel (Components V2, via AdvancedContainerBuilder) de um
  * ENCONTRO acumulado (ver gatewayServer._bufferDamageEvent/
  * _recordKillIntoEncounter) — todo dano/morte entre jogadores conectados
@@ -669,14 +697,19 @@ function buildDamageReportPayload(encounter, guild) {
         return `${formatDamageType(type)} | ${count}x | ${sum} | ${timesText}`;
     });
 
-    // ── Paginação: Discord limita um Container a no máximo 40 componentes
-    // filhos (title/text/separator contam 1 cada) — ver aviso no
-    // docblock acima. MAX_PER_PART deixa uma margem de 1 abaixo do limite
-    // real (39) só pra garantir que nunca estoura por erro de contagem de
-    // 1 componente. Sempre que adicionar mais um componente ultrapassaria
-    // esse teto, fecha a parte atual como uma mensagem e abre uma nova
-    // (com um aviso de "continuação" no topo) — nunca corta participante/
-    // segmento no meio, cada um sempre entra inteiro em alguma parte. ────
+    // ── Duas redes de segurança independentes, pra nunca estourar nenhum
+    // limite do Discord:
+    // 1) Cada TextDisplay tem limite de ~4000 caracteres de conteúdo —
+    //    MAX_CHARS_PER_BLOCK junta o MÁXIMO de itens (participantes,
+    //    segmentos de dano) num componente só antes de abrir outro, em vez
+    //    de 1 componente por item (era isso que estourava o limite de
+    //    componentes do Container antes — ver 2).
+    // 2) Um Container só aceita até 40 componentes filhos no total —
+    //    MAX_PER_PART divide em várias MENSAGENS quando mesmo assim não
+    //    coube (praticamente nunca deve acontecer agora que cada seção
+    //    vira 1-2 componentes em vez de 1 por item, mas fica como último
+    //    recurso pra combates realmente gigantescos). ─────────────────────
+    const MAX_CHARS_PER_BLOCK = 3800;
     const MAX_PER_PART = 39;
     const payloads = [];
     let builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
@@ -706,6 +739,17 @@ function buildDamageReportPayload(encounter, guild) {
     const addTitle = (text, level) => { ensureRoom(); builder.title(text, level); count += 1; };
     const addText = (text) => { ensureRoom(); builder.text(text); count += 1; };
     const addSeparator = () => { ensureRoom(); builder.separator(); count += 1; };
+    // Adiciona uma LISTA de itens (um por participante, um por segmento de
+    // dano...) juntando o máximo possível em cada bloco de texto — vira 1
+    // componente só pro grupo inteiro na imensa maioria dos casos, em vez
+    // de 1 componente por item (raiz do bug de combates grandes nunca
+    // chegarem, ver docblock). Só quebra em mais de um bloco se o texto
+    // combinado passar do limite de caracteres de um TextDisplay.
+    const addItemList = (items) => {
+        for (const block of chunkIntoBlocks(items, MAX_CHARS_PER_BLOCK)) {
+            addText(block);
+        }
+    };
 
     if (hasOtherPlayerInvolved) {
         addTitle(`${e('Atack', '⚔️')} RELATÓRIO DE COMBATE`, 1);
@@ -716,33 +760,32 @@ function buildDamageReportPayload(encounter, guild) {
         addSeparator();
 
         addTitle('JOGADORES ENVOLVIDOS', 2);
-        for (const key of encounter.participants.keys()) {
+        const participantItems = [...encounter.participants.keys()].map((key) => {
             const p = participant(key);
-            addTitle(`${nameWithId(p.name, p.alderonId)}`, 3);
-            const lines = [participantSpeciesLine(p, guild)];
+            const lines = [`### ${nameWithId(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
             const identityLine = participantDinoIdentityLine(p);
             if (identityLine) lines.push(identityLine);
-            addText(lines.join('\n'));
-        }
+            return lines.join('\n');
+        });
+        addItemList(participantItems);
         addSeparator();
 
         const location = findEncounterLocation(encounter);
         if (location) {
             addTitle('LOCAL', 2);
             const mapPoi = [location.mapName, location.poiName].filter(Boolean).join(' - ');
-            if (mapPoi) addText(`- ${e('map', '🗺️')} ${mapPoi}`);
-            if (location.coords) addText(`- ${e('mappin', '📍')} ${location.coords}`);
+            const localLines = [];
+            if (mapPoi) localLines.push(`- ${e('map', '🗺️')} ${mapPoi}`);
+            if (location.coords) localLines.push(`- ${e('mappin', '📍')} ${location.coords}`);
+            if (localLines.length > 0) addText(localLines.join('\n'));
             addSeparator();
         }
 
         addTitle('RELATÓRIO DE DANO', 2);
-        for (const seg of segments.values()) {
-            if (seg.kind === 'kill') {
-                addText(seg.text);
-                continue;
-            }
-            addText([seg.header, ...typeLines(seg.byType)].join('\n'));
-        }
+        const segmentItems = [...segments.values()].map((seg) =>
+            seg.kind === 'kill' ? seg.text : [seg.header, ...typeLines(seg.byType)].join('\n')
+        );
+        addItemList(segmentItems);
     } else {
         // Encontro isolado: só existe UM participante possível (dano
         // próprio nunca envolve outro jogador), então não há seção de
@@ -753,24 +796,20 @@ function buildDamageReportPayload(encounter, guild) {
 
         const [onlyKey] = encounter.participants.keys();
         const p = participant(onlyKey);
-        addTitle(`${nameWithId(p.name, p.alderonId)}`, 3);
-        const lines = [participantSpeciesLine(p, guild)];
+        const lines = [`### ${nameWithId(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
         const identityLine = participantDinoIdentityLine(p);
         if (identityLine) lines.push(identityLine);
         addText(lines.join('\n'));
         addSeparator();
 
-        for (const seg of segments.values()) {
-            // Morte por ambiente sem nenhum dano registrado antes dela
-            // (ex: fome/sede matando direto) também pode cair aqui — mesmo
-            // segmento "kill" usado no relatório de combate, só que sem
-            // "outro jogador envolvido" (ver hasOtherPlayerInvolved acima).
-            if (seg.kind === 'kill') {
-                addText(seg.text);
-                continue;
-            }
-            addText(typeLines(seg.byType).join('\n'));
-        }
+        // Morte por ambiente sem nenhum dano registrado antes dela (ex:
+        // fome/sede matando direto) também pode cair aqui — mesmo segmento
+        // "kill" usado no relatório de combate, só que sem "outro jogador
+        // envolvido" (ver hasOtherPlayerInvolved acima).
+        const segmentItems = [...segments.values()].map((seg) =>
+            seg.kind === 'kill' ? seg.text : typeLines(seg.byType).join('\n')
+        );
+        addItemList(segmentItems);
     }
 
     addSeparator();

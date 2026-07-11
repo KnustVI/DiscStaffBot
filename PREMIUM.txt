@@ -1689,3 +1689,40 @@ frente, nao so este relatorio):
   Reconferido também que combates pequenos (3 jogadores, como todos os
   testes anteriores desta sessão) continuam saindo em 1 parte só, sem
   paginação desnecessária.
+
+
+52) REDUZ DRASTICAMENTE OS COMPONENTES POR ITEM (menos chance de precisar paginar)
+------------------------------------------------
+- Dono perguntou se dava pra manter o relatório como "um componente
+  único de texto" em vez de paginar em várias mensagens. Resposta:
+  literalmente UM componente só arrisca estourar o limite de caracteres
+  de um TextDisplay (~4000) em combates grandes - mas dava pra chegar
+  MUITO perto disso, já que a fragmentação de antes (seção 51) vinha de
+  usar 1 componente POR PARTICIPANTE e 1 POR SEGMENTO DE DANO, não do
+  conteúdo em si.
+- Reescrito: cada participante e cada segmento de dano agora é um
+  "item" numa lista que é JUNTADA em blocos de texto (chunkIntoBlocks,
+  nova função em webhookPayloads.js) - o máximo de itens possível cabe
+  num único componente TextDisplay antes de abrir outro, com uma linha
+  em branco entre itens dentro do mesmo bloco (mantém a separação
+  visual que cada um tinha como componente próprio). Título de cada
+  participante (nível 3) também deixou de ser um componente próprio -
+  vira "### Nome" como texto literal dentro do mesmo bloco do item.
+- Resultado: 2 redes de segurança independentes agora, em vez de 1:
+  1) MAX_CHARS_PER_BLOCK=3800 (margem abaixo do limite real do
+     TextDisplay) decide quando abrir um novo bloco de texto dentro da
+     MESMA mensagem;
+  2) MAX_PER_PART=39 (da seção 51, inalterado) decide quando abrir uma
+     mensagem NOVA ("(continuação N)") - agora dificilmente é
+     alcançado, já que cada seção inteira normalmente vira 1-2
+     componentes em vez de 1 por item.
+- Verificado com script direto: a mesma briga de 20 jogadores da seção
+  51 (que antes precisava de 2 mensagens, 39+29 componentes) agora sai
+  numa mensagem SÓ com 10 componentes no total. Teste extremo com 80
+  jogadores e 395 eventos (5 tipos de dano entre cada par da corrente)
+  também coube numa mensagem só - 18 componentes, maior bloco de texto
+  com 3718 caracteres (dentro do limite de 4000), nenhum dos 80
+  jogadores faltando no conteúdo. Reconferido visualmente que o
+  conteúdo de combates pequenos (cenário de 3 jogadores) ficou
+  idêntico ao de antes, só com a separação em branco entre itens
+  dentro do mesmo bloco (leve melhoria visual, não regressão).
