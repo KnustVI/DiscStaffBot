@@ -107,6 +107,7 @@ class InteractionHandler {
             'config',
             'reset-db', 'reset-reports', 'botstatus', 'potserver', 'combat-config',
             'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
+            'rcon-stats', 'rcon-marks', 'rcon-admin', 'rcon-map', 'rcon-event', 'rcon-message',
         ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
         

@@ -837,6 +837,18 @@ const PunishmentSystem = {
                             ingameActionResult = rconResult?.success
                                 ? 'Ação in-game executada.'
                                 : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+
+                            // ── Ban/ServerMute mexem em listas persistentes do
+                            // servidor (banlist/mutelist) — precisam recarregar
+                            // pra valer na hora, senão só pega efeito no próximo
+                            // restart. Fire-and-forget: não bloqueia a resposta
+                            // do strike se o reload falhar (a ação principal já
+                            // foi aplicada, o reload é só "avisar" o servidor). ──
+                            if (rconResult?.success && jogoAct === 'Ban') {
+                                PoTConfigSystem.executeRconCommand(guild.id, 'ReloadBans').catch(() => {});
+                            } else if (rconResult?.success && jogoAct === 'ServerMute') {
+                                PoTConfigSystem.executeRconCommand(guild.id, 'ReloadMutes').catch(() => {});
+                            }
                         }
                     } catch (err) {
                         ingameActionResult = `Falha na ação in-game: ${err.message}`;
@@ -976,8 +988,44 @@ const PunishmentSystem = {
                 } catch (err) {}
             }
 
+            // ── Desfaz a ação EM JOGO, se a punição original tinha uma
+            // (Ban/ServerMute via RCON) — antes disso, /unstrike não mexia
+            // em nada no jogo, então um jogador banido/mutado continuava
+            // assim mesmo depois de anulado no Discord. Mesmo gate (autoRcon,
+            // Rastreador+) que já libera a aplicação original em
+            // _executeStrike — quem pôde aplicar também consegue desfazer.
+            // Falha de RCON aqui NÃO bloqueia o resto do unstrike (o banco/
+            // Discord já são a fonte da verdade da punição). ─────────────────
+            let ingameUndoResult = null;
+            if (punishment.level_action === 'Ban' || punishment.level_action === 'ServerMute') {
+                if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
+                    ingameUndoResult = 'Ação in-game requer o plano Rastreador — não desfeita automaticamente.';
+                } else {
+                    const link = getPlayerByDiscordId(punishment.user_id);
+                    if (!link) {
+                        ingameUndoResult = 'Jogador não vinculado ao Path of Titans — ação in-game não desfeita.';
+                    } else {
+                        try {
+                            const PoTConfigSystem = require('../pot/potConfigSystem');
+                            const isBan = punishment.level_action === 'Ban';
+                            const undoCommand = isBan ? `unban ${link.alderon_id}` : `ServerUnmute ${link.alderon_id}`;
+                            const rconResult = await PoTConfigSystem.executeRconCommand(guildId, undoCommand);
+                            ingameUndoResult = rconResult?.success
+                                ? 'Ação in-game desfeita.'
+                                : `Falha ao desfazer ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+                            if (rconResult?.success) {
+                                const reloadCommand = isBan ? 'ReloadBans' : 'ReloadMutes';
+                                PoTConfigSystem.executeRconCommand(guildId, reloadCommand).catch(() => {});
+                            }
+                        } catch (err) {
+                            ingameUndoResult = `Falha ao desfazer ação in-game: ${err.message}`;
+                        }
+                    }
+                }
+            }
+
             db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
-                command: 'unstrike', punishmentId, pointsRestored, oldPoints: currentRep, newPoints
+                command: 'unstrike', punishmentId, pointsRestored, oldPoints: currentRep, newPoints, ingameUndoResult
             });
 
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
@@ -1021,6 +1069,7 @@ const PunishmentSystem = {
                 summaryLines.push(`${emojis.doublearrowup || '📈'} +${pointsRestored} pts | ${emojis.star || '⭐'} Reputação: ${newPoints}/100`);
             }
             summaryLines.push(dmStatusMsg);
+            if (ingameUndoResult) summaryLines.push(`${emojis.game || '🎮'} ${ingameUndoResult}`);
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');

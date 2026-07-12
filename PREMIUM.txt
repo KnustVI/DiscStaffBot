@@ -176,9 +176,14 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
 - Eventos: anuncia automaticamente criacao/inicio/encerramento dos
   eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
   (esses tres ainda nao implementados - "vindo em breve")
-- Integracao Path of Titans: comandos em jogo via Discord e comando de TP
-  integrado a criacao de eventos (ainda nao implementados - "vindo em
-  breve"); punicoes aplicaveis em jogo via RCON (JA IMPLEMENTADO).
+- Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
+  PoT via Discord (JA IMPLEMENTADO - ver secao 61) - 6 comandos por
+  categoria (/rcon-stats, /rcon-marks, /rcon-admin, /rcon-map, /rcon-event,
+  /rcon-message), ~55 subcomandos ao todo, baseado em
+  hosting.pathoftitans.wiki/guide/chat-commands. Comando de TP integrado a
+  criacao de eventos continua nao implementado ("vindo em breve"); punicoes
+  aplicaveis em jogo via RCON (kick/ban/ServerMute, ja disponivel desde o
+  Rastreador - ver secao acima) continuam JA IMPLEMENTADAS tambem.
 - /config punishments completo aqui: ate 10 niveis de punicao customizados,
   limites de cargo automatico (Exemplar/Problematico) e recuperacao diaria,
   tudo editavel - unico tier com acesso aos botoes de Limites/Recuperacao
@@ -2185,3 +2190,97 @@ frente, nao so este relatorio):
   manda o feedback certo (fluxo completo, tier Compy), tier Free é
   bloqueado de verdade (tentativa não grava nada no banco), todos os
   módulos tocados carregam sem erro de sintaxe.
+
+
+61) CATÁLOGO COMPLETO DE COMANDOS RCON DO POT VIA DISCORD (/rcon-*, plano Caçador)
+------------------------------------------------------------------
+- Dono pediu pra expor o catálogo completo de comandos de admin do PoT
+  (baseado em hosting.pathoftitans.wiki/guide/chat-commands) como comandos
+  do Discord, organizados nas categorias que ele mesmo definiu (Change
+  Stats, Marks, Admin, Map, Event, Message), restrito ao plano Caçador —
+  "por categorias como comandos e comando como subcomandos". kick/ban/
+  unban/ServerMute/ServerUnmute ficam FORA desse catálogo de propósito —
+  continuam exclusivos de /strike e /unstrike, como já eram.
+- Novo `src/systems/pot/rconCommandCatalog.js`: catálogo DECLARATIVO (uma
+  tabela de dados por categoria, não ~55 handlers quase idênticos) + 2
+  funções genéricas (`buildSubcommandOption`/`executeRconSubcommand`) que
+  leem essa tabela. Cada entrada descreve nome/descrição (traduzida do
+  site, em PT), as opções do Discord, se é `supervisorOnly`, se
+  `requiresTarget`, e um `buildCommand(resolved)` que monta a string RCON
+  final — SEM nenhum `<`/`>` literal (o dono avisou: isso é só notação do
+  site, não faz parte do comando de verdade).
+- Alvo de jogador (`Username/AGID` no site) sempre como par de opções
+  `usuario` (Discord, opcional) + `agid` (string crua, opcional) — mesmo
+  padrão dual já usado em /historico. Resolve pro Alderon ID vinculado
+  (`PlayerRegistry.getPlayerByDiscordId`) quando `usuario` é informado,
+  cai pro `agid` cru quando não há vínculo ou quando só o AGID foi dado.
+- Caso especial `/<attribute> <number>` (o nome do atributo É o próprio
+  comando, não tem verbo fixo) virou o subcomando `attribute` com
+  `atributo` (string livre) + `valor` (number), montando `${atributo}
+  ${valor}` sem nenhum prefixo — o site não publica uma lista fechada de
+  atributos, então o campo é avançado/exige saber o nome exato no jogo.
+- 6 comandos novos, um por categoria (`src/commands/rcon/rcon-{stats,
+  marks,admin,map,event,message}.js`) — cada um É seu próprio comando de
+  topo com N subcomandos (diferente do padrão index.js+arquivos-soltos de
+  /strike/config/potserver, aqui não tem "comando pai" nenhum). Prefixo
+  `rcon-` escolhido de propósito pra não colidir com /evento (agendamento
+  de eventos da comunidade, feature totalmente diferente). Nenhuma
+  categoria passa de 13 subcomandos, todas cabem em subcomandos diretos
+  (limite do Discord é 25 por comando, sem precisar de subcommand groups).
+  Todos os 6 entraram em `ephemeralCommands` (handlers.js) — respostas
+  sempre privadas, mesmo padrão de /strike e /combat-config.
+- Nova flag `genericRconEnabled` em `premiumSystem.js` (false/false/true
+  pra free/rastreador/cacador) — nem `autoRcon` nem `discordActionsEnabled`
+  serviam (os dois já ligam no Rastreador), esse catálogo é Caçador-
+  exclusivo de verdade. 3 subcomandos (`setattrall`/`getattr`/
+  `getallattr`) também exigem o cargo Supervisor por cima
+  (`PunishmentSystem.memberHasSupervisorRole`, já existia, reaproveitado).
+- CORREÇÃO/GAP REAL encontrado e fechado: `/unstrike` nunca desfazia NADA
+  em jogo — só mexia em banco/Discord (reputação, cargo temporário,
+  timeout). Um jogador banido/mutado via /strike continuava banido/mutado
+  no jogo depois de um /unstrike. Agora `handleUnstrikeConfirmation`
+  (punishmentSystem.js) checa `punishment.level_action` da punição sendo
+  revogada: se `'Ban'` → manda `unban <alderon_id>` via RCON; se
+  `'ServerMute'` → `ServerUnmute <alderon_id>`; qualquer outra ação (ou
+  nenhuma) não dispara RCON nenhum. Mesmo gate `autoRcon` (Rastreador+)
+  que já libera a aplicação original — INDEPENDENTE da flag nova
+  `genericRconEnabled` (que é só pros 6 comandos desta tarefa). Falha de
+  RCON aqui NÃO bloqueia o resto do /unstrike (banco/Discord já são a
+  fonte da verdade da punição) — só avisa na resposta final.
+- Pedido do dono, também fechado: `/ReloadBans`/`/ReloadMutes` depois de
+  qualquer ban/unban/mute/unmute (essas ações mexem em listas persistentes
+  do servidor, precisam recarregar pra valer na hora). Adicionado em 2
+  pontos: `_executeStrike` (depois de um `Ban`/`ServerMute` bem-sucedido)
+  e o `unban`/`ServerUnmute` novo do /unstrike acima. Kick/SystemMessage
+  não precisam (não mexem em lista persistente). Fire-and-forget — não
+  bloqueia a resposta principal se o reload falhar.
+- `/ajuda` (página Configuração & Moderação) ganhou um bloco novo avisando
+  que os `/rcon-*` são poderosos (podem reiniciar servidor, banir, dar
+  godmode etc.) e que, além do bloqueio interno do bot, o dono deve
+  restringir ainda mais pelo próprio Discord (Configurações do Servidor →
+  Integrações → [bot] → permissões por comando/cargo/canal) — o Discord
+  permite negar um comando específico até pra quem tem Administrator.
+- IMPORTANTE (mesma ressalva de sempre pro RCON deste projeto): a sintaxe
+  de praticamente todos esses ~55 comandos NUNCA foi confirmada contra um
+  servidor real - vem direto da documentação do site oficial. Precisa
+  validar contra produção antes de confiar 100%, principalmente os que têm
+  parâmetros posicionais opcionais (SetWound/SetPermaWound/SpawnCritter -
+  a ordem categoria→valor é assumida, não confirmada).
+- Verificado com 2 scripts diretos (guild/staff/punição fake, limpos
+  antes/depois): (1) catálogo com a contagem certa em cada uma das 6
+  categorias, sem duplicata, kick/ban/unban/ServerMute/ServerUnmute
+  confirmados FORA; `buildCommand` de amostras de cada categoria (com e
+  sem parâmetro opcional) sem nenhum `<`/`>` sobrando; resolver de alvo
+  com usuário vinculado (usa Alderon ID) e com AGID cru; guild sem
+  Caçador bloqueia ANTES de qualquer RCON; subcomando `supervisorOnly`
+  bloqueia staff sem o cargo e libera com o cargo; os 6 comandos carregam,
+  nomes/subcomandos batem 1:1 com o catálogo, dentro dos limites do
+  Discord (32 chars, minúsculo); os 6 confirmados em `ephemeralCommands`.
+  (2) `_executeStrike` com ação Ban → dispara `ban ...` + `ReloadBans`;
+  com ServerMute → `ServerMute ...` + `ReloadMutes`; com Kick → nenhum
+  reload extra; `/unstrike` de punição com `level_action='Ban'` → dispara
+  `unban <agid>` + `ReloadBans` e completa a revogação normalmente; de
+  punição `'Kick'` → nenhum RCON extra; falha simulada de RCON no
+  /unstrike → não impede o resto do fluxo de completar.
+- Pendente (ambiente do dono, fora deste código): rodar `node deploy.js`
+  no host pra registrar os 6 comandos novos nos servidores em `GUILD_IDS`.

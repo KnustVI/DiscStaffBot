@@ -54,10 +54,19 @@ function buildPageSetupModeration(guildName, emojis) {
     builder.title(`${emojis.settings || '⚙️'} Setup inicial (nessa ordem)`, 2);
     builder.block([
         '• **/config roles** — cargos que controlam cada permissão do bot (Staff é obrigatório). Não precisam ser cargos "oficiais" do servidor — 100% customizável.',
-        '• **/config logs** — canais de log: Geral/AutoMod, Punições e ReportChat (tem botão pra criar os 3 automaticamente).',
+        '• **/config logs** — canais de log: Geral/AutoMod, Punições, ReportChat e Staff (tem botão pra criar os 4 automaticamente).',
         '• **/config punishments** — pontos por nível de strike e limites de reputação (Exemplar/Problemático).',
         '• **/reportchat** — publica o painel de denúncias no canal atual.',
     ]);
+    builder.separator();
+
+    builder.title(`${emojis.trianglealert || '⚠️'} Comandos RCON (/rcon-*) — restrinja pelo próprio Discord`, 2);
+    builder.text(
+        `• Os comandos **/rcon-stats**, **/rcon-marks**, **/rcon-admin**, **/rcon-map**, **/rcon-event** e **/rcon-message** ` +
+        `dão acesso direto ao console de admin do servidor PoT (podem reiniciar o servidor, banir, dar godmode etc.) — plano **Caçador**, com 3 subcomandos restritos ao cargo Supervisor. ` +
+        `Além do bloqueio interno do bot, recomendamos restringir ainda mais pelo próprio Discord: **Configurações do Servidor → Integrações → [nome do bot] → permissões por comando**, ` +
+        `escolhendo exatamente quem (cargo/canal) pode usar cada um — o Discord permite negar um comando específico até pra quem tem permissão de Administrador.`
+    );
     builder.separator();
 
     builder.title(`${emojis.gavel || '⚠️'} Comandos de Punição`, 2);

@@ -47,6 +47,12 @@ const GUILD_LIMITS = {
         // por Infinity aqui — o painel já limita a UI em 25 (teto do próprio
         // RoleSelectMenu do Discord), sem precisar mudar código nenhum.
         roleLimits: { moderador: 1, supervisor: 1, event: 1, eventNotify: 1 },
+        // Catálogo completo de comandos RCON do PoT (/rcon-*, ver
+        // rconCommandCatalog.js) — diferente de `autoRcon` (só a ação em
+        // jogo automática do /strike, já Rastreador+), este libera comandos
+        // livres de admin (godmode, restart, whitelist, etc.), por isso é
+        // Caçador-exclusivo.
+        genericRconEnabled: false,
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
@@ -57,6 +63,7 @@ const GUILD_LIMITS = {
         maxPunishmentLevels: 4,
         damageReportEnabled: true,
         roleLimits: { moderador: 3, supervisor: 1, event: 3, eventNotify: 1 },
+        genericRconEnabled: false,
     },
     cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
@@ -67,6 +74,7 @@ const GUILD_LIMITS = {
         maxPunishmentLevels: 10,
         damageReportEnabled: true,
         roleLimits: { moderador: 5, supervisor: 5, event: 5, eventNotify: 5 },
+        genericRconEnabled: true,
     },
 };
 
