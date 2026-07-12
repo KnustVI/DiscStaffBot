@@ -485,7 +485,7 @@ const ConfigSystem = {
                 required: false, value: existing?.duration_str || '', placeholder: 'Vazio = permanente',
             })),
             new ActionRowBuilder().addComponents(new TextInputBuilder({
-                customId: 'level_action', label: 'Ação em jogo (SystemMessage/Kick/Ban/ServerMute)', style: TextInputStyle.Short,
+                customId: 'level_action', label: 'Ação (SystemMessage/Kick/Ban/ServerMute)', style: TextInputStyle.Short,
                 required: false, value: existing?.action || '', placeholder: 'Vazio = nenhuma',
             })),
         ];
