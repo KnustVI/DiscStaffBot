@@ -343,19 +343,27 @@ function formatMessage(potEvent, data, guild) {
         // PlayerName/PlayerAlderonId (não AdminName/AdminAlderonId como a
         // doc oficial diz — ver ADMIN_ACTION_LABELS acima). A doc também
         // documenta uma variante "Entered/Exited Spectator Mode" pro MESMO
-        // evento, nunca vista disparar ao vivo (confirmado: o jogo não
-        // manda webhook nenhum quando um admin ativa modo espectador nesse
-        // servidor) — mas SE ela disparar em outro servidor/versão, pode
-        // muito bem vir com os nomes de campo da doc (AdminName/
-        // AdminAlderonId) em vez do padrão confirmado. Fallback pro par
-        // Admin* cobre esse caso sem custo nenhum, mesmo padrão já usado
-        // em AdminCommand logo abaixo.
-        // bSpectatorMode (confirmado presente no payload, sempre false nos
-        // testes reais até agora — doc mostra true no exemplo de spectator
-        // mode): mesmo sem um evento dedicado de entrar/sair, esse flag
-        // ainda diz se o admin JÁ ESTAVA em modo espectador no momento de
-        // outra ação (ex: mexendo nametags) — é a única visibilidade
-        // indireta possível já que o jogo não notifica a ação em si.
+        // evento — ATUALIZAÇÃO: essa variante JÁ FOI VISTA disparando ao
+        // vivo em produção (log real do dono, Action="Entered Spectator
+        // Mode"/"Exited Spectator Mode"), contradizendo o que se acreditava
+        // antes ("nunca dispara"). Fallback pro par Admin* continua valendo
+        // pro caso de vir com os nomes de campo da doc em vez do padrão
+        // confirmado, mesmo padrão já usado em AdminCommand logo abaixo.
+        // bSpectatorMode: ATENÇÃO — em produção, mesmo nos logs onde Action
+        // já é "Entered Spectator Mode" (ou seja, o admin ACABOU de entrar
+        // no modo espectador), esse campo continua chegando `false` — os
+        // dois campos parecem DESSINCRONIZADOS nesse evento específico (bug
+        // ou peculiaridade do próprio jogo, não confirmado o motivo ainda).
+        // Isso é relevante pro analytics de horas de espectador
+        // (AnalyticsSystem.recordNametagSighting, gatewayServer.js), que
+        // credita a sessão só quando bSpectatorMode===true — se esse campo
+        // nunca vem true na prática, a contagem de horas nunca acumula nada,
+        // mesmo com o Action mostrando entrada/saída de verdade. Ver
+        // PERSISTED_EVENTS em gatewayServer.js (grava AdminSpectate em
+        // pot_logs pra investigar o payload bruto sem precisar pegar a
+        // linha no terminal ao vivo) — precisa de mais payloads reais
+        // capturados antes de decidir se o analytics deve passar a se
+        // basear no Action em vez de (ou além de) bSpectatorMode.
         // Pedido do dono: linha própria com emoji (shieldcheck = está em
         // modo espectador, shieldban = não está, "Não definido" quando o
         // campo nem vier no payload).

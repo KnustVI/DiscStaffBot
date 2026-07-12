@@ -17,6 +17,28 @@ const ConfigSystem = require('../../systems/core/configSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const WebhookPayloads = require('./webhookPayloads');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
+const db = require('../../database/index');
+
+// Eventos administrativos/raros (só disparam quando um staff mexe em algo,
+// nunca em volume alto como PlayerChat/PlayerDamagedPlayer) — persistidos
+// SEMPRE em `pot_logs` (tabela que já existia no schema mas nunca era
+// escrita), independente de DEBUG_POT estar ligado. Resolve o pedido do
+// dono de "nunca consigo pegar isso no log do terminal pra conferência":
+// com isso dá pra consultar o payload bruto de qualquer AdminSpectate já
+// recebido, a qualquer momento, sem precisar ter tido DEBUG_POT ligado
+// bem na hora em que o evento aconteceu ao vivo.
+const PERSISTED_EVENTS = new Set(['AdminSpectate', 'AdminCommand', 'ServerModerate']);
+
+// Filtro opcional pro log de debug (DEBUG_POT=true) — sem isso, DEBUG_POT
+// mostra TODO evento recebido, e um evento raro (ex: AdminSpectate) fica
+// perdido no meio de uma enxurrada de PlayerChat/PlayerDamagedPlayer.
+// Defina DEBUG_POT_EVENTS=AdminSpectate (ou uma lista separada por vírgula)
+// no .env pra só ver esses no terminal; vazio/não definido = mostra tudo
+// (comportamento de sempre).
+const DEBUG_POT_EVENTS = (process.env.DEBUG_POT_EVENTS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 
 // Eventos do grupo "login" que já ganharam o container novo (avatar/Discord
 // vinculado, quando reconhecemos o jogador). Os demais grupos continuam no
@@ -200,12 +222,14 @@ class PoTGatewayServer {
         // PlayerLeave...). Corpo vazio/não reconhecido mostra o rawBody.
         this.app.use((req, res, next) => {
             if (process.env.DEBUG_POT === 'true') {
-                const fieldCount = Object.keys(req.body || {}).length;
                 const evt = req.query.evt || '-';
-                if (fieldCount > 0) {
-                    console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} (${fieldCount} campos): ${JSON.stringify(req.body)}`);
-                } else {
-                    console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} — corpo vazio/não reconhecido. rawBody=${JSON.stringify(req.rawBody ?? '(vazio)')}`);
+                if (DEBUG_POT_EVENTS.length === 0 || DEBUG_POT_EVENTS.includes(evt)) {
+                    const fieldCount = Object.keys(req.body || {}).length;
+                    if (fieldCount > 0) {
+                        console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} (${fieldCount} campos): ${JSON.stringify(req.body)}`);
+                    } else {
+                        console.log(`📡 [Gateway] ${req.method} ${req.path} evt=${evt} — corpo vazio/não reconhecido. rawBody=${JSON.stringify(req.rawBody ?? '(vazio)')}`);
+                    }
                 }
             }
             next();
@@ -317,8 +341,30 @@ class PoTGatewayServer {
             // depois de qualquer normalização — o log acima (linha ~90) mostra
             // o corpo cru; este mostra o que sobra depois do Format="Discord"
             // ser desmontado, que é o que decide o que aparece na mensagem.
-            if (process.env.DEBUG_POT === 'true') {
+            if (process.env.DEBUG_POT === 'true' && (DEBUG_POT_EVENTS.length === 0 || DEBUG_POT_EVENTS.includes(potEvent))) {
                 console.log(`📡 [Gateway] campos resolvidos pra ${potEvent}: ${JSON.stringify(data)}`);
+            }
+
+            // 0c. Persistência pra investigação posterior (ver PERSISTED_EVENTS
+            // acima) — SEMPRE grava, independente de DEBUG_POT, porque o
+            // problema real é não conseguir "pegar" o evento ao vivo no
+            // terminal (ex: AdminSpectate só dispara quando um staff mexe em
+            // nametags — raro, fácil de perder scrollando pm2). Best-effort:
+            // nunca deve derrubar o processamento do evento em si.
+            if (PERSISTED_EVENTS.has(potEvent)) {
+                try {
+                    db.prepare(`
+                        INSERT INTO pot_logs (guild_id, event_type, event_data, player_name, alderon_id, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `).run(
+                        guildId, potEvent, JSON.stringify(data),
+                        data.PlayerName || data.AdminName || null,
+                        data.PlayerAlderonId || data.AdminAlderonId || null,
+                        Math.floor(Date.now() / 1000), // created_at é em SEGUNDOS aqui (default da coluna usa strftime('%s','now'))
+                    );
+                } catch (err) {
+                    console.error(`❌ [Gateway] Erro ao persistir ${potEvent} em pot_logs:`, err.message);
+                }
             }
 
             // 1. Registro automático do jogador nos eventos relevantes

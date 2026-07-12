@@ -2284,3 +2284,62 @@ frente, nao so este relatorio):
   /unstrike → não impede o resto do fluxo de completar.
 - Pendente (ambiente do dono, fora deste código): rodar `node deploy.js`
   no host pra registrar os 6 comandos novos nos servidores em `GUILD_IDS`.
+
+
+62) INVESTIGAÇÃO: bSpectatorMode SEMPRE false MESMO EM "Entered Spectator Mode" + persistência de eventos admin em pot_logs
+------------------------------------------------------------------
+- Dono mandou print de produção mostrando VÁRIOS logs de AdminSpectate
+  com Action="entrou no modo espectador"/"saiu do modo espectador"
+  (Action real: "Entered/Exited Spectator Mode") mas SEMPRE com "Modo
+  espectador: 🚫" (bSpectatorMode=false) — inclusive nos logs onde o
+  Action diz EXPLICITAMENTE que o admin acabou de entrar. Isso é
+  potencialmente sério: `AnalyticsSystem.recordNametagSighting`
+  (seção 57/58, sistema de horas de espectador) só credita/abre sessão
+  quando `bSpectatorMode===true` — se esse campo nunca vem `true` na
+  prática, a métrica de horas de espectador nunca acumula nada, mesmo
+  com staff entrando/saindo de espectador de verdade.
+- Conferido: NÃO é bug do nosso código — `AdminSpectate` (webhookPayloads.js)
+  já fazia um passthrough correto e direto de `d.bSpectatorMode`, sem
+  nenhuma transformação. É um comportamento real do payload do jogo (os
+  dois campos, Action e bSpectatorMode, parecem dessincronizados nesse
+  evento específico) - motivo exato ainda não confirmado, precisa de mais
+  payloads brutos reais pra investigar.
+- Comentário antigo em webhookPayloads.js corrigido: dizia que a variante
+  "Entered/Exited Spectator Mode" do Action "nunca disparava ao vivo" -
+  ERRADO, o print do dono prova que dispara normalmente em produção.
+- Causa raiz do "nunca consigo pegar isso no terminal pra conferência"
+  (pedido do dono): o log de debug (`DEBUG_POT=true`, gatewayServer.js)
+  sempre foi tudo-ou-nada - mostra QUALQUER evento recebido, então um
+  evento raro (AdminSpectate só dispara quando staff mexe em nametags)
+  fica perdido no meio de uma enxurrada de PlayerChat/PlayerDamagedPlayer
+  no terminal ao vivo (pm2), sem jeito de isolar.
+- 2 correções em `gatewayServer.js`:
+  1. Nova var de ambiente `DEBUG_POT_EVENTS` (lista separada por vírgula,
+     ex: `DEBUG_POT_EVENTS=AdminSpectate`) - filtra o log de debug pra só
+     mostrar os eventos listados; vazio/não definida = mostra tudo, igual
+     antes (sem quebrar quem já usa `DEBUG_POT=true` sozinho).
+  2. Persistência NOVA em `pot_logs` (tabela que já existia no schema
+     desde muito antes, mas nunca era escrita em lugar nenhum do código -
+     confirmado por grep) pra 3 eventos administrativos/raros
+     (`AdminSpectate`, `AdminCommand`, `ServerModerate`) - grava SEMPRE,
+     independente de `DEBUG_POT` estar ligado, porque o problema de fundo
+     é justamente não ter tido o debug ligado NA HORA CERTA. Como esses 3
+     eventos só disparam quando um staff mexe em algo (nunca em volume
+     alto tipo PlayerChat/PlayerDamagedPlayer), não pesa no banco -
+     eventos de alto volume continuam de fora de propósito, só no
+     terminal com `DEBUG_POT`. Agora dá pra consultar
+     `SELECT * FROM pot_logs WHERE event_type='AdminSpectate'` a
+     qualquer momento e ver o payload bruto de cada nametag toggle já
+     recebido, sem precisar ter "pego" a linha ao vivo.
+- Próximo passo (fora do escopo desta correção, precisa de payload real
+  novo capturado com a persistência agora ativa): decidir se o analytics
+  de horas de espectador deve passar a se basear no campo `Action`
+  ("Entered/Exited Spectator Mode") em vez de (ou além de)
+  `bSpectatorMode`, já que o Action parece ser o sinal mais confiável dos
+  dois nesse evento.
+- Verificado com script direto: `_routeToDiscord` com um AdminSpectate
+  fake (Action="Entered Spectator Mode", bSpectatorMode=false, igual ao
+  cenário real do print) grava certinho em `pot_logs` com
+  player_name/alderon_id/event_data (JSON preservando os campos originais,
+  inclusive a contradição Action-vs-bSpectatorMode); um PlayerChat (evento
+  de alto volume) confirmado que NÃO é persistido, evitando bloat.
