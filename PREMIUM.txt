@@ -2402,3 +2402,46 @@ frente, nao so este relatorio):
   sem mudança; (8) módulos tocados carregam sem erro de sintaxe. Re-rodada
   a suíte de `guildMemberUpdate`/purge (sem mudança) pra confirmar que o
   refactor não quebrou nada dependente de `analyticsSystem.js`.
+
+
+64) INVESTIGAÇÃO EM ABERTO: AdminSpectate (Entered/Exited Spectator Mode)
+    NÃO dispara pra alguns admins específicos — não é bug do bot
+------------------------------------------------------------------
+- Dono reportou que "as logs de espectador não estão chegando ao Discord".
+  Investigação ponta a ponta (webhook do grupo Admin testado e válido,
+  canal certo, sem erro nenhum em `_postRawToWebhook`/`routeToDiscord` nos
+  logs, vínculo `/registrar` + cargo de staff + tier Caçador todos OK,
+  `nametag_toggles` sendo contado certinho em `staff_analytics`) confirma
+  que a esteira inteira (gateway → analytics → Discord) funciona - o
+  problema é BEM mais específico: pro AlderonId do dono (500-735-822),
+  `pot_logs` nunca teve um único registro de `Action="Entered/Exited
+  Spectator Mode"`, só de `Enabled/Disabled Nametags`. Ou seja, o SERVIDOR
+  DO JOGO nunca manda esse webhook específico quando é o dono quem entra
+  em espectador — mesmo o nametag (mesmo evento, mesma rota) chegando
+  normal.
+- Testado ao vivo com `DEBUG_POT_EVENTS=AdminSpectate` + `pm2 logs | grep
+  spectate` enquanto o dono e outros 4 staff tentavam entrar em
+  espectador, pra achar o que diferencia quem funciona de quem não:
+  - Disparou certinho: Macieira (500-225-717, Android, Estagiário),
+    EustelahVll (749-548-539, PS5, Diretor), playrtur (511-590-794,
+    Windows, Estagiário).
+  - NUNCA disparou: dono/KnustVI (500-735-822, Windows, Diretor),
+    Chapeleiro_Maluco (061-884-392, Windows, Supervisor).
+  - Hipóteses descartadas uma a uma, todas com dado real contraditório:
+    cargo em jogo (Diretor está nos dois grupos), plataforma (Windows está
+    nos dois grupos), método de entrada (confirmado que todos usam o MESMO
+    painel de admin do jogo pra entrar em espectador).
+- CONCLUSÃO: não sobrou nenhuma variável visível no payload do webhook que
+  explique a diferença — é uma característica do próprio servidor PoT
+  (bug ou comportamento intermitente ao disparar esse `ServerWebhooks`
+  específico), fora do alcance do bot corrigir. O bot já processa
+  corretamente esse evento pra QUALQUER staff quando o jogo realmente
+  manda (confirmado com os 3 casos de sucesso acima, cargos/plataformas
+  diferentes entre si).
+- Próximo passo, se for revisitar: repetir o teste várias vezes seguidas
+  (sair/entrar em espectador 3-4x) pro dono e pro Chapeleiro, pra
+  distinguir "nunca dispara" (bug determinístico do lado do jogo, vale
+  reportar pro host/Alderon Games com esses dados) de "intermitente"
+  (só uma característica chata do servidor, sem correção possível).
+  Nenhuma ação de código pendente aqui — arquivado só como referência
+  pra não reabrir a investigação do zero se o assunto voltar.
