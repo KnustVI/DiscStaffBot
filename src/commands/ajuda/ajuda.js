@@ -93,6 +93,103 @@ function buildPageSetupModeration(guildName, emojis) {
     return builder;
 }
 
+function buildPageRcon(guildName, emojis) {
+    const builder = newPage(emojis);
+    pageHeader(
+        builder,
+        'COMANDOS RCON (JOGO)',
+        `Catálogo completo dos comandos de admin do servidor PoT disponíveis via **/rcon-***, plano **Caçador**. ` +
+        `Todo subcomando aceita **usuario** (Discord vinculado) OU **agid** (Alderon ID/nome, se não estiver vinculado) — nenhum dos dois informado usa você mesmo, quando fizer sentido. ` +
+        `${emojis.lock || '🔒'} marca os subcomandos restritos ao cargo Supervisor (ver /config roles).`
+    );
+
+    builder.title(`${emojis.rcon || '🔗'} /rcon-stats — Change Stats`, 2);
+    builder.block([
+        '• `heal` — Cura você mesmo, ou o jogador informado.',
+        '• `healall` — Cura todos os jogadores.',
+        '• `godmode` — Ativa o modo deus pra você mesmo, ou pro jogador informado.',
+        '• `attribute` — Define um atributo digitando o nome exato dele (ex: health) e o valor — avançado.',
+        '• `modattr` — Modifica um atributo do jogador informado.',
+        '• `setattr` — Define um atributo do jogador informado.',
+        `• \`setattrall\` ${emojis.lock || '🔒'} — Define um atributo pra todos os jogadores.`,
+        `• \`getattr\` ${emojis.lock || '🔒'} — Consulta o valor de um atributo do jogador informado.`,
+        `• \`getallattr\` ${emojis.lock || '🔒'} — Consulta todos os atributos do jogador informado.`,
+        '• `rewardgrowth` — Recompensa o jogador informado com growth (crescimento).',
+        '• `rewardwellrested` — Recompensa o jogador informado com status de bem descansado.',
+        '• `clearcooldowns` — Reseta todos os cooldowns de habilidade do servidor.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.rcon || '🔗'} /rcon-marks — Marks`, 2);
+    builder.block([
+        '• `setmarks` — Define a quantidade de marcas suas, ou do jogador informado.',
+        '• `setmarksall` — Define a quantidade de marcas de todos os jogadores.',
+        '• `addmarks` — Adiciona marcas ao jogador informado.',
+        '• `addmarksall` — Adiciona marcas a todos os jogadores.',
+        '• `removemarks` — Remove marcas do jogador informado.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.rcon || '🔗'} /rcon-admin — Admin`, 2);
+    builder.block([
+        '• `save` / `load` — Salva / carrega os dados do servidor.',
+        '• `promote` / `demote` — Promove o jogador informado a um cargo de admin / remove o cargo de admin dele.',
+        '• `cancelrestart` — Cancela um reinício agendado do servidor.',
+        '• `restart` — Agenda o reinício do servidor (segundos até reiniciar).',
+        '• `listroles` — Lista os cargos de admin disponíveis.',
+        '• `whitelist` / `delwhitelist` — Adiciona / remove o jogador informado da whitelist.',
+        '• `reloadwhitelist` — Recarrega a whitelist do servidor.',
+        '• `reloadmotd` — Recarrega a mensagem do dia (MOTD).',
+        '• `alloweditabilities` — Permite que o jogador informado edite habilidades.',
+        '• `serverinfo` — Mostra informações do servidor.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.rcon || '🔗'} /rcon-map — Map`, 2);
+    builder.block([
+        '• `listpoi` — Lista os pontos de interesse (POIs) do mapa.',
+        '• `listquests` — Lista as missões disponíveis.',
+        '• `weather` — Define o clima do servidor.',
+        '• `timeofday` — Define a hora do dia no servidor.',
+        '• `waterquality` — Ajusta a qualidade da água de uma fonte (tag + 0-100%).',
+        '• `waystonecooldown` — Ajusta o cooldown de uma waystone (tag + 0-100%).',
+        '• `clearcreatorobjects` — Remove os objetos do modo criador.',
+        '• `loadcreatormode` / `savecreatormode` — Carrega / salva um save do modo criador.',
+        '• `resetcreatormode` — Reseta o modo criador.',
+        '• `removecreatormode` — Apaga um save do modo criador.',
+        '• `listcreatormode` — Lista os saves do modo criador.',
+        '• `replenishcreatormode` — Restaura os recursos do modo criador.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.rcon || '🔗'} /rcon-event — Event`, 2);
+    builder.block([
+        '• `setwound` / `setpermawound` — Aplica um ferimento temporário / permanente ao jogador informado.',
+        '• `skipshed` — Pula a muda (troca de pele) do jogador informado.',
+        '• `spawncritter` — Spawna criaturas pequenas (critters).',
+        '• `countcritters` — Conta as criaturas ativas no servidor.',
+        '• `freezecritters` — Congela ou descongela as criaturas do servidor.',
+        '• `clearcritters` — Remove todas as criaturas do servidor.',
+    ]);
+    builder.separator();
+
+    builder.title(`${emojis.rcon || '🔗'} /rcon-message — Message`, 2);
+    builder.block([
+        '• `systemmessage` / `systemmessageall` — Envia uma mensagem de sistema pro jogador informado / pra todos.',
+        '• `directmessage` — Envia uma mensagem direta para o jogador informado.',
+        '• `announce` — Transmite um anúncio para o servidor.',
+    ]);
+    builder.separator();
+
+    builder.text(
+        `${emojis.trianglealert || '⚠️'} **kick, ban, unban, ServerMute e ServerUnmute não estão aqui** — continuam exclusivos de **/strike** e **/unstrike**, ` +
+        `que já aplicam a ação em jogo automaticamente (e recarregam bans/mutes) junto com a punição no Discord.`
+    );
+
+    builder.footer(guildName);
+    return builder;
+}
+
 function buildPageSystems(guildName, emojis) {
     const builder = newPage(emojis);
     pageHeader(builder, 'SISTEMAS DO SERVIDOR', 'ReportChat, Auto Moderação, Eventos e utilidades do bot:');
@@ -242,6 +339,7 @@ function getTopics(isAdmin, ctx) {
         return [
             { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageWelcome(displayName, guildName, emojis, true) },
             { key: 'setup', label: 'Configuração & Moderação', emoji: emojis.gavel || '⚖️', build: () => buildPageSetupModeration(guildName, emojis) },
+            { key: 'rcon', label: 'Comandos RCON (Jogo)', emoji: emojis.rcon || '🔗', build: () => buildPageRcon(guildName, emojis) },
             { key: 'systems', label: 'Sistemas do Servidor', emoji: emojis.trendingup || '📈', build: () => buildPageSystems(guildName, emojis) },
             { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
             { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
