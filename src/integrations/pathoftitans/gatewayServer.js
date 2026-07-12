@@ -387,16 +387,18 @@ class PoTGatewayServer {
             }
 
             // 1c. Analytics de staff — modo espectador (nametag). AdminSpectate
-            // usa PlayerAlderonId (confirmado ao vivo, ver formatMessage acima),
-            // com fallback pro par Admin* documentado oficialmente. Conta a
-            // ativação com/sem espectador e abre uma sessão quando entra em
-            // modo espectador pela primeira vez (fechada no PlayerRespawn
-            // abaixo) — ver AnalyticsSystem.recordNametagSighting.
-            if (potEvent === 'AdminSpectate' && typeof data.bSpectatorMode === 'boolean') {
+            // usa PlayerAlderonId pra "Enabled/Disabled Nametags" e AdminAlderonId
+            // pra "Entered/Exited Spectator Mode" (confirmado ao vivo com dados
+            // reais de produção — os dois Action usam nomes de campo diferentes
+            // pro MESMO evento). O sinal de entrada/saída de espectador é o
+            // `Action` em si, NÃO `bSpectatorMode` (confirmado sempre false
+            // mesmo quando Action já diz "Entered Spectator Mode" — ver
+            // PREMIUM.txt e AnalyticsSystem.recordAdminSpectateEvent).
+            if (potEvent === 'AdminSpectate') {
                 try {
                     const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
                     const alderonId = data.PlayerAlderonId || data.AdminAlderonId;
-                    if (alderonId) await AnalyticsSystem.recordNametagSighting(this.client, guildId, alderonId, data.bSpectatorMode);
+                    if (alderonId) await AnalyticsSystem.recordAdminSpectateEvent(this.client, guildId, alderonId, data.Action, data.bSpectatorMode);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Analytics de nametag falhou:', err.message);
                 }
@@ -404,7 +406,10 @@ class PoTGatewayServer {
 
             // 1d. PlayerRespawn = o admin voltou a jogar um dinossauro, ou
             // seja, saiu do modo espectador — fecha a sessão aberta em 1c (se
-            // houver) e soma o tempo decorrido na analytics do staff.
+            // houver) e soma o tempo decorrido na analytics do staff. Gatilho
+            // SECUNDÁRIO/fallback agora que o Action "Exited Spectator Mode"
+            // (1c acima) é o sinal primário — cobre o caso do admin sair do
+            // modo espectador sem esse Action disparar (ex: desconexão).
             if (potEvent === 'PlayerRespawn') {
                 try {
                     const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');

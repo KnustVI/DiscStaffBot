@@ -10,6 +10,12 @@ try {
     EMOJIS = {};
 }
 
+// Valores de `Action` do evento AdminSpectate — sinal confiável de entrada/
+// saída de modo espectador (bSpectatorMode não é, ver recordAdminSpectateEvent).
+const SPECTATOR_ENTER_ACTIONS = new Set(['Entered Spectator Mode']);
+const SPECTATOR_EXIT_ACTIONS = new Set(['Exited Spectator Mode']);
+const NAMETAG_TOGGLE_ACTIONS = new Set(['Enabled Nametags', 'Disabled Nametags']);
+
 class AnalyticsSystem {
 
     static getLocalDate(date = new Date()) {
@@ -140,33 +146,53 @@ class AnalyticsSystem {
     }
 
     // ── Nametag/modo espectador (evento AdminSpectate) ──────────────────────
-    // Só credita contagem/abre sessão se (a) o servidor for tier Caçador e
-    // (b) o AlderonId que ativou/desativou o nametag tiver, DE VERDADE, um
-    // dos cargos de staff no Discord — pedido do dono, fecha a brecha de
-    // confiar só na permissão do próprio jogo. Quando bSpectatorMode=true e
-    // ainda não há sessão aberta pra esse admin, abre uma (INSERT OR IGNORE —
-    // se já existir uma sessão aberta, o avistamento seguinte não reseta o
-    // horário de início). Sem vínculo/cargo, não há quem creditar — no-op
-    // silencioso (mesmo padrão de graceful-degradation usado no resto da
-    // integração PoT).
-    static async recordNametagSighting(client, guildId, alderonId, isSpectating) {
+    // CORRIGIDO com dados reais de produção (5 registros capturados via
+    // pot_logs, todos com bSpectatorMode=false mesmo quando Action já dizia
+    // "Entered Spectator Mode") — bSpectatorMode não é confiável pra saber
+    // se o admin ACABOU de entrar/sair do modo espectador nesse evento. O
+    // sinal de verdade é o próprio `Action`:
+    //   'Entered Spectator Mode' → abre sessão
+    //   'Exited Spectator Mode'  → fecha sessão (via closeSpectatorSession,
+    //                              mesma função já usada pelo PlayerRespawn)
+    //   'Enabled/Disabled Nametags' → conta o toggle, "com espectador" =
+    //                              existe sessão aberta NESSE MOMENTO (não
+    //                              mais bSpectatorMode)
+    // bSpectatorMode=true mantido como fallback OR pra abrir sessão, caso
+    // o campo algum dia venha true de verdade em outro cenário.
+    // Só credita/abre sessão se (a) o servidor for tier Caçador e (b) o
+    // AlderonId tiver, DE VERDADE, um dos cargos de staff no Discord —
+    // pedido do dono, fecha a brecha de confiar só na permissão do jogo.
+    static async recordAdminSpectateEvent(client, guildId, alderonId, action, bSpectatorModeRaw) {
         if (!guildId || !alderonId) return;
         try {
+            if (SPECTATOR_EXIT_ACTIONS.has(action)) {
+                await this.closeSpectatorSession(client, guildId, alderonId);
+                return;
+            }
+
             if (!this._isAnalyticsAllowed(guildId)) return;
 
             const member = await this._resolveTrackedStaffMember(client, guildId, alderonId);
             if (!member) return;
 
-            this.recordNametagToggle(guildId, member.id, isSpectating);
-
-            if (isSpectating) {
+            if (SPECTATOR_ENTER_ACTIONS.has(action) || bSpectatorModeRaw === true) {
+                // INSERT OR IGNORE — se já existir sessão aberta, um 2º
+                // "Entered" seguido não reseta o horário de início.
                 db.prepare(`
                     INSERT OR IGNORE INTO pot_spectator_sessions (guild_id, alderon_id, started_at)
                     VALUES (?, ?, ?)
                 `).run(guildId, alderonId, Date.now());
+                return;
+            }
+
+            if (NAMETAG_TOGGLE_ACTIONS.has(action)) {
+                const isSpectating = !!db.prepare(`
+                    SELECT 1 FROM pot_spectator_sessions WHERE guild_id = ? AND alderon_id = ?
+                `).get(guildId, alderonId);
+                this.recordNametagToggle(guildId, member.id, isSpectating);
             }
         } catch (err) {
-            console.error('❌ [Analytics] Erro ao registrar avistamento de nametag:', err.message);
+            console.error('❌ [Analytics] Erro ao processar AdminSpectate:', err.message);
         }
     }
 

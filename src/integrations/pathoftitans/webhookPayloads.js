@@ -349,21 +349,17 @@ function formatMessage(potEvent, data, guild) {
         // antes ("nunca dispara"). Fallback pro par Admin* continua valendo
         // pro caso de vir com os nomes de campo da doc em vez do padrão
         // confirmado, mesmo padrão já usado em AdminCommand logo abaixo.
-        // bSpectatorMode: ATENÇÃO — em produção, mesmo nos logs onde Action
-        // já é "Entered Spectator Mode" (ou seja, o admin ACABOU de entrar
-        // no modo espectador), esse campo continua chegando `false` — os
-        // dois campos parecem DESSINCRONIZADOS nesse evento específico (bug
-        // ou peculiaridade do próprio jogo, não confirmado o motivo ainda).
-        // Isso é relevante pro analytics de horas de espectador
-        // (AnalyticsSystem.recordNametagSighting, gatewayServer.js), que
-        // credita a sessão só quando bSpectatorMode===true — se esse campo
-        // nunca vem true na prática, a contagem de horas nunca acumula nada,
-        // mesmo com o Action mostrando entrada/saída de verdade. Ver
-        // PERSISTED_EVENTS em gatewayServer.js (grava AdminSpectate em
-        // pot_logs pra investigar o payload bruto sem precisar pegar a
-        // linha no terminal ao vivo) — precisa de mais payloads reais
-        // capturados antes de decidir se o analytics deve passar a se
-        // basear no Action em vez de (ou além de) bSpectatorMode.
+        // bSpectatorMode: CONFIRMADO NÃO CONFIÁVEL com payloads reais de
+        // produção (pot_logs, ver seção 62 do PREMIUM.txt) — em TODOS os
+        // registros capturados, mesmo com Action="Entered Spectator Mode",
+        // esse campo veio `false`. Por isso o analytics de horas de
+        // espectador (AnalyticsSystem.recordAdminSpectateEvent,
+        // gatewayServer.js) passou a se basear no próprio `Action`
+        // ("Entered/Exited Spectator Mode") como sinal principal — só usa
+        // bSpectatorMode===true como fallback extra, não mais como sinal
+        // primário. Esta linha do painel (abaixo) continua mostrando o
+        // valor cru de bSpectatorMode mesmo assim, só pra exibição — não é
+        // mais a fonte de verdade usada pelo analytics.
         // Pedido do dono: linha própria com emoji (shieldcheck = está em
         // modo espectador, shieldban = não está, "Não definido" quando o
         // campo nem vier no payload).

@@ -2343,3 +2343,62 @@ frente, nao so este relatorio):
   player_name/alderon_id/event_data (JSON preservando os campos originais,
   inclusive a contradição Action-vs-bSpectatorMode); um PlayerChat (evento
   de alto volume) confirmado que NÃO é persistido, evitando bloat.
+
+
+63) HORAS DE ESPECTADOR PASSAM A SE BASEAR NO Action, NÃO MAIS EM bSpectatorMode
+------------------------------------------------------------------
+- Resolução direta da investigação da seção 62. Dono capturou 5 registros
+  reais via `pot_logs` (2 novos + 3 do print anterior) - `bSpectatorMode`
+  veio `false` em TODOS, inclusive nos com `Action="Entered Spectator
+  Mode"`. Confirmado: esse campo não é confiável pra saber se o admin
+  ACABOU de entrar/sair do modo espectador nesse evento especificamente.
+- Achado extra nos dados reais (já esperado, sem impacto): `Action="Entered
+  Spectator Mode"` vem com `AdminAlderonId`/`AdminName` (nomes da doc
+  oficial), enquanto `Action="Enabled/Disabled Nametags"` vem com
+  `PlayerAlderonId`/`PlayerName` - o MESMO evento usa nomes de campo
+  diferentes dependendo do Action. Já era coberto pelo fallback existente
+  (`d.PlayerName || d.AdminName`), nenhuma mudança necessária aí.
+- `AnalyticsSystem.recordNametagSighting` reescrito e renomeado pra
+  `recordAdminSpectateEvent(client, guildId, alderonId, action,
+  bSpectatorModeRaw)` - agora recebe o `Action` cru do evento, não só o
+  booleano. Nova lógica, 3 conjuntos de Action reconhecidos
+  (`SPECTATOR_ENTER_ACTIONS`/`SPECTATOR_EXIT_ACTIONS`/
+  `NAMETAG_TOGGLE_ACTIONS`):
+  - `Action='Entered Spectator Mode'` → abre sessão (mesmo INSERT OR
+    IGNORE de antes - repetir "Entered" com sessão já aberta não reseta o
+    horário de início).
+  - `Action='Exited Spectator Mode'` → fecha a sessão chamando
+    `closeSpectatorSession` (a MESMA função já usada pelo PlayerRespawn -
+    sem duplicar a lógica de fechar+creditar).
+  - `Action='Enabled/Disabled Nametags'` → conta o toggle; "com
+    espectador" agora significa "existe uma sessão aberta pra esse
+    AlderonId NESTE MOMENTO" (consulta `pot_spectator_sessions`), não
+    mais o valor de `bSpectatorMode`.
+  - `bSpectatorMode===true` mantido como fallback OR pra abrir sessão -
+    se o campo algum dia vier true de verdade (outro cenário, versão do
+    jogo etc.), continua funcionando sem precisar de outro deploy.
+- `gatewayServer.js`: hook do AdminSpectate (1c) não depende mais de
+  `typeof data.bSpectatorMode === 'boolean'` pra disparar (a checagem
+  travava a análise sempre que faltasse esse campo) - agora chama
+  `recordAdminSpectateEvent` com `data.Action` sempre que o evento chegar.
+  PlayerRespawn (1d, fecha via `closeSpectatorSession`) mantido como
+  gatilho SECUNDÁRIO/fallback (cobre o admin sair do espectador sem o
+  Action correspondente disparar, ex: desconexão) - sem mudança de
+  comportamento aí.
+- Comentários desatualizados corrigidos em `webhookPayloads.js`: o que
+  dizia "Entered/Exited Spectator Mode nunca disparou ao vivo" e o que
+  ainda tratava a investigação como pendente - ambos substituídos pelo
+  achado confirmado.
+- Verificado com script direto (usando o MESMO Alderon ID real do print
+  do dono, 500-225-717): (1) `Action="Entered Spectator Mode"` com
+  `bSpectatorMode=false` (dado real) abre sessão mesmo assim; (2)
+  "Enabled Nametags" com sessão aberta conta "com espectador" (1/0); (3)
+  "Exited Spectator Mode" fecha a sessão e credita ~90s de um período
+  simulado; (4) "Disabled Nametags" sem sessão aberta conta "sem
+  espectador", sem re-incrementar o outro lado; (5) fallback
+  `bSpectatorMode=true` com Action desconhecido ainda abre sessão; (6)
+  "Entered Spectator Mode" repetido não reseta o horário de início; (7)
+  `closeSpectatorSession` (caminho do PlayerRespawn) continua funcionando
+  sem mudança; (8) módulos tocados carregam sem erro de sintaxe. Re-rodada
+  a suíte de `guildMemberUpdate`/purge (sem mudança) pra confirmar que o
+  refactor não quebrou nada dependente de `analyticsSystem.js`.
