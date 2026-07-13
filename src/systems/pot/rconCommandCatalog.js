@@ -456,6 +456,61 @@ function resolveOptionValues(interaction, entry) {
     return resolved;
 }
 
+// Extrai {id, token} de uma URL de webhook do Discord — mesma lógica de
+// gatewayServer.js._parseWebhookUrl, duplicada aqui de propósito pra manter
+// este módulo autocontido (mesmo padrão já usado em webhookPayloads.js).
+function _parseWebhookUrl(webhookUrl) {
+    try {
+        const url = new URL(webhookUrl);
+        const parts = url.pathname.split('/').filter(Boolean);
+        const idx = parts.indexOf('webhooks');
+        if (idx === -1 || !parts[idx + 1] || !parts[idx + 2]) return {};
+        return { id: parts[idx + 1], token: parts[idx + 2] };
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * Log de auditoria de um comando /rcon-* — pedido do dono: concentrar no
+ * MESMO canal que já recebe os webhooks do grupo Admin do PoT (AdminSpectate/
+ * AdminCommand), em vez de espalhar entre esse canal e o de logs Geral/
+ * AutoMod. Resolve o canal a partir da própria URL de webhook configurada
+ * pra esse grupo (/potserver logs) — sem precisar de uma config nova.
+ * Sem webhook do grupo Admin configurado, cai no comportamento antigo
+ * (ConfigSystem.logConfigChange, canal de log Geral) pra não perder o
+ * registro. Sempre best-effort — nunca bloqueia a resposta ao staff.
+ */
+async function _logRconCommand(interaction, categoryLabel, entry, command, rconResult) {
+    const line = `${EMOJIS.rcon || '🔗'} RCON \`[${categoryLabel}]\` **/${entry.name}**: \`${command}\` — ${rconResult?.success ? 'sucesso' : `falhou (${rconResult?.error || 'erro desconhecido'})`}`;
+
+    try {
+        const adminWebhookUrl = PoTConfigSystem.getWebhookForGroup(interaction.guildId, 'admin');
+        const { id, token } = _parseWebhookUrl(adminWebhookUrl || '');
+        if (id && token) {
+            const webhook = await interaction.client.fetchWebhook(id, token).catch(() => null);
+            const channel = webhook?.channelId ? await interaction.client.channels.fetch(webhook.channelId).catch(() => null) : null;
+            if (channel?.isTextBased?.()) {
+                const builder = new AdvancedContainerBuilder({ accentColor: rconResult?.success ? COLORS.SUCCESS : COLORS.ERROR });
+                builder.text(line);
+                builder.footer(interaction.guild.name);
+                const { components, flags } = builder.build();
+                await channel.send({ components, flags: [flags] });
+                return;
+            }
+        }
+    } catch (err) {
+        // cai no fallback abaixo
+    }
+
+    try {
+        const ConfigSystem = require('../core/configSystem');
+        await ConfigSystem.logConfigChange(interaction, line);
+    } catch (err) {
+        // log é best-effort, nunca bloqueia a resposta ao staff
+    }
+}
+
 // ==================== EXECUTOR GENÉRICO ====================
 
 async function executeRconSubcommand(interaction, entry, categoryLabel) {
@@ -485,15 +540,7 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
         categoria: categoryLabel, subcomando: entry.name, comando: command, sucesso: !!rconResult?.success,
     });
 
-    try {
-        const ConfigSystem = require('../core/configSystem');
-        await ConfigSystem.logConfigChange(
-            interaction,
-            `${EMOJIS.rcon || '🔗'} RCON \`[${categoryLabel}]\` **/${entry.name}**: \`${command}\` — ${rconResult?.success ? 'sucesso' : `falhou (${rconResult?.error || 'erro desconhecido'})`}`
-        );
-    } catch (err) {
-        // log é best-effort, nunca bloqueia a resposta ao staff
-    }
+    await _logRconCommand(interaction, categoryLabel, entry, command, rconResult);
 
     const builder = new AdvancedContainerBuilder({ accentColor: rconResult?.success ? COLORS.SUCCESS : COLORS.ERROR });
     builder.text(`${rconResult?.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} **/${entry.name}**`);
