@@ -24,6 +24,7 @@ module.exports = {
 
         const targetUser = options.getUser('usuario');
         const reason = options.getString('motivo');
+        const alderonId = options.getString('agid')?.trim() || null;
         const durationOverride = options.getString('duracao') || null;
         const discordAct = options.getString('discord_act') || 'none';
         const jogoActOption = options.getString('jogo_act') || null;
@@ -72,7 +73,7 @@ module.exports = {
                 discordAct,
                 jogoActOverride,
                 durationOverride,
-                alderonId: null,
+                alderonId,
             }, 120000);
 
             await PunishmentSystem.showLevelSelector(interaction, 'personalizado');

@@ -44,6 +44,7 @@ module.exports = {
             .setDescription('[Supervisor] Punição manual completa, com controle total sobre ações.')
             .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator').setRequired(true))
             .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
+            .addStringOption(opt => opt.setName('agid').setDescription('Alderon ID do jogador, se ele não estiver vinculado (/registrar) — necessário pra ação em jogo').setRequired(false))
             .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (sobrescreve a duração do nível)').setRequired(false))
             .addStringOption(opt => opt.setName('discord_act').setDescription('Ação imediata no Discord')
                 .addChoices(
