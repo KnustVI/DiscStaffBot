@@ -267,7 +267,15 @@ class ReportChatSystem {
         }
 
         // ==================== 7. FOOTER ====================
-        builder.footer(guild.name);
+        // Footer customizado aplicado normalmente (ver /config personalizar,
+        // aba "Aparência Geral") — a COR aqui NÃO é sobrescrita de propósito:
+        // ela indica o STATUS do report (verde=fechado, vermelho=inativo,
+        // padrão=aguardando/respondido), sinal útil pra staff escanear o
+        // canal de log, diferente da cor fixa usada em /strike, /unstrike e
+        // nos outros paineis de report-chat.
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+        if (personalization.footerText) builder.footerRaw(personalization.footerText);
+        else builder.footer(guild.name);
 
         return builder;
     }
@@ -346,17 +354,18 @@ class ReportChatSystem {
     // ==================== PAINEL ====================
 
     getPanel(guildName, guildIcon, guildId) {
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-
-        // Banner e mensagem são personalizáveis a partir do Caçador (ver
-        // /config reportchat) — fora desse tier (ou sem nada configurado
-        // ainda), cai sempre no padrão do bot. A checagem de tier acontece
-        // AQUI (na leitura), não só na escrita: se o servidor perder o
-        // Caçador, volta pro padrão sozinho, sem precisar resetar nada.
+        // Banner, mensagem, cor e footer são personalizáveis a partir do
+        // Caçador (ver /config personalizar) — fora desse tier (ou sem nada
+        // configurado ainda), cai sempre no padrão do bot. A checagem de
+        // tier acontece AQUI (na leitura), não só na escrita: se o servidor
+        // perder o Caçador, volta pro padrão sozinho, sem precisar resetar
+        // nada.
         const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
         const bannerKey = (isCustomizable && ConfigSystem.getSetting(guildId, 'report_chat_banner_key')) || 'title_report_chat';
         const customMessage = isCustomizable ? ConfigSystem.getSetting(guildId, 'report_chat_message') : null;
+        const personalization = ConfigSystem.getPanelPersonalization(guildId);
 
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.banner(bannerKey);
         builder.text(`## ${EMOJIS.ticket || '🎫'} Denúncia de jogador`);
         builder.text(customMessage || [
@@ -368,7 +377,8 @@ class ReportChatSystem {
             ``,
             `- **Revisar uma Punição**: Recebeu um strike e quer contestar? Use o botão "Revisar Punição" e informe o número do strike.`,
         ].join('\n'));
-        builder.footer(guildName);
+        if (personalization.footerText) builder.footerRaw(personalization.footerText);
+        else builder.footer(guildName);
 
         // Botões do painel usando ButtonBuilder
         const reportButton = new ButtonBuilder()
@@ -428,12 +438,20 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
+            // Cor/footer customizados (aba "Aparência Geral" de /config
+            // personalizar) — os containers abaixo usam cor FIXA (DEFAULT),
+            // não uma cor com significado próprio (diferente de
+            // createBaseContainer, que usa a cor pra indicar status
+            // waiting/fechado/inativo — essa continua intacta).
+            const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+
             // ==================== CONTAINER DA THREAD ====================
-            const threadBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             threadBuilder.banner('title_report_chat');
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REPORTE | ${reportId}`);
             threadBuilder.text(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
-            threadBuilder.footer(guild.name);
+            if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
+            else threadBuilder.footer(guild.name);
 
             const { components: threadComponents, flags: threadFlags, files: threadFiles } = threadBuilder.build();
             const threadMsg = await thread.send({
@@ -451,7 +469,7 @@ class ReportChatSystem {
             `).run(guild.id, reportNumber, user.id, thread.id, threadMsg.id, 'waiting', '[]', Date.now(), Date.now());
 
             // ==================== CONTAINER DE INFORMAÇÕES ====================
-            const infoBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            const infoBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             infoBuilder.title(`${EMOJIS.clipboardlist || '📋'} Informações do Report`, 1);
             infoBuilder.separator();
             infoBuilder.text(`**${EMOJIS.messagesquare || '📝'} Regra quebrada:** ${data.regra}`);
@@ -459,7 +477,8 @@ class ReportChatSystem {
             infoBuilder.text(`**${EMOJIS.mappin || '📍'} Local:** ${data.local || 'Não informado'}`);
             infoBuilder.text(`**${EMOJIS.DinoFootprint || '🦶'} Personagem perdido:** ${data.personagem || 'Não informado'}`);
             infoBuilder.text(`**${EMOJIS.descricao || '📋'} Descrição:** ${data.descricao}`);
-            infoBuilder.footer(guild.name);
+            if (personalization.footerText) infoBuilder.footerRaw(personalization.footerText);
+            else infoBuilder.footer(guild.name);
             
             const { components: infoComponents, flags: infoFlags } = infoBuilder.build();
             await thread.send({ 
@@ -584,6 +603,7 @@ class ReportChatSystem {
             const reportNumber = this.getNextId(guild.id);
             const reportId = `#R${reportNumber}`;
             const threadName = `【${reportId}】revisao-strike-${strikeNumber}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            const personalization = ConfigSystem.getPanelPersonalization(guild.id);
 
             const thread = await interaction.channel.threads.create({
                 name: threadName,
@@ -594,11 +614,12 @@ class ReportChatSystem {
             await thread.members.add(user.id);
 
             // ==================== CONTAINER DA THREAD ====================
-            const threadBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             threadBuilder.banner('title_report_chat');
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
             threadBuilder.text(`Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
-            threadBuilder.footer(guild.name);
+            if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
+            else threadBuilder.footer(guild.name);
 
             const { components: threadComponents, flags: threadFlags, files: threadFiles } = threadBuilder.build();
             const threadMsg = await thread.send({
@@ -620,7 +641,7 @@ class ReportChatSystem {
             const severityLabel = punishment.level_severity || (punishment.severity ? `Nível ${punishment.severity}` : 'Registro simples');
             const moderator = await this.client.users.fetch(punishment.moderator_id).catch(() => null);
 
-            const summaryBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            const summaryBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             summaryBuilder.title(`${EMOJIS.gavel || '⚖️'} Resumo da Punição #${strikeNumber}`, 1);
             summaryBuilder.separator();
             summaryBuilder.text(`**${EMOJIS.calendar || '📅'} Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
@@ -632,7 +653,8 @@ class ReportChatSystem {
             summaryBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${punishment.reason}\n\`\`\``);
             if (punishment.report_id) summaryBuilder.text(`**${EMOJIS.ticket || '🎫'} Report original:** ${punishment.report_id}`);
             summaryBuilder.text(`**Status:** ${punishment.status === 'revoked' ? `${EMOJIS.circlecheck || '✅'} Já anulado` : `${EMOJIS.trianglealert || '⚠️'} Ativo`}`);
-            summaryBuilder.footer(guild.name);
+            if (personalization.footerText) summaryBuilder.footerRaw(personalization.footerText);
+            else summaryBuilder.footer(guild.name);
 
             const { components: summaryComponents, flags: summaryFlags } = summaryBuilder.build();
             await thread.send({

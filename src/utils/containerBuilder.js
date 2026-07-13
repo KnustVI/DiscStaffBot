@@ -324,6 +324,26 @@ class AdvancedContainerBuilder {
         return this;
     }
 
+    /**
+     * Footer TOTALMENTE customizado (texto literal, sem "Produzido por
+     * KnustVI e T.Mach" nem nome do servidor) — usado só quando o guild
+     * configurou um footer próprio pra /strike, /unstrike, report-chat ou
+     * logs (ver /config personalizar, aba "Aparência Geral"). Mesma
+     * garantia de posição de footer() — sempre por último, mesmo se
+     * selectMenu() for chamado depois (ver isFooter em selectMenu()).
+     *
+     * @param {string} text - Texto completo do footer, já pronto
+     * @returns {this}
+     */
+    footerRaw(text) {
+        this.components.push({
+            kind: 'textDisplay',
+            payload: `-# ${text}`,
+            isFooter: true,
+        });
+        return this;
+    }
+
     // -----------------------------------------------------------------------
     // Build
     // -----------------------------------------------------------------------

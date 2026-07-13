@@ -278,17 +278,22 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   oficiais do PoT, mas o formato exato do campo de duracao/tempo ainda
   precisa ser confirmado contra um servidor real antes de confiar 100% em
   producao.
-- /config personalizar (so Caçador, ver secao 73) - unifica TODA
+- /config personalizar (so Caçador, ver secao 73 e 74) - unifica TODA
   personalizacao visual do Caçador antes espalhada em /config reportchat
-  (removido) - 2 abas: "Strike / Unstrike" (banner de cada painel,
-  independentes) e "Report-Chat" (banner + mensagem de abertura do painel,
-  o mesmo que /reportchat posta no canal). Banner: escolhe entre o padrao
-  do bot ou o mesmo pool de fotos de dino usado no card do /perfil (as 12
-  numeradas + Free/Compy/Raptor, 16 opcoes no total - ver secao 1).
-  Mensagem (so na aba Report-Chat): texto livre (modal), vazio = volta pro
-  texto padrao. Se o servidor perder o Caçador, os paineis voltam sozinhos
-  pro banner/mensagem padrao (a checagem de tier acontece na LEITURA, nao
-  so na escrita - nao precisa resetar nada manualmente).
+  (removido) - 3 abas: "Strike / Unstrike" (banner de cada painel,
+  independentes), "Report-Chat" (banner + mensagem de abertura do painel,
+  o mesmo que /reportchat posta no canal) e "Aparência Geral" (cor de
+  destaque + footer, JA IMPLEMENTADO - ver secao 74). Banner: escolhe
+  entre o padrao do bot ou o mesmo pool de fotos de dino usado no card do
+  /perfil (as 12 numeradas + Free/Compy/Raptor, 16 opcoes no total - ver
+  secao 1). Mensagem (so na aba Report-Chat): texto livre (modal), vazio =
+  volta pro texto padrao. Cor (hex) e footer (texto livre, SUBSTITUI o
+  footer padrao por completo) aplicados em /strike, /unstrike, no painel
+  de report-chat e nos logs de Punicoes/Reports/Geral - NAO aplicado aos
+  ~90 outros paineis do bot (paineis internos do dono/developer, ver
+  secao 74). Se o servidor perder o Caçador, os paineis voltam sozinhos
+  pro padrao (a checagem de tier acontece na LEITURA, nao so na escrita -
+  nao precisa resetar nada manualmente).
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando, com 3 botoes de
   navegacao (Status, Server Premium, Player Premium) - o painel sempre
@@ -3026,3 +3031,75 @@ frente, nao so este relatorio):
   não existe mais e nenhum arquivo (config/index.js, interactionCreate.js,
   handlers.js) referencia mais `config-reportchat`/`reportchat` como
   subcomando.
+
+
+74) Nova aba "Aparência Geral" em /config personalizar: cor de destaque +
+    footer customizáveis (Strike/Unstrike/Report-Chat/Logs)
+------------------------------------------------------------------
+- Pedido do dono: personalizar footer e cor dos painéis. Escopo real
+  discutido antes de implementar - "global de verdade" (todo painel do
+  bot) exigiria threadear `guildId` por ~110 pontos de construção de
+  `AdvancedContainerBuilder` espalhados em 35 arquivos, boa parte deles
+  paineis INTERNOS do próprio dono do bot (developer, system-log, erro),
+  sem relação nenhuma com um servidor de cliente - descartado por ser
+  refatoração grande demais pro pedido. Escopo final confirmado: aplicar
+  em `/strike`, `/unstrike`, painel de report-chat, e nos logs de
+  Punições/Reports/Geral (~18 pontos de construção em 4 arquivos) - os
+  logs de Staff (troca de cargo, analytics) ficaram de FORA de propósito
+  (mais internos/staff-only, menor valor de marca) - pode ser estendido
+  depois se o dono quiser.
+- Novo helper `ConfigSystem.getPanelPersonalization(guildId)` -
+  `{ accentColor: number|null, footerText: string|null }`, checagem de
+  tier (Caçador) NA LEITURA, mesmo critério dos outros itens de /config
+  personalizar. Cor: hex de 6 dígitos (`panel_accent_color`, sem `#`,
+  validado com regex antes de salvar). Footer: texto livre até 100
+  caracteres (`panel_footer_text`) - SUBSTITUI o footer inteiro (não
+  "Produzido por KnustVI e T.Mach", nem nome do servidor), decisão
+  explícita do dono ao escolher entre "adicionar" vs "substituir".
+- Novo método `footerRaw(text)` em `containerBuilder.js` (aditivo, não
+  mexe em `footer()` existente) - mesma garantia de posição (sempre por
+  último) que `footer()` já tinha, só que com o texto literal em vez de
+  montar a marca do bot.
+- Nova aba "Aparência Geral" em `/config personalizar` (3ª aba) - botões
+  "Editar Cor" e "Editar Footer" (cada um abre um modal) e "Resetar
+  Padrão". Os 2 botões de modal precisaram do MESMO special-case em
+  `interactionCreate.js` que a seção 73 documentou faltando pro botão de
+  recuperação diária (showModal() só funciona como PRIMEIRA resposta a
+  uma interação, antes de qualquer deferUpdate()) - adicionados
+  corretamente desta vez, sem repetir o bug.
+- Aplicado em: `generateStrikeUnifiedContainer`/
+  `generateUnstrikeUnifiedContainer` (cor+footer, incluindo o painel de
+  aprovação de Supervisor que usa o MESMO log de punições);
+  `reportChatSystem.getPanel` (cor+footer do painel principal);
+  `reportChatSystem.openReport`/`openPunishmentReview` (cor+footer dos
+  containers de thread/resumo, que usam cor FIXA); `logConfigChange`
+  (cor+footer do log "Geral", usado por quase todo comando administrativo
+  que altera configuração).
+- EXCEÇÃO deliberada: `reportChatSystem.createBaseContainer` (o painel de
+  status de report reusado no log/DM/thread) recebe o footer customizado,
+  mas a COR NÃO é sobrescrita - ali a cor tem significado funcional
+  (verde=fechado, vermelho=inativo, padrão=aguardando/respondido), sinal
+  útil pra staff escanear o canal de log rapidamente. Sobrescrever
+  jogaria fora esse sinal com nenhum ganho real (diferente de /strike
+  vermelho e /unstrike verde, onde o dono confirmou explicitamente querer
+  a cor customizável mesmo perdendo o "vermelho=punição/verde=desfeito").
+  Documentado em comentário no código pra não ser "corrigido" por engano
+  no futuro.
+- Também preservado: painéis com um `extra` de footer funcional (ex: "Apenas
+  o cargo Supervisor pode aprovar ou rejeitar este pedido.") continuam
+  mostrando essa informação mesmo com footer customizado - só a parte de
+  marca/nome do servidor é substituída, nunca um aviso funcional do
+  próprio painel (`_applyFooter(builder, personalization, guildName,
+  extra)` em punishmentSystem.js).
+- Verificado com script direto (34 checks): `getPanelPersonalization`
+  retorna null/null sem config e sem Caçador (mesmo com config salva no
+  banco); aba Aparência Geral mostra cor/footer atuais e os 3 botões
+  certos; modal de cor rejeita hex inválido sem alterar nada; modal de
+  cor/footer válidos atualizam o setting e reabrem a aba certa; reset
+  limpa os 2 settings; `/strike`/`/unstrike`/painel de report-chat usam a
+  cor E o footer customizados quando configurados, e voltam pro padrão
+  original (cor E footer, incluindo a marca "Produzido por...") assim que
+  o tier deixa de ser Caçador; `createBaseContainer` aplica o footer
+  customizado mas MANTÉM a cor de status (closed=verde, waiting=padrão);
+  `footerRaw()` produz o texto literal sem nenhuma marca do bot.
+  Reexecutada toda a regressão acumulada (seções 71-73) sem quebra.

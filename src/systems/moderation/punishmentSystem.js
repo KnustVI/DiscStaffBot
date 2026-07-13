@@ -242,8 +242,36 @@ const PunishmentSystem = {
         return ConfigSystem.getSetting(guildId, 'unstrike_banner_key') || 'title_strike_removido';
     },
 
+    /**
+     * Cor de destaque e footer customizados (aba "Aparência Geral" de
+     * /config personalizar) — ver ConfigSystem.getPanelPersonalization.
+     * Usado nos painéis de /strike e /unstrike, e nos logs de punição
+     * abaixo. Sempre retorna `{ accentColor: null, footerText: null }`
+     * fora do Caçador (checagem já feita dentro de getPanelPersonalization).
+     */
+    _resolvePersonalization(guildId) {
+        const ConfigSystem = require('../core/configSystem');
+        return ConfigSystem.getPanelPersonalization(guildId);
+    },
+
+    /**
+     * Aplica footer customizado (se houver) ou o padrão do bot. `extra` é
+     * um contexto específico do painel (ex: "Apenas o cargo Supervisor pode
+     * aprovar...") que precisa continuar aparecendo MESMO com footer
+     * customizado — só a parte de marca/nome do servidor é substituída,
+     * nunca informação funcional do próprio painel.
+     */
+    _applyFooter(builder, personalization, guildName, extra = null) {
+        if (personalization.footerText) {
+            builder.footerRaw(extra ? `${extra} • ${personalization.footerText}` : personalization.footerText);
+        } else {
+            builder.footer(guildName, extra);
+        }
+    },
+
     generateStrikeUnifiedContainer(target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
+        const personalization = this._resolvePersonalization(guildId);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.ERROR });
         builder.banner(this._resolveStrikeBannerKey(guildId));
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
@@ -285,13 +313,14 @@ const PunishmentSystem = {
             }
         }
 
-        builder.footer(guildName);
+        this._applyFooter(builder, personalization, guildName);
 
         return builder;
     },
-    
+
     generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName, guildId) {
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
+        const personalization = this._resolvePersonalization(guildId);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.SUCCESS });
         builder.banner(this._resolveUnstrikeBannerKey(guildId));
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
@@ -320,8 +349,8 @@ const PunishmentSystem = {
         builder.separator();
         builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo da Anulação:**`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
-        builder.footer(guildName);
-        
+        this._applyFooter(builder, personalization, guildName);
+
         return builder;
     },
     
@@ -775,7 +804,8 @@ const PunishmentSystem = {
         const targetUser = await interaction.client.users.fetch(session.targetId).catch(() => null);
         const severityLabel = session.levelSeverity ? `${session.levelName} (${session.levelSeverity})` : 'Duração longa/permanente';
 
-        const approvalBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        const personalization = this._resolvePersonalization(guild.id);
+        const approvalBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         approvalBuilder.section(
             [
                 '# APROVAÇÃO NECESSÁRIA: PUNIÇÃO SEVERA',
@@ -794,7 +824,7 @@ const PunishmentSystem = {
         approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${!session.durationStr || session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
         approvalBuilder.separator();
         approvalBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${session.reason}\n\`\`\``);
-        approvalBuilder.footer(guild.name, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
+        this._applyFooter(approvalBuilder, personalization, guild.name, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`punishment:supervisor_approve:${approvalId}`).setLabel('Aprovar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),

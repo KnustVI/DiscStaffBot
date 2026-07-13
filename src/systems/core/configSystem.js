@@ -312,12 +312,17 @@ const ConfigSystem = {
             const channel = await interaction.guild.channels.fetch(logChannelId).catch(() => null);
             if (!channel) return;
 
-            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            // Cor/footer customizados (aba "Aparência Geral" de /config
+            // personalizar) — este é o log "Geral", usado por praticamente
+            // todo comando administrativo que altera uma configuração.
+            const personalization = this.getPanelPersonalization(interaction.guildId);
+            const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             builder.title(`${EMOJIS.settings || '⚙️'} Configuração Alterada`);
             builder.text(`**Responsável:** ${interaction.user}`);
             builder.separator();
             builder.block(entries);
-            builder.footer(interaction.guild.name);
+            if (personalization.footerText) builder.footerRaw(personalization.footerText);
+            else builder.footer(interaction.guild.name);
 
             const { components, flags } = builder.build();
             await channel.send({ components, flags: [flags] });
@@ -456,6 +461,18 @@ const ConfigSystem = {
                 await this.resetReportChat(interaction);
                 return;
             }
+            if (customId === 'config-personalizar:aparencia-color:modal') {
+                await this.handlePanelColorModal(interaction);
+                return;
+            }
+            if (customId === 'config-personalizar:aparencia-footer:modal') {
+                await this.handlePanelFooterModal(interaction);
+                return;
+            }
+            if (customId === 'config-personalizar:aparencia-reset') {
+                await this.resetPanelPersonalization(interaction);
+                return;
+            }
             if (customId.startsWith('config-personalizar:tab:')) {
                 const tab = customId.split(':')[2];
                 await this.refreshPersonalizarPanel(interaction, null, interaction.guild.name, tab);
@@ -490,6 +507,14 @@ const ConfigSystem = {
             }
             if (interaction.customId === 'config-personalizar:reportchat-message:modal:submit') {
                 await this.processReportChatMessageModal(interaction);
+                return;
+            }
+            if (interaction.customId === 'config-personalizar:aparencia-color:modal:submit') {
+                await this.processPanelColorModal(interaction);
+                return;
+            }
+            if (interaction.customId === 'config-personalizar:aparencia-footer:modal:submit') {
+                await this.processPanelFooterModal(interaction);
                 return;
             }
             await ResponseManager.error(interaction, 'Modal não reconhecido.');
@@ -1546,15 +1571,139 @@ const ConfigSystem = {
         await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner e mensagem resetados para o padrão!`, interaction.guild.name, 'reportchat');
     },
 
+    // ==================== APARÊNCIA GERAL (COR + FOOTER, CAÇADOR) ====================
+    // Cor de destaque e footer aplicados em /strike, /unstrike, report-chat,
+    // e nos logs de Punições/Reports/Geral (pedido do dono) — NÃO aplicado
+    // aos ~90 outros paineis do bot (developer/system-log/erro e a maioria
+    // dos comandos comuns) porque isso exigiria threadear guildId por ~110
+    // pontos de construção de container diferentes, boa parte deles sem
+    // relação nenhuma com um servidor de cliente (paineis internos do
+    // dono do bot). Ver getPanelPersonalization() pra onde isso é lido.
+
     /**
-     * Painel de /config personalizar — 2 abas: "strike" (banner de /strike +
-     * banner de /unstrike, cada um com seu próprio select) e "reportchat"
+     * Cor de destaque e footer customizados do servidor (aba "Aparência
+     * Geral" de /config personalizar). Retorna `null` em qualquer campo
+     * sem valor configurado (ou fora do Caçador) — quem chamar decide o
+     * fallback (cor/footer padrão do bot). Checagem de tier NA LEITURA,
+     * mesmo critério dos outros itens de /config personalizar — perder o
+     * Caçador volta tudo pro padrão sozinho, sem precisar resetar nada.
+     *
+     * @param {string} guildId
+     * @returns {{ accentColor: number|null, footerText: string|null }}
+     */
+    getPanelPersonalization(guildId) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!guildId || !PremiumSystem.isGuildAtLeast(guildId, 'cacador')) {
+            return { accentColor: null, footerText: null };
+        }
+        const colorHex = this.getSetting(guildId, 'panel_accent_color');
+        const footerText = this.getSetting(guildId, 'panel_footer_text');
+        return {
+            accentColor: colorHex && /^[0-9A-Fa-f]{6}$/.test(colorHex) ? parseInt(colorHex, 16) : null,
+            footerText: footerText || null,
+        };
+    },
+
+    async handlePanelColorModal(interaction) {
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
+        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const currentHex = this.getSetting(interaction.guildId, 'panel_accent_color') || '';
+        const row = new ActionRowBuilder().addComponents(
+            new TextInputBuilder({
+                customId: 'panel_accent_color',
+                label: 'Cor em hexadecimal, sem # (ex: FF4E3B)',
+                style: TextInputStyle.Short,
+                required: false,
+                maxLength: 6,
+                value: currentHex,
+                placeholder: 'Vazio = volta pra cor padrão de cada painel',
+            })
+        );
+        const modal = new ModalBuilder({ customId: 'config-personalizar:aparencia-color:modal:submit', title: 'Cor de Destaque dos Painéis', components: [row] });
+        await interaction.showModal(modal);
+    },
+
+    async processPanelColorModal(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const raw = interaction.fields.getTextInputValue('panel_accent_color').trim().replace(/^#/, '');
+        if (raw && !/^[0-9A-Fa-f]{6}$/.test(raw)) {
+            return await ResponseManager.error(interaction, 'Cor inválida — use 6 caracteres hexadecimais (ex: FF4E3B), ou deixe vazio pra voltar ao padrão.');
+        }
+
+        const oldValue = this.getSetting(interaction.guildId, 'panel_accent_color');
+        this.setSetting(interaction.guildId, 'panel_accent_color', raw || null);
+        this.clearCache(interaction.guildId);
+
+        const changeMessage = (oldValue || '') !== raw
+            ? `${EMOJIS.circlecheck || '✅'} **Cor dos painéis atualizada:** ${raw ? `#${raw.toUpperCase()}` : 'padrão do bot'}.`
+            : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if ((oldValue || '') !== raw) await this.logConfigChange(interaction, `${EMOJIS.palette || '🎨'} Cor dos painéis: \`${oldValue || 'padrão'}\` → \`${raw || 'padrão'}\``);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'aparencia');
+    },
+
+    async handlePanelFooterModal(interaction) {
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
+        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const currentFooter = this.getSetting(interaction.guildId, 'panel_footer_text') || '';
+        const row = new ActionRowBuilder().addComponents(
+            new TextInputBuilder({
+                customId: 'panel_footer_text',
+                label: 'Texto do footer (vazio = padrão do bot)',
+                style: TextInputStyle.Short,
+                required: false,
+                maxLength: 100,
+                value: currentFooter,
+                placeholder: 'Substitui "Produzido por KnustVI e T.Mach | Server: X" por completo',
+            })
+        );
+        const modal = new ModalBuilder({ customId: 'config-personalizar:aparencia-footer:modal:submit', title: 'Footer dos Painéis', components: [row] });
+        await interaction.showModal(modal);
+    },
+
+    async processPanelFooterModal(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const newFooter = interaction.fields.getTextInputValue('panel_footer_text').trim();
+        const oldFooter = this.getSetting(interaction.guildId, 'panel_footer_text') || '';
+
+        this.setSetting(interaction.guildId, 'panel_footer_text', newFooter || null);
+        this.clearCache(interaction.guildId);
+
+        const changeMessage = newFooter !== oldFooter
+            ? `${EMOJIS.circlecheck || '✅'} **Footer dos painéis atualizado.**`
+            : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (newFooter !== oldFooter) await this.logConfigChange(interaction, `${EMOJIS.edit || '✏️'} Footer dos painéis foi ${newFooter ? 'alterado' : 'resetado para o padrão'}.`);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'aparencia');
+    },
+
+    async resetPanelPersonalization(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        this.setSetting(interaction.guildId, 'panel_accent_color', null);
+        this.setSetting(interaction.guildId, 'panel_footer_text', null);
+        this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Cor e footer dos painéis resetados para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Cor e footer resetados para o padrão!`, interaction.guild.name, 'aparencia');
+    },
+
+    /**
+     * Painel de /config personalizar — 3 abas: "strike" (banner de /strike +
+     * banner de /unstrike, cada um com seu próprio select), "reportchat"
      * (banner + mensagem do painel de report-chat, com botão de editar
-     * mensagem e resetar padrão). Todo o conteúdo é exclusivo do plano
+     * mensagem e resetar padrão) e "aparencia" (cor de destaque + footer,
+     * aplicados globalmente em /strike, /unstrike, report-chat e logs — ver
+     * getPanelPersonalization()). Todo o conteúdo é exclusivo do plano
      * Caçador — a checagem de tier acontece aqui na LEITURA também (não só
      * na escrita dos handlers acima), então perder o Caçador volta pro
-     * padrão sozinho em qualquer um dos 3 banners (mesmo critério já usado
-     * em reportChatSystem.js.getPanel).
+     * padrão sozinho em qualquer uma das personalizações (mesmo critério já
+     * usado em reportChatSystem.js.getPanel).
      */
     async refreshPersonalizarPanel(interaction, successMessage, guildName, tab = 'strike') {
         const guildId = interaction.guildId;
@@ -1573,7 +1722,7 @@ const ConfigSystem = {
             return;
         }
 
-        const activeTab = tab === 'reportchat' ? 'reportchat' : 'strike';
+        const activeTab = ['reportchat', 'aparencia'].includes(tab) ? tab : 'strike';
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         const selects = [];
 
@@ -1608,7 +1757,7 @@ const ConfigSystem = {
                     .setValue(opt.value)
                     .setDefault(opt.value === unstrikeBannerKey)
                 )));
-        } else {
+        } else if (activeTab === 'reportchat') {
             const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
             const customMessage = this.getSetting(guildId, 'report_chat_message');
             const bannerLabel = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === bannerKey)?.label || bannerKey;
@@ -1630,6 +1779,19 @@ const ConfigSystem = {
             cb.separator();
             cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem atual`, 2);
             cb.block([customMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (nenhuma mensagem customizada ainda).`]);
+        } else {
+            const colorHex = this.getSetting(guildId, 'panel_accent_color');
+            const footerText = this.getSetting(guildId, 'panel_footer_text');
+
+            cb.text([
+                '# APARÊNCIA GERAL',
+                'Cor de destaque e footer aplicados em `/strike`, `/unstrike`, report-chat, e nos logs de Punições/Reports/Geral — recurso exclusivo do plano Caçador.',
+            ].join('\n'));
+            cb.title(`${EMOJIS.palette || '🎨'} Cor de destaque`, 2);
+            cb.block([colorHex ? `${EMOJIS.circlecheck || '✅'} #${colorHex.toUpperCase()}` : `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (cada painel usa sua própria cor).`]);
+            cb.separator();
+            cb.title(`${EMOJIS.messagesquare || '💬'} Footer`, 2);
+            cb.block([footerText || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot ("Produzido por KnustVI e T.Mach | Server: ${guildName}").`]);
         }
 
         for (const select of selects) cb.selectMenu(select);
@@ -1643,6 +1805,13 @@ const ConfigSystem = {
                 new ButtonBuilder().setCustomId('config-personalizar:reportchat-reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️'),
             ));
         }
+        if (activeTab === 'aparencia') {
+            bottomRows.push(new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('config-personalizar:aparencia-color:modal').setLabel('Editar Cor').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.palette || '🎨'),
+                new ButtonBuilder().setCustomId('config-personalizar:aparencia-footer:modal').setLabel('Editar Footer').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+                new ButtonBuilder().setCustomId('config-personalizar:aparencia-reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️'),
+            ));
+        }
         bottomRows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-personalizar:tab:strike')
@@ -1654,6 +1823,11 @@ const ConfigSystem = {
                 .setLabel('Report-Chat')
                 .setEmoji(EMOJIS.ticket || undefined)
                 .setStyle(activeTab === 'reportchat' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('config-personalizar:tab:aparencia')
+                .setLabel('Aparência Geral')
+                .setEmoji(EMOJIS.palette || undefined)
+                .setStyle(activeTab === 'aparencia' ? ButtonStyle.Primary : ButtonStyle.Secondary),
         ));
 
         const replyData = { components: [...components, ...bottomRows], flags, files };
