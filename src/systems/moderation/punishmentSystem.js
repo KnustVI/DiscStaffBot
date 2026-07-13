@@ -527,6 +527,9 @@ const PunishmentSystem = {
         builder.separator();
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             builder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos a perder:** -${session.pointsLost || 0} (${currentRep} → ${previewPoints})`);
+            if (session.reputationNote) {
+                builder.text(`${EMOJIS.trianglealert || '⚠️'} ${session.reputationNote}`);
+            }
         }
         builder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
         if (session.discordAct && session.discordAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).discordActionsEnabled) {
@@ -605,6 +608,10 @@ const PunishmentSystem = {
                 jogoAct: 'none',
                 pointsLost: 0,
                 levelId: null, levelName: null, levelSeverity: null,
+                // Mesmo aviso de src/commands/strike/personalizado.js
+                // (proceedToConfirm) — este caminho ("não aplicar ação") é o
+                // outro lugar que monta uma sessão de /strike personalizado.
+                reputationNote: 'Este subcomando não usa níveis de punição — nenhuma dedução de reputação é aplicada aqui. Use /strike ingame (com nível) se precisar descontar pontos automaticamente.',
             };
 
             SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending', finalSession, 120000);
@@ -854,7 +861,7 @@ const PunishmentSystem = {
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId, targetPlayerName } = session;
+        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId, targetPlayerName, reputationNote } = session;
 
         // Alvo sem conta Discord conhecida (ver UNREGISTERED_TARGET_PREFIX) —
         // não tem User/Member real pra buscar, monta um "usuário" sintético só
@@ -1048,7 +1055,7 @@ const PunishmentSystem = {
 
         return {
             success: true, strikeId, targetUser, pointsLost, newPoints,
-            dmDelivered, logSent, roleStatusMsg, ingameActionResult, isUnregisteredTarget,
+            dmDelivered, logSent, roleStatusMsg, ingameActionResult, isUnregisteredTarget, reputationNote,
         };
     },
 
@@ -1068,6 +1075,7 @@ const PunishmentSystem = {
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             lines.push(`${emojis.doublearrowdown || '📉'} ${result.pointsLost} pts perdidos`);
             lines.push(`${emojis.star || '⭐'} Reputação: ${result.newPoints}/100`);
+            if (result.reputationNote) lines.push(`${emojis.trianglealert || '⚠️'} ${result.reputationNote}`);
         }
         lines.push(dmStatusMsg);
         if (result.roleStatusMsg) lines.push(result.roleStatusMsg);

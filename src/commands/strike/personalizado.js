@@ -72,6 +72,11 @@ async function proceedToConfirm(interaction, data) {
         levelId: null,
         levelName: null,
         levelSeverity: null,
+        // Sem nível associado, não há de onde tirar pontos a descontar — avisa
+        // o staff explicitamente (pedido do dono), já que /strike
+        // personalizado tem cara de "ação completa" e a ausência de dedução
+        // passaria despercebida sem esse aviso.
+        reputationNote: 'Este subcomando não usa níveis de punição — nenhuma dedução de reputação é aplicada aqui. Use /strike ingame (com nível) se precisar descontar pontos automaticamente.',
     };
 
     sessionManager.set(staff.id, guildId, 'strike_pending', 'strike_pending', session, 120000);
