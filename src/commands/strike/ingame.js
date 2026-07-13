@@ -18,6 +18,7 @@ module.exports = {
 
         const alderonId = options.getString('alderon_id').trim();
         const reason = options.getString('motivo');
+        const discordAct = options.getString('discord_act') || 'none';
         let reportId = options.getString('report') || null;
 
         try {
@@ -69,7 +70,7 @@ module.exports = {
                 targetId,
                 reason,
                 reportId,
-                discordAct: 'none',
+                discordAct,
                 jogoActOverride: null,
                 durationOverride: null,
                 alderonId,

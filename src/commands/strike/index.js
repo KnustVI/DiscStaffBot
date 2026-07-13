@@ -6,6 +6,10 @@
  *                     jogo/Discord) — disponível em QUALQUER tier, incluindo Free.
  *   - ingame:        pune só pelo Alderon ID, usando um nível (ação em jogo via RCON) —
  *                     funciona pra jogador registrado (/registrar) ou não. Rastreador+.
+ *                     `discord_act` opcional (timeout/kick/ban) aplica TAMBÉM no
+ *                     Discord, se o jogador tiver conta vinculada — mesmo motor de
+ *                     `_executeStrike` que já suportava isso (discordActionsEnabled
+ *                     já era true no Rastreador), só faltava o comando expor a opção.
  *   - personalizado: modo manual completo, restrito ao cargo Supervisor E ao
  *                     plano Caçador (Rastreador/Free ficam de fora). NÃO usa
  *                     níveis (só motivo + duração, ambos obrigatórios) — aceita
@@ -42,9 +46,16 @@ module.exports = {
             .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('ingame')
-            .setDescription('Pune um jogador pelo Alderon ID (ação em jogo via RCON).')
+            .setDescription('Pune um jogador pelo Alderon ID (ação em jogo via RCON, e opcionalmente no Discord).')
             .addStringOption(opt => opt.setName('alderon_id').setDescription('Alderon ID do jogador').setRequired(true))
             .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição (mostrado ao jogador banido/mutado no jogo)').setRequired(true))
+            .addStringOption(opt => opt.setName('discord_act').setDescription('Ação imediata no Discord (precisa do jogador ter Discord vinculado)')
+                .addChoices(
+                    { name: 'Nenhuma', value: 'none' },
+                    { name: 'Mute (Timeout)', value: 'timeout' },
+                    { name: 'Expulsar (Kick)', value: 'kick' },
+                    { name: 'Banir (Ban)', value: 'ban' },
+                ))
             .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('personalizado')

@@ -132,20 +132,23 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   so pelo Alderon ID, usando os niveis criados) - funciona pra jogador
   registrado (/registrar) ou nao: sem vinculo Discord, a acao em jogo e o
   registro acontecem do mesmo jeito, so nao ha DM nem acao automatica no
-  Discord (sem conta pra notificar/aplicar). Acao em jogo via RCON JA
-  ATIVA aqui (antes so no Cacador).
+  Discord (sem conta pra notificar/aplicar, mesmo que `discord_act` seja
+  escolhido). Acao em jogo via RCON JA ATIVA aqui (antes so no Cacador).
+  Acao automatica no Discord (timeout/kick/ban) via `/strike ingame`
+  TAMBEM JA ATIVA aqui (JA IMPLEMENTADO - ver secao 75) - opcao
+  `discord_act` opcional no comando, aplicada junto da acao em jogo
+  quando o alvo tiver conta Discord vinculada. O flag
+  `discordActionsEnabled` (premiumSystem.js) ja era true neste tier desde
+  antes; faltava só o comando expor a opcao, o que a secao 75 corrigiu.
+  Continua exclusivo do Cacador: o modo manual completo (/strike
+  personalizado, sem niveis, com os campos discord_act/jogo_act
+  independentes e nao presos a um nivel) - ver abaixo.
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
-  Acao em jogo via RCON (niveis do /strike ingame) e o unico jeito de acao
-  automatica disponivel neste tier - acoes automaticas no Discord
-  (timeout/kick/ban) e o modo manual completo (/strike personalizado, com
-  os campos discord_act/jogo_act) sao exclusivos do Cacador (ver abaixo);
-  o flag `discordActionsEnabled` continua true no Rastreador na config
-  (premiumSystem.js) mas nenhum subcomando deste tier expoe a opcao pra
-  usa-lo de verdade no momento.
   Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
   duracao >72h/permanente (mesma regra do Free, so que aqui os niveis
-  tambem contam).
+  tambem contam) - independente de `discord_act` ter sido escolhido ou
+  nao (o gatilho de aprovacao e sempre a severidade/duracao do NIVEL).
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
   postagem no forum).
@@ -233,9 +236,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   (Free 1+1, Rastreador 3+3, Cacador ilimitado) + cooldown de abertura
   (Free 6h, Rastreador/Cacador sem cooldown).
 - Sistema de reputacao ligado a partir do Rastreador (Free = desligado).
-- Acoes automaticas no Discord via /strike (timeout/kick/ban) SO no
-  Cacador - em Free/Rastreador a punicao e so registrada, sem aplicar a
-  acao escolhida (avisado na propria tela de confirmacao do /strike).
+- Acoes automaticas no Discord via /strike (timeout/kick/ban) a partir do
+  Rastreador (JA IMPLEMENTADO - ver secao 75; antes so no Cacador, e antes
+  disso o flag ficou pronto mas sem nenhum comando expor a opcao) - via
+  `/strike ingame` (`discord_act` opcional, junto de um nivel) ou
+  `/strike personalizado` (exclusivo Cacador, ver abaixo). No Free a
+  punicao continua so registrada, sem aplicar nenhuma acao (avisado na
+  propria tela de confirmacao do /strike).
 - Acao em jogo (RCON) a partir do Rastreador - antes so no Cacador.
 - Aprovacao de Supervisor por severidade (niveis Grave/Severa) OU duracao
   (>72h ou permanente), em qualquer tier.
@@ -248,11 +255,14 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - /strike virou 1 comando com 3 subcomandos: registro (simples, sem
   nivel/acao automatica, disponivel em QUALQUER tier), ingame (pune so pelo
   Alderon ID, usa um nivel pra aplicar acao em jogo via RCON, a partir do
-  Rastreador, funciona registrado ou nao) e personalizado (modo manual
-  completo, restrito ao cargo Supervisor E EXCLUSIVO do Cacador - Rastreador
-  e Free ficam de fora - SEM niveis, so motivo+duracao obrigatorios, aceita
-  usuario OU agid, unico com discord_act). Ingame/personalizado sao os
-  unicos que aplicam acoes automaticas - registro e so isso mesmo, registro.
+  Rastreador, funciona registrado ou nao - `discord_act` opcional JA
+  IMPLEMENTADO desde a secao 75, aplica tambem no Discord se o alvo tiver
+  conta vinculada) e personalizado (modo manual completo, restrito ao
+  cargo Supervisor E EXCLUSIVO do Cacador - Rastreador e Free ficam de
+  fora - SEM niveis, so motivo+duracao obrigatorios, aceita usuario OU
+  agid, unico SEM nivel que ainda assim tem discord_act/jogo_act
+  independentes). Ingame/personalizado sao os unicos que aplicam acoes
+  automaticas - registro e so isso mesmo, registro.
   Um /strike "sem subcomando nenhum" nao e possivel -
   a API do Discord nao deixa misturar opcoes de topo com subcomandos no
   mesmo comando.
@@ -3103,3 +3113,60 @@ frente, nao so este relatorio):
   customizado mas MANTÉM a cor de status (closed=verde, waiting=padrão);
   `footerRaw()` produz o texto literal sem nenhuma marca do bot.
   Reexecutada toda a regressão acumulada (seções 71-73) sem quebra.
+
+
+75) /strike ingame ganha discord_act opcional (ação no Discord a partir do
+    Rastreador, não mais exclusiva do Caçador)
+------------------------------------------------------------------
+- Motivo: verificação da tabela de marketing "SERVER PREMIUM" contra o
+  código revelou que a célula do Rastreador já PROMETIA "aplica ação de
+  punição no Discord e in-game, pelo comando Strike" - mas na prática só
+  a parte in-game funcionava nesse tier (Discord automático era exclusivo
+  do Caçador via /strike personalizado). Dono confirmou: o ideal é
+  cumprir a promessa e liberar a ação no Discord também no Rastreador.
+- A engine por trás JÁ estava pronta: `discordActionsEnabled` já era
+  `true` no Rastreador em `premiumSystem.js` desde antes (ver nota
+  removida da seção anterior), e `_executeStrike`/`getPunishmentActions`/
+  `buildStrikeConfirmPreview` já tratavam `discordAct` de forma genérica
+  (usado por `/strike personalizado`). Faltava só `/strike ingame` expor
+  a opção - `ingame.js` gravava `discordAct: 'none'` fixo na sessão, sem
+  nenhum jeito de mudar isso.
+- Mudança: nova opção `discord_act` (opcional, mesmas 4 escolhas de
+  `/strike personalizado` - Nenhuma/Mute/Expulsar/Banir) no subcomando
+  `/strike ingame` (`strike/index.js`); `ingame.js` lê
+  `options.getString('discord_act') || 'none'` e grava isso na sessão em
+  vez do `'none'` fixo. Nenhuma outra mudança de código foi necessária -
+  `_mergeLevelIntoSession`, o painel de confirmação, `_executeStrike` e o
+  fluxo de aprovação de Supervisor já suportavam `discordAct` vindo de
+  qualquer subcomando, sem diferenciar por nome.
+- Comportamento herdado automaticamente, sem código novo:
+  - Alvo SEM conta Discord vinculada (jogador não registrado): `discord_act`
+    é ignorado com aviso "não aplicada: sem conta Discord vinculada" -
+    mesma proteção que já existia pra `/strike personalizado`.
+  - Aprovação de Supervisor continua batendo SÓ na severidade/duração do
+    NÍVEL escolhido, nunca no `discord_act` em si - escolher "Banir" não
+    muda se a punição precisa de aprovação ou não (quem decide isso é a
+    severidade do nível, configurada pelo admin em /config punishments).
+  - Fora do Rastreador (hipoteticamente, `discordActionsEnabled=false`):
+    a ação no Discord simplesmente não aplica, com aviso "requer o plano
+    Rastreador ou superior" - mesma defesa em profundidade já usada por
+    personalizado. Na prática inalcançável hoje porque `/strike ingame`
+    já é bloqueado inteiro abaixo de Rastreador.
+- `/strike personalizado` continua sendo o ÚNICO modo SEM níveis (motivo+
+  duração direto, sem depender de nível configurado) - a diferença real
+  entre os dois agora não é mais "quem tem discord_act", e sim: ingame
+  usa nível (Rastreador+, qualquer Staff) vs. personalizado é manual
+  completo (Caçador+, só Supervisor).
+- Verificado com script direto (15 checks): `/strike ingame` tem a opção
+  `discord_act` com as 4 escolhas certas, não obrigatória; sem informar
+  a opção, a sessão grava `discordAct: 'none'` (compatibilidade com quem
+  já usava o comando sem essa opção); informando `discord_act: 'ban'`,
+  a sessão grava `'ban'`; `_mergeLevelIntoSession` preserva o valor
+  vindo do staging; nível Leve + discord_act=ban NÃO exige aprovação de
+  Supervisor (o gatilho é a severidade do nível, não a ação escolhida);
+  nível Grave sem discord_act nenhum AINDA exige aprovação; `_executeStrike`
+  aplica o ban de verdade num membro com conta vinculada quando
+  `discordActionsEnabled=true`; alvo sem vínculo não crasha e não tenta
+  aplicar a ação; com `discordActionsEnabled=false` a ação não aplica
+  mas o registro continua funcionando normalmente. Reexecutada a
+  regressão acumulada de /strike (seções anteriores) sem quebra.
