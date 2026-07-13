@@ -224,6 +224,13 @@ module.exports = {
                 return;
             }
             if (interaction.customId === 'config-punishments:limites:modal') { await ConfigSystem.handleLimitesModal(interaction); return; }
+            // ✅ BUG corrigido: faltava este special-case — sem ele, o botão
+            // "Editar Recuperação Diária" caía no fluxo genérico de baixo
+            // (deferUpdate() automático pra qualquer botão, antes de chamar
+            // handleComponent), e showModal() SEMPRE falha depois de um
+            // deferUpdate() (a interação já foi "respondida"). O botão
+            // ficava com "essa interação falhou" sem nunca abrir o modal.
+            if (interaction.customId === 'config-punishments:recovery:modal') { await ConfigSystem.handleRecoveryModal(interaction); return; }
             if (interaction.customId === 'config-punishments:reset') { await ConfigSystem.resetPoints(interaction); return; }
             if (interaction.customId === 'config-roles:staff') { await ConfigSystem.setRoles(interaction, 'staff_role'); return; }
             if (interaction.customId === 'config-roles:strike') { await ConfigSystem.setRoles(interaction, 'strike_role'); return; }
@@ -236,7 +243,7 @@ module.exports = {
             if (interaction.customId === 'config-logs:staff') { await ConfigSystem.setLogChannel(interaction, 'log_staff'); return; }
             if (interaction.customId === 'config-logs:criar') { await ConfigSystem.confirmCreateLogChannels(interaction); return; }
             if (interaction.customId === 'config-punishments:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
-            if (interaction.customId === 'config-reportchat:message:modal') { await ConfigSystem.handleReportChatMessageModal(interaction); return; }
+            if (interaction.customId === 'config-personalizar:reportchat-message:modal') { await ConfigSystem.handleReportChatMessageModal(interaction); return; }
 
             // ==================== PATH OF TITANS - RESET ====================
 

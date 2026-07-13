@@ -23,7 +23,7 @@ COMPY - R$10/mes ("Tudo do Free +")
   (compra de banners na lojinha ainda nao implementado - "vindo em breve")
 - Footer de perfil padrao do tier Compy.
 - Foto de fundo do card escolhida num MENU de fotos pre-definidas (mesmo
-  pool usado no banner do /config reportchat - 12 fotos genericas) via
+  pool usado nos banners de /config personalizar - 12 fotos genericas) via
   /perfil-edit. JA IMPLEMENTADO. Diferente do Raptor: sem upload proprio,
   so escolher entre as opcoes prontas (ConfigSystem.handlePlayerPhotoSelect,
   coluna player_links.selected_photo_key).
@@ -81,7 +81,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   toda vez que o /perfil e exibido.
 - Foto escolhida por menu (Compy) via /perfil-edit - sem upload, so
   seleciona uma das 12 fotos genericas ja existentes em assets/images (o
-  mesmo pool usado no banner do /config reportchat). Guarda so a CHAVE do
+  mesmo pool usado nos banners de /config personalizar). Guarda so a CHAVE do
   imageManager (player_links.selected_photo_key), nao um arquivo proprio -
   bem mais leve que o fluxo do Raptor, sem precisar de canal de
   armazenamento nenhum.
@@ -166,7 +166,7 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
 - Analise de atividade de staff. Prioridade de suporte!
 - Reportes: chats de reporte ilimitados, sem tempo de espera. Personalizacao
   de banner/mensagem do painel de reportchat JA IMPLEMENTADO (ver
-  /config reportchat - detalhe na secao "O QUE JA FUNCIONA HOJE" abaixo).
+  /config personalizar - detalhe na secao "O QUE JA FUNCIONA HOJE" abaixo).
   Resumo automatico dos logs dos possiveis envolvidos direto no chat ainda
   nao implementado ("vindo em breve").
 - Punicoes: cargo temporario de punicao, ate 10 niveis de punicao
@@ -191,7 +191,13 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   >72h/perm, que continua valendo em Free/Rastreador sem excecao), o
   admin liga/desliga a exigencia de aprovacao nivel a nivel, direto no
   painel de /config punishments (botao Exigir/Dispensar Aprovacao em cada
-  nivel).
+  nivel). /config punishments agora tem 2 ABAS (JA IMPLEMENTADO - ver
+  secao 73): "Mecanicas de Reputacao" (limites + recuperacao diaria, cada
+  uma com seu proprio botao de editar) e "Niveis" (lista de niveis,
+  inalterada) - navegacao por botao abaixo do painel. Banner do painel de
+  /strike e /unstrike TAMBEM personalizavel agora (JA IMPLEMENTADO - ver
+  secao 73), junto do banner/mensagem do reportchat, tudo unificado em
+  /config personalizar (Caçador).
 - Eventos: anuncia automaticamente criacao/inicio/encerramento dos
   eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
   (esses tres ainda nao implementados - "vindo em breve")
@@ -272,14 +278,17 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   oficiais do PoT, mas o formato exato do campo de duracao/tempo ainda
   precisa ser confirmado contra um servidor real antes de confiar 100% em
   producao.
-- /config reportchat (so Caçador) - troca o banner e a mensagem de abertura
-  do painel de report-chat (o mesmo que /reportchat posta no canal).
-  Banner: escolhe entre o padrao do bot ou o mesmo pool de fotos de dino
-  usado no card do /perfil (as 12 numeradas + Free/Compy/Raptor, 16 opcoes
-  no total - ver secao 1). Mensagem: texto livre (modal), vazio = volta pro
-  texto padrao. Se o servidor perder o Caçador, o painel volta sozinho pro
-  banner/mensagem padrao (a checagem de tier acontece na LEITURA, nao so na
-  escrita - nao precisa resetar nada manualmente).
+- /config personalizar (so Caçador, ver secao 73) - unifica TODA
+  personalizacao visual do Caçador antes espalhada em /config reportchat
+  (removido) - 2 abas: "Strike / Unstrike" (banner de cada painel,
+  independentes) e "Report-Chat" (banner + mensagem de abertura do painel,
+  o mesmo que /reportchat posta no canal). Banner: escolhe entre o padrao
+  do bot ou o mesmo pool de fotos de dino usado no card do /perfil (as 12
+  numeradas + Free/Compy/Raptor, 16 opcoes no total - ver secao 1).
+  Mensagem (so na aba Report-Chat): texto livre (modal), vazio = volta pro
+  texto padrao. Se o servidor perder o Caçador, os paineis voltam sozinhos
+  pro banner/mensagem padrao (a checagem de tier acontece na LEITURA, nao
+  so na escrita - nao precisa resetar nada manualmente).
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando, com 3 botoes de
   navegacao (Status, Server Premium, Player Premium) - o painel sempre
@@ -2935,3 +2944,85 @@ frente, nao so este relatorio):
   formatMessage virar async; _logRconCommand inclui menção + cargo
   Discord + identidade em jogo do staff que executou. Reexecutada a
   regressão da seção 71 (reorganização /ingame-list) sem quebra.
+
+
+73) /config punishments dividido em 2 abas + novo /config personalizar
+    (banner de /strike, /unstrike e report-chat, tudo num só lugar)
+------------------------------------------------------------------
+- `/config punishments` (refreshPointsPanel, configSystem.js) dividido em 2
+  ABAS, mesmo padrão de navegação já usado em /config roles (ROLE_TABS):
+  - **"Mecânicas de Reputação"**: limites (Exemplar/Problemático) e
+    recuperação diária, cada um com seu PRÓPRIO botão de editar dentro da
+    própria seção (`cb.buttons()` logo abaixo do bloco, em vez de um botão
+    solto lá embaixo junto com Criar Nível) - pedido do dono ("os botões
+    devem estar nas sessões de acordo"). Botão "Resetar Padrão" também
+    migrou pra cá (mantido idêntico - mesmo label/estilo/comportamento),
+    já que é o que ele de fato reseta (nunca mexeu em níveis).
+  - **"Níveis"**: lista de níveis de punição, mantida EXATAMENTE como já
+    era antes da divisão (Criar Nível, Editar por nível, Exigir/Dispensar
+    Aprovação) - pedido do dono ("mantendo as sessões de níveis como já
+    estão atualmente"). Continua sendo a aba que abre por padrão ao rodar
+    `/config punishments` (nenhum comportamento visível mudou pra quem só
+    usa o comando sem mexer nas abas novas).
+  - Navegação: 2 botões abaixo do painel ("Mecânicas de Reputação" /
+    "Níveis"), destaque visual (Primary) na aba ativa - mesmo critério de
+    ROLE_TABS. Cada handler que reabre o painel (criar/editar nível,
+    toggle de aprovação, editar limites/recuperação, resetar) agora passa
+    a aba certa como 4º parâmetro de `refreshPointsPanel`, pra sempre
+    voltar pra aba de onde a ação partiu.
+- Novo subcomando **`/config personalizar`** (Caçador, ver seção 2) -
+  unifica TODA personalização visual do tier, que antes ficava só em
+  `/config reportchat` (agora REMOVIDO - pasta `src/commands/config/
+  reportchat.js` apagada, subcomando tirado de `config/index.js`). Pedido
+  original do dono era só banner de /strike e /unstrike; a decisão de
+  também dobrar o report-chat pra dentro veio de uma pergunta de "e se
+  criarmos um comando de personalização geral pra tudo que o Caçador pode
+  personalizar?" - confirmada pelo dono (fundir e remover o antigo, nome
+  `/config personalizar`). 2 abas:
+  - **"Strike / Unstrike"** (aba padrão): 2 selects independentes - banner
+    do painel de `/strike` (`strike_banner_key`) e do `/unstrike`
+    (`unstrike_banner_key`), cada um com "Padrão do bot" + o mesmo pool de
+    12 fotos genéricas já usado no `/perfil`/report-chat (ver seção 60).
+  - **"Report-Chat"**: exatamente o que `/config reportchat` já fazia
+    (banner + mensagem do painel, botão Editar Mensagem, botão Resetar
+    Padrão) - só o customId mudou (`config-reportchat:*` →
+    `config-personalizar:reportchat-*`), settings no banco (
+    `report_chat_banner_key`/`report_chat_message`) continuam as MESMAS,
+    então nada precisa ser migrado no banco.
+  - `generateStrikeUnifiedContainer`/`generateUnstrikeUnifiedContainer`
+    (punishmentSystem.js) ganharam `_resolveStrikeBannerKey`/
+    `_resolveUnstrikeBannerKey`: checagem de tier NA LEITURA (mesmo
+    critério de `reportChatSystem.js.getPanel` - se o servidor perder o
+    Caçador, os banners voltam sozinhos pro padrão, sem precisar resetar
+    nada), com fallback pro banner original (`title_strike`/
+    `title_strike_removido`) quando não há nada configurado.
+- BUG encontrado e corrigido de brinde (achado ao mexer nesta mesma área
+  de `interactionCreate.js` pra renomear o customId do modal do
+  report-chat): faltava o special-case de
+  `config-punishments:recovery:modal` na lista de botões-que-abrem-modal
+  interceptados ANTES do fluxo genérico de componente. Sem esse
+  special-case, clicar em "Editar Recuperação Diária" caía no
+  `deferUpdate()` automático que `interactionCreate.js` aplica a QUALQUER
+  botão antes de chamar `handleComponent()` - e `showModal()` sempre
+  falha depois de um `deferUpdate()` (a interação já foi respondida), já
+  que um modal só pode ser a PRIMEIRA resposta a uma interação. Resultado
+  na prática: o botão nunca abria o modal, só dava "essa interação
+  falhou". Corrigido adicionando o special-case que faltava, mesmo padrão
+  já usado pros outros botões de modal deste arquivo (Criar Nível, Editar
+  Nível, Editar Limites...).
+- Verificado com script direto (2 suítes, 53 checks no total): as 2 abas
+  de /config punishments mostram o conteúdo certo (níveis só na aba
+  Níveis, limites/recuperação só na aba Mecânicas), botões de editar
+  aparecem/desaparecem certo por tier (Editar Limites/Recuperação só
+  Caçador, Resetar Padrão sempre visível - igual antes), estilo do botão
+  de aba ativo (Primary) vs inativo (Secondary), aba padrão continua
+  sendo Níveis; /config personalizar mostra os selects certos por aba,
+  bloqueia com mensagem de negação sem Caçador (sem vazar nenhum select),
+  roteamento de aba funciona; `_resolveStrikeBannerKey`/
+  `_resolveUnstrikeBannerKey` usam o padrão sem config salva, a chave
+  customizada quando salva, e voltam pro padrão sem Caçador MESMO com uma
+  chave salva no banco (checagem em tempo de leitura); os painéis de
+  `/strike`/`/unstrike` de fato usam o banner resolvido; `reportchat.js`
+  não existe mais e nenhum arquivo (config/index.js, interactionCreate.js,
+  handlers.js) referencia mais `config-reportchat`/`reportchat` como
+  subcomando.

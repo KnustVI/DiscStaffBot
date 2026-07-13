@@ -175,6 +175,21 @@ const REPORT_CHAT_BANNER_OPTIONS = [
     ...PLAYER_PHOTO_OPTIONS,
 ];
 
+/**
+ * Opções de banner de /strike e /unstrike (painel de aplicação/anulação de
+ * punição) — /config personalizar, exclusivo Caçador. Mesmo pool de fotos
+ * genéricas reaproveitado acima, cada lista só troca a opção "Padrão do bot"
+ * pelo banner original de cada painel (ver punishmentSystem.js).
+ */
+const STRIKE_BANNER_OPTIONS = [
+    { value: 'title_strike', label: 'Padrão do bot' },
+    ...PLAYER_PHOTO_OPTIONS,
+];
+const UNSTRIKE_BANNER_OPTIONS = [
+    { value: 'title_strike_removido', label: 'Padrão do bot' },
+    ...PLAYER_PHOTO_OPTIONS,
+];
+
 const ConfigSystem = {
     STAFF_ROLE_KEYS,
     PLAYER_PHOTO_OPTIONS,
@@ -354,6 +369,11 @@ const ConfigSystem = {
                 await this.resetPoints(interaction);
                 return;
             }
+            if (customId.startsWith('config-punishments:tab:')) {
+                const tab = customId.split(':')[2];
+                await this.refreshPointsPanel(interaction, null, interaction.guild.name, tab);
+                return;
+            }
             if (customId === 'config-roles:staff') {
                 await this.setRoles(interaction, 'staff_role');
                 return;
@@ -416,16 +436,29 @@ const ConfigSystem = {
                 await this.refreshLogsPanel(interaction, `${EMOJIS.circlealert || '❌'} Criação automática cancelada.`, interaction.guild.name);
                 return;
             }
-            if (customId === 'config-reportchat:banner') {
+            if (customId === 'config-personalizar:strike-banner') {
+                await this.handleStrikeBannerSelect(interaction);
+                return;
+            }
+            if (customId === 'config-personalizar:unstrike-banner') {
+                await this.handleUnstrikeBannerSelect(interaction);
+                return;
+            }
+            if (customId === 'config-personalizar:reportchat-banner') {
                 await this.handleReportChatBannerSelect(interaction);
                 return;
             }
-            if (customId === 'config-reportchat:message:modal') {
+            if (customId === 'config-personalizar:reportchat-message:modal') {
                 await this.handleReportChatMessageModal(interaction);
                 return;
             }
-            if (customId === 'config-reportchat:reset') {
+            if (customId === 'config-personalizar:reportchat-reset') {
                 await this.resetReportChat(interaction);
+                return;
+            }
+            if (customId.startsWith('config-personalizar:tab:')) {
+                const tab = customId.split(':')[2];
+                await this.refreshPersonalizarPanel(interaction, null, interaction.guild.name, tab);
                 return;
             }
 
@@ -455,7 +488,7 @@ const ConfigSystem = {
                 await this.processRecoveryModal(interaction);
                 return;
             }
-            if (interaction.customId === 'config-reportchat:message:modal:submit') {
+            if (interaction.customId === 'config-personalizar:reportchat-message:modal:submit') {
                 await this.processReportChatMessageModal(interaction);
                 return;
             }
@@ -601,7 +634,7 @@ const ConfigSystem = {
             ? `${EMOJIS.circlecheck || '✅'} **Recuperação diária atualizada:** \`${oldValue || 1}\` → \`${recoveryAmount}\` ponto(s)/dia.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
         if (oldValue != recoveryAmount) await this.logConfigChange(interaction, [`${EMOJIS.trendingup || '📈'} Recuperação diária: \`${oldValue || 1}\` → \`${recoveryAmount}\` ponto(s)/dia`]);
-        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
+        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name, 'reputation');
     },
 
     _readLevelModalFields(interaction) {
@@ -632,7 +665,7 @@ const ConfigSystem = {
 
         const level = PunishmentLevels.createLevel(interaction.guildId, data, interaction.user.id);
         await this.logConfigChange(interaction, [`${EMOJIS.gavel || '⚖️'} Nível de punição criado: **${level.name}** (${level.severity}, ${level.points} pts)`]);
-        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Nível **${level.name}** criado!`, interaction.guild.name);
+        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Nível **${level.name}** criado!`, interaction.guild.name, 'levels');
     },
 
     async processEditLevelModal(interaction, levelId) {
@@ -649,7 +682,7 @@ const ConfigSystem = {
 
         const level = PunishmentLevels.updateLevel(interaction.guildId, levelId, data, interaction.user.id);
         await this.logConfigChange(interaction, [`${EMOJIS.edit || '✏️'} Nível de punição editado: **${level.name}** (${level.severity}, ${level.points} pts)`]);
-        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Nível **${level.name}** atualizado!`, interaction.guild.name);
+        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Nível **${level.name}** atualizado!`, interaction.guild.name, 'levels');
     },
 
     /**
@@ -680,6 +713,7 @@ const ConfigSystem = {
             interaction,
             `${EMOJIS.circlecheck || '✅'} Aprovação de Supervisor ${newValue ? 'agora é exigida' : 'não é mais exigida'} pra **${level.name}**.`,
             interaction.guild.name,
+            'levels',
         );
     },
 
@@ -717,7 +751,7 @@ const ConfigSystem = {
             ? `${EMOJIS.circlecheck || '✅'} **Limites atualizados!**\n${changes.join('\n')}`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
         if (changes.length > 0) await this.logConfigChange(interaction, changes);
-        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name);
+        await this.refreshPointsPanel(interaction, changeMessage, interaction.guild.name, 'reputation');
     },
 
     async resetPoints(interaction) {
@@ -726,7 +760,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'rep_recovery_amount', '1');
         this.clearCache(interaction.guildId);
         await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Limites de reputação e recuperação diária resetados para o padrão.`);
-        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name);
+        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Todos os valores foram resetados para o padrão!`, interaction.guild.name, 'reputation');
     },
 
     // ==================== PAINÉIS ====================
@@ -754,7 +788,19 @@ const ConfigSystem = {
         }
     },
 
-    async refreshPointsPanel(interaction, successMessage, guildName) {
+    /**
+     * /config punishments agora é dividido em 2 abas (pedido do dono):
+     * "reputation" (limites de reputação + recuperação diária, cada uma com
+     * seu próprio botão de editar dentro da própria seção) e "levels" (lista
+     * de níveis de punição, mantida EXATAMENTE como já era antes da divisão
+     * — Criar Nível, Editar por nível, Exigir/Dispensar Aprovação). Navegação
+     * entre as duas fica numa linha de botões abaixo do painel, mesmo padrão
+     * já usado em /config roles (ver ROLE_TABS/refreshRolesPanel). Botão
+     * "Resetar Padrão" mantido como estava (mesmo label/estilo/comportamento),
+     * só que agora dentro da aba de reputação — é o que ele de fato reseta
+     * (limites + recuperação), não os níveis.
+     */
+    async refreshPointsPanel(interaction, successMessage, guildName, tab = 'levels') {
         const guildId = interaction.guildId;
         const PunishmentLevels = require('../moderation/punishmentLevels');
 
@@ -772,83 +818,101 @@ const ConfigSystem = {
         const levelLimit = PunishmentLevels.getLevelLimit(guildId);
         const canCreate = levels.length < levelLimit;
 
+        const activeTab = tab === 'reputation' ? 'reputation' : 'levels';
+
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
-        cb
-            .section(
-                [
-                    '# CONFIGURAÇÃO DE NÍVEIS DE PUNIÇÃO',
-                    customApprovalEnabled
-                        ? 'Crie níveis customizados pro /strike. Botão **Exigir/Dispensar Aprovação** define, nível a nível, quais exigem aprovação do Supervisor.'
-                        : 'Crie níveis customizados pro /strike. Grave/Severa ou duração >72h/permanente exigem aprovação do Supervisor — configurável por nível a partir do **Caçador**.',
-                    `**${EMOJIS.gavel || '⚖️'} Níveis usados:** \`${levels.length}/${levelLimit}\``,
-                ].join('\n'),
-                cb.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
-            )
-            .separator();
+        if (activeTab === 'reputation') {
+            cb
+                .section(
+                    [
+                        '# MECÂNICAS DE REPUTAÇÃO',
+                        'Limites que definem os cargos automáticos (Exemplar/Problemático) e a recuperação diária de pontos de reputação — usados pelo /strike e pelo Automod diário.',
+                    ].join('\n'),
+                    cb.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                )
+                .separator();
 
-        // Cargos automáticos (Exemplar/Problemático) e a EDIÇÃO da
-        // recuperação diária são exclusivos do Caçador. A recuperação em si
-        // (fixa, 1 ponto/dia) já roda a partir do Rastreador — ver
-        // autoModeration.js → executeDailyMaintenance.
-        if (automodEnabled) {
-            cb
-                .title(`${EMOJIS.medal || '📊'} Limites de Reputação`, 2)
-                .block([
-                    `${EMOJIS.sparkles || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
-                    `${EMOJIS.trianglealert  || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
-                ])
-                .separator()
-                .title(`${EMOJIS.doublearrowup || '📈'} Recuperação Diária de Reputação`, 2)
-                .block([
-                    `${EMOJIS.doublearrowup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
-                    `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Caçador).`,
-                ])
-                .separator();
-        } else if (reputationEnabled) {
-            cb
-                .title(`${EMOJIS.doublearrowup || '📈'} Recuperação Diária de Reputação`, 2)
-                .block([
-                    `${EMOJIS.doublearrowup || '📈'} **Pontos por dia:** \`1\` (fixo neste plano)`,
-                    `${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária **configurável** são exclusivos do plano **Caçador**. Use \`/premium\` para ver o tier atual.`,
-                ])
-                .separator();
+            // Cargos automáticos (Exemplar/Problemático) e a EDIÇÃO da
+            // recuperação diária são exclusivos do Caçador. A recuperação em si
+            // (fixa, 1 ponto/dia) já roda a partir do Rastreador — ver
+            // autoModeration.js → executeDailyMaintenance.
+            if (automodEnabled) {
+                cb
+                    .title(`${EMOJIS.medal || '📊'} Limites de Reputação`, 2)
+                    .block([
+                        `${EMOJIS.sparkles || '🎖️'} **Exemplar:** Acima de \`${exemplarLimit}\` pontos`,
+                        `${EMOJIS.trianglealert  || '⚠️'} **Problemático:** Abaixo de \`${problematicLimit}\` pontos`,
+                    ])
+                    .buttons(AdvancedContainerBuilder.secondaryButton('config-punishments:limites:modal', 'Editar Limites'))
+                    .separator()
+                    .title(`${EMOJIS.doublearrowup || '📈'} Recuperação Diária de Reputação`, 2)
+                    .block([
+                        `${EMOJIS.doublearrowup || '📈'} **Pontos por dia:** \`${recoveryAmount}\``,
+                        `${EMOJIS.circlecheck || '✅'} Automod diário ativo (recurso do plano Caçador).`,
+                    ])
+                    .buttons(AdvancedContainerBuilder.secondaryButton('config-punishments:recovery:modal', 'Editar Recuperação Diária'))
+                    .separator();
+            } else if (reputationEnabled) {
+                cb
+                    .title(`${EMOJIS.doublearrowup || '📈'} Recuperação Diária de Reputação`, 2)
+                    .block([
+                        `${EMOJIS.doublearrowup || '📈'} **Pontos por dia:** \`1\` (fixo neste plano)`,
+                        `${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária **configurável** são exclusivos do plano **Caçador**. Use \`/premium\` para ver o tier atual.`,
+                    ])
+                    .separator();
+            } else {
+                cb
+                    .title(`${EMOJIS.medal || '📊'} Limites e Recuperação Diária`, 2)
+                    .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos a partir do plano **Rastreador**. Use \`/premium\` para ver o tier atual.`)
+                    .separator();
+            }
+
+            cb.buttons(AdvancedContainerBuilder.dangerButton('config-punishments:reset', 'Resetar Padrão'));
         } else {
             cb
-                .title(`${EMOJIS.medal || '📊'} Limites e Recuperação Diária`, 2)
-                .text(`${EMOJIS.circlealert || '❌'} Cargos automáticos (Exemplar/Problemático) e recuperação diária de reputação são exclusivos a partir do plano **Rastreador**. Use \`/premium\` para ver o tier atual.`)
+                .section(
+                    [
+                        '# CONFIGURAÇÃO DE NÍVEIS DE PUNIÇÃO',
+                        customApprovalEnabled
+                            ? 'Crie níveis customizados pro /strike. Botão **Exigir/Dispensar Aprovação** define, nível a nível, quais exigem aprovação do Supervisor.'
+                            : 'Crie níveis customizados pro /strike. Grave/Severa ou duração >72h/permanente exigem aprovação do Supervisor — configurável por nível a partir do **Caçador**.',
+                        `**${EMOJIS.gavel || '⚖️'} Níveis usados:** \`${levels.length}/${levelLimit}\``,
+                    ].join('\n'),
+                    cb.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+                )
                 .separator();
-        }
 
-        cb.title(`${EMOJIS.gavel || '⚖️'} Níveis de Punição`, 2);
-        if (levels.length === 0) {
-            cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum nível criado ainda. Use o botão **Criar Nível** abaixo.`);
-        } else {
-            for (const level of levels) {
-                const icon = PunishmentLevels.SEVERITY_ICONS[level.severity] || '❓';
-                const durationLabel = level.duration_str ? level.duration_str : 'Permanente';
-                const actionLabel = level.action || 'Nenhuma';
-                const lines = [
-                    `**${level.name}**`,
-                    `${icon} ${level.severity} | ${EMOJIS.doublearrowdown || '📉'} -${level.points} pts | ${EMOJIS.clockalert || '⏳'} ${durationLabel} | ${EMOJIS.game || '🎮'} ${actionLabel}`,
-                ];
-                if (customApprovalEnabled) {
-                    lines.push(
-                        level.requires_supervisor_approval
-                            ? `${EMOJIS.shieldcheck || '🛡️'} Exige aprovação de Supervisor`
-                            : `${EMOJIS.shieldx || '🔓'} Não exige aprovação de Supervisor`
+            cb.title(`${EMOJIS.gavel || '⚖️'} Níveis de Punição`, 2);
+            if (levels.length === 0) {
+                cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum nível criado ainda. Use o botão **Criar Nível** abaixo.`);
+            } else {
+                for (const level of levels) {
+                    const icon = PunishmentLevels.SEVERITY_ICONS[level.severity] || '❓';
+                    const durationLabel = level.duration_str ? level.duration_str : 'Permanente';
+                    const actionLabel = level.action || 'Nenhuma';
+                    const lines = [
+                        `**${level.name}**`,
+                        `${icon} ${level.severity} | ${EMOJIS.doublearrowdown || '📉'} -${level.points} pts | ${EMOJIS.clockalert || '⏳'} ${durationLabel} | ${EMOJIS.game || '🎮'} ${actionLabel}`,
+                    ];
+                    if (customApprovalEnabled) {
+                        lines.push(
+                            level.requires_supervisor_approval
+                                ? `${EMOJIS.shieldcheck || '🛡️'} Exige aprovação de Supervisor`
+                                : `${EMOJIS.shieldx || '🔓'} Não exige aprovação de Supervisor`
+                        );
+                    }
+                    cb.section(
+                        lines.join('\n'),
+                        AdvancedContainerBuilder.secondaryButton(`config-punishments:level:edit:modal:${level.id}`, 'Editar'),
                     );
-                }
-                cb.section(
-                    lines.join('\n'),
-                    AdvancedContainerBuilder.secondaryButton(`config-punishments:level:edit:modal:${level.id}`, 'Editar'),
-                );
-                if (customApprovalEnabled) {
-                    cb.buttons(
-                        level.requires_supervisor_approval
-                            ? AdvancedContainerBuilder.dangerButton(`config-punishments:level:toggle_approval:${level.id}`, 'Dispensar Aprovação')
-                            : AdvancedContainerBuilder.successButton(`config-punishments:level:toggle_approval:${level.id}`, 'Exigir Aprovação')
-                    );
+                    if (customApprovalEnabled) {
+                        cb.buttons(
+                            level.requires_supervisor_approval
+                                ? AdvancedContainerBuilder.dangerButton(`config-punishments:level:toggle_approval:${level.id}`, 'Dispensar Aprovação')
+                                : AdvancedContainerBuilder.successButton(`config-punishments:level:toggle_approval:${level.id}`, 'Exigir Aprovação')
+                        );
+                    }
                 }
             }
         }
@@ -857,29 +921,37 @@ const ConfigSystem = {
         cb.footer(guildName);
         const { components, flags, files } = cb.build();
 
-        const createButton = new ButtonBuilder()
-            .setCustomId('config-punishments:level:create:modal')
-            .setLabel(canCreate ? 'Criar Nível' : `Limite atingido (${levels.length}/${levelLimit})`)
-            .setStyle(ButtonStyle.Success)
-            .setEmoji(EMOJIS.add || '➕')
-            .setDisabled(!canCreate);
+        const bottomRows = [];
 
-        const buttons = [createButton];
-        if (automodEnabled) {
-            buttons.push(
-                new ButtonBuilder().setCustomId('config-punishments:limites:modal').setLabel('Editar Limites').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-                new ButtonBuilder().setCustomId('config-punishments:recovery:modal').setLabel('Editar Recuperação Diária').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-            );
+        // "Criar Nível" só faz sentido na aba de Níveis — mantido idêntico
+        // ao que já era (mesmo label/estilo/emoji), só que agora exclusivo
+        // dessa aba em vez de ficar junto com os botões de reputação.
+        if (activeTab === 'levels') {
+            const createButton = new ButtonBuilder()
+                .setCustomId('config-punishments:level:create:modal')
+                .setLabel(canCreate ? 'Criar Nível' : `Limite atingido (${levels.length}/${levelLimit})`)
+                .setStyle(ButtonStyle.Success)
+                .setEmoji(EMOJIS.add || '➕')
+                .setDisabled(!canCreate);
+            bottomRows.push(new ActionRowBuilder().addComponents(createButton));
         }
-        buttons.push(
-            new ButtonBuilder().setCustomId('config-punishments:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️')
-        );
 
-        const row = new ActionRowBuilder().addComponents(...buttons);
+        bottomRows.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('config-punishments:tab:reputation')
+                .setLabel('Mecânicas de Reputação')
+                .setEmoji(EMOJIS.doublearrowup || undefined)
+                .setStyle(activeTab === 'reputation' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('config-punishments:tab:levels')
+                .setLabel('Níveis')
+                .setEmoji(EMOJIS.gavel || undefined)
+                .setStyle(activeTab === 'levels' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        ));
 
         // ✅ Painel SEMPRE limpo, sem `content` — mensagem de sucesso vai
         // separada via sendFeedback() (followUp efêmero).
-        const replyData = { components: [...components, row], flags, files };
+        const replyData = { components: [...components, ...bottomRows], flags, files };
 
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(replyData);
@@ -1337,17 +1409,74 @@ const ConfigSystem = {
         await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Foto de perfil atualizada:** ${label}. Use \`/perfil\` para ver como ficou.`);
     },
 
-    // ==================== REPORT-CHAT — BANNER/MENSAGEM (CAÇADOR) ====================
+    // ==================== PERSONALIZAÇÃO (CAÇADOR) — /config personalizar ====================
+    // Unifica toda customização visual exclusiva do Caçador que antes estava
+    // espalhada: banner de /strike e /unstrike (pedido do dono) + banner/
+    // mensagem do report-chat (antes era /config reportchat, removido — ver
+    // PREMIUM.txt). Mesmo padrão de abas de refreshRolesPanel/ROLE_TABS.
+
+    async _assertPersonalizarAllowed(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'cacador')) {
+            await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
+            return false;
+        }
+        return true;
+    },
+
+    async handleStrikeBannerSelect(interaction) {
+        if (!interaction.isStringSelectMenu()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
+        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const chosenKey = interaction.values[0];
+        const isValidOption = STRIKE_BANNER_OPTIONS.some(opt => opt.value === chosenKey);
+        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+            return await ResponseManager.error(interaction, 'Imagem inválida.');
+        }
+
+        const oldValue = this.getSetting(interaction.guildId, 'strike_banner_key') || 'title_strike';
+        this.setSetting(interaction.guildId, 'strike_banner_key', chosenKey);
+        this.clearCache(interaction.guildId);
+
+        const label = STRIKE_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const changeMessage = oldValue !== chosenKey
+            ? `${EMOJIS.circlecheck || '✅'} **Banner do /strike atualizado:** ${label}.`
+            : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.image || '🖼️'} Banner do /strike: \`${oldValue}\` → \`${chosenKey}\``);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'strike');
+    },
+
+    async handleUnstrikeBannerSelect(interaction) {
+        if (!interaction.isStringSelectMenu()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
+        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const chosenKey = interaction.values[0];
+        const isValidOption = UNSTRIKE_BANNER_OPTIONS.some(opt => opt.value === chosenKey);
+        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+            return await ResponseManager.error(interaction, 'Imagem inválida.');
+        }
+
+        const oldValue = this.getSetting(interaction.guildId, 'unstrike_banner_key') || 'title_strike_removido';
+        this.setSetting(interaction.guildId, 'unstrike_banner_key', chosenKey);
+        this.clearCache(interaction.guildId);
+
+        const label = UNSTRIKE_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const changeMessage = oldValue !== chosenKey
+            ? `${EMOJIS.circlecheck || '✅'} **Banner do /unstrike atualizado:** ${label}.`
+            : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.image || '🖼️'} Banner do /unstrike: \`${oldValue}\` → \`${chosenKey}\``);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'strike');
+    },
 
     async handleReportChatBannerSelect(interaction) {
         if (!interaction.isStringSelectMenu()) {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
         }
-
-        const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'cacador')) {
-            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
-        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         const chosenKey = interaction.values[0];
         const isValidOption = REPORT_CHAT_BANNER_OPTIONS.some(opt => opt.value === chosenKey);
@@ -1364,18 +1493,14 @@ const ConfigSystem = {
             ? `${EMOJIS.circlecheck || '✅'} **Banner do report-chat atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
         if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.image || '🖼️'} Banner do report-chat: \`${oldValue}\` → \`${chosenKey}\``);
-        await this.refreshReportChatPanel(interaction, changeMessage, interaction.guild.name);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'reportchat');
     },
 
     async handleReportChatMessageModal(interaction) {
         if (!interaction.isButton()) {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
         }
-
-        const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'cacador')) {
-            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
-        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         const currentMessage = this.getSetting(interaction.guildId, 'report_chat_message') || '';
 
@@ -1391,15 +1516,12 @@ const ConfigSystem = {
             })
         );
 
-        const modal = new ModalBuilder({ customId: 'config-reportchat:message:modal:submit', title: 'Mensagem do Report-Chat', components: [row] });
+        const modal = new ModalBuilder({ customId: 'config-personalizar:reportchat-message:modal:submit', title: 'Mensagem do Report-Chat', components: [row] });
         await interaction.showModal(modal);
     },
 
     async processReportChatMessageModal(interaction) {
-        const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'cacador')) {
-            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
-        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         const newMessage = interaction.fields.getTextInputValue('report_chat_message').trim();
         const oldMessage = this.getSetting(interaction.guildId, 'report_chat_message') || '';
@@ -1411,23 +1533,30 @@ const ConfigSystem = {
             ? `${EMOJIS.circlecheck || '✅'} **Mensagem do report-chat atualizada.**`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
         if (newMessage !== oldMessage) await this.logConfigChange(interaction, `${EMOJIS.edit || '✏️'} Mensagem do report-chat foi ${newMessage ? 'alterada' : 'resetada para o padrão'}.`);
-        await this.refreshReportChatPanel(interaction, changeMessage, interaction.guild.name);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'reportchat');
     },
 
     async resetReportChat(interaction) {
-        const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'cacador')) {
-            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
-        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'report_chat_banner_key', null);
         this.setSetting(interaction.guildId, 'report_chat_message', null);
         this.clearCache(interaction.guildId);
         await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner e mensagem do report-chat resetados para o padrão.`);
-        await this.refreshReportChatPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner e mensagem resetados para o padrão!`, interaction.guild.name);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner e mensagem resetados para o padrão!`, interaction.guild.name, 'reportchat');
     },
 
-    async refreshReportChatPanel(interaction, successMessage, guildName) {
+    /**
+     * Painel de /config personalizar — 2 abas: "strike" (banner de /strike +
+     * banner de /unstrike, cada um com seu próprio select) e "reportchat"
+     * (banner + mensagem do painel de report-chat, com botão de editar
+     * mensagem e resetar padrão). Todo o conteúdo é exclusivo do plano
+     * Caçador — a checagem de tier acontece aqui na LEITURA também (não só
+     * na escrita dos handlers acima), então perder o Caçador volta pro
+     * padrão sozinho em qualquer um dos 3 banners (mesmo critério já usado
+     * em reportChatSystem.js.getPanel).
+     */
+    async refreshPersonalizarPanel(interaction, successMessage, guildName, tab = 'strike') {
         const guildId = interaction.guildId;
         const PremiumSystem = require('../premium/premiumSystem');
 
@@ -1444,41 +1573,90 @@ const ConfigSystem = {
             return;
         }
 
-        const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
-        const customMessage = this.getSetting(guildId, 'report_chat_message');
-        const bannerLabel = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === bannerKey)?.label || bannerKey;
-
+        const activeTab = tab === 'reportchat' ? 'reportchat' : 'strike';
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        cb.text([
-            '# PERSONALIZAÇÃO DO REPORT-CHAT',
-            'Troque o banner e a mensagem de abertura do painel de report-chat (o mesmo que `/reportchat` posta no canal) — recurso exclusivo do plano Caçador.',
-        ].join('\n'));
-        cb.banner(bannerKey);
-        cb.title(`${EMOJIS.image || '🖼️'} Banner atual`, 2);
-        cb.block([`${EMOJIS.circlecheck || '✅'} ${bannerLabel}`]);
-        cb.separator();
-        cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem atual`, 2);
-        cb.block([customMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (nenhuma mensagem customizada ainda).`]);
+        const selects = [];
+
+        if (activeTab === 'strike') {
+            const strikeBannerKey = this.getSetting(guildId, 'strike_banner_key') || 'title_strike';
+            const unstrikeBannerKey = this.getSetting(guildId, 'unstrike_banner_key') || 'title_strike_removido';
+            const strikeLabel = STRIKE_BANNER_OPTIONS.find(opt => opt.value === strikeBannerKey)?.label || strikeBannerKey;
+            const unstrikeLabel = UNSTRIKE_BANNER_OPTIONS.find(opt => opt.value === unstrikeBannerKey)?.label || unstrikeBannerKey;
+
+            cb.text([
+                '# PERSONALIZAÇÃO — STRIKE / UNSTRIKE',
+                'Troque o banner mostrado no painel de aplicação (`/strike`) e de anulação (`/unstrike`) de punição — recurso exclusivo do plano Caçador.',
+            ].join('\n'));
+            cb.title(`${EMOJIS.image || '🖼️'} Banner do /strike`, 2);
+            cb.block([`${EMOJIS.circlecheck || '✅'} ${strikeLabel}`]);
+            selects.push(new StringSelectMenuBuilder()
+                .setCustomId('config-personalizar:strike-banner')
+                .setPlaceholder('Escolha o banner do /strike...')
+                .addOptions(STRIKE_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                    .setLabel(opt.label)
+                    .setValue(opt.value)
+                    .setDefault(opt.value === strikeBannerKey)
+                )));
+            cb.separator();
+            cb.title(`${EMOJIS.image || '🖼️'} Banner do /unstrike`, 2);
+            cb.block([`${EMOJIS.circlecheck || '✅'} ${unstrikeLabel}`]);
+            selects.push(new StringSelectMenuBuilder()
+                .setCustomId('config-personalizar:unstrike-banner')
+                .setPlaceholder('Escolha o banner do /unstrike...')
+                .addOptions(UNSTRIKE_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                    .setLabel(opt.label)
+                    .setValue(opt.value)
+                    .setDefault(opt.value === unstrikeBannerKey)
+                )));
+        } else {
+            const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
+            const customMessage = this.getSetting(guildId, 'report_chat_message');
+            const bannerLabel = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === bannerKey)?.label || bannerKey;
+
+            cb.text([
+                '# PERSONALIZAÇÃO DO REPORT-CHAT',
+                'Troque o banner e a mensagem de abertura do painel de report-chat (o mesmo que `/reportchat` posta no canal) — recurso exclusivo do plano Caçador.',
+            ].join('\n'));
+            cb.title(`${EMOJIS.image || '🖼️'} Banner atual`, 2);
+            cb.block([`${EMOJIS.circlecheck || '✅'} ${bannerLabel}`]);
+            selects.push(new StringSelectMenuBuilder()
+                .setCustomId('config-personalizar:reportchat-banner')
+                .setPlaceholder('Escolha o banner...')
+                .addOptions(REPORT_CHAT_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                    .setLabel(opt.label)
+                    .setValue(opt.value)
+                    .setDefault(opt.value === bannerKey)
+                )));
+            cb.separator();
+            cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem atual`, 2);
+            cb.block([customMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (nenhuma mensagem customizada ainda).`]);
+        }
+
+        for (const select of selects) cb.selectMenu(select);
         cb.footer(guildName);
-
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('config-reportchat:banner')
-            .setPlaceholder('Escolha o banner...')
-            .addOptions(REPORT_CHAT_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
-                .setLabel(opt.label)
-                .setValue(opt.value)
-                .setDefault(opt.value === bannerKey)
-            ));
-        cb.selectMenu(selectMenu);
-
         const { components, flags, files } = cb.build();
-        const buttons = [
-            new ButtonBuilder().setCustomId('config-reportchat:message:modal').setLabel('Editar Mensagem').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-            new ButtonBuilder().setCustomId('config-reportchat:reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️'),
-        ];
-        const row = new ActionRowBuilder().addComponents(...buttons);
 
-        const replyData = { components: [...components, row], flags, files };
+        const bottomRows = [];
+        if (activeTab === 'reportchat') {
+            bottomRows.push(new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('config-personalizar:reportchat-message:modal').setLabel('Editar Mensagem').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
+                new ButtonBuilder().setCustomId('config-personalizar:reportchat-reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️'),
+            ));
+        }
+        bottomRows.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('config-personalizar:tab:strike')
+                .setLabel('Strike / Unstrike')
+                .setEmoji(EMOJIS.gavel || undefined)
+                .setStyle(activeTab === 'strike' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('config-personalizar:tab:reportchat')
+                .setLabel('Report-Chat')
+                .setEmoji(EMOJIS.ticket || undefined)
+                .setStyle(activeTab === 'reportchat' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        ));
+
+        const replyData = { components: [...components, ...bottomRows], flags, files };
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(replyData);
         } else {

@@ -221,9 +221,30 @@ const PunishmentSystem = {
         return builder;
     },
 
+    /**
+     * Banner do painel de /strike e /unstrike, personalizável a partir do
+     * Caçador (ver /config personalizar). A checagem de tier acontece AQUI
+     * na leitura, não só na escrita do painel de config — se o servidor
+     * perder o Caçador, volta pro padrão do bot sozinho, sem precisar
+     * resetar nada (mesmo critério já usado em reportChatSystem.js.getPanel).
+     */
+    _resolveStrikeBannerKey(guildId) {
+        const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
+        if (!isCustomizable) return 'title_strike';
+        const ConfigSystem = require('../core/configSystem');
+        return ConfigSystem.getSetting(guildId, 'strike_banner_key') || 'title_strike';
+    },
+
+    _resolveUnstrikeBannerKey(guildId) {
+        const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
+        if (!isCustomizable) return 'title_strike_removido';
+        const ConfigSystem = require('../core/configSystem');
+        return ConfigSystem.getSetting(guildId, 'unstrike_banner_key') || 'title_strike_removido';
+    },
+
     generateStrikeUnifiedContainer(target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
-        builder.banner('title_strike');
+        builder.banner(this._resolveStrikeBannerKey(guildId));
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -271,7 +292,7 @@ const PunishmentSystem = {
     
     generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName, guildId) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
-        builder.banner('title_strike_removido');
+        builder.banner(this._resolveUnstrikeBannerKey(guildId));
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';

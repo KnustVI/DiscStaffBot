@@ -27,8 +27,8 @@ module.exports = {
             .setName('punishments')
             .setDescription('⚖️ Configura os níveis de punição e limites de reputação.'))
         .addSubcommand(sub => sub
-            .setName('reportchat')
-            .setDescription('🎫 Personaliza o banner e a mensagem do painel de report-chat (Caçador).')),
+            .setName('personalizar')
+            .setDescription('🖼️ Personaliza banners de /strike, /unstrike e do report-chat (Caçador).')),
 
     async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();
@@ -36,7 +36,7 @@ module.exports = {
         const rolesHandler = require('./roles');
         const logsHandler = require('./logs');
         const punishmentsHandler = require('./punishments');
-        const reportchatHandler = require('./reportchat');
+        const personalizarHandler = require('./personalizar');
 
         switch (subcommand) {
             case 'roles':
@@ -48,8 +48,8 @@ module.exports = {
             case 'punishments':
                 await punishmentsHandler.execute(interaction, client);
                 break;
-            case 'reportchat':
-                await reportchatHandler.execute(interaction, client);
+            case 'personalizar':
+                await personalizarHandler.execute(interaction, client);
                 break;
             default:
                 await interaction.editReply({

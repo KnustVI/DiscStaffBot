@@ -1,4 +1,4 @@
-// src/commands/config/reportchat.js — subcomando /config reportchat
+// src/commands/config/personalizar.js — subcomando /config personalizar
 const { PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
@@ -21,8 +21,8 @@ module.exports = {
 
         const ConfigSystem = require('../../systems/core/configSystem');
 
-        // Usa o MESMO painel "vivo" que o select/botões usam pra editar
+        // Usa o MESMO painel "vivo" que os selects/botões usam pra editar
         // depois, assim comando e componentes nunca ficam dessincronizados.
-        await ConfigSystem.refreshReportChatPanel(interaction, null, guild.name);
+        await ConfigSystem.refreshPersonalizarPanel(interaction, null, guild.name);
     },
 };
