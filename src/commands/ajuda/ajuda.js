@@ -62,7 +62,7 @@ function buildPageSetupModeration(guildName, emojis) {
 
     builder.title(`${emojis.trianglealert || '⚠️'} Comandos INGAME (Comandos que podem ser usados no Discord para aplicar no jogo via RCON)`, 2);
     builder.block([
-        '• Os comandos ingame dão acesso direto ao console de admin do servidor PoT (podem reiniciar o servidor, banir, dar godmode etc.).',
+        '• Os comandos ingame dão acesso direto ao console de admin do servidor PoT (podem reiniciar o servidor, banir, dar godmode etc.). Lista completa: **/ingame-comandos**.',
         '• Além do bloqueio interno do bot, recomendamos restringir ainda mais pelo próprio Discord: **Configurações do Servidor → Integrações → [nome do bot] → permissões por comando**, escolhendo exatamente quem (cargo/canal) pode usar cada um.',
         '• O Discord permite negar um comando específico até pra quem tem permissão de Administrador.',
     ]);
@@ -87,48 +87,6 @@ function buildPageSetupModeration(guildName, emojis) {
         '• Perda por strike a partir do plano **Rastreador** (no Free, o strike fica registrado, mas não mexe em pontos).',
         '• Recuperação automática diária a partir do plano **Rastreador**: fixa em **1 ponto/dia**. No plano **Caçador**, essa quantidade é configurável em /config punishments (ver tópico Premium).',
     ]);
-
-    builder.footer(guildName);
-    return builder;
-}
-
-/**
- * Lista completa dos comandos /ingame-* — gerada DIRETO do catálogo
- * (rconCommandCatalog.js), não duplicada à mão, pra nunca ficar
- * desatualizada quando um comando for adicionado/removido/renomeado lá.
- */
-function buildPageIngame(guildName, emojis) {
-    const RconCatalog = require('../../systems/pot/rconCommandCatalog');
-    const builder = newPage(emojis);
-    pageHeader(
-        builder,
-        'COMANDOS INGAME',
-        `Catálogo completo dos comandos de admin do servidor PoT disponíveis via **/ingame-***, plano **Caçador**. ` +
-        `Todo subcomando aceita **usuario** (Discord vinculado) OU **agid** (Alderon ID/nome, se não estiver vinculado) — nenhum dos dois informado usa você mesmo, quando fizer sentido. ` +
-        `${emojis.lock || '🔒'} marca os subcomandos restritos ao cargo Supervisor (ver /config roles).`
-    );
-
-    const categories = [
-        { command: '/ingame-stats', label: 'Change Stats', entries: RconCatalog.STATS_COMMANDS },
-        { command: '/ingame-marks', label: 'Marks', entries: RconCatalog.MARKS_COMMANDS },
-        { command: '/ingame-admin', label: 'Admin', entries: RconCatalog.ADMIN_COMMANDS },
-        { command: '/ingame-map', label: 'Map', entries: RconCatalog.MAP_COMMANDS },
-        { command: '/ingame-event', label: 'Event', entries: RconCatalog.EVENT_COMMANDS },
-        { command: '/ingame-message', label: 'Message', entries: RconCatalog.MESSAGE_COMMANDS },
-    ];
-
-    for (const cat of categories) {
-        builder.title(`${emojis.rcon || '🔗'} ${cat.command} — ${cat.label}`, 2);
-        builder.block(cat.entries.map((entry) =>
-            `• \`${entry.name}\`${entry.supervisorOnly ? ` ${emojis.lock || '🔒'}` : ''} — ${entry.description}`
-        ));
-        builder.separator();
-    }
-
-    builder.text(
-        `${emojis.trianglealert || '⚠️'} **kick, ban, unban, ServerMute e ServerUnmute não estão aqui** — continuam exclusivos de **/strike** e **/unstrike**, ` +
-        `que já aplicam a ação em jogo automaticamente (e recarregam bans/mutes) junto com a punição no Discord.`
-    );
 
     builder.footer(guildName);
     return builder;
@@ -276,39 +234,24 @@ function buildPageHelp(guildName, emojis) {
 // disponíveis, na ordem em que aparecem no menu de seleção.
 // ---------------------------------------------------------------------------
 
-/**
- * @param {boolean} isAdmin - vê o guia completo (setup/config, sistemas do servidor).
- * @param {boolean} hasStaffRole - além dos membros comuns, também vê a aba
- *   "Comandos INGAME" — os comandos /ingame-* já são liberados pro cargo
- *   Staff no Discord (ver ingame-*.js, ModerateMembers + checagem própria
- *   em executeRconSubcommand), então a documentação deles precisa ser
- *   visível pra quem realmente vai usar, não só pra admin.
- */
-function getTopics(isAdmin, hasStaffRole, ctx) {
+function getTopics(isAdmin, ctx) {
     const { displayName, guildName, emojis } = ctx;
 
     if (isAdmin) {
         return [
             { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageWelcome(displayName, guildName, emojis, true) },
             { key: 'setup', label: 'Configuração & Moderação', emoji: emojis.gavel || '⚖️', build: () => buildPageSetupModeration(guildName, emojis) },
-            { key: 'ingame', label: 'Comandos INGAME', emoji: emojis.rcon || '🔗', build: () => buildPageIngame(guildName, emojis) },
             { key: 'systems', label: 'Sistemas do Servidor', emoji: emojis.trendingup || '📈', build: () => buildPageSystems(guildName, emojis) },
             { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
             { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
         ];
     }
 
-    const topics = [
+    return [
         { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
-    ];
-    if (hasStaffRole) {
-        topics.push({ key: 'ingame', label: 'Comandos INGAME', emoji: emojis.rcon || '🔗', build: () => buildPageIngame(guildName, emojis) });
-    }
-    topics.push(
         { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
         { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
-    );
-    return topics;
+    ];
 }
 
 function buildTopicSelectMenu(topics, selectedKey, invokerId) {
@@ -360,9 +303,7 @@ module.exports = {
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
             const isAdmin = member.permissions.has('Administrator');
-            const ConfigSystem = require('../../systems/core/configSystem');
-            const hasStaffRole = ConfigSystem.memberHasAnyStaffRole(guild.id, member);
-            const topics = getTopics(isAdmin, hasStaffRole, { displayName: member.displayName, guildName: guild.name, emojis });
+            const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
 
             const payload = renderTopicPayload(topics, 'welcome', user.id);
             await interaction.editReply(payload);
@@ -419,9 +360,7 @@ module.exports = {
 
         const { guild, member } = interaction;
         const isAdmin = member.permissions.has('Administrator');
-        const ConfigSystem = require('../../systems/core/configSystem');
-        const hasStaffRole = ConfigSystem.memberHasAnyStaffRole(guild.id, member);
-        const topics = getTopics(isAdmin, hasStaffRole, { displayName: member.displayName, guildName: guild.name, emojis });
+        const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
 
         const topicKey = interaction.values?.[0] || 'welcome';
         const payload = renderTopicPayload(topics, topicKey, invokerId);

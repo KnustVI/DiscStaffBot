@@ -200,7 +200,9 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   pra /ingame-* na secao 66) - 6 comandos por categoria (/ingame-stats,
   /ingame-marks, /ingame-admin, /ingame-map, /ingame-event,
   /ingame-message), ~55 subcomandos ao todo, baseado em
-  hosting.pathoftitans.wiki/guide/chat-commands. Comando de TP integrado a
+  hosting.pathoftitans.wiki/guide/chat-commands. Lista completa e
+  paginada por categoria: /ingame-comandos (ver secao 70) - liberado pro
+  cargo Staff, nao so admin. Comando de TP integrado a
   criacao de eventos continua nao implementado ("vindo em breve"); punicoes
   aplicaveis em jogo via RCON (kick/ban/ServerMute, ja disponivel desde o
   Rastreador - ver secao acima) continuam JA IMPLEMENTADAS tambem.
@@ -2749,3 +2751,46 @@ frente, nao so este relatorio):
   de erro agora vai aparecer corretamente pro usuário (em vez de
   silenciosamente falhar duas vezes), o que já ajuda a diagnosticar na
   hora.
+
+
+70) CAUSA RAIZ ACHADA: limite AGREGADO de 4000 chars por mensagem —
+    aba "Comandos INGAME" virou comando dedicado /ingame-comandos
+------------------------------------------------------------------
+- Com o log de erro completo (seção 69 corrigiu o log truncado que
+  escondia isso), a causa raiz do 50035 apareceu:
+  `COMPONENT_DISPLAYABLE_TEXT_SIZE_EXCEEDED — Components displayable
+  text size exceeds maximum size of 4000`. Apesar do NOME do erro dizer
+  "COMPONENT" (singular), é um limite AGREGADO — a SOMA de todo texto de
+  TODOS os TextDisplay de uma mensagem inteira, não por componente
+  individual. A aba "Comandos INGAME" do /ajuda (seção 66) tinha 4419
+  caracteres somados (confirmado com script direto) — estourava esse
+  limite mesmo com CADA bloco de texto individual bem abaixo dos 4000
+  por componente (o maior tinha 936). Esse limite é diferente do de "40
+  componentes filhos" (esse sim documentado antes, ver comentários em
+  webhookPayloads.js) — os dois existem e são checados separadamente
+  pelo Discord.
+- Dono sugeriu a solução mais simples: em vez de espremer o conteúdo pra
+  caber (ou paginar DENTRO do sistema de tópicos do /ajuda, que
+  complicaria a UI), criar um comando SEPARADO só pra isso. Novo
+  `/ingame-comandos` (src/commands/ingame/ingame-comandos.js) - lista os
+  ~55 subcomandos por categoria usando PaginationBuilder de verdade
+  (1 categoria = 1 página, com botões Anterior/Próxima), já usado em
+  outros lugares do bot pra esse mesmo tipo de conteúdo longo. Cada
+  página sozinha fica entre ~300 e ~1450 caracteres (a maior categoria,
+  Change Stats, com o cabeçalho completo da página 1) - bem longe do
+  limite de 4000, sem precisar cortar descrição nenhuma.
+  Liberado pro cargo Staff (`ConfigSystem.memberHasAnyStaffRole`), sem
+  exigir tier - é só documentação, não executa nada.
+- Aba "Comandos INGAME" do /ajuda REMOVIDA (função `buildPageIngame`
+  apagada, `getTopics` voltou a não precisar do parâmetro
+  `hasStaffRole` que a seção 68 tinha adicionado só pra essa aba) - o
+  aviso em "Configuração & Moderação" agora aponta pra
+  `/ingame-comandos` em vez de uma aba.
+- Verificado com script direto (4 checks): página inicial de
+  /ingame-comandos fica em 1450 chars (sob o limite); todas as 6
+  categorias individualmente ficam entre 278-861 chars de bloco de
+  comandos, longe do limite mesmo somando cabeçalho+rodapé; /ajuda não
+  referencia mais a aba/função removida e menciona o comando novo;
+  todas as abas restantes de /ajuda (admin e não-admin) continuam sob o
+  limite agregado de 4000. Reexecutada a regressão acumulada (seções
+  65-69) sem quebra nos arquivos não relacionados a esta mudança.
