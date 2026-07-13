@@ -1,6 +1,6 @@
 // src/commands/ingame/ingame-comandos.js — /ingame-comandos
 /**
- * Lista completa dos ~55 subcomandos /ingame-* (RCON), por categoria —
+ * Lista completa dos ~57 subcomandos /ingame-* (RCON), por categoria —
  * comando dedicado só pra isso (era uma aba do /ajuda, mas o texto de TODAS
  * as categorias somado passava do limite agregado de 4000 caracteres de
  * texto por mensagem do Discord — "COMPONENT_DISPLAYABLE_TEXT_SIZE_EXCEEDED",
@@ -24,6 +24,7 @@ const CATEGORIES = [
     { command: '/ingame-stats', label: 'Change Stats', entries: RconCatalog.STATS_COMMANDS },
     { command: '/ingame-marks', label: 'Marks', entries: RconCatalog.MARKS_COMMANDS },
     { command: '/ingame-admin', label: 'Admin', entries: RconCatalog.ADMIN_COMMANDS },
+    { command: '/ingame-list', label: 'List', entries: RconCatalog.LIST_COMMANDS },
     { command: '/ingame-map', label: 'Map', entries: RconCatalog.MAP_COMMANDS },
     { command: '/ingame-event', label: 'Event', entries: RconCatalog.EVENT_COMMANDS },
     { command: '/ingame-message', label: 'Message', entries: RconCatalog.MESSAGE_COMMANDS },
@@ -49,6 +50,13 @@ function buildCategoryPage(guildName, category, isFirst) {
     builder.block(category.entries.map((entry) =>
         `• \`${entry.name}\`${entry.supervisorOnly ? ` ${emojis.lock || '🔒'}` : ''} — ${entry.description}`
     ));
+
+    if (category.label === 'List') {
+        builder.separator();
+        builder.text(
+            `ℹ️ **/ingame-list listplayers é liberado pra qualquer membro do servidor**, não só Staff — os demais subcomandos desta categoria continuam restritos à equipe.`
+        );
+    }
 
     if (category.label === 'Message') {
         builder.separator();

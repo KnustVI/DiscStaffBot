@@ -66,33 +66,16 @@ const STATS_COMMANDS = [
     {
         name: 'healall',
         description: 'Cura todos os jogadores.',
+        supervisorOnly: true,
         options: [],
         buildCommand: () => 'healall',
     },
     {
         name: 'godmode',
         description: 'Ativa o modo deus pra você mesmo, ou pro jogador informado.',
+        supervisorOnly: true,
         options: [...TARGET_OPTIONS],
         buildCommand: (r) => r.target ? `godmode ${r.target}` : 'godmode',
-    },
-    {
-        name: 'attribute',
-        description: 'Define um atributo digitando o nome dele como comando (ex: health 100) — avançado, precisa saber o nome exato do atributo no jogo.',
-        options: [
-            { name: 'atributo', type: 'string', required: true, description: 'Nome exato do atributo no jogo (ex: health, stamina)' },
-            { name: 'valor', type: 'number', required: true, description: 'Valor a definir' },
-        ],
-        buildCommand: (r) => `${r.atributo} ${r.valor}`,
-    },
-    {
-        name: 'modattr',
-        description: 'Modifica um atributo do jogador informado.',
-        requiresTarget: true,
-        options: [...TARGET_OPTIONS,
-            { name: 'atributo', type: 'string', required: true, description: 'Nome do atributo' },
-            { name: 'valor', type: 'string', required: true, description: 'Novo valor (pode ser relativo, ex: +10)' },
-        ],
-        buildCommand: (r) => `modattr ${r.target} ${r.atributo} ${r.valor}`,
     },
     {
         name: 'setattr',
@@ -169,14 +152,6 @@ const MARKS_COMMANDS = [
         buildCommand: (r) => r.target ? `setmarks ${r.target} ${r.numero}` : `setmarks ${r.numero}`,
     },
     {
-        name: 'setmarksall',
-        description: 'Define a quantidade de marcas de todos os jogadores.',
-        options: [
-            { name: 'numero', type: 'number', required: true, description: 'Quantidade de marcas' },
-        ],
-        buildCommand: (r) => `setmarksall ${r.numero}`,
-    },
-    {
         name: 'addmarks',
         description: 'Adiciona marcas ao jogador informado.',
         requiresTarget: true,
@@ -188,6 +163,7 @@ const MARKS_COMMANDS = [
     {
         name: 'addmarksall',
         description: 'Adiciona marcas a todos os jogadores.',
+        supervisorOnly: true,
         options: [
             { name: 'numero', type: 'number', required: true, description: 'Quantidade a adicionar' },
         ],
@@ -211,29 +187,32 @@ const ADMIN_COMMANDS = [
     {
         name: 'promote',
         description: 'Promove o jogador informado a um cargo de admin.',
+        supervisorOnly: true,
         requiresTarget: true,
         options: [...TARGET_OPTIONS,
-            { name: 'cargo', type: 'string', required: true, description: 'Nome do cargo de admin (ver /ingame-admin listroles)' },
+            { name: 'cargo', type: 'string', required: true, description: 'Nome do cargo de admin (ver /ingame-list listroles)' },
         ],
         buildCommand: (r) => `promote ${r.target} ${r.cargo}`,
     },
     {
         name: 'demote',
         description: 'Remove o cargo de admin do jogador informado.',
+        supervisorOnly: true,
         requiresTarget: true,
         options: [...TARGET_OPTIONS],
         buildCommand: (r) => `demote ${r.target}`,
     },
-    { name: 'cancelrestart', description: 'Cancela um reinício agendado do servidor.', options: [], buildCommand: () => 'cancelrestart' },
+    { name: 'cancelrestart', description: 'Cancela um reinício agendado do servidor.', supervisorOnly: true, options: [], buildCommand: () => 'cancelrestart' },
     {
         name: 'restart',
         description: 'Agenda o reinício do servidor.',
+        supervisorOnly: true,
         options: [
             { name: 'segundos', type: 'integer', required: true, description: 'Tempo até o reinício, em segundos' },
         ],
         buildCommand: (r) => `restart ${r.segundos}`,
     },
-    { name: 'listroles', description: 'Lista os cargos de admin disponíveis.', options: [], buildCommand: () => 'listroles' },
+    { name: 'reloadrules', description: 'Recarrega as regras do servidor.', options: [], buildCommand: () => 'ReloadRules' },
     {
         name: 'whitelist',
         description: 'Adiciona o jogador informado à whitelist.',
@@ -257,13 +236,11 @@ const ADMIN_COMMANDS = [
         options: [...TARGET_OPTIONS],
         buildCommand: (r) => `alloweditabilities ${r.target}`,
     },
-    { name: 'serverinfo', description: 'Mostra informações do servidor.', options: [], buildCommand: () => 'ServerInfo' },
+    { name: 'serverinfo', description: 'Mostra informações do servidor.', supervisorOnly: true, options: [], buildCommand: () => 'ServerInfo' },
 ];
 
 // ==================== MAP ====================
 const MAP_COMMANDS = [
-    { name: 'listpoi', description: 'Lista os pontos de interesse (POIs) do mapa.', options: [], buildCommand: () => 'listpoi' },
-    { name: 'listquests', description: 'Lista as missões disponíveis.', options: [], buildCommand: () => 'listquests' },
     {
         name: 'weather',
         description: 'Define o clima do servidor.',
@@ -314,8 +291,42 @@ const MAP_COMMANDS = [
         options: [{ name: 'nome', type: 'string', required: true, description: 'Nome do save' }],
         buildCommand: (r) => `RemoveCreatorMode ${r.nome}`,
     },
-    { name: 'listcreatormode', description: 'Lista os saves do modo criador.', options: [], buildCommand: () => 'ListCreatorMode' },
     { name: 'replenishcreatormode', description: 'Restaura os recursos do modo criador.', options: [], buildCommand: () => 'ReplenishCreatorMode' },
+];
+
+// ==================== LIST ====================
+// Categoria dedicada a comandos de consulta (list*) — junta o que antes
+// estava espalhado entre Admin (listroles) e Map (listpoi/listquests/
+// listcreatormode) com as novidades (listplayers/listwaters/listwaystones).
+// `listplayers` é o único subcomando de todo o catálogo liberado pra
+// QUALQUER membro do servidor, não só Staff (ver `publicAccess` em
+// executeRconSubcommand) — por isso /ingame-list não usa ModerateMembers
+// como permissão padrão do Discord (ver ingame-list.js), diferente dos
+// outros 6 comandos de categoria.
+const LIST_COMMANDS = [
+    {
+        name: 'listplayers',
+        description: 'Lista os jogadores conectados no servidor, com o total online.',
+        publicAccess: true,
+        options: [],
+        buildCommand: () => 'listplayers',
+        // Melhor esforço: soma linhas/itens não-vazios da resposta crua do
+        // RCON pra mostrar um total, já que o formato exato da resposta
+        // nunca foi confirmado contra um servidor real (mesma ressalva do
+        // topo do arquivo).
+        formatExtra: (response) => {
+            if (!response || response === 'OK') return null;
+            const names = response.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+            if (!names.length) return null;
+            return `${EMOJIS.users || '👥'} Total: **${names.length}** jogador(es) online.`;
+        },
+    },
+    { name: 'listpoi', description: 'Lista os pontos de interesse (POIs) do mapa.', options: [], buildCommand: () => 'listpoi' },
+    { name: 'listquests', description: 'Lista as missões disponíveis.', options: [], buildCommand: () => 'listquests' },
+    { name: 'listroles', description: 'Lista os cargos de admin disponíveis.', options: [], buildCommand: () => 'listroles' },
+    { name: 'listwaters', description: 'Lista as fontes de água do mapa.', options: [], buildCommand: () => 'listwaters' },
+    { name: 'listwaystones', description: 'Lista as waystones do mapa.', options: [], buildCommand: () => 'listwaystones' },
+    { name: 'listcreatormode', description: 'Lista os saves do modo criador.', options: [], buildCommand: () => 'ListCreatorMode' },
 ];
 
 // ==================== EVENT ====================
@@ -399,6 +410,22 @@ const MESSAGE_COMMANDS = [
         description: 'Transmite um anúncio para o servidor.',
         options: [{ name: 'mensagem', type: 'string', required: true, description: 'Texto do anúncio' }],
         buildCommand: (r) => `announce ${r.mensagem}`,
+    },
+    {
+        name: 'whisper',
+        description: 'Envia uma mensagem privada pro jogador informado (equivalente a /w no jogo).',
+        requiresTarget: true,
+        options: [...TARGET_OPTIONS,
+            { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
+        ],
+        buildCommand: (r) => `whisper ${r.target} ${r.mensagem}`,
+    },
+    {
+        name: 'whisperall',
+        description: 'Envia uma mensagem privada pra todos os jogadores conectados.',
+        supervisorOnly: true,
+        options: [{ name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' }],
+        buildCommand: (r) => `whisperall ${r.mensagem}`,
     },
 ];
 
@@ -521,15 +548,19 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
         return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
     }
 
-    // Checagem própria do cargo Staff — os 6 comandos /ingame-* usam
+    // Checagem própria do cargo Staff — os comandos /ingame-* usam
     // ModerateMembers como permissão padrão do Discord (não mais
     // Administrator, ver ingame-*.js), então sem isso qualquer um com essa
     // permissão comum passaria direto. Continua sendo possível restringir
     // ainda mais por comando/canal pelo próprio Discord (Integrações),
-    // como já avisado em /ajuda.
-    const ConfigSystem = require('../core/configSystem');
-    if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member)) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+    // como já avisado em /ajuda. `publicAccess` pula essa checagem de
+    // propósito (hoje só /ingame-list listplayers) — qualquer membro do
+    // servidor pode usar, não só Staff.
+    if (!entry.publicAccess) {
+        const ConfigSystem = require('../core/configSystem');
+        if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member)) {
+            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+        }
     }
 
     if (entry.supervisorOnly) {
@@ -560,6 +591,10 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
         if (rconResult.response && rconResult.response !== 'OK') {
             builder.text(`${EMOJIS.messagesquare || '💬'} Resposta: \`\`\`${rconResult.response}\`\`\``);
         }
+        if (typeof entry.formatExtra === 'function') {
+            const extra = entry.formatExtra(rconResult.response);
+            if (extra) builder.text(extra);
+        }
     } else {
         builder.text(`${EMOJIS.trianglealert || '⚠️'} ${rconResult?.error || 'Erro desconhecido ao executar o comando.'}`);
     }
@@ -572,6 +607,7 @@ module.exports = {
     MARKS_COMMANDS,
     ADMIN_COMMANDS,
     MAP_COMMANDS,
+    LIST_COMMANDS,
     EVENT_COMMANDS,
     MESSAGE_COMMANDS,
     buildSubcommandOption,

@@ -197,12 +197,16 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   (esses tres ainda nao implementados - "vindo em breve")
 - Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
   PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
-  pra /ingame-* na secao 66) - 6 comandos por categoria (/ingame-stats,
-  /ingame-marks, /ingame-admin, /ingame-map, /ingame-event,
-  /ingame-message), ~55 subcomandos ao todo, baseado em
-  hosting.pathoftitans.wiki/guide/chat-commands. Lista completa e
-  paginada por categoria: /ingame-comandos (ver secao 70) - liberado pro
-  cargo Staff, nao so admin. Comando de TP integrado a
+  pra /ingame-* na secao 66) - 7 comandos por categoria (/ingame-stats,
+  /ingame-marks, /ingame-admin, /ingame-list, /ingame-map, /ingame-event,
+  /ingame-message), ~57 subcomandos ao todo, baseado em
+  hosting.pathoftitans.wiki/guide/chat-commands. Categoria /ingame-list
+  reune os comandos de consulta (listplayers/listpoi/listquests/
+  listroles/listwaters/listwaystones/listcreatormode) - listplayers e o
+  UNICO subcomando de todo o catalogo liberado pra qualquer membro do
+  servidor, nao so Staff (ver secao 71). Lista completa e
+  paginada por categoria: /ingame-comandos (ver secao 70, atualizado na
+  71) - liberado pro cargo Staff, nao so admin. Comando de TP integrado a
   criacao de eventos continua nao implementado ("vindo em breve"); punicoes
   aplicaveis em jogo via RCON (kick/ban/ServerMute, ja disponivel desde o
   Rastreador - ver secao acima) continuam JA IMPLEMENTADAS tambem.
@@ -2794,3 +2798,80 @@ frente, nao so este relatorio):
   todas as abas restantes de /ajuda (admin e não-admin) continuam sob o
   limite agregado de 4000. Reexecutada a regressão acumulada (seções
   65-69) sem quebra nos arquivos não relacionados a esta mudança.
+
+
+71) Reorganizacao do catalogo /ingame-* (seguindo
+    hosting.pathoftitans.wiki/guide/chat-commands): nova categoria List,
+    3 comandos novos, 3 removidos, 8 subcomandos viram Supervisor-only
+------------------------------------------------------------------
+- Comandos NOVOS no catalogo (rconCommandCatalog.js):
+  - `/ingame-admin reloadrules` (`ReloadRules`) - recarrega as regras do
+    servidor.
+  - `/ingame-message whisper` (`whisper <alvo> <mensagem>`) - equivalente
+    ao `/w` do jogo, mensagem privada pro jogador informado.
+  - `/ingame-message whisperall` (`whisperall <mensagem>`) - mensagem
+    privada pra todos os conectados, restrito ao cargo Supervisor (o
+    jogo libera isso pra qualquer jogador, mas o dono decidiu manter
+    controlado pelo lado Discord pra evitar spam pro servidor inteiro).
+  - Confirmado: `whitelist`/`delwhitelist`/`reloadwhitelist` JA
+    existiam no catalogo desde a secao 61 - nao precisaram ser
+    adicionados de novo, so confirmados presentes.
+- Comandos REMOVIDOS do catalogo (pedido do dono, sem substituto):
+  `/ingame-stats attribute` (o subcomando "digite o nome do atributo
+  como comando"), `/ingame-stats modattr`, e o "sermarksall" (=
+  `setmarksall` em MARKS_COMMANDS).
+- Categoria NOVA `/ingame-list` (LIST_COMMANDS, 7 subcomandos) - junta
+  comandos de consulta que antes estavam espalhados: `listroles` saiu de
+  Admin; `listpoi`/`listquests`/`listcreatormode` saíram de Map; e 3
+  comandos genuinamente novos: `listplayers`, `listwaters`,
+  `listwaystones`. A descrição do parâmetro `cargo` em
+  `/ingame-admin promote` foi atualizada pra apontar pro novo caminho
+  (`/ingame-list listroles`).
+  - `listplayers` é o ÚNICO subcomando de TODO o catálogo `/ingame-*`
+    liberado pra QUALQUER membro do servidor, não só Staff - o site
+    confirma que é um comando "available to all players" no próprio
+    jogo, então o dono pediu o mesmo no Discord. Implementado com um
+    flag novo no catálogo, `entry.publicAccess: true`, que
+    `executeRconSubcommand` usa pra pular a checagem de
+    `memberHasAnyStaffRole` só nessa entrada - os outros 6 subcomandos
+    de List continuam staff-gated normalmente. Por isso `/ingame-list`
+    (ingame-list.js) é o ÚNICO dos 7 comandos de categoria que NÃO usa
+    `ModerateMembers` como `setDefaultMemberPermissions` do Discord -
+    usa `null` (aberto a todo mundo por padrão), já que bloquear no
+    nível do Discord impediria jogadores comuns de sequer ver o
+    subcommand liberado.
+  - `listplayers` também ganhou um segundo flag novo, `entry.formatExtra`
+    - função opcional chamada com a resposta crua do RCON depois de uma
+    execução bem-sucedida, pra acrescentar uma linha extra na resposta.
+    Aqui conta os itens da resposta (separados por vírgula/quebra de
+    linha) e mostra "Total: N jogador(es) online" - melhor esforço, já
+    que o formato exato da resposta do RCON pra `listplayers` nunca foi
+    confirmado contra servidor real (mesma ressalva de sempre nesse
+    catálogo).
+- Subcomandos que viraram Supervisor-only (pedido do dono, `supervisorOnly:
+  true` adicionado no catálogo): `/ingame-stats godmode`, `/ingame-stats
+  healall`, `/ingame-marks addmarksall`, `/ingame-admin promote`,
+  `/ingame-admin demote`, `/ingame-admin restart`, `/ingame-admin
+  cancelrestart`, `/ingame-admin serverinfo`.
+- `/ingame-comandos` (secao 70) atualizado pra incluir a 7a categoria
+  (List) como nova página, com uma nota extra avisando que listplayers é
+  aberto a todo mundo. Total de subcomandos documentados: ~57 (era ~55).
+- Verificado com script direto (33 checks): os 3 comandos removidos
+  sumiram do catálogo; os 3 novos existem com o `buildCommand` esperado;
+  LIST_COMMANDS tem exatamente os 7 subcomandos certos; listplayers tem
+  `publicAccess: true` e `formatExtra` conta corretamente (retorna null
+  pra resposta vazia/"OK"); os itens movidos saíram das categorias
+  antigas; os 8 subcomandos ficaram `supervisorOnly`; nenhum dos 5
+  comandos exclusivos de /strike (kick/ban/unban/ServerMute/
+  ServerUnmute) vazou pro catálogo; nenhum subcomando duplicado entre
+  categorias; os 7 arquivos de comando carregam e batem 1:1 com o
+  catálogo, sem nome de subcomando/opção fora do padrão do Discord (≤32
+  chars, minúsculo, sem espaço); `/ingame-list` tem
+  `default_member_permissions: null` enquanto os outros 6 continuam com
+  ModerateMembers; e um teste funcional fim-a-fim confirmando que
+  `listplayers` NÃO chama `memberHasAnyStaffRole` e responde com sucesso
+  mesmo pra um membro sem cargo Staff, enquanto `listroles` (não-público,
+  mesma categoria) continua bloqueando corretamente. Página nova de
+  /ingame-comandos (List) medida em ~392 chars de bloco de comandos,
+  ~1092 no pior caso com cabeçalho+nota - bem abaixo do limite agregado
+  de 4000 (seção 70).

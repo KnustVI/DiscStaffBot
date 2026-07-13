@@ -107,7 +107,7 @@ class InteractionHandler {
             'config',
             'reset-db', 'reset-reports', 'botstatus', 'potserver', 'combat-config',
             'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
-            'ingame-stats', 'ingame-marks', 'ingame-admin', 'ingame-map', 'ingame-event', 'ingame-message', 'ingame-comandos',
+            'ingame-stats', 'ingame-marks', 'ingame-admin', 'ingame-list', 'ingame-map', 'ingame-event', 'ingame-message', 'ingame-comandos',
         ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
         
