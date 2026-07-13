@@ -156,7 +156,12 @@ class InteractionHandler {
             try {
                 await handler.handleComponent(interaction, action, param);
             } catch (error) {
-                console.error(`❌ Erro no handleComponent do sistema ${system}:`, error);
+                // Profundidade total: console.error(msg, error) trunca objetos
+                // aninhados (ex: error.rawError.errors.components de um 50035
+                // "Invalid Form Body" do Discord) em "[Object]", escondendo
+                // exatamente o campo que diz o que deu errado de verdade —
+                // mesmo padrão já usado em ajuda.js.
+                console.error(`❌ Erro no handleComponent do sistema ${system}:`, require('util').inspect(error, { depth: null }));
                 await this.handleError(interaction, error, 'component');
             }
         } else {
@@ -165,7 +170,7 @@ class InteractionHandler {
                 try {
                     await handler[methodName](interaction, param);
                 } catch (error) {
-                    console.error(`❌ Erro no método ${methodName}:`, error);
+                    console.error(`❌ Erro no método ${methodName}:`, require('util').inspect(error, { depth: null }));
                     await this.handleError(interaction, error, 'component');
                 }
             } else {
@@ -191,7 +196,7 @@ class InteractionHandler {
             try {
                 await handler.handleModal(interaction, action);
             } catch (error) {
-                console.error(`❌ Erro no handleModal do sistema ${system}:`, error);
+                console.error(`❌ Erro no handleModal do sistema ${system}:`, require('util').inspect(error, { depth: null }));
                 await this.handleError(interaction, error, 'modal');
             }
         } else {
@@ -212,8 +217,9 @@ class InteractionHandler {
      * Tratamento de erros unificado com logging profissional
      */
     async handleError(interaction, error, type) {
-        // Log detalhado
-        console.error(`❌ Erro no ${type}:`, error);
+        // Log detalhado — profundidade total, mesmo motivo dos outros
+        // console.error deste arquivo (ver comentário em handleComponent).
+        console.error(`❌ Erro no ${type}:`, require('util').inspect(error, { depth: null }));
         
         // Registrar no sistema de logs com categoria
         if (this.handlers.error?.logInteractionError) {
