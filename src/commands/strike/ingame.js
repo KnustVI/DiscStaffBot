@@ -17,6 +17,7 @@ module.exports = {
         }
 
         const alderonId = options.getString('alderon_id').trim();
+        const reason = options.getString('motivo');
         let reportId = options.getString('report') || null;
 
         try {
@@ -60,7 +61,7 @@ module.exports = {
             // PunishmentSystem.handleLevelSelect/_mergeLevelIntoSession). ──────
             sessionManager.set(staff.id, guildId, 'strike_staging', 'strike_staging', {
                 targetId: link.user_id,
-                reason: null,
+                reason,
                 reportId,
                 discordAct: 'none',
                 jogoActOverride: null,

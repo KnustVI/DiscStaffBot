@@ -37,6 +37,7 @@ module.exports = {
             .setName('ingame')
             .setDescription('Pune um jogador pelo Alderon ID (ação em jogo via RCON).')
             .addStringOption(opt => opt.setName('alderon_id').setDescription('Alderon ID do jogador').setRequired(true))
+            .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição (mostrado ao jogador banido/mutado no jogo)').setRequired(true))
             .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('personalizado')

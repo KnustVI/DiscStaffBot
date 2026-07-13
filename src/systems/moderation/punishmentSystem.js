@@ -440,8 +440,10 @@ const PunishmentSystem = {
     _mergeLevelIntoSession(staging, level) {
         return {
             targetId: staging.targetId,
-            // /strike ingame não pede motivo digitado (só Alderon ID) — usa o
-            // nome do nível como motivo nesse caso.
+            // Todo subcomando (registro/ingame/personalizado) já pede motivo
+            // digitado — fallback pro nome do nível só por segurança, nunca
+            // deveria disparar na prática (o motivo vira <banreason>/
+            // <userbanreason> no RCON, mostrado ao próprio jogador punido).
             reason: staging.reason || `Punição aplicada: ${level.name}`,
             reportId: staging.reportId || null,
             levelId: level.id,
