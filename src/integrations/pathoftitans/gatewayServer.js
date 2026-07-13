@@ -488,13 +488,16 @@ class PoTGatewayServer {
             // rejeitam).
             if (potEvent === 'PlayerKilled') {
                 const guild = this.client.guilds.cache.get(guildId);
-                const payload = WebhookPayloads.buildKillPanel(data, guild);
+                const payload = WebhookPayloads.buildKillPanel(data, guild, Date.now());
                 await this._deliverMessage(webhookUrl, payload);
                 return;
             }
 
             const guild = this.client.guilds.cache.get(guildId);
-            const message = WebhookPayloads.formatMessage(potEvent, data, guild);
+            // formatMessage é async (alguns eventos, ex: PlayerCommand/
+            // AdminCommand/AdminSpectate, resolvem identidade Discord antes
+            // de montar a linha — ver discordIdentitySuffix).
+            const message = await WebhookPayloads.formatMessage(potEvent, data, guild);
 
             // PlayerChat/PlayerProfanity continuam texto puro (pedido do
             // dono, única exceção) — todo o resto vira um container simples

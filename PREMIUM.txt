@@ -2875,3 +2875,63 @@ frente, nao so este relatorio):
   /ingame-comandos (List) medida em ~392 chars de bloco de comandos,
   ~1092 no pior caso com cabeçalho+nota - bem abaixo do limite agregado
   de 4000 (seção 70).
+
+
+72) Bug do countdown de restart corrigido, identidade Discord (menção+cargo)
+    em todo log de comando, e horário da morte no painel de kill
+------------------------------------------------------------------
+- BUG corrigido: o log "Servidor reinicia em Xs" (evento webhook
+  ServerRestartCountdown) sempre mostrava "?s" em vez do valor real. Causa:
+  o campo lido no payload (`CountdownTime`) nunca existiu de verdade - a
+  doc oficial do PoT (hosting.pathoftitans.wiki/guide/webhooks) confirma
+  que o campo certo é `RestartTimeRemaining` (inteiro, segundos). Esse
+  webhook dispara em vários pontos antes do reinício: 2h e 1h antes, depois
+  30/10/5/1min antes, e por fim 10/5/4/3/2/1s antes.
+- Identidade Discord (menção + cargo) agora aparece em TODO log de comando
+  do bot, tanto os que vêm do próprio jogo quanto o nosso RCON via Discord
+  (pedido do dono: "sempre... puxar quem usou e o cargo em jogo/discord
+  dele"):
+  - `PlayerCommand`/`AdminCommand`/`AdminSpectate` (webhookPayloads.js,
+    eventos que vêm do PoT) - novo helper `discordIdentitySuffix(guild,
+    alderonId)`: se o AlderonId do payload estiver vinculado a um Discord
+    (via /registrar), acrescenta a menção (`<@id>`, direta - não precisa
+    de fetch de usuário, o Discord resolve sozinho) + o cargo de staff
+    configurado no Discord (Moderador/Supervisor/Equipe de Eventos, mesmas
+    3 chaves de config-roles), se o membro ainda estiver no servidor e
+    tiver um configurado. O cargo EM JOGO (campo "Role" do próprio PoT) já
+    era mostrado antes (roleSuffix) - não mudou. `formatMessage` virou
+    async pra isso (só os 3 formatters que precisam - os outros ~22
+    continuam síncronos, o dispatcher só faz `await` quando o retorno é
+    de fato uma Promise); `gatewayServer.js` atualizado com `await` no
+    único call site.
+  - Nosso próprio log de auditoria de `/ingame-*` (_logRconCommand em
+    rconCommandCatalog.js) NÃO trazia NENHUMA informação de quem executou
+    o comando antes desta seção - agora traz a menção do staff (sempre
+    disponível, é o autor da própria interação Discord), o cargo Discord
+    dele (mesmo critério acima), e a identidade EM JOGO dele, se o Discord
+    dele estiver vinculado a um AlderonId (novo helper
+    `_describeCommandUser`).
+- Painel de morte (buildKillPanel, "MORTE EM COMBATE"/"MORTE POR
+  AMBIENTE") ganhou uma linha "Horário da morte" com timestamp Discord
+  (`<t:...:f>`, já convertido pro fuso de quem está lendo). A doc oficial
+  do PlayerKilled NÃO tem nenhum campo de timestamp real - só "TimeOfDay"
+  (hora DENTRO do jogo, ex: 1300, sem relação com o horário real) -
+  confirmado via doc oficial. Por isso usa o mesmo critério já adotado
+  pros horários de golpe no relatório de combate (seção 26): o relógio
+  REAL do bot no momento em que o webhook chegou (`Date.now()`, capturado
+  em gatewayServer.js e passado como terceiro parâmetro).
+- `/ingame-comandos`: texto de introdução da página 1 reescrito (pedido do
+  dono) - "Lista completa de comando para uso em jogo", com a explicação
+  de usuario/agid e o significado do 🔒 (cargos configurados como
+  Supervisor pelo admin, não mais fixo em "cargo Supervisor").
+- Verificado com script direto (17 checks): ServerRestartCountdown usa o
+  campo certo e cai no fallback "?s" só quando o campo realmente não vem;
+  buildKillPanel mostra o timestamp certo (com e sem receivedAt
+  explícito); PlayerCommand/AdminCommand/AdminSpectate mostram a menção +
+  cargo Discord quando linkado E com cargo configurado, mostram só a
+  menção quando linkado mas o membro saiu do servidor, e não mostram nada
+  quando o AlderonId não está vinculado; eventos síncronos (ex:
+  PlayerQuestComplete) continuam funcionando normalmente depois de
+  formatMessage virar async; _logRconCommand inclui menção + cargo
+  Discord + identidade em jogo do staff que executou. Reexecutada a
+  regressão da seção 71 (reorganização /ingame-list) sem quebra.

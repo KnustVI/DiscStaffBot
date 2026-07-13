@@ -498,6 +498,42 @@ function _parseWebhookUrl(webhookUrl) {
     }
 }
 
+// Mesmas 3 chaves/labels de config-roles usadas em webhookPayloads.js
+// (discordIdentitySuffix) — duplicado aqui de propósito pra manter este
+// catálogo autocontido, mesmo padrão já usado no resto do arquivo.
+const STAFF_ROLE_LABELS = { supervisor_role: 'Supervisor', staff_role: 'Moderador', event_role: 'Equipe de Eventos' };
+
+/**
+ * "@menção (Discord: Cargo) | 🎮 Nome `AGID`" — identidade de quem executou
+ * o comando: menção Discord direta (sempre disponível, é o próprio autor da
+ * interação) + cargo de staff configurado (Moderador/Supervisor/Equipe de
+ * Eventos) + identidade em jogo, se o Discord dele estiver vinculado a um
+ * AlderonId (/registrar). Pedido do dono: todo log de comando/RCON deve
+ * trazer quem usou E o cargo, tanto em jogo quanto no Discord.
+ */
+async function _describeCommandUser(interaction) {
+    let roleLabel = null;
+    const ConfigSystem = require('../core/configSystem');
+    for (const key of ['supervisor_role', 'staff_role', 'event_role']) {
+        if (ConfigSystem.memberHasConfiguredRole(interaction.guildId, interaction.member, key)) {
+            roleLabel = STAFF_ROLE_LABELS[key];
+            break;
+        }
+    }
+
+    let ingamePart = '';
+    try {
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (link?.alderon_id) {
+            ingamePart = ` | ${EMOJIS.game || '🎮'} ${link.player_name || 'Sem nome'} \`${link.alderon_id}\``;
+        }
+    } catch (err) {
+        // sem vínculo — segue sem identidade em jogo
+    }
+
+    return `${interaction.user.toString()}${roleLabel ? ` (Discord: ${roleLabel})` : ''}${ingamePart}`;
+}
+
 /**
  * Log de auditoria de um comando /ingame-* — pedido do dono: concentrar no
  * MESMO canal que já recebe os webhooks do grupo Admin do PoT (AdminSpectate/
@@ -509,7 +545,8 @@ function _parseWebhookUrl(webhookUrl) {
  * registro. Sempre best-effort — nunca bloqueia a resposta ao staff.
  */
 async function _logRconCommand(interaction, categoryLabel, entry, command, rconResult) {
-    const line = `${EMOJIS.rcon || '🔗'} RCON \`[${categoryLabel}]\` **/${entry.name}**: \`${command}\` — ${rconResult?.success ? 'sucesso' : `falhou (${rconResult?.error || 'erro desconhecido'})`}`;
+    const staffLabel = await _describeCommandUser(interaction);
+    const line = `${EMOJIS.rcon || '🔗'} RCON \`[${categoryLabel}]\` **/${entry.name}** por ${staffLabel}: \`${command}\` — ${rconResult?.success ? 'sucesso' : `falhou (${rconResult?.error || 'erro desconhecido'})`}`;
 
     try {
         const adminWebhookUrl = PoTConfigSystem.getWebhookForGroup(interaction.guildId, 'admin');

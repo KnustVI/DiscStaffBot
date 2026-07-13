@@ -37,9 +37,9 @@ function buildCategoryPage(guildName, category, isFirst) {
         builder.section(
             [
                 '# COMANDOS INGAME',
-                `Catálogo completo dos comandos de admin do servidor PoT disponíveis via **/ingame-***, plano **Caçador**. ` +
-                `Todo subcomando aceita **usuario** (Discord vinculado) OU **agid** (Alderon ID/nome, se não estiver vinculado) — nenhum dos dois informado usa você mesmo, quando fizer sentido. ` +
-                `${emojis.lock || '🔒'} marca os subcomandos restritos ao cargo Supervisor (ver /config roles).`,
+                `Lista completa de comando para uso em jogo. ` +
+                `Todo subcomando aceita **usuario** (Discord vinculado) OU **agid** (Alderon ID/nome, se não estiver vinculado). Se não informar nenhum dos dois o comando usa você mesmo, quando fizer sentido. ` +
+                `${emojis.lock || '🔒'} marca os subcomandos restritos aos cargos selecionados como cargos supervisores pelo admin do servidor (ver /config roles).`,
             ].join('\n'),
             builder.assetThumbnail('icone_help') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png'),
         );

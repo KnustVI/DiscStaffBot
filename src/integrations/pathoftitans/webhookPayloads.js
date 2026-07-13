@@ -163,6 +163,47 @@ function roleSuffix(role) {
     return ` — Cargo: ${role}`;
 }
 
+// Mesmas 3 chaves/labels de config-roles (STAFF_ROLE_KEYS em configSystem.js
+// e guildMemberUpdate.js) — duplicado aqui de propósito pra manter
+// webhookPayloads.js autocontido, mesmo padrão já usado no resto do arquivo.
+const STAFF_ROLE_LABELS = { supervisor_role: 'Supervisor', staff_role: 'Moderador', event_role: 'Equipe de Eventos' };
+
+/**
+ * " | @menção (Discord: Cargo)" — identidade Discord de um jogador vinculado
+ * a um AlderonId (mention direto, sem precisar de fetch de usuário — o
+ * Discord resolve sozinho) + o cargo de staff dele NO DISCORD (Moderador/
+ * Supervisor/Equipe de Eventos), quando o membro ainda estiver no servidor
+ * e tiver um configurado. Pedido do dono: todo log de comando/RCON deve
+ * trazer quem usou E o cargo, tanto em jogo (campo "Role" do próprio PoT,
+ * já mostrado por roleSuffix acima) quanto no Discord. Sem vínculo, membro
+ * fora do servidor, ou erro de fetch: cai no fallback silencioso de sempre
+ * (string vazia, nunca quebra a mensagem).
+ */
+async function discordIdentitySuffix(guild, alderonId) {
+    if (!guild || !alderonId) return '';
+    let linked;
+    try {
+        linked = PlayerRegistry.getPlayerByAlderonId(alderonId);
+    } catch (err) {
+        return '';
+    }
+    if (!linked?.user_id) return '';
+
+    const mention = `<@${linked.user_id}>`;
+    try {
+        const member = await guild.members.fetch(linked.user_id);
+        const ConfigSystem = require('../../systems/core/configSystem');
+        for (const key of ['supervisor_role', 'staff_role', 'event_role']) {
+            if (ConfigSystem.memberHasConfiguredRole(guild.id, member, key)) {
+                return ` | ${mention} (Discord: ${STAFF_ROLE_LABELS[key]})`;
+            }
+        }
+    } catch (err) {
+        // membro não está mais no servidor, ou fetch falhou — mostra só a menção
+    }
+    return ` | ${mention}`;
+}
+
 // ==================== CONTAINER: LOGIN / LOGOUT / LEAVE ====================
 
 /**
@@ -259,7 +300,7 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
 
 // ==================== TEXTO/EMBED — DEMAIS GRUPOS (formato legado) ====================
 
-function formatMessage(potEvent, data, guild) {
+async function formatMessage(potEvent, data, guild) {
     const d = data || {};
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
 
@@ -321,7 +362,13 @@ function formatMessage(potEvent, data, guild) {
         PlayerProfanity: () => `${e('shieldban', '🔞')} **${nameWithId(d.PlayerName, d.AlderonId)}** tentou enviar mensagem bloqueada`,
 
         // ── Comandos ──
-        PlayerCommand: () => `${e('raio', '⚡')} **${nameWithId(d.PlayerName, d.AlderonId)}:** \`${d.Message}\`${roleSuffix(d.Role)}`,
+        // Pedido do dono: todo log de comando traz quem usou + cargo em
+        // jogo (roleSuffix, já existia) E cargo no Discord (novo, ver
+        // discordIdentitySuffix) quando o AlderonId estiver vinculado.
+        PlayerCommand: async () => {
+            const discordPart = await discordIdentitySuffix(guild, d.AlderonId);
+            return `${e('raio', '⚡')} **${nameWithId(d.PlayerName, d.AlderonId)}**${discordPart}: \`${d.Message}\`${roleSuffix(d.Role)}`;
+        },
 
         // ── Grupo ──
         PlayerJoinedGroup: () => `${e('users', '👥')} **${nameWithId(d.Player, d.PlayerAlderonId)}** entrou no grupo de **${nameWithId(d.Leader, d.LeaderAlderonId)}**`,
@@ -330,7 +377,11 @@ function formatMessage(potEvent, data, guild) {
         // ── Servidor ──
         ServerStart:             () => `🟢 Servidor **iniciou** | Mapa: \`${d.Map || 'desconhecido'}\``,
         ServerRestart:           () => `${e('refreshccw', '🔄')} Servidor **reiniciando**...`,
-        ServerRestartCountdown:  () => `${e('clockalert', '⏳')} Servidor reinicia em **${d.CountdownTime || '?'}s**`,
+        // Campo confirmado na doc oficial: RestartTimeRemaining (inteiro,
+        // segundos) — "CountdownTime" usado antes aqui nunca existiu no
+        // payload real, por isso a contagem sempre aparecia como "?s".
+        // Mantido como fallback só por segurança, nunca visto na prática.
+        ServerRestartCountdown:  () => `${e('clockalert', '⏳')} Servidor reinicia em **${d.RestartTimeRemaining ?? d.CountdownTime ?? '?'}s**`,
         // ServerModerate não traz PlayerName no payload oficial (só
         // AlderonId) — mostra o ID puro, é a única identificação disponível.
         ServerModerate:          () => `${e('shieldcheck', '🛡️')} Moderação automática: \`${d.AlderonId || 'Desconhecido'}\` — ${d.Type || d.Action || 'ação'} — ${d.AdminReason || d.UserReason || 'sem motivo'}`,
@@ -366,7 +417,7 @@ function formatMessage(potEvent, data, guild) {
         // Mesmo layout de heading+bullet do AdminCommand logo abaixo (pedido
         // do dono: vale pra qualquer log de comando/ação de admin, não só
         // AdminCommand).
-        AdminSpectate: () => {
+        AdminSpectate: async () => {
             const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
             const action = ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa';
             const spectatorLine = d.bSpectatorMode === true
@@ -374,7 +425,9 @@ function formatMessage(potEvent, data, guild) {
                 : d.bSpectatorMode === false
                     ? `Modo espectador: ${e('shieldban', '🚫')}`
                     : 'Modo espectador: Não definido';
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, d.PlayerAlderonId || d.AdminAlderonId)}: ${action}\n${spectatorLine}`;
+            const alderonId = d.PlayerAlderonId || d.AdminAlderonId;
+            const discordPart = await discordIdentitySuffix(guild, alderonId);
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
@@ -383,9 +436,11 @@ function formatMessage(potEvent, data, guild) {
         // fica só por segurança, nunca visto na prática pra este evento.
         // Layout pedido pelo dono: heading com emoji + cargo, bullet com
         // identificação + comando.
-        AdminCommand: () => {
+        AdminCommand: async () => {
             const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.AdminName || d.PlayerName, d.AdminAlderonId || d.PlayerAlderonId)}: \`${d.Command}\``;
+            const alderonId = d.AdminAlderonId || d.PlayerAlderonId;
+            const discordPart = await discordIdentitySuffix(guild, alderonId);
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.AdminName || d.PlayerName, alderonId)}${discordPart}: \`${d.Command}\``;
         },
 
         // ── Nest ──
@@ -404,7 +459,13 @@ function formatMessage(potEvent, data, guild) {
     if (!fn) return `${e('wifi', '📡')} Evento: \`${potEvent}\``;
 
     try {
-        return fn();
+        // A maioria dos formatters é síncrona (só monta string); PlayerCommand/
+        // AdminCommand/AdminSpectate são async (precisam resolver identidade
+        // Discord via discordIdentitySuffix) — await só quando o retorno for
+        // de fato uma Promise, pra não forçar `async` em ~25 formatters que
+        // não precisam disso.
+        const result = fn();
+        return result instanceof Promise ? await result : result;
     } catch (err) {
         return `${e('wifi', '📡')} Evento: \`${potEvent}\` (dados incompletos)`;
     }
@@ -460,9 +521,18 @@ function formatLocationString(raw) {
  *
  * @param {object} data
  * @param {import('discord.js').Guild} guild
+ * @param {number} [receivedAt] - Date.now() de quando o gateway recebeu o
+ *   evento (ver gatewayServer.js) — usado como "horário da morte". A doc
+ *   oficial do PlayerKilled NÃO traz nenhum timestamp real, só um campo
+ *   "TimeOfDay" (hora DENTRO do jogo, ex: 1300 = 13:00 em jogo, sem relação
+ *   com o horário real) — mesmo critério já usado pros horários de golpe
+ *   no relatório de combate (ver comentário "horário REAL" mais abaixo
+ *   neste arquivo). Sem valor informado, cai em Date.now() na hora
+ *   (praticamente o mesmo instante, só sem o valor exato de quando o
+ *   webhook chegou).
  * @returns {{ components: object[], flags: number }}
  */
-function buildKillPanel(data, guild) {
+function buildKillPanel(data, guild, receivedAt) {
     const d = data || {};
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
     const hasKiller = Boolean(d.KillerName || d.KillerAlderonId);
@@ -470,6 +540,7 @@ function buildKillPanel(data, guild) {
     const builder = new AdvancedContainerBuilder({ accentColor: 0xFF0000 });
 
     builder.title(`${e('Dead', '💀')} ${hasKiller ? 'MORTE EM COMBATE' : 'MORTE POR AMBIENTE'}`, 1);
+    builder.text(`${e('clock', '🕐')} Horário da morte: <t:${Math.floor((receivedAt || Date.now()) / 1000)}:f>`);
     builder.text(`Dano: ${formatDamageType(d.DamageType)}`);
 
     const localParts = [d.VictimPOI, formatLocationString(d.VictimLocation)].filter(Boolean);
