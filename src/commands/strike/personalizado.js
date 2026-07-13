@@ -1,8 +1,10 @@
 // src/commands/strike/personalizado.js — /strike personalizado
-// Restrito ao cargo Supervisor (ver /config roles) — modo manual completo,
-// SEM níveis (só motivo + duração, ambos obrigatórios). Aceita usuario OU
-// agid (não precisa dos dois) — o que faltar é buscado no vínculo global
-// (/registrar) antes de decidir o que fazer, igual ao padrão já usado nos
+// Restrito ao cargo Supervisor (ver /config roles) E ao plano Caçador
+// (Rastreador e Free ficam de fora — diferente de /strike ingame, que é
+// Rastreador+) — modo manual completo, SEM níveis (só motivo + duração,
+// ambos obrigatórios). Aceita usuario OU agid (não precisa dos dois) — o
+// que faltar é buscado no vínculo global (/registrar) antes de decidir o
+// que fazer, igual ao padrão já usado nos
 // comandos /rcon-*/ingame-* (ver rconCommandCatalog.js TARGET_OPTIONS).
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
@@ -76,7 +78,7 @@ async function proceedToConfirm(interaction, data) {
         // o staff explicitamente (pedido do dono), já que /strike
         // personalizado tem cara de "ação completa" e a ausência de dedução
         // passaria despercebida sem esse aviso.
-        reputationNote: 'Este subcomando não usa níveis de punição — nenhuma dedução de reputação é aplicada aqui. Use /strike ingame (com nível) se precisar descontar pontos automaticamente.',
+        reputationNote: 'Este subcomando não usa níveis de punição, nenhuma dedução de reputação é aplicada aqui... Se necessário use /repset.',
     };
 
     sessionManager.set(staff.id, guildId, 'strike_pending', 'strike_pending', session, 120000);
@@ -123,7 +125,9 @@ module.exports = {
             return await ResponseManager.error(interaction, 'Este subcomando é restrito ao cargo Supervisor (ver /config roles).');
         }
 
-        if (!PremiumSystem.isGuildAtLeast(guildId, 'rastreador')) {
+        // Exclusivo Caçador (Rastreador e Free ficam de fora) — diferente de
+        // /strike ingame, que é Rastreador+.
+        if (!PremiumSystem.isGuildAtLeast(guildId, 'cacador')) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
         }
 

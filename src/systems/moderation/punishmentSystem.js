@@ -611,7 +611,7 @@ const PunishmentSystem = {
                 // Mesmo aviso de src/commands/strike/personalizado.js
                 // (proceedToConfirm) — este caminho ("não aplicar ação") é o
                 // outro lugar que monta uma sessão de /strike personalizado.
-                reputationNote: 'Este subcomando não usa níveis de punição — nenhuma dedução de reputação é aplicada aqui. Use /strike ingame (com nível) se precisar descontar pontos automaticamente.',
+                reputationNote: 'Este subcomando não usa níveis de punição, nenhuma dedução de reputação é aplicada aqui... Se necessário use /repset.',
             };
 
             SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending', finalSession, 120000);

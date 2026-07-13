@@ -5,8 +5,9 @@
  *   - registro:      registro simples de punição (sem nível, sem ação em
  *                     jogo/Discord) — disponível em QUALQUER tier, incluindo Free.
  *   - ingame:        pune só pelo Alderon ID, usando um nível (ação em jogo via RCON) —
- *                     funciona pra jogador registrado (/registrar) ou não.
- *   - personalizado: modo manual completo, restrito ao cargo Supervisor. NÃO usa
+ *                     funciona pra jogador registrado (/registrar) ou não. Rastreador+.
+ *   - personalizado: modo manual completo, restrito ao cargo Supervisor E ao
+ *                     plano Caçador (Rastreador/Free ficam de fora). NÃO usa
  *                     níveis (só motivo + duração, ambos obrigatórios) — aceita
  *                     usuario OU agid (o que faltar é buscado no vínculo global);
  *                     informando só um dos dois sem discord_act/jogo_act, mostra
@@ -47,7 +48,7 @@ module.exports = {
             .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('personalizado')
-            .setDescription('[Supervisor] Punição manual completa — sem níveis, controle total sobre ações.')
+            .setDescription('[Supervisor/Caçador] Punição manual completa — sem níveis, controle total sobre ações.')
             .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
             .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 10m, 1h, 3d — vazio/0 = permanente)').setRequired(true))
             .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator (informe este OU agid)').setRequired(false))

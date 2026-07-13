@@ -11,7 +11,7 @@ const { ADMIN_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require
 const data = new SlashCommandBuilder()
     .setName('ingame-admin')
     .setDescription('🔒 Comandos in-game (RCON) administrativos do PoT (plano Caçador).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers); // checagem real do cargo Staff é feita dentro de executeRconSubcommand
 
 for (const entry of ADMIN_COMMANDS) {
     data.addSubcommand(sub => buildSubcommandOption(sub, entry));

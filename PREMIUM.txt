@@ -136,15 +136,16 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   ATIVA aqui (antes so no Cacador).
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
-  Acoes automaticas no Discord (timeout/kick/ban via /strike personalizado,
-  campo "discord_act") JA ATIVAS aqui tambem (antes so no Cacador) - ou
-  seja, tanto a acao em jogo via RCON quanto a acao no Discord ja funcionam
-  desde o Rastreador.
+  Acao em jogo via RCON (niveis do /strike ingame) e o unico jeito de acao
+  automatica disponivel neste tier - acoes automaticas no Discord
+  (timeout/kick/ban) e o modo manual completo (/strike personalizado, com
+  os campos discord_act/jogo_act) sao exclusivos do Cacador (ver abaixo);
+  o flag `discordActionsEnabled` continua true no Rastreador na config
+  (premiumSystem.js) mas nenhum subcomando deste tier expoe a opcao pra
+  usa-lo de verdade no momento.
   Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
   duracao >72h/permanente (mesma regra do Free, so que aqui os niveis
-  tambem contam). /strike personalizado (modo manual completo, restrito ao
-  cargo Supervisor, SEM niveis - so motivo+duracao obrigatorios, aceita
-  usuario OU agid) tambem liberado a partir daqui.
+  tambem contam).
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
   postagem no forum).
@@ -171,17 +172,26 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
 - Punicoes: cargo temporario de punicao, ate 10 niveis de punicao
   totalmente customizaveis (JA IMPLEMENTADO - mesmo sistema do Rastreador,
   so que com o dobro do limite de niveis), cargos de reputacao automaticos
-  (Exemplar/Problematico) - acao automatica de punicao no Discord E no jogo
-  via RCON ja vem desde o Rastreador (ver secao Rastreador acima), aqui so
-  ganha os cargos automaticos de reputacao e a analise de staff. Automod
-  diario (recuperacao de reputacao + cargos automaticos) com a QUANTIDADE
-  de pontos recuperados por dia configuravel em /config punishments
-  (padrao: 1 ponto/dia). Aprovacao de Supervisor por nivel de punicao
-  TOTALMENTE CONFIGURAVEL (JA IMPLEMENTADO - ver secao 65) - em vez da
-  regra fixa automatica (severidade Grave/Severa OU duracao >72h/perm,
-  que continua valendo em Free/Rastreador sem excecao), o admin liga/
-  desliga a exigencia de aprovacao nivel a nivel, direto no painel de
-  /config punishments (botao Exigir/Dispensar Aprovacao em cada nivel).
+  (Exemplar/Problematico) - acao em jogo via RCON usando niveis (/strike
+  ingame) ja vem desde o Rastreador (ver secao Rastreador acima), aqui so
+  ganha os cargos automaticos de reputacao e a analise de staff. `/strike
+  personalizado` (modo manual completo, restrito ao cargo Supervisor, SEM
+  niveis - so motivo+duracao obrigatorios, aceita usuario OU agid, campos
+  discord_act/jogo_act pra escolher a acao) e EXCLUSIVO deste tier
+  (Rastreador e Free ficam de fora) - e o UNICO jeito de aplicar acao
+  automatica no Discord (timeout/kick/ban) hoje, ja que /strike ingame nao
+  tem essa opcao. Como personalizado nao usa nivel, nao ha pontos de
+  reputacao a descontar - a tela de confirmacao e o resumo avisam o staff
+  disso explicitamente, sugerindo /repset se precisar ajustar manualmente.
+  Automod diario (recuperacao de reputacao + cargos automaticos) com a
+  QUANTIDADE de pontos recuperados por dia configuravel em /config
+  punishments (padrao: 1 ponto/dia). Aprovacao de Supervisor por nivel de
+  punicao TOTALMENTE CONFIGURAVEL (JA IMPLEMENTADO - ver secao 65) - em
+  vez da regra fixa automatica (severidade Grave/Severa OU duracao
+  >72h/perm, que continua valendo em Free/Rastreador sem excecao), o
+  admin liga/desliga a exigencia de aprovacao nivel a nivel, direto no
+  painel de /config punishments (botao Exigir/Dispensar Aprovacao em cada
+  nivel).
 - Eventos: anuncia automaticamente criacao/inicio/encerramento dos
   eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
   (esses tres ainda nao implementados - "vindo em breve")
@@ -227,10 +237,11 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   nivel/acao automatica, disponivel em QUALQUER tier), ingame (pune so pelo
   Alderon ID, usa um nivel pra aplicar acao em jogo via RCON, a partir do
   Rastreador, funciona registrado ou nao) e personalizado (modo manual
-  completo, restrito ao cargo Supervisor, a partir do Rastreador - SEM
-  niveis, so motivo+duracao obrigatorios, aceita usuario OU agid). Ingame/
-  personalizado sao os unicos que aplicam acoes automaticas - registro e so
-  isso mesmo, registro. Um /strike "sem subcomando nenhum" nao e possivel -
+  completo, restrito ao cargo Supervisor E EXCLUSIVO do Cacador - Rastreador
+  e Free ficam de fora - SEM niveis, so motivo+duracao obrigatorios, aceita
+  usuario OU agid, unico com discord_act). Ingame/personalizado sao os
+  unicos que aplicam acoes automaticas - registro e so isso mesmo, registro.
+  Um /strike "sem subcomando nenhum" nao e possivel -
   a API do Discord nao deixa misturar opcoes de topo com subcomandos no
   mesmo comando.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
@@ -2643,3 +2654,53 @@ frente, nao so este relatorio):
   automática de aprovação de Supervisor (seção 65) continua funcionando
   pra personalizado sem nível. Reexecutado o teste da seção 65
   (aprovação configurável) sem nenhuma regressão.
+
+
+68) /strike personalizado EXCLUSIVO do Caçador + comandos /ingame-*
+    liberados pro cargo Staff (Discord bloqueava por padrão)
+------------------------------------------------------------------
+- Confirmação de tier do dono: `/strike registro` continua liberado em
+  QUALQUER plano; `/strike ingame` continua Rastreador+ (sem mudança);
+  `/strike personalizado` passa a ser EXCLUSIVO do Caçador (Rastreador e
+  Free ficam de fora agora — antes bastava Rastreador). Como
+  personalizado era o ÚNICO subcomando com `discord_act` (timeout/kick/
+  ban automático no Discord), isso também significa que essa ação só
+  fica disponível a partir do Caçador agora — o flag `discordActionsEnabled`
+  do Rastreador (premiumSystem.js) continua `true` na config, mas nenhum
+  comando expõe a opção de usá-lo nesse tier no momento (documentado nas
+  seções 1-2).
+- Texto do aviso de reputação do personalizado (seção 67) trocado pro
+  pedido do dono: agora indica `/repset` como caminho pra ajuste manual,
+  em vez de sugerir `/strike ingame` (que não serve pra corrigir pontos
+  de uma punição já registrada).
+- BUG REAL corrigido: os 6 comandos `/ingame-*` usavam
+  `setDefaultMemberPermissions(PermissionFlagsBits.Administrator)` — o
+  Discord bloqueia a visibilidade/uso do comando pra qualquer membro sem
+  essa permissão ANTES mesmo da interação chegar no bot, e não existia
+  nenhuma checagem interna do cargo Staff (só a de tier
+  `genericRconEnabled` e a de Supervisor pra 3 subcomandos específicos) —
+  ou seja, um staff comum (sem Administrator) literalmente não conseguia
+  usar nenhum desses comandos, e a documentação deles no /ajuda também
+  ficava escondida (ver próximo item). Corrigido dos dois lados: os 6
+  comandos agora usam `ModerateMembers` como permissão padrão do Discord
+  (mesma baseline do próprio /strike) — bem mais permissivo — e
+  `executeRconSubcommand` (rconCommandCatalog.js) ganhou uma checagem
+  própria de cargo Staff (`ConfigSystem.memberHasAnyStaffRole`) logo após
+  o gate de tier, garantindo que só quem realmente tem o cargo Staff
+  (configurado em /config roles) consiga usar, independente da permissão
+  do Discord. O aviso em "Configuração & Moderação" sobre restringir
+  ainda mais pelo Discord (Integrações) continua válido pra quem quiser
+  detalhar por canal/cargo específico.
+- Aba "Comandos INGAME" do /ajuda: antes só visível pra quem tem a
+  permissão Administrator do Discord. Agora `getTopics` recebe também
+  `hasStaffRole` (via `ConfigSystem.memberHasAnyStaffRole`) — membros com
+  cargo Staff mas sem Administrator passam a ver essa aba também (além
+  de Início/Premium/Ajuda, que já viam), já que agora eles conseguem de
+  fato usar os comandos documentados ali.
+- Verificado com script direto (7 checks): tier de personalizado (Caçador)
+  e de ingame (Rastreador, sem mudança) corretos; texto do aviso de
+  reputação atualizado nos dois lugares; os 6 comandos usam
+  ModerateMembers; `executeRconSubcommand` bloqueia quem NÃO tem cargo
+  Staff com mensagem clara e permite normalmente quem tem; `getTopics`
+  inclui a aba ingame pra staff não-admin. Reexecutadas todas as
+  suítes anteriores (seções 65, 66, 67) sem nenhuma regressão.

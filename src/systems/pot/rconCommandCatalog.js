@@ -521,6 +521,17 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
         return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
     }
 
+    // Checagem própria do cargo Staff — os 6 comandos /ingame-* usam
+    // ModerateMembers como permissão padrão do Discord (não mais
+    // Administrator, ver ingame-*.js), então sem isso qualquer um com essa
+    // permissão comum passaria direto. Continua sendo possível restringir
+    // ainda mais por comando/canal pelo próprio Discord (Integrações),
+    // como já avisado em /ajuda.
+    const ConfigSystem = require('../core/configSystem');
+    if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member)) {
+        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+    }
+
     if (entry.supervisorOnly) {
         const PunishmentSystem = require('../moderation/punishmentSystem');
         if (!(await PunishmentSystem.memberHasSupervisorRole(guild, interaction.member))) {

@@ -276,7 +276,15 @@ function buildPageHelp(guildName, emojis) {
 // disponíveis, na ordem em que aparecem no menu de seleção.
 // ---------------------------------------------------------------------------
 
-function getTopics(isAdmin, ctx) {
+/**
+ * @param {boolean} isAdmin - vê o guia completo (setup/config, sistemas do servidor).
+ * @param {boolean} hasStaffRole - além dos membros comuns, também vê a aba
+ *   "Comandos INGAME" — os comandos /ingame-* já são liberados pro cargo
+ *   Staff no Discord (ver ingame-*.js, ModerateMembers + checagem própria
+ *   em executeRconSubcommand), então a documentação deles precisa ser
+ *   visível pra quem realmente vai usar, não só pra admin.
+ */
+function getTopics(isAdmin, hasStaffRole, ctx) {
     const { displayName, guildName, emojis } = ctx;
 
     if (isAdmin) {
@@ -290,11 +298,17 @@ function getTopics(isAdmin, ctx) {
         ];
     }
 
-    return [
+    const topics = [
         { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
+    ];
+    if (hasStaffRole) {
+        topics.push({ key: 'ingame', label: 'Comandos INGAME', emoji: emojis.rcon || '🔗', build: () => buildPageIngame(guildName, emojis) });
+    }
+    topics.push(
         { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
         { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
-    ];
+    );
+    return topics;
 }
 
 function buildTopicSelectMenu(topics, selectedKey, invokerId) {
@@ -346,7 +360,9 @@ module.exports = {
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
             const isAdmin = member.permissions.has('Administrator');
-            const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
+            const ConfigSystem = require('../../systems/core/configSystem');
+            const hasStaffRole = ConfigSystem.memberHasAnyStaffRole(guild.id, member);
+            const topics = getTopics(isAdmin, hasStaffRole, { displayName: member.displayName, guildName: guild.name, emojis });
 
             const payload = renderTopicPayload(topics, 'welcome', user.id);
             await interaction.editReply(payload);
@@ -403,7 +419,9 @@ module.exports = {
 
         const { guild, member } = interaction;
         const isAdmin = member.permissions.has('Administrator');
-        const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
+        const ConfigSystem = require('../../systems/core/configSystem');
+        const hasStaffRole = ConfigSystem.memberHasAnyStaffRole(guild.id, member);
+        const topics = getTopics(isAdmin, hasStaffRole, { displayName: member.displayName, guildName: guild.name, emojis });
 
         const topicKey = interaction.values?.[0] || 'welcome';
         const payload = renderTopicPayload(topics, topicKey, invokerId);

@@ -9,7 +9,7 @@ const { MESSAGE_COMMANDS, buildSubcommandOption, executeRconSubcommand } = requi
 const data = new SlashCommandBuilder()
     .setName('ingame-message')
     .setDescription('🔒 Comandos in-game (RCON) de mensagens do PoT (plano Caçador).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers); // checagem real do cargo Staff é feita dentro de executeRconSubcommand
 
 for (const entry of MESSAGE_COMMANDS) {
     data.addSubcommand(sub => buildSubcommandOption(sub, entry));
