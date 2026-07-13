@@ -822,7 +822,10 @@ const PunishmentSystem = {
                 } else {
                     try {
                         const PoTConfigSystem = require('../pot/potConfigSystem');
-                        const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? 'perm' : durationStr;
+                        // Permanente no RCON do PoT é "0" (confirmado pelo dono) — "perm" não é
+                        // reconhecido pelo servidor, o comando ficava sem efeito nenhum (nem
+                        // erro, só silenciosamente ignorado).
+                        const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? '0' : durationStr;
                         const rconCommands = {
                             SystemMessage: `SystemMessage ${link.alderon_id} ${reason}`,
                             Kick: `kick ${link.alderon_id} ${reason}`,
