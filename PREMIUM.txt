@@ -2704,3 +2704,48 @@ frente, nao so este relatorio):
   Staff com mensagem clara e permite normalmente quem tem; `getTopics`
   inclui a aba ingame pra staff não-admin. Reexecutadas todas as
   suítes anteriores (seções 65, 66, 67) sem nenhuma regressão.
+
+
+69) BUG ESTRUTURAL: fallback de erro genérico quebrava QUALQUER painel V2
+    quando o handler de um botão/select lançava exceção
+------------------------------------------------------------------
+- Dono reportou em produção: `[ResponseManager] ❌ Erro: ... content
+  [MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2]` ao usar o menu
+  de seleção de tópico do /ajuda. Investigação: esse log NÃO vem do erro
+  original (o /ajuda nem usa ResponseManager diretamente) — vem do
+  FALLBACK genérico de erro (`InteractionHandler.handleError`, handlers.js),
+  disparado quando `ajuda.handleComponent` lança qualquer exceção. Esse
+  fallback sempre chamava `ResponseManager.error()` (que monta um payload
+  `content` puro) — mas a mensagem de QUALQUER painel do bot (/ajuda,
+  /config, /strike...) já é Components V2 desde que foi criada, e uma vez
+  que uma mensagem "é" V2, toda edição seguinte precisa continuar V2
+  (mesmo que o payload da edição não peça isso) - editar com `content`
+  puro SEMPRE falha com esse erro. Resultado: o erro ORIGINAL (o que quer
+  que tenha lançado dentro do handleComponent) ficava mascarado por um
+  SEGUNDO erro (o fallback falhando também), e o usuário não recebia
+  resposta nenhuma - nem o painel, nem uma mensagem de erro.
+- Corrigido em `InteractionHandler.handleError` (handlers.js): pra
+  interações de componente (botão/select) já deferidas/respondidas,
+  monta o fallback de erro também em Components V2
+  (`AdvancedContainerBuilder`, sem `content`) em vez de tentar
+  `ResponseManager.error()`. Comandos normais (não-componente) continuam
+  no caminho antigo, sem mudança.
+- BUG SEPARADO encontrado e corrigido na mesma investigação:
+  `ResponseManager.error/success/warning` passam `flags: Ephemeral`
+  direto no payload, mas o caminho "legado" de `send()` só olhava
+  `payload.ephemeral` (nunca setado por esses 3 métodos) pra decidir se
+  aplicava o flag — ou seja, toda resposta de erro/sucesso/aviso que
+  caía nesse caminho (fora do fluxo Components V2) saía PÚBLICA por
+  engano, silenciosamente, em vez de efêmera. Agora `send()` respeita
+  `payload.flags` quando presente, com `ephemeral` como fallback.
+- Verificado com script direto (3 checks): `ResponseManager.error()`
+  preserva o flag Ephemeral corretamente; `handleError` monta payload V2
+  (sem content) pra interação de componente; comandos normais continuam
+  no caminho antigo. Reexecutada TODA a suíte de regressão acumulada
+  (seções 65-68) sem nenhuma quebra.
+- Causa raiz do erro ORIGINAL que disparou esse fallback em primeiro
+  lugar ainda não identificada com certeza (não reproduzida em teste
+  direto simulando o mesmo cenário) - se voltar a acontecer, a mensagem
+  de erro agora vai aparecer corretamente pro usuário (em vez de
+  silenciosamente falhar duas vezes), o que já ajuda a diagnosticar na
+  hora.

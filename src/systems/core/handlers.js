@@ -230,9 +230,32 @@ class InteractionHandler {
             });
         }
         
-        // Garantir resposta amigável ao usuário
+        // Garantir resposta amigável ao usuário.
+        //
+        // Interações de componente (botão/select) que já chegaram aqui quase
+        // sempre já deram deferUpdate() numa mensagem Components V2 — QUALQUER
+        // painel do bot (ex: /ajuda, /config, /strike) usa V2. Editar essa
+        // mensagem com `content` puro (o que ResponseManager.error faz) SEMPRE
+        // falha com "MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2",
+        // porque a mensagem em si já "é" V2, mesmo que o payload de erro não
+        // peça isso — daí esse fallback também errar (e mascarar o erro
+        // original com um segundo erro sem nenhuma resposta chegando ao
+        // usuário). Nesse caso, monta o erro também em V2.
         try {
-            await ResponseManager.error(interaction, 'Ocorreu um erro ao processar sua solicitação. A equipe foi notificada.');
+            const isComponentInteraction = typeof interaction.isMessageComponent === 'function' && interaction.isMessageComponent();
+            if (isComponentInteraction && (interaction.deferred || interaction.replied)) {
+                const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+                const errorPayload = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                    .text('❌ Ocorreu um erro ao processar sua solicitação. A equipe foi notificada.')
+                    .build();
+                if (interaction.replied) {
+                    await interaction.followUp(errorPayload);
+                } else {
+                    await interaction.editReply(errorPayload);
+                }
+            } else {
+                await ResponseManager.error(interaction, 'Ocorreu um erro ao processar sua solicitação. A equipe foi notificada.');
+            }
         } catch (err) {
             console.error('❌ Erro ao enviar mensagem de erro:', err);
         }

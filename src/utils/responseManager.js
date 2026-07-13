@@ -119,10 +119,17 @@ class ResponseManager {
                 return await interaction.reply(safePayload);
             }
 
-            // Payload padrão (legado: content, embeds, components clássicos)
-            const { content, embeds = [], components = [], ephemeral = false } = payload;
+            // Payload padrão (legado: content, embeds, components clássicos).
+            // error()/success()/warning() passam `flags` direto (não
+            // `ephemeral`) — sem checar payload.flags aqui, esse flag era
+            // descartado silenciosamente e a resposta saía pública por engano.
+            const { content, embeds = [], components = [], ephemeral = false, flags } = payload;
             const replyOptions = { content, embeds, components };
-            if (ephemeral) replyOptions.flags = MessageFlags.Ephemeral;
+            if (flags !== undefined) {
+                replyOptions.flags = flags;
+            } else if (ephemeral) {
+                replyOptions.flags = MessageFlags.Ephemeral;
+            }
 
             if (interaction.replied) {
                 return await interaction.followUp(replyOptions);
