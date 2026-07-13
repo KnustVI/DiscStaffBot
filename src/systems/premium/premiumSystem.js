@@ -53,6 +53,12 @@ const GUILD_LIMITS = {
         // livres de admin (godmode, restart, whitelist, etc.), por isso é
         // Caçador-exclusivo.
         genericRconEnabled: false,
+        // Exigência de aprovação de Supervisor configurável POR NÍVEL (ver
+        // punishmentLevels.js, coluna requires_supervisor_approval) — só
+        // Caçador. Free/Rastreador continuam na regra automática fixa
+        // (severidade Grave/Severa OU duração >72h/permanente, ver
+        // punishmentSystem.requiresSupervisorApproval).
+        customPunishmentApprovalEnabled: false,
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
@@ -64,6 +70,7 @@ const GUILD_LIMITS = {
         damageReportEnabled: true,
         roleLimits: { moderador: 3, supervisor: 1, event: 3, eventNotify: 1 },
         genericRconEnabled: false,
+        customPunishmentApprovalEnabled: false,
     },
     cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
@@ -75,6 +82,7 @@ const GUILD_LIMITS = {
         damageReportEnabled: true,
         roleLimits: { moderador: 5, supervisor: 5, event: 5, eventNotify: 5 },
         genericRconEnabled: true,
+        customPunishmentApprovalEnabled: true,
     },
 };
 

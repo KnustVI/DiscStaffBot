@@ -330,6 +330,7 @@ const SCHEMA = {
             points INTEGER NOT NULL DEFAULT 0,
             duration_str TEXT,
             action TEXT,
+            requires_supervisor_approval INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL,
             created_by TEXT,
             updated_at INTEGER,

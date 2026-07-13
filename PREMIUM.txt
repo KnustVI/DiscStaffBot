@@ -172,7 +172,12 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   ganha os cargos automaticos de reputacao e a analise de staff. Automod
   diario (recuperacao de reputacao + cargos automaticos) com a QUANTIDADE
   de pontos recuperados por dia configuravel em /config punishments
-  (padrao: 1 ponto/dia).
+  (padrao: 1 ponto/dia). Aprovacao de Supervisor por nivel de punicao
+  TOTALMENTE CONFIGURAVEL (JA IMPLEMENTADO - ver secao 65) - em vez da
+  regra fixa automatica (severidade Grave/Severa OU duracao >72h/perm,
+  que continua valendo em Free/Rastreador sem excecao), o admin liga/
+  desliga a exigencia de aprovacao nivel a nivel, direto no painel de
+  /config punishments (botao Exigir/Dispensar Aprovacao em cada nivel).
 - Eventos: anuncia automaticamente criacao/inicio/encerramento dos
   eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
   (esses tres ainda nao implementados - "vindo em breve")
@@ -187,7 +192,8 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
 - /config punishments completo aqui: ate 10 niveis de punicao customizados,
   limites de cargo automatico (Exemplar/Problematico) e recuperacao diaria,
   tudo editavel - unico tier com acesso aos botoes de Limites/Recuperacao
-  alem da criacao de niveis.
+  alem da criacao de niveis, e ao botao de Exigir/Dispensar Aprovacao de
+  Supervisor por nivel (ver acima).
 - BONUS: o DONO do servidor Discord ganha Player Premium Raptor automaticamente
   ao comprar o Caçador (JA IMPLEMENTADO - ver secao 3).
 
@@ -2445,3 +2451,73 @@ frente, nao so este relatorio):
   (só uma característica chata do servidor, sem correção possível).
   Nenhuma ação de código pendente aqui — arquivado só como referência
   pra não reabrir a investigação do zero se o assunto voltar.
+
+
+65) REVISÃO DO FLUXO /strike + RCON: sintaxe Ban/Kick confirmada, token de
+    duração permanente corrigido, motivo obrigatório no ingame, AGID
+    opcional no personalizado, e aprovação de Supervisor configurável
+    por nível (Caçador)
+------------------------------------------------------------------
+- Dono pediu revisão completa dos comandos RCON, principalmente os de
+  moderação usados por /strike. Refetch da doc oficial (hosting.
+  pathoftitans.wiki/guide/chat-commands) confirmou que a sintaxe de
+  Ban/Kick/Unban/ServerMute/ServerUnmute em `_executeStrike`/
+  `handleUnstrikeConfirmation` (punishmentSystem.js) já batia 100% com a
+  doc — capitalização, ordem de parâmetros e duplicação do mesmo motivo
+  em `<banreason>`/`<userbanreason>` (Ban) e `<admin reason>`/
+  `<user reason>` (ServerMute) já estavam certos, sem precisar duplicar
+  campo nenhum no Discord. Os ~55 comandos do catálogo `/rcon-*`
+  (rconCommandCatalog.js) também foram conferidos um a um contra a
+  mesma doc — todos batem, nenhum bug de sintaxe encontrado.
+- BUG REAL encontrado e corrigido: o token de duração permanente enviado
+  ao RCON era a palavra `"perm"` — dono confirmou que o servidor PoT
+  reconhece `"0"` (ou vazio) como permanente, não essa palavra. O
+  comando era aceito pelo RCON sem erro nenhum, só não tinha efeito
+  algum no jogo (causa provável do "não consegui me banir pra teste").
+  `durationToken` agora resolve pra `"0"`.
+- Log de auditoria dos comandos `/rcon-*` (antes sempre no canal de log
+  Geral/AutoMod) passou a ser postado no MESMO canal do webhook do grupo
+  Admin do PoT (resolvido a partir da própria URL configurada em
+  /potserver logs), com fallback pro canal Geral se esse webhook ainda
+  não estiver configurado.
+- `/strike ingame` não pedia `motivo` nenhum — o reason virava sempre
+  "Punição aplicada: <nome do nível>", um texto genérico sem contexto,
+  problema que deixou de ser só cosmético agora que esse mesmo reason
+  vira o `<userbanreason>` mostrado DIRETO pro jogador banido/mutado no
+  jogo. Campo `motivo` (obrigatório) adicionado, alinhado com
+  registro/personalizado.
+- `/strike personalizado` só aceitava `usuario` (Discord) — sem vínculo
+  via /registrar, a ação em jogo (`jogo_act`) era simplesmente ignorada,
+  sem alternativa. `_executeStrike` já suportava um AGID explícito no
+  session (usado por /strike ingame); só faltava personalizado.js
+  coletar essa opção. Novo campo opcional `agid` (mesmo padrão usuario
+  OU agid já usado no catálogo /rcon-*) resolve isso.
+- `/strike registro` ganhou a descrição pedida pelo dono: "Apenas
+  registro de punição, não aplica ação em jogo ou discord."
+- NOVO (Caçador-exclusivo, `PremiumSystem.GUILD_LIMITS.
+  customPunishmentApprovalEnabled`): aprovação de Supervisor por nível
+  de punição passa a ser CONFIGURÁVEL, em vez de só a regra automática
+  fixa (severidade Grave/Severa OU duração >72h/permanente). Nova
+  coluna `punishment_levels.requires_supervisor_approval` (schema.js +
+  ensureColumn pra bancos já existentes) — nasce com um valor padrão
+  calculado pela MESMA regra automática de antes (só como ponto de
+  partida), e a partir daí só muda via o novo botão "Exigir/Dispensar
+  Aprovação" em cada nível no painel de /config punishments (editar o
+  nível por outros campos NÃO reseta essa escolha). `punishmentSystem.
+  requiresSupervisorApproval(session, guildId)` agora é tier-aware: com
+  nível selecionado E customPunishmentApprovalEnabled, usa a flag do
+  próprio nível; sem nível (ex: /strike registro) OU fora do Caçador,
+  cai na regra automática de sempre, sem nenhuma mudança de
+  comportamento pra Free/Rastreador (pedido explícito do dono).
+- Verificado com script direto (10 checks): coluna existe após
+  ensureColumn; flag customPunishmentApprovalEnabled correta por tier
+  (false/false/true); nível Leve+1h nasce com aprovação desativada;
+  nível Grave nasce com aprovação ativada (default); nível com duração
+  >72h nasce com aprovação ativada mesmo com severidade Leve; toggle via
+  setSupervisorApproval persiste; updateLevel preserva a escolha (não
+  reseta pra default); Caçador com nível respeita a flag do nível mesmo
+  contradizendo a severidade; Rastreador ignora a flag e usa a regra
+  automática; Caçador sem nível (registro) também usa a regra
+  automática. Também verificado que /strike ingame exige motivo,
+  /strike personalizado aceita agid opcional, e todos os módulos
+  tocados carregam sem erro de sintaxe.

@@ -345,6 +345,11 @@ const ConfigSystem = {
                 await this.handleRecoveryModal(interaction);
                 return;
             }
+            if (customId.startsWith('config-punishments:level:toggle_approval:')) {
+                const levelId = customId.split(':')[3];
+                await this.handleToggleLevelApproval(interaction, levelId);
+                return;
+            }
             if (customId === 'config-punishments:reset') {
                 await this.resetPoints(interaction);
                 return;
@@ -647,6 +652,37 @@ const ConfigSystem = {
         await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Nível **${level.name}** atualizado!`, interaction.guild.name);
     },
 
+    /**
+     * Alterna requires_supervisor_approval de um nível — exclusivo Caçador
+     * (ver premiumSystem.js, GUILD_LIMITS.customPunishmentApprovalEnabled).
+     * Free/Rastreador continuam na regra automática fixa (ver
+     * punishmentSystem.requiresSupervisorApproval).
+     */
+    async handleToggleLevelApproval(interaction, levelId) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.getGuildLimits(interaction.guildId).customPunishmentApprovalEnabled) {
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
+        }
+
+        const PunishmentLevels = require('../moderation/punishmentLevels');
+        const existing = PunishmentLevels.getLevel(interaction.guildId, levelId);
+        if (!existing) {
+            return await ResponseManager.error(interaction, 'Este nível não existe mais.');
+        }
+
+        const newValue = existing.requires_supervisor_approval ? 0 : 1;
+        const level = PunishmentLevels.setSupervisorApproval(interaction.guildId, levelId, newValue);
+
+        await this.logConfigChange(interaction, [
+            `${EMOJIS.shieldalert || '🛡️'} Nível **${level.name}**: aprovação de Supervisor ${newValue ? 'ATIVADA' : 'DESATIVADA'}`,
+        ]);
+        await this.refreshPointsPanel(
+            interaction,
+            `${EMOJIS.circlecheck || '✅'} Aprovação de Supervisor ${newValue ? 'agora é exigida' : 'não é mais exigida'} pra **${level.name}**.`,
+            interaction.guild.name,
+        );
+    },
+
     async processLimitesModal(interaction) {
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
@@ -730,6 +766,7 @@ const ConfigSystem = {
         const guildLimits = PremiumSystem.getGuildLimits(guildId);
         const automodEnabled = guildLimits.automodEnabled;
         const reputationEnabled = guildLimits.reputationEnabled;
+        const customApprovalEnabled = guildLimits.customPunishmentApprovalEnabled;
 
         const levels = PunishmentLevels.getLevels(guildId);
         const levelLimit = PunishmentLevels.getLevelLimit(guildId);
@@ -741,7 +778,9 @@ const ConfigSystem = {
             .section(
                 [
                     '# CONFIGURAÇÃO DE NÍVEIS DE PUNIÇÃO',
-                    'Crie níveis de punição customizados (nome, severidade, pontos, duração e ação em jogo via RCON) para usar no /strike. Níveis com severidade **Grave** ou **Severa**, ou com duração acima de 72h/permanente, exigem aprovação do cargo Supervisor antes de serem aplicados (ver /config roles).',
+                    customApprovalEnabled
+                        ? 'Crie níveis de punição customizados (nome, severidade, pontos, duração e ação em jogo via RCON) para usar no /strike. Use o botão **Exigir/Dispensar Aprovação** em cada nível pra escolher exatamente quais precisam de aprovação do cargo Supervisor antes de serem aplicados (ver /config roles).'
+                        : 'Crie níveis de punição customizados (nome, severidade, pontos, duração e ação em jogo via RCON) para usar no /strike. Níveis com severidade **Grave** ou **Severa**, ou com duração acima de 72h/permanente, exigem aprovação do cargo Supervisor antes de serem aplicados (ver /config roles) — no plano **Caçador** isso passa a ser configurável nível a nível.',
                     `**${EMOJIS.gavel || '⚖️'} Níveis usados:** \`${levels.length}/${levelLimit}\``,
                 ].join('\n'),
                 cb.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
@@ -789,13 +828,28 @@ const ConfigSystem = {
                 const icon = PunishmentLevels.SEVERITY_ICONS[level.severity] || '❓';
                 const durationLabel = level.duration_str ? level.duration_str : 'Permanente';
                 const actionLabel = level.action || 'Nenhuma';
+                const lines = [
+                    `**${level.name}**`,
+                    `${icon} ${level.severity} | ${EMOJIS.doublearrowdown || '📉'} -${level.points} pts | ${EMOJIS.clockalert || '⏳'} ${durationLabel} | ${EMOJIS.game || '🎮'} ${actionLabel}`,
+                ];
+                if (customApprovalEnabled) {
+                    lines.push(
+                        level.requires_supervisor_approval
+                            ? `${EMOJIS.shieldcheck || '🛡️'} Exige aprovação de Supervisor`
+                            : `${EMOJIS.shieldx || '🔓'} Não exige aprovação de Supervisor`
+                    );
+                }
                 cb.section(
-                    [
-                        `**${level.name}**`,
-                        `${icon} ${level.severity} | ${EMOJIS.doublearrowdown || '📉'} -${level.points} pts | ${EMOJIS.clockalert || '⏳'} ${durationLabel} | ${EMOJIS.game || '🎮'} ${actionLabel}`,
-                    ].join('\n'),
+                    lines.join('\n'),
                     AdvancedContainerBuilder.secondaryButton(`config-punishments:level:edit:modal:${level.id}`, 'Editar'),
                 );
+                if (customApprovalEnabled) {
+                    cb.buttons(
+                        level.requires_supervisor_approval
+                            ? AdvancedContainerBuilder.dangerButton(`config-punishments:level:toggle_approval:${level.id}`, 'Dispensar Aprovação')
+                            : AdvancedContainerBuilder.successButton(`config-punishments:level:toggle_approval:${level.id}`, 'Exigir Aprovação')
+                    );
+                }
             }
         }
 

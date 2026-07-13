@@ -455,6 +455,9 @@ const PunishmentSystem = {
             discordAct: staging.discordAct || 'none',
             jogoAct: staging.jogoActOverride || level.action || 'none',
             alderonId: staging.alderonId || null,
+            // Só é consultado no plano Caçador (ver requiresSupervisorApproval)
+            // — Free/Rastreador ignoram e usam a regra automática de sempre.
+            levelRequiresApproval: !!level.requires_supervisor_approval,
         };
     },
 
@@ -503,7 +506,7 @@ const PunishmentSystem = {
             builder.text(`${EMOJIS.trianglealert || '⚠️'} Ação em jogo (RCON) exige o plano Rastreador — a ação escolhida não será aplicada, só o registro da punição.`);
         }
 
-        if (this.requiresSupervisorApproval(session) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
+        if (this.requiresSupervisorApproval(session, guild.id) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
             builder.separator();
             builder.text(
                 `${EMOJIS.shieldban || '🛡️'} **Requer aprovação de Supervisor**\n` +
@@ -543,7 +546,7 @@ const PunishmentSystem = {
             // confirmando já SEJA o supervisor (fluxo normal nesse caso). Vale
             // pra qualquer tier — em servidores Free (sem níveis de severidade
             // relevantes) é a duração que decide sozinha. ────────────────────
-            if (this.requiresSupervisorApproval(session) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
+            if (this.requiresSupervisorApproval(session, guild.id) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
                 SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
                 return await this.requestSupervisorApproval(interaction, session);
             }
@@ -572,12 +575,22 @@ const PunishmentSystem = {
     },
 
     /**
-     * Decide se uma punição precisa de aprovação de Supervisor — por
-     * severidade (Grave/Severa) OU por duração (>72h ou permanente),
-     * independente do tier. Free não tem nível de severidade, então na
-     * prática só a duração importa lá.
+     * Decide se uma punição precisa de aprovação de Supervisor.
+     *
+     * Plano Caçador COM nível selecionado: usa a flag configurada nesse
+     * nível (ver /config punishments, botão Exigir/Dispensar Aprovação em
+     * cada nível) — admin controla nível a nível, não é mais automático.
+     *
+     * Free/Rastreador (e Caçador sem nível, ex: /strike registro): regra
+     * automática de sempre — severidade Grave/Severa OU duração >72h/
+     * permanente. Free não tem nível de severidade, então na prática só a
+     * duração importa lá.
      */
-    requiresSupervisorApproval(session) {
+    requiresSupervisorApproval(session, guildId) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (session.levelId && PremiumSystem.getGuildLimits(guildId).customPunishmentApprovalEnabled) {
+            return !!session.levelRequiresApproval;
+        }
         if (this.isSevereSeverity(session.levelSeverity)) return true;
         const durationStr = String(session.durationStr || '');
         const isPermanent = durationStr === '0' || durationStr.toLowerCase() === 'perm' || durationStr === '';

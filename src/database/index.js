@@ -161,6 +161,10 @@ class DatabaseManager {
             this.ensureColumn('punishments', 'level_severity', 'TEXT');
             this.ensureColumn('punishments', 'level_action', 'TEXT');
             this.ensureColumn('punishments', 'duration_str', 'TEXT');
+            // Exigência de aprovação de Supervisor configurável por nível
+            // (plano Caçador) — ver punishmentLevels.js/premiumSystem.js
+            // GUILD_LIMITS.customPunishmentApprovalEnabled.
+            this.ensureColumn('punishment_levels', 'requires_supervisor_approval', 'INTEGER NOT NULL DEFAULT 0');
 
             // Novas métricas de staff analytics (moderação/eventos/modo
             // espectador) — ver analyticsSystem.js. CREATE TABLE IF NOT

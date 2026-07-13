@@ -100,22 +100,61 @@ function validateLevelInput({ name, severity, points, durationStr, action }) {
     };
 }
 
+// Duração > 72h (mesmo limiar usado por punishmentSystem.parseDuration/
+// requiresSupervisorApproval) — duplicado aqui de propósito, pra não criar
+// dependência circular (punishmentSystem.js já importa este módulo).
+function _durationExceeds72h(durationStr) {
+    const match = String(durationStr || '').trim().match(/^(\d+)([mhd])$/i);
+    if (!match) return false;
+    const value = parseInt(match[1], 10);
+    const multipliers = { m: 60000, h: 3600000, d: 86400000 };
+    return value * (multipliers[match[2].toLowerCase()] || 3600000) > 72 * 3600000;
+}
+
+/**
+ * Valor inicial de requires_supervisor_approval pra um nível recém-criado —
+ * espelha a regra automática de sempre (severidade Grave/Severa OU duração
+ * >72h/permanente, ver punishmentSystem.requiresSupervisorApproval) só
+ * como PONTO DE PARTIDA. No plano Caçador, o admin pode depois alternar
+ * livremente pelo botão no painel (/config punishments) — a partir daí o
+ * valor gravado é a fonte da verdade, não é recalculado automaticamente
+ * de novo (editar o nível não reseta essa escolha, ver updateLevel abaixo).
+ */
+function _defaultSupervisorApproval(severity, durationStr) {
+    if (severity === 'Grave' || severity === 'Severa') return 1;
+    const d = String(durationStr || '').trim().toLowerCase();
+    const isPermanent = d === '' || d === '0' || d === 'perm';
+    if (isPermanent) return 1;
+    return _durationExceeds72h(durationStr) ? 1 : 0;
+}
+
 function createLevel(guildId, data, createdBy) {
     const uuid = db.generateUUID();
     const now = Date.now();
+    const requiresApproval = _defaultSupervisorApproval(data.severity, data.durationStr);
     const result = db.prepare(`
-        INSERT INTO punishment_levels (uuid, guild_id, name, severity, points, duration_str, action, created_at, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(uuid, guildId, data.name, data.severity, data.points, data.durationStr, data.action, now, createdBy);
+        INSERT INTO punishment_levels (uuid, guild_id, name, severity, points, duration_str, action, requires_supervisor_approval, created_at, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuid, guildId, data.name, data.severity, data.points, data.durationStr, data.action, requiresApproval, now, createdBy);
     return getLevel(guildId, result.lastInsertRowid);
 }
 
+// Não mexe em requires_supervisor_approval — editar nome/severidade/pontos/
+// etc não deve resetar silenciosamente uma escolha explícita do admin feita
+// pelo botão de toggle (ver configSystem.handleToggleLevelApproval).
 function updateLevel(guildId, levelId, data, updatedBy) {
     db.prepare(`
         UPDATE punishment_levels
         SET name = ?, severity = ?, points = ?, duration_str = ?, action = ?, updated_at = ?, updated_by = ?
         WHERE guild_id = ? AND id = ?
     `).run(data.name, data.severity, data.points, data.durationStr, data.action, Date.now(), updatedBy, guildId, levelId);
+    return getLevel(guildId, levelId);
+}
+
+function setSupervisorApproval(guildId, levelId, requiresApproval) {
+    db.prepare(`
+        UPDATE punishment_levels SET requires_supervisor_approval = ? WHERE guild_id = ? AND id = ?
+    `).run(requiresApproval ? 1 : 0, guildId, levelId);
     return getLevel(guildId, levelId);
 }
 
@@ -131,4 +170,5 @@ module.exports = {
     validateLevelInput,
     createLevel,
     updateLevel,
+    setSupervisorApproval,
 };

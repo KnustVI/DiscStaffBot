@@ -28,7 +28,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addSubcommand(sub => sub
             .setName('registro')
-            .setDescription('Registra uma punição simples (sem ação automática) — disponível em qualquer plano.')
+            .setDescription('Apenas registro de punição, não aplica ação em jogo ou discord.')
             .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator').setRequired(true))
             .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
             .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (Ex: 10m, 1h, 3d — vazio/0 = permanente)').setRequired(false))
