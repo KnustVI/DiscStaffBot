@@ -1,12 +1,12 @@
 // src/systems/pot/rconCommandCatalog.js
 /**
  * Catálogo declarativo dos comandos RCON de admin do Path of Titans expostos
- * como slash commands (`/rcon-*`, plano Caçador — ver premiumSystem.js
+ * como slash commands (`/ingame-*`, plano Caçador — ver premiumSystem.js
  * GUILD_LIMITS.genericRconEnabled). Baseado em
  * https://hosting.pathoftitans.wiki/guide/chat-commands.
  *
- * Cada categoria vira UM comando de topo (`/rcon-stats`, `/rcon-marks` etc.
- * — ver src/commands/rcon/*.js), e cada entrada deste catálogo vira UM
+ * Cada categoria vira UM comando de topo (`/ingame-stats`, `/ingame-marks`
+ * etc. — ver src/commands/ingame/*.js), e cada entrada deste catálogo vira UM
  * subcomando dentro dele. Em vez de ~55 handlers quase idênticos, um só
  * par de funções genéricas (buildSubcommandOption/executeRconSubcommand)
  * lê essa tabela de dados.
@@ -213,7 +213,7 @@ const ADMIN_COMMANDS = [
         description: 'Promove o jogador informado a um cargo de admin.',
         requiresTarget: true,
         options: [...TARGET_OPTIONS,
-            { name: 'cargo', type: 'string', required: true, description: 'Nome do cargo de admin (ver /rcon-admin listroles)' },
+            { name: 'cargo', type: 'string', required: true, description: 'Nome do cargo de admin (ver /ingame-admin listroles)' },
         ],
         buildCommand: (r) => `promote ${r.target} ${r.cargo}`,
     },
@@ -472,7 +472,7 @@ function _parseWebhookUrl(webhookUrl) {
 }
 
 /**
- * Log de auditoria de um comando /rcon-* — pedido do dono: concentrar no
+ * Log de auditoria de um comando /ingame-* — pedido do dono: concentrar no
  * MESMO canal que já recebe os webhooks do grupo Admin do PoT (AdminSpectate/
  * AdminCommand), em vez de espalhar entre esse canal e o de logs Geral/
  * AutoMod. Resolve o canal a partir da própria URL de webhook configurada

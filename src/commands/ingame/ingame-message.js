@@ -1,14 +1,14 @@
-// src/commands/rcon/rcon-message.js
+// src/commands/ingame/ingame-message.js
 /**
- * Comandos RCON de mensagens do PoT (categoria "Message" do site oficial) —
- * plano Caçador. Catálogo em rconCommandCatalog.js.
+ * Comandos in-game (RCON) de mensagens do PoT (categoria "Message" do site
+ * oficial) — plano Caçador. Catálogo em rconCommandCatalog.js.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { MESSAGE_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require('../../systems/pot/rconCommandCatalog');
 
 const data = new SlashCommandBuilder()
-    .setName('rcon-message')
-    .setDescription('🔒 Comandos RCON de mensagens do PoT (plano Caçador).')
+    .setName('ingame-message')
+    .setDescription('🔒 Comandos in-game (RCON) de mensagens do PoT (plano Caçador).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 for (const entry of MESSAGE_COMMANDS) {

@@ -182,9 +182,10 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
   (esses tres ainda nao implementados - "vindo em breve")
 - Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
-  PoT via Discord (JA IMPLEMENTADO - ver secao 61) - 6 comandos por
-  categoria (/rcon-stats, /rcon-marks, /rcon-admin, /rcon-map, /rcon-event,
-  /rcon-message), ~55 subcomandos ao todo, baseado em
+  PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
+  pra /ingame-* na secao 66) - 6 comandos por categoria (/ingame-stats,
+  /ingame-marks, /ingame-admin, /ingame-map, /ingame-event,
+  /ingame-message), ~55 subcomandos ao todo, baseado em
   hosting.pathoftitans.wiki/guide/chat-commands. Comando de TP integrado a
   criacao de eventos continua nao implementado ("vindo em breve"); punicoes
   aplicaveis em jogo via RCON (kick/ban/ServerMute, ja disponivel desde o
@@ -2521,3 +2522,41 @@ frente, nao so este relatorio):
   automática. Também verificado que /strike ingame exige motivo,
   /strike personalizado aceita agid opcional, e todos os módulos
   tocados carregam sem erro de sintaxe.
+
+
+66) COMANDOS /rcon-* RENOMEADOS PARA /ingame-* + PAINEL /ajuda ATUALIZADO
+------------------------------------------------------------------
+- Dono pediu pra renomear a família de comandos pra deixar mais claro
+  que são comandos que agem NO JOGO (não é sobre RCON como conceito
+  técnico, é sobre "aplicar algo in-game via Discord"). `/rcon-stats` →
+  `/ingame-stats`, `/rcon-marks` → `/ingame-marks`, `/rcon-admin` →
+  `/ingame-admin`, `/rcon-map` → `/ingame-map`, `/rcon-event` →
+  `/ingame-event`, `/rcon-message` → `/ingame-message` - mesmos ~55
+  subcomandos, mesmo catálogo (rconCommandCatalog.js, nome do arquivo
+  mantido - é sobre a implementação via RCON, não muda), só o nome dos
+  6 comandos de topo no Discord. Pasta `src/commands/rcon/` renomeada
+  pra `src/commands/ingame/`, arquivos `rcon-*.js` → `ingame-*.js`
+  (via `git mv`, preserva histórico). `ephemeralCommands` em
+  handlers.js atualizado com os novos nomes (senão as respostas desses
+  comandos parariam de ser efêmeras).
+- Aba "Comandos RCON (Jogo)" do /ajuda virou "Comandos INGAME" - e de
+  quebra foi REFATORADA pra gerar a lista de subcomandos DIRETO do
+  catálogo (`rconCommandCatalog.js`), em vez de uma lista duplicada à
+  mão (que já tinha ficado levemente desatualizada - o nome/descrição
+  de cada subcomando agora vem sempre do mesmo lugar que o Discord usa
+  pra registrar as opções de verdade, nunca mais fica desalinhado).
+- Texto de aviso em "Configuração & Moderação" reescrito conforme
+  pedido do dono: título "Comandos INGAME (...)", 3 bullets diretos
+  (acesso ao console admin; restringir pelo Discord/Integrações;
+  Discord permite negar comando específico até de Administrador) -
+  removida a menção a "plano Caçador"/"3 subcomandos Supervisor" desse
+  bloco, já que a aba dedicada de Comandos INGAME cobre esse detalhe.
+- Verificado com script direto: todos os módulos tocados (6 comandos,
+  handlers.js, rconCommandCatalog.js, premiumSystem.js, ajuda.js)
+  carregam sem erro de sintaxe; os 6 `data.name` registrados batem
+  exatamente com `ingame-stats/marks/admin/map/event/message`, nenhum
+  `rcon-*` sobrando em lugar nenhum do código; payload da aba Comandos
+  INGAME monta sem estourar limite de caracteres/componentes do
+  Discord. Ainda falta rodar `node deploy.js` no servidor pra
+  re-registrar os comandos com o nome novo no Discord (renomear
+  `.setName()` sozinho não atualiza o que já está registrado lá).

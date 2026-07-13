@@ -1,14 +1,14 @@
-// src/commands/rcon/rcon-map.js
+// src/commands/ingame/ingame-map.js
 /**
- * Comandos RCON de mapa/mundo do PoT (categoria "Map" do site oficial) —
- * plano Caçador. Catálogo em rconCommandCatalog.js.
+ * Comandos in-game (RCON) de mapa/mundo do PoT (categoria "Map" do site
+ * oficial) — plano Caçador. Catálogo em rconCommandCatalog.js.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { MAP_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require('../../systems/pot/rconCommandCatalog');
 
 const data = new SlashCommandBuilder()
-    .setName('rcon-map')
-    .setDescription('🔒 Comandos RCON de mapa/mundo do PoT (plano Caçador).')
+    .setName('ingame-map')
+    .setDescription('🔒 Comandos in-game (RCON) de mapa/mundo do PoT (plano Caçador).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 for (const entry of MAP_COMMANDS) {

@@ -47,7 +47,7 @@ const GUILD_LIMITS = {
         // por Infinity aqui — o painel já limita a UI em 25 (teto do próprio
         // RoleSelectMenu do Discord), sem precisar mudar código nenhum.
         roleLimits: { moderador: 1, supervisor: 1, event: 1, eventNotify: 1 },
-        // Catálogo completo de comandos RCON do PoT (/rcon-*, ver
+        // Catálogo completo de comandos in-game (RCON) do PoT (/ingame-*, ver
         // rconCommandCatalog.js) — diferente de `autoRcon` (só a ação em
         // jogo automática do /strike, já Rastreador+), este libera comandos
         // livres de admin (godmode, restart, whitelist, etc.), por isso é

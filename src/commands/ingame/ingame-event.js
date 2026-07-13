@@ -1,18 +1,18 @@
-// src/commands/rcon/rcon-event.js
+// src/commands/ingame/ingame-event.js
 /**
- * Comandos RCON de eventos/criaturas do PoT (categoria "Event" do site
- * oficial) — plano Caçador. Catálogo em rconCommandCatalog.js.
+ * Comandos in-game (RCON) de eventos/criaturas do PoT (categoria "Event" do
+ * site oficial) — plano Caçador. Catálogo em rconCommandCatalog.js.
  *
  * Não confundir com o comando /evento (agendamento de eventos da
  * comunidade, feature totalmente diferente) — nome escolhido com o
- * prefixo rcon- justamente pra evitar essa colisão.
+ * prefixo ingame- justamente pra evitar essa colisão.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { EVENT_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require('../../systems/pot/rconCommandCatalog');
 
 const data = new SlashCommandBuilder()
-    .setName('rcon-event')
-    .setDescription('🔒 Comandos RCON de eventos/criaturas do PoT (plano Caçador).')
+    .setName('ingame-event')
+    .setDescription('🔒 Comandos in-game (RCON) de eventos/criaturas do PoT (plano Caçador).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 for (const entry of EVENT_COMMANDS) {

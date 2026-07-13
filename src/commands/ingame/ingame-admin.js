@@ -1,15 +1,16 @@
-// src/commands/rcon/rcon-admin.js
+// src/commands/ingame/ingame-admin.js
 /**
- * Comandos RCON administrativos do PoT (categoria "Admin" do site oficial,
- * exceto kick/ban/unban/ServerMute/ServerUnmute — esses ficam exclusivos de
- * /strike e /unstrike) — plano Caçador. Catálogo em rconCommandCatalog.js.
+ * Comandos in-game (RCON) administrativos do PoT (categoria "Admin" do site
+ * oficial, exceto kick/ban/unban/ServerMute/ServerUnmute — esses ficam
+ * exclusivos de /strike e /unstrike) — plano Caçador. Catálogo em
+ * rconCommandCatalog.js.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { ADMIN_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require('../../systems/pot/rconCommandCatalog');
 
 const data = new SlashCommandBuilder()
-    .setName('rcon-admin')
-    .setDescription('🔒 Comandos RCON administrativos do PoT (plano Caçador).')
+    .setName('ingame-admin')
+    .setDescription('🔒 Comandos in-game (RCON) administrativos do PoT (plano Caçador).')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 for (const entry of ADMIN_COMMANDS) {
