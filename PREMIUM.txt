@@ -129,7 +129,10 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   severidade, pontos, duracao e acao em jogo via RCON - configurados em
   /config punishments, criados via botao "Criar Nivel"), historico de
   punicoes (/historico liberado). /strike ganha o subcomando ingame (pune
-  so pelo Alderon ID, usando os niveis criados). Acao em jogo via RCON JA
+  so pelo Alderon ID, usando os niveis criados) - funciona pra jogador
+  registrado (/registrar) ou nao: sem vinculo Discord, a acao em jogo e o
+  registro acontecem do mesmo jeito, so nao ha DM nem acao automatica no
+  Discord (sem conta pra notificar/aplicar). Acao em jogo via RCON JA
   ATIVA aqui (antes so no Cacador).
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
@@ -140,7 +143,8 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
   duracao >72h/permanente (mesma regra do Free, so que aqui os niveis
   tambem contam). /strike personalizado (modo manual completo, restrito ao
-  cargo Supervisor) tambem liberado a partir daqui.
+  cargo Supervisor, SEM niveis - so motivo+duracao obrigatorios, aceita
+  usuario OU agid) tambem liberado a partir daqui.
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
   postagem no forum).
@@ -222,11 +226,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - /strike virou 1 comando com 3 subcomandos: registro (simples, sem
   nivel/acao automatica, disponivel em QUALQUER tier), ingame (pune so pelo
   Alderon ID, usa um nivel pra aplicar acao em jogo via RCON, a partir do
-  Rastreador) e personalizado (modo manual completo, restrito ao cargo
-  Supervisor, a partir do Rastreador). Ingame/personalizado sao os unicos
-  que aplicam acoes automaticas - registro e so isso mesmo, registro. Um
-  /strike "sem subcomando nenhum" nao e possivel - a API do Discord nao
-  deixa misturar opcoes de topo com subcomandos no mesmo comando.
+  Rastreador, funciona registrado ou nao) e personalizado (modo manual
+  completo, restrito ao cargo Supervisor, a partir do Rastreador - SEM
+  niveis, so motivo+duracao obrigatorios, aceita usuario OU agid). Ingame/
+  personalizado sao os unicos que aplicam acoes automaticas - registro e so
+  isso mesmo, registro. Um /strike "sem subcomando nenhum" nao e possivel -
+  a API do Discord nao deixa misturar opcoes de topo com subcomandos no
+  mesmo comando.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
   atual de features).
@@ -2560,3 +2566,80 @@ frente, nao so este relatorio):
   Discord. Ainda falta rodar `node deploy.js` no servidor pra
   re-registrar os comandos com o nome novo no Discord (renomear
   `.setName()` sozinho não atualiza o que já está registrado lá).
+
+
+67) REVISÃO PÓS-TESTE REAL DO /strike: reload confiável, /strike ingame
+    livre pra não registrado, /strike personalizado sem níveis
+------------------------------------------------------------------
+- Dono testou em produção e trouxe 3 achados reais:
+  1. Ban aplicado não mostrou o motivo pro jogador banido.
+  2. `/strike ingame` recusou punir um AGID sem conta Discord vinculada.
+  3. `/strike personalizado` exige `usuario` obrigatório e passa por
+     seleção de nível — quebra o propósito do subcomando (ser mais
+     flexível que `ingame`), já que jogador não registrado não tem
+     `usuario` no Discord pra informar.
+
+- CAUSA DO #1: `ReloadBans`/`ReloadMutes` já existiam desde a seção 61,
+  mas eram fire-and-forget com erro silenciosamente descartado
+  (`.catch(() => {})`) — se essa chamada falhasse, o strike terminava
+  "com sucesso" sem avisar ninguém, e o servidor nunca relia a
+  banlist/mutelist com o motivo novo. Agora é AGUARDADO e a falha entra
+  no resumo do strike pro staff (`_executeStrike`/
+  `handleUnstrikeConfirmation`, punishmentSystem.js).
+
+- CAUSA DO #2 e REDESENHO GERAL: toda a família `/strike` supunha um
+  `user_id` real do Discord pra gravar a punição (`punishments.user_id`
+  é `NOT NULL`). Nova convenção `PunishmentSystem._unregisteredTargetId
+  (alderonId)` → retorna `"agid:<ID>"`, um valor que nunca colide com um
+  snowflake real (Discord ID é só dígito) e é reconhecido em qualquer
+  lugar que precise (`_isUnregisteredTargetId`). `_executeStrike` monta
+  um "usuário" sintético só pra exibição quando o alvo é assim — ação em
+  jogo usa o AGID puro normalmente (RCON nunca dependeu de Discord),
+  ações no Discord/DM ficam indisponíveis com aviso claro em vez de
+  falhar silenciosamente ou fingir sucesso (bug corrigido também: o
+  resumo dizia "Aplicado com sucesso" pra ação no Discord mesmo quando
+  não tinha membro real pra aplicar nada). Painéis de log são enviados
+  do mesmo jeito de sempre, independente de vínculo — só a DM que nunca
+  sai (não tem conta pra notificar). `/strike ingame` não bloqueia mais
+  a falta de vínculo — usa o alvo sintético e segue; continua exigindo
+  um nível (mantido como já era, só o requisito de vínculo caiu).
+
+- REDESENHO DO /strike personalizado (causa do #3): não usa mais nível
+  nenhum — `motivo` e `duracao` viram obrigatórios direto no comando
+  (sem seleção de nível envolvida), `usuario` vira OPCIONAL, `agid`
+  continua opcional (já existia desde a seção 65) — mas agora
+  precisa de PELO MENOS UM dos dois, nunca os dois vazios. Sem níveis,
+  não há mais pontos de reputação vindo de nível nenhum — punições via
+  personalizado não deduzem reputação (registro puro + ações manuais).
+  Fluxo de identificação novo, só quando falta um dos dois E nenhuma
+  ação (discord_act/jogo_act) foi pedida junto:
+  - Só `agid` → busca vínculo Discord (`player_links`); só `usuario` →
+    busca AGID vinculado. Mostra o que achou (ou não achou, com o nome
+    visto em jogo via `pot_players` se disponível — nova
+    `getPlayerNameByAlderonId` em potPlayerRegistry.js) e pergunta via
+    botão se quer aplicar ação.
+  - Botão "Não" → vai direto pro registro (sem ação), com o que foi
+    identificado.
+  - Botão "Sim" → não dá pra injetar opção numa interação já em
+    andamento (discord_act/jogo_act são opções do slash command, fixas
+    na hora de digitar) — só informa o que achou e pede pro staff
+    refazer o comando já com as ações preenchidas.
+  - `usuario` E `agid` informados juntos, OU só um dos dois já vindo com
+    uma ação escolhida → pula o painel, vai direto pra confirmação
+    (identidade/intenção já completas, nada a perguntar).
+  Novo handler `PunishmentSystem.handlePersonalizadoIdentify` (roteado
+  via `punishment:personalizado_identify:yes|no`).
+
+- Verificado com script direto (10 checks, incluindo mock de RCON):
+  convenção `agid:<ID>` reconhecida corretamente; Ban com alvo
+  registrado dispara RCON certo (duração "0", motivo duplicado) +
+  ReloadBans; falha simulada do ReloadBans aparece no resumo (antes
+  sumia); alvo sem vínculo aplica ação em jogo, pula Discord/DM com
+  segurança, grava punição com `user_id` sintético; `/strike ingame`
+  confirmado sem o bloqueio antigo; `/strike personalizado` com
+  `usuario`/`duracao` no formato certo (opcional/obrigatória); validação
+  de "nenhum dos dois informado"; painel "não" monta registro puro;
+  painel "sim" não aplica nada e orienta a refazer o comando; regra
+  automática de aprovação de Supervisor (seção 65) continua funcionando
+  pra personalizado sem nível. Reexecutado o teste da seção 65
+  (aprovação configurável) sem nenhuma regressão.

@@ -12,7 +12,27 @@ const PremiumSystem = require('../premium/premiumSystem');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
 const PunishmentLevels = require('./punishmentLevels');
 
+// Convenção pra "alvo sem conta Discord conhecida" (ver /strike ingame e
+// /strike personalizado com só AGID informado, sem vínculo /registrar) —
+// punishments.user_id é NOT NULL, então em vez de bloquear a punição por
+// falta de vínculo, guardamos esse valor sintético (nunca colide com um
+// snowflake real do Discord, que é só dígitos). _isUnregisteredTargetId
+// detecta essa convenção em qualquer lugar que precise (ex: /unstrike
+// desfazendo a ação em jogo de uma punição assim).
+const UNREGISTERED_TARGET_PREFIX = 'agid:';
+
+function _isUnregisteredTargetId(targetId) {
+    return typeof targetId === 'string' && targetId.startsWith(UNREGISTERED_TARGET_PREFIX);
+}
+
+function _unregisteredTargetId(alderonId) {
+    return `${UNREGISTERED_TARGET_PREFIX}${alderonId}`;
+}
+
 const PunishmentSystem = {
+    _isUnregisteredTargetId,
+    _unregisteredTargetId,
+
     
     // ==================== FUNÇÕES DE BUSCA E BANCO ====================
     
@@ -358,6 +378,9 @@ const PunishmentSystem = {
                 case 'supervisor_reject':
                     await this.handleSupervisorApproval(interaction, param, false);
                     break;
+                case 'personalizado_identify':
+                    await this.handlePersonalizadoIdentify(interaction, subAction);
+                    break;
                 default:
                     await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, COLORS.ERROR, interaction.guild?.name));
             }
@@ -455,6 +478,10 @@ const PunishmentSystem = {
             discordAct: staging.discordAct || 'none',
             jogoAct: staging.jogoActOverride || level.action || 'none',
             alderonId: staging.alderonId || null,
+            // Nome de exibição pra alvo sem conta Discord vinculada (ver
+            // PunishmentSystem._unregisteredTargetId) — ignorado se o alvo
+            // tiver Discord real, que já tem nome próprio.
+            targetPlayerName: staging.targetPlayerName || null,
             // Só é consultado no plano Caçador (ver requiresSupervisorApproval)
             // — Free/Rastreador ignoram e usam a regra automática de sempre.
             levelRequiresApproval: !!level.requires_supervisor_approval,
@@ -471,7 +498,8 @@ const PunishmentSystem = {
      */
     async buildStrikeConfirmPreview(session, guild, staffMember) {
         const guildId = guild.id;
-        const targetUser = await guild.client.users.fetch(session.targetId).catch(() => null);
+        const isUnregisteredTarget = this._isUnregisteredTargetId(session.targetId);
+        const targetUser = isUnregisteredTarget ? null : await guild.client.users.fetch(session.targetId).catch(() => null);
         const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, session.targetId)?.points || 100;
         const previewPoints = Math.max(0, currentRep - (session.pointsLost || 0));
         const durationLower = String(session.durationStr || '').toLowerCase();
@@ -480,8 +508,11 @@ const PunishmentSystem = {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
         builder.separator();
+        const targetFallback = isUnregisteredTarget
+            ? { toString: () => `${session.targetPlayerName || 'Jogador'} \`${session.alderonId}\` (sem Discord vinculado)`, username: session.targetPlayerName || session.alderonId, id: session.targetId }
+            : { toString: () => `\`${session.targetId}\``, username: '?', id: session.targetId };
         builder.section(
-            `## JOGADOR\n${buildIdentityBlock(targetUser || { toString: () => `\`${session.targetId}\``, username: '?', id: session.targetId })}`,
+            `## JOGADOR\n${buildIdentityBlock(targetUser || targetFallback)}`,
             AdvancedContainerBuilder.thumbnail(targetUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
         );
         builder.separator();
@@ -523,6 +554,75 @@ const PunishmentSystem = {
 
         const { components, flags } = builder.build();
         return { components: [...components, row], flags: [flags] };
+    },
+
+    /**
+     * Clique em "Sim"/"Não" no painel de identificação de /strike
+     * personalizado (ver src/commands/strike/personalizado.js
+     * showIdentifyPanel) — mostrado quando só usuario OU só agid foi
+     * informado, sem discord_act/jogo_act.
+     *
+     * "não" → registra sem nenhuma ação, usando o que foi encontrado na
+     * busca (mesmo padrão de /strike registro, mas com o alvo já
+     * identificado por AGID/Discord).
+     * "sim" → não dá pra injetar opções numa interação já em andamento
+     * (discord_act/jogo_act são opções do SLASH COMMAND, fixas na hora de
+     * digitar) — só informa o que foi encontrado e pede pro staff refazer
+     * o comando já com as ações desejadas.
+     */
+    async handlePersonalizadoIdentify(interaction, decision) {
+        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_personalizado_identify', 'strike_personalizado_identify');
+        if (!session) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike personalizado novamente.`, COLORS.ERROR, interaction.guild?.name));
+        }
+        SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_personalizado_identify', 'strike_personalizado_identify');
+
+        if (decision === 'no') {
+            const guild = interaction.guild;
+            const staff = interaction.user;
+
+            const isUnregisteredTarget = this._isUnregisteredTargetId(session.targetId);
+            let targetMember = null;
+            if (!isUnregisteredTarget) {
+                targetMember = await guild.members.fetch(session.targetId).catch(() => null);
+            }
+            const isStaffHigher = targetMember &&
+                targetMember.roles.highest.position >= interaction.member.roles.highest.position &&
+                staff.id !== guild.ownerId;
+            if (isStaffHigher) {
+                db.logActivity(guild.id, staff.id, 'strike_denied', session.targetId, { command: 'strike_personalizado', reason: 'Hierarquia insuficiente' });
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Você não pode punir este membro.`, COLORS.ERROR, guild.name));
+            }
+
+            const finalSession = {
+                targetId: session.targetId,
+                alderonId: session.alderonId || null,
+                targetPlayerName: session.targetPlayerName || null,
+                reason: session.reason,
+                reportId: session.reportId,
+                durationStr: session.durationStr,
+                discordAct: 'none',
+                jogoAct: 'none',
+                pointsLost: 0,
+                levelId: null, levelName: null, levelSeverity: null,
+            };
+
+            SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending', finalSession, 120000);
+            const preview = await this.buildStrikeConfirmPreview(finalSession, guild, interaction.member);
+            return await interaction.editReply(preview);
+        }
+
+        if (decision === 'yes') {
+            const identity = session.discordMention
+                ? `${session.discordMention}${session.alderonId ? ` \`${session.alderonId}\`` : ''}`
+                : `${session.targetPlayerName || 'jogador'}${session.alderonId ? ` \`${session.alderonId}\`` : ''}`;
+            return await interaction.editReply(this._simpleReply(
+                `${EMOJIS.circlecheck || '✅'} Identificado: ${identity}. Rode **/strike personalizado** de novo com os mesmos dados, agora preenchendo \`discord_act\` e/ou \`jogo_act\` com a ação desejada.`,
+                COLORS.DEFAULT, interaction.guild?.name,
+            ));
+        }
+
+        return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação não reconhecida.`, COLORS.ERROR, interaction.guild?.name));
     },
 
     async handleStrikeConfirmation(interaction, action) {
@@ -754,14 +854,33 @@ const PunishmentSystem = {
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId } = session;
+        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId, targetPlayerName } = session;
 
-        const targetUser = await guild.client.users.fetch(targetId).catch(() => null);
-        if (!targetUser) {
-            return { success: false, error: 'Usuário não encontrado.' };
+        // Alvo sem conta Discord conhecida (ver UNREGISTERED_TARGET_PREFIX) —
+        // não tem User/Member real pra buscar, monta um "usuário" sintético só
+        // pra exibição/log. Ação em jogo usa `alderonId` diretamente (abaixo),
+        // nunca depende desse objeto; ações no Discord e DM ficam
+        // indisponíveis (sem membro real pra aplicar/notificar) — já tratado
+        // pelos `targetMember` checks existentes mais abaixo.
+        const isUnregisteredTarget = this._isUnregisteredTargetId(targetId);
+        let targetUser;
+        if (isUnregisteredTarget) {
+            const displayName = targetPlayerName || alderonId;
+            targetUser = {
+                id: targetId,
+                username: displayName,
+                tag: displayName,
+                toString: () => `${displayName} \`${alderonId}\` (sem Discord vinculado)`,
+                displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/0.png',
+            };
+        } else {
+            targetUser = await guild.client.users.fetch(targetId).catch(() => null);
+            if (!targetUser) {
+                return { success: false, error: 'Usuário não encontrado.' };
+            }
         }
 
-        const targetMember = await guild.members.fetch(targetId).catch(() => null);
+        const targetMember = isUnregisteredTarget ? null : await guild.members.fetch(targetId).catch(() => null);
 
         const currentRep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guild.id, targetId)?.points || 100;
         const newPoints = Math.max(0, currentRep - pointsLost);
@@ -816,6 +935,11 @@ const PunishmentSystem = {
             } catch (err) {
                 discordActionResult = `${EMOJIS.circlealert || '❌'} Erro: ${err.message}`;
             }
+        } else if (discordAct && discordAct !== 'none' && !targetMember) {
+            // Sem membro (alvo sem conta Discord vinculada, ou vinculada mas
+            // fora deste servidor) — sem isso, getPunishmentActions cairia no
+            // fallback "Aplicado com sucesso" mesmo sem nada ter rodado.
+            discordActionResult = `${EMOJIS.circlealert || '❌'} Não aplicada: jogador sem conta Discord vinculada ou fora deste servidor.`;
         }
 
         const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
@@ -857,15 +981,21 @@ const PunishmentSystem = {
                                 : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
 
                             // ── Ban/ServerMute mexem em listas persistentes do
-                            // servidor (banlist/mutelist) — precisam recarregar
-                            // pra valer na hora, senão só pega efeito no próximo
-                            // restart. Fire-and-forget: não bloqueia a resposta
-                            // do strike se o reload falhar (a ação principal já
-                            // foi aplicada, o reload é só "avisar" o servidor). ──
-                            if (rconResult?.success && jogoAct === 'Ban') {
-                                PoTConfigSystem.executeRconCommand(guild.id, 'ReloadBans').catch(() => {});
-                            } else if (rconResult?.success && jogoAct === 'ServerMute') {
-                                PoTConfigSystem.executeRconCommand(guild.id, 'ReloadMutes').catch(() => {});
+                            // servidor (banlist/mutelist) — SEM recarregar, o
+                            // jogador é banido/mutado mas o servidor não relê o
+                            // motivo até o próximo restart (visto em teste real:
+                            // ban aplicado sem esse reload não mostrou o motivo
+                            // pro jogador). Por isso agora é AGUARDADO (antes era
+                            // fire-and-forget silencioso) e a falha é reportada
+                            // ao staff em vez de sumir — a ação principal já foi
+                            // aplicada de qualquer forma, o reload só garante que
+                            // o motivo/efeito completo realmente valha na hora. ──
+                            if (rconResult?.success && (jogoAct === 'Ban' || jogoAct === 'ServerMute')) {
+                                const reloadCommand = jogoAct === 'Ban' ? 'ReloadBans' : 'ReloadMutes';
+                                const reloadResult = await PoTConfigSystem.executeRconCommand(guild.id, reloadCommand).catch((err) => ({ success: false, error: err.message }));
+                                if (!reloadResult?.success) {
+                                    ingameActionResult += ` ${EMOJIS.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}) — o jogador pode não ver o motivo até o próximo restart do servidor.`;
+                                }
                             }
                         }
                     } catch (err) {
@@ -918,7 +1048,7 @@ const PunishmentSystem = {
 
         return {
             success: true, strikeId, targetUser, pointsLost, newPoints,
-            dmDelivered, logSent, roleStatusMsg, ingameActionResult,
+            dmDelivered, logSent, roleStatusMsg, ingameActionResult, isUnregisteredTarget,
         };
     },
 
@@ -928,7 +1058,9 @@ const PunishmentSystem = {
 
         const dmStatusMsg = result.dmDelivered
             ? `${emojis.circlecheck || '✅'} O jogador foi notificado em sua DM.`
-            : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
+            : result.isUnregisteredTarget
+                ? `${emojis.messagesquare || 'ℹ️'} Jogador sem conta Discord identificada — não recebeu DM.`
+                : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
 
         const lines = [
             `${emojis.circlecheck || '✅'} **Strike #${result.strikeId} aplicado em ${result.targetUser.username}**`,
@@ -1019,21 +1151,30 @@ const PunishmentSystem = {
                 if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
                     ingameUndoResult = 'Ação in-game requer o plano Rastreador — não desfeita automaticamente.';
                 } else {
-                    const link = getPlayerByDiscordId(punishment.user_id);
-                    if (!link) {
+                    // Alvo sem vínculo Discord (ver _executeStrike/convenção
+                    // UNREGISTERED_TARGET_PREFIX) guarda o AGID direto no
+                    // user_id — usa ele sem tentar resolver por Discord, que
+                    // nunca vai bater.
+                    const alderonId = this._isUnregisteredTargetId(punishment.user_id)
+                        ? punishment.user_id.slice(UNREGISTERED_TARGET_PREFIX.length)
+                        : getPlayerByDiscordId(punishment.user_id)?.alderon_id;
+                    if (!alderonId) {
                         ingameUndoResult = 'Jogador não vinculado ao Path of Titans — ação in-game não desfeita.';
                     } else {
                         try {
                             const PoTConfigSystem = require('../pot/potConfigSystem');
                             const isBan = punishment.level_action === 'Ban';
-                            const undoCommand = isBan ? `unban ${link.alderon_id}` : `ServerUnmute ${link.alderon_id}`;
+                            const undoCommand = isBan ? `unban ${alderonId}` : `ServerUnmute ${alderonId}`;
                             const rconResult = await PoTConfigSystem.executeRconCommand(guildId, undoCommand);
                             ingameUndoResult = rconResult?.success
                                 ? 'Ação in-game desfeita.'
                                 : `Falha ao desfazer ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
                             if (rconResult?.success) {
                                 const reloadCommand = isBan ? 'ReloadBans' : 'ReloadMutes';
-                                PoTConfigSystem.executeRconCommand(guildId, reloadCommand).catch(() => {});
+                                const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand).catch((err) => ({ success: false, error: err.message }));
+                                if (!reloadResult?.success) {
+                                    ingameUndoResult += ` ${emojis.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}).`;
+                                }
                             }
                         } catch (err) {
                             ingameUndoResult = `Falha ao desfazer ação in-game: ${err.message}`;

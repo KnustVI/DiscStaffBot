@@ -459,6 +459,32 @@ function getOnlinePotPlayer(guildId, alderonId) {
 }
 
 /**
+ * Nome de exibição de um jogador só pelo Alderon ID, independente de estar
+ * vinculado (/registrar) ou online — usado nos painéis de identificação de
+ * /strike ingame/personalizado quando o alvo não tem conta Discord
+ * conhecida, pra mostrar algo melhor que o AGID cru. Busca em pot_players
+ * (visto em QUALQUER evento de webhook desta guild, não só quem já
+ * registrou), pega o registro mais recente. Retorna null se o AGID nunca
+ * apareceu em nenhum evento desta guild.
+ *
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @returns {string|null}
+ */
+function getPlayerNameByAlderonId(guildId, alderonId) {
+    if (!guildId || !alderonId) return null;
+    try {
+        const row = db.prepare(`
+            SELECT player_name FROM pot_players WHERE guild_id = ? AND alderon_id = ? ORDER BY updated_at DESC LIMIT 1
+        `).get(guildId, alderonId);
+        return row?.player_name || null;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar nome por Alderon ID:', error);
+        return null;
+    }
+}
+
+/**
  * Busca o vínculo global pelo Discord ID, se houver.
  *
  * @param {string} discordId
@@ -639,6 +665,7 @@ module.exports = {
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,
+    getPlayerNameByAlderonId,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     ONLINE_EVENTS,
