@@ -79,7 +79,7 @@ function buildPageSetupModeration(guildName, emojis) {
     builder.separator();
 
     builder.title(`${emojis.shieldban || '🛡️'} Punições Severas Precisam de Aprovação`, 2);
-    builder.text('• Nível **4 (Severa)**/**5 (Permanente)**, ou duração **maior que 72h**, exigem aprovação do Supervisor (cargo configurado em /config roles) — quem já é Supervisor aplica direto, sem aprovação.');
+    builder.text('• Severidade **Grave/Severa** ou duração **maior que 72h/permanente** exigem aprovação do Supervisor (cargo em /config roles) — quem já é Supervisor aplica direto. No plano **Caçador**, isso vira configurável nível a nível em /config punishments.');
     builder.separator();
 
     builder.title(`${emojis.star || '⭐'} Sistema de Reputação`, 2);

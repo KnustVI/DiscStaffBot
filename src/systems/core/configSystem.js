@@ -779,8 +779,8 @@ const ConfigSystem = {
                 [
                     '# CONFIGURAÇÃO DE NÍVEIS DE PUNIÇÃO',
                     customApprovalEnabled
-                        ? 'Crie níveis de punição customizados (nome, severidade, pontos, duração e ação em jogo via RCON) para usar no /strike. Use o botão **Exigir/Dispensar Aprovação** em cada nível pra escolher exatamente quais precisam de aprovação do cargo Supervisor antes de serem aplicados (ver /config roles).'
-                        : 'Crie níveis de punição customizados (nome, severidade, pontos, duração e ação em jogo via RCON) para usar no /strike. Níveis com severidade **Grave** ou **Severa**, ou com duração acima de 72h/permanente, exigem aprovação do cargo Supervisor antes de serem aplicados (ver /config roles) — no plano **Caçador** isso passa a ser configurável nível a nível.',
+                        ? 'Crie níveis customizados pro /strike. Botão **Exigir/Dispensar Aprovação** define, nível a nível, quais exigem aprovação do Supervisor.'
+                        : 'Crie níveis customizados pro /strike. Grave/Severa ou duração >72h/permanente exigem aprovação do Supervisor — configurável por nível a partir do **Caçador**.',
                     `**${EMOJIS.gavel || '⚖️'} Níveis usados:** \`${levels.length}/${levelLimit}\``,
                 ].join('\n'),
                 cb.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
