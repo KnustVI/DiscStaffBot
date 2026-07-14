@@ -393,8 +393,8 @@ const MESSAGE_COMMANDS = [
         // "SystemMessage" (PascalCase) e o comando "teve sucesso" (RCON não
         // deu erro) mas a mensagem nunca chegou no jogo, sinal de comando
         // não reconhecido silenciosamente. Todo o resto desta categoria
-        // (whisper/whisperall/announce) já era minúsculo e nunca foi
-        // reportado como quebrado.
+        // (whisper/announce) já era minúsculo e nunca foi reportado como
+        // quebrado.
         buildCommand: (r) => `systemmessage ${r.target} ${r.mensagem}`,
     },
     {
@@ -416,16 +416,20 @@ const MESSAGE_COMMANDS = [
         options: [...TARGET_OPTIONS,
             { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
         ],
-        buildCommand: (r) => `whisper ${r.target} ${r.mensagem}`,
-    },
-    {
-        name: 'whisperall',
-        description: 'Envia uma mensagem privada pra todos os jogadores conectados.',
-        supervisorOnly: true,
-        options: [{ name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' }],
-        buildCommand: (r) => `whisperall ${r.mensagem}`,
+        // "whisper" por extenso NÃO existe de verdade — testado em produção,
+        // RCON retorna "Unknown command: /whisper". Só o atalho "w" é
+        // reconhecido pelo servidor (confirmado pelo dono). Nome do
+        // subcomando no Discord continua "whisper" (mais claro pra quem usa
+        // o bot), só o comando RCON de fato enviado muda pra "w".
+        buildCommand: (r) => `w ${r.target} ${r.mensagem}`,
     },
 ];
+// "whisperall" REMOVIDO — testado em produção pelo dono, sem suporte via
+// RCON (mesmo destino de "whisper" por extenso, ver comentário acima),
+// mas sem nenhum atalho conhecido tipo "w" pra ele. Diferente de
+// "whisper", que tem "w" como alternativa funcional, não há substituto
+// confirmado — melhor não oferecer o subcomando do que oferecer um que
+// não funciona.
 
 // ==================== BUILDER GENÉRICO (Discord option ← catálogo) ====================
 
