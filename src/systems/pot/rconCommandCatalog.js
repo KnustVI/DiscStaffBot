@@ -55,6 +55,29 @@ function resolveTarget(interaction) {
     return agid || null;
 }
 
+/**
+ * Nome de jogo (username atual) do alvo, quando disponível — diferente de
+ * `resolveTarget()` acima, que sempre devolve o Alderon ID. Confirmado
+ * pelo dono em teste real: `/whisper`/`/systemmessage` só encontram o
+ * jogador pelo NOME em jogo, não pelo Alderon ID (apesar do site
+ * documentar "[user/AGID]" pra quase todo comando, como se qualquer um
+ * dos dois servisse sempre). Usado só nesses 2 comandos por ora — os
+ * demais continuam com Alderon ID (`resolveTarget`), sem confirmação de
+ * que precisariam do nome também. Vínculo Discord usa o `player_name`
+ * salvo; campo `agid` livre passa direto (pode já ser um nome, dado que
+ * a descrição do campo sempre aceitou "Alderon ID OU nome do jogador").
+ */
+function resolveTargetName(interaction) {
+    const discordUser = interaction.options.getUser('usuario');
+    const agid = interaction.options.getString('agid');
+    if (discordUser) {
+        const link = PlayerRegistry.getPlayerByDiscordId(discordUser.id);
+        if (link?.player_name) return link.player_name;
+        if (link?.alderon_id) return link.alderon_id; // sem nome salvo — melhor que nada
+    }
+    return agid || null;
+}
+
 // ==================== CHANGE STATS ====================
 const STATS_COMMANDS = [
     {
@@ -388,24 +411,16 @@ const MESSAGE_COMMANDS = [
         options: [...TARGET_OPTIONS,
             { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
         ],
-        // Minúsculo confirmado: o exemplo real da doc é
-        // "/systemmessage mike Hello there" — testado em produção com
-        // "SystemMessage" (PascalCase) e o comando "teve sucesso" (RCON não
-        // deu erro) mas a mensagem nunca chegou no jogo, sinal de comando
-        // não reconhecido silenciosamente. Todo o resto desta categoria
-        // (whisper/announce) já era minúsculo e nunca foi reportado como
-        // quebrado.
-        //
-        // MESMO com o nome minúsculo corrigido, ainda "sucesso" sem efeito
-        // no jogo (testado de novo, depois de reiniciar o bot). Diferença
-        // chave pro "announce" (que funciona): announce só tem 1 argumento
-        // (a mensagem é literalmente tudo depois do nome do comando — sem
-        // ambiguidade nenhuma pro parser). systemmessage tem um argumento
-        // ANTES da mensagem (o alvo) — sem aspas, um parser de linha de
-        // comando comum (tokeniza por espaço) não sabe onde o alvo termina
-        // e a mensagem começa quando ela tem mais de uma palavra. Mensagem
-        // agora entre aspas pra virar 1 token só, isolado do alvo.
-        buildCommand: (r) => `systemmessage ${r.target} "${r.mensagem}"`,
+        // Histórico: minúsculo confirmado certo (doc real: "/systemmessage
+        // mike Hello there"). As aspas na mensagem (tentativa anterior)
+        // foram descartadas — nem a doc real nem o teste do dono em jogo
+        // usam aspas, mesmo com mensagem de várias palavras. A causa raiz
+        // de verdade era outra: o ALVO. Testado pelo dono direto no chat
+        // do jogo ("/systemmessage KnustVI mensagem") - só funcionou com o
+        // NOME em jogo (`KnustVI`), nunca com o Alderon ID que
+        // `resolveTarget()`/`r.target` sempre monta. Por isso usa
+        // `r.targetName` aqui (ver `resolveTargetName()`), não `r.target`.
+        buildCommand: (r) => `systemmessage ${r.targetName} ${r.mensagem}`,
     },
     {
         name: 'systemmessageall',
@@ -426,24 +441,16 @@ const MESSAGE_COMMANDS = [
         options: [...TARGET_OPTIONS,
             { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
         ],
-        // HISTÓRICO (revertido): um teste local anterior (fora do bot) com
-        // "/whisper" (incluindo a barra) retornou "Unknown command:
-        // /whisper", o que levou a trocar pro atalho "w". Só que "w" via
-        // RCON DO PRÓPRIO BOT retornou um erro explícito e literal do
-        // servidor: "That command does not exist." — ou seja, "w" É um
-        // atalho de CHAT (resolvido pelo parser de chat do jogo antes de
-        // virar um comando de verdade), não existe como comando de RCON
-        // separado. RCON fala direto com a tabela de comandos do servidor,
-        // sem passar pelo parser de chat — por isso só reconhece o nome
-        // CANÔNICO completo ("whisper"), nunca o atalho. O teste original
-        // que "provou" whisper quebrado incluía a barra ("/whisper"), que
-        // o RCON nunca deveria receber (RCON não usa "/" na frente do
-        // comando, só o chat do jogo usa) — o mais provável é que o erro
-        // fosse por causa da barra, não do nome em si. Revertido pra
-        // "whisper" (sem barra), mantendo a mensagem entre aspas (ver
-        // comentário de systemmessage acima sobre a tokenização) — ainda
-        // precisa ser confirmado num novo teste real via este comando.
-        buildCommand: (r) => `whisper ${r.target} "${r.mensagem}"`,
+        // Histórico: "w" (atalho de chat) confirmado que NÃO existe como
+        // comando de RCON — erro explícito do servidor: "That command
+        // does not exist.". Revertido pro nome canônico "whisper" (sem
+        // barra, RCON não usa "/" na frente do comando). Aspas na
+        // mensagem também descartadas, mesmo motivo de systemmessage
+        // acima. Causa raiz de verdade: o ALVO — mesmo teste do dono que
+        // confirmou o nome certo pra systemmessage (ver acima) mostrou que
+        // só o NOME em jogo funciona, não o Alderon ID. `r.targetName` em
+        // vez de `r.target` (ver `resolveTargetName()`).
+        buildCommand: (r) => `whisper ${r.targetName} ${r.mensagem}`,
     },
 ];
 // "whisperall" REMOVIDO — reportado como sem suporte via RCON na mesma
@@ -506,7 +513,10 @@ function resolveOptionValues(interaction, entry) {
         else if (opt.type === 'number') resolved[opt.name] = interaction.options.getNumber(opt.name);
         else if (opt.type === 'integer') resolved[opt.name] = interaction.options.getInteger(opt.name);
     }
-    if (hasTargetOption) resolved.target = resolveTarget(interaction);
+    if (hasTargetOption) {
+        resolved.target = resolveTarget(interaction);
+        resolved.targetName = resolveTargetName(interaction);
+    }
     return resolved;
 }
 

@@ -3460,3 +3460,57 @@ frente, nao so este relatorio):
   entre aspas). Reexecutada a regressão acumulada do catálogo /ingame-*
   (seções 66-71, 79-81) sem quebra (1 asserção em script de teste
   descartável, que esperava o "w" antigo, foi atualizada).
+
+
+83) CAUSA RAIZ DE VERDADE achada: whisper/systemmessage precisam do NOME em
+    jogo do alvo, não do Alderon ID — aspas nunca foram o problema
+------------------------------------------------------------------
+- Dono testou DIRETO no chat do próprio jogo (não via RCON/bot) - "o que
+  eu consegui usar foi só com meu nome de jogo e não com AGID, usei
+  exatamente assim sem as aspas: '/systemmessage KnustVI mensagem'".
+  Confirma DOIS pontos de uma vez: (1) o alvo precisa ser o NOME em jogo
+  (`KnustVI`), nunca o Alderon ID que `resolveTarget()`/`r.target`
+  sempre monta; (2) SEM aspas, mesmo com o texto de exemplo sendo curto
+  - bate com o exemplo original da doc ("Hello there", multi-palavra,
+  também sem aspas) e com o que o dono confirmou depois pra `/whisper`
+  também ("Acho que o whisper também só tá funcionando com nome em
+  jogo"). As aspas adicionadas nas seções 80/81 foram uma hipótese MINHA
+  (nunca vieram de nenhuma doc ou teste real) e nunca foram o problema
+  de verdade - removidas.
+- Causa raiz real: `resolveTarget()` (usado por TODO comando do catálogo
+  que mira um jogador) sempre resolve pro Alderon ID, nunca pro nome em
+  jogo. Pra `whisper`/`systemmessage` especificamente, o servidor só
+  encontra o jogador pelo nome - usar o Alderon ID silenciosamente não
+  encontra ninguém (dá "sucesso" porque o RCON em si funcionou, só não
+  encontrou o alvo pra agir em cima).
+- Corrigido SEM alterar `resolveTarget()` (usado por ~50 outros
+  subcomandos sem nenhuma evidência de estarem quebrados - mudar a
+  fonte compartilhada seria arriscado demais sem confirmação individual
+  de cada um): nova função irmã `resolveTargetName(interaction)`, que
+  resolve o NOME em jogo em vez do Alderon ID (usa `player_name` salvo
+  no vínculo Discord; campo `agid` livre passa direto, já que sempre
+  aceitou "Alderon ID OU nome do jogador" como texto solto).
+  `resolveOptionValues()` agora popula `resolved.target` (Alderon ID,
+  inalterado) E `resolved.targetName` (nome, novo) sempre que o
+  subcomando tem alvo. Só `whisper`/`systemmessage` foram trocados pra
+  usar `r.targetName` em vez de `r.target` - todo o resto do catálogo
+  (heal, godmode, promote, setattr, etc.) continua exatamente como
+  estava, usando Alderon ID, sem nenhuma mudança de comportamento.
+- Aspas removidas de `whisper`/`systemmessage` (voltam a montar
+  `whisper ${targetName} ${mensagem}` / `systemmessage ${targetName}
+  ${mensagem}`, sem aspas nenhuma) - `announce`/`systemmessageall`
+  nunca precisaram de aspas nem de mudança nenhuma, continuam iguais.
+- Verificado com script direto (8 checks, fim-a-fim via os comandos
+  Discord reais): `whisper`/`systemmessage` montam o comando com o NOME
+  do jogador (não o Alderon ID) e sem aspas; testado via
+  `/ingame-message` de verdade (mockando o cliente RCON) com um usuário
+  Discord VINCULADO - o comando de fato enviado usa o `player_name`
+  salvo, confirmado tanto no comando quanto no painel de resposta
+  mostrado ao staff; testado também via campo `agid` livre (staff
+  digita o nome direto, sem vínculo) - passa o texto digitado direto,
+  sem alteração; `/ingame-stats heal` (amostra de um comando NÃO
+  alterado) confirmado continuando a usar o Alderon ID normalmente, sem
+  nenhum efeito colateral da mudança. Reexecutada a regressão acumulada
+  do catálogo /ingame-* (seções 66-71, 79-82) sem quebra (2 asserções
+  em scripts de teste descartáveis, que ainda esperavam o texto com
+  aspas de uma hipótese já descartada, foram atualizadas).
