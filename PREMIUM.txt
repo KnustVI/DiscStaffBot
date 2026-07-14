@@ -246,10 +246,13 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   (kick/ban/ServerMute, ja disponivel desde o Rastreador - ver secao
   acima) continuam JA IMPLEMENTADAS tambem. BUFFS configuraveis (presets
   de `setattr` em lote, "parecido com os niveis de punicao") JA
-  IMPLEMENTADO (ver secao 88) - /config buffs cria/edita buffs nomeados
-  com quantos atributos quiser (lista fechada de ~59 atributos conhecidos,
-  organizados em 13 categorias), /ingame-buff aplicar aplica um buff
-  inteiro num jogador com um comando so (em vez de repetir
+  IMPLEMENTADO (ver secoes 88 e 89) - /config buffs cria/edita buffs
+  nomeados com quantos atributos quiser, escolhidos de uma lista fechada
+  de 10 atributos CONFIRMADOS por teste real (Health, Stamina, Hunger,
+  Thirst, Oxygen, BleedAmount, PoisonAmount, VenomAmount, LegDamage,
+  Growth - reduzida da lista inicial de ~59 na secao 89, depois do dono
+  testar e confirmar que só estes de fato funcionam), /ingame-buff aplicar
+  aplica um buff inteiro num jogador com um comando so (em vez de repetir
   /ingame-stats setattr atributo por atributo), /ingame-buff listar mostra
   os buffs configurados. SEMPRE confere se o jogador esta online antes de
   aplicar (avisa e nao manda RCON nenhum se nao estiver) - mesma exigencia
@@ -303,7 +306,11 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   mesmo comando.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
-  atual de features).
+  atual de features). /historico staff (sub-comando, so Cacador de
+  qualquer forma - analyticsEnabled) restrito a qualquer cargo de staff
+  (Moderador/Supervisor/Equipe de Eventos) a partir da secao 89 - antes
+  disso nao tinha NENHUMA checagem de cargo, apesar de /config roles e
+  /ajuda ja descreverem /historico como algo que exige o cargo Moderador.
 - /evento liberado em TODOS os tiers, mas com 3 niveis: Free so posta no
   forum (sem evento agendado do Discord, sem marcar cargo); Rastreador e
   Cacador criam tambem o evento agendado do Discord + marcam o cargo de
@@ -3828,3 +3835,51 @@ frente, nao so este relatorio):
   offline ANTES de mostrar a lista de buffs; aplicação de verdade dispara
   um `setattr` por atributo do buff; buff sem nenhum atributo configurado
   é bloqueado sem disparar RCON nenhum.
+
+89) /historico staff ganha checagem de cargo de staff + lista de atributos
+    de buff REDUZIDA pros 10 confirmados por teste real
+------------------------------------------------------------------
+- `/historico staff` não tinha NENHUMA checagem de cargo (só o tier
+  Caçador, via `analyticsEnabled`) — qualquer membro do servidor podia
+  rodar, mesmo sem nenhum cargo de staff. Isso contradizia a própria
+  documentação do bot: a descrição do cargo "Moderador" em /config roles
+  e o texto do /ajuda já afirmavam que `/historico` exige esse cargo, mas
+  isso nunca tinha sido implementado de fato no código — achado ao
+  responder uma pergunta direta do dono ("me confirma se /historico staff
+  está disponível apenas pra cargos de supervisor"), não um teste
+  específico.
+- Corrigido: `historico.js` (`_executeStaffHistory`) agora também checa
+  `ConfigSystem.memberHasAnyStaffRole(guildId, member)` — pedido do dono
+  foi "todos eles" (qualquer cargo de staff, não só Supervisor), então
+  reaproveita a MESMA checagem já usada em rconCommandCatalog.js (aceita
+  Moderador, Supervisor OU Equipe de Eventos, os 3 cargos de
+  `STAFF_ROLE_KEYS`) em vez de checar só um cargo específico. Ordem:
+  tier primeiro, depois cargo — mesma ordem já usada em
+  executeRconSubcommand. `/historico jogador` (o outro subcomando) NÃO
+  foi mexido — o pedido do dono foi especificamente sobre `staff`.
+- BUFFS: lista de atributos aceitos REDUZIDA de ~59 (da seção 88, uma
+  lista "de documentação" nunca confirmada contra servidor real) pros 10
+  que o dono testou e confirmou que realmente funcionam via `setattr`:
+  Health, Stamina, Hunger, Thirst, Oxygen, BleedAmount, PoisonAmount,
+  VenomAmount, LegDamage, Growth. Os outros ~49 foram REMOVIDOS do
+  catálogo de propósito (não só escondidos) — mantê-los deixaria o staff
+  adicionar um atributo que o RCON aceita "com sucesso" mas não tem efeito
+  nenhum no jogo, a mesma armadilha silenciosa já vista com whisper/
+  systemmessage antes do alvo certo ser descoberto (seção 83).
+- Com só 10 atributos (bem abaixo do limite de 25 de um StringSelectMenu),
+  o passo intermediário de "escolher categoria" deixou de fazer sentido —
+  quase toda categoria original virou 1 atributo só, transformando esse
+  passo em clique extra sem propósito. Removido do painel: `/config
+  buffs` agora vai direto de "Adicionar Atributo" pro select com os 10
+  atributos, sem passar por categoria. `buffStatCatalog.js` simplificado
+  de `STAT_CATEGORIES` (13 categorias aninhadas) pra `KNOWN_STATS` (lista
+  plana) — `getCategory`/`findCategoryForAttribute` removidos (não tinham
+  mais nenhum uso). customId do select de atributo simplificado de
+  `config-buffs:attr-select:<buffId>:<categoria>` pra só
+  `config-buffs:attr-select:<buffId>`.
+- Verificado com 2 scripts diretos: `/historico staff` bloqueado sem
+  cargo de staff, passa com qualquer um dos 3 cargos configurados (2
+  checks); suite de buffs inteira (22 checks da seção 88) reexecutada com
+  os atributos novos (Health/Stamina/Growth no lugar de MaxHealth/
+  MovementSpeedMultiplier/etc.) e o fluxo de seleção direto (sem
+  categoria) — todos passando sem quebra.

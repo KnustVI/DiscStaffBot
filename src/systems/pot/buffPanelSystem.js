@@ -9,8 +9,12 @@
  *
  *   list             -> lista de buffs + botão "Criar Buff"
  *   edit(buffId)      -> atributos do buff + botões Adicionar/Excluir/Voltar
- *   pick-category     -> select de categoria (13, cabe num só select)
- *   pick-attribute    -> select de atributo dentro da categoria escolhida
+ *   pick-attribute    -> select com os atributos confirmados (KNOWN_STATS,
+ *                        ver buffStatCatalog.js) — só 10 itens hoje, cabem
+ *                        num select só, sem precisar de um passo de
+ *                        categoria antes (existiu antes, removido quando a
+ *                        lista de ~59 atributos "de documentação" foi
+ *                        substituída pelos 10 confirmados por teste real).
  *
  * Escolher um atributo abre um MODAL pedindo o valor — precisa ser
  * especial-caseado em interactionCreate.js (ANTES do deferUpdate()
@@ -94,26 +98,12 @@ function _renderEdit(cb, guildId, buffId) {
     return buff;
 }
 
-function _renderPickCategory(cb, buffId) {
-    cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Escolha a categoria do atributo que você quer adicionar:`);
+function _renderPickAttribute(cb, buffId) {
+    cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Escolha o atributo que você quer adicionar:`);
     const select = new StringSelectMenuBuilder()
-        .setCustomId(`config-buffs:cat-select:${buffId}`)
-        .setPlaceholder('Selecionar categoria')
-        .addOptions(BuffStatCatalog.STAT_CATEGORIES.map((c) => ({ label: c.label, value: c.key })));
-    cb.selectMenu(select);
-}
-
-function _renderPickAttribute(cb, buffId, categoryKey) {
-    const category = BuffStatCatalog.getCategory(categoryKey);
-    if (!category) {
-        cb.text(`${EMOJIS.circlealert || '❌'} Categoria desconhecida.`);
-        return;
-    }
-    cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Categoria **${category.label}** — escolha o atributo:`);
-    const select = new StringSelectMenuBuilder()
-        .setCustomId(`config-buffs:attr-select:${buffId}:${categoryKey}`)
+        .setCustomId(`config-buffs:attr-select:${buffId}`)
         .setPlaceholder('Selecionar atributo')
-        .addOptions(category.stats.map((s) => ({ label: s, value: s })));
+        .addOptions(BuffStatCatalog.KNOWN_STATS.map((s) => ({ label: s, value: s })));
     cb.selectMenu(select);
 }
 
@@ -139,13 +129,8 @@ async function refreshBuffPanel(interaction, successMessage, guildName, view) {
         bottomRows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('config-buffs:back-list').setLabel('Voltar à Lista').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.arrowleft || '⬅️'),
         ));
-    } else if (view.screen === 'pick-category') {
-        _renderPickCategory(cb, view.buffId);
-        bottomRows.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`config-buffs:back-edit:${view.buffId}`).setLabel('Cancelar').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.circlealert || '❌'),
-        ));
     } else if (view.screen === 'pick-attribute') {
-        _renderPickAttribute(cb, view.buffId, view.category);
+        _renderPickAttribute(cb, view.buffId);
         bottomRows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`config-buffs:back-edit:${view.buffId}`).setLabel('Cancelar').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.circlealert || '❌'),
         ));
@@ -232,13 +217,7 @@ module.exports = {
                 return await refreshBuffPanel(interaction, null, guildName, { screen: 'edit', buffId: param });
 
             case 'add-stat':
-                return await refreshBuffPanel(interaction, null, guildName, { screen: 'pick-category', buffId: param });
-
-            case 'cat-select': {
-                const buffId = param;
-                const categoryKey = interaction.values?.[0];
-                return await refreshBuffPanel(interaction, null, guildName, { screen: 'pick-attribute', buffId, category: categoryKey });
-            }
+                return await refreshBuffPanel(interaction, null, guildName, { screen: 'pick-attribute', buffId: param });
 
             case 'remove-stat': {
                 const [buffId, attribute] = String(param).split(':');
@@ -295,9 +274,9 @@ module.exports = {
     },
 
     /**
-     * config-buffs:attr-select:<buffId>:<categoryKey> — select de atributo.
-     * Especial-caseado em interactionCreate.js: escolher um atributo abre o
-     * modal pedindo o valor, e select/botão que abre modal precisa ser a
+     * config-buffs:attr-select:<buffId> — select de atributo. Especial-
+     * caseado em interactionCreate.js: escolher um atributo abre o modal
+     * pedindo o valor, e select/botão que abre modal precisa ser a
      * PRIMEIRA resposta (nunca passa pelo deferUpdate() genérico).
      */
     async handleOpenStatValueModal(interaction) {

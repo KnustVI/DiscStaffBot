@@ -42,6 +42,17 @@ module.exports = {
                 return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
             }
 
+            // Além do tier: restrito a qualquer cargo de staff (Moderador,
+            // Supervisor ou Equipe de Eventos — mesma checagem já usada em
+            // rconCommandCatalog.js) — pedido do dono. Faltava por completo
+            // antes disso: o comando não tinha nenhuma checagem de cargo,
+            // apesar de /config roles e /ajuda já descreverem /historico
+            // como restrito à staff.
+            const ConfigSystem = require('../../systems/core/configSystem');
+            if (!ConfigSystem.memberHasAnyStaffRole(guild.id, interaction.member)) {
+                return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).');
+            }
+
             const staffOpt = interaction.options.getUser('staff');
             const builder = staffOpt
                 ? AnalyticsSystem.generateStaffHistoryContainer(guild, staffOpt.id)
