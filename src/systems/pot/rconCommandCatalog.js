@@ -395,7 +395,17 @@ const MESSAGE_COMMANDS = [
         // não reconhecido silenciosamente. Todo o resto desta categoria
         // (whisper/announce) já era minúsculo e nunca foi reportado como
         // quebrado.
-        buildCommand: (r) => `systemmessage ${r.target} ${r.mensagem}`,
+        //
+        // MESMO com o nome minúsculo corrigido, ainda "sucesso" sem efeito
+        // no jogo (testado de novo, depois de reiniciar o bot). Diferença
+        // chave pro "announce" (que funciona): announce só tem 1 argumento
+        // (a mensagem é literalmente tudo depois do nome do comando — sem
+        // ambiguidade nenhuma pro parser). systemmessage tem um argumento
+        // ANTES da mensagem (o alvo) — sem aspas, um parser de linha de
+        // comando comum (tokeniza por espaço) não sabe onde o alvo termina
+        // e a mensagem começa quando ela tem mais de uma palavra. Mensagem
+        // agora entre aspas pra virar 1 token só, isolado do alvo.
+        buildCommand: (r) => `systemmessage ${r.target} "${r.mensagem}"`,
     },
     {
         name: 'systemmessageall',
@@ -421,7 +431,14 @@ const MESSAGE_COMMANDS = [
         // reconhecido pelo servidor (confirmado pelo dono). Nome do
         // subcomando no Discord continua "whisper" (mais claro pra quem usa
         // o bot), só o comando RCON de fato enviado muda pra "w".
-        buildCommand: (r) => `w ${r.target} ${r.mensagem}`,
+        //
+        // MESMO com "w", ainda "sucesso" sem a mensagem chegar no jogo
+        // (testado de novo, depois de reiniciar o bot) — mesmo sintoma e
+        // mesma causa provável de systemmessage (ver comentário lá): "w"
+        // tem um argumento (alvo) ANTES da mensagem, então uma mensagem de
+        // várias palavras sem aspas fica ambígua pro parser. Mensagem
+        // agora entre aspas.
+        buildCommand: (r) => `w ${r.target} "${r.mensagem}"`,
     },
 ];
 // "whisperall" REMOVIDO — testado em produção pelo dono, sem suporte via

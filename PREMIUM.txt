@@ -3374,3 +3374,48 @@ frente, nao so este relatorio):
   `whisperall`, ficou com exatamente 4 subcomandos, e ainda tem
   `whisper`. Reexecutada a regressão acumulada do catálogo /ingame-*
   (seções 66-71, 79) sem quebra.
+
+
+81) whisper/systemmessage: mensagem entre aspas (segunda rodada de teste
+    real) — a causa não era o nome do comando, era a tokenização do RCON
+------------------------------------------------------------------
+- Dono testou de novo DEPOIS de reiniciar o bot com as correções da
+  seção 80 (whisper→w, systemmessage minúsculo) - mesmo sintoma
+  continuou: "sucesso" (✅) no painel, mensagem nunca chega no jogo.
+  `announce` (sem alvo, só a mensagem) continuou funcionando normalmente.
+- Diagnóstico: a diferença estrutural entre os comandos que falham e o
+  que funciona não é o nome, é a POSIÇÃO da mensagem na linha de
+  comando. `announce`/`systemmessageall` têm UM argumento só (a
+  mensagem) - "tudo que vem depois do nome do comando" é
+  inequivocamente a mensagem inteira, sem ambiguidade nenhuma pra
+  qualquer parser de linha de comando. `whisper`("w")/`systemmessage`
+  têm o ALVO antes da mensagem - sem aspas, um parser comum (que
+  tokeniza por espaço) não tem como saber onde o alvo termina e a
+  mensagem de VÁRIAS PALAVRAS começa; o mais provável é o parser
+  reconhecer só a primeira palavra como "a mensagem" (ou nenhuma) e
+  descartar o resto silenciosamente - exatamente o padrão observado
+  (RCON não reclama nada, só não faz o efeito esperado).
+- Corrigido: mensagem entre aspas nos 2 comandos -
+  `w ${target} "${mensagem}"` / `systemmessage ${target} "${mensagem}"`
+  - isola a mensagem como um token só, independente de quantas palavras
+  tiver, igual a como `announce`/`systemmessageall` já funcionavam por
+  não terem essa ambiguidade em primeiro lugar. `announce`/
+  `systemmessageall` NÃO precisaram de aspas (continuam exatamente como
+  estavam) - já funcionavam sem o problema de tokenização, adicionar
+  aspas ali seria mudança sem necessidade.
+- IMPORTANTE: essa correção é uma HIPÓTESE bem fundamentada (padrão
+  clássico de parser de RCON/console), não uma certeza absoluta - ainda
+  precisa ser confirmada num terceiro teste real em produção. Se ainda
+  falhar mesmo com aspas, a causa é outra coisa (ex: o servidor exige
+  que o alvo seja o NOME atual em jogo do jogador, não o Alderon ID que
+  `resolveTarget()` sempre usa - teoria descartada por ora porque o
+  dono testou com os dois métodos de identificar o alvo - usuário
+  Discord vinculado E Alderon ID/nome digitado direto - e o resultado
+  foi o mesmo nos dois casos).
+- Verificado com script direto: `buildCommand` de `whisper` produz
+  `w AGID123 "oi tudo bem"`; `systemmessage` produz `systemmessage
+  AGID123 "Hello there"` - mensagem sempre entre aspas, alvo sempre fora
+  delas. Reexecutada a regressão acumulada do catálogo /ingame-*
+  (seções 66-71, 79, 80) sem quebra (2 asserções obsoletas em scripts
+  de teste descartáveis, que ainda esperavam o texto antigo sem aspas,
+  foram atualizadas).
