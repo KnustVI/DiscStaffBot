@@ -1860,6 +1860,13 @@ const ConfigSystem = {
             cb.separator();
             cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem atual`, 2);
             cb.block([customMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (nenhuma mensagem customizada ainda).`]);
+            // Botões de edição ficam DENTRO do painel, logo após a descrição
+            // que editam — mesmo critério já aplicado aos selects de banner
+            // (pedido do dono). Só a navegação entre abas fica fora.
+            cb.buttons(
+                AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-message:modal', 'Editar Mensagem').setEmoji(EMOJIS.edit || '✏️'),
+                AdvancedContainerBuilder.dangerButton('config-personalizar:reportchat-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
+            );
         } else {
             const colorHex = this.getSetting(guildId, 'panel_accent_color');
             const footerText = this.getSetting(guildId, 'panel_footer_text');
@@ -1870,28 +1877,22 @@ const ConfigSystem = {
             ].join('\n'));
             cb.title(`${EMOJIS.palette || '🎨'} Cor de destaque`, 2);
             cb.block([colorHex ? `${EMOJIS.circlecheck || '✅'} #${colorHex.toUpperCase()}` : `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (cada painel usa sua própria cor).`]);
+            cb.buttons(AdvancedContainerBuilder.secondaryButton('config-personalizar:aparencia-color:modal', 'Editar Cor').setEmoji(EMOJIS.palette || '🎨'));
             cb.separator();
             cb.title(`${EMOJIS.messagesquare || '💬'} Footer`, 2);
             cb.block([footerText || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot ("Produzido por KnustVI e T.Mach | Server: ${guildName}").`]);
+            cb.buttons(
+                AdvancedContainerBuilder.secondaryButton('config-personalizar:aparencia-footer:modal', 'Editar Footer').setEmoji(EMOJIS.edit || '✏️'),
+                AdvancedContainerBuilder.dangerButton('config-personalizar:aparencia-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
+            );
         }
 
         cb.footer(guildName);
         const { components, flags, files } = cb.build();
 
+        // Fora do painel fica SÓ a navegação entre abas — os botões de
+        // edição de cada aba já foram embutidos no container acima.
         const bottomRows = [];
-        if (activeTab === 'reportchat') {
-            bottomRows.push(new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('config-personalizar:reportchat-message:modal').setLabel('Editar Mensagem').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-                new ButtonBuilder().setCustomId('config-personalizar:reportchat-reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️'),
-            ));
-        }
-        if (activeTab === 'aparencia') {
-            bottomRows.push(new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('config-personalizar:aparencia-color:modal').setLabel('Editar Cor').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.palette || '🎨'),
-                new ButtonBuilder().setCustomId('config-personalizar:aparencia-footer:modal').setLabel('Editar Footer').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.edit || '✏️'),
-                new ButtonBuilder().setCustomId('config-personalizar:aparencia-reset').setLabel('Resetar Padrão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.refreshccw || '⚠️'),
-            ));
-        }
         bottomRows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('config-personalizar:tab:strike')

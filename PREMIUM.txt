@@ -3245,3 +3245,46 @@ frente, nao so este relatorio):
   aparece depois do próprio título/bloco; os dois NÃO ficam mais
   agrupados no final. Reexecutada a regressão de /config personalizar
   (seção 74) sem quebra.
+
+
+78) Botões de edição das abas Report-Chat e Aparência Geral também movem
+    pra dentro do painel, logo após a descrição que editam
+------------------------------------------------------------------
+- Continuação direta da seção 77 (mesmo pedido do dono, agora estendido
+  pros botões, não só os selects): "Editar Mensagem"/"Resetar Padrão"
+  (aba Report-Chat) e "Editar Cor"/"Editar Footer"/"Resetar Padrão" (aba
+  Aparência Geral) ficavam todos numa ActionRow por FORA do container,
+  junto da navegação entre abas - pedido explícito: manter os botões de
+  edição sempre logo após a descrição que editam (mensagem, cor E
+  banner - banner já resolvido na seção 77), e deixar SÓ a navegação de
+  abas fora do painel.
+- Mudança mecânica, mesmo princípio da seção 77 mas com `cb.buttons()` em
+  vez de `cb.selectMenu()` (ambos inserem na posição em que são chamados,
+  não reordenam nada sozinhos):
+  - Aba Report-Chat: `cb.buttons('Editar Mensagem', 'Resetar Padrão')`
+    chamado logo após o bloco "Mensagem atual" (ambos na MESMA linha,
+    já que os dois têm efeito nessa aba como um todo, não em blocos
+    separados).
+  - Aba Aparência Geral: `cb.buttons('Editar Cor')` logo após o bloco
+    "Cor de destaque"; `cb.buttons('Editar Footer', 'Resetar Padrão')`
+    logo após o bloco "Footer" (Resetar reseta os dois - cor e footer -
+    então fica junto do último bloco, mesmo critério já usado antes pro
+    "Resetar Padrão" da aba Mecânicas de Reputação de /config
+    punishments, seção 73).
+  - `AdvancedContainerBuilder.secondaryButton()/dangerButton()` não
+    aceitam emoji no construtor (diferente do `ButtonBuilder` cru usado
+    antes) - `.setEmoji()` encadeado direto no retorno (que já é um
+    `ButtonBuilder`) preserva os mesmos ícones de antes (✏️ Editar,
+    🎨 Editar Cor, ⚠️ Resetar).
+  - Fora do container agora sobra só 1 ActionRow: a navegação entre as 3
+    abas (Strike/Unstrike, Report-Chat, Aparência Geral) - pedido
+    explícito do dono ("fora do painel mantenha botões de navegação").
+- Verificado com script direto (6 checks, achatando a ordem real dos
+  componentes): na aba Aparência Geral, "Editar Cor" aparece entre o
+  bloco de Cor e o título de Footer; "Editar Footer"+"Resetar Padrão"
+  aparecem juntos depois do bloco de Footer; na aba Report-Chat, "Editar
+  Mensagem"+"Resetar Padrão" aparecem juntos depois do bloco de Mensagem
+  atual; em AMBAS as abas, a única ActionRow fora do container é a de
+  navegação (3 botões `config-personalizar:tab:*`, nenhum botão de
+  edição sobrando do lado de fora). Reexecutada a regressão acumulada de
+  /config personalizar (seções 74, 77) sem quebra.
