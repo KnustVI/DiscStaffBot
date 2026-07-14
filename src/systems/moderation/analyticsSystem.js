@@ -16,6 +16,14 @@ const SPECTATOR_ENTER_ACTIONS = new Set(['Entered Spectator Mode']);
 const SPECTATOR_EXIT_ACTIONS = new Set(['Exited Spectator Mode']);
 const NAMETAG_TOGGLE_ACTIONS = new Set(['Enabled Nametags', 'Disabled Nametags']);
 
+// Aviso pedido pelo dono: o modo espectador está com um problema conhecido
+// pra pegar informação real do jogo no momento, então qualquer relatório que
+// mostre dados de espectador (nametags/tempo em modo espectador) precisa
+// avisar que esses números não devem embasar julgamento de staff agora.
+// Repetido em cada container (não só uma vez no topo do arquivo) porque
+// cada um desses é uma mensagem separada, enviada em momentos diferentes.
+const SPECTATOR_DISCLAIMER = `${EMOJIS.trianglealert || '⚠️'} **Aviso:** o modo espectador está atualmente com problemas para adquirir informações reais do jogo e não deve ser considerado para julgamento de staffs no momento!`;
+
 class AnalyticsSystem {
 
     static getLocalDate(date = new Date()) {
@@ -534,6 +542,8 @@ class AnalyticsSystem {
         if (rows.length === 0) {
             builder.text('Nenhuma atividade de staff registrada hoje.');
         } else {
+            builder.text(SPECTATOR_DISCLAIMER);
+            builder.separator();
             for (const block of this._chunkStaffBlocks(rows)) builder.text(block);
         }
 
@@ -553,6 +563,8 @@ class AnalyticsSystem {
         if (!row) {
             builder.text(`Nenhum registro de atividade encontrado para <@${userId}>.`);
         } else {
+            builder.text(SPECTATOR_DISCLAIMER);
+            builder.separator();
             builder.text(this._formatStaffBlock(row));
         }
 
@@ -572,6 +584,8 @@ class AnalyticsSystem {
         if (rows.length === 0) {
             builder.text('Nenhum registro de atividade de staff encontrado.');
         } else {
+            builder.text(SPECTATOR_DISCLAIMER);
+            builder.separator();
             for (const block of this._chunkStaffBlocks(rows)) builder.text(block);
         }
 
@@ -609,6 +623,8 @@ class AnalyticsSystem {
                     const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
                     builder.title(`${EMOJIS.shieldban || '🛡️'} Staff perdeu o cargo`, 1);
                     builder.text(`${user} perdeu todos os cargos de staff configurados (Moderador/Supervisor/Equipe de Eventos) — o histórico abaixo foi apagado e não aparece mais no \`/historico staff\`.`);
+                    builder.separator();
+                    builder.text(SPECTATOR_DISCLAIMER);
                     builder.separator();
                     builder.text(this._formatStaffBlock(totals));
                     builder.footer(guild.name, 'Registro final antes da exclusão dos dados');

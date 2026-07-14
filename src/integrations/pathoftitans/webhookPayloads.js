@@ -425,9 +425,14 @@ async function formatMessage(potEvent, data, guild) {
                 : d.bSpectatorMode === false
                     ? `Modo espectador: ${e('shieldban', '🚫')}`
                     : 'Modo espectador: Não definido';
+            // Pedido do dono: mesmo aviso do /historico staff (analyticsSystem.js
+            // SPECTATOR_DISCLAIMER) — o modo espectador está com um problema
+            // conhecido pra pegar informação real do jogo, então este log
+            // sozinho não deve embasar julgamento de staff no momento.
+            const disclaimer = `-# ${e('trianglealert', '⚠️')} Modo espectador está atualmente com problemas para adquirir informações reais do jogo e não deve ser considerado para julgamento de staffs no momento!`;
             const alderonId = d.PlayerAlderonId || d.AdminAlderonId;
             const discordPart = await discordIdentitySuffix(guild, alderonId);
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}`;
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}\n${disclaimer}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,

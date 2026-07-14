@@ -3705,3 +3705,38 @@ frente, nao so este relatorio):
   cargo (fim do evento, nada a fazer) e apaga o `event_posts` depois;
   tier Free não dispara nenhum anúncio em `announceCreated` mesmo com
   canal/thread válidos passados.
+
+87) AVISO sobre problema conhecido do modo espectador em toda análise/log
+    que mostra esse dado
+------------------------------------------------------------------
+- Pedido do dono: o modo espectador está com um problema conhecido pra
+  captar informação real do jogo no momento, então qualquer lugar que
+  mostre dados de espectador (nametags com/sem espectador, tempo em modo
+  espectador) precisa avisar que esses números NÃO devem embasar
+  julgamento de staff agora. Texto pedido (com pequenos ajustes de
+  ortografia/concordância, mantendo o sentido): "Modo espectador está
+  atualmente com problemas para adquirir informações reais do jogo e não
+  deve ser considerado para julgamento de staffs no momento!".
+- `analyticsSystem.js` ganhou uma constante `SPECTATOR_DISCLAIMER`,
+  inserida (via `builder.text()`, uma vez por container, não uma vez por
+  staff) em TODOS os 4 lugares que já mostravam dados de espectador
+  (achados via pesquisa de código antes de implementar, pra não deixar
+  nenhum de fora): análise diária de staff (`generateDailySummaryContainer`,
+  canal log_staff), `/historico staff` com usuário específico
+  (`generateStaffHistoryContainer`) e sem usuário
+  (`generateStaffHistoryRankingContainer`), e o painel de "staff perdeu o
+  cargo" (`purgeStaffOnRoleLoss`, registro final antes de apagar os
+  dados). Só aparece quando existe atividade de verdade pra mostrar (sem
+  atividade nenhuma, não há dado de espectador na tela, então o aviso
+  também não aparece).
+- `webhookPayloads.js` (log do webhook PoT, evento `AdminSpectate` —
+  dispara toda vez que um admin entra/sai do modo espectador em jogo)
+  ganhou o mesmo aviso, como uma linha extra em texto pequeno (`-# `,
+  mesmo estilo do rodapé do bot) logo abaixo da linha "Modo espectador:
+  ✅/🚫" já existente — texto pequeno de propósito, já que esse log
+  dispara por EVENTO (pode repetir várias vezes numa sessão), diferente
+  dos relatórios de analytics acima (que mostram uma vez por período).
+- Verificado com script direto (6 checks): aviso presente nos 4
+  containers de analytics quando há atividade registrada; AUSENTE quando
+  não há nenhuma atividade (nada de espectador pra avisar sobre); presente
+  no log do webhook `AdminSpectate`.
