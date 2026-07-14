@@ -158,6 +158,19 @@ function setSupervisorApproval(guildId, levelId, requiresApproval) {
     return getLevel(guildId, levelId);
 }
 
+// Seguro deletar a qualquer momento: punições já aplicadas com este nível
+// guardam uma cópia CONGELADA dos dados (level_name/level_severity/
+// level_action/duration_str em punishments, ver database/index.js
+// ensureColumn) no momento em que foram aplicadas — não há JOIN nem FK
+// viva pra punishment_levels, então apagar o nível não altera nem quebra
+// nenhum registro histórico.
+function deleteLevel(guildId, levelId) {
+    const level = getLevel(guildId, levelId);
+    if (!level) return null;
+    db.prepare(`DELETE FROM punishment_levels WHERE guild_id = ? AND id = ?`).run(guildId, levelId);
+    return level;
+}
+
 module.exports = {
     SEVERITY_OPTIONS,
     ACTION_OPTIONS,
@@ -171,4 +184,5 @@ module.exports = {
     createLevel,
     updateLevel,
     setSupervisorApproval,
+    deleteLevel,
 };

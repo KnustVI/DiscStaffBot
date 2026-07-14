@@ -370,6 +370,20 @@ const ConfigSystem = {
                 await this.handleToggleLevelApproval(interaction, levelId);
                 return;
             }
+            if (customId.startsWith('config-punishments:level:delete_confirm:')) {
+                const levelId = customId.split(':')[3];
+                await this.confirmDeleteLevel(interaction, levelId);
+                return;
+            }
+            if (customId.startsWith('config-punishments:level:delete_cancel:')) {
+                await this.cancelDeleteLevel(interaction);
+                return;
+            }
+            if (customId.startsWith('config-punishments:level:delete:')) {
+                const levelId = customId.split(':')[3];
+                await this.handleDeleteLevelButton(interaction, levelId);
+                return;
+            }
             if (customId === 'config-punishments:reset') {
                 await this.resetPoints(interaction);
                 return;
@@ -742,6 +756,65 @@ const ConfigSystem = {
         );
     },
 
+    /**
+     * Botão "Deletar Nível" — mostra um painel de confirmação antes de
+     * apagar de verdade (mesmo padrão de confirmCreateLogChannels).
+     * Deletar é seguro a qualquer momento: punições já aplicadas guardam
+     * uma cópia congelada dos dados do nível (ver
+     * PunishmentLevels.deleteLevel), não uma referência viva.
+     */
+    async handleDeleteLevelButton(interaction, levelId) {
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
+        }
+
+        const PunishmentLevels = require('../moderation/punishmentLevels');
+        const level = PunishmentLevels.getLevel(interaction.guildId, levelId);
+        if (!level) {
+            return await ResponseManager.error(interaction, 'Este nível não existe mais.');
+        }
+
+        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });
+        builder.section(
+            [
+                '# DELETAR NÍVEL DE PUNIÇÃO',
+                `Tem certeza que deseja deletar o nível **${level.name}** (${level.severity}, -${level.points} pts)? Esta ação não pode ser desfeita.`,
+            ].join('\n'),
+            builder.assetThumbnail('icone_config_punishments') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
+        );
+        builder.separator();
+        builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Punições já aplicadas com este nível **não são afetadas** — elas guardam uma cópia congelada do nome/severidade/pontos/ação no momento em que foram aplicadas.`);
+        builder.footer(interaction.guild.name);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`config-punishments:level:delete_confirm:${levelId}`).setLabel('Confirmar Exclusão').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.circlecheck || '✅'),
+            new ButtonBuilder().setCustomId(`config-punishments:level:delete_cancel:${levelId}`).setLabel('Cancelar').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.circlealert || '❌'),
+        );
+
+        const { components, flags } = builder.build();
+        const replyData = { components: [...components, row], flags: [flags] };
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(replyData);
+        } else {
+            await interaction.update(replyData);
+        }
+    },
+
+    async confirmDeleteLevel(interaction, levelId) {
+        const PunishmentLevels = require('../moderation/punishmentLevels');
+        const level = PunishmentLevels.deleteLevel(interaction.guildId, levelId);
+        if (!level) {
+            return await this.refreshPointsPanel(interaction, `${EMOJIS.messagesquare || 'ℹ️'} Este nível já não existe mais.`, interaction.guild.name, 'levels');
+        }
+
+        await this.logConfigChange(interaction, [`🗑️ Nível de punição deletado: **${level.name}** (${level.severity}, ${level.points} pts)`]);
+        await this.refreshPointsPanel(interaction, `${EMOJIS.circlecheck || '✅'} Nível **${level.name}** deletado.`, interaction.guild.name, 'levels');
+    },
+
+    async cancelDeleteLevel(interaction) {
+        await this.refreshPointsPanel(interaction, null, interaction.guild.name, 'levels');
+    },
+
     async processLimitesModal(interaction) {
         const PremiumSystem = require('../premium/premiumSystem');
         if (!PremiumSystem.getGuildLimits(interaction.guildId).automodEnabled) {
@@ -931,13 +1004,19 @@ const ConfigSystem = {
                         lines.join('\n'),
                         AdvancedContainerBuilder.secondaryButton(`config-punishments:level:edit:modal:${level.id}`, 'Editar'),
                     );
+                    // Section só aceita 1 botão-acessório (já usado por
+                    // "Editar" acima) — Aprovação e Deletar entram juntos
+                    // numa linha de botões própria, logo abaixo da seção.
+                    const levelButtons = [];
                     if (customApprovalEnabled) {
-                        cb.buttons(
+                        levelButtons.push(
                             level.requires_supervisor_approval
                                 ? AdvancedContainerBuilder.dangerButton(`config-punishments:level:toggle_approval:${level.id}`, 'Dispensar Aprovação')
                                 : AdvancedContainerBuilder.successButton(`config-punishments:level:toggle_approval:${level.id}`, 'Exigir Aprovação')
                         );
                     }
+                    levelButtons.push(AdvancedContainerBuilder.dangerButton(`config-punishments:level:delete:${level.id}`, 'Deletar Nível'));
+                    cb.buttons(...levelButtons);
                 }
             }
         }

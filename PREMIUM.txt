@@ -3170,3 +3170,47 @@ frente, nao so este relatorio):
   aplicar a ação; com `discordActionsEnabled=false` a ação não aplica
   mas o registro continua funcionando normalmente. Reexecutada a
   regressão acumulada de /strike (seções anteriores) sem quebra.
+
+
+76) Botão "Deletar Nível" em /config punishments (aba Níveis, qualquer tier)
+------------------------------------------------------------------
+- Pedido do dono: adicionar botão de deletar nível na seção de cada nível
+  criado. Não existia nenhum jeito de remover um nível já criado antes
+  desta seção - só editar (nome/severidade/pontos/duração/ação) ou
+  alternar a exigência de aprovação (Caçador).
+- Novo `PunishmentLevels.deleteLevel(guildId, levelId)` - `DELETE FROM
+  punishment_levels`. Seguro a qualquer momento: punições já aplicadas
+  guardam uma cópia CONGELADA dos dados do nível (`level_name`/
+  `level_severity`/`level_action`/`duration_str`, colunas próprias em
+  `punishments` desde a revisão de níveis - ver `database/index.js`
+  `ensureColumn`) no momento em que foram aplicadas, sem NENHUMA
+  referência viva a `punishment_levels` - deletar o nível não altera nem
+  apaga nenhum registro histórico (mesmo princípio de dados-de-auditoria-
+  nunca-somem do CLAUDE.md, só que aqui nem chega a ser um risco: os
+  dados relevantes já foram copiados na hora da aplicação).
+- Botão "Deletar Nível" (vermelho) aparece na seção de TODO nível, em
+  QUALQUER tier (Rastreador e Caçador) - antes só o Caçador tinha uma
+  segunda linha de botão (Exigir/Dispensar Aprovação); agora essa linha
+  sempre existe, com o botão de deletar sempre presente e o de aprovação
+  só quando `customPunishmentApprovalEnabled` (Caçador). "Editar"
+  continua como o único acessório da seção (Discord só permite 1 por
+  seção) - Aprovação e Deletar dividem a linha de botões abaixo dela.
+- Fluxo com confirmação (mesmo padrão de `confirmCreateLogChannels`,
+  criação automática de canais de log): clicar em "Deletar Nível" NÃO
+  apaga na hora - mostra um painel dedicado com o nome/severidade/pontos
+  do nível, avisando que a ação não pode ser desfeita E que punições já
+  aplicadas não são afetadas, com botões "Confirmar Exclusão"/"Cancelar".
+  Cancelar só reabre a aba Níveis sem mexer em nada; Confirmar deleta de
+  verdade, loga a mudança (canal Geral) e reabre a aba Níveis com
+  mensagem de sucesso.
+- Verificado com script direto (18 checks): botão aparece mesmo fora do
+  Caçador; os 3 botões (Editar/Aprovação/Deletar) coexistem no Caçador;
+  clicar em Deletar mostra o painel de confirmação (nome do nível, aviso
+  de que punições antigas não são afetadas, os 2 botões certos) sem
+  apagar nada ainda; Cancelar preserva o nível; Confirmar apaga de
+  verdade e o painel reaberto não mostra mais o nível; deletar um nível
+  JÁ USADO numa punição não apaga o registro histórico, que mantém
+  `level_name`/`level_severity` congelados intactos; deletar um nível
+  inexistente (id inválido) não derruba nada, tanto no botão inicial
+  quanto na confirmação. Reexecutada a regressão de /config punishments
+  (seção 73) sem quebra.
