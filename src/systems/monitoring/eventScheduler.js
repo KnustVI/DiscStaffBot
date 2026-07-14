@@ -12,7 +12,8 @@
  * servidor e:
  *  - ~30 minutos antes do início: avisa o cargo Equipe de Eventos
  *    (/config roles) no canal de logs gerais (/config logs), uma vez por
- *    evento.
+ *    evento. A partir do tier Rastreador (`autoRcon`), também manda um
+ *    aviso em jogo via RCON (`systemmessageall`) no mesmo instante.
  *  - Se já passou da hora de início e o evento ainda está "Agendado":
  *    tenta iniciar automaticamente (status -> Ativo).
  *  - Se já passou tempo demais (ABANDON_GRACE_MS além do fim previsto, ou do
@@ -24,6 +25,8 @@
 const cron = require('node-cron');
 const { GuildScheduledEventStatus } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const PremiumSystem = require('../premium/premiumSystem');
+const PoTConfigSystem = require('../pot/potConfigSystem');
 
 let EMOJIS = {};
 try {
@@ -45,14 +48,7 @@ const REMINDER_LEAD_MS = 30 * 60 * 1000; // 30min
 // caso é um aviso repetido, não um dado perdido.
 const remindedEvents = new Set();
 
-async function maybeSendStartReminder(guild, event, startAt, now) {
-    if (remindedEvents.has(event.id)) return;
-
-    const msUntilStart = startAt - now;
-    if (msUntilStart > REMINDER_LEAD_MS || msUntilStart <= 0) return;
-
-    remindedEvents.add(event.id);
-
+async function _sendDiscordEventReminder(guild, event, startAt) {
     try {
         const ConfigSystem = require('../core/configSystem');
         const eventRoleIds = ConfigSystem.getRoleIds(guild.id, 'event_role');
@@ -76,6 +72,56 @@ async function maybeSendStartReminder(guild, event, startAt, now) {
     } catch (err) {
         console.error(`❌ [EventScheduler] Erro ao enviar lembrete de "${event.name}":`, err.message);
     }
+}
+
+// Tamanho máximo do aviso em jogo — nome+descrição de um evento do Discord
+// podem passar de mil caracteres, mas isso vira uma linha só de chat/system
+// message no jogo, então corta com reticências pra não estourar o RCON.
+const INGAME_REMINDER_MAX_LENGTH = 200;
+
+function _formatIngameReminder(event) {
+    const description = (event.description || '').trim();
+    const base = `Evento em 30m: ${event.name}`;
+    const full = description ? `${base} - ${description}` : base;
+    return full.length > INGAME_REMINDER_MAX_LENGTH
+        ? `${full.slice(0, INGAME_REMINDER_MAX_LENGTH - 3)}...`
+        : full;
+}
+
+/**
+ * Aviso em jogo (systemmessageall via RCON) do mesmo lembrete de 30min —
+ * pedido do dono, liberado a partir do tier Rastreador (mesma flag `autoRcon`
+ * que já libera a ação automática em jogo do /strike, ver premiumSystem.js).
+ * Independente do lembrete no Discord acima: dispara mesmo se o cargo/canal
+ * de eventos não estiverem configurados, e nunca bloqueia o resto do worker
+ * se o RCON falhar ou não estiver configurado pra essa guild.
+ */
+async function _sendIngameEventReminder(guild, event) {
+    try {
+        if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) return;
+
+        const message = _formatIngameReminder(event);
+        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, `systemmessageall ${message}`);
+        if (rconResult?.success) {
+            console.log(`⏰ [EventScheduler] Aviso em jogo enviado: "${event.name}" (${guild.name})`);
+        } else {
+            console.warn(`⚠️ [EventScheduler] Não foi possível avisar em jogo sobre "${event.name}": ${rconResult?.error || 'erro desconhecido'}`);
+        }
+    } catch (err) {
+        console.error(`❌ [EventScheduler] Erro ao avisar em jogo sobre "${event.name}":`, err.message);
+    }
+}
+
+async function maybeSendStartReminder(guild, event, startAt, now) {
+    if (remindedEvents.has(event.id)) return;
+
+    const msUntilStart = startAt - now;
+    if (msUntilStart > REMINDER_LEAD_MS || msUntilStart <= 0) return;
+
+    remindedEvents.add(event.id);
+
+    await _sendDiscordEventReminder(guild, event, startAt);
+    await _sendIngameEventReminder(guild, event);
 }
 
 async function checkGuildEvents(guild) {
@@ -139,4 +185,12 @@ function startEventSchedulerWorker(client) {
     }, { timezone: 'America/Sao_Paulo' });
 }
 
-module.exports = { startEventSchedulerWorker, checkGuildEvents, ABANDON_GRACE_MS, REMINDER_LEAD_MS, remindedEvents };
+module.exports = {
+    startEventSchedulerWorker,
+    checkGuildEvents,
+    ABANDON_GRACE_MS,
+    REMINDER_LEAD_MS,
+    remindedEvents,
+    _formatIngameReminder,
+    _sendIngameEventReminder,
+};

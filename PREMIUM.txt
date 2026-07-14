@@ -151,7 +151,13 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   nao (o gatilho de aprovacao e sempre a severidade/duracao do NIVEL).
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
-  postagem no forum).
+  postagem no forum). Aviso automatico EM JOGO (systemmessageall via RCON)
+  30min antes do inicio de qualquer evento agendado do Discord criado por
+  /evento, JA IMPLEMENTADO (ver secao 84) - formato fixo "Evento em 30m:
+  <nome> - <descricao>" (sem descricao, so o nome), truncado em 200
+  caracteres. Usa a mesma flag `autoRcon` que ja libera a acao em jogo do
+  /strike neste tier - independente do lembrete no Discord (cargo/canal),
+  que continua exigindo /config roles + /config logs configurados.
 - /config punishments liberado aqui, mas SO pra criar/editar os ate 4
   niveis de punicao customizados - nada alem disso. Limites de cargo
   automatico e a EDICAO da quantidade recuperada por dia NAO aparecem
@@ -3514,3 +3520,35 @@ frente, nao so este relatorio):
   do catálogo /ingame-* (seções 66-71, 79-82) sem quebra (2 asserções
   em scripts de teste descartáveis, que ainda esperavam o texto com
   aspas de uma hipótese já descartada, foram atualizadas).
+
+84) AVISO AUTOMÁTICO EM JOGO 30min antes de eventos agendados, a partir do
+    Rastreador
+------------------------------------------------------------------
+- Pedido do dono: já existia (eventScheduler.js) um worker rodando a cada
+  minuto que avisa o cargo Equipe de Eventos no Discord ~30min antes de
+  qualquer evento agendado (Guild Scheduled Event, criado por /evento)
+  começar. Pedido foi extender esse mesmo aviso pro JOGO, via RCON,
+  formato fixo pedido pelo dono: "Evento em 30m: <nome> - <descrição>".
+- Implementado como um segundo passo INDEPENDENTE do lembrete no Discord
+  (`_sendIngameEventReminder`, ao lado de `_sendDiscordEventReminder` -
+  antes era tudo uma função só) - dispara mesmo se o cargo/canal de
+  eventos não estiverem configurados no Discord, e uma falha de RCON
+  (servidor não configurado, RCON fora do ar) nunca bloqueia nem o
+  lembrete no Discord nem o resto do worker (fire-and-forget, só loga).
+- Gate de tier: reaproveita a flag `autoRcon` (premiumSystem.js), a MESMA
+  que já libera a ação automática em jogo do /strike a partir do
+  Rastreador - não criou flag nova, já que é o mesmo conceito ("o bot
+  pode agir sozinho no jogo, sem um staff digitar o comando").
+- Comando enviado: `systemmessageall Evento em 30m: <nome> - <descrição>`
+  (systemmessageall, não systemmessage - é um aviso pra TODOS os
+  jogadores online, não um alvo específico). Sem descrição no evento,
+  cai só no `Evento em 30m: <nome>`, sem o " - " sobrando. Nome+descrição
+  de evento no Discord podem passar de mil caracteres - truncado em 200
+  caracteres com reticências (`INGAME_REMINDER_MAX_LENGTH`) pra não virar
+  uma linha gigante de chat/system message no jogo.
+- Verificado com script direto (7 checks): formatação exata pedida (com
+  descrição, sem descrição, descrição só com espaços, descrição longa
+  truncada em exatamente 200 chars terminando em "..."); tier Free
+  (`autoRcon: false`) não dispara RCON nenhum; tier Rastreador+
+  (`autoRcon: true`) dispara `systemmessageall` com o texto certo; erro
+  de RCON (mock lançando exceção) não propaga pro chamador.
