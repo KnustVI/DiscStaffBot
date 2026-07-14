@@ -274,6 +274,26 @@ module.exports = {
             ).catch(() => {});
         }
 
+        // ==================== BOTÃO DE TP CONFIGURÁVEL (Rastreador+) ====================
+        // Anexado como uma linha de botões separada, ao lado do container já
+        // publicado (nunca mexe no conteúdo do post em si) — ver
+        // eventTeleportSystem.js. Só faz sentido com um Evento Agendado do
+        // Discord de verdade (é o status dele que decide "evento ativo
+        // agora"), que só existe a partir daqui (eventTier !== 'basic').
+        let teleportEnabled = false;
+        if (scheduledEvent && PremiumSystem.getGuildLimits(guild.id).autoRcon) {
+            try {
+                const EventTeleportSystem = require('../../systems/events/eventTeleportSystem');
+                const starterMessage = await thread.fetchStarterMessage();
+                if (starterMessage) {
+                    await EventTeleportSystem.attachConfigButton(starterMessage, scheduledEvent.id);
+                    teleportEnabled = true;
+                }
+            } catch (err) {
+                console.error('❌ [Evento] Erro ao anexar botão de TP:', err.message);
+            }
+        }
+
         db.logActivity(guild.id, user.id, 'event_created', null, {
             command: 'evento', title: titulo, threadId: thread.id, scheduledEventId: scheduledEvent?.id || null,
             startDate: startDate.toISOString(),
@@ -296,6 +316,9 @@ module.exports = {
             );
             if (notifyRoleIds.length === 0) {
                 summaryBuilder.text(`${EMOJIS.trianglealert || '⚠️'} O cargo de Notificação de Eventos não está configurado (/config roles, aba Eventos) — ninguém foi marcado na postagem.`);
+            }
+            if (teleportEnabled) {
+                summaryBuilder.text(`${EMOJIS.mappin || '📍'} Clique em **Adicionar TP** na postagem pra configurar teleporte automático (Herbívoro/Carnívoro) pros participantes.`);
             }
         } else {
             summaryBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Evento agendado do Discord e marcação de cargo exigem o plano Rastreador ou superior. Use \`/premium\` para saber mais.`);

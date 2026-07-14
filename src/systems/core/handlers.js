@@ -11,6 +11,7 @@ const errorLoggerModule = require('./errorLogger');
 const { sendSystemLog } = require('./systemLog');
 const premiumPanel = require('../premium/premiumPanel');
 const ajudaCommand = require('../../commands/ajuda/ajuda');
+const eventTeleportSystem = require('../events/eventTeleportSystem');
 
 class InteractionHandler {
     constructor(client) {
@@ -42,6 +43,7 @@ class InteractionHandler {
             'perfil-edit': configSystem,
             premium: premiumPanel,
             ajuda: ajudaCommand,
+            'event-tp': eventTeleportSystem,
         };
         
         // Mapeamento de ações para métodos

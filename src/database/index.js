@@ -76,7 +76,9 @@ class DatabaseManager {
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',
-                'pot_spectator_sessions'
+                'pot_spectator_sessions',
+                'event_teleports',
+                'event_teleport_uses'
             ];
             
             for (const table of tables) {

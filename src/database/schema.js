@@ -352,6 +352,40 @@ const SCHEMA = {
             PRIMARY KEY (guild_id, alderon_id)
         )
     `,
+
+    // ==================== TP CONFIGURÁVEL DE EVENTO (/evento) ====================
+    // Coordenadas de teleporte (RCON `teleport`) configuradas pelo staff na
+    // postagem de um evento — até 2 por evento (Herbívoro/Carnívoro), ver
+    // eventTeleportSystem.js. Chave é o ID da mensagem da postagem no fórum
+    // (única por evento). scheduled_event_id guarda o Evento Agendado do
+    // Discord correspondente — é ele que dita se o TP está "ativo agora"
+    // (status Active), não um horário calculado à parte.
+    event_teleports: `
+        CREATE TABLE IF NOT EXISTS event_teleports (
+            message_id TEXT PRIMARY KEY,
+            guild_id TEXT NOT NULL,
+            thread_id TEXT NOT NULL,
+            scheduled_event_id TEXT,
+            herbivore_coords TEXT,
+            carnivore_coords TEXT,
+            created_by TEXT NOT NULL,
+            updated_at INTEGER NOT NULL
+        )
+    `,
+
+    // Um uso por jogador por evento, independente de qual dos 2 botões
+    // (Herbívoro/Carnívoro) ele clicou primeiro — PRIMARY KEY sem a coluna
+    // species é o que garante isso (tentar inserir de novo, com a mesma
+    // combinação message_id+user_id, sempre falha).
+    event_teleport_uses: `
+        CREATE TABLE IF NOT EXISTS event_teleport_uses (
+            message_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            species TEXT NOT NULL,
+            used_at INTEGER NOT NULL,
+            PRIMARY KEY (message_id, user_id)
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -422,6 +456,9 @@ const INDEXES = [
 
     // Spectator sessions (analytics)
     `CREATE INDEX IF NOT EXISTS idx_pot_spectator_sessions_guild ON pot_spectator_sessions(guild_id)`,
+
+    // Event teleports
+    `CREATE INDEX IF NOT EXISTS idx_event_teleports_guild ON event_teleports(guild_id)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };

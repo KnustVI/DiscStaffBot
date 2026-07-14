@@ -158,6 +158,18 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   caracteres. Usa a mesma flag `autoRcon` que ja libera a acao em jogo do
   /strike neste tier - independente do lembrete no Discord (cargo/canal),
   que continua exigindo /config roles + /config logs configurados.
+  Botoes de TELEPORTE configuraveis na propria postagem do evento, JA
+  IMPLEMENTADO (ver secao 85) - ate 2 por evento (Herbivoro/Carnivoro,
+  emojis dedicados), levando quem clicar ate uma coordenada fixa via RCON
+  (`teleport <nome em jogo> <coordenadas>`). Botao "Adicionar TP" na
+  postagem explica como pegar a coordenada em jogo com `/mapbug` (copia a
+  posicao atual pra area de transferencia) antes de abrir o modal de
+  configuracao. Cada botao de TP so funciona ENQUANTO o evento estiver
+  Active (mesmo Evento Agendado do Discord de cima, sem horario calculado
+  a parte) e cada jogador so pode usar UMA VEZ por evento (qualquer um dos
+  2 botoes, nao os dois). Exige o jogador registrado (/registrar) E online
+  no jogo no momento do clique - mesma checagem ja usada na verificacao de
+  /registrar.
 - /config punishments liberado aqui, mas SO pra criar/editar os ate 4
   niveis de punicao customizados - nada alem disso. Limites de cargo
   automatico e a EDICAO da quantidade recuperada por dia NAO aparecem
@@ -3552,3 +3564,81 @@ frente, nao so este relatorio):
   (`autoRcon: false`) não dispara RCON nenhum; tier Rastreador+
   (`autoRcon: true`) dispara `systemmessageall` com o texto certo; erro
   de RCON (mock lançando exceção) não propaga pro chamador.
+
+85) BOTÕES DE TELEPORTE CONFIGURÁVEIS na postagem de /evento, a partir do
+    Rastreador
+------------------------------------------------------------------
+- Pedido do dono: até 2 botões na própria postagem do evento (Herbívoro/
+  Carnívoro, emojis dedicados `EMOJIS.Herbivore`/`EMOJIS.Carnivore`), cada
+  um levando quem clicar até uma coordenada fixa via RCON `teleport <nome
+  em jogo> <coordenadas>`. Staff pega a coordenada em jogo com `/mapbug`
+  (copia a posição atual pra área de transferência) e cola no modal de
+  configuração. Só pode ser usado ENQUANTO o evento estiver acontecendo, e
+  cada jogador só pode usar UMA VEZ por evento - ambos pedidos
+  explicitamente pelo dono.
+- Novo módulo `src/systems/events/eventTeleportSystem.js` + 2 tabelas
+  novas (`event_teleports` - config por postagem; `event_teleport_uses` -
+  1 uso por jogador por evento, PRIMARY KEY (message_id, user_id) SEM a
+  coluna species, de propósito: o jogador só usa um dos dois botões, não
+  os dois).
+- Fluxo em 3 interações separadas (showModal() só funciona como PRIMEIRA
+  resposta a uma interação, e o roteamento genérico de botão já faz
+  deferUpdate() antes de chegar no handler - por isso não dá pra abrir o
+  modal direto no primeiro clique):
+  1. Botão "Adicionar TP"/"Editar TP" na postagem -> mensagem ephemeral
+     explicando o `/mapbug` + configuração atual (se já houver) + botão
+     "Configurar Coordenadas".
+  2. Esse botão abre o modal de verdade (2 campos opcionais, um por
+     espécie, pré-preenchidos se já configurado) - especial-caseado em
+     interactionCreate.js ANTES do bloco genérico de botões, mesmo padrão
+     já usado por config-punishments:recovery:modal.
+  3. Modal enviado -> salva no banco e edita a postagem, trocando o botão
+     de configuração pelos botões de TP reais (só os preenchidos) +
+     "Editar TP".
+- A postagem original (container montado por evento.js) NUNCA é
+  reconstruída do zero em nenhuma edição posterior - cada edição pega o
+  container já existente direto da mensagem
+  (`message.components[0].toJSON()`, que serializa recursivamente
+  qualquer Components V2 recebido de volta pra um formato aceito por
+  `.edit()` - confirmado lendo `ContainerComponent.toJSON()` no próprio
+  discord.js) e troca só a linha de botões ao lado dele. Isso evita ter
+  que duplicar título/descrição/imagem/data/local no banco só pra poder
+  reconstruir a postagem inteira numa interação futura que não tem mais o
+  builder original em memória.
+- "Só durante o evento" é decidido pelo STATUS do Evento Agendado do
+  Discord já existente (Active), não por um horário calculado à parte -
+  reaproveita o mesmo objeto que o eventScheduler.js (seção 84) já
+  transiciona automaticamente Scheduled -> Active. Por isso o recurso
+  exige um Evento Agendado de verdade (sempre existe a partir do
+  Rastreador, ver eventTier em evento.js).
+- Gate de tier: mesma flag `autoRcon` (Rastreador+) usada pelo aviso de
+  evento (seção 84) e pela ação automática do /strike - só no botão de
+  CONFIGURAÇÃO; uma vez configurado, os botões de TP já publicados
+  continuam funcionando pros jogadores independente de mudança de tier
+  depois (mesmo espírito do princípio de não apagar/desligar dado já
+  existente por causa de uma queda de assinatura).
+- Alvo do RCON pelo NOME em jogo (`PlayerRegistry.getOnlinePotPlayer(...)
+  .player_name`), não pelo Alderon ID - mesmo padrão confirmado em
+  whisper/systemmessage (seção 83). NUNCA testado especificamente pra
+  `teleport` num servidor real - é só a suposição mais consistente com o
+  resto do catálogo até alguém confirmar o contrário.
+- Uso reservado no banco ANTES de disparar o RCON (evita corrida de
+  clique duplo) - se o RCON falhar depois, o uso é liberado de novo pra
+  o jogador poder tentar outra vez.
+- Erros de botão (permissão, tier, evento não ativo, já usou, RCON
+  falhou) sempre respondidos via `followUp()` ephemeral, nunca via
+  `ResponseManager.error()`/`editReply()` direto - todo botão deste
+  sistema já passou por `deferUpdate()` no roteamento genérico, e nessa
+  situação "a resposta deferida" É a mensagem original da postagem
+  (Components V2); `editReply()` com `content` simples nela sempre falha
+  com "MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2" (mesmo motivo
+  já documentado em handlers.js/handleError).
+- Verificado com script direto (16 checks): `attachConfigButton` preserva
+  o container original; gate de tier e de permissão (cargo Equipe de
+  Eventos) no botão de configuração; modal salva só as coordenadas
+  preenchidas, rejeita as duas em branco; postagem editada com o
+  container original intacto + botões novos; TP bloqueado fora do status
+  Active; bloqueado sem vínculo `/registrar`; TP bem-sucedido usa o NOME
+  em jogo (não o Alderon ID); segundo clique do mesmo jogador bloqueado
+  ("uma vez por evento"), sem disparar RCON de novo; RCON falhando libera
+  o uso pra nova tentativa funcionar depois.

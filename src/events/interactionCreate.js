@@ -351,6 +351,17 @@ module.exports = {
                 return;
             }
 
+            // ==================== EVENTO - TELEPORTE (ABRIR MODAL) ====================
+            // Especial-caseado ANTES do bloco genérico de botões abaixo pelo
+            // mesmo motivo de config-punishments:recovery:modal acima:
+            // showModal() só funciona como PRIMEIRA resposta, e o bloco
+            // genérico já faz deferUpdate() antes de rotear qualquer botão.
+            if (interaction.customId?.startsWith('event-tp:config-modal:')) {
+                const EventTeleportSystem = require('../systems/events/eventTeleportSystem');
+                await EventTeleportSystem.handleOpenConfigModal(interaction);
+                return;
+            }
+
             // ==================== OUTROS COMPONENTES ====================
 
             if (interaction.isButton() || interaction.isStringSelectMenu() ||
