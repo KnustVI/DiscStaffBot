@@ -272,6 +272,22 @@ module.exports = {
                 `${EMOJIS.wifi || '🔗'} **Evento agendado:** ${scheduledEvent.url}\n` +
                 `${EMOJIS.circlealert || '🔔'} Clique em **Me Interessa** no evento acima para o Discord te avisar automaticamente quando ele começar!`
             ).catch(() => {});
+
+            // A postagem só existe DEPOIS do evento agendado ser criado (é
+            // ela que precisa do evento pra linkar, ver acima) — por isso o
+            // link de volta pra postagem só pode entrar na descrição num
+            // segundo passo, editando o evento já criado. `descricao` já é
+            // limitado a 1000 chars na option do comando, mas o MESMO limite
+            // vale pra descrição do evento agendado — sem espaço sobrando
+            // pra sempre encaixar o link, trunca a descrição em vez de
+            // deixar o `.edit()` falhar inteiro por causa de 1-2 chars.
+            const postLinkLine = `\n\n📋 Postagem: ${thread.url}`;
+            const trimmedDescricao = descricao.length + postLinkLine.length > 1000
+                ? `${descricao.slice(0, 1000 - postLinkLine.length - 1)}…`
+                : descricao;
+            await scheduledEvent.edit({
+                description: `${trimmedDescricao}${postLinkLine}`,
+            }).catch((err) => console.error('❌ [Evento] Erro ao linkar a postagem no evento agendado:', err.message));
         }
 
         // ==================== BOTÃO DE TP CONFIGURÁVEL (Rastreador+) ====================
