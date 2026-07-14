@@ -3419,3 +3419,44 @@ frente, nao so este relatorio):
   (seções 66-71, 79, 80) sem quebra (2 asserções obsoletas em scripts
   de teste descartáveis, que ainda esperavam o texto antigo sem aspas,
   foram atualizadas).
+
+
+82) whisper REVERTIDO de volta pro nome canônico completo ("whisper",
+    não "w") — "w" nunca foi um comando de RCON de verdade
+------------------------------------------------------------------
+- Terceiro teste real (via o próprio bot, não mais um teste manual à
+  parte): `w 500-735-822 "Teste de sussurro"` retornou uma resposta
+  EXPLÍCITA e literal do servidor - "That command does not exist." -
+  bem diferente do "sucesso silencioso" das seções 80/81. Essa é a
+  primeira vez que o servidor realmente reclama de um nome de comando
+  RCON, em vez de aceitar silenciosamente sem fazer nada.
+- Diagnóstico: o teste ORIGINAL que levou a trocar "whisper" por "w" (ver
+  seção 80) tinha sido feito FORA do bot, manualmente, e retornou
+  "Unknown command: /whisper" - reparando bem, essa string inclui uma
+  BARRA ("/whisper") antes do nome do comando. RCON não usa barra na
+  frente do comando (só o chat do próprio jogo usa "/" pra distinguir
+  comando de mensagem normal) - o mais provável é que aquele teste
+  tenha falhado por causa da barra indevida, não porque "whisper" (sem
+  barra) estivesse errado. Combinado com a resposta NOVA e definitiva
+  ("w" não existe como comando de RCON, é só um atalho de CHAT resolvido
+  pelo parser de chat do próprio jogo antes de virar comando de
+  verdade, nunca chega a existir como entrada própria na tabela de
+  comandos que o RCON consulta), a conclusão muda: "whisper" (nome
+  canônico, sem barra) provavelmente sempre foi o certo - só nunca tinha
+  sido testado SEM barra E com a mensagem entre aspas (aspas só foram
+  adicionadas na seção 81, depois de já ter trocado pra "w").
+- Corrigido: `buildCommand` de `whisper` volta a montar
+  `whisper ${target} "${mensagem}"` (nome completo, sem barra, mensagem
+  entre aspas - a combinação que nunca tinha sido tentada). Ainda
+  precisa de mais um teste real pra confirmar que FINALMENTE funciona.
+- `whisperall` (removido na seção 80) NÃO foi restaurado ainda -
+  existe a mesma suspeita de ter sido testado com barra indevida por
+  engano, mas esse teste específico foi só um relato verbal (sem log
+  colado), diferente do de "whisper" que tinha o log exato mostrando a
+  barra - vale perguntar ao dono antes de trazer de volta, em vez de
+  assumir.
+- Verificado com script direto: `buildCommand` de `whisper` agora produz
+  `whisper 500-735-822 "Teste de sussurro"` (sem barra, sem "w", mensagem
+  entre aspas). Reexecutada a regressão acumulada do catálogo /ingame-*
+  (seções 66-71, 79-81) sem quebra (1 asserção em script de teste
+  descartável, que esperava o "w" antigo, foi atualizada).

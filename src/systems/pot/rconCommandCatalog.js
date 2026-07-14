@@ -426,27 +426,35 @@ const MESSAGE_COMMANDS = [
         options: [...TARGET_OPTIONS,
             { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
         ],
-        // "whisper" por extenso NÃO existe de verdade — testado em produção,
-        // RCON retorna "Unknown command: /whisper". Só o atalho "w" é
-        // reconhecido pelo servidor (confirmado pelo dono). Nome do
-        // subcomando no Discord continua "whisper" (mais claro pra quem usa
-        // o bot), só o comando RCON de fato enviado muda pra "w".
-        //
-        // MESMO com "w", ainda "sucesso" sem a mensagem chegar no jogo
-        // (testado de novo, depois de reiniciar o bot) — mesmo sintoma e
-        // mesma causa provável de systemmessage (ver comentário lá): "w"
-        // tem um argumento (alvo) ANTES da mensagem, então uma mensagem de
-        // várias palavras sem aspas fica ambígua pro parser. Mensagem
-        // agora entre aspas.
-        buildCommand: (r) => `w ${r.target} "${r.mensagem}"`,
+        // HISTÓRICO (revertido): um teste local anterior (fora do bot) com
+        // "/whisper" (incluindo a barra) retornou "Unknown command:
+        // /whisper", o que levou a trocar pro atalho "w". Só que "w" via
+        // RCON DO PRÓPRIO BOT retornou um erro explícito e literal do
+        // servidor: "That command does not exist." — ou seja, "w" É um
+        // atalho de CHAT (resolvido pelo parser de chat do jogo antes de
+        // virar um comando de verdade), não existe como comando de RCON
+        // separado. RCON fala direto com a tabela de comandos do servidor,
+        // sem passar pelo parser de chat — por isso só reconhece o nome
+        // CANÔNICO completo ("whisper"), nunca o atalho. O teste original
+        // que "provou" whisper quebrado incluía a barra ("/whisper"), que
+        // o RCON nunca deveria receber (RCON não usa "/" na frente do
+        // comando, só o chat do jogo usa) — o mais provável é que o erro
+        // fosse por causa da barra, não do nome em si. Revertido pra
+        // "whisper" (sem barra), mantendo a mensagem entre aspas (ver
+        // comentário de systemmessage acima sobre a tokenização) — ainda
+        // precisa ser confirmado num novo teste real via este comando.
+        buildCommand: (r) => `whisper ${r.target} "${r.mensagem}"`,
     },
 ];
-// "whisperall" REMOVIDO — testado em produção pelo dono, sem suporte via
-// RCON (mesmo destino de "whisper" por extenso, ver comentário acima),
-// mas sem nenhum atalho conhecido tipo "w" pra ele. Diferente de
-// "whisper", que tem "w" como alternativa funcional, não há substituto
-// confirmado — melhor não oferecer o subcomando do que oferecer um que
-// não funciona.
+// "whisperall" REMOVIDO — reportado como sem suporte via RCON na mesma
+// leva de testes que "whisper" (que acabou revertido acima: o teste
+// original de "whisper" provavelmente falhou por causa de uma barra "/"
+// indevida, não do nome em si — ver comentário de whisper). Existe a
+// mesma chance de "whisperall" também ter sido testado com a barra por
+// engano — NÃO restaurado ainda por falta de confirmação explícita (o
+// teste do "whisper" tinha um log de erro colado mostrando a barra; o
+// de "whisperall" foi só um relato verbal, sem log) — perguntar antes
+// de trazer de volta.
 
 // ==================== BUILDER GENÉRICO (Discord option ← catálogo) ====================
 
