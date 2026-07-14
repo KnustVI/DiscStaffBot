@@ -24,6 +24,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PremiumSystem = require('../premium/premiumSystem');
+const PunishmentSystem = require('../moderation/punishmentSystem');
 const BuffSystem = require('./buffSystem');
 const BuffStatCatalog = require('./buffStatCatalog');
 const ResponseManager = require('../../utils/responseManager');
@@ -38,6 +39,15 @@ try {
 function _isEnabled(guildId) {
     return !!PremiumSystem.getGuildLimits(guildId).genericRconEnabled;
 }
+
+// Criar/editar buff é restrito ao cargo Supervisor (pedido do dono) —
+// diferente de aplicar um buff (/ingame-buff aplicar), liberado pra
+// qualquer cargo de staff (ver ConfigSystem.memberHasAnyStaffRole lá).
+async function _isSupervisor(interaction) {
+    return await PunishmentSystem.memberHasSupervisorRole(interaction.guild, interaction.member);
+}
+
+const SUPERVISOR_ONLY_MESSAGE = 'Este comando é restrito ao cargo Supervisor (ver /config roles).';
 
 async function _ephemeralError(interaction, message) {
     return await interaction.followUp({ content: message, flags: 64 });
@@ -205,6 +215,9 @@ module.exports = {
         if (!_isEnabled(guildId)) {
             return await _ephemeralError(interaction, PremiumSystem.getGuildDenialMessage(guildId));
         }
+        if (!(await _isSupervisor(interaction))) {
+            return await _ephemeralError(interaction, SUPERVISOR_ONLY_MESSAGE);
+        }
 
         switch (action) {
             case 'view':
@@ -257,6 +270,9 @@ module.exports = {
         if (!_isEnabled(interaction.guildId)) {
             return await interaction.reply({ content: PremiumSystem.getGuildDenialMessage(interaction.guildId), flags: 64 });
         }
+        if (!(await _isSupervisor(interaction))) {
+            return await interaction.reply({ content: SUPERVISOR_ONLY_MESSAGE, flags: 64 });
+        }
 
         const modal = new ModalBuilder()
             .setCustomId('config-buffs:create-submit')
@@ -283,6 +299,9 @@ module.exports = {
         const [, , buffId] = interaction.customId.split(':');
         if (!_isEnabled(interaction.guildId)) {
             return await interaction.reply({ content: PremiumSystem.getGuildDenialMessage(interaction.guildId), flags: 64 });
+        }
+        if (!(await _isSupervisor(interaction))) {
+            return await interaction.reply({ content: SUPERVISOR_ONLY_MESSAGE, flags: 64 });
         }
 
         const attribute = interaction.values?.[0];
@@ -316,6 +335,9 @@ module.exports = {
 
         if (!_isEnabled(guildId)) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
+        }
+        if (!(await _isSupervisor(interaction))) {
+            return await ResponseManager.error(interaction, SUPERVISOR_ONLY_MESSAGE);
         }
 
         if (action === 'create-submit') {

@@ -15,6 +15,14 @@
  * feita DUAS vezes: ao escolher o alvo (não faz sentido nem mostrar a lista
  * de buffs pra alguém offline) e de novo ao confirmar o buff (pode ter
  * passado tempo entre as duas interações).
+ *
+ * Permissão: liberado pra QUALQUER cargo de staff (Moderador/Supervisor/
+ * Equipe de Eventos), diferente de CRIAR/editar um buff em /config buffs
+ * (restrito ao Supervisor — ver buffPanelSystem.js).
+ *
+ * Todo uso é logado (ver `_logBuffUsage`) — canal de Admin Commands
+ * primeiro, depois log de Staff, depois log Geral; sem nenhum dos 3
+ * configurado, avisa o staff a configurar um em vez de logar em silêncio.
  */
 const { SlashCommandBuilder, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
 const { resolveTarget, resolveTargetName } = require('../../systems/pot/rconCommandCatalog');
@@ -39,6 +47,91 @@ function _isEnabled(guildId) {
 
 async function _ephemeralError(interaction, message) {
     return await interaction.followUp({ content: message, flags: 64 });
+}
+
+// Extrai {id, token} de uma URL de webhook do Discord — mesma lógica de
+// rconCommandCatalog.js._parseWebhookUrl/gatewayServer.js._parseWebhookUrl,
+// duplicada aqui de propósito pra manter este módulo autocontido (mesmo
+// padrão já usado nos outros dois lugares).
+function _parseWebhookUrl(webhookUrl) {
+    try {
+        const url = new URL(webhookUrl);
+        const parts = url.pathname.split('/').filter(Boolean);
+        const idx = parts.indexOf('webhooks');
+        if (idx === -1 || !parts[idx + 1] || !parts[idx + 2]) return {};
+        return { id: parts[idx + 1], token: parts[idx + 2] };
+    } catch {
+        return {};
+    }
+}
+
+async function _resolveWebhookChannel(interaction, webhookUrl) {
+    const { id, token } = _parseWebhookUrl(webhookUrl || '');
+    if (!id || !token) return null;
+    const webhook = await interaction.client.fetchWebhook(id, token).catch(() => null);
+    if (!webhook?.channelId) return null;
+    return await interaction.client.channels.fetch(webhook.channelId).catch(() => null);
+}
+
+/**
+ * Log de uso do /ingame-buff aplicar — pedido do dono, ordem de
+ * preferência: canal de "Admin Commands" (webhook do grupo "admin", ver
+ * /potserver logs) -> canal de log de Staff (/config logs) -> canal de log
+ * Geral (/config logs). Sem NENHUM dos 3 configurado, devolve `false` (quem
+ * chama avisa o staff a configurar um, em vez de falhar silenciosamente).
+ *
+ * @returns {Promise<boolean>} true se conseguiu logar em algum canal
+ */
+async function _logBuffUsage(interaction, buff, targetLabel, results) {
+    const allSucceeded = results.every((r) => r.success);
+    const lines = [
+        `${EMOJIS.gauge || '📊'} **/ingame-buff aplicar** por ${interaction.user}: buff **${buff.name}** em **${targetLabel}**`,
+        ...results.map((r) => `${r.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${r.attribute}: \`${r.value}\`${r.success ? '' : ` — ${r.error}`}`),
+    ];
+    const builder = new AdvancedContainerBuilder({ accentColor: allSucceeded ? COLORS.SUCCESS : COLORS.ERROR });
+    builder.block(lines);
+    builder.footer(interaction.guild.name);
+    const payload = builder.build();
+
+    try {
+        const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
+        const adminWebhookUrl = PoTConfigSystem.getWebhookForGroup(interaction.guildId, 'admin');
+        const adminChannel = await _resolveWebhookChannel(interaction, adminWebhookUrl);
+        if (adminChannel?.isTextBased?.()) {
+            await adminChannel.send(payload);
+            return true;
+        }
+    } catch (err) {
+        // tenta o próximo canal da lista
+    }
+
+    try {
+        const staffChannelId = ConfigSystem.getSetting(interaction.guildId, 'log_staff');
+        if (staffChannelId) {
+            const staffChannel = await interaction.guild.channels.fetch(staffChannelId).catch(() => null);
+            if (staffChannel?.isTextBased?.()) {
+                await staffChannel.send(payload);
+                return true;
+            }
+        }
+    } catch (err) {
+        // tenta o próximo canal da lista
+    }
+
+    try {
+        const generalChannelId = ConfigSystem.getUnifiedGeneralLogChannel(interaction.guildId);
+        if (generalChannelId) {
+            const generalChannel = await interaction.guild.channels.fetch(generalChannelId).catch(() => null);
+            if (generalChannel?.isTextBased?.()) {
+                await generalChannel.send(payload);
+                return true;
+            }
+        }
+    } catch (err) {
+        // nenhum canal disponível
+    }
+
+    return false;
 }
 
 async function _executeAplicar(interaction) {
@@ -181,12 +274,19 @@ module.exports = {
             buffId, buffName: buff.name, results,
         });
 
+        const targetLabel = onlinePlayer.player_name || target;
+        const logged = await _logBuffUsage(interaction, buff, targetLabel, results);
+
         const builder = new AdvancedContainerBuilder({
             accentColor: allSucceeded ? COLORS.SUCCESS : (anySucceeded ? COLORS.DEFAULT : COLORS.ERROR),
         });
-        builder.text(`${allSucceeded ? (EMOJIS.circlecheck || '✅') : (EMOJIS.trianglealert || '⚠️')} Buff **${buff.name}** aplicado em **${onlinePlayer.player_name || target}**:`);
+        builder.text(`${allSucceeded ? (EMOJIS.circlecheck || '✅') : (EMOJIS.trianglealert || '⚠️')} Buff **${buff.name}** aplicado em **${targetLabel}**:`);
         for (const r of results) {
             builder.text(`${r.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${r.attribute}: \`${r.value}\`${r.success ? '' : ` — ${r.error}`}`);
+        }
+        if (!logged) {
+            builder.separator();
+            builder.text(`${EMOJIS.trianglealert || '⚠️'} Nenhum canal de log configurado (Admin Commands, Staff ou Geral) — configure um em \`/potserver logs\` ou \`/config logs\` pra registrar o uso deste comando.`);
         }
         builder.footer(interaction.guild.name);
 

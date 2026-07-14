@@ -3,6 +3,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
+const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
 
 module.exports = {
     async execute(interaction, client) {
@@ -16,6 +17,14 @@ module.exports = {
         // presets de setattr em lote, então acompanham a mesma exclusividade.
         if (!PremiumSystem.getGuildLimits(guild.id).genericRconEnabled) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
+        }
+
+        // Pedido do dono: CRIAR/editar buff é restrito ao cargo Supervisor
+        // (mais estreito que só Administrator do Discord) — diferente de
+        // APLICAR um buff (/ingame-buff aplicar), liberado pra qualquer
+        // cargo de staff.
+        if (!(await PunishmentSystem.memberHasSupervisorRole(guild, member))) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito ao cargo Supervisor (ver /config roles).');
         }
 
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);

@@ -256,7 +256,14 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   /ingame-stats setattr atributo por atributo), /ingame-buff listar mostra
   os buffs configurados. SEMPRE confere se o jogador esta online antes de
   aplicar (avisa e nao manda RCON nenhum se nao estiver) - mesma exigencia
-  ja valendo pro TP de evento (secao 85).
+  ja valendo pro TP de evento (secao 85). Permissao em 2 niveis, JA
+  IMPLEMENTADO (ver secao 90): CRIAR/editar buff (/config buffs) exige o
+  cargo Supervisor (mais estreito que só Administrator do Discord); APLICAR
+  um buff (/ingame-buff aplicar) libera pra QUALQUER cargo de staff
+  (Moderador/Supervisor/Equipe de Eventos). Todo uso de /ingame-buff
+  aplicar e logado (canal de Admin Commands -> log de Staff -> log Geral,
+  nessa ordem de preferencia; sem nenhum configurado, avisa o staff a
+  configurar um em vez de logar em silencio).
 - /config punishments completo aqui: ate 10 niveis de punicao customizados,
   limites de cargo automatico (Exemplar/Problematico) e recuperacao diaria,
   tudo editavel - unico tier com acesso aos botoes de Limites/Recuperacao
@@ -3883,3 +3890,53 @@ frente, nao so este relatorio):
   os atributos novos (Health/Stamina/Growth no lugar de MaxHealth/
   MovementSpeedMultiplier/etc.) e o fluxo de seleção direto (sem
   categoria) — todos passando sem quebra.
+
+90) BUFFS: criar/editar restrito ao Supervisor, aplicar liberado pra toda
+    staff, log de uso com fallback em 3 canais
+------------------------------------------------------------------
+- Pedido do dono: 2 níveis de permissão diferentes pro sistema de buffs
+  (seção 88) — CRIAR/editar um buff (`/config buffs`) só pro cargo
+  Supervisor; APLICAR um buff já configurado (`/ingame-buff aplicar`)
+  liberado pra qualquer cargo de staff (Moderador/Supervisor/Equipe de
+  Eventos, igual já estava). Mais um pedido, terceiro nesta seção: todo
+  uso de `/ingame-buff aplicar` precisa ser logado, com uma ordem de
+  preferência de canal em 3 níveis.
+- `src/commands/config/buffs.js`: troca a checagem única de
+  `PermissionFlagsBits.Administrator` (que continua existindo — `/config`
+  já é Administrator-only no Discord, isso não muda) por uma checagem
+  ADICIONAL de `PunishmentSystem.memberHasSupervisorRole(guild, member)`
+  logo depois do gate de tier — precisa ser as DUAS coisas agora: admin
+  do Discord E ter o cargo Supervisor configurado.
+- `buffPanelSystem.js`: MESMA checagem de Supervisor adicionada em TODOS
+  os pontos de entrada do painel (`handleComponent`, `handleModal`,
+  `handleOpenCreateModal`, `handleOpenStatValueModal`) — não só na
+  criação, no editar/adicionar atributo/excluir também, já que é tudo a
+  mesma superfície de "gerenciar buffs" por trás do mesmo comando
+  `/config buffs`. Reaproveita `PunishmentSystem.memberHasSupervisorRole`
+  (a MESMA função já usada em rconCommandCatalog.js pros subcomandos
+  `supervisorOnly` do catálogo `/ingame-*`), não uma checagem nova.
+  `/ingame-buff aplicar`/`listar` NÃO foram tocados — já usavam
+  `ConfigSystem.memberHasAnyStaffRole` desde a seção 88, exatamente o que
+  o dono pediu pra "aplicar".
+- Log de uso de `/ingame-buff aplicar` (nova função `_logBuffUsage` em
+  ingame-buff.js, chamada depois de aplicar o buff, antes de responder ao
+  staff): tenta o canal de **Admin Commands** primeiro (webhook do grupo
+  "admin", mesmo canal que já recebe AdminCommand/AdminSpectate — ver
+  `/potserver logs`); sem ele, tenta o canal de **log de Staff**
+  (`/config logs`); sem ele, tenta o canal de **log Geral** (`/config
+  logs`). Sem NENHUM dos 3 configurado, a função devolve `false` e a
+  resposta ao staff GANHA um aviso extra pedindo pra configurar um canal
+  — não fica logando (ou melhor, não logando) em silêncio, pedido
+  explícito do dono ("se não tiver logs, pedir que configure").
+  `_parseWebhookUrl`/resolução webhook->canal duplicada aqui de propósito
+  (mesmo padrão já usado em rconCommandCatalog.js/gatewayServer.js/
+  webhookPayloads.js — cada módulo autocontido, sem exportar essas
+  funções internas só pra reaproveitar 10 linhas).
+- Verificado com scripts diretos (5 checks novos): painel bloqueado pra
+  staff comum sem cargo Supervisor; log de uso vai pro canal de Staff
+  quando configurado, e a resposta NÃO mostra o aviso de "sem canal"
+  nesse caso; sem canal de Staff, cai pro canal Geral; sem nenhum dos 3
+  configurado (nem Admin Commands, nem Staff, nem Geral), a resposta
+  mostra o aviso pedindo pra configurar. Suite de buffs completa
+  reexecutada com os 2 cargos (Supervisor pro painel, Staff comum pra
+  aplicar) — 27 checks no total, todos passando.
