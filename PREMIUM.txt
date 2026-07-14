@@ -3214,3 +3214,34 @@ frente, nao so este relatorio):
   inexistente (id inválido) não derruba nada, tanto no botão inicial
   quanto na confirmação. Reexecutada a regressão de /config punishments
   (seção 73) sem quebra.
+
+
+77) Aba "Strike / Unstrike" de /config personalizar: select de cada banner
+    move pra junto da própria seção (em vez dos dois juntos no final)
+------------------------------------------------------------------
+- Pedido do dono, direto de um print de produção: os 2 selects (banner do
+  /strike e do /unstrike) apareciam os DOIS juntos, embaixo dos blocos
+  "Padrão do bot" de ambos - por causa de `refreshPersonalizarPanel`
+  juntar os 2 `StringSelectMenuBuilder` num array e só chamar
+  `cb.selectMenu()` pra ambos DEPOIS de montar todo o conteúdo de texto
+  da aba (padrão copiado de refreshRolesPanel, onde múltiplos selects em
+  sequência faz sentido - aqui não, porque cada select pertence a uma
+  seção visualmente separada por `separator()`).
+- Causa raiz: `AdvancedContainerBuilder.selectMenu()` insere o select na
+  posição EM QUE É CHAMADO (ou logo antes do footer, se já tiver sido
+  definido) - nunca reordena baseado em qual texto veio antes. Chamar os
+  2 no final simplesmente colocava os 2 nessa posição, nessa ordem, sem
+  nenhuma tentativa de intercalar com o conteúdo anterior.
+- Correção: `cb.selectMenu(...)` agora é chamado imediatamente após o
+  título+bloco do banner respectivo (não mais coletado num array
+  `selects` pra chamar tudo no fim) - o select do /strike fica entre o
+  bloco "Banner do /strike" e o separador antes de "Banner do /unstrike";
+  o select do /unstrike fica logo depois do próprio bloco. Mesmo ajuste
+  não foi necessário na aba Report-Chat (só 1 select, já ficava na
+  posição certa mesmo com o array).
+- Verificado com script direto (3 checks, achatando a ordem real dos
+  componentes do container): select do /strike aparece entre o
+  título/bloco do /strike e o título do /unstrike; select do /unstrike
+  aparece depois do próprio título/bloco; os dois NÃO ficam mais
+  agrupados no final. Reexecutada a regressão de /config personalizar
+  (seção 74) sem quebra.

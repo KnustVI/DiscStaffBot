@@ -1803,7 +1803,6 @@ const ConfigSystem = {
 
         const activeTab = ['reportchat', 'aparencia'].includes(tab) ? tab : 'strike';
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        const selects = [];
 
         if (activeTab === 'strike') {
             const strikeBannerKey = this.getSetting(guildId, 'strike_banner_key') || 'title_strike';
@@ -1817,7 +1816,10 @@ const ConfigSystem = {
             ].join('\n'));
             cb.title(`${EMOJIS.image || '🖼️'} Banner do /strike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${strikeLabel}`]);
-            selects.push(new StringSelectMenuBuilder()
+            // Select logo abaixo do bloco do PRÓPRIO banner (não no final do
+            // painel) — pedido do dono, cada seleção fica junto da seção a
+            // que pertence, em vez das duas juntas embaixo dos dois blocos.
+            cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:strike-banner')
                 .setPlaceholder('Escolha o banner do /strike...')
                 .addOptions(STRIKE_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
@@ -1828,7 +1830,7 @@ const ConfigSystem = {
             cb.separator();
             cb.title(`${EMOJIS.image || '🖼️'} Banner do /unstrike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${unstrikeLabel}`]);
-            selects.push(new StringSelectMenuBuilder()
+            cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:unstrike-banner')
                 .setPlaceholder('Escolha o banner do /unstrike...')
                 .addOptions(UNSTRIKE_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
@@ -1847,7 +1849,7 @@ const ConfigSystem = {
             ].join('\n'));
             cb.title(`${EMOJIS.image || '🖼️'} Banner atual`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${bannerLabel}`]);
-            selects.push(new StringSelectMenuBuilder()
+            cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:reportchat-banner')
                 .setPlaceholder('Escolha o banner...')
                 .addOptions(REPORT_CHAT_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
@@ -1873,7 +1875,6 @@ const ConfigSystem = {
             cb.block([footerText || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot ("Produzido por KnustVI e T.Mach | Server: ${guildName}").`]);
         }
 
-        for (const select of selects) cb.selectMenu(select);
         cb.footer(guildName);
         const { components, flags, files } = cb.build();
 
