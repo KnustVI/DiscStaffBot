@@ -208,8 +208,9 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
   pra /ingame-* na secao 66) - 7 comandos por categoria (/ingame-stats,
   /ingame-marks, /ingame-admin, /ingame-list, /ingame-map, /ingame-event,
-  /ingame-message), ~57 subcomandos ao todo, baseado em
-  hosting.pathoftitans.wiki/guide/chat-commands. Categoria /ingame-list
+  /ingame-message), ~56 subcomandos ao todo (revisado contra uma segunda
+  fonte na secao 79 - nexlinkcore.com - ver tambem hosting.pathoftitans.wiki/
+  guide/chat-commands). Categoria /ingame-list
   reune os comandos de consulta (listplayers/listpoi/listquests/
   listroles/listwaters/listwaystones/listcreatormode) - listplayers e o
   UNICO subcomando de todo o catalogo liberado pra qualquer membro do
@@ -3288,3 +3289,63 @@ frente, nao so este relatorio):
   navegação (3 botões `config-personalizar:tab:*`, nenhum botão de
   edição sobrando do lado de fora). Reexecutada a regressão acumulada de
   /config personalizar (seções 74, 77) sem quebra.
+
+
+79) Auditoria do catálogo /ingame-* contra uma segunda fonte (nexlinkcore.com)
+    - directmessage removido, systemmessage/systemmessageall corrigidos
+------------------------------------------------------------------
+- Pedido do dono: conferir o catálogo `rconCommandCatalog.js` contra
+  https://nexlinkcore.com/guides/path-of-titans/guides/path-of-titans-chat-commands
+  (segunda fonte, além de hosting.pathoftitans.wiki usado desde a seção 61).
+  Comparação completa (57 subcomandos, comando a comando): a maioria bate
+  certinho (capitalização, ordem de parâmetro) - achados relevantes abaixo.
+- `directmessage`/`DirectMessage` REMOVIDO do catálogo (categoria Message,
+  MESSAGE_COMMANDS de 6 → 5 entradas) - confirmado pelo dono em teste real
+  ("não existe mais aparentemente") E ausente da nova documentação (que
+  lista `whisper` como a alternativa de mensagem privada). Consequência
+  automática, sem código extra: some do subcomando `/ingame-message
+  directmessage` e da listagem de `/ingame-comandos` (ambos leem
+  MESSAGE_COMMANDS direto do catálogo).
+- BUG encontrado e corrigido: `systemmessage`/`systemmessageall` estavam
+  montando o comando RCON em PascalCase (`SystemMessage`/
+  `SystemMessageAll`) - testado em produção pelo dono, resultado "sucesso"
+  (RCON não deu erro) mas a mensagem NUNCA chegou no jogo, sinal clássico
+  de comando não reconhecido silenciosamente pelo servidor (RCON aceita a
+  conexão e "executa" sem erro, só que não faz nada). A nova documentação
+  mostra um exemplo REAL de uso - `/systemmessage mike Hello there` - todo
+  minúsculo, diferente do placeholder genérico `/SystemMessage
+  [user/AGID] [message]` que a doc mostra em outro lugar da mesma página
+  (evidência mais forte por ser um exemplo concreto, não só notação de
+  parâmetro). Reforça a suspeita: são os ÚNICOS 2 comandos em MAIÚSCULA
+  de toda a categoria Message - `whisper`/`whisperall`/`announce` já eram
+  minúsculos e NUNCA foram reportados como quebrados. Corrigido pra
+  `systemmessage ${target} ${mensagem}` / `systemmessageall ${mensagem}`.
+- Achados adicionais da auditoria, NÃO implementados ainda (aguardando
+  decisão do dono sobre prioridade/escopo):
+  - Categoria Teleport inteira ausente (10 comandos: teleport em várias
+    combinações de self/alvo/POI/coordenadas, bring, goto, teleportall,
+    bringall) - forte impacto de moderação, precisaria de gate de
+    Supervisor em pelo menos os comandos "all".
+  - Categoria Nest inteira ausente (6 comandos: replenishnest,
+    setnesthealth, setnestslots, getnestresource, setnestresource,
+    gotonest).
+  - 3 comandos de Quest ausentes (givequest, completequest, editquests).
+  - 3 adições pontuais ausentes: ClearBodies (Map), PlayerInfo (List),
+    ClearEffects (Stats), e uma variante mais detalhada de listplayers
+    chamada listplayerpositions (List).
+  - `createcharacter` (categoria nova "Character") - doc diz "(local
+    database only)", parece comando de teste/dev que cria personagem com
+    growth/marks arbitrários pra qualquer Alderon ID - sinalizado como
+    POSSÍVEL VETOR DE ABUSO, recomendado NÃO adicionar sem confirmação
+    explícita do dono.
+  - `countcritters`/`freezecritters`/`clearcritters` (já no catálogo, só
+    da doc antiga) e `alloweditabilities` (já no catálogo) não aparecem
+    na doc nova - mantidos sem alteração (ausência numa fonte não prova
+    que não existem de verdade).
+- Verificado com script direto (7 checks): `directmessage` não existe
+  mais em MESSAGE_COMMANDS; `systemmessage`/`systemmessageall` montam o
+  comando em minúsculo; MESSAGE_COMMANDS tem exatamente 5 entradas sem
+  nome duplicado; `/ingame-message` (comando Discord) não tem mais o
+  subcomando `directmessage` e ficou com exatamente 5 subcomandos.
+  Reexecutada a regressão acumulada do catálogo /ingame-* (seções 66-71)
+  sem quebra.

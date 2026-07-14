@@ -388,22 +388,20 @@ const MESSAGE_COMMANDS = [
         options: [...TARGET_OPTIONS,
             { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
         ],
-        buildCommand: (r) => `SystemMessage ${r.target} ${r.mensagem}`,
+        // Minúsculo confirmado: o exemplo real da doc é
+        // "/systemmessage mike Hello there" — testado em produção com
+        // "SystemMessage" (PascalCase) e o comando "teve sucesso" (RCON não
+        // deu erro) mas a mensagem nunca chegou no jogo, sinal de comando
+        // não reconhecido silenciosamente. Todo o resto desta categoria
+        // (whisper/whisperall/announce) já era minúsculo e nunca foi
+        // reportado como quebrado.
+        buildCommand: (r) => `systemmessage ${r.target} ${r.mensagem}`,
     },
     {
         name: 'systemmessageall',
         description: 'Envia uma mensagem de sistema para todos os jogadores.',
         options: [{ name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' }],
-        buildCommand: (r) => `SystemMessageAll ${r.mensagem}`,
-    },
-    {
-        name: 'directmessage',
-        description: 'Envia uma mensagem direta para o jogador informado.',
-        requiresTarget: true,
-        options: [...TARGET_OPTIONS,
-            { name: 'mensagem', type: 'string', required: true, description: 'Texto da mensagem' },
-        ],
-        buildCommand: (r) => `DirectMessage ${r.target} ${r.mensagem}`,
+        buildCommand: (r) => `systemmessageall ${r.mensagem}`,
     },
     {
         name: 'announce',
