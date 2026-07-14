@@ -310,6 +310,21 @@ module.exports = {
             }
         }
 
+        // ==================== ANÚNCIO AUTOMÁTICO DE CRIAÇÃO (Caçador) ====================
+        // Registra o mapeamento evento agendado -> thread (usado depois pro
+        // anúncio de início/encerramento, ver guildScheduledEventUpdate.js)
+        // e, se o canal de anúncios estiver configurado (Caçador), publica
+        // ali + na própria postagem — tudo dentro de eventAnnounceSystem.js,
+        // que já faz o gate de tier/config sozinho.
+        if (scheduledEvent) {
+            try {
+                const EventAnnounceSystem = require('../../systems/events/eventAnnounceSystem');
+                await EventAnnounceSystem.announceCreated(guild, scheduledEvent, thread);
+            } catch (err) {
+                console.error('❌ [Evento] Erro ao anunciar criação do evento:', err.message);
+            }
+        }
+
         db.logActivity(guild.id, user.id, 'event_created', null, {
             command: 'evento', title: titulo, threadId: thread.id, scheduledEventId: scheduledEvent?.id || null,
             startDate: startDate.toISOString(),

@@ -219,9 +219,14 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   /strike e /unstrike TAMBEM personalizavel agora (JA IMPLEMENTADO - ver
   secao 73), junto do banner/mensagem do reportchat, tudo unificado em
   /config personalizar (Caçador).
-- Eventos: anuncia automaticamente criacao/inicio/encerramento dos
-  eventos, marca jogadores em anuncios, e faz postagem em redes sociais.
-  (esses tres ainda nao implementados - "vindo em breve")
+- Eventos: anuncia automaticamente CRIACAO/INICIO/ENCERRAMENTO dos eventos,
+  JA IMPLEMENTADO (ver secao 86) - canal dedicado configuravel em
+  /config roles (aba Eventos, campo "Canal de Anuncios de Eventos",
+  exclusivo deste tier), marcando o cargo de Notificacao de Eventos (o
+  mesmo ja usado na postagem do forum). Os 3 anuncios tambem aparecem na
+  propria postagem do evento, nao so no canal dedicado. Marcar jogadores
+  em anuncios e postagem em redes sociais continuam nao implementados
+  ("vindo em breve").
 - Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
   PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
   pra /ingame-* na secao 66) - 7 comandos por categoria (/ingame-stats,
@@ -3642,3 +3647,61 @@ frente, nao so este relatorio):
   em jogo (não o Alderon ID); segundo clique do mesmo jogador bloqueado
   ("uma vez por evento"), sem disparar RCON de novo; RCON falhando libera
   o uso pra nova tentativa funcionar depois.
+
+86) ANÚNCIO AUTOMÁTICO de criação/início/encerramento de evento, exclusivo
+    do Caçador
+------------------------------------------------------------------
+- Pedido do dono: em /config roles (aba Eventos), novo campo "Canal de
+  Anúncios de Eventos" — SÓ pro plano Caçador — que faz o bot anunciar
+  sozinho quando um evento é CRIADO, quando COMEÇA e quando ENCERRA,
+  marcando o cargo de Notificação de Eventos (o mesmo já usado na
+  postagem do fórum, não um cargo novo). Os mesmos 3 anúncios também
+  aparecem na própria postagem do evento (thread do fórum), não só no
+  canal dedicado — pedido explícito do dono.
+- `ROLE_TABS.events` (configSystem.js) ganhou um 3º campo com um formato
+  novo (`type: 'channel'`, `tierRequired: 'cacador'`) — diferente dos 2
+  campos de cargo já existentes ali. `refreshRolesPanel()` agora
+  reconhece esse tipo e desvia pra um `ChannelSelectMenuBuilder` (em vez
+  de `RoleSelectMenuBuilder`), e quando `tierRequired` não é atendido,
+  troca o select por um aviso "Disponível a partir do plano Caçador" —
+  diferente do padrão já usado na aba "Cargos Automáticos" (onde os
+  campos de cargo ficam configuráveis em QUALQUER tier, só não têm efeito
+  ainda): aqui o dono pediu uma configuração exclusiva de verdade, então o
+  select nem aparece fora do Caçador. `setEventAnnounceChannel()` (novo
+  método) salva a escolha — aceita 0 valores (limpar/desligar), diferente
+  de `setLogChannel()` que exige pelo menos 1.
+- Novo módulo `src/systems/events/eventAnnounceSystem.js` concentra a
+  lógica dos 3 anúncios (`announceCreated`/`announceStarted`/
+  `announceEnded`), todos publicando nos 2 lugares (canal configurado +
+  postagem) através do mesmo helper interno. Nova tabela `event_posts`
+  mapeia `scheduled_event_id -> thread_id` — só assim dá pra saber ONDE
+  postar o anúncio de início/encerramento, que chegam bem depois da
+  criação, sem nenhuma referência à thread em mãos nesse momento.
+  Registrado independente de tier (Rastreador+ sempre tem Evento Agendado)
+  — barato, e deixa o anúncio funcionar retroativamente se o servidor
+  virar Caçador no meio do próprio evento, sem precisar recriar nada.
+- Início/encerramento detectados via evento de GATEWAY do discord.js
+  (`guildScheduledEventUpdate`, novo listener
+  `src/events/guildScheduledEventUpdate.js`) — dispara pra QUALQUER
+  mudança de status do Evento Agendado, não importa se veio do
+  auto-início do eventScheduler.js (seção 12/84) ou de alguém da staff
+  clicando manualmente "Iniciar"/"Encerrar" no próprio Discord. Detecta
+  a transição comparando `oldEvent.status`/`newEvent.status` contra
+  `GuildScheduledEventStatus.Active`/`.Completed` — só dispara na
+  TRANSIÇÃO (evita reanunciar toda vez que o evento é editado sem mudar
+  de status). `event_posts` é apagado depois do anúncio de encerramento —
+  nada mais precisa consultar aquele mapeamento depois disso.
+- `evento.js` chama `announceCreated(guild, scheduledEvent, thread)` logo
+  após publicar a postagem (mesmo bloco que já cuidava do botão de TP da
+  seção 85) — `announceCreated` já faz o gate de tier/canal configurado
+  sozinho, então o call site em evento.js não precisa checar tier de novo.
+- Verificado com script direto (17 checks): painel Free esconde o select
+  e mostra o aviso de bloqueio; painel Caçador mostra o select e nenhum
+  aviso; `setEventAnnounceChannel` bloqueado no Free (canal não salvo) e
+  funcionando no Caçador; `announceCreated` publica no canal E na
+  postagem, mencionando o cargo de notificação, e registra `event_posts`;
+  `announceStarted`/`announceEnded` encontram a thread certa via
+  `event_posts` e publicam nos 2 lugares; `announceEnded` NÃO menciona o
+  cargo (fim do evento, nada a fazer) e apaga o `event_posts` depois;
+  tier Free não dispara nenhum anúncio em `announceCreated` mesmo com
+  canal/thread válidos passados.

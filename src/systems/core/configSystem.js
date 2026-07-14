@@ -99,6 +99,13 @@ const ROLE_TABS = {
                 customId: 'config-roles:event-notify',
                 roleLimitKey: 'eventNotify',
             },
+            {
+                key: 'event_announce_channel', icon: 'megaphone', label: 'Canal de Anúncios de Eventos',
+                desc: 'Canal onde o bot anuncia automaticamente a criação, o início e o encerramento de cada evento, marcando o cargo de Notificação de Eventos acima. Os mesmos avisos também aparecem na postagem do evento. Exclusivo do plano Caçador.',
+                customId: 'config-roles:event-announce-channel',
+                type: 'channel',
+                tierRequired: 'cacador',
+            },
         ],
     },
 };
@@ -419,6 +426,10 @@ const ConfigSystem = {
             }
             if (customId === 'config-roles:event-notify') {
                 await this.setRoles(interaction, 'event_notify_role');
+                return;
+            }
+            if (customId === 'config-roles:event-announce-channel') {
+                await this.setEventAnnounceChannel(interaction);
                 return;
             }
             if (customId.startsWith('config-roles:tab:')) {
@@ -1104,13 +1115,40 @@ const ConfigSystem = {
         rolesBuilder.separator();
 
         for (const field of tabData.fields) {
+            rolesBuilder.text(`**${EMOJIS[field.icon] || ''} ${field.label}** — ${field.desc}`);
+
+            // Campo de CANAL (hoje só o Canal de Anúncios de Eventos) — tipo
+            // diferente de acessório (ChannelSelectMenu, não RoleSelectMenu)
+            // e pode ser restrito a um tier mínimo, o que os campos de cargo
+            // nunca são (cargo sempre configurável em qualquer tier, mesmo
+            // que só passe a ter efeito depois — ver aba "automod" acima).
+            if (field.type === 'channel') {
+                const currentChannelId = this.getSetting(guildId, field.key);
+                const currentText = currentChannelId ? `<#${currentChannelId}>` : `${EMOJIS.circlealert || '❌'} Não definido`;
+                rolesBuilder.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentText}`);
+
+                const tierOk = !field.tierRequired || PremiumSystem.isGuildAtLeast(guildId, field.tierRequired);
+                if (tierOk) {
+                    const select = new ChannelSelectMenuBuilder()
+                        .setCustomId(field.customId)
+                        .setPlaceholder(`Selecionar canal: ${field.label}`)
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setMinValues(0)
+                        .setMaxValues(1);
+                    if (currentChannelId) select.setDefaultChannels(currentChannelId);
+                    rolesBuilder.selectMenu(select);
+                } else {
+                    rolesBuilder.text(`${EMOJIS.badge || '🏅'} Disponível a partir do plano **Caçador** — use \`/premium\` pra saber mais.`);
+                }
+                rolesBuilder.separator();
+                continue;
+            }
+
             const currentIds = this.getRoleIds(guildId, field.key);
             const limit = field.roleLimitKey ? PremiumSystem.getRoleLimit(guildId, field.roleLimitKey) : 1;
             const maxValues = Math.max(1, Math.min(limit, 25)); // 25 = teto do próprio RoleSelectMenu do Discord
 
             const currentText = currentIds.length > 0 ? this.mentionRoles(guildId, field.key) : `${EMOJIS.circlealert || '❌'} Não definido`;
-
-            rolesBuilder.text(`**${EMOJIS[field.icon] || ''} ${field.label}** — ${field.desc}`);
             rolesBuilder.text(`${EMOJIS.gauge || '📊'} **Atual (${currentIds.length}/${limit === Infinity ? '∞' : limit}):** ${currentText}`);
 
             const select = new RoleSelectMenuBuilder()
@@ -1180,6 +1218,34 @@ const ConfigSystem = {
             interaction,
             `${EMOJIS.circlecheck || '✅'} **${ROLE_LABELS[roleKey]}** atualizado (${selectedIds.length}/${limit === Infinity ? '∞' : limit})`,
             this._tabForRoleKey(roleKey),
+        );
+    },
+
+    /**
+     * Canal de Anúncios de Eventos (ROLE_TABS.events, campo tipo 'channel',
+     * exclusivo do plano Caçador — ver eventAnnounceSystem.js). Select de
+     * canal aceita 0 valores (limpar a seleção), diferente de setLogChannel
+     * (que exige pelo menos 1) — faz sentido poder DESLIGAR o anúncio sem
+     * precisar escolher outro canal.
+     */
+    async setEventAnnounceChannel(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isGuildAtLeast(interaction.guildId, 'cacador')) {
+            return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(interaction.guildId));
+        }
+
+        const selectedChannelId = (interaction.values || [])[0] || null;
+        const oldChannelId = this.getSetting(interaction.guildId, 'event_announce_channel');
+        this.setSetting(interaction.guildId, 'event_announce_channel', selectedChannelId);
+        this.clearCache(interaction.guildId);
+
+        const oldMention = oldChannelId ? `<#${oldChannelId}>` : '`não definido`';
+        const newMention = selectedChannelId ? `<#${selectedChannelId}>` : '`não definido`';
+        await this.logConfigChange(interaction, `${EMOJIS.megaphone || '📣'} Canal de Anúncios de Eventos: ${oldMention} → ${newMention}`);
+        await this.refreshRolesPanel(
+            interaction,
+            `${EMOJIS.circlecheck || '✅'} **Canal de Anúncios de Eventos** atualizado para ${newMention}`,
+            'events',
         );
     },
 

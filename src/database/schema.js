@@ -386,6 +386,22 @@ const SCHEMA = {
             PRIMARY KEY (message_id, user_id)
         )
     `,
+
+    // ==================== ANÚNCIO AUTOMÁTICO DE EVENTO (Caçador) ====================
+    // Mapeia o Evento Agendado do Discord pra thread do fórum onde ele foi
+    // publicado — ver eventAnnounceSystem.js. Início/encerramento chegam via
+    // gateway (guildScheduledEventUpdate) bem depois da criação, sem
+    // nenhuma referência direta à thread em mãos, daí precisar de uma
+    // tabela (em vez de só guardar em memória). Removida quando o evento
+    // encerra — nada mais precisa consultar depois disso.
+    event_posts: `
+        CREATE TABLE IF NOT EXISTS event_posts (
+            scheduled_event_id TEXT PRIMARY KEY,
+            guild_id TEXT NOT NULL,
+            thread_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -459,6 +475,9 @@ const INDEXES = [
 
     // Event teleports
     `CREATE INDEX IF NOT EXISTS idx_event_teleports_guild ON event_teleports(guild_id)`,
+
+    // Event posts (anúncio automático)
+    `CREATE INDEX IF NOT EXISTS idx_event_posts_guild ON event_posts(guild_id)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };
