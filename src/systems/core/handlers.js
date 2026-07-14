@@ -12,6 +12,8 @@ const { sendSystemLog } = require('./systemLog');
 const premiumPanel = require('../premium/premiumPanel');
 const ajudaCommand = require('../../commands/ajuda/ajuda');
 const eventTeleportSystem = require('../events/eventTeleportSystem');
+const buffPanelSystem = require('../pot/buffPanelSystem');
+const ingameBuffCommand = require('../../commands/ingame/ingame-buff');
 
 class InteractionHandler {
     constructor(client) {
@@ -44,6 +46,8 @@ class InteractionHandler {
             premium: premiumPanel,
             ajuda: ajudaCommand,
             'event-tp': eventTeleportSystem,
+            'config-buffs': buffPanelSystem,
+            'ingame-buff': ingameBuffCommand,
         };
         
         // Mapeamento de ações para métodos
@@ -109,7 +113,7 @@ class InteractionHandler {
             'config',
             'reset-db', 'reset-reports', 'botstatus', 'potserver', 'combat-config',
             'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
-            'ingame-stats', 'ingame-marks', 'ingame-admin', 'ingame-list', 'ingame-map', 'ingame-event', 'ingame-message', 'ingame-comandos',
+            'ingame-stats', 'ingame-marks', 'ingame-admin', 'ingame-list', 'ingame-map', 'ingame-event', 'ingame-message', 'ingame-comandos', 'ingame-buff',
         ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);
         

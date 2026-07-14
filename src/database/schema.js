@@ -402,6 +402,37 @@ const SCHEMA = {
             created_at INTEGER NOT NULL
         )
     `,
+
+    // ==================== BUFFS (RCON setattr em lote) ====================
+    // Preset nomeado de alterações de atributo (setattr), aplicado de uma vez
+    // num jogador — ver buffSystem.js/buffPanelSystem.js. "Parecido com os
+    // níveis de punição" (pedido do dono): um preset configurado uma vez em
+    // /config buffs, reaplicado depois via /ingame-buff aplicar.
+    buffs: `
+        CREATE TABLE IF NOT EXISTS buffs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT UNIQUE NOT NULL,
+            guild_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            created_by TEXT,
+            updated_at INTEGER,
+            updated_by TEXT
+        )
+    `,
+
+    // Uma linha por atributo dentro de um buff — UNIQUE(buff_id, attribute)
+    // porque adicionar o MESMO atributo de novo deve sobrescrever o valor,
+    // nunca duplicar a linha (ver buffSystem.upsertBuffStat).
+    buff_stats: `
+        CREATE TABLE IF NOT EXISTS buff_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            buff_id INTEGER NOT NULL,
+            attribute TEXT NOT NULL,
+            value TEXT NOT NULL,
+            UNIQUE(buff_id, attribute)
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -478,6 +509,10 @@ const INDEXES = [
 
     // Event posts (anúncio automático)
     `CREATE INDEX IF NOT EXISTS idx_event_posts_guild ON event_posts(guild_id)`,
+
+    // Buffs
+    `CREATE INDEX IF NOT EXISTS idx_buffs_guild ON buffs(guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_buff_stats_buff ON buff_stats(buff_id)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };

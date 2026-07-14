@@ -28,7 +28,10 @@ module.exports = {
             .setDescription('⚖️ Configura os níveis de punição e limites de reputação.'))
         .addSubcommand(sub => sub
             .setName('personalizar')
-            .setDescription('🖼️ Personaliza banners de /strike, /unstrike e do report-chat (Caçador).')),
+            .setDescription('🖼️ Personaliza banners de /strike, /unstrike e do report-chat (Caçador).'))
+        .addSubcommand(sub => sub
+            .setName('buffs')
+            .setDescription('💉 Cria e edita buffs (presets de setattr em lote) (Caçador).')),
 
     async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();
@@ -37,6 +40,7 @@ module.exports = {
         const logsHandler = require('./logs');
         const punishmentsHandler = require('./punishments');
         const personalizarHandler = require('./personalizar');
+        const buffsHandler = require('./buffs');
 
         switch (subcommand) {
             case 'roles':
@@ -50,6 +54,9 @@ module.exports = {
                 break;
             case 'personalizar':
                 await personalizarHandler.execute(interaction, client);
+                break;
+            case 'buffs':
+                await buffsHandler.execute(interaction, client);
                 break;
             default:
                 await interaction.editReply({

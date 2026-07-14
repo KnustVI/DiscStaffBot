@@ -362,6 +362,23 @@ module.exports = {
                 return;
             }
 
+            // ==================== BUFFS - ABRIR MODAL ====================
+            // Mesmo motivo de event-tp/config-punishments acima: showModal()
+            // só funciona como PRIMEIRA resposta, então precisa vir ANTES do
+            // deferUpdate() genérico. "attr-select" é um SELECT (não botão)
+            // que também abre modal — mesma regra vale pra qualquer tipo de
+            // componente, não só botão.
+            if (interaction.customId === 'config-buffs:create:modal') {
+                const BuffPanelSystem = require('../systems/pot/buffPanelSystem');
+                await BuffPanelSystem.handleOpenCreateModal(interaction);
+                return;
+            }
+            if (interaction.customId?.startsWith('config-buffs:attr-select:')) {
+                const BuffPanelSystem = require('../systems/pot/buffPanelSystem');
+                await BuffPanelSystem.handleOpenStatValueModal(interaction);
+                return;
+            }
+
             // ==================== OUTROS COMPONENTES ====================
 
             if (interaction.isButton() || interaction.isStringSelectMenu() ||

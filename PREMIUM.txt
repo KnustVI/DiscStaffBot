@@ -240,9 +240,20 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   servidor, nao so Staff (ver secao 71). Lista completa e
   paginada por categoria: /ingame-comandos (ver secao 70, atualizado na
   71) - liberado pro cargo Staff, nao so admin. Comando de TP integrado a
-  criacao de eventos continua nao implementado ("vindo em breve"); punicoes
-  aplicaveis em jogo via RCON (kick/ban/ServerMute, ja disponivel desde o
-  Rastreador - ver secao acima) continuam JA IMPLEMENTADAS tambem.
+  criacao de eventos JA IMPLEMENTADO (ver secao 85 - corrige a marcacao
+  antiga de "vindo em breve" deste bullet, que ficou desatualizada depois
+  da secao 85 ser implementada); punicoes aplicaveis em jogo via RCON
+  (kick/ban/ServerMute, ja disponivel desde o Rastreador - ver secao
+  acima) continuam JA IMPLEMENTADAS tambem. BUFFS configuraveis (presets
+  de `setattr` em lote, "parecido com os niveis de punicao") JA
+  IMPLEMENTADO (ver secao 88) - /config buffs cria/edita buffs nomeados
+  com quantos atributos quiser (lista fechada de ~59 atributos conhecidos,
+  organizados em 13 categorias), /ingame-buff aplicar aplica um buff
+  inteiro num jogador com um comando so (em vez de repetir
+  /ingame-stats setattr atributo por atributo), /ingame-buff listar mostra
+  os buffs configurados. SEMPRE confere se o jogador esta online antes de
+  aplicar (avisa e nao manda RCON nenhum se nao estiver) - mesma exigencia
+  ja valendo pro TP de evento (secao 85).
 - /config punishments completo aqui: ate 10 niveis de punicao customizados,
   limites de cargo automatico (Exemplar/Problematico) e recuperacao diaria,
   tudo editavel - unico tier com acesso aos botoes de Limites/Recuperacao
@@ -3740,3 +3751,80 @@ frente, nao so este relatorio):
   containers de analytics quando há atividade registrada; AUSENTE quando
   não há nenhuma atividade (nada de espectador pra avisar sobre); presente
   no log do webhook `AdminSpectate`.
+
+88) BUFFS configuráveis (preset de `setattr` em lote) + checagem de "está
+    online" antes de aplicar, a partir do Caçador
+------------------------------------------------------------------
+- Pedido do dono: um painel "parecido com os níveis de punição" pra criar
+  presets nomeados de várias alterações de atributo (RCON `setattr`) de
+  uma vez, reaplicáveis depois num jogador com um comando só. Lista
+  fechada de ~59 atributos aceita, organizados nas 13 categorias que o
+  dono definiu (Vida, Stamina, Peso e Armadura, Movimento, Comida, Fome,
+  Sede, Oxigênio, Sangramento, Veneno, Crescimento, Combate, Ferimentos) —
+  `src/systems/pot/buffStatCatalog.js`, módulo puro de dados. O site do
+  PoT não publica essa lista fechada (mesma ressalva já existente pro
+  campo `atributo` livre do `/ingame-stats setattr`) — veio direto do
+  dono, não de documentação externa.
+- 2 tabelas novas: `buffs` (nome + metadados) e `buff_stats` (uma linha
+  por atributo, `UNIQUE(buff_id, attribute)` — adicionar o MESMO atributo
+  de novo sobrescreve o valor, nunca duplica a linha). CRUD puro em
+  `src/systems/pot/buffSystem.js` (mesmo estilo de punishmentLevels.js,
+  sem discord.js), incluindo `applyBuffToPlayer` (dispara um `setattr` por
+  atributo, sequencial, não em paralelo — mesmo cuidado já usado no resto
+  do bot pra não afogar a conexão RCON).
+- Painel `/config buffs` (`src/systems/pot/buffPanelSystem.js`, sistema
+  próprio "config-buffs" registrado em handlers.js) — 4 telas dentro do
+  MESMO painel ephemeral, trocadas em lugar (mesmo padrão de
+  config-punishments/config-roles): lista de buffs -> editar um buff
+  (lista de atributos, cada um com botão "Remover") -> escolher categoria
+  -> escolher atributo dentro da categoria (todas as 13 categorias cabem
+  num select só, a maior tem 8 atributos - Veneno - bem abaixo do limite
+  de 25 do Discord). Escolher o atributo abre um MODAL pedindo o valor —
+  especial-caseado em interactionCreate.js (ANTES do deferUpdate()
+  genérico, que quebraria o showModal(), mesmo motivo já documentado pra
+  config-punishments/event-tp/seção 85).
+- Comando `/ingame-buff` (2 subcomandos, plano Caçador via a MESMA flag
+  `genericRconEnabled` do resto do catálogo `/ingame-*` manual):
+  `aplicar` (usuario/agid -> escolhe o alvo -> mostra um select com os
+  buffs configurados -> aplica todos os atributos de uma vez) e `listar`
+  (referência rápida, mostra todos os buffs e seus atributos). Diferente
+  dos outros `/ingame-*` (que passam pelo executor genérico de
+  rconCommandCatalog.js): `aplicar` precisa de uma segunda interação
+  (escolher QUAL buff), então `ingame-buff.js` também exporta
+  `handleComponent` e é registrado como seu próprio sistema
+  ("ingame-buff") em handlers.js — mesmo padrão já usado pra registrar
+  `/ajuda` como handler de componente.
+- CHECAGEM DE "ESTÁ ONLINE" antes de aplicar — pedido explícito do dono,
+  a mesma lição já aprendida com whisper/systemmessage (RCON "funciona"
+  mesmo sem o alvo existir/estar no servidor, só que sem efeito nenhum,
+  silenciosamente — ver seção 83): checada DUAS vezes, uma ao escolher o
+  alvo (nem mostra a lista de buffs pra alguém offline) e de novo ao
+  confirmar o buff (pode ter passado tempo entre as duas interações). O
+  mesmo pedido cobria o TP de evento (seção 85) — CONFIRMADO que já fazia
+  essa checagem desde a implementação original, nenhuma mudança
+  necessária lá.
+- Decisão deliberada: NÃO retrofitado o resto do catálogo `/ingame-*`
+  (whitelist, promote, demote, etc.) com essa mesma checagem. Esses
+  comandos são ADMINISTRATIVOS/PERSISTENTES por natureza (ex: whitelist
+  alguém que ainda não entrou no servidor, promover um admin antes dele
+  logar) — exigir "online agora" ali seria uma REGRESSÃO, não uma
+  correção. A checagem só faz sentido pra comandos que alteram o ESTADO
+  ATUAL do personagem em jogo (setattr/heal/godmode/TP/buffs), que é
+  exatamente o escopo do pedido do dono nesta seção.
+- Alvo do RCON pelo Alderon ID (`resolved.target`), não pelo nome em
+  jogo — mesmo comportamento já usado pelo `setattr` isolado no catálogo
+  (`/ingame-stats setattr`), sem nenhuma evidência de que precisaria do
+  nome (diferente de whisper/systemmessage, onde havia evidência real —
+  ver seção 83). `resolveTarget`/`resolveTargetName`/`TARGET_OPTIONS`
+  exportados de rconCommandCatalog.js pra reaproveitar em ingame-buff.js,
+  em vez de duplicar a resolução de alvo pela 3ª vez no código.
+- Verificado com script direto (22 checks): CRUD de buffs/atributos
+  (criar, sobrescrever em vez de duplicar, remover); catálogo de
+  atributos (reconhece/rejeita atributo desconhecido, nenhuma categoria
+  passa de 25 opções); gate de tier no painel; painel mostra o buff/
+  atributo certos em cada tela; select de categoria mostra os atributos
+  certos; modais de criação e de valor salvam corretamente; exclusão
+  apaga o buff E seus atributos; `/ingame-buff aplicar` bloqueia alvo
+  offline ANTES de mostrar a lista de buffs; aplicação de verdade dispara
+  um `setattr` por atributo do buff; buff sem nenhum atributo configurado
+  é bloqueado sem disparar RCON nenhum.

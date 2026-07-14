@@ -684,6 +684,9 @@ module.exports = {
     LIST_COMMANDS,
     EVENT_COMMANDS,
     MESSAGE_COMMANDS,
+    TARGET_OPTIONS,
     buildSubcommandOption,
     executeRconSubcommand,
+    resolveTarget,
+    resolveTargetName,
 };

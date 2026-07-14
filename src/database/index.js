@@ -79,7 +79,9 @@ class DatabaseManager {
                 'pot_spectator_sessions',
                 'event_teleports',
                 'event_teleport_uses',
-                'event_posts'
+                'event_posts',
+                'buffs',
+                'buff_stats'
             ];
             
             for (const table of tables) {
