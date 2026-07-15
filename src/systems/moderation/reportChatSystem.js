@@ -10,7 +10,6 @@ const {
     TextInputBuilder,
     TextInputStyle,
     LabelBuilder,
-    TextDisplayBuilder,
     MessageFlags,
 } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
@@ -283,17 +282,19 @@ class ReportChatSystem {
     // ==================== MODAIS ====================
 
     getOpenModal() {
-        // Layout pedido pelo dono: descrição geral logo após o título
-        // (TextDisplayBuilder, bloco de texto solto — não é descrição de
-        // nenhuma pergunta específica) + cada pergunta com sua própria
-        // descrição (LabelBuilder.setDescription(), visível permanentemente
-        // abaixo da pergunta, diferente do placeholder que some ao digitar).
-        // Campo "termo" (Termo de boa convivência) REMOVIDO — substituído
-        // por "personagem" (opcional) nesta revisão do modal.
+        // Cada pergunta com sua própria descrição (LabelBuilder.setDescription(),
+        // visível permanentemente abaixo da pergunta, diferente do placeholder
+        // que some ao digitar). Campo "termo" (Termo de boa convivência)
+        // REMOVIDO — substituído por "personagem" (opcional) nesta revisão.
+        //
+        // SEM TextDisplayComponent solto pro texto de intro geral (existia
+        // antes) — Discord rejeita o modal com 400/50035 "Invalid Form Body"
+        // quando o total de componentes no nível raiz passa de 5 (visto ao
+        // vivo em produção: 1 TextDisplay + 5 Labels = 6, estourava o
+        // limite). A orientação de "detalhe e anexe evidências" foi
+        // incorporada na descrição do campo "descricao" abaixo, em vez de
+        // virar um 6º componente.
         const modal = new ModalBuilder().setCustomId('report_modal').setTitle('Abrir Reporte ao jogador.');
-        modal.addTextDisplayComponents(
-            new TextDisplayBuilder().setContent('Descreva o ocorrido com o máximo de detalhes e anexe evidências sempre que possível para auxiliar na análise da equipe.')
-        );
         modal.addLabelComponents(
             new LabelBuilder()
                 .setLabel('Qual a regra quebrada?')
@@ -313,7 +314,7 @@ class ReportChatSystem {
                 .setTextInputComponent(new TextInputBuilder().setCustomId('personagem').setStyle(TextInputStyle.Short).setRequired(false).setPlaceholder('Ex: Krawler 8A306AE6A9F84DDA84F2EED839543128')),
             new LabelBuilder()
                 .setLabel('Descreva a quebra de regra:')
-                .setDescription('Descreva detalhadamente!')
+                .setDescription('Descreva com o máximo de detalhes e anexe evidências, se possível, pra facilitar a análise.')
                 .setTextInputComponent(new TextInputBuilder().setCustomId('descricao').setStyle(TextInputStyle.Paragraph).setRequired(true).setPlaceholder('Ex: Ao caçar um herbívoro, outro herbívoro do mesmo grupo me matou por vingança.'))
         );
         return modal;
