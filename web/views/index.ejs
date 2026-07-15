@@ -161,9 +161,9 @@
 
             <!-- Seção Superior: Logo e Boas-vindas -->
             <div class="flex flex-col items-center w-full" style="gap: clamp(20px, 3vw, 32px);">
-                <div class="flex items-center justify-center" style="width: clamp(150px, 22vw, 260px);">
+                <div class="flex items-center justify-center" style="width: clamp(170px, 25vw, 300px);">
                     <img src="https://api.builder.io/api/v1/image/assets/TEMP/0eca749ff83a05595d1c02408cadf2e5c3945776?width=1264"
-                         alt="Titan's Pass Logo" class="w-full h-auto object-contain" style="max-height: clamp(110px, 16vw, 180px);">
+                         alt="Titan's Pass Logo" class="w-full h-auto object-contain" style="max-height: clamp(130px, 18vw, 210px);">
                 </div>
 
                 <div class="text-center px-4">
@@ -185,7 +185,7 @@
                     <!-- Perfil do Usuário Logado -->
                     <div class="flex flex-col items-center gap-2 shrink-0">
                         <div class="rounded-full bg-titan-dark flex items-center justify-center shrink-0 overflow-hidden"
-                             style="width: clamp(56px, 6vw, 84px); height: clamp(56px, 6vw, 84px); border: 3px solid #803E30; box-shadow: 0 12px 18px 11px rgba(1, 2, 10, 0.45);">
+                             style="width: clamp(64px, 7vw, 96px); height: clamp(64px, 7vw, 96px); border: 3px solid #803E30; box-shadow: 0 12px 18px 11px rgba(1, 2, 10, 0.45);">
                             <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" 
                             onerror="this.src='https://discord.com/assets/f78426a064bc9dd24847519294b081dd.png'"
                             class="w-full h-full object-cover">
@@ -202,7 +202,7 @@
                     <!-- Grid de Servidores -->
                     <% if (guilds.length > 0) { %>
                         <div class="grid"
-                             style="grid-template-columns: repeat(3, minmax(38px, 96px)); gap: clamp(10px, 2vw, 18px); width: 100%; max-width: 336px;">
+                             style="grid-template-columns: repeat(3, minmax(30px, 72px)); gap: clamp(8px, 1.6vw, 14px); width: 100%; max-width: 244px;">
 
                             <% /* Sempre 3 colunas (mantem a organizacao do design) - quem encolhe pra
                                 caber na tela e o tamanho de cada icone (minmax), nao a quantidade de
