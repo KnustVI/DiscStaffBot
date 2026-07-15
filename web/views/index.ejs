@@ -92,7 +92,9 @@
                                     <% if (guild.icon) { %>
                                         <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" class="guild-icon-img">
                                     <% } else { %>
-                                        <span class="text-titan-cream font-bold"><%= guild.name.split(' ').map(i => i[0]).join('') %></span>
+                                        <%# Sem ícone de servidor: um dos 4 ícones do design (fixo por
+                                            servidor, mesmo padrão já usado no avatar do Discord acima) %>
+                                        <img src="/images/guild-fallback-<%= (guild.id % 4) + 1 %>.svg" class="guild-icon-img">
                                     <% } %>
                                 </a>
                             <% }); %>
