@@ -529,10 +529,85 @@ class AnalyticsSystem {
         );
     }
 
+    // "3.5" fica "3.5", "3.0" fica "3" — evita ".0" sobrando numa média que
+    // deu redonda, sem esconder a casa decimal quando ela importa de verdade.
+    static _formatAvgNumber(n) {
+        return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    }
+
+    // Média POR STAFF ATIVO de cada parâmetro (não soma do dia inteiro) — é
+    // essa a "visão geral" que substitui o bloco por staff no resumo diário
+    // (ver generateDailySummaryContainer). avgResponseSeconds é ponderado de
+    // verdade (soma de todos os tempos / soma de todas as respostas), não
+    // média das médias de cada staff — evita puxar o número pra um staff que
+    // respondeu só 1 report uma vez.
+    static _averageStaffTotals(rows) {
+        const n = rows.length;
+        const sum = (key) => rows.reduce((acc, row) => acc + (row[key] || 0), 0);
+        const totalResponseSeconds = sum('responseSecondsSum');
+        const totalResponseCount = sum('responseCount');
+
+        return {
+            staffCount: n,
+            punishmentsApplied: sum('punishmentsApplied') / n,
+            reportsJoined: sum('reportsJoined') / n,
+            reportsClosed: sum('reportsClosed') / n,
+            reportMessages: sum('reportMessages') / n,
+            avgResponseSeconds: totalResponseCount > 0 ? Math.round(totalResponseSeconds / totalResponseCount) : null,
+            eventsCreated: sum('eventsCreated') / n,
+            nametagSpectating: sum('nametagSpectating') / n,
+            nametagNotSpectating: sum('nametagNotSpectating') / n,
+            spectatorSeconds: sum('spectatorSeconds') / n,
+        };
+    }
+
+    static _formatAverageBlock(avg) {
+        const avgResp = avg.avgResponseSeconds !== null ? this.formatDuration(avg.avgResponseSeconds) : 'Sem dados';
+        const staffLabel = avg.staffCount === 1 ? '1 staff ativo' : `${avg.staffCount} staffs ativos`;
+        return [
+            `**Média geral do dia** (${staffLabel})`,
+            `${EMOJIS.gavel || '⚠️'} Punições aplicadas: \`${this._formatAvgNumber(avg.punishmentsApplied)}\``,
+            `${EMOJIS.ticket || '🎫'} Reports entrados: \`${this._formatAvgNumber(avg.reportsJoined)}\` • Fechados: \`${this._formatAvgNumber(avg.reportsClosed)}\``,
+            `${EMOJIS.messagesquare || '💬'} Mensagens em reports: \`${this._formatAvgNumber(avg.reportMessages)}\` • Tempo médio de resposta: \`${avgResp}\``,
+            `${EMOJIS.calendardays || '📅'} Eventos criados: \`${this._formatAvgNumber(avg.eventsCreated)}\``,
+            `${EMOJIS.shield || '🛡️'} Nametags com espectador: \`${this._formatAvgNumber(avg.nametagSpectating)}\` • sem espectador: \`${this._formatAvgNumber(avg.nametagNotSpectating)}\``,
+            `${EMOJIS.shieldcheck || '👁️'} Tempo em modo espectador: \`${this.formatDuration(avg.spectatorSeconds)}\``,
+        ].join('\n');
+    }
+
+    // "Destaques do dia" — pedido do dono: em vez de listar CADA staff (não
+    // cabe no painel com muita gente ativa), avisa só quem se destacou de
+    // verdade nos 3 parâmetros que ele pediu. "Se destacou" = tem o maior
+    // valor do dia E esse valor é MAIOR que a média do grupo (se todo mundo
+    // empatou, ou só 1 staff esteve ativo, ninguém "se destaca" de ninguém —
+    // nenhuma linha aparece pra esse parâmetro). Empate no topo mostra todos
+    // os empatados, não escolhe um arbitrariamente.
+    static _findDailyStandouts(rows, avg) {
+        const metrics = [
+            { key: 'reportMessages', label: 'Mensagens em reports', emoji: EMOJIS.messagesquare || '💬', format: (v) => `${v}` },
+            { key: 'eventsCreated', label: 'Eventos criados', emoji: EMOJIS.calendardays || '📅', format: (v) => `${v}` },
+            { key: 'spectatorSeconds', label: 'Tempo em modo espectador', emoji: EMOJIS.shieldcheck || '👁️', format: (v) => this.formatDuration(v) },
+        ];
+
+        const lines = [];
+        for (const metric of metrics) {
+            const max = Math.max(...rows.map((row) => row[metric.key] || 0));
+            if (max <= 0 || max <= avg[metric.key]) continue;
+
+            const leaders = rows.filter((row) => (row[metric.key] || 0) === max);
+            const names = leaders.map((row) => `<@${row.user_id}>`).join(', ');
+            lines.push(`${metric.emoji} **${metric.label}:** ${names} — \`${metric.format(max)}\``);
+        }
+        return lines;
+    }
+
     // Painel enviado diariamente pro log_channel configurado (config-log) —
-    // só guilds tier Caçador recebem, ver dailyAnalyticsJob.js.
+    // só guilds tier Caçador recebem, ver dailyAnalyticsJob.js. Mostra a
+    // MÉDIA geral do dia (não o bloco de cada staff, que não cabia no painel
+    // em servidores com muita staff ativa) + destaques de quem se sobressaiu
+    // nos 3 parâmetros pedidos pelo dono.
     static generateDailySummaryContainer(guild, date) {
-        const rows = this._sortByActivity(this.getGuildDailySummary(guild.id, date));
+        const rows = this.getGuildDailySummary(guild.id, date);
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.medal || '📊'} Análise Diária de Staff`, 1);
@@ -544,7 +619,15 @@ class AnalyticsSystem {
         } else {
             builder.text(SPECTATOR_DISCLAIMER);
             builder.separator();
-            for (const block of this._chunkStaffBlocks(rows)) builder.text(block);
+
+            const avg = this._averageStaffTotals(rows);
+            builder.text(this._formatAverageBlock(avg));
+
+            const standoutLines = this._findDailyStandouts(rows, avg);
+            if (standoutLines.length > 0) {
+                builder.separator();
+                builder.text([`**${EMOJIS.crown || '👑'} Destaques do dia**`, ...standoutLines].join('\n'));
+            }
         }
 
         builder.footer(guild.name, 'Análise diária de staff');

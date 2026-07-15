@@ -3974,3 +3974,40 @@ frente, nao so este relatorio):
   dentro do limite de 25; nomes antigos (`Health` etc.) confirmadamente
   FORA da lista agora; nomes novos e corrigidos reconhecidos por
   `isKnownAttribute`.
+
+92) ANÁLISE DIÁRIA DE STAFF: bloco por staff trocado por média geral +
+    destaques
+------------------------------------------------------------------
+- Pedido do dono: a análise diária (seção 57, painel enviado todo dia pro
+  log de Staff) listava um bloco inteiro por staff ativo no dia — em
+  servidor com muita staff, isso não cabia mais no painel (limite de
+  caracteres por bloco de texto do Components V2). Trocado por uma MÉDIA
+  geral do dia (todos os parâmetros já rastreados: punições aplicadas,
+  reports entrados/fechados, mensagens em reports, tempo médio de
+  resposta, eventos criados, nametags com/sem espectador, tempo em modo
+  espectador) — uma linha só por parâmetro, não importa quantos staffs
+  estiveram ativos.
+- `avgResponseSeconds` da média é ponderado de verdade (soma de todos os
+  tempos de resposta / soma de todas as respostas do dia), não média das
+  médias de cada staff — evita que um staff que respondeu 1 report só uma
+  vez puxe o número igual a alguém que respondeu 20.
+- "Destaques do dia" (`_findDailyStandouts`, novo): pedido do dono foi
+  avisar só quem se destacou de mais em 3 parâmetros específicos —
+  Mensagens em reports, Eventos criados, Tempo em modo espectador. "Se
+  destacou" = tem o maior valor do dia E esse valor é MAIOR que a média
+  do grupo; se todo mundo empatou (ou só 1 staff esteve ativo — média ==
+  o próprio valor dele, nunca há "destaque" de 1 pessoa sozinha), a linha
+  desse parâmetro simplesmente não aparece, em vez de mostrar um destaque
+  vazio/óbvio. Empate no topo mostra todos os empatados, sem escolher um
+  arbitrariamente.
+- Escopo: só `generateDailySummaryContainer` (o painel automático diário)
+  mudou. `/historico staff` (com ou sem usuário) e o log de "staff perdeu
+  o cargo" continuam mostrando o bloco completo por staff — são consultas
+  sob demanda (um staff específico, ou lista paginável), não um painel
+  automático que precisa caber sozinho sem estourar.
+- Verificado com script direto: bloco de média aparece uma única vez
+  (não um por staff); contagem de staffs ativos correta; médias batem
+  com soma/N calculada à mão; destaque aparece só pro parâmetro/staff que
+  realmente se sobressaiu, staff sem nenhum destaque não é mencionado em
+  lugar nenhum; com 1 staff só ativo ou todos empatados, nenhum destaque
+  aparece.
