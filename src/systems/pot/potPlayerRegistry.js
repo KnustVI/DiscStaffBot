@@ -95,6 +95,23 @@ function extractDiscordId(payload) {
     return null;
 }
 
+// O próprio servidor do PoT às vezes manda esse texto fixo como DinosaurType
+// (ou as variantes VictimDinosaurType/KillerDinosaurType/SourceDinosaurType/
+// TargetDinosaurType dos eventos de combate) quando ele mesmo não consegue
+// resolver o asset da espécie do dino — visto ao vivo em /perfil mostrando
+// "Último dinossauro jogado: Invalid Character Data Asset". É um problema do
+// próprio jogo, não um bug do bot; tratado abaixo como "sem informação"
+// (null) em vez de exibir essa string crua pro jogador/staff. Usado tanto
+// aqui (normalizeEvent, abaixo) quanto em webhookPayloads.js/gatewayServer.js
+// pra sanitizar os mesmos campos nos logs de webhook (combate/kill/missão).
+const INVALID_DINOSAUR_TYPE_RE = /^invalid character data asset$/i;
+function sanitizeDinosaurType(raw) {
+    if (!raw) return null;
+    const trimmed = String(raw).trim();
+    if (!trimmed || INVALID_DINOSAUR_TYPE_RE.test(trimmed)) return null;
+    return trimmed;
+}
+
 /**
  * Normaliza um payload de webhook do PoT em um formato interno consistente.
  * Retorna null se o payload não tiver o mínimo necessário (AlderonId).
@@ -122,7 +139,7 @@ function normalizeEvent(rawPayload, eventType) {
     // DinosaurType/DinosaurGrowth só vêm no payload do PlayerRespawn — nos
     // demais eventos ficam undefined, e upsertPlayerFromEvent trata isso
     // como "não mexe no valor já salvo" (nunca sobrescreve com null).
-    const dinosaurType = rawPayload.DinosaurType ? String(rawPayload.DinosaurType).trim() : null;
+    const dinosaurType = sanitizeDinosaurType(rawPayload.DinosaurType);
     const dinosaurGrowth = rawPayload.DinosaurGrowth !== undefined && rawPayload.DinosaurGrowth !== null
         ? Number(rawPayload.DinosaurGrowth)
         : null;
@@ -668,6 +685,7 @@ module.exports = {
     getPlayerNameByAlderonId,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
+    sanitizeDinosaurType,
     ONLINE_EVENTS,
     OFFLINE_EVENTS,
 };

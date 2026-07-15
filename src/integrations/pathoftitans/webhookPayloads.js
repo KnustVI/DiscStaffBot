@@ -143,7 +143,7 @@ function dinoIdentitySuffix(characterName, characterId) {
  */
 function dinoTypeLine(dinosaurType, diet, characterName, characterId, guild) {
     const dietPrefix = dietEmoji(diet, guild);
-    const species = dinosaurType || 'Desconhecido';
+    const species = PlayerRegistry.sanitizeDinosaurType(dinosaurType) || 'Desconhecido';
     const namePart = characterName ? ` - ${characterName}` : '';
     const idPart = characterId ? ` (${characterId})` : '';
     return `${dietPrefix ? `${dietPrefix} ` : ''}${species}${namePart}${idPart}`;
@@ -564,7 +564,7 @@ function buildKillPanel(data, guild, receivedAt) {
     builder.title('Vítima', 3);
     builder.text(
         `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}\n` +
-        `${victimDiet ? `${victimDiet} ` : ''}${d.VictimDinosaurType || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
+        `${victimDiet ? `${victimDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.VictimDinosaurType) || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
     );
     builder.separator();
 
@@ -572,7 +572,7 @@ function buildKillPanel(data, guild, receivedAt) {
         builder.title('Matador', 3);
         builder.text(
             `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}\n` +
-            `${killerDiet ? `${killerDiet} ` : ''}${d.KillerDinosaurType || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
+            `${killerDiet ? `${killerDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.KillerDinosaurType) || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
         );
         builder.separator();
     }
@@ -619,7 +619,8 @@ function formatDuration(ms) {
 function participantSpeciesLine(p, guild) {
     const dietPrefix = dietEmoji(p.diet, guild);
     const stage = formatGrowthStage(p.dinosaurGrowth) || '—';
-    return `${dietPrefix ? dietPrefix + ' ' : ''}${p.dinosaurType || 'Desconhecido'} — Growth: ${stage}`;
+    const species = PlayerRegistry.sanitizeDinosaurType(p.dinosaurType) || 'Desconhecido';
+    return `${dietPrefix ? dietPrefix + ' ' : ''}${species} — Growth: ${stage}`;
 }
 
 /**

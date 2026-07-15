@@ -602,12 +602,12 @@ class PoTGatewayServer {
         const encounter = this._findOrCreateEncounter(guildId, groupId, sourceKey, targetKey);
         this._upsertParticipant(encounter, sourceKey, {
             name: data.SourceName, alderonId: data.SourceAlderonId,
-            dinosaurType: data.SourceDinosaurType, growth: data.SourceGrowth,
+            dinosaurType: PlayerRegistry.sanitizeDinosaurType(data.SourceDinosaurType), growth: data.SourceGrowth,
             ...extractDinoIdentity(data, 'Source'),
         });
         this._upsertParticipant(encounter, targetKey, {
             name: data.TargetName, alderonId: data.TargetAlderonId,
-            dinosaurType: data.TargetDinosaurType, growth: data.TargetGrowth,
+            dinosaurType: PlayerRegistry.sanitizeDinosaurType(data.TargetDinosaurType), growth: data.TargetGrowth,
             ...extractDinoIdentity(data, 'Target'),
         });
 
@@ -648,13 +648,13 @@ class PoTGatewayServer {
         if (hasKiller) {
             this._upsertParticipant(encounter, killerKey, {
                 name: data.KillerName, alderonId: data.KillerAlderonId,
-                dinosaurType: data.KillerDinosaurType, growth: data.KillerGrowth,
+                dinosaurType: PlayerRegistry.sanitizeDinosaurType(data.KillerDinosaurType), growth: data.KillerGrowth,
                 ...extractDinoIdentity(data, 'Killer'),
             });
         }
         this._upsertParticipant(encounter, victimKey, {
             name: data.VictimName, alderonId: data.VictimAlderonId,
-            dinosaurType: data.VictimDinosaurType, growth: data.VictimGrowth,
+            dinosaurType: PlayerRegistry.sanitizeDinosaurType(data.VictimDinosaurType), growth: data.VictimGrowth,
             ...extractDinoIdentity(data, 'Victim'),
         });
 
