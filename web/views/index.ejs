@@ -30,6 +30,50 @@
     <style>
         html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; }
         .guild-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+
+        /* Componente .btn-primary (Figma node 250-59) - mesma definicao de web/public/css/style.css,
+           duplicada aqui pq esta pagina usa um <style> proprio em vez do stylesheet compartilhado. */
+        .btn-primary {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            min-width: 232px;
+            height: 39px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 20px;
+            line-height: 30px;
+            color: #F8DCC0;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn-primary-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: currentColor;
+            flex: none;
+        }
+        .btn-primary:hover {
+            background: #803E30;
+            border-color: #F8DCC0;
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5),
+                        10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .btn-primary:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5),
+                        inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
     </style>
 </head>
 <body>
@@ -114,9 +158,9 @@
                 <% } else { %>
                     <!-- Caso não esteja logado -->
                     <div class="flex flex-col items-center gap-6">
-                        <a href="/login" class="px-10 py-4 bg-titan-accent text-titan-cream rounded-xl hover:scale-105 transition-transform" 
-                           style="font-family: 'Tilt Warp', sans-serif; font-size: 24px; border: 2px solid #5A1811;">
-                            ENTRAR COM DISCORD
+                        <a href="/login" class="btn-primary">
+                            <span class="btn-primary-icon"></span>
+                            <span>ENTRAR COM DISCORD</span>
                         </a>
                     </div>
                 <% } %>
