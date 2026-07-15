@@ -295,7 +295,10 @@ class PlayerRegistrationSystem {
                     discordUsername: targetUser.username,
                     titleLabel: 'Em breve (missões)',
                     levelLabel: 'Nível 1',
-                    speciesLabel: stats.dinosaurType || 'Ainda sem registro',
+                    // Espécie MAIS jogada (por nº de vezes escolhida), não a
+                    // última — essa continua só no painel "Offline" abaixo,
+                    // vinda de stats.dinosaurType (getGlobalPlayerStats).
+                    speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
                     honorStars: PunishmentSystem.getGlobalHonorStars(targetUser.id),
                 });
                 extraFiles.push(new AttachmentBuilder(cardBuffer, { name: 'perfil-card.png' }));

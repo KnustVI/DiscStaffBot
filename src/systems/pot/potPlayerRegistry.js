@@ -240,6 +240,12 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
     if (eventType === 'PlayerLogin') dinosaurActiveOverride = 0;
     else if (eventType === 'PlayerRespawn') dinosaurActiveOverride = 1;
 
+    // Um PlayerRespawn com espécie válida conta como "escolheu/jogou essa
+    // espécie uma vez" — alimenta getMostPlayedDinosaur (badge de "espécie
+    // mais jogada" no /perfil), distinto de dinosaur_type acima (que é
+    // sempre a ÚLTIMA, não a mais jogada).
+    const shouldRecordDinosaurPick = eventType === 'PlayerRespawn' && dinosaurType !== null;
+
     try {
         const existing = db.prepare(`
             SELECT * FROM pot_players WHERE guild_id = ? AND alderon_id = ?
@@ -273,6 +279,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
 
             console.log(`🦖 [PoT Registry] Novo jogador cadastrado: ${playerName} (${alderonId})`);
             if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
+            if (shouldRecordDinosaurPick) _recordDinosaurPick(guildId, alderonId, dinosaurType);
             return { created: true, alderonId };
         }
 
@@ -329,9 +336,65 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         );
 
         if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
+        if (shouldRecordDinosaurPick) _recordDinosaurPick(guildId, alderonId, dinosaurType);
         return { created: false, alderonId };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao cadastrar/atualizar jogador:', error);
+        return null;
+    }
+}
+
+/**
+ * Incrementa o contador de "vezes jogado" dessa espécie pra esse jogador
+ * nesse guild — chamado sempre que um PlayerRespawn traz uma espécie válida
+ * (já sanitizada por sanitizeDinosaurType). Nunca lança (mesmo padrão do
+ * resto do arquivo): um erro aqui só afeta o "dinossauro mais jogado" do
+ * /perfil, não pode derrubar o cadastro/atualização do jogador.
+ *
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @param {string} dinosaurType
+ */
+function _recordDinosaurPick(guildId, alderonId, dinosaurType) {
+    try {
+        db.prepare(`
+            INSERT INTO pot_dinosaur_picks (guild_id, alderon_id, dinosaur_type, pick_count, updated_at)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(guild_id, alderon_id, dinosaur_type) DO UPDATE SET
+                pick_count = pick_count + 1,
+                updated_at = excluded.updated_at
+        `).run(guildId, alderonId, dinosaurType, Math.floor(Date.now() / 1000));
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao registrar pick de dinossauro:', error);
+    }
+}
+
+/**
+ * "Dinossauro mais jogado" (por número de vezes escolhido/spawnado, não por
+ * tempo de jogo) — GLOBAL, somando pot_dinosaur_picks de todos os guilds pro
+ * mesmo alderon_id, mesmo critério "global" do resto deste arquivo (ver
+ * getGlobalPlayerStats). Distinto de dinosaur_type (pot_players/
+ * getGlobalPlayerStats), que é sempre o ÚLTIMO jogado — usado só no badge de
+ * espécie do card de /perfil; o "Último dinossauro jogado" do painel
+ * abaixo continua vindo de getGlobalPlayerStats, sem mudança.
+ *
+ * @param {string} alderonId
+ * @returns {string|null}
+ */
+function getMostPlayedDinosaur(alderonId) {
+    if (!alderonId) return null;
+    try {
+        const row = db.prepare(`
+            SELECT dinosaur_type, SUM(pick_count) as total_picks
+            FROM pot_dinosaur_picks
+            WHERE alderon_id = ?
+            GROUP BY dinosaur_type
+            ORDER BY total_picks DESC
+            LIMIT 1
+        `).get(alderonId);
+        return row?.dinosaur_type || null;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar dinossauro mais jogado:', error);
         return null;
     }
 }
@@ -675,6 +738,7 @@ module.exports = {
     getPlayerByAlderonId,
     getAlderonIdSuffix,
     getGlobalPlayerStats,
+    getMostPlayedDinosaur,
     recordKillEvent,
     registerPlayerManually,
     setBannerMessageId,

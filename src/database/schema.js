@@ -253,6 +253,23 @@ const SCHEMA = {
         )
     `,
 
+    // Contagem de vezes que cada especie foi escolhida (um respawn = um pick),
+    // por jogador — usada pra saber o "dinossauro mais jogado" (distinto de
+    // pot_players.dinosaur_type, que so guarda o ULTIMO jogado). Guild-scoped
+    // igual pot_players; a consulta global (getMostPlayedDinosaur) soma entre
+    // guilds pelo mesmo alderon_id.
+    pot_dinosaur_picks: `
+        CREATE TABLE IF NOT EXISTS pot_dinosaur_picks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            alderon_id TEXT NOT NULL,
+            dinosaur_type TEXT NOT NULL,
+            pick_count INTEGER DEFAULT 0,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            UNIQUE(guild_id, alderon_id, dinosaur_type)
+        )
+    `,
+
     pot_logs: `
         CREATE TABLE IF NOT EXISTS pot_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -501,6 +518,7 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_pot_players_discord ON pot_players(guild_id, discord_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_guild ON pot_logs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_type ON pot_logs(event_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_dinosaur_picks_alderon ON pot_dinosaur_picks(alderon_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,
     
     // Sequences

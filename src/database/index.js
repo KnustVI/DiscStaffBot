@@ -70,6 +70,7 @@ class DatabaseManager {
                 'sequences',
                 'pot_servers',
                 'pot_players',
+                'pot_dinosaur_picks',
                 'pot_logs',
                 'pot_tokens',
                 'player_links',
