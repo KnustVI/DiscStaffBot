@@ -3,17 +3,17 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
-const db = require('../database'); // Ajustado para o caminho correto
+const db = require('./src/database');
 
 const app = express();
 
 function loadDashboard(client) {
     // --- 1. CONFIGURAÇÕES DE RENDERIZAÇÃO ---
-    app.set('views', path.join(__dirname, '..', 'web', 'views'));
+    app.set('views', path.join(__dirname, 'web', 'views'));
     app.set('view engine', 'ejs');
-    
+
     // Middlewares padrão
-    app.use(express.static(path.join(__dirname, '..', 'web', 'public')));
+    app.use(express.static(path.join(__dirname, 'web', 'public')));
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 

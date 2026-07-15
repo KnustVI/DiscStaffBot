@@ -82,7 +82,7 @@ module.exports = {
                 await dashboard.start();
                 console.log('🌐 Dashboard web iniciado');
             } else if (dashboard && typeof dashboard === 'function') {
-                await dashboard();
+                await dashboard(client);
                 console.log('🌐 Dashboard web iniciado');
             } else if (dashboard) {
                 console.log('🌐 Dashboard web carregado');
