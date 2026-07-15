@@ -323,3 +323,63 @@ text-align: center;
     background: #803E30;
     transform: scale(1.05);
 }
+
+/* --- Botão Primário (Figma: componente "Button", modos Primary/Hover/Pressed/Disabled) ---
+   Uso: <button class="btn-primary"> ou <a class="btn-primary">, com <span class="btn-primary-icon">
+   opcional antes do texto. Estado disabled: atributo "disabled" (button) ou classe "is-disabled" (a). */
+.btn-primary {
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 5px 20px;
+    gap: 10px;
+    min-width: 232px;
+    height: 39px;
+    background: var(--bg-card);
+    border: 1px solid var(--surface);
+    border-radius: 15px;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 30px;
+    color: var(--text-primary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: none;
+}
+
+.btn-primary:hover:not(:disabled):not(.is-disabled) {
+    background: var(--surface);
+    border-color: var(--text-primary);
+    box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5),
+                10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+}
+
+.btn-primary:active:not(:disabled):not(.is-disabled),
+.btn-primary.is-pressed {
+    background: var(--surface-hover);
+    border-color: var(--surface);
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5),
+                inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+}
+
+.btn-primary:disabled,
+.btn-primary.is-disabled {
+    background: var(--bg-card);
+    border-color: #3E3D38;
+    color: #3E3D38;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
+    cursor: not-allowed;
+    pointer-events: none;
+}
