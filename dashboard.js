@@ -12,6 +12,15 @@ function loadDashboard(client) {
     app.set('views', path.join(__dirname, 'web', 'views'));
     app.set('view engine', 'ejs');
 
+    // Necessário quando o dashboard fica atrás de um reverse proxy (Nginx/
+    // Caddy) num domínio próprio com HTTPS — sem isso, o Express nunca vê a
+    // conexão original como "secure" (o proxy fala com ele por HTTP local),
+    // e o cookie de sessão com `secure: true` (abaixo) nunca é salvo pelo
+    // navegador, quebrando o login em loop de redirecionamento.
+    if (process.env.NODE_ENV === 'production') {
+        app.set('trust proxy', 1);
+    }
+
     // Middlewares padrão
     app.use(express.static(path.join(__dirname, 'web', 'public')));
     app.use(express.json());
