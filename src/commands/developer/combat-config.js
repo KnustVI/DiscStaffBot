@@ -26,40 +26,37 @@ module.exports = {
             .setName('set')
             .setDescription('Define a janela de inatividade (minutos) pra um servidor')
             .addIntegerOption(opt => opt.setName('minutos').setDescription('Minutos sem novo golpe até fechar o relatório').setRequired(true).setMinValue(1).setMaxValue(60))
-            .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor (padrão: este servidor)').setRequired(false)))
+            .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor Discord').setRequired(true)))
         .addSubcommand(sub => sub
             .setName('check')
             .setDescription('Consulta a janela de inatividade configurada pra um servidor')
-            .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor (padrão: este servidor)').setRequired(false)))
+            .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor Discord').setRequired(true)))
         .addSubcommand(sub => sub
             .setName('reset')
             .setDescription('Remove o override e volta pro default (5min)')
-            .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor (padrão: este servidor)').setRequired(false))),
+            .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor Discord').setRequired(true))),
 
+    // client aqui é sempre o bot PRINCIPAL (já em todo servidor de cliente),
+    // não o bot developer que recebeu a interação — ver src/systems/core/
+    // devBot.js. interaction.guild não existe (o comando roda no servidor
+    // privado do dono, não no servidor alvo); servidor_id agora é sempre
+    // obrigatório, sem fallback pro servidor onde o comando é rodado.
     async execute(interaction, client) {
-        const { user, guild } = interaction;
+        const { user } = interaction;
 
         if (user.id !== DEVELOPER_ID) {
-            db.logActivity(guild?.id || null, user.id, 'combat_config_denied', null, { command: 'combat-config' });
+            db.logActivity(null, user.id, 'combat_config_denied', null, { command: 'combat-config' });
             const denied = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
                 .text(`${EMOJIS.circlealert || '❌'} Este comando é restrito ao desenvolvedor do bot.`)
-                .footer(guild?.name || 'Servidor');
+                .footer('Bot de Developer');
             const { components, flags } = denied.build();
             await interaction.editReply({ components, flags: [flags] });
             return;
         }
 
         const sub = interaction.options.getSubcommand();
-        const servidorId = interaction.options.getString('servidor_id') || guild?.id;
-
-        if (!servidorId) {
-            const errBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                .text(`${EMOJIS.circlealert || '❌'} Informe \`servidor_id\`.`)
-                .footer(guild?.name || 'Servidor');
-            const { components, flags } = errBuilder.build();
-            await interaction.editReply({ components, flags: [flags] });
-            return;
-        }
+        const servidorId = interaction.options.getString('servidor_id');
+        const footerLabel = client.guilds.cache.get(servidorId)?.name || servidorId;
 
         let builder;
 
@@ -85,7 +82,7 @@ module.exports = {
                 .text(`**Servidor:** \`${servidorId}\`\n**Janela atual:** ${effective} minutos${raw ? '' : ' (default, sem override configurado)'}`);
         }
 
-        builder.footer(guild?.name || 'Servidor');
+        builder.footer(footerLabel);
         const { components, flags } = builder.build();
         await interaction.editReply({ components, flags: [flags] });
     },

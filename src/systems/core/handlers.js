@@ -8,7 +8,6 @@ const punishmentSystem = require('../moderation/punishmentSystem');
 const autoModerationModule = require('../moderation/autoModeration');
 const systemStatus = require('../monitoring/systemStatus');
 const errorLoggerModule = require('./errorLogger');
-const { sendSystemLog } = require('./systemLog');
 const premiumPanel = require('../premium/premiumPanel');
 const ajudaCommand = require('../../commands/ajuda/ajuda');
 const eventTeleportSystem = require('../events/eventTeleportSystem');
@@ -111,7 +110,7 @@ class InteractionHandler {
         const ephemeralCommands = [
             'strike', 'unstrike', 'repset',
             'config',
-            'reset-db', 'reset-reports', 'botstatus', 'potserver', 'combat-config',
+            'botstatus', 'potserver',
             'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil',
             'ingame-stats', 'ingame-marks', 'ingame-admin', 'ingame-list', 'ingame-map', 'ingame-event', 'ingame-message', 'ingame-comandos', 'ingame-buff',
         ];
@@ -123,22 +122,6 @@ class InteractionHandler {
             
             // Executar o comando
             await command.execute(interaction, this.client);
-
-            // Log de sistema pra qualquer comando de developer (reset-db,
-            // reset-reports, premium-admin) — canal fixo no servidor
-            // principal do dono, não afeta a resposta da interação (fire
-            // and forget, sendSystemLog nunca lança).
-            if (command.category === 'developer') {
-                sendSystemLog(this.client, (b) => {
-                    b.title('🛠️ Comando de Developer', 2);
-                    b.text(
-                        `**Comando:** \`/${interaction.commandName}\`\n` +
-                        `**Usuário:** ${interaction.user.tag} \`${interaction.user.id}\`\n` +
-                        `**Servidor:** ${interaction.guild?.name || 'DM'} \`${interaction.guildId || '—'}\``
-                    );
-                    b.footer(interaction.guild?.name || 'Sistema');
-                });
-            }
         } catch (error) {
             await this.handleError(interaction, error, 'command');
         }

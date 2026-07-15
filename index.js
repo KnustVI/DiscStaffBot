@@ -28,9 +28,17 @@ if (fs.existsSync(commandsPath)) {
     let loadedCommands = 0;
 
     for (const folder of commandFolders) {
+        // Comandos de developer (reset-db, reset-reports, premium-admin,
+        // combat-config) NÃO entram no bot principal — vivem numa Application
+        // separada, privada, carregada por src/systems/core/devBot.js. Isso é
+        // o que garante que staff de servidor de cliente nunca VEJA esses
+        // comandos na lista do Discord, não só recebam "acesso negado" depois
+        // de clicar (ver conversa com o dono sobre separar visibilidade).
+        if (folder === 'developer') continue;
+
         const folderPath = path.join(commandsPath, folder);
         if (!fs.statSync(folderPath).isDirectory()) continue;
-        
+
         const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
         
         for (const file of commandFiles) {

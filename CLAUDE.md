@@ -9,17 +9,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 - `node index.js` — start the bot (loads commands/events, connects to Discord, optionally starts the web dashboard).
-- `node deploy.js` — register slash commands. Registers **per-guild** (not globally) against the IDs hardcoded in the `GUILD_IDS` array at the top of `deploy.js` — update that array when adding a new server.
+- `node deploy.js` — register slash commands. Registers **per-guild** (not globally) against the IDs hardcoded in the `GUILD_IDS` array at the top of `deploy.js` — update that array when adding a new server. Also registers the separate developer-only bot's commands (`src/commands/developer/*.js`) against `DEV_CLIENT_ID`/`DEV_GUILD_ID`, skipped silently if those env vars aren't set — see "Developer-only bot" below.
 - `npm run convert-images` — converts any `.png`/`.jpg`/`.jpeg` in `assets/images` to `.webp` (deletes the originals). Run after adding new image assets; see `FERRAMENTAS.txt` for details. Requires the `sharp` devDependency (already in `package.json`).
 - No test suite is configured (`npm test` is a placeholder that exits with an error).
 - No lint/build step; plain Node CommonJS, run directly.
 
-Required `.env` values (read via `dotenv`): `TOKEN` (bot token, required to boot), `CLIENT_ID` (used by `deploy.js`), `DASHBOARD_CLIENT_ID` / `DASHBOARD_CLIENT_SECRET` / `DASHBOARD_CALLBACK_URL` / `SESSION_SECRET` / `DASHBOARD_PORT` (web dashboard OAuth2), `DEPLOY_COMMANDS=true` (if set, `events/ready.js` also registers commands globally on boot), `POT_GATEWAY_URL` (Path of Titans integration).
+Required `.env` values (read via `dotenv`): `TOKEN` (bot token, required to boot), `CLIENT_ID` (used by `deploy.js`), `DASHBOARD_CLIENT_ID` / `DASHBOARD_CLIENT_SECRET` / `DASHBOARD_CALLBACK_URL` / `SESSION_SECRET` / `DASHBOARD_PORT` (web dashboard OAuth2), `DEPLOY_COMMANDS=true` (if set, `events/ready.js` also registers commands globally on boot), `POT_GATEWAY_URL` (Path of Titans integration), `DEV_TOKEN` / `DEV_CLIENT_ID` / `DEV_GUILD_ID` (optional — second, private Discord Application for developer-only commands; the bot boots fine without them, see "Developer-only bot" below).
 
 ## Architecture
 
 ### Boot & loading
-`index.js` recursively loads every `src/commands/<category>/*.js` file that exports both `data` (a `SlashCommandBuilder`) and `execute`, registers each with `client.commands`, then loads every `src/events/*.js` file (name/execute or name/once/execute). The Path of Titans integration is initialized last, in standby, and failures there are swallowed so the bot still boots without it. `events/ready.js` then wires up the interaction handler cache, the inactive-reports cron job, the web dashboard, auto-moderation worker, and bot presence rotation.
+`index.js` recursively loads every `src/commands/<category>/*.js` file that exports both `data` (a `SlashCommandBuilder`) and `execute`, registers each with `client.commands`, then loads every `src/events/*.js` file (name/execute or name/once/execute). **`src/commands/developer/` is explicitly skipped** by this loader — those commands belong to the separate developer-only bot (see below), never to the main bot's command set. The Path of Titans integration is initialized last, in standby, and failures there are swallowed so the bot still boots without it. `events/ready.js` then wires up the interaction handler cache, the inactive-reports cron job, the web dashboard, the developer-only bot, auto-moderation worker, and bot presence rotation.
 
 ### Interaction routing
 All interactions flow through `events/interactionCreate.js`, which delegates to the `InteractionHandler` singleton in `src/systems/handlers.js`:
@@ -50,6 +50,9 @@ All interactions flow through `events/interactionCreate.js`, which delegates to 
 
 ### Web dashboard (`dashboard.js` + `web/`)
 Express + EJS + `passport-discord` OAuth2 app, started from `events/ready.js` after the bot logs in. Reads/writes the same SQLite database directly (settings, punishments, reputation) for a browser-based admin panel.
+
+### Developer-only bot (`src/systems/core/devBot.js`)
+`reset-db`, `reset-reports`, `premium-admin`, and `combat-config` (`src/commands/developer/*.js`) live on a **second, separate Discord Application** — its own bot token/`CLIENT_ID`/`GUILD_ID` (`DEV_TOKEN`/`DEV_CLIENT_ID`/`DEV_GUILD_ID`), invited only to the owner's private server. This exists so these commands are actually invisible to any customer server's staff, not just rejected-after-clicking (a per-command `DEVELOPER_ID` check inside each command is still kept as defense-in-depth, but visibility is the real fix). `startDevBot(mainClient)` (called from `events/ready.js`, no-ops silently if `DEV_TOKEN` isn't set) logs in a second lightweight `Client`, loads only the `developer/` folder, and runs its own minimal `interactionCreate` listener — no buttons/modals, just slash commands, always ephemeral. Because this bot is never a member of any customer guild, every developer command takes a required `servidor_id` string option instead of relying on `interaction.guild`; **`command.execute(interaction, client)` is called with the MAIN bot's client, not this private one** — that's what makes `client.guilds.cache.get(servidorId)` (and channel fetches/sends on that guild) work, while `interaction.editReply()` still correctly replies through the private bot's own webhook regardless of which client was used to look up guild data. `deploy.js` mirrors this split: commands from `developer/` are registered under `DEV_CLIENT_ID`/`DEV_GUILD_ID` instead of the main `GUILD_IDS` loop, skipped silently if those env vars are absent.
 
 ### Error handling
 `src/systems/errorLogger.js` is the central error sink; `InteractionHandler.handleError` and most command `catch` blocks funnel unexpected errors through it, then reply to the user with a generic ephemeral error via `ResponseManager.error`.

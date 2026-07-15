@@ -74,16 +74,22 @@ module.exports = {
             .addSubcommand(sub => sub
                 .setName('check')
                 .setDescription('Consulta o Server Premium de um servidor')
-                .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor (padrão: este servidor)').setRequired(false)))),
+                .addStringOption(opt => opt.setName('servidor_id').setDescription('ID do servidor Discord').setRequired(true)))),
 
+    // client aqui é sempre o bot PRINCIPAL (já em todo servidor de cliente),
+    // não o bot developer que recebeu a interação — ver src/systems/core/
+    // devBot.js. interaction.guild não existe (o comando roda no servidor
+    // privado do dono, não no servidor alvo); "servidor_id" das subcommands
+    // de guild agora é sempre obrigatório, sem fallback pro servidor onde o
+    // comando é rodado.
     async execute(interaction, client) {
-        const { user, guild } = interaction;
+        const { user } = interaction;
 
         if (user.id !== DEVELOPER_ID) {
-            db.logActivity(guild?.id || null, user.id, 'premium_denied', null, { command: 'premium-admin' });
+            db.logActivity(null, user.id, 'premium_denied', null, { command: 'premium-admin' });
             const denied = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
                 .text(`${EMOJIS.circlealert || '❌'} Este comando é restrito ao desenvolvedor do bot.`)
-                .footer(guild?.name || 'Servidor');
+                .footer('Bot de Developer');
             const { components, flags } = denied.build();
             await interaction.editReply({ components, flags: [flags] });
             return;
@@ -93,6 +99,7 @@ module.exports = {
         const sub = interaction.options.getSubcommand();
 
         let builder;
+        let footerLabel = 'Bot de Developer';
 
         if (group === 'player') {
             const targetUser = interaction.options.getUser('usuario');
@@ -102,26 +109,18 @@ module.exports = {
                 const dias = interaction.options.getInteger('dias');
                 const observacao = interaction.options.getString('observacao');
                 PremiumSystem.grantPlayerPremium(targetUser.id, tier, dias, user.id, observacao);
-                db.logActivity(guild?.id || null, user.id, 'premium_grant', targetUser.id, { scope: 'player', tier, dias });
+                db.logActivity(null, user.id, 'premium_grant', targetUser.id, { scope: 'player', tier, dias });
                 builder = buildInfoContainer('PLAYER PREMIUM CONCEDIDO', PremiumSystem.getPlayerPremiumInfo(targetUser.id), 'Usuário', targetUser.tag);
             } else if (sub === 'revoke') {
                 PremiumSystem.revokePlayerPremium(targetUser.id, user.id);
-                db.logActivity(guild?.id || null, user.id, 'premium_revoke', targetUser.id, { scope: 'player' });
+                db.logActivity(null, user.id, 'premium_revoke', targetUser.id, { scope: 'player' });
                 builder = buildInfoContainer('PLAYER PREMIUM REVOGADO', PremiumSystem.getPlayerPremiumInfo(targetUser.id), 'Usuário', targetUser.tag);
             } else {
                 builder = buildInfoContainer('PLAYER PREMIUM', PremiumSystem.getPlayerPremiumInfo(targetUser.id), 'Usuário', targetUser.tag);
             }
         } else if (group === 'guild') {
-            const servidorId = interaction.options.getString('servidor_id') || guild?.id;
-
-            if (!servidorId) {
-                const errBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                    .text(`${EMOJIS.circlealert || '❌'} Informe \`servidor_id\`.`)
-                    .footer(guild?.name || 'Servidor');
-                const { components, flags } = errBuilder.build();
-                await interaction.editReply({ components, flags: [flags] });
-                return;
-            }
+            const servidorId = interaction.options.getString('servidor_id');
+            footerLabel = client.guilds.cache.get(servidorId)?.name || servidorId;
 
             if (sub === 'grant') {
                 const tier = interaction.options.getString('tier');
@@ -163,7 +162,7 @@ module.exports = {
             }
         }
 
-        builder.footer(guild?.name || 'Servidor');
+        builder.footer(footerLabel);
         const { components, flags } = builder.build();
         await interaction.editReply({ components, flags: [flags] });
     },

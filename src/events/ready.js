@@ -33,6 +33,16 @@ module.exports = {
         startEventSchedulerWorker(client);
         startDailyAnalyticsJob(client);
 
+        // Bot de developer (Application separada, privada) — ver
+        // src/systems/core/devBot.js. Opcional (só liga com DEV_TOKEN no
+        // .env) e não pode derrubar o bot principal se falhar.
+        try {
+            const { startDevBot } = require('../systems/core/devBot');
+            startDevBot(client);
+        } catch (error) {
+            console.error('❌ [DevBot] Erro ao iniciar bot de developer:', error.message);
+        }
+
         // Reconecta o RCON de toda guild já configurada — sem isso, todo
         // restart do bot deixa /registrar (e qualquer outro RCON) quebrado
         // até alguém rodar /potserver status/setup na mão. Não bloqueia o
