@@ -10,11 +10,11 @@
  *   list             -> lista de buffs + botão "Criar Buff"
  *   edit(buffId)      -> atributos do buff + botões Adicionar/Excluir/Voltar
  *   pick-attribute    -> select com os atributos confirmados (KNOWN_STATS,
- *                        ver buffStatCatalog.js) — só 10 itens hoje, cabem
- *                        num select só, sem precisar de um passo de
+ *                        ver buffStatCatalog.js) — bem abaixo do limite de
+ *                        25 de um select só, sem precisar de um passo de
  *                        categoria antes (existiu antes, removido quando a
  *                        lista de ~59 atributos "de documentação" foi
- *                        substituída pelos 10 confirmados por teste real).
+ *                        substituída pelos confirmados por teste real).
  *
  * Escolher um atributo abre um MODAL pedindo o valor — precisa ser
  * especial-caseado em interactionCreate.js (ANTES do deferUpdate()

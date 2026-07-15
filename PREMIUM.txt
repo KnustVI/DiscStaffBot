@@ -246,12 +246,15 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   (kick/ban/ServerMute, ja disponivel desde o Rastreador - ver secao
   acima) continuam JA IMPLEMENTADAS tambem. BUFFS configuraveis (presets
   de `setattr` em lote, "parecido com os niveis de punicao") JA
-  IMPLEMENTADO (ver secoes 88 e 89) - /config buffs cria/edita buffs
+  IMPLEMENTADO (ver secoes 88, 89 e 91) - /config buffs cria/edita buffs
   nomeados com quantos atributos quiser, escolhidos de uma lista fechada
-  de 10 atributos CONFIRMADOS por teste real (Health, Stamina, Hunger,
-  Thirst, Oxygen, BleedAmount, PoisonAmount, VenomAmount, LegDamage,
-  Growth - reduzida da lista inicial de ~59 na secao 89, depois do dono
-  testar e confirmar que só estes de fato funcionam), /ingame-buff aplicar
+  de 17 atributos definidos pelo dono (MaxHealth, MaxStamina, MaxHunger,
+  MaxThirst, MaxOxygen, BleedAmount, PoisonAmount, VenomAmount, LegDamage,
+  Growth, CombatWeight, Armor, MovementSpeedMultiplier,
+  SprintingSpeedMultiplier, TrottingSpeedMultiplier, HealthRecoveryRate,
+  StaminaRecoveryRate - reduzida da lista inicial de ~59 na secao 89,
+  atualizada na secao 91 com o prefixo Max nos 5 atributos "de teto" e
+  7 atributos novos), /ingame-buff aplicar
   aplica um buff inteiro num jogador com um comando so (em vez de repetir
   /ingame-stats setattr atributo por atributo), /ingame-buff listar mostra
   os buffs configurados. SEMPRE confere se o jogador esta online antes de
@@ -3940,3 +3943,34 @@ frente, nao so este relatorio):
   mostra o aviso pedindo pra configurar. Suite de buffs completa
   reexecutada com os 2 cargos (Supervisor pro painel, Staff comum pra
   aplicar) — 27 checks no total, todos passando.
+
+91) BUFFS: lista de atributos corrigida (prefixo Max) + 7 atributos novos
+------------------------------------------------------------------
+- Correção do dono sobre a lista da seção 89: os 5 atributos "de teto"
+  (vida/stamina/fome/sede/oxigênio máximos) usam o prefixo `Max` no
+  `setattr` — `Health`/`Stamina`/`Hunger`/`Thirst`/`Oxygen` (nomes usados
+  antes) viram `MaxHealth`/`MaxStamina`/`MaxHunger`/`MaxThirst`/
+  `MaxOxygen`. `BleedAmount`/`PoisonAmount`/`VenomAmount`/`LegDamage`/
+  `Growth` não mudam (nunca foram "de teto").
+- 7 atributos novos pedidos pelo dono, adicionados ao catálogo:
+  `CombatWeight`, `Armor`, `MovementSpeedMultiplier`,
+  `SprintingSpeedMultiplier`, `TrottingSpeedMultiplier`,
+  `HealthRecoveryRate`, `StaminaRecoveryRate`. Catálogo (`KNOWN_STATS` em
+  `buffStatCatalog.js`) vai de 10 pra 17 atributos — ainda bem abaixo do
+  limite de 25 de um StringSelectMenu, então o select direto (sem passo
+  de categoria) continua sem mudança.
+- Só o arquivo de dados mudou (`buffStatCatalog.js`) — `buffPanelSystem.js`
+  já lia `KNOWN_STATS` dinamicamente (sem contagem/nomes hardcoded no
+  fluxo em si, só um comentário desatualizado corrigido) e
+  `buffSystem.js`/`ingame-buff.js` não hardcodeiam nome de atributo
+  nenhum (só repassam o que está salvo em `buff_stats` pro `setattr`).
+  Buffs já criados com os nomes antigos (`Health`/`Stamina`/etc., se
+  algum existir) continuam salvos e aplicáveis normalmente — o `setattr`
+  roda do mesmo jeito, só que com o nome antigo (sem efeito real no jogo,
+  já que não é mais um atributo confirmado); não há migração automática
+  desses dados, precisa recriar o atributo no buff manualmente pra usar
+  o nome novo.
+- Verificado com script direto: catálogo com 17 itens, sem duplicata,
+  dentro do limite de 25; nomes antigos (`Health` etc.) confirmadamente
+  FORA da lista agora; nomes novos e corrigidos reconhecidos por
+  `isKnownAttribute`.
