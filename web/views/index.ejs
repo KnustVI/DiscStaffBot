@@ -28,7 +28,7 @@
     </script>
 
     <style>
-        body { margin: 0; padding: 0; }
+        html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; }
         .guild-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: 28px; }
     </style>
 </head>
@@ -81,8 +81,8 @@
 
                     <!-- Grid de Servidores -->
                     <% if (guilds.length > 0) { %>
-                        <div class="grid gap-4 sm:gap-5 md:gap-6 shrink-0"
-                             style="grid-template-columns: repeat(3, 1fr); padding: clamp(12px, 2vw, 30px);">
+                        <div class="grid gap-4 sm:gap-5 md:gap-6 shrink-0 justify-center"
+                             style="grid-template-columns: repeat(auto-fit, minmax(80px, 135px)); padding: clamp(12px, 2vw, 30px);">
 
                             <% /* Mostra TODOS os servidores que a pessoa administra — sem limite de 6 */ %>
                             <% guilds.forEach(guild => { %>
