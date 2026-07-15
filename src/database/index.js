@@ -81,7 +81,8 @@ class DatabaseManager {
                 'event_teleport_uses',
                 'event_posts',
                 'buffs',
-                'buff_stats'
+                'buff_stats',
+                'sessions'
             ];
             
             for (const table of tables) {

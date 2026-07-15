@@ -433,6 +433,23 @@ const SCHEMA = {
             UNIQUE(buff_id, attribute)
         )
     `,
+
+    // ==================== SESSÕES DO DASHBOARD WEB ====================
+    // Store de sessão do express-session (login do dashboard, ver
+    // dashboard.js/web/sqliteSessionStore.js) — reaproveita a MESMA conexão
+    // better-sqlite3 do resto do bot, em vez de um pacote de terceiros
+    // (o óbvio, better-sqlite3-session-store, está arquivado/sem manutenção
+    // desde 2025) ou de um segundo driver de SQLite (connect-sqlite3 usa o
+    // driver `sqlite3` clássico, não o better-sqlite3). `session` guarda o
+    // JSON serializado da sessão; `expires` é epoch ms, varrido
+    // periodicamente pela própria store.
+    sessions: `
+        CREATE TABLE IF NOT EXISTS sessions (
+            sid TEXT PRIMARY KEY,
+            session TEXT NOT NULL,
+            expires INTEGER NOT NULL
+        )
+    `,
 };
 
 // ==================== ÍNDICES ====================
@@ -513,6 +530,9 @@ const INDEXES = [
     // Buffs
     `CREATE INDEX IF NOT EXISTS idx_buffs_guild ON buffs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_buff_stats_buff ON buff_stats(buff_id)`,
+
+    // Sessões do dashboard web
+    `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires)`,
 ];
 
 module.exports = { SCHEMA, INDEXES };

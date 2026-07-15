@@ -4,6 +4,7 @@ const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
 const db = require('./src/database');
+const SqliteSessionStore = require('./web/sqliteSessionStore');
 
 const app = express();
 
@@ -27,11 +28,16 @@ function loadDashboard(client) {
     app.use(express.urlencoded({ extended: true }));
 
     // --- 2. GERENCIAMENTO DE SESSÃO ---
+    // Store em SQLite (mesma conexão better-sqlite3 do resto do bot, ver
+    // web/sqliteSessionStore.js) — o padrão MemoryStore do express-session
+    // não é feito pra produção: vaza memória e desloga todo mundo a cada
+    // restart do bot.
     app.use(session({
+        store: new SqliteSessionStore(),
         secret: process.env.SESSION_SECRET || 'robin_integrity_secure_session_882',
         resave: false,
         saveUninitialized: false,
-        cookie: { 
+        cookie: {
             secure: process.env.NODE_ENV === 'production', // true se usar HTTPS
             maxAge: 1000 * 60 * 60 * 24 // 24 horas
         }
