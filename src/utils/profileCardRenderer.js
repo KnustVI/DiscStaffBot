@@ -156,14 +156,13 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {'free'|'compy'|'raptor'} opts.tier
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
- *   Quando presente, o CARD é desenhado na resolução NATIVA (sem encolher)
- *   e o canvas final é esse tamanho multiplicado por CARD_PADDING_FACTOR
- *   (1.3) nas duas dimensões — preserva exatamente a proporção do card
- *   (716:458 ≈ 1.56:1), a mesma comprovada sendo exibida em largura cheia
- *   pelo Discord. O plano de fundo é recortado (cover fit) pra cobrir esse
- *   canvas maior, com uma sombra projetada (drop shadow) no card pra se
- *   destacar dele. Sobra plano de fundo visível à direita e embaixo do
- *   card.
+ *   Quando presente, medidas EXATAS pedidas pelo dono: canvas final
+ *   1000x500 (plano de fundo cortado em cover fit pra esse tamanho), card
+ *   em 845x480, encostado na borda direita e centralizado verticalmente —
+ *   ver FINAL_W/FINAL_H/CARD_W/CARD_H abaixo. Isso NÃO preserva a proporção
+ *   nativa do card (716:458), então ele sai levemente esticado (~13% mais
+ *   na largura). Sombra projetada (drop shadow) no card pra se destacar do
+ *   plano de fundo atrás.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -296,20 +295,25 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Voltou a usar o card na resolução NATIVA (sem encolher pra caber numa
-    // caixa fixa pequena, como nos testes anteriores de 750x550...1000x550)
-    // — pedido do dono: manter a imagem geral grande/nítida, só que com MAIS
-    // plano de fundo visível ao redor. O canvas final é o card nativo
-    // multiplicado por CARD_PADDING_FACTOR nas DUAS dimensões — isso
-    // preserva EXATAMENTE a mesma proporção do card (716:458 ≈ 1.56:1), a
-    // mesma já comprovada sendo exibida em largura cheia pelo Discord
-    // (diferente de só somar altura sem somar largura proporcional, que foi
-    // o que encolheu a imagem inteira na rodada de testes anterior).
-    const CARD_PADDING_FACTOR = 1.3;
-    const FINAL_W = Math.round(canvas.width * CARD_PADDING_FACTOR);
-    const FINAL_H = Math.round(canvas.height * CARD_PADDING_FACTOR);
-    const cardScaledW = canvas.width;
-    const cardScaledH = canvas.height;
+    // Medidas EXATAS pedidas pelo dono: imagem final 1000x500 (plano de
+    // fundo cortado em "fill"/cover pra esse tamanho exato), card em
+    // 845x480, encostado na borda DIREITA (x = 1000-845 = 155) e centralizado
+    // verticalmente (y = (500-480)/2 = 10).
+    //
+    // AVISO: 845x480 não é a mesma proporção nativa do card (716:458 ≈
+    // 1.56:1; 845:480 ≈ 1.76:1) — encaixar EXATAMENTE nessas medidas exige
+    // esticar o card ~13% mais na largura do que na altura (drawImage com
+    // dWidth/dHeight fixos, sem preservar a razão original). Diferente da
+    // foto (onde esticar distorce rostos/objetos de forma óbvia), aqui é só
+    // moldura/badges/texto em formas mais simples — mas se ficar visível
+    // demais, dá pra trocar pra um "contain" (encaixa sem esticar, ficando
+    // menor que 845x480 numa das dimensões) a pedido.
+    const FINAL_W = 1000;
+    const FINAL_H = 500;
+    const CARD_W = 845;
+    const CARD_H = 480;
+    const cardX = FINAL_W - CARD_W;
+    const cardY = Math.round((FINAL_H - CARD_H) / 2);
 
     let bgRotated;
     try {
@@ -333,16 +337,13 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // Sombra projetada em cima do CONTORNO real do card (moldura+badges+
     // texto, via canal alfa do canvas do card) — não uma sombra "no olho"
     // desenhada por cima de uma forma fixa, então acompanha automaticamente
-    // qualquer ajuste futuro de layout do card. drawImage com dWidth/dHeight
-    // escala o card MANTENDO a proporção (cardScaledH calculado acima a
-    // partir da mesma razão largura:altura do canvas original) — sem isso
-    // distorceria/esticaria o card, o mesmo problema já corrigido na foto.
+    // qualquer ajuste futuro de layout do card.
     fctx.save();
     fctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     fctx.shadowBlur = 22 * SCALE;
     fctx.shadowOffsetX = 0;
     fctx.shadowOffsetY = 6 * SCALE;
-    fctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, cardScaledW, cardScaledH);
+    fctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, cardX, cardY, CARD_W, CARD_H);
     fctx.restore();
 
     return finalCanvas.toBuffer('image/png');
