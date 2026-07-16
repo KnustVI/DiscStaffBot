@@ -38,15 +38,18 @@ COMPY - R$10/mes ("Tudo do Free +")
 - Footer de perfil padrao do tier Compy.
 - /perfil-edit libera aqui o resto da personalizacao, sempre por MENU (sem
   upload proprio - isso e exclusivo do Raptor, ver abaixo):
-    - Foto de fundo do CARD (avatar) escolhida num menu de fotos - 12 fotos
-      genericas fixas (mesmo pool usado nos banners de /config personalizar)
-      + qualquer imagem que o dono adicionar via /perfil-pool add avatar
-      (bot developer, ver secao 97). JA IMPLEMENTADO.
+    - Foto de fundo do CARD (avatar) escolhida num menu de fotos - pool
+      100% dinamico, alimentado pelo dono via /perfil-pool add avatar (bot
+      developer, ver secao 97/98). Comeca VAZIO ate o dono cadastrar as
+      primeiras fotos (as 12 genericas antigas viraram plano de fundo, ver
+      abaixo - correcao do dono, secao 98) - menu mostra aviso de "nenhuma
+      opcao ainda" nesse meio tempo. JA IMPLEMENTADO.
     - Plano de fundo (banner atras da mensagem INTEIRA do /perfil, distinto
-      da foto de dentro do card) escolhido num menu - reaproveita o MESMO
-      pool de 12 fotos genericas usado na foto de perfil (correcao do dono
-      - ver secao 96) + qualquer imagem adicionada via /perfil-pool add
-      fundo (ver secao 97). JA IMPLEMENTADO E FUNCIONAL.
+      da foto de dentro do card) escolhido num menu - pool 100% dinamico
+      (mesmo mecanismo do avatar), ja SEEDED com as 12 fotos genericas que
+      antes eram compartilhadas com o avatar (migradas via script unico,
+      ver secao 98) + qualquer imagem nova adicionada via /perfil-pool add
+      fundo. JA IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
@@ -118,17 +121,20 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
   toda vez que o /perfil e exibido.
 - Foto escolhida por menu (Compy) via /perfil-edit - sem upload do jogador,
-  so seleciona entre as 12 fotos genericas fixas (mesmo pool usado nos
-  banners de /config personalizar) OU qualquer imagem que o dono tenha
-  adicionado via /perfil-pool add (bot developer, ver secao 97). Guarda so a
-  CHAVE (player_links.selected_photo_key/selected_background_key) - chave
-  estatica do imageManager ou "pool:<id>" pro pool dinamico, nunca um
-  arquivo proprio do jogador.
+  so seleciona entre as imagens que o dono ja tiver adicionado ao pool via
+  /perfil-pool add avatar/fundo (bot developer, ver secao 97/98) - pool
+  100% dinamico, nao depende mais de nenhuma foto fixa em assets/images.
+  Guarda so a CHAVE "pool:<id>" (player_links.selected_photo_key/
+  selected_background_key), nunca um arquivo proprio do jogador.
 - Pool dinamico de imagens (avatar/plano de fundo/emblema) via /perfil-pool
-  (bot developer, ver secao 97) - o dono adiciona/remove/lista imagens sem
-  precisar editar codigo ou redeployar. Mesmo padrao de armazenamento do
-  upload proprio do Raptor (guarda so o ID da mensagem no canal fixo
-  BANNER_STORAGE_CHANNEL_ID, URL resolvida de novo a cada /perfil).
+  (bot developer, ver secao 97/98) - o dono adiciona/remove/lista imagens
+  sem precisar editar codigo ou redeployar. Mesmo padrao de armazenamento
+  do upload proprio do Raptor (guarda so o ID da mensagem no canal fixo
+  BANNER_STORAGE_CHANNEL_ID, URL resolvida de novo a cada /perfil). As 12
+  fotos genericas que antes eram hardcoded (PLAYER_PHOTO_OPTIONS) foram
+  migradas pro pool dinamico de PLANO DE FUNDO (ver secao 98) - o pool de
+  AVATAR comeca vazio ate o dono cadastrar fotos novas via /perfil-pool add
+  avatar.
 - Loja (comprar fotos/badges/titulos/sorteio) e so a FUNDACAO (o sistema
   de tier), ainda NAO tem loja implementada de fato - a foto por menu do
   Compy (acima) e um recurso PROPRIO, nao depende da loja.
@@ -4340,3 +4346,39 @@ frente, nao so este relatorio):
   seleção de um valor `pool:<id>` sendo aceita pelos 3 handlers de select;
   remoção de uma imagem em uso não quebra a resolução no `/perfil` (cai no
   padrão do tier).
+
+98) As 12 fotos genéricas viram SÓ plano de fundo; avatar/emblema passam a
+    ser 100% pool dinâmico (sem nenhum pool estático por trás)
+------------------------------------------------------------------
+- Correção do dono sobre a seção 97: as 12 fotos genéricas antigas
+  (`PLAYER_PHOTO_OPTIONS`, "Planeta Âmbar", "Suchomimus" etc.) deixam de
+  aparecer como opção de AVATAR no `/perfil-edit` — passam a ser SÓ plano de
+  fundo. Cada uma migrada pro pool dinâmico (`profile_image_pool`, tipo
+  `background`) mantendo o MESMO nome que já tinha no código (pedido
+  explícito do dono — nenhum nome novo inventado).
+- Novo script `migrate-fotos-plano-fundo.js` (raiz do projeto, rodar UMA VEZ
+  direto no servidor onde o bot roda de verdade — precisa do `TOKEN`/
+  `BANNER_STORAGE_CHANNEL_ID` reais do `.env`, que não existem no ambiente
+  de desenvolvimento local): usa a REST API do Discord direto (mesmo padrão
+  de `deploy.js`, sem precisar logar um Client/Gateway inteiro) pra reenviar
+  cada uma das 12 fotos pro canal de armazenamento e cadastrar a entrada
+  correspondente em `profile_image_pool`. Idempotente — pula fotos cujo
+  nome já existir no pool, seguro rodar de novo sem duplicar.
+- `ConfigSystem.getAvatarOptions`/`getBackgroundOptions`/`getBadgeOptions`
+  (seção 97) simplificadas: não mesclam mais com nenhum array estático
+  (`PLAYER_PHOTO_OPTIONS`/`PLAYER_BACKGROUND_OPTIONS`/`PLAYER_BADGE_
+  OPTIONS`) — os 3 pools de `/perfil-edit` (avatar, plano de fundo,
+  emblema) ficam 100% dependentes do pool dinâmico. `PLAYER_BACKGROUND_
+  OPTIONS`/`PLAYER_BADGE_OPTIONS` removidas do código (ficaram sem uso
+  nenhum); `PLAYER_PHOTO_OPTIONS` continua existindo só pros banners de
+  `/config reportchat`/`/strike`/`/unstrike` (feature separada, não mexida).
+- Consequência direta: o pool de AVATAR volta a ficar vazio até o dono
+  cadastrar fotos novas via `/perfil-pool add avatar` — `buildPlayerPhoto
+  PickerPayload` ganhou o mesmo aviso de "nenhuma opção ainda" que plano de
+  fundo/emblema já tinham (faltava esse guard: com o pool dinâmico vazio,
+  `StringSelectMenuBuilder.addOptions([])` quebraria a tela).
+- Verificado com scripts diretos: painel de avatar vazio mostra aviso sem
+  lançar erro; pools de avatar/fundo/emblema são independentes entre si
+  (uma entrada adicionada num tipo não vaza pro select de outro tipo);
+  `PLAYER_PHOTO_OPTIONS` continua com as 12 entradas intacto (banners de
+  reportchat/strike/unstrike não afetados).

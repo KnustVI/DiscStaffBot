@@ -151,8 +151,14 @@ const LOG_FIELDS = [
 
 /**
  * Pool de fotos genéricas (assets/images/FOTO PERFIL 01..12.webp) — usado
- * tanto pelo painel de /config reportchat (Caçador) quanto pelo picker de
- * foto de perfil do Player Premium Compy (/perfil-edit). As fotos padrão de
+ * SÓ pelos banners de /config reportchat/strike/unstrike (ver
+ * REPORT_CHAT_BANNER_OPTIONS/STRIKE_BANNER_OPTIONS/UNSTRIKE_BANNER_OPTIONS
+ * abaixo), que continuam vindo de arquivo estático via imageManager. NÃO é
+ * mais usado pelos pickers de /perfil-edit (avatar/plano de fundo) — essas
+ * mesmas 12 fotos foram migradas pro pool DINÂMICO de plano de fundo
+ * (profile_image_pool, tipo 'background' — ver migrate-fotos-plano-fundo.js
+ * e getBackgroundOptions abaixo), a pedido do dono: elas passam a ser SÓ
+ * plano de fundo, não aparecem mais como opção de avatar. As fotos padrão de
  * cada tier (foto_perfil_free/compy/raptor) ficam DE FORA dessa lista: são
  * os fallbacks fixos de quando ninguém escolheu nada (ver DEFAULT_CARD_
  * PHOTOS em playerRegistrationSystem.js), não faz sentido oferecê-las como
@@ -173,53 +179,33 @@ const PLAYER_PHOTO_OPTIONS = [
     { value: 'foto_perfil_12', label: 'Trike Family' },
 ];
 
-// Planos de fundo pré-definidos pra escolher no /perfil-edit (Player Premium
-// Compy) — pro banner que aparece ATRÁS da mensagem inteira do /perfil (não
-// o recorte de foto de dentro do card). Pedido do dono: reaproveita o MESMO
-// pool de PLAYER_PHOTO_OPTIONS em vez de esperar por um conjunto de imagens
-// próprio — já são fotos de cenário/paisagem, funcionam bem como fundo
-// também, e evita ficar sem nenhuma opção disponível até ter assets novos.
-const PLAYER_BACKGROUND_OPTIONS = PLAYER_PHOTO_OPTIONS;
-
-// Emblemas pré-definidos pra escolher no /perfil-edit — liberado em
-// QUALQUER tier (pedido do dono, diferente de foto/fundo/título, que
-// continuam Compy+/Raptor), sempre "escolher de uma lista", nunca upload
-// próprio. Desenhado na fileira de ícones abaixo da foto do card (hoje
-// sempre vazia — ver stripMissionIcons em profileCardRenderer.js). VAZIO DE
-// PROPÓSITO: diferente do plano de fundo (que já reaproveita
-// PLAYER_PHOTO_OPTIONS acima), não existe um pool de ícones de emblema já
-// pronto pra reaproveitar — precisa dos assets reais do dono antes de ter o
-// que listar aqui. O desenho do emblema escolhido em cima do card
-// (profileCardRenderer.js) também ainda não foi implementado — só a
-// escolha/persistência já fica pronta nesta revisão, o desenho fica pra
-// quando os assets existirem de verdade (não dá pra acertar a coordenada/
-// composição sem um arquivo real pra testar contra).
-const PLAYER_BADGE_OPTIONS = [];
-
 /**
- * Mescla os pools estáticos acima (PLAYER_PHOTO_OPTIONS/PLAYER_BACKGROUND_
- * OPTIONS/PLAYER_BADGE_OPTIONS, hardcoded, vindos de assets/images/) com as
- * entradas dinâmicas adicionadas via /perfil-pool (bot developer — ver
- * profileImagePool.js). Cada entrada dinâmica usa "pool:<id>" como value,
- * pra não colidir com nenhuma chave estática do imageManager. Recalculado a
- * cada chamada (nunca cacheado) — o pool pode mudar a qualquer momento.
- * Limitado a 25 (limite de opções de um StringSelectMenu do Discord).
+ * Opções de avatar/plano de fundo/emblema pro /perfil-edit — 100% vindas do
+ * pool DINÂMICO (profile_image_pool, alimentado via /perfil-pool no bot
+ * developer — ver profileImagePool.js), sem nenhum pool estático hardcoded
+ * por trás. Cada entrada usa "pool:<id>" como value (distingue de uma chave
+ * estática do imageManager, ainda usada em OUTROS pickers — ver
+ * PLAYER_PHOTO_OPTIONS acima). Recalculado a cada chamada (nunca cacheado)
+ * — o pool pode mudar a qualquer momento. Limitado a 25 (limite de opções
+ * de um StringSelectMenu do Discord). Os 3 pools começam vazios até o dono
+ * cadastrar imagens; avatar/emblema seguem vazios até então, plano de fundo
+ * já vem seeded com as 12 fotos genéricas migradas (ver
+ * migrate-fotos-plano-fundo.js).
  */
-function _mergeWithPool(staticOptions, poolType) {
-    const dynamic = ProfileImagePool.listImages(poolType).map(row => ({
+function _poolOptions(poolType) {
+    return ProfileImagePool.listImages(poolType).map(row => ({
         value: ProfileImagePool.toPoolValue(row.id),
         label: row.label,
-    }));
-    return [...staticOptions, ...dynamic].slice(0, 25);
+    })).slice(0, 25);
 }
 function getAvatarOptions() {
-    return _mergeWithPool(PLAYER_PHOTO_OPTIONS, 'avatar');
+    return _poolOptions('avatar');
 }
 function getBackgroundOptions() {
-    return _mergeWithPool(PLAYER_BACKGROUND_OPTIONS, 'background');
+    return _poolOptions('background');
 }
 function getBadgeOptions() {
-    return _mergeWithPool(PLAYER_BADGE_OPTIONS, 'badge');
+    return _poolOptions('badge');
 }
 
 /**
@@ -1596,10 +1582,12 @@ const ConfigSystem = {
     },
 
     // ==================== PLAYER PREMIUM — FOTO DE PERFIL (COMPY) ====================
-    // Compy escolhe entre as fotos genéricas (PLAYER_PHOTO_OPTIONS) via menu;
-    // Raptor continua com upload próprio (/perfil-edit, banner_message_id).
-    // Ver playerRegistrationSystem.js._resolveCardPhotoBuffer pra onde essa
-    // escolha é lida na hora de montar o card do /perfil.
+    // Compy escolhe entre as fotos do pool de avatar (getAvatarOptions —
+    // 100% dinâmico, alimentado via /perfil-pool add avatar no bot
+    // developer) via menu; Raptor continua com upload próprio (/perfil-edit,
+    // banner_message_id). Ver playerRegistrationSystem.js.
+    // _resolveCardPhotoBuffer pra onde essa escolha é lida na hora de montar
+    // o card do /perfil.
 
     buildPlayerPhotoPickerPayload(currentKey) {
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
@@ -1607,7 +1595,14 @@ const ConfigSystem = {
             '# ESCOLHER FOTO DE PERFIL',
             'Escolha uma das fotos abaixo para usar de fundo no seu card (`/perfil`) — recurso do Player Premium Compy.',
         ].join('\n'));
+
         const options = getAvatarOptions();
+        if (options.length === 0) {
+            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhuma foto de perfil cadastrada — volte mais tarde.`);
+            cb.footer('Player Premium Compy');
+            return cb;
+        }
+
         const currentLabel = options.find(opt => opt.value === currentKey)?.label;
         cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Padrão do tier (nenhuma escolhida ainda)`}`);
         cb.footer('Player Premium Compy');
@@ -1732,12 +1727,14 @@ const ConfigSystem = {
         await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Plano de fundo atualizado:** ${label}. Use \`/perfil\` para ver como ficou.`);
     },
 
-    // ==================== PLAYER PREMIUM — EMBLEMA (COMPY/RAPTOR) ====================
-    // Sempre "escolher de uma lista", nunca upload próprio — disponível a
-    // partir do Compy (diferente de foto/fundo, que só liberam upload no
-    // Raptor). Desenho do emblema escolhido no card em si ainda não
-    // implementado (ver comentário em PLAYER_BADGE_OPTIONS) — esta tela já
-    // deixa a escolha pronta e salva pra quando o desenho for implementado.
+    // ==================== EMBLEMA (QUALQUER TIER) ====================
+    // Sempre "escolher de uma lista", nunca upload próprio — liberado em
+    // QUALQUER tier (diferente de foto/fundo, exclusivos Compy+/Raptor).
+    // Pool 100% dinâmico (getBadgeOptions — ver /perfil-pool add badge no
+    // bot developer). Desenho do emblema escolhido em cima do card ainda
+    // não implementado — esta tela já deixa a escolha/persistência
+    // prontas, o desenho fica pra quando existirem assets reais cadastrados
+    // pra testar a composição contra.
 
     buildPlayerBadgePickerPayload(currentKey) {
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });

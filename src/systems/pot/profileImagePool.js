@@ -1,10 +1,12 @@
 // src/systems/pot/profileImagePool.js
 /**
- * Pool de imagens (avatar/plano de fundo/emblema) adicionadas dinamicamente
- * pelo dono via /perfil-pool (bot developer) — complementa, sem substituir,
- * os pools estáticos PLAYER_PHOTO_OPTIONS/PLAYER_BACKGROUND_OPTIONS/
- * PLAYER_BADGE_OPTIONS em configSystem.js, que continuam vindo de arquivos
- * já embutidos em assets/images/ via imageManager (esses não mudam).
+ * Pool de imagens (avatar/plano de fundo/emblema) usado pelos 3 pickers de
+ * /perfil-edit — alimentado pelo dono via /perfil-pool (bot developer),
+ * sem precisar editar código/redeployar a cada imagem nova. PLAYER_PHOTO_
+ * OPTIONS (configSystem.js) continua existindo à parte, mas hoje só serve
+ * os banners de /config reportchat/strike/unstrike — as 12 fotos que antes
+ * também apareciam como avatar/plano de fundo foram migradas pra cá (tipo
+ * 'background', ver migrate-fotos-plano-fundo.js na raiz do projeto).
  *
  * Mesmo padrão de armazenamento já usado pro upload próprio do Raptor
  * (banner_message_id/background_message_id em player_links): a imagem em si
@@ -15,7 +17,8 @@
  * Valores selecionáveis vindos deste pool usam o prefixo "pool:<id>" nas
  * colunas selected_photo_key/selected_background_key/selected_badge_key de
  * player_links, pra distinguir de uma chave estática do imageManager
- * (ex: "foto_perfil_01") sem precisar de nenhuma coluna nova.
+ * (ex: "foto_perfil_01", ainda usada pelos banners citados acima) sem
+ * precisar de nenhuma coluna nova.
  */
 const db = require('../../database/index');
 
