@@ -157,10 +157,10 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
  *   Quando presente, é recortado (cover fit) num canvas final de tamanho
- *   FIXO — 760x500 (medida pedida pelo dono, ver FINAL_W/FINAL_H abaixo) —
+ *   FIXO — 800x550 (medida pedida pelo dono, ver FINAL_W/FINAL_H abaixo) —
  *   e o card é desenhado por cima, ESCALADO pra ocupar a largura toda
- *   (750px, preservando a proporção original do card, ~1.56:1 → altura
- *   escalada ~480px), com uma sombra projetada (drop shadow) pra se
+ *   (800px, preservando a proporção original do card, 716:458 ≈ 1.56:1 →
+ *   altura escalada ~512px), com uma sombra projetada (drop shadow) pra se
  *   destacar do plano de fundo. Sobra uma faixa de plano de fundo visível
  *   embaixo do card, dentro dos 550px de altura.
  * @param {string} opts.nickname
@@ -257,14 +257,14 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Tamanho final FIXO pedido pelo dono, pra testar (760x500) — o plano de
+    // Tamanho final FIXO pedido pelo dono, pra testar (800x550) — o plano de
     // fundo é recortado (cover fit) exatamente nessas medidas, e o card é
-    // desenhado por cima ESCALADO pra ocupar a largura toda (760px),
+    // desenhado por cima ESCALADO pra ocupar a largura toda (800px),
     // preservando a proporção original dele (716:458 ≈ 1.56:1, então a
-    // altura escalada fica ~486px) — sobra só uma faixa fina (~14px) de
-    // plano de fundo visível embaixo do card dentro dos 500px de altura.
-    const FINAL_W = 760;
-    const FINAL_H = 500;
+    // altura escalada fica ~512px) — sobra uma faixa de ~38px de plano de
+    // fundo visível embaixo do card dentro dos 550px de altura.
+    const FINAL_W = 800;
+    const FINAL_H = 550;
     const cardScaledW = FINAL_W;
     const cardScaledH = Math.round(FINAL_W * (canvas.height / canvas.width));
 
