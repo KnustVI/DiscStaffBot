@@ -151,13 +151,16 @@ async function stripMissionIcons(svg, viewW, viewH) {
 
 // ==================== render principal ====================
 
-// Espaço extra (em pixels de CARD, antes do SCALE) deixado à direita/abaixo
-// do card quando há plano de fundo — é o que faz o plano de fundo "vazar"
-// pra além do formato recortado da moldura/badges, em vez de só aparecer
+// Espaço extra (em pixels de CARD, antes do SCALE) deixado ABAIXO do card
+// quando há plano de fundo — é o que faz o plano de fundo "vazar" pra além
+// do formato recortado da moldura/badges por baixo, em vez de só aparecer
 // nos buracos naturais da transparência do card (pedido do dono: o plano de
 // fundo tem que ficar "literalmente no fundo de tudo", não um bloco
 // separado acima do card — ver sendProfile em playerRegistrationSystem.js).
-const BACKDROP_PAD_RIGHT = 90;
+// Sem equivalente de LARGURA de propósito: o card em si já deve ocupar a
+// largura INTEIRA da imagem final (pedido do dono — "a imagem que geramos
+// de perfil também deve ter a largura do container"), sem sobrar uma faixa
+// de plano de fundo puro só do lado direito.
 const BACKDROP_PAD_BOTTOM = 150;
 
 /**
@@ -167,10 +170,13 @@ const BACKDROP_PAD_BOTTOM = 150;
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
  *   Quando presente, é desenhado como pano de fundo FULL-BLEED por trás do
  *   card inteiro (moldura+foto+badges+estrelas+nome+identificação), num
- *   canvas um pouco maior que o card sozinho — o card em si já sai com
+ *   canvas com a MESMA largura do card (o card cobre 100% da largura da
+ *   imagem final) e um pouco mais de altura — o card em si já sai com
  *   fundo transparente fora da moldura/badges (confirmado: o SVG de origem
  *   não tem nenhum <rect> cobrindo tudo), então o plano de fundo aparece
- *   tanto "atrás" quanto ao redor do card, não como um bloco à parte.
+ *   tanto "atrás" quanto nos buracos/embaixo do card, não como um bloco à
+ *   parte. O card ganha uma sombra projetada (drop shadow) nessa composição
+ *   pra se destacar visualmente do plano de fundo por trás.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -265,13 +271,17 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Canvas final um pouco maior (BACKDROP_PAD_RIGHT/BOTTOM, em unidades de
-    // card * SCALE) — o plano de fundo cobre TODO esse canvas maior (cover
-    // fit, cortado/centralizado), o card é desenhado por cima na mesma
-    // posição de sempre (0,0). Como o card só ocupa parte desse canvas maior
-    // e já sai com fundo transparente fora da moldura/badges, o plano de
-    // fundo aparece atrás E ao redor dele — não como um bloco separado.
-    const finalW = canvas.width + BACKDROP_PAD_RIGHT * SCALE;
+    // Canvas final com a MESMA largura do card (ele cobre 100% da largura
+    // da imagem final — pedido do dono) e um pouco mais de altura
+    // (BACKDROP_PAD_BOTTOM, pro plano de fundo "vazar" por baixo do card,
+    // não só nos buracos naturais de transparência). Plano de fundo cobre
+    // TODO esse canvas (cover fit, cortado/centralizado), o card é
+    // desenhado por cima com uma sombra projetada (drop shadow) — como o
+    // card já sai com fundo transparente fora da moldura/badges, o plano
+    // de fundo aparece atrás E embaixo dele, e a sombra ajuda o card a se
+    // destacar visualmente de um plano de fundo que pode ser bem "cheio"
+    // (foto de cenário/paisagem).
+    const finalW = canvas.width;
     const finalH = canvas.height + BACKDROP_PAD_BOTTOM * SCALE;
 
     let bgRotated;
@@ -292,7 +302,18 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // próprio contraste interno, a MOLDURA em si fica menos destacada).
     fctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
     fctx.fillRect(0, 0, finalW, finalH);
+
+    // Sombra projetada em cima do CONTORNO real do card (moldura+badges+
+    // texto, via canal alfa do canvas do card) — não uma sombra "no olho"
+    // desenhada por cima de uma forma fixa, então acompanha automaticamente
+    // qualquer ajuste futuro de layout do card.
+    fctx.save();
+    fctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+    fctx.shadowBlur = 22 * SCALE;
+    fctx.shadowOffsetX = 0;
+    fctx.shadowOffsetY = 6 * SCALE;
     fctx.drawImage(canvas, 0, 0);
+    fctx.restore();
 
     return finalCanvas.toBuffer('image/png');
 }

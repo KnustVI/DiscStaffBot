@@ -409,7 +409,7 @@ class PlayerRegistrationSystem {
             const statsLines = [];
             if (stats.isOnline && stats.dinosaurActive && stats.dinosaurType) {
                 statsLines.push(
-                    `## ${EMOJIS.circlecheck || '🟢'} Jogando agora de "${stats.dinosaurType}"`,
+                    `## ${EMOJIS.circlecheck || '🟢'} Jogando agora de ${stats.dinosaurType}`,
                     `**Growth:** ${formatGrowth(stats.dinosaurGrowth)} | **Tempo de jogo:** ${formatPlaytime(stats.totalPlaytime)}`,
                 );
             } else if (stats.isOnline) {
@@ -417,7 +417,7 @@ class PlayerRegistrationSystem {
             } else {
                 statsLines.push(
                     `${EMOJIS.circlealert || '⚫'} **Offline**`,
-                    `**Último dinossauro jogado:** ${stats.dinosaurType ? `"${stats.dinosaurType}"` : '—'}`,
+                    `**Último dinossauro jogado:** ${stats.dinosaurType || '—'}`,
                 );
             }
             if (kdLine) statsLines.push(kdLine);
