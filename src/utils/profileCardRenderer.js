@@ -259,16 +259,16 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
     // Tamanho final FIXO pedido pelo dono, pra testar (1000x550) — o plano
     // de fundo é recortado (cover fit) exatamente nessas medidas. O CARD em
-    // si mantém o tamanho escalado que já tinha (CARD_DISPLAY_W=800,
-    // proporção original dele preservada — 716:458 ≈ 1.56:1, então altura
-    // ~512px) em vez de esticar até preencher a largura toda do canvas
-    // (pedido do dono: aumentar a largura do canvas pra 1000 sem isso
-    // esticar/estourar o card verticalmente além dos 550px de altura) —
-    // sobra plano de fundo visível tanto à direita (1000-800=200px) quanto
-    // embaixo (~38px) do card.
+    // si tem uma largura PRÓPRIA (CARD_DISPLAY_W, proporção original dele
+    // preservada — 716:458 ≈ 1.56:1) em vez de esticar até preencher a
+    // largura toda do canvas. Teto real: em 550px de altura, o card não
+    // pode passar de ~859px de largura (550 / (458/716)) sem estourar
+    // verticalmente e cortar a identificação (Alderon ID/Discord) embaixo
+    // — 830 deixa uma margem de ~19px pra sombra/plano de fundo respirarem
+    // com segurança abaixo do card.
     const FINAL_W = 1000;
     const FINAL_H = 550;
-    const CARD_DISPLAY_W = 800;
+    const CARD_DISPLAY_W = 830;
     const cardScaledW = CARD_DISPLAY_W;
     const cardScaledH = Math.round(CARD_DISPLAY_W * (canvas.height / canvas.width));
 
