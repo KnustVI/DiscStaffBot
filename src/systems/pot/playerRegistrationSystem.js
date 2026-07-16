@@ -263,25 +263,28 @@ class PlayerRegistrationSystem {
     }
 
     /**
-     * Resolve a URL do PLANO DE FUNDO (banner atrás da mensagem inteira do
-     * /perfil, distinto do recorte de foto de dentro do card acima) — Raptor
-     * (upload próprio, message_id) > Compy (selected_background_key, do pool
-     * estático via imageManager OU do pool dinâmico via /perfil-pool — ver
-     * profileImagePool.js) > null (sem plano de fundo nenhum — diferente da
-     * foto, não tem "padrão do tier" pra isso, simplesmente não aparece
-     * banner nenhum).
-     * Só retorna URL (não Buffer): o plano de fundo só é EXIBIDO
-     * (builder.gallery()), nunca composto/recortado como a foto do card.
+     * Resolve os BYTES do PLANO DE FUNDO — composto atrás do card inteiro
+     * por renderProfileCard (pedido do dono: "literalmente no fundo de
+     * tudo", não um bloco separado acima do card como antes), então precisa
+     * dos bytes de verdade (Buffer), não só de uma URL pra exibir direto.
+     * Raptor (upload próprio, message_id) > Compy (selected_background_key,
+     * do pool estático via imageManager OU do pool dinâmico via
+     * /perfil-pool — ver profileImagePool.js) > null (sem plano de fundo
+     * nenhum — diferente da foto, não tem "padrão do tier" pra isso,
+     * simplesmente não compõe nenhum).
      *
-     * @returns {Promise<string|null>}
+     * @returns {Promise<Buffer|null>}
      */
-    async _resolveBackgroundUrl(interaction, player, playerTier) {
+    async _resolveBackgroundBuffer(interaction, player, playerTier) {
         if (playerTier === 'raptor' && player?.background_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
             try {
                 const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
                 const storedMessage = await storageChannel.messages.fetch(player.background_message_id);
                 const url = storedMessage.attachments.first()?.url;
-                if (url) return url;
+                if (url) {
+                    const res = await fetch(url);
+                    if (res.ok) return Buffer.from(await res.arrayBuffer());
+                }
             } catch (err) {
                 // segue pro fallback (sem plano de fundo)
             }
@@ -290,11 +293,15 @@ class PlayerRegistrationSystem {
         if (playerTier === 'compy' && player?.selected_background_key) {
             if (ProfileImagePool.isPoolValue(player.selected_background_key)) {
                 const poolId = ProfileImagePool.poolIdFromValue(player.selected_background_key);
-                const url = await ProfileImagePool.resolveImageUrl(interaction.client, 'background', poolId);
-                if (url) return url;
+                const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'background', poolId);
+                if (buffer) return buffer;
             } else if (imageManager.hasImage(player.selected_background_key)) {
-                const url = imageManager.getUrl(player.selected_background_key);
-                if (url) return url;
+                try {
+                    const localPath = imageManager.getPath(player.selected_background_key);
+                    if (localPath) return fs.readFileSync(localPath);
+                } catch (err) {
+                    // segue sem plano de fundo
+                }
             }
         }
 
@@ -328,28 +335,19 @@ class PlayerRegistrationSystem {
             needsSeparator = true;
         };
 
-        // ── Plano de fundo (banner atrás da mensagem inteira, distinto da
-        // foto de dentro do card) — sempre o PRIMEIRO bloco, mesmo padrão de
-        // "banner no topo" já usado em /config personalizar. Só existe pra
-        // quem já linkou a conta e configurou um (ver /perfil-edit). ────────
-        if (player) {
-            try {
-                const backgroundUrl = await this._resolveBackgroundUrl(interaction, player, playerTier);
-                if (backgroundUrl) {
-                    addSeparatorIfNeeded();
-                    builder.gallery([backgroundUrl]);
-                }
-            } catch (error) {
-                console.error('❌ [PlayerRegistration] Erro ao resolver plano de fundo:', error);
-            }
-        }
-
         // ── Card de perfil (moldura + foto + badges + estrelas de honra),
         // entra no lugar do título "# PERFIL". Só existe pra quem já linkou
         // a conta — sem Alderon ID/nome no jogo não tem o que desenhar no
         // card. Quando renderiza o card, a identificação (Alderon ID/Discord)
         // já vem NELE, então o bloco de identificação abaixo não repete essa
-        // parte (só o avatar some; sem vínculo, cai no fallback de sempre). ──
+        // parte (só o avatar some; sem vínculo, cai no fallback de sempre).
+        //
+        // Plano de fundo (distinto da foto de dentro do card) é COMPOSTO por
+        // renderProfileCard atrás do card inteiro, não um bloco separado do
+        // Discord acima dele — pedido do dono: tem que ficar "literalmente
+        // no fundo de tudo". Por isso é resolvido AQUI (como Buffer) e
+        // passado pra dentro do render, em vez de virar seu próprio
+        // builder.gallery() como antes. ─────────────────────────────────────
         let cardRendered = false;
         let stats = null;
         if (player) {
@@ -360,9 +358,16 @@ class PlayerRegistrationSystem {
                 // (ver aviso perto do KDA abaixo). Ver getGuildPlayerStats.
                 stats = PlayerRegistry.getGuildPlayerStats(guild.id, player.alderon_id);
                 const photoBuffer = await this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier);
+                let backgroundBuffer = null;
+                try {
+                    backgroundBuffer = await this._resolveBackgroundBuffer(interaction, player, playerTier);
+                } catch (error) {
+                    console.error('❌ [PlayerRegistration] Erro ao resolver plano de fundo:', error);
+                }
                 const cardBuffer = await renderProfileCard({
                     tier: playerTier,
                     photoBuffer,
+                    backgroundBuffer,
                     nickname: player.player_name || targetUser.username,
                     alderonId: player.alderon_id,
                     discordUsername: targetUser.username,

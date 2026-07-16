@@ -151,10 +151,26 @@ async function stripMissionIcons(svg, viewW, viewH) {
 
 // ==================== render principal ====================
 
+// Espaço extra (em pixels de CARD, antes do SCALE) deixado à direita/abaixo
+// do card quando há plano de fundo — é o que faz o plano de fundo "vazar"
+// pra além do formato recortado da moldura/badges, em vez de só aparecer
+// nos buracos naturais da transparência do card (pedido do dono: o plano de
+// fundo tem que ficar "literalmente no fundo de tudo", não um bloco
+// separado acima do card — ver sendProfile em playerRegistrationSystem.js).
+const BACKDROP_PAD_RIGHT = 90;
+const BACKDROP_PAD_BOTTOM = 150;
+
 /**
  * @param {object} opts
  * @param {'free'|'compy'|'raptor'} opts.tier
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
+ * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
+ *   Quando presente, é desenhado como pano de fundo FULL-BLEED por trás do
+ *   card inteiro (moldura+foto+badges+estrelas+nome+identificação), num
+ *   canvas um pouco maior que o card sozinho — o card em si já sai com
+ *   fundo transparente fora da moldura/badges (confirmado: o SVG de origem
+ *   não tem nenhum <rect> cobrindo tudo), então o plano de fundo aparece
+ *   tanto "atrás" quanto ao redor do card, não como um bloco à parte.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -162,9 +178,9 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {string} opts.levelLabel
  * @param {string} opts.speciesLabel
  * @param {number} opts.honorStars - 0 a 5
- * @returns {Promise<Buffer>} PNG do card pronto
+ * @returns {Promise<Buffer>} PNG pronto (card, ou card+plano de fundo compostos)
  */
-async function renderProfileCard({ tier, photoBuffer, nickname, alderonId, discordUsername, titleLabel, levelLabel, speciesLabel, honorStars }) {
+async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname, alderonId, discordUsername, titleLabel, levelLabel, speciesLabel, honorStars }) {
     const svgPath = path.join(CARDS_DIR, TIER_FILES[tier] || TIER_FILES.free);
     let svg = fs.readFileSync(svgPath, 'utf8');
     const meta = await extractCardMeta(svg);
@@ -173,7 +189,11 @@ async function renderProfileCard({ tier, photoBuffer, nickname, alderonId, disco
     for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
     svg = await stripMissionIcons(svg, meta.viewW, meta.viewH);
 
-    const photoPng = await sharp(photoBuffer).png().toBuffer();
+    // .rotate() sem argumento = auto-orienta pela tag EXIF antes de virar PNG
+    // — defesa extra além da já aplicada no upload (imageStorage.js): fotos
+    // vindas do banner do próprio Discord ou de uploads antigos (antes dessa
+    // correção) podem chegar aqui sem já terem passado por lá.
+    const photoPng = await sharp(photoBuffer).rotate().png().toBuffer();
     const clipInsert = `
 <clipPath id="profileCardPortraitClip"><path d="${meta.frameD}"/></clipPath>
 <g clip-path="url(#profileCardPortraitClip)">
@@ -240,7 +260,41 @@ async function renderProfileCard({ tier, photoBuffer, nickname, alderonId, disco
     ctx.fillStyle = line2.color;
     ctx.fillText(discordUsername, line2.bbox.x * SCALE, (meta.iconBoxes[1].y + meta.iconBoxes[1].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE);
 
-    return canvas.toBuffer('image/png');
+    if (!backgroundBuffer) {
+        return canvas.toBuffer('image/png');
+    }
+
+    // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
+    // Canvas final um pouco maior (BACKDROP_PAD_RIGHT/BOTTOM, em unidades de
+    // card * SCALE) — o plano de fundo cobre TODO esse canvas maior (cover
+    // fit, cortado/centralizado), o card é desenhado por cima na mesma
+    // posição de sempre (0,0). Como o card só ocupa parte desse canvas maior
+    // e já sai com fundo transparente fora da moldura/badges, o plano de
+    // fundo aparece atrás E ao redor dele — não como um bloco separado.
+    const finalW = canvas.width + BACKDROP_PAD_RIGHT * SCALE;
+    const finalH = canvas.height + BACKDROP_PAD_BOTTOM * SCALE;
+
+    let bgRotated;
+    try {
+        bgRotated = await sharp(backgroundBuffer).rotate().resize(finalW, finalH, { fit: 'cover', position: 'centre' }).png().toBuffer();
+    } catch (error) {
+        // Plano de fundo corrompido/formato não suportado — degrada pro card sozinho.
+        console.error('❌ [ProfileCardRenderer] Erro ao processar plano de fundo, seguindo sem ele:', error.message);
+        return canvas.toBuffer('image/png');
+    }
+    const bgImage = await loadImage(bgRotated);
+
+    const finalCanvas = createCanvas(finalW, finalH);
+    const fctx = finalCanvas.getContext('2d');
+    fctx.drawImage(bgImage, 0, 0);
+    // Leve escurecida — sem isso, um plano de fundo muito claro/colorido
+    // compete visualmente com o card por cima (mesmo o card tendo seu
+    // próprio contraste interno, a MOLDURA em si fica menos destacada).
+    fctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+    fctx.fillRect(0, 0, finalW, finalH);
+    fctx.drawImage(canvas, 0, 0);
+
+    return finalCanvas.toBuffer('image/png');
 }
 
 module.exports = { renderProfileCard };

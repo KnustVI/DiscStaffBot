@@ -45,6 +45,15 @@ async function uploadAndStoreImage(client, attachment, storageMessageContent) {
         }
         const rawBuffer = Buffer.from(await response.arrayBuffer());
         const optimizedBuffer = await sharp(rawBuffer)
+            // .rotate() sem argumento = auto-orienta pela tag EXIF Orientation
+            // antes de qualquer outra coisa. Sem isso, uma foto tirada em pé
+            // (comum em celular) mas gravada em disco "deitada" + a tag EXIF
+            // dizendo "gire 90°" fica com pixels na orientação ERRADA aqui —
+            // o sharp por padrão NÃO aplica a rotação sozinho, só respeita a
+            // tag se pedido — e o resultado final (webp) não carrega mais a
+            // tag, então todo mundo rio abaixo (inclusive o corte no card do
+            // /perfil) vê a imagem já "torta"/com proporção errada.
+            .rotate()
             .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
             .webp({ quality: WEBP_QUALITY })
             .toBuffer();

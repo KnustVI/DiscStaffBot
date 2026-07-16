@@ -4382,3 +4382,58 @@ frente, nao so este relatorio):
   (uma entrada adicionada num tipo não vaza pro select de outro tipo);
   `PLAYER_PHOTO_OPTIONS` continua com as 12 entradas intacto (banners de
   reportchat/strike/unstrike não afetados).
+
+99) Plano de fundo passa a ser COMPOSTO atrás do card (não mais um bloco
+    separado do Discord) + correção de rotação EXIF na foto/avatar
+------------------------------------------------------------------
+- Correção do dono: o plano de fundo (seções 95/96/97/98) estava sendo
+  mostrado como um `builder.gallery()` PRÓPRIO, empilhado ACIMA do card no
+  Discord — visualmente eram 2 imagens separadas, uma em cima da outra, não
+  "uma coisa só". Pedido explícito: o plano de fundo tem que ficar
+  literalmente atrás de tudo, como uma composição única.
+- `profileCardRenderer.renderProfileCard` ganhou um parâmetro opcional
+  `backgroundBuffer`: quando presente, desenha o plano de fundo FULL-BLEED
+  num canvas um pouco maior que o card sozinho (+90px à direita, +150px
+  embaixo, em unidades de card), com uma leve escurecida (`rgba(0,0,0,0.18)`)
+  pra legibilidade, e desenha o card por cima na posição de sempre — o card
+  já sai com fundo TRANSPARENTE fora da moldura/badges (confirmado com um
+  teste direto: compor o PNG do card sobre um fundo vermelho faz as bordas
+  "brancas" virarem vermelhas), então o plano de fundo aparece atrás E ao
+  redor do card automaticamente, sem precisar desenhar nada por cima do
+  texto/badges.
+- `PlayerRegistrationSystem._resolveBackgroundUrl` virou
+  `_resolveBackgroundBuffer` — antes só devolvia uma URL (usada direto num
+  `builder.gallery()`); agora baixa os BYTES de verdade (Buffer), porque
+  compor no canvas exige os pixels, não só um link pra exibir. Efeito
+  colateral: corrige um bug latente no caminho Compy/pool estático, que
+  antes devolvia uma URL `attachment://` (via `imageManager.getUrl`) SEM
+  nunca anexar o arquivo correspondente na mensagem — provavelmente
+  aparecia quebrado/não carregava; agora lê os bytes locais direto
+  (`fs.readFileSync`), sem depender de anexo nenhum.
+- `sendProfile` não chama mais `builder.gallery([backgroundUrl])` como
+  primeiro bloco — o plano de fundo é resolvido ANTES do card (como Buffer)
+  e passado pra dentro de `renderProfileCard`, então só existe UM
+  `builder.gallery(['attachment://perfil-card.png'])` agora (card com ou
+  sem plano de fundo já composto nele).
+- **Correção separada, mesma seção**: dono reportou a foto de avatar
+  aparecendo distorcida no card. Investigação (2 testes diretos contra o
+  pipeline real, com imagem sintética listrada) confirmou que o recorte
+  `preserveAspectRatio="xMidYMid slice"` em si NÃO estica a imagem — as
+  proporções relativas das listras bateram exatamente com o cálculo
+  esperado de um corte "cover" correto. A causa mais provável é orientação
+  EXIF não aplicada: o `sharp` só auto-orienta uma imagem pela tag EXIF se
+  `.rotate()` for chamado explicitamente (sem argumento) — sem isso, uma
+  foto gravada "deitada" com tag EXIF pedindo rotação de 90° é processada
+  com os pixels na orientação ERRADA, e como o PNG/webp final não carrega
+  mais a tag, o resultado sai visualmente torto pra qualquer visualizador
+  daí em diante (inclusive o corte no card). Adicionado `.rotate()` em 2
+  pontos: `imageStorage.uploadAndStoreImage` (upload novo, antes do
+  resize) e `profileCardRenderer` (defesa extra, cobre fotos vindas do
+  banner do próprio Discord ou uploads antigos de antes desta correção).
+- Verificado com scripts diretos: composição plano de fundo + card não
+  quebra sem plano de fundo (retorna só o card, comportamento antigo
+  preservado); com plano de fundo, o resultado mostra o fundo visível atrás
+  E ao redor do card (testado compondo sobre uma imagem de paisagem
+  claramente distinta do card, sem nenhum erro); teste de corte com imagem
+  listrada confirma que as proporções do recorte batem com o cálculo
+  matemático esperado (sem distorção).
