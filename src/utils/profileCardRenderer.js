@@ -151,18 +151,6 @@ async function stripMissionIcons(svg, viewW, viewH) {
 
 // ==================== render principal ====================
 
-// Espaço extra (em pixels de CARD, antes do SCALE) deixado ABAIXO do card
-// quando há plano de fundo — é o que faz o plano de fundo "vazar" pra além
-// do formato recortado da moldura/badges por baixo, em vez de só aparecer
-// nos buracos naturais da transparência do card (pedido do dono: o plano de
-// fundo tem que ficar "literalmente no fundo de tudo", não um bloco
-// separado acima do card — ver sendProfile em playerRegistrationSystem.js).
-// Sem equivalente de LARGURA de propósito: o card em si já deve ocupar a
-// largura INTEIRA da imagem final (pedido do dono — "a imagem que geramos
-// de perfil também deve ter a largura do container"), sem sobrar uma faixa
-// de plano de fundo puro só do lado direito.
-const BACKDROP_PAD_BOTTOM = 150;
-
 /**
  * @param {object} opts
  * @param {'free'|'compy'|'raptor'} opts.tier
@@ -170,11 +158,13 @@ const BACKDROP_PAD_BOTTOM = 150;
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
  *   Quando presente, é desenhado como pano de fundo FULL-BLEED por trás do
  *   card inteiro (moldura+foto+badges+estrelas+nome+identificação), num
- *   canvas com a MESMA largura do card (o card cobre 100% da largura da
- *   imagem final) e um pouco mais de altura — o card em si já sai com
- *   fundo transparente fora da moldura/badges (confirmado: o SVG de origem
- *   não tem nenhum <rect> cobrindo tudo), então o plano de fundo aparece
- *   tanto "atrás" quanto nos buracos/embaixo do card, não como um bloco à
+ *   canvas do MESMO TAMANHO do card (mesma proporção ~1.56:1 que já é
+ *   exibida na largura cheia do container no Discord — canvas maior deixa
+ *   a imagem "quadrada demais" e o Discord passa a exibi-la mais estreita)
+ *   — o card em si já sai com fundo transparente fora da moldura/badges
+ *   (confirmado: o SVG de origem não tem nenhum <rect> cobrindo tudo),
+ *   então o plano de fundo aparece nos espaços transparentes ao redor/
+ *   embaixo do card, não como um bloco à
  *   parte. O card ganha uma sombra projetada (drop shadow) nessa composição
  *   pra se destacar visualmente do plano de fundo por trás.
  * @param {string} opts.nickname
@@ -271,18 +261,20 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Canvas final com a MESMA largura do card (ele cobre 100% da largura
-    // da imagem final — pedido do dono) e um pouco mais de altura
-    // (BACKDROP_PAD_BOTTOM, pro plano de fundo "vazar" por baixo do card,
-    // não só nos buracos naturais de transparência). Plano de fundo cobre
-    // TODO esse canvas (cover fit, cortado/centralizado), o card é
-    // desenhado por cima com uma sombra projetada (drop shadow) — como o
-    // card já sai com fundo transparente fora da moldura/badges, o plano
-    // de fundo aparece atrás E embaixo dele, e a sombra ajuda o card a se
-    // destacar visualmente de um plano de fundo que pode ser bem "cheio"
-    // (foto de cenário/paisagem).
+    // Canvas final EXATAMENTE do mesmo tamanho do card, sem nenhuma borda
+    // extra — testado empiricamente: adicionar altura extra (pra "sobrar"
+    // mais plano de fundo embaixo) reduz a proporção largura:altura da
+    // imagem final o suficiente pra o Discord passar a exibi-la mais
+    // estreita que o resto do container (Components V2 parece limitar a
+    // ALTURA de preview de uma imagem de galeria, encolhendo a largura
+    // proporcionalmente quando a imagem fica "quadrada demais"). O card
+    // sozinho (~1.56:1, sem nenhum plano de fundo) já é comprovadamente
+    // exibido na largura cheia do container — mantendo essa MESMA proporção
+    // aqui, o plano de fundo aparece só nos espaços transparentes que o
+    // próprio card já tem (à direita dos badges, embaixo da identificação),
+    // sem arriscar encolher a imagem inteira de novo.
     const finalW = canvas.width;
-    const finalH = canvas.height + BACKDROP_PAD_BOTTOM * SCALE;
+    const finalH = canvas.height;
 
     let bgRotated;
     try {
