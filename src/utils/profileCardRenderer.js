@@ -156,17 +156,13 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {'free'|'compy'|'raptor'} opts.tier
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
- *   Quando presente, é desenhado como pano de fundo FULL-BLEED por trás do
- *   card inteiro (moldura+foto+badges+estrelas+nome+identificação), num
- *   canvas do MESMO TAMANHO do card (mesma proporção ~1.56:1 que já é
- *   exibida na largura cheia do container no Discord — canvas maior deixa
- *   a imagem "quadrada demais" e o Discord passa a exibi-la mais estreita)
- *   — o card em si já sai com fundo transparente fora da moldura/badges
- *   (confirmado: o SVG de origem não tem nenhum <rect> cobrindo tudo),
- *   então o plano de fundo aparece nos espaços transparentes ao redor/
- *   embaixo do card, não como um bloco à
- *   parte. O card ganha uma sombra projetada (drop shadow) nessa composição
- *   pra se destacar visualmente do plano de fundo por trás.
+ *   Quando presente, é recortado (cover fit) num canvas final de tamanho
+ *   FIXO — 750x550 (medida pedida pelo dono, ver FINAL_W/FINAL_H abaixo) —
+ *   e o card é desenhado por cima, ESCALADO pra ocupar a largura toda
+ *   (750px, preservando a proporção original do card, ~1.56:1 → altura
+ *   escalada ~480px), com uma sombra projetada (drop shadow) pra se
+ *   destacar do plano de fundo. Sobra uma faixa de plano de fundo visível
+ *   embaixo do card, dentro dos 550px de altura.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -261,24 +257,20 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Canvas final EXATAMENTE do mesmo tamanho do card, sem nenhuma borda
-    // extra — testado empiricamente: adicionar altura extra (pra "sobrar"
-    // mais plano de fundo embaixo) reduz a proporção largura:altura da
-    // imagem final o suficiente pra o Discord passar a exibi-la mais
-    // estreita que o resto do container (Components V2 parece limitar a
-    // ALTURA de preview de uma imagem de galeria, encolhendo a largura
-    // proporcionalmente quando a imagem fica "quadrada demais"). O card
-    // sozinho (~1.56:1, sem nenhum plano de fundo) já é comprovadamente
-    // exibido na largura cheia do container — mantendo essa MESMA proporção
-    // aqui, o plano de fundo aparece só nos espaços transparentes que o
-    // próprio card já tem (à direita dos badges, embaixo da identificação),
-    // sem arriscar encolher a imagem inteira de novo.
-    const finalW = canvas.width;
-    const finalH = canvas.height;
+    // Tamanho final FIXO pedido pelo dono, pra testar (750x550) — o plano de
+    // fundo é recortado (cover fit) exatamente nessas medidas, e o card é
+    // desenhado por cima ESCALADO pra ocupar a largura toda (750px),
+    // preservando a proporção original dele (~1.56:1, então a altura
+    // escalada fica ~480px) — sobra uma faixa de plano de fundo visível
+    // embaixo do card dentro dos 550px de altura.
+    const FINAL_W = 750;
+    const FINAL_H = 550;
+    const cardScaledW = FINAL_W;
+    const cardScaledH = Math.round(FINAL_W * (canvas.height / canvas.width));
 
     let bgRotated;
     try {
-        bgRotated = await sharp(backgroundBuffer).rotate().resize(finalW, finalH, { fit: 'cover', position: 'centre' }).png().toBuffer();
+        bgRotated = await sharp(backgroundBuffer).rotate().resize(FINAL_W, FINAL_H, { fit: 'cover', position: 'centre' }).png().toBuffer();
     } catch (error) {
         // Plano de fundo corrompido/formato não suportado — degrada pro card sozinho.
         console.error('❌ [ProfileCardRenderer] Erro ao processar plano de fundo, seguindo sem ele:', error.message);
@@ -286,25 +278,28 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
     const bgImage = await loadImage(bgRotated);
 
-    const finalCanvas = createCanvas(finalW, finalH);
+    const finalCanvas = createCanvas(FINAL_W, FINAL_H);
     const fctx = finalCanvas.getContext('2d');
     fctx.drawImage(bgImage, 0, 0);
     // Leve escurecida — sem isso, um plano de fundo muito claro/colorido
     // compete visualmente com o card por cima (mesmo o card tendo seu
     // próprio contraste interno, a MOLDURA em si fica menos destacada).
     fctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-    fctx.fillRect(0, 0, finalW, finalH);
+    fctx.fillRect(0, 0, FINAL_W, FINAL_H);
 
     // Sombra projetada em cima do CONTORNO real do card (moldura+badges+
     // texto, via canal alfa do canvas do card) — não uma sombra "no olho"
     // desenhada por cima de uma forma fixa, então acompanha automaticamente
-    // qualquer ajuste futuro de layout do card.
+    // qualquer ajuste futuro de layout do card. drawImage com dWidth/dHeight
+    // escala o card MANTENDO a proporção (cardScaledH calculado acima a
+    // partir da mesma razão largura:altura do canvas original) — sem isso
+    // distorceria/esticaria o card, o mesmo problema já corrigido na foto.
     fctx.save();
     fctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
     fctx.shadowBlur = 22 * SCALE;
     fctx.shadowOffsetX = 0;
     fctx.shadowOffsetY = 6 * SCALE;
-    fctx.drawImage(canvas, 0, 0);
+    fctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, cardScaledW, cardScaledH);
     fctx.restore();
 
     return finalCanvas.toBuffer('image/png');
