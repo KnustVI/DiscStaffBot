@@ -156,13 +156,14 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {'free'|'compy'|'raptor'} opts.tier
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
- *   Quando presente, é recortado (cover fit) num canvas final de tamanho
- *   FIXO — 1000x550 (medida pedida pelo dono, ver FINAL_W/FINAL_H abaixo).
- *   O CARD em si é desenhado por cima com um tamanho PRÓPRIO (CARD_DISPLAY_W
- *   = 800, proporção original preservada, 716:458 ≈ 1.56:1 → altura
- *   escalada ~512px) — não necessariamente igual à largura do canvas —, com
- *   uma sombra projetada (drop shadow) pra se destacar do plano de fundo.
- *   Sobra plano de fundo visível tanto à direita quanto embaixo do card.
+ *   Quando presente, o CARD é desenhado na resolução NATIVA (sem encolher)
+ *   e o canvas final é esse tamanho multiplicado por CARD_PADDING_FACTOR
+ *   (1.3) nas duas dimensões — preserva exatamente a proporção do card
+ *   (716:458 ≈ 1.56:1), a mesma comprovada sendo exibida em largura cheia
+ *   pelo Discord. O plano de fundo é recortado (cover fit) pra cobrir esse
+ *   canvas maior, com uma sombra projetada (drop shadow) no card pra se
+ *   destacar dele. Sobra plano de fundo visível à direita e embaixo do
+ *   card.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -257,27 +258,20 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Tamanho final FIXO pedido pelo dono, pra testar (1000x550) — o plano
-    // de fundo é recortado (cover fit) exatamente nessas medidas. O CARD em
-    // si tem uma largura PRÓPRIA (CARD_DISPLAY_W, proporção original dele
-    // preservada — 716:458 ≈ 1.56:1) em vez de esticar até preencher a
-    // largura toda do canvas. Teto matemático real: em 550px de altura, o
-    // card não pode passar de ~859-860px de largura (550 / (458/716)) sem
-    // estourar verticalmente e cortar a identificação (Alderon ID/Discord)
-    // embaixo — e mesmo abaixo disso, texto com descendentes (g/j/p/q/y no
-    // nome do Discord) desenha alguns pixels ABAIXO da própria linha de
-    // base ancorada, então uma margem de só 1-2px arriscaria cortar essas
-    // letras em alguns nomes mesmo sem cortar a linha em si. 858 é o maior
-    // valor que ainda mantém uma folga real (~4px) pra esses descendentes —
-    // ESSE é o teto prático de verdade pra essa altura de 550px; não dá pra
-    // aumentar mais sem arriscar cortar nome de usuário de verdade. Pra
-    // deixar o card ainda maior com segurança, precisaria aumentar
-    // FINAL_H também.
-    const FINAL_W = 1000;
-    const FINAL_H = 550;
-    const CARD_DISPLAY_W = 858;
-    const cardScaledW = CARD_DISPLAY_W;
-    const cardScaledH = Math.round(CARD_DISPLAY_W * (canvas.height / canvas.width));
+    // Voltou a usar o card na resolução NATIVA (sem encolher pra caber numa
+    // caixa fixa pequena, como nos testes anteriores de 750x550...1000x550)
+    // — pedido do dono: manter a imagem geral grande/nítida, só que com MAIS
+    // plano de fundo visível ao redor. O canvas final é o card nativo
+    // multiplicado por CARD_PADDING_FACTOR nas DUAS dimensões — isso
+    // preserva EXATAMENTE a mesma proporção do card (716:458 ≈ 1.56:1), a
+    // mesma já comprovada sendo exibida em largura cheia pelo Discord
+    // (diferente de só somar altura sem somar largura proporcional, que foi
+    // o que encolheu a imagem inteira na rodada de testes anterior).
+    const CARD_PADDING_FACTOR = 1.3;
+    const FINAL_W = Math.round(canvas.width * CARD_PADDING_FACTOR);
+    const FINAL_H = Math.round(canvas.height * CARD_PADDING_FACTOR);
+    const cardScaledW = canvas.width;
+    const cardScaledH = canvas.height;
 
     let bgRotated;
     try {
