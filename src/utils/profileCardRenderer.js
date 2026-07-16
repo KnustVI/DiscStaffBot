@@ -262,15 +262,20 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // si tem uma largura PRÓPRIA (CARD_DISPLAY_W, proporção original dele
     // preservada — 716:458 ≈ 1.56:1) em vez de esticar até preencher a
     // largura toda do canvas. Teto matemático real: em 550px de altura, o
-    // card não pode passar de ~859px de largura (550 / (458/716)) sem
+    // card não pode passar de ~859-860px de largura (550 / (458/716)) sem
     // estourar verticalmente e cortar a identificação (Alderon ID/Discord)
-    // embaixo. 855 (pedido do dono: aumentar ao máximo) fica a 3px desse
-    // teto — deixa só uma margem mínima de segurança contra arredondamento,
-    // então a sombra projetada (drop shadow) fica bem mais "cortada" pela
-    // borda do canvas do que nos tamanhos menores testados antes.
+    // embaixo — e mesmo abaixo disso, texto com descendentes (g/j/p/q/y no
+    // nome do Discord) desenha alguns pixels ABAIXO da própria linha de
+    // base ancorada, então uma margem de só 1-2px arriscaria cortar essas
+    // letras em alguns nomes mesmo sem cortar a linha em si. 858 é o maior
+    // valor que ainda mantém uma folga real (~4px) pra esses descendentes —
+    // ESSE é o teto prático de verdade pra essa altura de 550px; não dá pra
+    // aumentar mais sem arriscar cortar nome de usuário de verdade. Pra
+    // deixar o card ainda maior com segurança, precisaria aumentar
+    // FINAL_H também.
     const FINAL_W = 1000;
     const FINAL_H = 550;
-    const CARD_DISPLAY_W = 855;
+    const CARD_DISPLAY_W = 858;
     const cardScaledW = CARD_DISPLAY_W;
     const cardScaledH = Math.round(CARD_DISPLAY_W * (canvas.height / canvas.width));
 
