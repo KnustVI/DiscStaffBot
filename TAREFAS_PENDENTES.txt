@@ -1,0 +1,158 @@
+TAREFAS PENDENTES — Titan's Pass
+=================================
+
+Este arquivo guarda PLANOS de tarefas grandes que o dono pediu pra registrar
+mas ainda NÃO devem ser iniciadas — diferente de PREMIUM.txt (que só
+documenta o que já foi implementado), tudo aqui é planejamento, não código.
+Quando uma tarefa daqui for priorizada e implementada de verdade, ela sai
+deste arquivo e vira uma seção nova em PREMIUM.txt (se mexer com o sistema
+de tiers) ou só fica documentada via commit normal (se não mexer).
+
+---
+
+1) SUPORTE BILÍNGUE (Português/Inglês) em todo o bot
+======================================================
+Status: PLANEJADO, não iniciado.
+Pedido do dono (conversa de referência): bot deve ter opção de idioma
+Português e Inglês.
+
+## Tamanho real (medido no código em 2026-07, antes de qualquer mudança)
+
+Não existe NENHUMA camada de tradução hoje — todo texto está em PT-BR,
+hardcoded direto no meio da lógica de cada comando/sistema. Números reais
+(contados via grep, não estimativa):
+
+- 41 arquivos de comando (`src/commands/**/*.js`)
+- 26 arquivos de sistema (`src/systems/**/*.js`)
+- 493 chamadas de `.text(`/`.title(`/`.section(` (AdvancedContainerBuilder)
+  espalhadas por `src/` — é o grosso do trabalho, cada uma é uma string
+  (ou template string) que precisaria virar uma chave de tradução
+- 118 chamadas de `.setDescription(` em comandos/opções (nome+descrição
+  de slash command, visível na lista de autocomplete do Discord)
+- 88 chamadas de `.setLabel(` (botões e campos de modal)
+- Arquivos com mais texto embutido (top 10, maior prioridade/risco):
+  punishmentSystem.js (57), configSystem.js (46), reportChatSystem.js (30),
+  autoModeration.js (29), analyticsSystem.js (29), ajuda.js (23),
+  pot/status.js (21), developer/reset-db.js (21),
+  playerRegistrationSystem.js (19), webhookPayloads.js (18)
+
+Ou seja: isso NÃO é uma tarefa de tarde nenhuma — é provavelmente a maior
+refatoração já cogitada neste projeto, tocando praticamente todo arquivo
+de `src/commands/` e boa parte de `src/systems/`.
+
+## Arquitetura recomendada
+
+1. Novo módulo `src/systems/core/i18n.js` — helper puro (sem discord.js),
+   parecido em espírito com `buffStatCatalog.js` (só dados + função de
+   consulta). Assinatura sugerida:
+
+       function t(guildId, key, vars = {})
+
+   - Resolve o idioma do servidor via `ConfigSystem.getSetting(guildId,
+     'language')`, default `'pt-BR'` (garante que NENHUM servidor muda de
+     comportamento até o dono configurar explicitamente).
+   - Busca `key` (string tipo `'strike.confirm.title'`, ponto separando
+     namespace/subchave) no dicionário do idioma resolvido.
+   - Se a chave não existir no idioma escolhido (tradução incompleta),
+     cai pro `pt-BR` como fallback silencioso — nunca quebra a resposta
+     por faltar 1 tradução, só mostra em português naquele ponto.
+   - Interpolação simples de `{variavel}` no template (`replaceAll`) —
+     NÃO precisa de biblioteca de i18n completa (i18next etc.) pra só 2
+     idiomas sem pluralização automática — ver nota sobre plural abaixo.
+
+2. Dicionários — um arquivo por idioma, organizado por domínio (espelhando
+   a pasta de comandos/sistemas, mesmo espírito de "manter cada módulo
+   autocontido" já usado no resto do projeto):
+
+       src/locales/pt-BR/strike.js
+       src/locales/pt-BR/buffs.js
+       src/locales/pt-BR/reportchat.js
+       src/locales/pt-BR/common.js   (erros genéricos, "Sim"/"Não" etc.)
+       ...
+       src/locales/en-US/strike.js
+       src/locales/en-US/buffs.js
+       ...
+
+   Um arquivo único gigante por idioma (todas as ~500 strings num JSON só)
+   também funcionaria, mas com 493+ chaves vira difícil de navegar/dar
+   merge conflict constante — dividir por domínio é mais alinhado ao resto
+   do código. i18n.js carrega e mescla tudo no boot.
+
+3. Configuração por SERVIDOR (não por usuário) — consistente com todo o
+   resto do bot (cargos, logs, punições, buffs, tudo já é por guild via
+   `settings`/ConfigSystem). Idioma por usuário individual seria uma
+   mudança de arquitetura muito maior (a mesma mensagem num canal
+   compartilhado precisaria aparecer diferente pra cada leitor, o que não
+   faz sentido pra a maioria das respostas deste bot) — não é o objetivo
+   deste plano, mas fica registrado como possível refinamento futuro se o
+   dono pedir depois.
+   - Novo subcomando `/config idioma <portugues|ingles>` (mesmo padrão de
+     `/config roles`/`/config logs`/`/config buffs`), gravando em
+     `settings.language` via `ConfigSystem.setSetting`.
+
+4. Nome/descrição de slash command — Discord.js já tem suporte NATIVO a
+   localização pra isso (`SlashCommandBuilder.setNameLocalizations()` /
+   `.setDescriptionLocalizations()`, disponível também em subcommands e
+   options), sem precisar de nenhuma infra nova — o próprio cliente
+   Discord do usuário decide qual idioma mostrar na lista de comandos,
+   baseado no idioma DO CLIENTE DELE (não no idioma configurado no
+   servidor). Importante: essa parte é independente da configuração de
+   idioma por servidor acima (mecanismo separado, resolvido pelo próprio
+   Discord) — é o pedaço mais barato de implementar e pode ser feito
+   isoladamente, primeiro, sem esperar o resto.
+
+## Nuance: pluralização
+
+Português e inglês pluralizam diferente, e o código atual já tem esse
+problema resolvido manualmente em vários lugares com ternário solto (ex:
+`combat-config.js`: `${minutos} minuto${minutos === 1 ? '' : 's'}`) — isso
+precisaria continuar existindo, só que duplicado por idioma dentro do
+dicionário certo (ex: uma chave `minutes_one`/`minutes_other` por idioma,
+resolvida pelo chamador). Não vale montar um sistema de pluralização
+genérico pra isso — só um padrão de nomenclatura de chave consistente
+(sufixo `_one`/`_other`) que cada `t()` que precisar de plural já sabe
+escolher.
+
+## Fases sugeridas (ordem de prioridade, cada uma é entregável sozinha)
+
+  Fase 0 — Infra: `i18n.js`, estrutura de `src/locales/`, `/config
+  idioma`, localização nativa de nome/descrição de TODOS os comandos
+  (rápido, alto valor, zero risco de quebrar lógica existente).
+
+  Fase 1 — Comandos que membros comuns usam mais: `/strike` (fluxo do
+  usuário reportado, se houver), `/reportchat` (abrir/fechar/avaliar
+  report), `/perfil`, `/historico jogador`.
+
+  Fase 2 — Comandos de staff/configuração: `/config *` (roles, logs,
+  punishments, buffs, personalizar), `/ajuda`, `/historico staff`.
+
+  Fase 3 — Integração Path of Titans: `webhookPayloads.js` (login/logout,
+  painel de morte, relatório de combate/dano, missões) — muito texto, mas
+  maioria é log pra staff acompanhar o jogo, não interação direta de
+  membro comum. Prioridade menor que fases 1-2.
+
+  Fase 4 (fora de escopo deste plano, avaliar separado) — dashboard web
+  (`web/views/*.ejs`): superfície completamente diferente (HTML, não
+  Discord), com seu próprio esforço de rebuild já em andamento nesta
+  mesma conversa. Não misturar com o trabalho de i18n do bot Discord —
+  decidir depois se/quando faz sentido.
+
+## Decisões em aberto — perguntar ao dono antes/durante a implementação
+
+  - Logs internos (canais de staff/admin, PoT webhook) seguem o idioma
+    configurado do servidor, ou ficam sempre em português (reduz MUITO o
+    escopo se ficar fixo em PT, já que é conteúdo só pra staff acompanhar,
+    não pro jogador final)?
+  - Confirma que é por SERVIDOR (não por usuário individual)?
+  - Confirma que dashboard web fica de fora deste plano (fase separada)?
+  - Faz sentido migrar tudo de uma vez, ou entregar fase por fase (cada
+    fase já é usável sozinha, servidor pode ficar "parcialmente" traduzido
+    enquanto o resto não chega, com fallback pro português cobrindo o que
+    falta)?
+
+## Arquivos mais impactados (referência rápida pra quem pegar esta tarefa)
+
+  Ver lista de contagem acima ("Tamanho real") — os 10 arquivos com mais
+  chamadas de texto são o grosso do trabalho manual; o resto dos 67
+  arquivos (comandos + sistemas) tem volume menor mas ainda precisa passar
+  pela mesma migração.
