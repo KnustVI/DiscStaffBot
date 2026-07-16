@@ -1886,7 +1886,7 @@ const ConfigSystem = {
                 });
             }
             if (tier === 'raptor') {
-                const commandHint = kind === 'photo' ? '`/perfil-edit arquivo:<sua imagem>`' : '`/perfil-edit plano_de_fundo:<sua imagem>`';
+                const commandHint = kind === 'photo' ? '`/perfil-edit avatar:<sua imagem>`' : '`/perfil-edit plano_de_fundo:<sua imagem>`';
                 return await interaction.followUp({
                     content: `${EMOJIS.messagesquare || 'ℹ️'} Você é Raptor — envie a imagem direto pelo comando: ${commandHint} (vazio remove a atual).`,
                     flags: MessageFlags.Ephemeral,

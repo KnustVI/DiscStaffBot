@@ -20,11 +20,11 @@
  *
  * Compy: escolhe entre um menu de fotos/fundos pré-definidos (mesmo pool
  * usado no banner do /config reportchat) — nenhum upload próprio. Os
- * parâmetros `arquivo`/`plano_de_fundo` são ignorados pra esse tier (mostra
+ * parâmetros `avatar`/`plano_de_fundo` são ignorados pra esse tier (mostra
  * o painel de qualquer forma).
- * Raptor: upload próprio via `arquivo` (foto) e/ou `plano_de_fundo`. Sem
- * anexo enviado em `arquivo`: usa o banner do próprio Discord (se o jogador
- * tiver um configurado). Com anexo: a imagem enviada vira a foto/fundo.
+ * Raptor: upload próprio via `avatar` (foto de perfil) e/ou `plano_de_fundo`.
+ * Sem anexo enviado em `avatar`: usa o banner do próprio Discord (se o
+ * jogador tiver um configurado). Com anexo: a imagem enviada vira a foto/fundo.
  *
  * A composição de verdade (moldura, nome, badges, estrelas de honra em cima
  * da foto) acontece na hora que o /perfil é exibido, não aqui — ver
@@ -65,8 +65,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil-edit')
         .setDescription('🖼️ Personaliza seu perfil (emblema pra todos; foto, plano de fundo e título são Compy/Raptor).')
-        .addAttachmentOption(opt => opt.setName('arquivo')
-            .setDescription('[Raptor] Foto de perfil (vazio = remove a atual). Ignorado no Compy.')
+        .addAttachmentOption(opt => opt.setName('avatar')
+            .setDescription('[Raptor] Avatar/foto de perfil (vazio = remove a atual). Ignorado no Compy.')
             .setRequired(false))
         .addAttachmentOption(opt => opt.setName('plano_de_fundo')
             .setDescription('[Raptor] Plano de fundo atrás da mensagem inteira (vazio = remove o atual). Ignorado no Compy.')
@@ -85,13 +85,13 @@ module.exports = {
             return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
         }
 
-        const arquivo = interaction.options.getAttachment('arquivo');
+        const avatar = interaction.options.getAttachment('avatar');
         const planoDeFundo = interaction.options.getAttachment('plano_de_fundo');
         const isRaptor = PremiumSystem.isPlayerAtLeast(user.id, 'raptor');
 
         // Sem nenhum anexo (ou anexo ignorado por não ser Raptor) — mostra o
         // painel principal, com o estado atual de cada personalização.
-        if (!isRaptor || (!arquivo && !planoDeFundo)) {
+        if (!isRaptor || (!avatar && !planoDeFundo)) {
             const ConfigSystem = require('../../systems/core/configSystem');
             return await interaction.editReply(ConfigSystem.buildPerfilEditPanelPayload(PremiumSystem.getPlayerTier(user.id), link));
         }
@@ -100,12 +100,12 @@ module.exports = {
         // vazio pra remover) — processa foto e/ou plano de fundo.
         const results = [];
 
-        if (interaction.options.get('arquivo')) {
-            if (!arquivo) {
+        if (interaction.options.get('avatar')) {
+            if (!avatar) {
                 PlayerRegistry.setBannerMessageId(user.id, null);
                 results.push(`${EMOJIS.circlecheck || '✅'} Foto de perfil removida. Se você tiver um banner configurado no próprio Discord, ele volta a aparecer no seu /perfil.`);
             } else {
-                const result = await _uploadAndStore(client, user, arquivo, 'Foto de perfil');
+                const result = await _uploadAndStore(client, user, avatar, 'Foto de perfil');
                 if (result.ok) {
                     PlayerRegistry.setBannerMessageId(user.id, result.messageId);
                     results.push(`${EMOJIS.circlecheck || '✅'} Foto de perfil atualizada!`);
