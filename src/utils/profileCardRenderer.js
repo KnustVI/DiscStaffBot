@@ -160,7 +160,7 @@ async function stripMissionIcons(svg, viewW, viewH) {
  *   cover fit pra esse tamanho). Card encaixado numa caixa de até 845x480
  *   preservando a proporção NATIVA dele (716:458 ≈ 1.56:1, sem esticar) —
  *   como a altura (480) é quem limita (largura=845 estouraria o canvas),
- *   o card sai com ~750 de largura. Encostado na borda direita do canvas e
+ *   o card sai com ~750 de largura. Encostado na borda ESQUERDA do canvas e
  *   centralizado verticalmente — ver FINAL_W/FINAL_H/CARD_W/CARD_H abaixo.
  *   Sombra projetada (drop shadow) no card pra se destacar do plano de
  *   fundo atrás.
@@ -302,13 +302,13 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // Como escalar pra largura=845 exigiria altura≈540 (estoura os 480 e o
     // canvas de 500), quem manda é a ALTURA (480): a largura sai menor que
     // 845 (≈750), sem distorcer nada. Alinhamento: encostado na borda
-    // DIREITA do canvas inteiro e centralizado verticalmente.
+    // ESQUERDA do canvas inteiro e centralizado verticalmente.
     const FINAL_W = 1000;
     const FINAL_H = 500;
     const CARD_BOX_H = 480;
     const CARD_W = Math.round(CARD_BOX_H * (canvas.width / canvas.height));
     const CARD_H = CARD_BOX_H;
-    const cardX = FINAL_W - CARD_W;
+    const cardX = 0;
     const cardY = Math.round((FINAL_H - CARD_H) / 2);
 
     let bgRotated;
