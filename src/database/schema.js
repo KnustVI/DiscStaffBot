@@ -253,6 +253,24 @@ const SCHEMA = {
         )
     `,
 
+    // Filtro de palavras do chat em jogo (Global/Grupo) -> nivel de punicao
+    // customizado (punishment_levels) aplicado automaticamente quando a
+    // palavra aparece — ver src/systems/pot/chatFilterSystem.js. `word`
+    // sempre gravado normalizado (lowercase/trim) pelo proprio sistema, o
+    // UNIQUE garante que adicionar a MESMA palavra de novo atualiza o
+    // nivel em vez de duplicar a linha (mesmo padrao de buff_stats).
+    pot_chat_filters: `
+        CREATE TABLE IF NOT EXISTS pot_chat_filters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            word TEXT NOT NULL,
+            level_id INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            created_by TEXT,
+            UNIQUE(guild_id, word)
+        )
+    `,
+
     // Contagem de vezes que cada especie foi escolhida (um respawn = um pick),
     // por jogador — usada pra saber o "dinossauro mais jogado" (distinto de
     // pot_players.dinosaur_type, que so guarda o ULTIMO jogado). Guild-scoped
@@ -519,6 +537,7 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_guild ON pot_logs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_type ON pot_logs(event_type)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_dinosaur_picks_alderon ON pot_dinosaur_picks(alderon_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_chat_filters_guild ON pot_chat_filters(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,
     
     // Sequences

@@ -31,7 +31,10 @@ module.exports = {
             .setDescription('🖼️ Personaliza banners de /strike, /unstrike e do report-chat (Caçador).'))
         .addSubcommand(sub => sub
             .setName('buffs')
-            .setDescription('💉 Cria e edita buffs (presets de setattr em lote) (Caçador).')),
+            .setDescription('💉 Cria e edita buffs (presets de setattr em lote) (Caçador).'))
+        .addSubcommand(sub => sub
+            .setName('filtro')
+            .setDescription('🚫 Filtro de palavras do chat em jogo -> punição automática (Rastreador+).')),
 
     async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();
@@ -41,6 +44,7 @@ module.exports = {
         const punishmentsHandler = require('./punishments');
         const personalizarHandler = require('./personalizar');
         const buffsHandler = require('./buffs');
+        const filtroHandler = require('./filtro');
 
         switch (subcommand) {
             case 'roles':
@@ -57,6 +61,9 @@ module.exports = {
                 break;
             case 'buffs':
                 await buffsHandler.execute(interaction, client);
+                break;
+            case 'filtro':
+                await filtroHandler.execute(interaction, client);
                 break;
             default:
                 await interaction.editReply({

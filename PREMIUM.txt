@@ -170,6 +170,18 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   2 botoes, nao os dois). Exige o jogador registrado (/registrar) E online
   no jogo no momento do clique - mesma checagem ja usada na verificacao de
   /registrar.
+- Filtro de palavras do chat em jogo, JA IMPLEMENTADO (ver secao 93) -
+  /config filtro cadastra palavras/frases que, ao serem escritas no chat
+  Global ou de Grupo (NUNCA em sussurro), aplicam automaticamente um nivel
+  de punicao customizado (mesmo catalogo do /strike) no jogador, sem
+  nenhum staff precisar agir. Match e de PALAVRA INTEIRA so (nunca
+  substring) - decisao deliberada pra evitar falso positivo, o mesmo
+  motivo que fez o filtro de profanidade NATIVO do proprio jogo
+  (PlayerProfanity) ficar desativado no bot. Usa a mesma flag `autoRcon`
+  que ja libera a acao automatica em jogo do /strike neste tier - se o
+  servidor perder o Rastreador depois, os filtros configurados continuam
+  salvos, so param de aplicar punicao ate o tier voltar. Restrito ao
+  cargo Supervisor (mesmo criterio de /config buffs).
 - /config punishments liberado aqui, mas SO pra criar/editar os ate 4
   niveis de punicao customizados - nada alem disso. Limites de cargo
   automatico e a EDICAO da quantidade recuperada por dia NAO aparecem
@@ -4011,3 +4023,74 @@ frente, nao so este relatorio):
   realmente se sobressaiu, staff sem nenhum destaque não é mencionado em
   lugar nenhum; com 1 staff só ativo ou todos empatados, nenhum destaque
   aparece.
+
+93) FILTRO DE PALAVRAS do chat em jogo -> punição automática (Rastreador+)
+------------------------------------------------------------------
+- Pedido do dono: comando pra cadastrar palavras que, ao aparecerem no
+  chat em jogo (Global ou Grupo), aplicam automaticamente uma punição
+  configurada no jogador — sem staff nenhum precisar agir. Pedido
+  explícito: NÃO reaproveitar o filtro de profanidade nativo do próprio
+  jogo (`PlayerProfanity`) — esse evento já está desativado em
+  `gatewayServer.js` (`DISABLED_EVENTS`) desde antes, por ter falsos
+  positivos demais pra valer a pena.
+- Nova tabela `pot_chat_filters` (guild_id, word, level_id) — cada palavra
+  aponta pra um nível de punição CUSTOMIZADO já existente (mesmo catálogo
+  do `/strike`, `punishment_levels`), não um mecanismo de punição próprio.
+  Adicionar a MESMA palavra de novo atualiza o nível em vez de duplicar a
+  linha (`UNIQUE(guild_id, word)`, mesmo padrão de `buff_stats`).
+- Match de PALAVRA INTEIRA só, nunca substring — decisão do dono
+  justamente pra não cair na mesma armadilha de falso positivo que tirou o
+  `PlayerProfanity` de uso (ex: filtrar "ass" não pode disparar em
+  "classe"/"passar"). Fronteira de palavra usa propriedades Unicode
+  (`\p{L}`/`\p{N}`), não `\b` — `\b` é ASCII-only e trataria letra
+  acentuada como fronteira de palavra, quebrando em português (ex: "não"
+  seria cortado ao redor do "ã"). `src/systems/pot/chatFilterSystem.js`,
+  módulo puro de dados + regex, sem discord.js.
+- Detecção em `gatewayServer.js`, no processamento do evento `PlayerChat`
+  já existente: só dispara com `ChannelName` igual a `'Global'` ou
+  `'Group'` E `FromWhisper` falso — sussurro/conversa privada nunca é
+  moderado automaticamente (pedido explícito do dono, "chat global, ou em
+  grupo"). A mensagem continua sendo logada normalmente no canal de PoT
+  configurado independente do filtro bater ou não — o filtro só
+  ADICIONA a punição automática, não esconde/censura nada.
+- Aplicação da punição (`applyFilterPunishment`) reaproveita o MESMO
+  pipeline do `/strike` (`PunishmentSystem._executeStrike`, chamado
+  diretamente — método interno já reusado por 2 outros pontos de entrada
+  dentro do próprio arquivo) em vez de duplicar toda a lógica de banco/
+  RCON/Discord/DM/log já existente e testada: grava a punição, desconta
+  reputação (se `reputationEnabled`), roda a ação em jogo via RCON
+  (SystemMessage/Kick/Ban/ServerMute, conforme o nível), manda DM pro
+  jogador se tiver Discord vinculado, loga no canal de punições
+  configurado. "Moderador" creditado é o próprio bot (`client.user`) — é
+  automático, não tem staff clicando em nada. Só a ação EM JOGO do nível é
+  aplicada (`discordAct` fica `'none'`) — a violação aconteceu no chat do
+  jogo, não no Discord; jogador sem Discord vinculado ainda assim é punido
+  em jogo normalmente (mesma convenção `agid:<alderonId>` de alvo sem
+  Discord já usada em `/strike ingame`).
+- Gate de tier: mesma flag `autoRcon` que já libera a ação automática em
+  jogo do `/strike` (Rastreador+) — não `genericRconEnabled` (Caçador,
+  reservado ao catálogo manual `/ingame-*`/buffs). Checado tanto no
+  comando (`/config filtro` recusa configurar sem o tier) quanto dentro de
+  `applyFilterPunishment` (se o servidor perder o Rastreador depois com
+  filtros já configurados, eles continuam salvos — nunca apaga config —
+  só param de aplicar punição até o tier voltar, mesmo critério de
+  downgrade já usado no resto do bot).
+- Painel `/config filtro` (`src/systems/pot/chatFilterPanelSystem.js`,
+  sistema próprio "config-filtro" registrado em handlers.js) — mesmo
+  padrão visual de `/config buffs`: tela `list` (palavras + nível, botão
+  Remover por linha, botão "Adicionar Palavra") e `pick-level` (select com
+  os níveis de punição configurados, mostrado depois do modal que pede a
+  palavra). Botão "Adicionar Palavra" especial-caseado em
+  `interactionCreate.js` (ANTES do `deferUpdate()` genérico — mesmo motivo
+  de sempre, `showModal()` só funciona como primeira resposta). Palavra
+  staged em `SessionManager` entre o modal e a escolha do nível (mesmo
+  padrão de `strike_staging`). Sem nível de punição configurado ainda,
+  recusa abrir o modal (avisa pra criar um em `/config punishments`
+  primeiro, em vez de mostrar um select vazio quebrado). Restrito ao
+  cargo Supervisor (mesmo critério de `/config buffs`).
+- Verificado com script direto: match de palavra inteira acerta
+  ("idiota" bate em "vc é idiota") e NÃO acerta em substring
+  ("idiotamente"/"paranoidiota"); acentuação não quebra a fronteira de
+  palavra; CRUD (adicionar, atualizar ao readicionar a mesma palavra,
+  remover); `checkMessage` retorna null sem filtro configurado ou sem
+  bater; aplicação da punição bloqueada sem o tier Rastreador.

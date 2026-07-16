@@ -13,6 +13,7 @@ const ajudaCommand = require('../../commands/ajuda/ajuda');
 const eventTeleportSystem = require('../events/eventTeleportSystem');
 const buffPanelSystem = require('../pot/buffPanelSystem');
 const ingameBuffCommand = require('../../commands/ingame/ingame-buff');
+const chatFilterPanelSystem = require('../pot/chatFilterPanelSystem');
 
 class InteractionHandler {
     constructor(client) {
@@ -47,6 +48,7 @@ class InteractionHandler {
             'event-tp': eventTeleportSystem,
             'config-buffs': buffPanelSystem,
             'ingame-buff': ingameBuffCommand,
+            'config-filtro': chatFilterPanelSystem,
         };
         
         // Mapeamento de ações para métodos

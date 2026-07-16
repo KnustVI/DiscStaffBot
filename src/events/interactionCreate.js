@@ -379,6 +379,15 @@ module.exports = {
                 return;
             }
 
+            // ==================== FILTRO DE CHAT - ABRIR MODAL ====================
+            // Mesmo motivo de config-buffs acima: showModal() só funciona como
+            // PRIMEIRA resposta, precisa vir ANTES do deferUpdate() genérico.
+            if (interaction.customId === 'config-filtro:create:modal') {
+                const ChatFilterPanelSystem = require('../systems/pot/chatFilterPanelSystem');
+                await ChatFilterPanelSystem.handleOpenCreateModal(interaction);
+                return;
+            }
+
             // ==================== OUTROS COMPONENTES ====================
 
             if (interaction.isButton() || interaction.isStringSelectMenu() ||

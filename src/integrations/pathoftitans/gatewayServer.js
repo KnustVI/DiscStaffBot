@@ -386,6 +386,29 @@ class PoTGatewayServer {
                 }
             }
 
+            // 1d. Filtro de palavras do chat em jogo (ver /config filtro,
+            // src/systems/pot/chatFilterSystem.js) — pedido do dono pra
+            // substituir o filtro de profanidade nativo do jogo (PlayerProfanity,
+            // desativado acima em DISABLED_EVENTS por falso positivo demais).
+            // Só dispara em Global/Grupo, NUNCA em sussurro — conversa privada
+            // não é moderada automaticamente. Nunca bloqueia o resto do
+            // processamento do evento (a mensagem continua sendo logada
+            // normalmente mais abaixo, com ou sem filtro batendo).
+            if (potEvent === 'PlayerChat' && !data.FromWhisper && (data.ChannelName === 'Global' || data.ChannelName === 'Group') && data.Message && data.AlderonId) {
+                try {
+                    const ChatFilterSystem = require('../../systems/pot/chatFilterSystem');
+                    const matched = ChatFilterSystem.checkMessage(guildId, data.Message);
+                    if (matched) {
+                        const result = await ChatFilterSystem.applyFilterPunishment(this.client, guildId, matched, data.AlderonId, data.PlayerName);
+                        if (!result?.success) {
+                            console.warn(`⚠️ [ChatFilter] Falha ao aplicar punição automática (palavra "${matched.word}", jogador ${data.AlderonId}):`, result?.error);
+                        }
+                    }
+                } catch (err) {
+                    console.error('❌ [ChatFilter] Erro ao checar filtro de chat:', err.message);
+                }
+            }
+
             // 1c. Analytics de staff — modo espectador (nametag). AdminSpectate
             // usa PlayerAlderonId pra "Enabled/Disabled Nametags" e AdminAlderonId
             // pra "Entered/Exited Spectator Mode" (confirmado ao vivo com dados
