@@ -211,6 +211,32 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     const ctx = canvas.getContext('2d');
     ctx.drawImage(base, 0, 0);
 
+    // Sombra atrás dos ícones de identificação (Alderon/Discord) — pedido
+    // do dono pra melhorar a legibilidade agora que esse trecho do card
+    // pode sentar sobre um plano de fundo (foto), não só o fundo escuro
+    // padrão. Os ícones já vêm RASTERIZADOS dentro de `base` (fill="url(#
+    // pattern...)" no SVG de origem, não desenhados à parte pelo canvas),
+    // então não dá pra só ligar sombra antes de "desenhar o ícone" como se
+    // faz com texto — em vez disso, recorta exatamente a caixa de cada
+    // ícone (meta.iconBoxes, já teve a mesma imagem `base` como origem) e
+    // redesenha esse recorte por cima, na MESMA posição, com sombra ativada
+    // — o canvas calcula a sombra a partir do canal alfa do que for
+    // desenhado, então funciona sem precisar saber o desenho exato do
+    // ícone.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 8 * SCALE;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2 * SCALE;
+    for (const box of meta.iconBoxes) {
+        const sx = box.x * SCALE;
+        const sy = box.y * SCALE;
+        const sw = box.w * SCALE;
+        const sh = box.h * SCALE;
+        ctx.drawImage(base, sx, sy, sw, sh, sx, sy, sw, sh);
+    }
+    ctx.restore();
+
     const [starFull, starEmpty] = await loadStarImages();
     const starSize = STAR_SIZE * SCALE;
     for (let i = 0; i < meta.starTops.length; i++) {
@@ -236,6 +262,17 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
         ctx.fillText(badgeLabels[i], bbox.x * SCALE, (pill.y + pill.h / 2 + BADGE_BASELINE_OFFSET) * SCALE);
     }
 
+    // Nome + linhas de identificação ganham sombra própria (pedido do
+    // dono) — mesmo motivo dos ícones acima: esse trecho do card fica fora
+    // da moldura preenchida, então quando há plano de fundo (foto) atrás
+    // dele, precisa de mais contraste pra continuar legível. Badges (acima)
+    // já sentam num fundo de pílula opaco, não precisam disso.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+    ctx.shadowBlur = 8 * SCALE;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2 * SCALE;
+
     // Nome (Tilt Warp, sempre caixa alta) — ancorado acima do primeiro ícone de identificação.
     const nickBox = meta.bboxes[3];
     ctx.fillStyle = nickBox.color;
@@ -252,6 +289,7 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     const line2 = meta.bboxes[5];
     ctx.fillStyle = line2.color;
     ctx.fillText(discordUsername, line2.bbox.x * SCALE, (meta.iconBoxes[1].y + meta.iconBoxes[1].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE);
+    ctx.restore();
 
     if (!backgroundBuffer) {
         return canvas.toBuffer('image/png');
