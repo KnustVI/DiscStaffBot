@@ -170,18 +170,6 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
   2 botoes, nao os dois). Exige o jogador registrado (/registrar) E online
   no jogo no momento do clique - mesma checagem ja usada na verificacao de
   /registrar.
-- Filtro de palavras do chat em jogo, JA IMPLEMENTADO (ver secao 93) -
-  /config filtro cadastra palavras/frases que, ao serem escritas no chat
-  Global ou de Grupo (NUNCA em sussurro), aplicam automaticamente um nivel
-  de punicao customizado (mesmo catalogo do /strike) no jogador, sem
-  nenhum staff precisar agir. Match e de PALAVRA INTEIRA so (nunca
-  substring) - decisao deliberada pra evitar falso positivo, o mesmo
-  motivo que fez o filtro de profanidade NATIVO do proprio jogo
-  (PlayerProfanity) ficar desativado no bot. Usa a mesma flag `autoRcon`
-  que ja libera a acao automatica em jogo do /strike neste tier - se o
-  servidor perder o Rastreador depois, os filtros configurados continuam
-  salvos, so param de aplicar punicao ate o tier voltar. Restrito ao
-  cargo Supervisor (mesmo criterio de /config buffs).
 - /config punishments liberado aqui, mas SO pra criar/editar os ate 4
   niveis de punicao customizados - nada alem disso. Limites de cargo
   automatico e a EDICAO da quantidade recuperada por dia NAO aparecem
@@ -279,6 +267,18 @@ CAÇADOR - R$40/mes ("Tudo do Rastreador +")
   aplicar e logado (canal de Admin Commands -> log de Staff -> log Geral,
   nessa ordem de preferencia; sem nenhum configurado, avisa o staff a
   configurar um em vez de logar em silencio).
+- Filtro de palavras do chat em jogo, JA IMPLEMENTADO (ver secoes 93 e 94)
+  - /config filtro cadastra palavras/frases que, ao serem escritas no chat
+  Global ou de Grupo (NUNCA em sussurro), aplicam automaticamente um nivel
+  de punicao customizado (mesmo catalogo do /strike) no jogador, sem
+  nenhum staff precisar agir. Match e de PALAVRA INTEIRA so (nunca
+  substring) - decisao deliberada pra evitar falso positivo, o mesmo
+  motivo que fez o filtro de profanidade NATIVO do proprio jogo
+  (PlayerProfanity) ficar desativado no bot. Exclusivo do Caçador (mesma
+  flag `genericRconEnabled` do catalogo manual/buffs) - se o servidor
+  perder o tier depois, os filtros configurados continuam salvos, so
+  param de aplicar punicao ate o Caçador voltar. Restrito ao cargo
+  Supervisor (mesmo criterio de /config buffs).
 - /config punishments completo aqui: ate 10 niveis de punicao customizados,
   limites de cargo automatico (Exemplar/Problematico) e recuperacao diaria,
   tudo editavel - unico tier com acesso aos botoes de Limites/Recuperacao
@@ -4094,3 +4094,21 @@ frente, nao so este relatorio):
   palavra; CRUD (adicionar, atualizar ao readicionar a mesma palavra,
   remover); `checkMessage` retorna null sem filtro configurado ou sem
   bater; aplicação da punição bloqueada sem o tier Rastreador.
+
+94) FILTRO DE PALAVRAS: gate movido de Rastreador+ pra exclusivo do Caçador
+------------------------------------------------------------------
+- Correção do dono sobre a seção 93: o filtro de palavras do chat em jogo
+  passa a ser exclusivo do tier Caçador, não mais Rastreador+. Troca a
+  flag de gate de `autoRcon` pra `genericRconEnabled` (a mesma já usada
+  pelo catálogo manual `/ingame-*` e pelos buffs) em 3 pontos:
+  `chatFilterPanelSystem.js` (`_isEnabled`, controla o painel `/config
+  filtro`), `commands/config/filtro.js` (mesma checagem no comando) e
+  `chatFilterSystem.js` (`applyFilterPunishment`, checada de novo na hora
+  de aplicar a punição de verdade — defesa em profundidade, mesmo padrão
+  já usado no resto do bot).
+- Nenhuma mudança de comportamento além do tier — matching de palavra
+  inteira, pipeline de aplicação via `_executeStrike`, painel e detecção
+  no `PlayerChat` continuam exatamente como a seção 93 descreve.
+- PREMIUM.txt: bullet do filtro movido da seção RASTREADOR pra seção
+  CAÇADOR (não editado a seção 93 do changelog em si, que é histórico —
+  essa seção 94 é que registra a correção).

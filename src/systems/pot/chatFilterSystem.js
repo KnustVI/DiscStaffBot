@@ -94,11 +94,11 @@ function checkMessage(guildId, message) {
  * loga no canal de punições configurado — evita duplicar ~150 linhas de
  * lógica já existente e testada.
  *
- * Exclusivo do plano Rastreador+ (mesma flag `autoRcon` que já libera ação
- * automática em jogo pro /strike) — se o servidor perder o tier depois, o
- * filtro configurado continua salvo (nunca apaga config), só para de ter
- * efeito até o tier voltar (mesmo critério de downgrade já usado no resto
- * do bot, ver CLAUDE.md).
+ * Exclusivo do plano Caçador (pedido do dono; mesma flag `genericRconEnabled`
+ * já usada pelo catálogo manual/buffs) — se o servidor perder o tier
+ * depois, o filtro configurado continua salvo (nunca apaga config), só
+ * para de ter efeito até o tier voltar (mesmo critério de downgrade já
+ * usado no resto do bot, ver CLAUDE.md).
  *
  * "Moderador" creditado é o próprio bot (client.user) — é uma punição
  * automática, não tem staff nenhum clicando em nada. Só a ação EM JOGO do
@@ -110,8 +110,8 @@ function checkMessage(guildId, message) {
  */
 async function applyFilterPunishment(client, guildId, filter, alderonId, playerName) {
     const PremiumSystem = require('../premium/premiumSystem');
-    if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
-        return { success: false, error: 'Plano Rastreador ou superior necessário pra aplicar punição automática do filtro de chat.' };
+    if (!PremiumSystem.getGuildLimits(guildId).genericRconEnabled) {
+        return { success: false, error: 'Plano Caçador necessário pra aplicar punição automática do filtro de chat.' };
     }
 
     const guild = client.guilds.cache.get(guildId);

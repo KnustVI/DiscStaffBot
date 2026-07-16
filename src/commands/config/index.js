@@ -34,7 +34,7 @@ module.exports = {
             .setDescription('💉 Cria e edita buffs (presets de setattr em lote) (Caçador).'))
         .addSubcommand(sub => sub
             .setName('filtro')
-            .setDescription('🚫 Filtro de palavras do chat em jogo -> punição automática (Rastreador+).')),
+            .setDescription('🚫 Filtro de palavras do chat em jogo -> punição automática (Caçador).')),
 
     async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();

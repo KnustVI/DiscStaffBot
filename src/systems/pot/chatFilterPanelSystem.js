@@ -37,11 +37,10 @@ try {
 
 const STAGING_CATEGORY = 'filter_staging';
 
-// Mesma flag que já libera ação automática em jogo pro /strike — o filtro
-// de chat É exatamente isso (punição automática via RCON), não o catálogo
-// manual/buffs (esses usam genericRconEnabled, Caçador).
+// Exclusivo do Caçador (pedido do dono) — mesma flag já usada pelo
+// catálogo manual/buffs.
 function _isEnabled(guildId) {
-    return !!PremiumSystem.getGuildLimits(guildId).autoRcon;
+    return !!PremiumSystem.getGuildLimits(guildId).genericRconEnabled;
 }
 
 // Mesmo critério de acesso de config-buffs — criar/editar é restrito ao

@@ -13,11 +13,9 @@ module.exports = {
             return await ResponseManager.error(interaction, 'Apenas administradores podem configurar o sistema.');
         }
 
-        // Mesma flag que já libera ação automática em jogo pro /strike — o
-        // filtro de chat aplica punição automática via RCON, então
-        // acompanha essa exclusividade (não genericRconEnabled, que é do
-        // catálogo manual/buffs).
-        if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) {
+        // Exclusivo do Caçador (pedido do dono) — mesma flag já usada pelo
+        // catálogo manual/buffs.
+        if (!PremiumSystem.getGuildLimits(guild.id).genericRconEnabled) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
         }
 
