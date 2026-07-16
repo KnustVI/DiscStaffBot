@@ -40,6 +40,7 @@ const PlayerRegistry = require('./potPlayerRegistry');
 const PoTConfigSystem = require('./potConfigSystem');
 const sessionManager = require('../../utils/sessionManager');
 const imageManager = require('../../utils/imageManager');
+const ProfileImagePool = require('./profileImagePool');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
 const { renderProfileCard } = require('../../utils/profileCardRenderer');
 const PunishmentSystem = require('../moderation/punishmentSystem');
@@ -205,7 +206,9 @@ class PlayerRegistrationSystem {
      * Raptor: foto personalizada (upload via /perfil-edit) → banner do
      * próprio Discord → foto padrão do tier.
      * Compy: foto escolhida num menu pré-definido (/perfil-edit,
-     * selected_photo_key) → foto padrão do tier.
+     * selected_photo_key) → foto padrão do tier. A chave escolhida pode vir
+     * do pool estático (imageManager) ou do pool dinâmico adicionado via
+     * /perfil-pool (prefixo "pool:<id>" — ver profileImagePool.js).
      * Nunca guarda a URL de um anexo do Discord no banco (expira em ~24h) —
      * só o ID da mensagem de armazenamento, resolvido de novo a cada /perfil.
      */
@@ -237,12 +240,22 @@ class PlayerRegistrationSystem {
             }
         }
 
-        if (playerTier === 'compy' && player?.selected_photo_key && imageManager.hasImage(player.selected_photo_key)) {
-            try {
-                const localPath = imageManager.getPath(player.selected_photo_key);
-                if (localPath) return fs.readFileSync(localPath);
-            } catch (err) {
-                // segue pro fallback padrão do tier
+        if (playerTier === 'compy' && player?.selected_photo_key) {
+            if (ProfileImagePool.isPoolValue(player.selected_photo_key)) {
+                try {
+                    const poolId = ProfileImagePool.poolIdFromValue(player.selected_photo_key);
+                    const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'avatar', poolId);
+                    if (buffer) return buffer;
+                } catch (err) {
+                    // segue pro fallback padrão do tier
+                }
+            } else if (imageManager.hasImage(player.selected_photo_key)) {
+                try {
+                    const localPath = imageManager.getPath(player.selected_photo_key);
+                    if (localPath) return fs.readFileSync(localPath);
+                } catch (err) {
+                    // segue pro fallback padrão do tier
+                }
             }
         }
 
@@ -252,9 +265,11 @@ class PlayerRegistrationSystem {
     /**
      * Resolve a URL do PLANO DE FUNDO (banner atrás da mensagem inteira do
      * /perfil, distinto do recorte de foto de dentro do card acima) — Raptor
-     * (upload próprio, message_id) > Compy (imageManager, selected_background_key)
-     * > null (sem plano de fundo nenhum — diferente da foto, não tem
-     * "padrão do tier" pra isso, simplesmente não aparece banner nenhum).
+     * (upload próprio, message_id) > Compy (selected_background_key, do pool
+     * estático via imageManager OU do pool dinâmico via /perfil-pool — ver
+     * profileImagePool.js) > null (sem plano de fundo nenhum — diferente da
+     * foto, não tem "padrão do tier" pra isso, simplesmente não aparece
+     * banner nenhum).
      * Só retorna URL (não Buffer): o plano de fundo só é EXIBIDO
      * (builder.gallery()), nunca composto/recortado como a foto do card.
      *
@@ -272,9 +287,15 @@ class PlayerRegistrationSystem {
             }
         }
 
-        if (playerTier === 'compy' && player?.selected_background_key && imageManager.hasImage(player.selected_background_key)) {
-            const url = imageManager.getUrl(player.selected_background_key);
-            if (url) return url;
+        if (playerTier === 'compy' && player?.selected_background_key) {
+            if (ProfileImagePool.isPoolValue(player.selected_background_key)) {
+                const poolId = ProfileImagePool.poolIdFromValue(player.selected_background_key);
+                const url = await ProfileImagePool.resolveImageUrl(interaction.client, 'background', poolId);
+                if (url) return url;
+            } else if (imageManager.hasImage(player.selected_background_key)) {
+                const url = imageManager.getUrl(player.selected_background_key);
+                if (url) return url;
+            }
         }
 
         return null;

@@ -21,10 +21,12 @@ FREE
 - Footer de perfil padrao do tier Free (imagem fixa no rodape do /perfil).
 - EMBLEMA libera aqui tambem (correcao do dono - ver secao 96): e o UNICO
   item de personalizacao disponivel em QUALQUER tier, escolhido de uma
-  lista fixa via /perfil-edit. Selecao/persistencia JA IMPLEMENTADA, mas a
-  LISTA de opcoes ainda esta vazia e o DESENHO do emblema escolhido em cima
-  do card tambem nao (precisa o dono fornecer os assets - ver
-  PLAYER_BADGE_OPTIONS em configSystem.js).
+  lista via /perfil-edit. Selecao/persistencia JA IMPLEMENTADA. A lista de
+  opcoes agora pode ser alimentada pelo dono a qualquer momento via
+  /perfil-pool add badge (bot developer, ver secao 97) - sem precisar editar
+  codigo/redeployar a cada emblema novo. O DESENHO do emblema escolhido em
+  cima do card ainda NAO esta implementado (precisa de assets reais
+  cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
 - Farme de cacadas por hora de jogo. (ainda nao implementado - "vindo em breve")
@@ -36,14 +38,15 @@ COMPY - R$10/mes ("Tudo do Free +")
 - Footer de perfil padrao do tier Compy.
 - /perfil-edit libera aqui o resto da personalizacao, sempre por MENU (sem
   upload proprio - isso e exclusivo do Raptor, ver abaixo):
-    - Foto de fundo do CARD escolhida num menu de fotos pre-definidas
-      (mesmo pool usado nos banners de /config personalizar - 12 fotos
-      genericas). JA IMPLEMENTADO.
+    - Foto de fundo do CARD (avatar) escolhida num menu de fotos - 12 fotos
+      genericas fixas (mesmo pool usado nos banners de /config personalizar)
+      + qualquer imagem que o dono adicionar via /perfil-pool add avatar
+      (bot developer, ver secao 97). JA IMPLEMENTADO.
     - Plano de fundo (banner atras da mensagem INTEIRA do /perfil, distinto
       da foto de dentro do card) escolhido num menu - reaproveita o MESMO
       pool de 12 fotos genericas usado na foto de perfil (correcao do dono
-      - ver secao 96), em vez de esperar por um conjunto de imagens
-      proprio. JA IMPLEMENTADO E FUNCIONAL.
+      - ver secao 96) + qualquer imagem adicionada via /perfil-pool add
+      fundo (ver secao 97). JA IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
@@ -95,9 +98,9 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
       ainda PLACEHOLDER fixo ("Nivel 1") em todo tier, esperando o sistema
       de XP por hora jogada ser desenhado;
     - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
-      liberada a partir do Compy (JA IMPLEMENTADA), mas o DESENHO do
-      emblema escolhido em cima do card ainda NAO (lista de opcoes vazia
-      ate o dono fornecer os assets - ver secao Compy acima);
+      liberada em QUALQUER tier (JA IMPLEMENTADA), lista de opcoes
+      alimentada pelo dono via /perfil-pool add badge (ver secao 97), mas o
+      DESENHO do emblema escolhido em cima do card ainda NAO implementado;
     - nome do jogador e identificacao (Alderon ID + usuario do Discord) -
       desenhados dentro do proprio card (nao repete essas informacoes fora
       dele, no bloco de baixo).
@@ -114,12 +117,18 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   Guarda so o ID da mensagem, nao a URL - links de anexo do Discord expiram
   em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
   toda vez que o /perfil e exibido.
-- Foto escolhida por menu (Compy) via /perfil-edit - sem upload, so
-  seleciona uma das 12 fotos genericas ja existentes em assets/images (o
-  mesmo pool usado nos banners de /config personalizar). Guarda so a CHAVE do
-  imageManager (player_links.selected_photo_key), nao um arquivo proprio -
-  bem mais leve que o fluxo do Raptor, sem precisar de canal de
-  armazenamento nenhum.
+- Foto escolhida por menu (Compy) via /perfil-edit - sem upload do jogador,
+  so seleciona entre as 12 fotos genericas fixas (mesmo pool usado nos
+  banners de /config personalizar) OU qualquer imagem que o dono tenha
+  adicionado via /perfil-pool add (bot developer, ver secao 97). Guarda so a
+  CHAVE (player_links.selected_photo_key/selected_background_key) - chave
+  estatica do imageManager ou "pool:<id>" pro pool dinamico, nunca um
+  arquivo proprio do jogador.
+- Pool dinamico de imagens (avatar/plano de fundo/emblema) via /perfil-pool
+  (bot developer, ver secao 97) - o dono adiciona/remove/lista imagens sem
+  precisar editar codigo ou redeployar. Mesmo padrao de armazenamento do
+  upload proprio do Raptor (guarda so o ID da mensagem no canal fixo
+  BANNER_STORAGE_CHANNEL_ID, URL resolvida de novo a cada /perfil).
 - Loja (comprar fotos/badges/titulos/sorteio) e so a FUNDACAO (o sistema
   de tier), ainda NAO tem loja implementada de fato - a foto por menu do
   Compy (acima) e um recurso PROPRIO, nao depende da loja.
@@ -4268,3 +4277,66 @@ frente, nao so este relatorio):
   em foto/fundo por um usuário Free recebe aviso de upsell (Compy+); menu
   de plano de fundo agora lista as fotos reais (ex: "Suchomimus") em vez
   de aparecer vazio.
+
+97) /perfil-pool: comandos de developer pra alimentar os pools de
+    avatar/plano de fundo/emblema sem editar código
+------------------------------------------------------------------
+- Pedido do dono: os pools estáticos de avatar/plano de fundo (12 fotos
+  fixas, ver seção 96) e emblema (vazio até então — seção 95/96) exigiam
+  editar `PLAYER_PHOTO_OPTIONS`/`PLAYER_BADGE_OPTIONS` em código e
+  redeployar pra cada imagem nova. Badges (emblemas) foram esclarecidos
+  pelo dono como medalhas de missão/conquista personalizadas — o plano é
+  ir alimentando esse pool aos poucos, então precisava de um jeito de fazer
+  isso direto pelo Discord, sem depender de código.
+- Nova tabela `profile_image_pool` (`id`, `type` — avatar/background/badge,
+  `label`, `message_id`, `created_by`, `created_at`) e o módulo
+  `src/systems/pot/profileImagePool.js` — CRUD + resolução de URL/Buffer
+  fresca. Mesmo padrão de armazenamento já usado pro upload próprio do
+  Raptor: a imagem é reenviada pro canal fixo `BANNER_STORAGE_CHANNEL_ID` e
+  só o ID da MENSAGEM é guardado (a URL de um anexo do Discord expira em
+  ~24h, então é resolvida de novo — `channel.messages.fetch` — toda vez
+  que o /perfil ou o picker de escolha são exibidos).
+- Novo comando `/perfil-pool` no bot developer (TITAN DEV — segunda
+  Application, ver `src/systems/core/devBot.js`), com 3 subcomandos: `add`
+  (tipo + nome + imagem), `remover` (tipo + id) e `listar` (tipo).
+  Diferente dos outros 4 comandos de developer (reset-db, reset-reports,
+  premium-admin, combat-config), este NÃO recebe `servidor_id` — os pools
+  são globais, não pertencem a nenhum servidor específico.
+- Download/redimensionamento/reencode (webp, mesma lógica de
+  `/perfil-edit`) extraído pra um helper compartilhado
+  (`src/utils/imageStorage.js`, `uploadAndStoreImage`) — usado tanto por
+  `/perfil-edit` (upload próprio do Raptor) quanto por `/perfil-pool add`,
+  evitando duplicar a mesma lógica de validação/sharp/canal de
+  armazenamento em dois arquivos.
+- `ConfigSystem` (`getAvatarOptions`/`getBackgroundOptions`/
+  `getBadgeOptions`, todas recalculadas a cada chamada, nunca cacheadas):
+  mescla os pools estáticos (`PLAYER_PHOTO_OPTIONS` etc., hardcoded, vindos
+  de `assets/images/` via `imageManager`) com as entradas dinâmicas do
+  banco, usadas pelos 3 pickers de `/perfil-edit` (foto, fundo, emblema) e
+  pelo status exibido no painel principal. Valor de uma entrada dinâmica
+  usa o prefixo `pool:<id>` (ex: `pool:5`) — distingue de uma chave
+  estática do imageManager sem precisar de nenhuma coluna nova em
+  `player_links`. Emblema não tem mais pool vazio por padrão: qualquer
+  imagem cadastrada via `/perfil-pool add badge` já aparece no menu, em
+  qualquer tier (sem gate — mesma regra da seção 96).
+- `PlayerRegistrationSystem._resolveCardPhotoBuffer`/`_resolveBackgroundUrl`
+  (usados pelo `/perfil` de verdade, Compy): passam a checar se a chave
+  guardada é `pool:<id>` antes de cair no `imageManager` — resolve via
+  `ProfileImagePool.resolveImageBuffer`/`resolveImageUrl` nesse caso. O
+  DESENHO do emblema em cima do card continua fora do escopo desta seção
+  (ver aviso na seção 96) — só a alimentação do pool e a seleção/
+  persistência estão prontas; falta a composição no
+  `profileCardRenderer.js` quando o dono já tiver cadastrado emblemas reais
+  pra testar contra.
+- Remover uma imagem do pool (`/perfil-pool remover`) não reseta
+  automaticamente quem tinha ela escolhida — o `player_links` continua
+  guardando o `pool:<id>` antigo, mas a resolução simplesmente falha (não
+  acha a linha/mensagem) e cai no fallback padrão do tier no próximo
+  `/perfil`, sem erro pro jogador.
+- Verificado com scripts diretos: `add`/`remover`/`listar` de cada tipo
+  (avatar/background/badge) mexendo só na tabela `profile_image_pool`;
+  `getAvatarOptions`/`getBackgroundOptions`/`getBadgeOptions` retornando o
+  pool estático + dinâmico combinados, com o prefixo `pool:` correto;
+  seleção de um valor `pool:<id>` sendo aceita pelos 3 handlers de select;
+  remoção de uma imagem em uso não quebra a resolução no `/perfil` (cai no
+  padrão do tier).

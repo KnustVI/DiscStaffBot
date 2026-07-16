@@ -44,70 +44,21 @@
  * guardamos só o ID da MENSAGEM — a URL fresca é resolvida na hora, sempre
  * que o /perfil for exibido (refazendo o fetch da mensagem).
  */
-const { SlashCommandBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
-const sharp = require('sharp');
+const { SlashCommandBuilder, MessageFlags } = require('discord.js');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const ResponseManager = require('../../utils/responseManager');
-
-// A foto só é exibida recortada num retângulo de ~356x268 (moldura do card,
-// ver profileCardRenderer.js) — não faz sentido guardar um arquivo de vários
-// MB/4K só pra isso. Reduz pra um teto generoso (ainda nítido em telas HiDPI)
-// e reencoda em webp antes de guardar, sem alterar a foto que o usuário vê.
-const MAX_DIMENSION = 1200;
-const WEBP_QUALITY = 88;
+const { uploadAndStoreImage } = require('../../utils/imageStorage');
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-/**
- * Baixa, redimensiona/reencoda e guarda um anexo no canal de armazenamento
- * — compartilhado entre foto de perfil e plano de fundo (mesmo processo,
- * só muda o texto da mensagem de armazenamento e qual setter é chamado
- * depois pelo chamador).
- *
- * @returns {Promise<{ok: true, messageId: string} | {ok: false, error: string}>}
- */
+// Fininho em cima de uploadAndStoreImage (src/utils/imageStorage.js) — só
+// monta o texto da mensagem de armazenamento (auditoria: de quem é a foto).
+// Mesmo helper é usado pelos comandos de developer que alimentam os pools
+// de avatar/fundo/emblema (/perfil-pool).
 async function _uploadAndStore(client, user, arquivo, label) {
-    if (!arquivo.contentType || !['image/png', 'image/jpeg', 'image/webp'].includes(arquivo.contentType)) {
-        return { ok: false, error: 'O arquivo enviado precisa ser uma imagem estática (png, jpg ou webp) — formatos animados (gif) não são aceitos aqui.' };
-    }
-
-    const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
-    if (!storageChannelId) {
-        return { ok: false, error: 'O armazenamento de imagens ainda não foi configurado pelo desenvolvedor do bot (BANNER_STORAGE_CHANNEL_ID). Tente novamente mais tarde.' };
-    }
-
-    const storageChannel = await client.channels.fetch(storageChannelId).catch(() => null);
-    if (!storageChannel) {
-        return { ok: false, error: 'Não foi possível acessar o canal de armazenamento de imagens. Avise o desenvolvedor do bot.' };
-    }
-
-    try {
-        const response = await fetch(arquivo.url);
-        if (!response.ok) {
-            return { ok: false, error: 'Não foi possível baixar a imagem enviada. Tente novamente.' };
-        }
-        const rawBuffer = Buffer.from(await response.arrayBuffer());
-        const optimizedBuffer = await sharp(rawBuffer)
-            .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: WEBP_QUALITY })
-            .toBuffer();
-
-        const stored = await storageChannel.send({
-            content: `${label} de \`${user.tag}\` (\`${user.id}\`)`,
-            files: [new AttachmentBuilder(optimizedBuffer, { name: 'imagem.webp' })],
-        });
-
-        if (!stored.attachments.first()) {
-            return { ok: false, error: 'Erro ao processar a imagem enviada. Tente novamente.' };
-        }
-
-        return { ok: true, messageId: stored.id };
-    } catch (error) {
-        console.error(`❌ [PerfilEdit] Erro ao salvar ${label.toLowerCase()}:`, error);
-        return { ok: false, error: 'Erro ao salvar a imagem. Tente novamente em instantes.' };
-    }
+    return uploadAndStoreImage(client, arquivo, `${label} de \`${user.tag}\` (\`${user.id}\`)`);
 }
 
 module.exports = {

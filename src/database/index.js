@@ -75,6 +75,7 @@ class DatabaseManager {
                 'pot_logs',
                 'pot_tokens',
                 'player_links',
+                'profile_image_pool',
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',

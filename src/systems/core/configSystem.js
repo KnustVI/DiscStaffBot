@@ -4,6 +4,7 @@ const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const imageManager = require('../../utils/imageManager');
+const ProfileImagePool = require('../pot/profileImagePool');
 const {
     ActionRowBuilder,
     ModalBuilder,
@@ -194,6 +195,32 @@ const PLAYER_BACKGROUND_OPTIONS = PLAYER_PHOTO_OPTIONS;
 // quando os assets existirem de verdade (não dá pra acertar a coordenada/
 // composição sem um arquivo real pra testar contra).
 const PLAYER_BADGE_OPTIONS = [];
+
+/**
+ * Mescla os pools estáticos acima (PLAYER_PHOTO_OPTIONS/PLAYER_BACKGROUND_
+ * OPTIONS/PLAYER_BADGE_OPTIONS, hardcoded, vindos de assets/images/) com as
+ * entradas dinâmicas adicionadas via /perfil-pool (bot developer — ver
+ * profileImagePool.js). Cada entrada dinâmica usa "pool:<id>" como value,
+ * pra não colidir com nenhuma chave estática do imageManager. Recalculado a
+ * cada chamada (nunca cacheado) — o pool pode mudar a qualquer momento.
+ * Limitado a 25 (limite de opções de um StringSelectMenu do Discord).
+ */
+function _mergeWithPool(staticOptions, poolType) {
+    const dynamic = ProfileImagePool.listImages(poolType).map(row => ({
+        value: ProfileImagePool.toPoolValue(row.id),
+        label: row.label,
+    }));
+    return [...staticOptions, ...dynamic].slice(0, 25);
+}
+function getAvatarOptions() {
+    return _mergeWithPool(PLAYER_PHOTO_OPTIONS, 'avatar');
+}
+function getBackgroundOptions() {
+    return _mergeWithPool(PLAYER_BACKGROUND_OPTIONS, 'background');
+}
+function getBadgeOptions() {
+    return _mergeWithPool(PLAYER_BADGE_OPTIONS, 'badge');
+}
 
 /**
  * Opções de banner pro painel de /config reportchat (Caçador) — a primeira
@@ -1580,14 +1607,15 @@ const ConfigSystem = {
             '# ESCOLHER FOTO DE PERFIL',
             'Escolha uma das fotos abaixo para usar de fundo no seu card (`/perfil`) — recurso do Player Premium Compy.',
         ].join('\n'));
-        const currentLabel = PLAYER_PHOTO_OPTIONS.find(opt => opt.value === currentKey)?.label;
+        const options = getAvatarOptions();
+        const currentLabel = options.find(opt => opt.value === currentKey)?.label;
         cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Padrão do tier (nenhuma escolhida ainda)`}`);
         cb.footer('Player Premium Compy');
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('perfil-edit:photo')
             .setPlaceholder('Escolha a foto...')
-            .addOptions(PLAYER_PHOTO_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+            .addOptions(options.map(opt => new StringSelectMenuOptionBuilder()
                 .setLabel(opt.label)
                 .setValue(opt.value)
                 .setDefault(opt.value === currentKey)
@@ -1613,13 +1641,15 @@ const ConfigSystem = {
         }
 
         const chosenKey = interaction.values[0];
-        const isValidOption = PLAYER_PHOTO_OPTIONS.some(opt => opt.value === chosenKey);
-        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+        const options = getAvatarOptions();
+        const isValidOption = options.some(opt => opt.value === chosenKey);
+        const isValidImage = isValidOption && (ProfileImagePool.isPoolValue(chosenKey) || imageManager.hasImage(chosenKey));
+        if (!isValidImage) {
             return await ResponseManager.error(interaction, 'Imagem inválida.');
         }
 
         PlayerRegistry.setSelectedPhotoKey(interaction.user.id, chosenKey);
-        const label = PLAYER_PHOTO_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const label = options.find(opt => opt.value === chosenKey)?.label || chosenKey;
 
         const payload = this.buildPlayerPhotoPickerPayload(chosenKey).build();
         if (interaction.deferred || interaction.replied) {
@@ -1643,20 +1673,21 @@ const ConfigSystem = {
             'Escolha uma das imagens abaixo para usar de plano de fundo no seu `/perfil` — recurso do Player Premium Compy.',
         ].join('\n'));
 
-        if (PLAYER_BACKGROUND_OPTIONS.length === 0) {
+        const options = getBackgroundOptions();
+        if (options.length === 0) {
             cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhuma opção de plano de fundo cadastrada — volte mais tarde.`);
             cb.footer('Player Premium Compy');
             return cb;
         }
 
-        const currentLabel = PLAYER_BACKGROUND_OPTIONS.find(opt => opt.value === currentKey)?.label;
+        const currentLabel = options.find(opt => opt.value === currentKey)?.label;
         cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Padrão do tier (nenhum escolhido ainda)`}`);
         cb.footer('Player Premium Compy');
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('perfil-edit:background')
             .setPlaceholder('Escolha o plano de fundo...')
-            .addOptions(PLAYER_BACKGROUND_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+            .addOptions(options.map(opt => new StringSelectMenuOptionBuilder()
                 .setLabel(opt.label)
                 .setValue(opt.value)
                 .setDefault(opt.value === currentKey)
@@ -1682,13 +1713,15 @@ const ConfigSystem = {
         }
 
         const chosenKey = interaction.values[0];
-        const isValidOption = PLAYER_BACKGROUND_OPTIONS.some(opt => opt.value === chosenKey);
-        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+        const options = getBackgroundOptions();
+        const isValidOption = options.some(opt => opt.value === chosenKey);
+        const isValidImage = isValidOption && (ProfileImagePool.isPoolValue(chosenKey) || imageManager.hasImage(chosenKey));
+        if (!isValidImage) {
             return await ResponseManager.error(interaction, 'Imagem inválida.');
         }
 
         PlayerRegistry.setSelectedBackgroundKey(interaction.user.id, chosenKey);
-        const label = PLAYER_BACKGROUND_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const label = options.find(opt => opt.value === chosenKey)?.label || chosenKey;
 
         const payload = this.buildPlayerBackgroundPickerPayload(chosenKey).build();
         if (interaction.deferred || interaction.replied) {
@@ -1710,23 +1743,24 @@ const ConfigSystem = {
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text([
             '# ESCOLHER EMBLEMA',
-            'Escolha um emblema para exibir no seu card de `/perfil` — recurso do Player Premium Compy/Raptor.',
+            'Escolha um emblema para exibir no seu card de `/perfil` — disponível em qualquer tier.',
         ].join('\n'));
 
-        if (PLAYER_BADGE_OPTIONS.length === 0) {
+        const options = getBadgeOptions();
+        if (options.length === 0) {
             cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhum emblema cadastrado — volte mais tarde.`);
-            cb.footer('Player Premium Compy/Raptor');
+            cb.footer('Emblema disponível em qualquer tier');
             return cb;
         }
 
-        const currentLabel = PLAYER_BADGE_OPTIONS.find(opt => opt.value === currentKey)?.label;
+        const currentLabel = options.find(opt => opt.value === currentKey)?.label;
         cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Nenhum escolhido ainda`}`);
-        cb.footer('Player Premium Compy/Raptor');
+        cb.footer('Emblema disponível em qualquer tier');
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId('perfil-edit:badge')
             .setPlaceholder('Escolha o emblema...')
-            .addOptions(PLAYER_BADGE_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+            .addOptions(options.map(opt => new StringSelectMenuOptionBuilder()
                 .setLabel(opt.label)
                 .setValue(opt.value)
                 .setDefault(opt.value === currentKey)
@@ -1749,13 +1783,14 @@ const ConfigSystem = {
         }
 
         const chosenKey = interaction.values[0];
-        const isValidOption = PLAYER_BADGE_OPTIONS.some(opt => opt.value === chosenKey);
+        const options = getBadgeOptions();
+        const isValidOption = options.some(opt => opt.value === chosenKey);
         if (!isValidOption) {
             return await ResponseManager.error(interaction, 'Emblema inválido.');
         }
 
         PlayerRegistry.setSelectedBadgeKey(interaction.user.id, chosenKey);
-        const label = PLAYER_BADGE_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const label = options.find(opt => opt.value === chosenKey)?.label || chosenKey;
 
         const payload = this.buildPlayerBadgePickerPayload(chosenKey).build();
         if (interaction.deferred || interaction.replied) {
@@ -1787,16 +1822,16 @@ const ConfigSystem = {
 
         // Emblema é liberado em QUALQUER tier (pedido do dono — diferente de
         // foto/fundo/título/esconder KDA, que continuam Compy+/Raptor).
-        const badgeStatus = link?.selected_badge_key ? PLAYER_BADGE_OPTIONS.find(o => o.value === link.selected_badge_key)?.label || link.selected_badge_key : 'Nenhum';
+        const badgeStatus = link?.selected_badge_key ? getBadgeOptions().find(o => o.value === link.selected_badge_key)?.label || link.selected_badge_key : 'Nenhum';
         const statusLines = [`**Emblema:** ${badgeStatus}`];
 
         if (isCompyPlus) {
             const photoStatus = isRaptor
                 ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou banner do Discord)')
-                : (link?.selected_photo_key ? PLAYER_PHOTO_OPTIONS.find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
+                : (link?.selected_photo_key ? getAvatarOptions().find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
             const backgroundStatus = isRaptor
                 ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (sem plano de fundo)')
-                : (link?.selected_background_key ? PLAYER_BACKGROUND_OPTIONS.find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
+                : (link?.selected_background_key ? getBackgroundOptions().find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
             const kdaStatus = link?.hide_kda ? `${EMOJIS.circlealert || '❌'} Escondido` : `${EMOJIS.circlecheck || '✅'} Visível`;
             statusLines.push(`**Foto de perfil:** ${photoStatus}`, `**Plano de fundo:** ${backgroundStatus}`, `**Kills/Deaths/K-D:** ${kdaStatus}`);
             if (isRaptor) statusLines.push(`**Título:** ${link?.profile_title || 'Padrão ("Em breve (missões)")'}`);

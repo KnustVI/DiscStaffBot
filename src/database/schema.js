@@ -334,6 +334,27 @@ const SCHEMA = {
         )
     `,
 
+    // ==================== POOL DE IMAGENS DE PERFIL (avatar/fundo/emblema) ====================
+    // Entradas adicionadas dinamicamente pelo dono via /perfil-pool (bot
+    // developer) — complementa os pools estáticos hardcoded em
+    // configSystem.js (PLAYER_PHOTO_OPTIONS etc, vindos de assets/images/ via
+    // imageManager) sem precisar editar código/redeployar a cada imagem
+    // nova. message_id segue o mesmo padrão já usado pro upload próprio do
+    // Raptor (banner_message_id/background_message_id): a imagem em si mora
+    // como anexo de uma mensagem no canal fixo BANNER_STORAGE_CHANNEL_ID, só
+    // o ID é guardado (URL do anexo expira em ~24h, resolvida de novo a cada
+    // uso — ver src/systems/pot/profileImagePool.js).
+    profile_image_pool: `
+        CREATE TABLE IF NOT EXISTS profile_image_pool (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            label TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            created_by TEXT,
+            created_at INTEGER NOT NULL
+        )
+    `,
+
     // ==================== PREMIUM ====================
     player_premium: `
         CREATE TABLE IF NOT EXISTS player_premium (
@@ -550,6 +571,9 @@ const INDEXES = [
 
     // Player links (registro global)
     `CREATE INDEX IF NOT EXISTS idx_player_links_alderon ON player_links(alderon_id)`,
+
+    // Pool de imagens de perfil
+    `CREATE INDEX IF NOT EXISTS idx_profile_image_pool_type ON profile_image_pool(type)`,
 
     // Premium
     `CREATE INDEX IF NOT EXISTS idx_player_premium_tier ON player_premium(tier)`,
