@@ -173,27 +173,26 @@ const PLAYER_PHOTO_OPTIONS = [
 ];
 
 // Planos de fundo pré-definidos pra escolher no /perfil-edit (Player Premium
-// Compy) — mesmo espírito de PLAYER_PHOTO_OPTIONS, mas pro banner que
-// aparece ATRÁS da mensagem inteira do /perfil (não o recorte de foto de
-// dentro do card). VAZIO DE PROPÓSITO: ainda não existe nenhum asset de
-// fundo cadastrado em assets/images (ver ImageManager) — precisa que o
-// dono forneça as imagens e adicione as entradas aqui (mesmo padrão de
-// PLAYER_PHOTO_OPTIONS, { value: 'chave_do_imagemanager', label: 'Nome' })
-// antes desse picker funcionar de verdade. Até lá, buildPlayerBackgroundPickerPayload
-// avisa "nenhuma opção cadastrada" em vez de mostrar um select quebrado.
-const PLAYER_BACKGROUND_OPTIONS = [];
+// Compy) — pro banner que aparece ATRÁS da mensagem inteira do /perfil (não
+// o recorte de foto de dentro do card). Pedido do dono: reaproveita o MESMO
+// pool de PLAYER_PHOTO_OPTIONS em vez de esperar por um conjunto de imagens
+// próprio — já são fotos de cenário/paisagem, funcionam bem como fundo
+// também, e evita ficar sem nenhuma opção disponível até ter assets novos.
+const PLAYER_BACKGROUND_OPTIONS = PLAYER_PHOTO_OPTIONS;
 
-// Emblemas pré-definidos pra escolher no /perfil-edit (Player Premium
-// Compy/Raptor — é sempre "escolher de uma lista", nunca upload próprio,
-// então não tem versão Raptor-only como foto/fundo têm). Desenhado na
-// fileira de ícones abaixo da foto do card (hoje sempre vazia — ver
-// stripMissionIcons em profileCardRenderer.js). VAZIO DE PROPÓSITO pelo
-// mesmo motivo de PLAYER_BACKGROUND_OPTIONS acima: precisa dos assets reais
-// do dono antes de ter o que listar aqui. O desenho do emblema escolhido em
-// cima do card (profileCardRenderer.js) também ainda não foi implementado —
-// só a escolha/persistência já fica pronta nesta revisão, o desenho fica
-// pra quando os assets existirem de verdade (não dá pra acertar a
-// coordenada/composição sem um arquivo real pra testar contra).
+// Emblemas pré-definidos pra escolher no /perfil-edit — liberado em
+// QUALQUER tier (pedido do dono, diferente de foto/fundo/título, que
+// continuam Compy+/Raptor), sempre "escolher de uma lista", nunca upload
+// próprio. Desenhado na fileira de ícones abaixo da foto do card (hoje
+// sempre vazia — ver stripMissionIcons em profileCardRenderer.js). VAZIO DE
+// PROPÓSITO: diferente do plano de fundo (que já reaproveita
+// PLAYER_PHOTO_OPTIONS acima), não existe um pool de ícones de emblema já
+// pronto pra reaproveitar — precisa dos assets reais do dono antes de ter o
+// que listar aqui. O desenho do emblema escolhido em cima do card
+// (profileCardRenderer.js) também ainda não foi implementado — só a
+// escolha/persistência já fica pronta nesta revisão, o desenho fica pra
+// quando os assets existirem de verdade (não dá pra acertar a coordenada/
+// composição sem um arquivo real pra testar contra).
 const PLAYER_BADGE_OPTIONS = [];
 
 /**
@@ -1741,11 +1740,8 @@ const ConfigSystem = {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
         }
 
-        const PremiumSystem = require('../premium/premiumSystem');
-        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'compy')) {
-            return await ResponseManager.error(interaction, 'Escolher emblema é um recurso do Player Premium Compy ou superior.');
-        }
-
+        // Sem checagem de tier de propósito — emblema é liberado em
+        // QUALQUER tier (pedido do dono), diferente de foto/fundo/título.
         const PlayerRegistry = require('../pot/potPlayerRegistry');
         const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
         if (!link) {
@@ -1780,6 +1776,7 @@ const ConfigSystem = {
     // verdade (select), que não depende de anexo.
 
     buildPerfilEditPanelPayload(playerTier, link) {
+        const isCompyPlus = playerTier === 'compy' || playerTier === 'raptor';
         const isRaptor = playerTier === 'raptor';
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text([
@@ -1788,43 +1785,53 @@ const ConfigSystem = {
         ].join('\n'));
         cb.separator();
 
-        const photoStatus = isRaptor
-            ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou banner do Discord)')
-            : (link?.selected_photo_key ? PLAYER_PHOTO_OPTIONS.find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
-        const backgroundStatus = isRaptor
-            ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (sem plano de fundo)')
-            : (link?.selected_background_key ? PLAYER_BACKGROUND_OPTIONS.find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
+        // Emblema é liberado em QUALQUER tier (pedido do dono — diferente de
+        // foto/fundo/título/esconder KDA, que continuam Compy+/Raptor).
         const badgeStatus = link?.selected_badge_key ? PLAYER_BADGE_OPTIONS.find(o => o.value === link.selected_badge_key)?.label || link.selected_badge_key : 'Nenhum';
-        const titleStatus = link?.profile_title || 'Padrão ("Em breve (missões)")';
-        const kdaStatus = link?.hide_kda ? `${EMOJIS.circlealert || '❌'} Escondido` : `${EMOJIS.circlecheck || '✅'} Visível`;
+        const statusLines = [`**Emblema:** ${badgeStatus}`];
 
-        cb.text([
-            `**Foto de perfil:** ${photoStatus}`,
-            `**Plano de fundo:** ${backgroundStatus}`,
-            `**Emblema:** ${badgeStatus}`,
-            isRaptor ? `**Título:** ${titleStatus}` : null,
-            `**Kills/Deaths/K-D:** ${kdaStatus}`,
-        ].filter(Boolean).join('\n'));
-
-        const row1 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('perfil-edit:photo-info').setLabel('Foto de Perfil').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.image || '🖼️'),
-            new ButtonBuilder().setCustomId('perfil-edit:background-info').setLabel('Plano de Fundo').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.gallery || '🏞️'),
-            new ButtonBuilder().setCustomId('perfil-edit:badge-info').setLabel('Emblema').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.badge || '🏅'),
-        );
-        const row2Buttons = [
-            new ButtonBuilder().setCustomId('perfil-edit:hide-kda-toggle').setLabel(link?.hide_kda ? 'Mostrar KDA' : 'Esconder KDA').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
-        ];
-        // Título é texto livre (sem versão "banco" pra Compy — não existe
-        // banco de frases pré-prontas) — Raptor only, mesmo critério de
-        // upload próprio de foto/fundo.
-        if (isRaptor) {
-            row2Buttons.unshift(new ButtonBuilder().setCustomId('perfil-edit:title:modal').setLabel('Título').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.edit || '✏️'));
+        if (isCompyPlus) {
+            const photoStatus = isRaptor
+                ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou banner do Discord)')
+                : (link?.selected_photo_key ? PLAYER_PHOTO_OPTIONS.find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
+            const backgroundStatus = isRaptor
+                ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (sem plano de fundo)')
+                : (link?.selected_background_key ? PLAYER_BACKGROUND_OPTIONS.find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
+            const kdaStatus = link?.hide_kda ? `${EMOJIS.circlealert || '❌'} Escondido` : `${EMOJIS.circlecheck || '✅'} Visível`;
+            statusLines.push(`**Foto de perfil:** ${photoStatus}`, `**Plano de fundo:** ${backgroundStatus}`, `**Kills/Deaths/K-D:** ${kdaStatus}`);
+            if (isRaptor) statusLines.push(`**Título:** ${link?.profile_title || 'Padrão ("Em breve (missões)")'}`);
+        } else {
+            statusLines.push(`${EMOJIS.messagesquare || 'ℹ️'} Foto de perfil, plano de fundo e esconder KDA são recursos do Player Premium Compy ou superior.`);
         }
-        const row2 = new ActionRowBuilder().addComponents(row2Buttons);
+        cb.text(statusLines.join('\n'));
 
-        cb.footer('Player Premium Compy/Raptor');
+        const row1Buttons = [
+            new ButtonBuilder().setCustomId('perfil-edit:badge-info').setLabel('Emblema').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.badge || '🏅'),
+        ];
+        if (isCompyPlus) {
+            row1Buttons.push(
+                new ButtonBuilder().setCustomId('perfil-edit:photo-info').setLabel('Foto de Perfil').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.image || '🖼️'),
+                new ButtonBuilder().setCustomId('perfil-edit:background-info').setLabel('Plano de Fundo').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.gallery || '🏞️'),
+            );
+        }
+        const rows = [new ActionRowBuilder().addComponents(row1Buttons)];
+
+        if (isCompyPlus) {
+            const row2Buttons = [
+                new ButtonBuilder().setCustomId('perfil-edit:hide-kda-toggle').setLabel(link?.hide_kda ? 'Mostrar KDA' : 'Esconder KDA').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
+            ];
+            // Título é texto livre (sem versão "banco" pra Compy — não existe
+            // banco de frases pré-prontas) — Raptor only, mesmo critério de
+            // upload próprio de foto/fundo.
+            if (isRaptor) {
+                row2Buttons.unshift(new ButtonBuilder().setCustomId('perfil-edit:title:modal').setLabel('Título').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.edit || '✏️'));
+            }
+            rows.push(new ActionRowBuilder().addComponents(row2Buttons));
+        }
+
+        cb.footer(isCompyPlus ? 'Player Premium Compy/Raptor' : 'Emblema disponível em qualquer tier');
         const { components, flags, files } = cb.build();
-        return { components: [...components, row1, row2], flags, files };
+        return { components: [...components, ...rows], flags, files };
     },
 
     async handlePerfilEditInfoButton(interaction, kind) {
@@ -1834,11 +1841,19 @@ const ConfigSystem = {
         // vez de ResponseManager (que, numa interação já deferida via
         // deferUpdate(), editaria a mensagem original — errado aqui).
 
-        // Badge não tem versão upload (é sempre "escolher de uma lista",
-        // Compy ou Raptor) — só foto/fundo têm a distinção de tier abaixo.
+        // Badge é liberado em qualquer tier (sem checagem abaixo) — só
+        // foto/fundo exigem Compy+ (o painel já esconde esses botões pro
+        // Free, isso aqui é defesa extra contra customId manipulado à mão).
         if (kind !== 'badge') {
             const PremiumSystem = require('../premium/premiumSystem');
-            if (PremiumSystem.getPlayerTier(interaction.user.id) === 'raptor') {
+            const tier = PremiumSystem.getPlayerTier(interaction.user.id);
+            if (tier === 'free') {
+                return await interaction.followUp({
+                    content: `${EMOJIS.circlealert || '❌'} ${kind === 'photo' ? 'Foto de perfil' : 'Plano de fundo'} é um recurso do Player Premium Compy ou superior.`,
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
+            if (tier === 'raptor') {
                 const commandHint = kind === 'photo' ? '`/perfil-edit arquivo:<sua imagem>`' : '`/perfil-edit plano_de_fundo:<sua imagem>`';
                 return await interaction.followUp({
                     content: `${EMOJIS.messagesquare || 'ℹ️'} Você é Raptor — envie a imagem direto pelo comando: ${commandHint} (vazio remove a atual).`,

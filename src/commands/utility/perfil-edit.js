@@ -1,16 +1,22 @@
 // src/commands/utility/perfil-edit.js
 /**
- * Personalização de perfil — recurso do Player Premium Compy/Raptor.
+ * Personalização de perfil.
+ *
+ * EMBLEMA é liberado em QUALQUER TIER (inclusive Free — pedido do dono).
+ * Foto de perfil, plano de fundo, título e esconder KDA continuam exigindo
+ * Player Premium Compy (foto/fundo/esconder KDA) ou Raptor (+ upload
+ * próprio + título).
  *
  * Sem nenhum anexo, mostra um PAINEL (ConfigSystem.buildPerfilEditPanelPayload)
- * com tudo que dá pra personalizar: foto de perfil, plano de fundo, emblema,
- * esconder KDA e (Raptor) título. Foto/plano de fundo continuam exigindo
- * rodar este comando DE NOVO com o anexo — Discord não permite pedir upload
- * de arquivo a partir de um botão ou modal, só da própria slash command; os
- * botões do painel para esses dois, no caso do Raptor, só explicam isso. Pro
- * Compy (sem upload próprio), os mesmos botões abrem um menu de escolha
- * entre fotos/fundos pré-definidos (ver ConfigSystem.buildPlayerPhotoPickerPayload/
- * buildPlayerBackgroundPickerPayload).
+ * com tudo que o tier do jogador permite personalizar. Foto/plano de fundo
+ * continuam exigindo rodar este comando DE NOVO com o anexo — Discord não
+ * permite pedir upload de arquivo a partir de um botão ou modal, só da
+ * própria slash command; os botões do painel para esses dois, no caso do
+ * Raptor, só explicam isso. Pro Compy (sem upload próprio), os mesmos
+ * botões abrem um menu de escolha entre fotos/fundos pré-definidos (ver
+ * ConfigSystem.buildPlayerPhotoPickerPayload/buildPlayerBackgroundPickerPayload
+ * — o pool de plano de fundo reaproveita as mesmas 12 fotos do pool de foto
+ * de perfil).
  *
  * Compy: escolhe entre um menu de fotos/fundos pré-definidos (mesmo pool
  * usado no banner do /config reportchat) — nenhum upload próprio. Os
@@ -107,7 +113,7 @@ async function _uploadAndStore(client, user, arquivo, label) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil-edit')
-        .setDescription('🖼️ Personaliza seu perfil (foto, plano de fundo, título, emblema...) — Player Premium Compy/Raptor.')
+        .setDescription('🖼️ Personaliza seu perfil (emblema pra todos; foto, plano de fundo e título são Compy/Raptor).')
         .addAttachmentOption(opt => opt.setName('arquivo')
             .setDescription('[Raptor] Foto de perfil (vazio = remove a atual). Ignorado no Compy.')
             .setRequired(false))
@@ -118,10 +124,11 @@ module.exports = {
     async execute(interaction, client) {
         const { user } = interaction;
 
-        if (!PremiumSystem.isPlayerAtLeast(user.id, 'compy')) {
-            return await ResponseManager.error(interaction, 'Personalizar o perfil é um recurso do Player Premium Compy (menus pré-definidos) ou Raptor (upload próprio + título).');
-        }
-
+        // Sem gate de tier aqui de propósito — Emblema é liberado pra
+        // QUALQUER tier (pedido do dono), então até o Free precisa
+        // conseguir abrir o painel. Foto/plano de fundo/título/esconder KDA
+        // continuam Compy+/Raptor — checados individualmente mais abaixo e
+        // dentro de cada handler do painel (ConfigSystem), não aqui.
         const link = PlayerRegistry.getPlayerByDiscordId(user.id);
         if (!link) {
             return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');

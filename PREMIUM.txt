@@ -19,9 +19,14 @@ FREE
   so ("por que o numero inclui abate de outro server?").
 - Banner de perfil padrao do tier Free (imagem fixa, nao pode trocar).
 - Footer de perfil padrao do tier Free (imagem fixa no rodape do /perfil).
-- Sem nenhuma personalizacao (/perfil-edit bloqueado neste tier) - sem
-  foto/plano de fundo proprios, sem titulo, sem emblema, sem opcao de
-  esconder o KDA.
+- EMBLEMA libera aqui tambem (correcao do dono - ver secao 96): e o UNICO
+  item de personalizacao disponivel em QUALQUER tier, escolhido de uma
+  lista fixa via /perfil-edit. Selecao/persistencia JA IMPLEMENTADA, mas a
+  LISTA de opcoes ainda esta vazia e o DESENHO do emblema escolhido em cima
+  do card tambem nao (precisa o dono fornecer os assets - ver
+  PLAYER_BADGE_OPTIONS em configSystem.js).
+- Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
+  esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
 - Farme de cacadas por hora de jogo. (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes ("Tudo do Free +")
@@ -29,20 +34,16 @@ COMPY - R$10/mes ("Tudo do Free +")
   comprar OUTROS banners na lojinha do bot pra trocar por esse.
   (compra de banners na lojinha ainda nao implementado - "vindo em breve")
 - Footer de perfil padrao do tier Compy.
-- /perfil-edit libera aqui, sempre por MENU (sem upload proprio - isso e
-  exclusivo do Raptor, ver abaixo):
+- /perfil-edit libera aqui o resto da personalizacao, sempre por MENU (sem
+  upload proprio - isso e exclusivo do Raptor, ver abaixo):
     - Foto de fundo do CARD escolhida num menu de fotos pre-definidas
       (mesmo pool usado nos banners de /config personalizar - 12 fotos
       genericas). JA IMPLEMENTADO.
     - Plano de fundo (banner atras da mensagem INTEIRA do /perfil, distinto
-      da foto de dentro do card) escolhido num menu parecido - estrutura JA
-      IMPLEMENTADA, mas a LISTA de opcoes ainda esta vazia (precisa o dono
-      fornecer os assets antes de ter o que escolher - ver
-      PLAYER_BACKGROUND_OPTIONS em configSystem.js).
-    - Emblema escolhido de uma lista fixa (fileira de icones do card, hoje
-      sempre vazia) - selecao/persistencia JA IMPLEMENTADA, mas o DESENHO
-      do emblema escolhido em cima do card ainda nao (mesmo motivo: sem
-      assets reais pra testar contra, ver PLAYER_BADGE_OPTIONS).
+      da foto de dentro do card) escolhido num menu - reaproveita o MESMO
+      pool de 12 fotos genericas usado na foto de perfil (correcao do dono
+      - ver secao 96), em vez de esperar por um conjunto de imagens
+      proprio. JA IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
@@ -4229,3 +4230,41 @@ frente, nao so este relatorio):
   (renderiza o card de verdade) confirma resposta NÃO ephemeral, KDA
   correto e escopado, aviso presente, e KDA/aviso somem juntos quando
   `hide_kda` está ligado (resto do bloco de status continua aparecendo).
+
+96) PERSONALIZAÇÃO DE PERFIL: Emblema liberado em todo tier + Plano de
+    Fundo reaproveita o pool de fotos existente
+------------------------------------------------------------------
+- Correção do dono sobre a seção 95: **Emblema** deixa de ser Compy+ e
+  passa a ser o ÚNICO item de personalização disponível em QUALQUER tier,
+  inclusive Free — foto de perfil, plano de fundo, título e esconder KDA
+  continuam exclusivos Compy+/Raptor, sem mudança nesses.
+- `/perfil-edit` (`src/commands/utility/perfil-edit.js`): removido o gate
+  `isPlayerAtLeast('compy')` que bloqueava o comando INTEIRO pra Free —
+  agora qualquer jogador registrado (`/registrar`) consegue abrir o painel,
+  só o que aparece nele varia por tier.
+- `ConfigSystem.handlePlayerBadgeSelect`: removida a checagem de tier (não
+  existe mais gate nenhum pra escolher emblema).
+- `ConfigSystem.buildPerfilEditPanelPayload`: reescrito pra 3 níveis em vez
+  de 2 — Free vê só o botão de Emblema + aviso "foto/fundo/esconder KDA são
+  Compy+"; Compy ganha foto/fundo/esconder KDA; Raptor ganha Título. Botões
+  que o tier não pode usar ficam ESCONDIDOS (não aparecem pra depois dar
+  erro ao clicar) — mesmo critério já usado pro botão de Título antes desta
+  correção.
+- `ConfigSystem.handlePerfilEditInfoButton`: ganhou um bloqueio explícito
+  de Free pra foto/fundo (mensagem "recurso do Player Premium Compy ou
+  superior") — defesa extra contra customId chamado à mão, já que o botão
+  nem aparece mais no painel do Free.
+- **Plano de fundo deixa de ter lista vazia**: `PLAYER_BACKGROUND_OPTIONS`
+  agora É `PLAYER_PHOTO_OPTIONS` (mesmo array, reaproveitado) em vez de um
+  array próprio vazio — pedido do dono pra não esperar por um conjunto de
+  imagens dedicado, já que as 12 fotos genéricas existentes (cenários/
+  paisagem) funcionam bem como fundo também. Diferente do Emblema (segue
+  vazio — não existe um pool de ícones pra reaproveitar do mesmo jeito, só
+  fica pronto quando o dono fornecer assets de emblema de verdade).
+- Verificado com scripts diretos: painel Free mostra só Emblema (+ aviso),
+  esconde foto/fundo/esconder-KDA/título; painel Compy mostra
+  foto/fundo/esconder-KDA mas não título; painel Raptor mostra tudo;
+  seleção de emblema por um usuário Free não recebe erro de tier; clique
+  em foto/fundo por um usuário Free recebe aviso de upsell (Compy+); menu
+  de plano de fundo agora lista as fotos reais (ex: "Suchomimus") em vez
+  de aparecer vazio.
