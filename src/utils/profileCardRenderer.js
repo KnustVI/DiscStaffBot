@@ -156,13 +156,14 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {'free'|'compy'|'raptor'} opts.tier
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
- *   Quando presente, medidas EXATAS pedidas pelo dono: canvas final
- *   1000x500 (plano de fundo cortado em cover fit pra esse tamanho), card
- *   em 845x480, encostado na borda direita e centralizado verticalmente —
- *   ver FINAL_W/FINAL_H/CARD_W/CARD_H abaixo. Isso NÃO preserva a proporção
- *   nativa do card (716:458), então ele sai levemente esticado (~13% mais
- *   na largura). Sombra projetada (drop shadow) no card pra se destacar do
- *   plano de fundo atrás.
+ *   Quando presente, canvas final 1000x500 (plano de fundo cortado em
+ *   cover fit pra esse tamanho). Card encaixado numa caixa de até 845x480
+ *   preservando a proporção NATIVA dele (716:458 ≈ 1.56:1, sem esticar) —
+ *   como a altura (480) é quem limita (largura=845 estouraria o canvas),
+ *   o card sai com ~750 de largura. Encostado na borda direita do canvas e
+ *   centralizado verticalmente — ver FINAL_W/FINAL_H/CARD_W/CARD_H abaixo.
+ *   Sombra projetada (drop shadow) no card pra se destacar do plano de
+ *   fundo atrás.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -295,23 +296,18 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Medidas EXATAS pedidas pelo dono: imagem final 1000x500 (plano de
-    // fundo cortado em "fill"/cover pra esse tamanho exato), card em
-    // 845x480, encostado na borda DIREITA (x = 1000-845 = 155) e centralizado
-    // verticalmente (y = (500-480)/2 = 10).
-    //
-    // AVISO: 845x480 não é a mesma proporção nativa do card (716:458 ≈
-    // 1.56:1; 845:480 ≈ 1.76:1) — encaixar EXATAMENTE nessas medidas exige
-    // esticar o card ~13% mais na largura do que na altura (drawImage com
-    // dWidth/dHeight fixos, sem preservar a razão original). Diferente da
-    // foto (onde esticar distorce rostos/objetos de forma óbvia), aqui é só
-    // moldura/badges/texto em formas mais simples — mas se ficar visível
-    // demais, dá pra trocar pra um "contain" (encaixa sem esticar, ficando
-    // menor que 845x480 numa das dimensões) a pedido.
+    // Imagem final 1000x500 (plano de fundo cortado em cover fit pra esse
+    // tamanho exato). Card ENCAIXADO dentro de uma caixa de até 845x480,
+    // preservando a proporção NATIVA dele (716:458 ≈ 1.56:1) — sem esticar.
+    // Como escalar pra largura=845 exigiria altura≈540 (estoura os 480 e o
+    // canvas de 500), quem manda é a ALTURA (480): a largura sai menor que
+    // 845 (≈750), sem distorcer nada. Alinhamento: encostado na borda
+    // DIREITA do canvas inteiro e centralizado verticalmente.
     const FINAL_W = 1000;
     const FINAL_H = 500;
-    const CARD_W = 845;
-    const CARD_H = 480;
+    const CARD_BOX_H = 480;
+    const CARD_W = Math.round(CARD_BOX_H * (canvas.width / canvas.height));
+    const CARD_H = CARD_BOX_H;
     const cardX = FINAL_W - CARD_W;
     const cardY = Math.round((FINAL_H - CARD_H) / 2);
 
