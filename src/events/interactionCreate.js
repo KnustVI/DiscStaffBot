@@ -388,6 +388,16 @@ module.exports = {
                 return;
             }
 
+            // ==================== PERFIL - ABRIR MODAL DE TÍTULO ====================
+            // Mesmo motivo de config-buffs/config-filtro acima: showModal() só
+            // funciona como PRIMEIRA resposta, precisa vir ANTES do
+            // deferUpdate() genérico.
+            if (interaction.customId === 'perfil-edit:title:modal') {
+                const ConfigSystem = require('../systems/core/configSystem');
+                await ConfigSystem.handleOpenTitleModal(interaction);
+                return;
+            }
+
             // ==================== OUTROS COMPONENTES ====================
 
             if (interaction.isButton() || interaction.isStringSelectMenu() ||

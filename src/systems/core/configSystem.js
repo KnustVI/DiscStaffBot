@@ -172,6 +172,30 @@ const PLAYER_PHOTO_OPTIONS = [
     { value: 'foto_perfil_12', label: 'Trike Family' },
 ];
 
+// Planos de fundo pré-definidos pra escolher no /perfil-edit (Player Premium
+// Compy) — mesmo espírito de PLAYER_PHOTO_OPTIONS, mas pro banner que
+// aparece ATRÁS da mensagem inteira do /perfil (não o recorte de foto de
+// dentro do card). VAZIO DE PROPÓSITO: ainda não existe nenhum asset de
+// fundo cadastrado em assets/images (ver ImageManager) — precisa que o
+// dono forneça as imagens e adicione as entradas aqui (mesmo padrão de
+// PLAYER_PHOTO_OPTIONS, { value: 'chave_do_imagemanager', label: 'Nome' })
+// antes desse picker funcionar de verdade. Até lá, buildPlayerBackgroundPickerPayload
+// avisa "nenhuma opção cadastrada" em vez de mostrar um select quebrado.
+const PLAYER_BACKGROUND_OPTIONS = [];
+
+// Emblemas pré-definidos pra escolher no /perfil-edit (Player Premium
+// Compy/Raptor — é sempre "escolher de uma lista", nunca upload próprio,
+// então não tem versão Raptor-only como foto/fundo têm). Desenhado na
+// fileira de ícones abaixo da foto do card (hoje sempre vazia — ver
+// stripMissionIcons em profileCardRenderer.js). VAZIO DE PROPÓSITO pelo
+// mesmo motivo de PLAYER_BACKGROUND_OPTIONS acima: precisa dos assets reais
+// do dono antes de ter o que listar aqui. O desenho do emblema escolhido em
+// cima do card (profileCardRenderer.js) também ainda não foi implementado —
+// só a escolha/persistência já fica pronta nesta revisão, o desenho fica
+// pra quando os assets existirem de verdade (não dá pra acertar a
+// coordenada/composição sem um arquivo real pra testar contra).
+const PLAYER_BADGE_OPTIONS = [];
+
 /**
  * Opções de banner pro painel de /config reportchat (Caçador) — a primeira
  * ("Padrão do bot") reseta pra imagem original; as demais são o pool de
@@ -360,6 +384,30 @@ const ConfigSystem = {
         try {
             const customId = interaction.customId;
 
+            if (customId === 'perfil-edit:background') {
+                await this.handlePlayerBackgroundSelect(interaction);
+                return;
+            }
+            if (customId === 'perfil-edit:badge') {
+                await this.handlePlayerBadgeSelect(interaction);
+                return;
+            }
+            if (customId === 'perfil-edit:photo-info') {
+                await this.handlePerfilEditInfoButton(interaction, 'photo');
+                return;
+            }
+            if (customId === 'perfil-edit:background-info') {
+                await this.handlePerfilEditInfoButton(interaction, 'background');
+                return;
+            }
+            if (customId === 'perfil-edit:badge-info') {
+                await this.handlePerfilEditInfoButton(interaction, 'badge');
+                return;
+            }
+            if (customId === 'perfil-edit:hide-kda-toggle') {
+                await this.handleHideKdaToggle(interaction);
+                return;
+            }
             if (customId === 'perfil-edit:photo') {
                 await this.handlePlayerPhotoSelect(interaction);
                 return;
@@ -540,6 +588,10 @@ const ConfigSystem = {
             }
             if (interaction.customId === 'config-personalizar:aparencia-footer:modal:submit') {
                 await this.processPanelFooterModal(interaction);
+                return;
+            }
+            if (interaction.customId === 'perfil-edit:title:modal:submit') {
+                await this.processTitleModal(interaction);
                 return;
             }
             await ResponseManager.error(interaction, 'Modal não reconhecido.');
@@ -1577,6 +1629,313 @@ const ConfigSystem = {
             await interaction.update(payload);
         }
         await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Foto de perfil atualizada:** ${label}. Use \`/perfil\` para ver como ficou.`);
+    },
+
+    // ==================== PLAYER PREMIUM — PLANO DE FUNDO (COMPY) ====================
+    // Mesmo padrão de FOTO DE PERFIL acima, só que pro banner que aparece
+    // ATRÁS da mensagem inteira do /perfil (não o recorte de foto de dentro
+    // do card) — Raptor continua com upload próprio (/perfil-edit,
+    // background_message_id).
+
+    buildPlayerBackgroundPickerPayload(currentKey) {
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        cb.text([
+            '# ESCOLHER PLANO DE FUNDO',
+            'Escolha uma das imagens abaixo para usar de plano de fundo no seu `/perfil` — recurso do Player Premium Compy.',
+        ].join('\n'));
+
+        if (PLAYER_BACKGROUND_OPTIONS.length === 0) {
+            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhuma opção de plano de fundo cadastrada — volte mais tarde.`);
+            cb.footer('Player Premium Compy');
+            return cb;
+        }
+
+        const currentLabel = PLAYER_BACKGROUND_OPTIONS.find(opt => opt.value === currentKey)?.label;
+        cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Padrão do tier (nenhum escolhido ainda)`}`);
+        cb.footer('Player Premium Compy');
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('perfil-edit:background')
+            .setPlaceholder('Escolha o plano de fundo...')
+            .addOptions(PLAYER_BACKGROUND_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                .setLabel(opt.label)
+                .setValue(opt.value)
+                .setDefault(opt.value === currentKey)
+            ));
+        cb.selectMenu(selectMenu);
+        return cb;
+    },
+
+    async handlePlayerBackgroundSelect(interaction) {
+        if (!interaction.isStringSelectMenu()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
+        }
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'compy')) {
+            return await ResponseManager.error(interaction, 'Escolher plano de fundo é um recurso do Player Premium Compy ou superior.');
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        const chosenKey = interaction.values[0];
+        const isValidOption = PLAYER_BACKGROUND_OPTIONS.some(opt => opt.value === chosenKey);
+        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+            return await ResponseManager.error(interaction, 'Imagem inválida.');
+        }
+
+        PlayerRegistry.setSelectedBackgroundKey(interaction.user.id, chosenKey);
+        const label = PLAYER_BACKGROUND_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+
+        const payload = this.buildPlayerBackgroundPickerPayload(chosenKey).build();
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.update(payload);
+        }
+        await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Plano de fundo atualizado:** ${label}. Use \`/perfil\` para ver como ficou.`);
+    },
+
+    // ==================== PLAYER PREMIUM — EMBLEMA (COMPY/RAPTOR) ====================
+    // Sempre "escolher de uma lista", nunca upload próprio — disponível a
+    // partir do Compy (diferente de foto/fundo, que só liberam upload no
+    // Raptor). Desenho do emblema escolhido no card em si ainda não
+    // implementado (ver comentário em PLAYER_BADGE_OPTIONS) — esta tela já
+    // deixa a escolha pronta e salva pra quando o desenho for implementado.
+
+    buildPlayerBadgePickerPayload(currentKey) {
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        cb.text([
+            '# ESCOLHER EMBLEMA',
+            'Escolha um emblema para exibir no seu card de `/perfil` — recurso do Player Premium Compy/Raptor.',
+        ].join('\n'));
+
+        if (PLAYER_BADGE_OPTIONS.length === 0) {
+            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhum emblema cadastrado — volte mais tarde.`);
+            cb.footer('Player Premium Compy/Raptor');
+            return cb;
+        }
+
+        const currentLabel = PLAYER_BADGE_OPTIONS.find(opt => opt.value === currentKey)?.label;
+        cb.text(`${EMOJIS.gauge || '📊'} **Atual:** ${currentLabel || `${EMOJIS.circlealert || '❌'} Nenhum escolhido ainda`}`);
+        cb.footer('Player Premium Compy/Raptor');
+
+        const selectMenu = new StringSelectMenuBuilder()
+            .setCustomId('perfil-edit:badge')
+            .setPlaceholder('Escolha o emblema...')
+            .addOptions(PLAYER_BADGE_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                .setLabel(opt.label)
+                .setValue(opt.value)
+                .setDefault(opt.value === currentKey)
+            ));
+        cb.selectMenu(selectMenu);
+        return cb;
+    },
+
+    async handlePlayerBadgeSelect(interaction) {
+        if (!interaction.isStringSelectMenu()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
+        }
+
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'compy')) {
+            return await ResponseManager.error(interaction, 'Escolher emblema é um recurso do Player Premium Compy ou superior.');
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        const chosenKey = interaction.values[0];
+        const isValidOption = PLAYER_BADGE_OPTIONS.some(opt => opt.value === chosenKey);
+        if (!isValidOption) {
+            return await ResponseManager.error(interaction, 'Emblema inválido.');
+        }
+
+        PlayerRegistry.setSelectedBadgeKey(interaction.user.id, chosenKey);
+        const label = PLAYER_BADGE_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+
+        const payload = this.buildPlayerBadgePickerPayload(chosenKey).build();
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.update(payload);
+        }
+        await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Emblema atualizado:** ${label}. Use \`/perfil\` para ver como ficou.`);
+    },
+
+    // ==================== PAINEL PRINCIPAL — /perfil-edit ====================
+    // Tela de entrada do /perfil-edit quando chamado SEM nenhum anexo — lista
+    // tudo que dá pra personalizar e o estado atual de cada um. Foto/Plano de
+    // Fundo (Raptor) continuam exigindo rodar /perfil-edit de novo com o
+    // anexo (Discord não permite pedir upload de arquivo a partir de um botão
+    // ou modal, só da própria slash command) — os botões desses dois, nesse
+    // caso, só explicam isso; Compy usa os botões pra abrir o picker de
+    // verdade (select), que não depende de anexo.
+
+    buildPerfilEditPanelPayload(playerTier, link) {
+        const isRaptor = playerTier === 'raptor';
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        cb.text([
+            '# PERSONALIZAR PERFIL',
+            'Ajuste como seu `/perfil` aparece pros outros — cada botão abaixo cuida de uma parte.',
+        ].join('\n'));
+        cb.separator();
+
+        const photoStatus = isRaptor
+            ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou banner do Discord)')
+            : (link?.selected_photo_key ? PLAYER_PHOTO_OPTIONS.find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
+        const backgroundStatus = isRaptor
+            ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (sem plano de fundo)')
+            : (link?.selected_background_key ? PLAYER_BACKGROUND_OPTIONS.find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
+        const badgeStatus = link?.selected_badge_key ? PLAYER_BADGE_OPTIONS.find(o => o.value === link.selected_badge_key)?.label || link.selected_badge_key : 'Nenhum';
+        const titleStatus = link?.profile_title || 'Padrão ("Em breve (missões)")';
+        const kdaStatus = link?.hide_kda ? `${EMOJIS.circlealert || '❌'} Escondido` : `${EMOJIS.circlecheck || '✅'} Visível`;
+
+        cb.text([
+            `**Foto de perfil:** ${photoStatus}`,
+            `**Plano de fundo:** ${backgroundStatus}`,
+            `**Emblema:** ${badgeStatus}`,
+            isRaptor ? `**Título:** ${titleStatus}` : null,
+            `**Kills/Deaths/K-D:** ${kdaStatus}`,
+        ].filter(Boolean).join('\n'));
+
+        const row1 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('perfil-edit:photo-info').setLabel('Foto de Perfil').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.image || '🖼️'),
+            new ButtonBuilder().setCustomId('perfil-edit:background-info').setLabel('Plano de Fundo').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.gallery || '🏞️'),
+            new ButtonBuilder().setCustomId('perfil-edit:badge-info').setLabel('Emblema').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.badge || '🏅'),
+        );
+        const row2Buttons = [
+            new ButtonBuilder().setCustomId('perfil-edit:hide-kda-toggle').setLabel(link?.hide_kda ? 'Mostrar KDA' : 'Esconder KDA').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
+        ];
+        // Título é texto livre (sem versão "banco" pra Compy — não existe
+        // banco de frases pré-prontas) — Raptor only, mesmo critério de
+        // upload próprio de foto/fundo.
+        if (isRaptor) {
+            row2Buttons.unshift(new ButtonBuilder().setCustomId('perfil-edit:title:modal').setLabel('Título').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.edit || '✏️'));
+        }
+        const row2 = new ActionRowBuilder().addComponents(row2Buttons);
+
+        cb.footer('Player Premium Compy/Raptor');
+        const { components, flags, files } = cb.build();
+        return { components: [...components, row1, row2], flags, files };
+    },
+
+    async handlePerfilEditInfoButton(interaction, kind) {
+        // Painel principal não muda (segue visível) — a resposta deste botão
+        // é sempre uma mensagem NOVA (followUp), nunca um editReply que
+        // substituiria o painel. Por isso interaction.followUp() direto em
+        // vez de ResponseManager (que, numa interação já deferida via
+        // deferUpdate(), editaria a mensagem original — errado aqui).
+
+        // Badge não tem versão upload (é sempre "escolher de uma lista",
+        // Compy ou Raptor) — só foto/fundo têm a distinção de tier abaixo.
+        if (kind !== 'badge') {
+            const PremiumSystem = require('../premium/premiumSystem');
+            if (PremiumSystem.getPlayerTier(interaction.user.id) === 'raptor') {
+                const commandHint = kind === 'photo' ? '`/perfil-edit arquivo:<sua imagem>`' : '`/perfil-edit plano_de_fundo:<sua imagem>`';
+                return await interaction.followUp({
+                    content: `${EMOJIS.messagesquare || 'ℹ️'} Você é Raptor — envie a imagem direto pelo comando: ${commandHint} (vazio remove a atual).`,
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        const builders = {
+            photo: () => this.buildPlayerPhotoPickerPayload(link?.selected_photo_key),
+            background: () => this.buildPlayerBackgroundPickerPayload(link?.selected_background_key),
+            badge: () => this.buildPlayerBadgePickerPayload(link?.selected_badge_key),
+        };
+        const payload = builders[kind]().build();
+        await interaction.followUp({ ...payload, flags: (payload.flags | MessageFlags.Ephemeral) });
+    },
+
+    async handleHideKdaToggle(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'compy')) {
+            return await ResponseManager.error(interaction, 'Personalizar o perfil é um recurso do Player Premium Compy ou superior.');
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        const newValue = !link.hide_kda;
+        PlayerRegistry.setHideKda(interaction.user.id, newValue);
+
+        const updatedLink = { ...link, hide_kda: newValue ? 1 : 0 };
+        const payload = this.buildPerfilEditPanelPayload(PremiumSystem.getPlayerTier(interaction.user.id), updatedLink);
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.update(payload);
+        }
+        await this.sendFeedback(interaction, newValue
+            ? `${EMOJIS.circlecheck || '✅'} Linha de Kills/Deaths/K-D escondida no seu \`/perfil\`.`
+            : `${EMOJIS.circlecheck || '✅'} Linha de Kills/Deaths/K-D visível de novo no seu \`/perfil\`.`);
+    },
+
+    /**
+     * perfil-edit:title:modal — botão "Título" do painel. Especial-caseado
+     * em interactionCreate.js (ANTES do deferUpdate() genérico), mesmo
+     * motivo de sempre: showModal() só funciona como PRIMEIRA resposta.
+     */
+    async handleOpenTitleModal(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'raptor')) {
+            return await interaction.reply({ content: 'Personalizar o título é um recurso exclusivo do Player Premium Raptor.', flags: MessageFlags.Ephemeral });
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await interaction.reply({ content: 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.', flags: MessageFlags.Ephemeral });
+        }
+
+        const titleInput = new TextInputBuilder()
+            .setCustomId('title')
+            .setLabel('Título do seu card de perfil')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('Ex: Caçador Lendário')
+            .setMaxLength(40)
+            .setRequired(false);
+        if (link.profile_title) titleInput.setValue(link.profile_title);
+
+        const modal = new ModalBuilder()
+            .setCustomId('perfil-edit:title:modal:submit')
+            .setTitle('Título do Perfil')
+            .addComponents(new ActionRowBuilder().addComponents(titleInput));
+        await interaction.showModal(modal);
+    },
+
+    async processTitleModal(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'raptor')) {
+            return await ResponseManager.error(interaction, 'Personalizar o título é um recurso exclusivo do Player Premium Raptor.');
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        const title = interaction.fields.getTextInputValue('title').trim();
+        PlayerRegistry.setProfileTitle(interaction.user.id, title || null);
+
+        await ResponseManager.success(interaction, title
+            ? `Título do perfil atualizado para **"${title}"**. Use \`/perfil\` para ver como ficou.`
+            : `Título do perfil removido — volta a mostrar o padrão. Use \`/perfil\` para ver como ficou.`);
     },
 
     // ==================== PERSONALIZAÇÃO (CAÇADOR) — /config personalizar ====================

@@ -159,6 +159,23 @@ class DatabaseManager {
             // quando o jogador confirmou o código enviado in-game via
             // /registrar. Ver potPlayerRegistry.js.
             this.ensureColumn('player_links', 'verified_ingame', 'INTEGER DEFAULT 0');
+            // Personalização de perfil expandida (Player Premium Compy/Raptor) —
+            // ver /perfil-edit e playerRegistrationSystem.sendProfile.
+            // profile_title: texto livre pra 1ª badge do card (Raptor only —
+            // sem versão "banco de textos" pra Compy, não faz sentido pra texto
+            // livre). selected_badge_key: emblema escolhido de uma lista fixa
+            // pra fileira de ícones do card (Compy+ — é sempre "escolher de um
+            // banco", nunca upload). background_message_id/
+            // selected_background_key: mesmo par foto-upload/foto-de-banco já
+            // usado em banner_message_id/selected_photo_key, mas pro banner que
+            // aparece ATRÁS da mensagem inteira do /perfil (não o recorte de
+            // foto de dentro do card). hide_kda: esconde a linha de Kills/
+            // Deaths/K-D do /perfil (qualquer tier com acesso a /perfil-edit).
+            this.ensureColumn('player_links', 'profile_title', 'TEXT');
+            this.ensureColumn('player_links', 'selected_badge_key', 'TEXT');
+            this.ensureColumn('player_links', 'background_message_id', 'TEXT');
+            this.ensureColumn('player_links', 'selected_background_key', 'TEXT');
+            this.ensureColumn('player_links', 'hide_kda', 'INTEGER DEFAULT 0');
             // Snapshot do nível de punição customizado usado no momento do strike
             // (ver punishmentLevels.js) — congelado na hora de aplicar, pra editar
             // um nível depois não reescrever punições já aplicadas. A coluna

@@ -250,6 +250,37 @@ class PlayerRegistrationSystem {
     }
 
     /**
+     * Resolve a URL do PLANO DE FUNDO (banner atrás da mensagem inteira do
+     * /perfil, distinto do recorte de foto de dentro do card acima) — Raptor
+     * (upload próprio, message_id) > Compy (imageManager, selected_background_key)
+     * > null (sem plano de fundo nenhum — diferente da foto, não tem
+     * "padrão do tier" pra isso, simplesmente não aparece banner nenhum).
+     * Só retorna URL (não Buffer): o plano de fundo só é EXIBIDO
+     * (builder.gallery()), nunca composto/recortado como a foto do card.
+     *
+     * @returns {Promise<string|null>}
+     */
+    async _resolveBackgroundUrl(interaction, player, playerTier) {
+        if (playerTier === 'raptor' && player?.background_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
+            try {
+                const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
+                const storedMessage = await storageChannel.messages.fetch(player.background_message_id);
+                const url = storedMessage.attachments.first()?.url;
+                if (url) return url;
+            } catch (err) {
+                // segue pro fallback (sem plano de fundo)
+            }
+        }
+
+        if (playerTier === 'compy' && player?.selected_background_key && imageManager.hasImage(player.selected_background_key)) {
+            const url = imageManager.getUrl(player.selected_background_key);
+            if (url) return url;
+        }
+
+        return null;
+    }
+
+    /**
      * Monta e envia o cartão de perfil de um usuário (o próprio ou outro).
      * Só leitura — sem botão de ação; para cadastrar/atualizar é sempre
      * /registrar (evita ter dois fluxos de escrita fazendo a mesma coisa).
@@ -258,6 +289,7 @@ class PlayerRegistrationSystem {
      * @param {import('discord.js').User} targetUser
      */
     async sendProfile(interaction, targetUser) {
+        const guild = interaction.guild;
         const player = PlayerRegistry.getPlayerByDiscordId(targetUser.id);
 
         const PremiumSystem = require('../premium/premiumSystem');
@@ -275,6 +307,22 @@ class PlayerRegistrationSystem {
             needsSeparator = true;
         };
 
+        // ── Plano de fundo (banner atrás da mensagem inteira, distinto da
+        // foto de dentro do card) — sempre o PRIMEIRO bloco, mesmo padrão de
+        // "banner no topo" já usado em /config personalizar. Só existe pra
+        // quem já linkou a conta e configurou um (ver /perfil-edit). ────────
+        if (player) {
+            try {
+                const backgroundUrl = await this._resolveBackgroundUrl(interaction, player, playerTier);
+                if (backgroundUrl) {
+                    addSeparatorIfNeeded();
+                    builder.gallery([backgroundUrl]);
+                }
+            } catch (error) {
+                console.error('❌ [PlayerRegistration] Erro ao resolver plano de fundo:', error);
+            }
+        }
+
         // ── Card de perfil (moldura + foto + badges + estrelas de honra),
         // entra no lugar do título "# PERFIL". Só existe pra quem já linkou
         // a conta — sem Alderon ID/nome no jogo não tem o que desenhar no
@@ -285,7 +333,11 @@ class PlayerRegistrationSystem {
         let stats = null;
         if (player) {
             try {
-                stats = PlayerRegistry.getGlobalPlayerStats(player.alderon_id);
+                // Por SERVIDOR (não mais global/somado entre servidores) —
+                // o /perfil virou público, mostrar um total que soma outros
+                // servidores que o bot atende confundiria a comunidade daqui
+                // (ver aviso perto do KDA abaixo). Ver getGuildPlayerStats.
+                stats = PlayerRegistry.getGuildPlayerStats(guild.id, player.alderon_id);
                 const photoBuffer = await this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier);
                 const cardBuffer = await renderProfileCard({
                     tier: playerTier,
@@ -293,7 +345,9 @@ class PlayerRegistrationSystem {
                     nickname: player.player_name || targetUser.username,
                     alderonId: player.alderon_id,
                     discordUsername: targetUser.username,
-                    titleLabel: 'Em breve (missões)',
+                    // Texto livre do jogador (Raptor, ver /perfil-edit) — sem
+                    // um definido, mantém o placeholder de sempre.
+                    titleLabel: player.profile_title || 'Em breve (missões)',
                     levelLabel: 'Nível 1',
                     // Espécie MAIS jogada (por nº de vezes escolhida), não a
                     // última — essa continua só no painel "Offline" abaixo,
@@ -312,36 +366,38 @@ class PlayerRegistrationSystem {
 
         if (cardRendered) {
             // ── Estatísticas do jogador, com o avatar do Discord ao lado —
-            // dados globais (agregados entre todos os servidores). 3 estados,
+            // dados DESTE SERVIDOR (ver getGuildPlayerStats acima). 3 estados,
             // vindos de webhook (não RCON — ver potPlayerRegistry.js):
             // online+dinossauro ativo (PlayerRespawn), online na tela de
             // seleção (PlayerLogin sem respawn ainda, ou morreu e voltou pra
             // seleção — PlayerKilled zera dinosaur_active da vítima), ou
             // offline (PlayerLogout/Leave). ──────────────────────────────────
-            const kdLine = `**Kills:** ${stats.kills} | **Deaths:** ${stats.deaths} | **K/D:** ${formatKD(stats.kills, stats.deaths)}`;
+            // hide_kda (Player Premium, ver /perfil-edit) esconde só a linha
+            // de Kills/Deaths/K-D — o resto do bloco (status/dino/growth/
+            // tempo de jogo) continua aparecendo normalmente.
+            const kdLine = player.hide_kda ? null : [
+                `**Kills:** ${stats.kills} | **Deaths:** ${stats.deaths} | **K/D:** ${formatKD(stats.kills, stats.deaths)}`,
+                `-# ${EMOJIS.messagesquare || 'ℹ️'} Estatísticas de combate referentes a este servidor.`,
+            ].join('\n');
 
-            let statsText;
+            const statsLines = [];
             if (stats.isOnline && stats.dinosaurActive && stats.dinosaurType) {
-                statsText = [
+                statsLines.push(
                     `## ${EMOJIS.circlecheck || '🟢'} Jogando agora de "${stats.dinosaurType}"`,
                     `**Growth:** ${formatGrowth(stats.dinosaurGrowth)} | **Tempo de jogo:** ${formatPlaytime(stats.totalPlaytime)}`,
-                    kdLine,
-                ].join('\n');
+                );
             } else if (stats.isOnline) {
-                statsText = [
-                    `${EMOJIS.circlecheck || '🟢'} **Jogando agora na seleção de dinossauros.**`,
-                    kdLine,
-                ].join('\n');
+                statsLines.push(`${EMOJIS.circlecheck || '🟢'} **Jogando agora na seleção de dinossauros.**`);
             } else {
-                statsText = [
+                statsLines.push(
                     `${EMOJIS.circlealert || '⚫'} **Offline**`,
                     `**Último dinossauro jogado:** ${stats.dinosaurType ? `"${stats.dinosaurType}"` : '—'}`,
-                    kdLine,
-                ].join('\n');
+                );
             }
+            if (kdLine) statsLines.push(kdLine);
 
             addSeparatorIfNeeded();
-            builder.section(statsText, AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })));
+            builder.section(statsLines.join('\n'), AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 256 })));
         } else {
             // Sem vínculo (ou falha ao gerar o card) — volta pro banner estático
             // padrão do tier + bloco de identificação completo de sempre.
@@ -372,7 +428,9 @@ class PlayerRegistrationSystem {
 
         const payload = builder.build();
         payload.files = [...(payload.files || []), ...extraFiles];
-        payload.flags = payload.flags | MessageFlags.Ephemeral;
+        // Pedido do dono: /perfil deixou de ser ephemeral — visível pra
+        // qualquer um no canal, não só quem rodou o comando (era forçado
+        // aqui antes, independente de como interactionCreate.js deferiu).
 
         await interaction.editReply(payload);
     }

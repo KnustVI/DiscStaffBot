@@ -325,7 +325,12 @@ const SCHEMA = {
             selected_photo_key TEXT,
             verified_ingame INTEGER DEFAULT 0,
             registered_at INTEGER,
-            updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            profile_title TEXT,
+            selected_badge_key TEXT,
+            background_message_id TEXT,
+            selected_background_key TEXT,
+            hide_kda INTEGER DEFAULT 0
         )
     `,
 

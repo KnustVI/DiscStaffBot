@@ -574,7 +574,10 @@ function getPlayerByDiscordId(discordId) {
     if (!discordId) return null;
     try {
         return db.prepare(`
-            SELECT alderon_id, player_name, banner_message_id, selected_photo_key FROM player_links WHERE user_id = ?
+            SELECT alderon_id, player_name, banner_message_id, selected_photo_key,
+                   profile_title, selected_badge_key, background_message_id,
+                   selected_background_key, hide_kda
+            FROM player_links WHERE user_id = ?
         `).get(discordId) || null;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao buscar jogador por discord_id:', error);
@@ -628,6 +631,103 @@ function setSelectedPhotoKey(discordId, photoKey) {
 }
 
 /**
+ * Título customizado do card de perfil (Player Premium Raptor, texto
+ * livre) — ver /perfil-edit.
+ * @param {string} discordId
+ * @param {string|null} title
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setProfileTitle(discordId, title) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET profile_title = ?, updated_at = ? WHERE user_id = ?
+        `).run(title, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar título de perfil:', error);
+        return false;
+    }
+}
+
+/**
+ * Emblema escolhido de uma lista fixa (Player Premium Compy/Raptor) — ver
+ * /perfil-edit.
+ * @param {string} discordId
+ * @param {string|null} badgeKey
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setSelectedBadgeKey(discordId, badgeKey) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET selected_badge_key = ?, updated_at = ? WHERE user_id = ?
+        `).run(badgeKey, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar emblema escolhido:', error);
+        return false;
+    }
+}
+
+/**
+ * ID da mensagem que guarda o upload do PLANO DE FUNDO (Player Premium
+ * Raptor) — mesmo padrão de setBannerMessageId, mas pro banner que
+ * aparece atrás da mensagem inteira do /perfil, não o recorte de foto de
+ * dentro do card.
+ * @param {string} discordId
+ * @param {string|null} messageId
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setBackgroundMessageId(discordId, messageId) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET background_message_id = ?, updated_at = ? WHERE user_id = ?
+        `).run(messageId, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar plano de fundo:', error);
+        return false;
+    }
+}
+
+/**
+ * Plano de fundo escolhido num menu (Player Premium Compy) — guarda a
+ * CHAVE do imageManager, mesmo padrão de setSelectedPhotoKey.
+ * @param {string} discordId
+ * @param {string|null} backgroundKey
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setSelectedBackgroundKey(discordId, backgroundKey) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET selected_background_key = ?, updated_at = ? WHERE user_id = ?
+        `).run(backgroundKey, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar plano de fundo escolhido:', error);
+        return false;
+    }
+}
+
+/**
+ * Liga/desliga a linha de Kills/Deaths/K-D no /perfil — disponível pra
+ * qualquer tier com acesso a /perfil-edit (Compy/Raptor).
+ * @param {string} discordId
+ * @param {boolean} hide
+ * @returns {boolean} sucesso (false se o usuário não tem vínculo ainda)
+ */
+function setHideKda(discordId, hide) {
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET hide_kda = ?, updated_at = ? WHERE user_id = ?
+        `).run(hide ? 1 : 0, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao salvar preferência de esconder KDA:', error);
+        return false;
+    }
+}
+
+/**
  * Monta o sufixo "|ID ALDERON:xxx-xxx-xxx" usado nas linhas de identificação
  * de usuário nos containers (strike, unstrike, repset, historico, reportchat).
  * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
@@ -676,6 +776,43 @@ function getGlobalPlayerStats(alderonId) {
         };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao buscar estatísticas globais:', error);
+        return empty;
+    }
+}
+
+/**
+ * Estatísticas do jogador pro card do /perfil, escopadas a UM servidor —
+ * mesmo formato de getGlobalPlayerStats, mas sem somar entre servidores
+ * (guild_id+alderon_id é UNIQUE em pot_players, então é uma linha só, sem
+ * precisar de SUM). Usada a partir do /perfil ter virado público: mostrar
+ * o total GLOBAL (somado de todo servidor que o bot atende) numa mensagem
+ * visível pra comunidade de UM servidor específico confundia mais do que
+ * ajudava — pedido do dono pra escopar por servidor e avisar isso na tela.
+ *
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @returns {{ isOnline: boolean, dinosaurActive: boolean, dinosaurType: string|null, dinosaurGrowth: number|null, totalPlaytime: number, kills: number, deaths: number }}
+ */
+function getGuildPlayerStats(guildId, alderonId) {
+    const empty = { isOnline: false, dinosaurActive: false, dinosaurType: null, dinosaurGrowth: null, totalPlaytime: 0, kills: 0, deaths: 0 };
+    if (!guildId || !alderonId) return empty;
+    try {
+        const row = db.prepare(`
+            SELECT is_online, dinosaur_type, dinosaur_growth, dinosaur_active, total_playtime, kills, deaths
+            FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        `).get(guildId, alderonId);
+
+        return {
+            isOnline: !!row?.is_online,
+            dinosaurActive: !!row?.dinosaur_active,
+            dinosaurType: row?.dinosaur_type || null,
+            dinosaurGrowth: row?.dinosaur_growth ?? null,
+            totalPlaytime: row?.total_playtime || 0,
+            kills: row?.kills || 0,
+            deaths: row?.deaths || 0,
+        };
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar estatísticas do servidor:', error);
         return empty;
     }
 }
@@ -738,11 +875,17 @@ module.exports = {
     getPlayerByAlderonId,
     getAlderonIdSuffix,
     getGlobalPlayerStats,
+    getGuildPlayerStats,
     getMostPlayedDinosaur,
     recordKillEvent,
     registerPlayerManually,
     setBannerMessageId,
     setSelectedPhotoKey,
+    setProfileTitle,
+    setSelectedBadgeKey,
+    setBackgroundMessageId,
+    setSelectedBackgroundKey,
+    setHideKda,
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,

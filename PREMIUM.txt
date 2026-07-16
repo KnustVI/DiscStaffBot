@@ -10,11 +10,18 @@ ainda.
 ------------------------------------------------
 
 FREE
-- Perfil sincronizado com o Discord (/perfil, /registrar).
+- Perfil sincronizado com o Discord (/perfil, /registrar) - PUBLICO desde a
+  revisao mais recente (JA IMPLEMENTADO): /perfil deixou de ser ephemeral,
+  qualquer um no canal ve, nao so quem rodou o comando. Kills/Deaths/K-D
+  mostrados sao os DESTE SERVIDOR (nao somados com outros servidores que o
+  bot atende), com aviso explicito na tela - antes era global/somado, mas
+  isso confundia numa mensagem agora publica pra comunidade de um servidor
+  so ("por que o numero inclui abate de outro server?").
 - Banner de perfil padrao do tier Free (imagem fixa, nao pode trocar).
 - Footer de perfil padrao do tier Free (imagem fixa no rodape do /perfil).
-- Badges de missoes. (ainda nao implementado - "vindo em breve")
-- Titulos de missoes. (ainda nao implementado - "vindo em breve")
+- Sem nenhuma personalizacao (/perfil-edit bloqueado neste tier) - sem
+  foto/plano de fundo proprios, sem titulo, sem emblema, sem opcao de
+  esconder o KDA.
 - Farme de cacadas por hora de jogo. (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes ("Tudo do Free +")
@@ -22,11 +29,24 @@ COMPY - R$10/mes ("Tudo do Free +")
   comprar OUTROS banners na lojinha do bot pra trocar por esse.
   (compra de banners na lojinha ainda nao implementado - "vindo em breve")
 - Footer de perfil padrao do tier Compy.
-- Foto de fundo do card escolhida num MENU de fotos pre-definidas (mesmo
-  pool usado nos banners de /config personalizar - 12 fotos genericas) via
-  /perfil-edit. JA IMPLEMENTADO. Diferente do Raptor: sem upload proprio,
-  so escolher entre as opcoes prontas (ConfigSystem.handlePlayerPhotoSelect,
-  coluna player_links.selected_photo_key).
+- /perfil-edit libera aqui, sempre por MENU (sem upload proprio - isso e
+  exclusivo do Raptor, ver abaixo):
+    - Foto de fundo do CARD escolhida num menu de fotos pre-definidas
+      (mesmo pool usado nos banners de /config personalizar - 12 fotos
+      genericas). JA IMPLEMENTADO.
+    - Plano de fundo (banner atras da mensagem INTEIRA do /perfil, distinto
+      da foto de dentro do card) escolhido num menu parecido - estrutura JA
+      IMPLEMENTADA, mas a LISTA de opcoes ainda esta vazia (precisa o dono
+      fornecer os assets antes de ter o que escolher - ver
+      PLAYER_BACKGROUND_OPTIONS em configSystem.js).
+    - Emblema escolhido de uma lista fixa (fileira de icones do card, hoje
+      sempre vazia) - selecao/persistencia JA IMPLEMENTADA, mas o DESENHO
+      do emblema escolhido em cima do card ainda nao (mesmo motivo: sem
+      assets reais pra testar contra, ver PLAYER_BADGE_OPTIONS).
+    - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
+      IMPLEMENTADO.
+- Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
+  abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
 - Perfil personalizavel pela loja (badge/titulo exclusivos, boost de farm
   por trofeu). (ainda nao implementado - "vindo em breve")
 
@@ -37,6 +57,14 @@ RAPTOR - R$25/mes ("Tudo do Compy +")
   no lugar do banner simples. Raptor troca a FOTO de fundo desse card por
   UPLOAD PROPRIO (via /perfil-edit ou puxando o banner do proprio Discord);
   Compy escolhe por MENU (ver acima); Free usa sempre a foto padrao do tier.
+- Plano de fundo (banner atras da mensagem inteira) TAMBEM por upload
+  proprio aqui (`/perfil-edit plano_de_fundo:<imagem>`), mesmo padrao de
+  armazenamento da foto (guarda so o ID da mensagem, nunca a URL). JA
+  IMPLEMENTADO.
+- Titulo do card (texto livre, ate 40 caracteres) via modal em
+  /perfil-edit - substitui o placeholder fixo "Em breve (missoes)" pela
+  badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
+  versao "banco de titulos" pro Compy, ver acima).
 - Footer de perfil padrao do tier Raptor.
 - Boost de farm por missao Titan concluida. (ainda nao implementado - "vindo em breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
@@ -60,9 +88,15 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
       dinossauro jogado (dinosaur_type), pego do servidor mais recente em
       que o jogador teve atividade; mostra "Ainda sem registro" se nao
       houver nenhum;
-    - TITULO e NIVEL (badges superiores) - ainda PLACEHOLDER fixo ("Em
-      breve (missoes)" / "Nivel 1"), esperando os sistemas de missao e de
-      XP por hora jogada serem desenhados;
+    - TITULO (badge superior) - PLACEHOLDER fixo ("Em breve (missoes)") pra
+      Free/Compy; Raptor pode substituir por texto livre via /perfil-edit
+      (JA IMPLEMENTADO, ver secao Raptor acima). NIVEL (badge do meio) -
+      ainda PLACEHOLDER fixo ("Nivel 1") em todo tier, esperando o sistema
+      de XP por hora jogada ser desenhado;
+    - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
+      liberada a partir do Compy (JA IMPLEMENTADA), mas o DESENHO do
+      emblema escolhido em cima do card ainda NAO (lista de opcoes vazia
+      ate o dono fornecer os assets - ver secao Compy acima);
     - nome do jogador e identificacao (Alderon ID + usuario do Discord) -
       desenhados dentro do proprio card (nao repete essas informacoes fora
       dele, no bloco de baixo).
@@ -4112,3 +4146,86 @@ frente, nao so este relatorio):
 - PREMIUM.txt: bullet do filtro movido da seção RASTREADOR pra seção
   CAÇADOR (não editado a seção 93 do changelog em si, que é histórico —
   essa seção 94 é que registra a correção).
+
+95) /perfil PÚBLICO + KDA por servidor + personalização expandida (plano de
+    fundo, título, emblema, esconder KDA)
+------------------------------------------------------------------
+- Pedido do dono: `/perfil` deixa de ser ephemeral (visível só pra quem
+  rodou o comando) e passa a ser PÚBLICO — qualquer um no canal vê.
+  Removido o `payload.flags |= MessageFlags.Ephemeral` que estava forçado
+  dentro do próprio `sendProfile` (independente de como
+  `interactionCreate.js` deferia a interação) E `'perfil'` saiu da lista
+  `ephemeralCommands` de `handlers.js`. `/perfil-edit` (painel de
+  personalização) continua PRIVADO — na real, corrigido pra garantir isso:
+  não estava na lista `ephemeralCommands` antes (bug pré-existente, não
+  causado por esta mudança — só descoberto ao revisar o arquivo), agora
+  está.
+- KDA (Kills/Deaths/K-D) escopado por SERVIDOR, não mais global/somado
+  entre todos os servidores que o bot atende — decisão direta do pedido do
+  dono ("informe que as informações de KDA são mostradas por servidor"):
+  como a mensagem agora é pública, mostrar um número que soma abates de
+  OUTRO servidor confundiria a comunidade daqui. Nova função
+  `PlayerRegistry.getGuildPlayerStats(guildId, alderonId)` (substitui
+  `getGlobalPlayerStats` só na tela do `/perfil` — `getGlobalPlayerStats`
+  continua existindo/em uso noutros lugares) — mesmo formato de retorno,
+  sem `SUM` entre guilds (guild_id+alderon_id já é `UNIQUE` em
+  `pot_players`, é 1 linha só). Efeito colateral: dinossauro/growth/tempo
+  de jogo/status online do bloco de stats TAMBÉM passam a ser só deste
+  servidor (não só o KDA) — consistência: misturar "KDA por servidor" com
+  "resto global" na mesma tela seria mais confuso, não menos. Aviso
+  `-# Estatísticas de combate referentes a este servidor.` mostrado junto
+  da linha de KDA (some junto se `hide_kda` estiver ligado).
+- 5 colunas novas em `player_links` (via `ensureColumn`, mesmo padrão de
+  sempre — `CREATE TABLE IF NOT EXISTS` não adiciona coluna em banco já
+  existente): `profile_title`, `selected_badge_key`,
+  `background_message_id`, `selected_background_key`, `hide_kda`.
+- **Plano de fundo** (banner atrás da mensagem INTEIRA do `/perfil` — card
+  + bloco de stats — distinto da FOTO, que só preenche o recorte de dentro
+  do card): Compy escolhe de um menu (`selected_background_key`,
+  `PLAYER_BACKGROUND_OPTIONS` em `configSystem.js` — **vazio até o dono
+  fornecer os assets reais**, mesmo formato de `PLAYER_PHOTO_OPTIONS`);
+  Raptor sobe a própria (`/perfil-edit plano_de_fundo:<imagem>`,
+  `background_message_id`, mesmo padrão de armazenamento/resolução de URL
+  fresca da foto — nunca guarda URL direto, só o ID da mensagem). Exibido
+  como o PRIMEIRO bloco do container (`builder.gallery()`), mesmo padrão
+  de "banner no topo" já usado em `/config personalizar`.
+- **Título** (badge superior do card, antes fixo "Em breve (missões)"):
+  texto livre até 40 caracteres, exclusivo Raptor (`profile_title`, modal
+  via botão "Título" no painel — sem versão "banco" pro Compy, não existe
+  banco de frases prontas pra texto livre).
+- **Emblema** (fileira de ícones de missão abaixo da foto — hoje SEMPRE
+  vazia no render, `stripMissionIcons` em `profileCardRenderer.js`):
+  escolha de uma lista fixa liberada a partir do Compy (é sempre "escolher
+  de um banco", nunca upload — sem distinção Compy/Raptor aqui, diferente
+  de foto/fundo). `selected_badge_key`, `PLAYER_BADGE_OPTIONS` em
+  `configSystem.js` — **vazio até o dono fornecer os assets**. Seleção e
+  persistência JÁ IMPLEMENTADAS; o DESENHO do emblema escolhido em cima do
+  card NÃO — decisão deliberada de não mexer em `profileCardRenderer.js`
+  (composição cirúrgica de SVG, alto risco de sair errado) sem um arquivo
+  real pra testar o posicionamento contra. Fica pra quando os assets
+  existirem.
+- **Esconder KDA**: toggle liberado a partir do Compy (`hide_kda`, botão
+  "Esconder/Mostrar KDA" no painel) — esconde só a linha de Kills/Deaths/
+  K-D (e o aviso de "por servidor" junto dela); o resto do bloco de status
+  continua aparecendo normalmente.
+- `/perfil-edit` reestruturado: sem nenhum anexo, mostra um PAINEL
+  (`ConfigSystem.buildPerfilEditPanelPayload`) com o estado atual de cada
+  personalização + botões (Foto de Perfil, Plano de Fundo, Emblema,
+  Esconder/Mostrar KDA, e Título só pro Raptor). Foto/Plano de Fundo
+  continuam exigindo rodar `/perfil-edit` DE NOVO com o anexo pra quem é
+  Raptor — Discord não permite pedir upload de arquivo a partir de um
+  botão ou modal, só da própria slash command; os botões desses dois,
+  nesse caso, só mostram esse aviso via `followUp` (o painel principal
+  continua visível, nunca é substituído por esse aviso). Pro Compy, os
+  mesmos botões abrem o menu de escolha de verdade. Novo parâmetro
+  `plano_de_fundo` (attachment) na definição do comando, ao lado do
+  `arquivo` (foto) que já existia.
+- Verificado com scripts diretos: `getGuildPlayerStats` isola
+  corretamente 2 servidores diferentes (nunca soma um com o outro);
+  setters novos persistem e são lidos de volta por
+  `getPlayerByDiscordId`; painel mostra/esconde o botão de Título
+  conforme o tier; pickers com lista vazia (badge/fundo) mostram aviso em
+  vez de um select quebrado; teste ponta a ponta real de `sendProfile`
+  (renderiza o card de verdade) confirma resposta NÃO ephemeral, KDA
+  correto e escopado, aviso presente, e KDA/aviso somem juntos quando
+  `hide_kda` está ligado (resto do bloco de status continua aparecendo).
