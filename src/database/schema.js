@@ -249,6 +249,7 @@ const SCHEMA = {
             kills INTEGER DEFAULT 0,
             deaths INTEGER DEFAULT 0,
             dinosaur_active INTEGER DEFAULT 0,
+            session_started_at INTEGER,
             UNIQUE(guild_id, alderon_id)
         )
     `,

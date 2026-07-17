@@ -143,6 +143,13 @@ class DatabaseManager {
             // Zerado no PlayerLogin e no PlayerKilled (como vítima — volta pra
             // seleção), setado em 1 no PlayerRespawn. Ver potPlayerRegistry.js.
             this.ensureColumn('pot_players', 'dinosaur_active', 'INTEGER DEFAULT 0');
+            // Timestamp (ms) de quando a sessão ATUAL começou (setado no
+            // PlayerLogin, limpo no PlayerLogout/PlayerLeave) — usado pra
+            // calcular tempo de jogo AO VIVO enquanto o jogador está online
+            // (total_playtime sozinho só é somado no logout, então ficava
+            // "parado" no /perfil pra quem está jogando agora). Ver
+            // upsertPlayerFromEvent/getGuildPlayerStats em potPlayerRegistry.js.
+            this.ensureColumn('pot_players', 'session_started_at', 'INTEGER');
             // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-edit.
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).

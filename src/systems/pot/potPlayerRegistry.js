@@ -257,9 +257,9 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 INSERT INTO pot_players (
                     guild_id, alderon_id, player_name, discord_id,
                     dinosaur_type, dinosaur_growth, dinosaur_active,
-                    last_seen, total_playtime, is_online,
+                    last_seen, total_playtime, is_online, session_started_at,
                     linked_at, first_login_at, updated_at, admin_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                 guildId,
                 alderonId,
@@ -271,6 +271,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 now,
                 sessionSeconds || 0,
                 isOnline === null ? 0 : isOnline,
+                eventType === 'PlayerLogin' ? now : null, // session_started_at
                 discordId ? now : null,   // linked_at só se já veio com discord_id
                 now,                       // first_login_at — primeira vez que vemos este jogador
                 Math.floor(now / 1000),    // updated_at é em segundos (strftime('%s'))
@@ -284,9 +285,27 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         }
 
         // ── Jogador já existe: atualizar apenas o que é relevante ─────────────
-        const newTotalPlaytime = sessionSeconds
-            ? (existing.total_playtime || 0) + sessionSeconds
+        // Tempo de sessão: usa o valor do payload se o servidor mandou (nem
+        // toda versão manda — ver extractSessionSeconds); se não mandou E o
+        // evento é de saída (logout/leave), calcula pela diferença entre
+        // agora e session_started_at (setado no login) — garante que
+        // total_playtime seja incrementado de verdade mesmo quando o
+        // servidor nunca envia esse campo, em vez de ficar sempre parado.
+        let sessionSecondsToAdd = sessionSeconds;
+        if (!sessionSecondsToAdd && OFFLINE_EVENTS.has(eventType) && existing.session_started_at) {
+            sessionSecondsToAdd = Math.floor((now - existing.session_started_at) / 1000);
+        }
+        const newTotalPlaytime = sessionSecondsToAdd
+            ? (existing.total_playtime || 0) + sessionSecondsToAdd
             : existing.total_playtime;
+
+        // session_started_at: marca o INÍCIO da sessão atual no login, limpa
+        // no logout/leave — usado por getGuildPlayerStats pra somar o tempo
+        // AO VIVO (now - session_started_at) enquanto o jogador está online,
+        // já que total_playtime só reflete sessões JÁ ENCERRADAS.
+        let newSessionStartedAt = existing.session_started_at;
+        if (eventType === 'PlayerLogin') newSessionStartedAt = now;
+        else if (OFFLINE_EVENTS.has(eventType)) newSessionStartedAt = null;
 
         const newIsOnline = isOnline === null ? existing.is_online : isOnline;
 
@@ -317,6 +336,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 last_seen = ?,
                 total_playtime = ?,
                 is_online = ?,
+                session_started_at = ?,
                 linked_at = ?,
                 updated_at = ?
             WHERE guild_id = ? AND alderon_id = ?
@@ -329,6 +349,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             now,
             newTotalPlaytime,
             newIsOnline,
+            newSessionStartedAt,
             newLinkedAt,
             Math.floor(now / 1000),
             guildId,
@@ -798,16 +819,24 @@ function getGuildPlayerStats(guildId, alderonId) {
     if (!guildId || !alderonId) return empty;
     try {
         const row = db.prepare(`
-            SELECT is_online, dinosaur_type, dinosaur_growth, dinosaur_active, total_playtime, kills, deaths
+            SELECT is_online, dinosaur_type, dinosaur_growth, dinosaur_active, total_playtime, kills, deaths, session_started_at
             FROM pot_players WHERE guild_id = ? AND alderon_id = ?
         `).get(guildId, alderonId);
+
+        // total_playtime só é somado quando a sessão TERMINA (ver
+        // upsertPlayerFromEvent) — sozinho, ficaria "parado" no /perfil pra
+        // quem está jogando agora. Enquanto online, soma o tempo AO VIVO da
+        // sessão atual (agora - session_started_at) por cima do acumulado.
+        const liveSeconds = (row?.is_online && row?.session_started_at)
+            ? Math.max(0, Math.floor((Date.now() - row.session_started_at) / 1000))
+            : 0;
 
         return {
             isOnline: !!row?.is_online,
             dinosaurActive: !!row?.dinosaur_active,
             dinosaurType: row?.dinosaur_type || null,
             dinosaurGrowth: row?.dinosaur_growth ?? null,
-            totalPlaytime: row?.total_playtime || 0,
+            totalPlaytime: (row?.total_playtime || 0) + liveSeconds,
             kills: row?.kills || 0,
             deaths: row?.deaths || 0,
         };
