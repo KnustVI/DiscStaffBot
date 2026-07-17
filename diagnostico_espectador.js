@@ -102,6 +102,7 @@ for (const guildId of guildIds) {
 }
 console.log('');
 
+const noCredit = []; // { alderon_id, guild_id, player_name, user_id } — registrados mas com 0 crédito, apesar de eventos crus reais
 for (const row of seen) {
     const link = db.prepare(`SELECT user_id FROM player_links WHERE alderon_id = ?`).get(row.alderon_id);
     if (!link?.user_id) {
@@ -119,6 +120,43 @@ for (const row of seen) {
     const credited = totals.seconds > 0 || totals.toggleOn > 0 || totals.toggleOff > 0;
     const flag = credited ? '✅' : '❌ SEM CRÉDITO';
     console.log(`${flag} AGID=${row.alderon_id} (${row.player_name}) discord=${link.user_id} | ${row.total} evento(s) cru(s) | staff_analytics: ${totals.seconds}s espectador, ${totals.toggleOn} toggle-on, ${totals.toggleOff} toggle-off`);
+    if (!credited) noCredit.push({ alderon_id: row.alderon_id, guild_id: row.guild_id, player_name: row.player_name, user_id: link.user_id });
+}
+
+// ── Seção 6 ──────────────────────────────────────────────────────────────
+// Pra quem está registrado E ainda assim com 0 crédito (ex: Kaffel, que TEM
+// o cargo de staff no Discord — então não é o gate de cargo/registro que tá
+// travando) — dump do Action bruto de cada evento, pra achar o padrão real
+// (ex: só Action nunca vista aqui, ou só eventos MUITO antigos de antes do
+// servidor virar Caçador, etc.) e os IDs de cargo configurados no /config
+// roles desta guild, pra comparar manualmente com o cargo que a pessoa tem.
+console.log('\n=== 6. RAIO-X de quem está registrado mas com 0 crédito (Action bruto de cada evento) ===');
+for (const guildId of guildIds) {
+    const roles = {
+        staff_role: db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'staff_role'`).get(guildId)?.value,
+        supervisor_role: db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'supervisor_role'`).get(guildId)?.value,
+        event_role: db.prepare(`SELECT value FROM settings WHERE guild_id = ? AND key = 'event_role'`).get(guildId)?.value,
+    };
+    console.log(`guild=${guildId} | cargos configurados como staff (staff_role/supervisor_role/event_role): ${JSON.stringify(roles)}`);
+}
+console.log('');
+
+if (!noCredit.length) {
+    console.log('Ninguém registrado ficou com 0 crédito — nada a investigar aqui.');
+} else {
+    for (const person of noCredit) {
+        console.log(`--- ${person.player_name} (AGID=${person.alderon_id}, discord=${person.user_id}) ---`);
+        const events = db.prepare(`
+            SELECT id, event_data, created_at FROM pot_logs
+            WHERE event_type = 'AdminSpectate' AND guild_id = ? AND alderon_id = ?
+            ORDER BY created_at ASC
+        `).all(person.guild_id, person.alderon_id);
+        for (const ev of events) {
+            let parsed = {};
+            try { parsed = JSON.parse(ev.event_data || '{}'); } catch (err) {}
+            console.log(`   id=${ev.id} | ${new Date(ev.created_at * 1000).toISOString()} | Action="${parsed.Action}" | bSpectatorMode=${parsed.bSpectatorMode}`);
+        }
+    }
 }
 
 process.exit(0);
