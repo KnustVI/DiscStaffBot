@@ -420,6 +420,10 @@ const ConfigSystem = {
                 await this.handleHideKdaToggle(interaction);
                 return;
             }
+            if (customId === 'perfil-edit:background-remove') {
+                await this.handleRemoveBackground(interaction);
+                return;
+            }
             if (customId === 'perfil-edit:photo') {
                 await this.handlePlayerPhotoSelect(interaction);
                 return;
@@ -1858,6 +1862,18 @@ const ConfigSystem = {
             if (isRaptor) {
                 row2Buttons.unshift(new ButtonBuilder().setCustomId('perfil-edit:title:modal').setLabel('Título').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.edit || '✏️'));
             }
+            // "Remover Plano de Fundo" — só aparece quando já tem um plano de
+            // fundo configurado (Raptor: background_message_id; Compy:
+            // selected_background_key). Pedido do dono: antes não existia
+            // NENHUM jeito de verdade de limpar o plano de fundo — o texto de
+            // dica pro Raptor dizia "vazio remove a atual", mas o Discord não
+            // deixa "selecionar um anexo em branco" (o parâmetro só existe na
+            // interação se um arquivo de verdade foi anexado), então esse
+            // caminho no comando nunca era alcançado na prática.
+            const hasBackground = isRaptor ? !!link?.background_message_id : !!link?.selected_background_key;
+            if (hasBackground) {
+                row2Buttons.push(new ButtonBuilder().setCustomId('perfil-edit:background-remove').setLabel('Remover Plano de Fundo').setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.trash || '🗑️'));
+            }
             rows.push(new ActionRowBuilder().addComponents(row2Buttons));
         }
 
@@ -1930,6 +1946,40 @@ const ConfigSystem = {
         await this.sendFeedback(interaction, newValue
             ? `${EMOJIS.circlecheck || '✅'} Linha de Kills/Deaths/K-D escondida no seu \`/perfil\`.`
             : `${EMOJIS.circlecheck || '✅'} Linha de Kills/Deaths/K-D visível de novo no seu \`/perfil\`.`);
+    },
+
+    /**
+     * perfil-edit:background-remove — botão "Remover Plano de Fundo" do
+     * painel. Limpa os DOIS campos (background_message_id do Raptor e
+     * selected_background_key do Compy) independente do tier atual do
+     * jogador — evita deixar um campo velho "preso" se ele mudar de tier
+     * depois. Único jeito de verdade de tirar o plano de fundo hoje: o
+     * comando /perfil-edit não consegue (Discord não permite "selecionar
+     * um anexo em branco" pra sinalizar remoção).
+     */
+    async handleRemoveBackground(interaction) {
+        const PremiumSystem = require('../premium/premiumSystem');
+        if (!PremiumSystem.isPlayerAtLeast(interaction.user.id, 'compy')) {
+            return await ResponseManager.error(interaction, 'Personalizar o perfil é um recurso do Player Premium Compy ou superior.');
+        }
+
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const link = PlayerRegistry.getPlayerByDiscordId(interaction.user.id);
+        if (!link) {
+            return await ResponseManager.error(interaction, 'Use **/registrar** primeiro para vincular sua conta do Path of Titans.');
+        }
+
+        PlayerRegistry.setBackgroundMessageId(interaction.user.id, null);
+        PlayerRegistry.setSelectedBackgroundKey(interaction.user.id, null);
+
+        const updatedLink = { ...link, background_message_id: null, selected_background_key: null };
+        const payload = this.buildPerfilEditPanelPayload(PremiumSystem.getPlayerTier(interaction.user.id), updatedLink);
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.update(payload);
+        }
+        await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} Plano de fundo removido. Use \`/perfil\` para ver como ficou.`);
     },
 
     /**
