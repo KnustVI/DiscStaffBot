@@ -84,4 +84,41 @@ for (const row of linked) {
     console.log(`AGID=${row.alderon_id} | ${row.player_name} | discord=${row.user_id}`);
 }
 
+// ── Seção 5 ──────────────────────────────────────────────────────────────
+// O evento cru pode chegar 100% certo (seção 1 zerada) e AINDA ASSIM nunca
+// virar tempo/contagem em staff_analytics: recordAdminSpectateEvent só
+// credita se (a) o servidor for tier Caçador (_isAnalyticsAllowed) e (b) o
+// AlderonId estiver vinculado via /registrar E o membro tiver, DE VERDADE,
+// um dos cargos de staff no Discord no momento do evento
+// (_resolveTrackedStaffMember) — nenhuma das duas checagens loga nada se
+// falhar. Esta seção cruza os eventos crus (que sabemos que chegaram) com o
+// que de fato foi creditado, pra achar exatamente quem está "sumindo" nesse
+// meio de caminho.
+console.log('\n=== 5. EVENTOS CRUS x CRÉDITO EM staff_analytics (por jogador com eventos na seção 2) ===');
+const guildIds = [...new Set(seen.map(r => r.guild_id))];
+for (const guildId of guildIds) {
+    const premium = db.prepare(`SELECT tier FROM guild_premium WHERE guild_id = ?`).get(guildId);
+    console.log(`guild=${guildId} | tier Server Premium: ${premium?.tier || 'free (sem linha em guild_premium)'}`);
+}
+console.log('');
+
+for (const row of seen) {
+    const link = db.prepare(`SELECT user_id FROM player_links WHERE alderon_id = ?`).get(row.alderon_id);
+    if (!link?.user_id) {
+        console.log(`❌ AGID=${row.alderon_id} (${row.player_name}) | ${row.total} evento(s) cru(s) | NÃO REGISTRADO via /registrar (player_links vazio) — recordAdminSpectateEvent para na 1ª checagem, nunca credita nada.`);
+        continue;
+    }
+
+    const totals = db.prepare(`
+        SELECT COALESCE(SUM(spectator_seconds), 0) as seconds,
+               COALESCE(SUM(nametag_toggles_spectating), 0) as toggleOn,
+               COALESCE(SUM(nametag_toggles_not_spectating), 0) as toggleOff
+        FROM staff_analytics WHERE guild_id = ? AND user_id = ?
+    `).get(row.guild_id, link.user_id);
+
+    const credited = totals.seconds > 0 || totals.toggleOn > 0 || totals.toggleOff > 0;
+    const flag = credited ? '✅' : '❌ SEM CRÉDITO';
+    console.log(`${flag} AGID=${row.alderon_id} (${row.player_name}) discord=${link.user_id} | ${row.total} evento(s) cru(s) | staff_analytics: ${totals.seconds}s espectador, ${totals.toggleOn} toggle-on, ${totals.toggleOff} toggle-off`);
+}
+
 process.exit(0);
