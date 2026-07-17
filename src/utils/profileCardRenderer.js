@@ -71,11 +71,20 @@ async function bboxOfPath(d, viewW, viewH, style = 'fill="#ffffff"') {
 
 async function extractCardMeta(svg) {
     const [, viewW, viewH] = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, 716, 458];
-    const frameMatch = svg.match(/<path d="(M[^"]+)" fill="black" fill-opacity="0\.01"/);
+    // Moldura = o path logo dentro do primeiro grupo "<g filter=...filterN_ddi...>"
+    // (a sombra dupla + inner shadow do card todo) — detecção ESTRUTURAL, não
+    // pelo valor do fill: versões antigas do Figma exportavam esse path com
+    // fill="black" fill-opacity="0.01" (só uma máscara invisível); exports
+    // mais novos vêm com fill="url(#patternN_...)" (o Figma preenche com uma
+    // foto de preview qualquer) — o fill nunca importa de verdade aqui, só o
+    // "d" (usado como clip-path pra foto real, inserida em runtime).
+    const frameMatch = svg.match(/<g filter="url\(#filter\d+_ddi[^)]*\)">\s*<path d="(M[^"]+)"[^>]*\/>/);
     const solidPaths = [...svg.matchAll(/<path d="([^"]+)" fill="(#[0-9A-Fa-f]{6})"\/>/g)];
     // Ordem estável no arquivo: 0,1,2 = textos das badges (Título/Nível/Espécie);
     // 3 = nome do jogador; 4,5 = as 2 linhas de identificação (Alderon/Discord).
-    const badgeRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="309" height="43" rx="9.5" fill=/g)];
+    // Largura da pílula capturada dinamicamente (não fixa em "309") — mudou
+    // pra "353.02" no redesenho mais recente, e pode variar de novo no futuro.
+    const badgeRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="43" rx="9.5" fill=/g)];
     const iconRectMatch = [...svg.matchAll(/<rect x="([0-9.]+)" y="([0-9.]+)" width="3[23]" height="33" fill="url\(#pattern/g)];
     const starTopMatch = [...svg.matchAll(/<path d="M([0-9.]+) ([0-9.]+)(?:[LH][0-9.]+(?: [0-9.]+)?)+Z" data-figma-gradient-fill/g)];
 
@@ -87,14 +96,16 @@ async function extractCardMeta(svg) {
 
     const bboxes = [];
     for (const p of solidPaths) bboxes.push({ color: p[2], bbox: await bboxOfPath(p[1], viewW, viewH) });
+    const frameBbox = await bboxOfPath(frameMatch[1], viewW, viewH);
 
     return {
         viewW: Number(viewW),
         viewH: Number(viewH),
         frameD: frameMatch[1],
+        frameBbox,
         solidPaths,
         bboxes,
-        badgeBoxes: badgeRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: 309, h: 43 })),
+        badgeBoxes: badgeRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: Number(m[3]), h: 43 })),
         iconBoxes: iconRectMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]), w: 32, h: 33 })),
         starTops: starTopMatch.map(m => ({ x: Number(m[1]), y: Number(m[2]) })),
     };
@@ -187,10 +198,15 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // vindas do banner do próprio Discord ou de uploads antigos (antes dessa
     // correção) podem chegar aqui sem já terem passado por lá.
     const photoPng = await sharp(photoBuffer).rotate().png().toBuffer();
+    // Retângulo da foto = bounding box real da própria moldura (frameBbox,
+    // medido via bboxOfPath em extractCardMeta) — não mais coordenadas fixas
+    // "no olho". Cobre a moldura inteira; o clip-path (mesmo "d" da moldura)
+    // recorta pro formato certo (cantos arredondados/chanfrados).
+    const { x: fx, y: fy, width: fw, height: fh } = meta.frameBbox;
     const clipInsert = `
 <clipPath id="profileCardPortraitClip"><path d="${meta.frameD}"/></clipPath>
 <g clip-path="url(#profileCardPortraitClip)">
-<image href="data:image/png;base64,${photoPng.toString('base64')}" x="20" y="26" width="356" height="268" preserveAspectRatio="xMidYMid slice"/>
+<image href="data:image/png;base64,${photoPng.toString('base64')}" x="${fx}" y="${fy}" width="${fw}" height="${fh}" preserveAspectRatio="xMidYMid slice"/>
 </g>
 `;
     const frameGroupStart = svg.indexOf('<g filter="url(#filter0_ddi');
