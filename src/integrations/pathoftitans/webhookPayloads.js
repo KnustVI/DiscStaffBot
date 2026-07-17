@@ -15,6 +15,7 @@
  * aplicação) e cai pro unicode genérico se o servidor não tiver um com esse
  * nome — mesmo padrão que a maioria dos containers do bot já usa.
  */
+const db = require('../../database/index');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
@@ -106,6 +107,42 @@ const ADMIN_ACTION_LABELS = {
     'Entered Spectator Mode': 'entrou no modo espectador',
     'Exited Spectator Mode': 'saiu do modo espectador',
 };
+
+/**
+ * Estado real de "está em modo espectador agora" pra um Alderon ID — NÃO usa
+ * bSpectatorMode (confirmado sempre `false` mesmo em "Entered Spectator
+ * Mode", ver comentário abaixo) nem pot_spectator_sessions (essa tabela só
+ * é escrita quando o staff passa pelo gate de registro/cargo em
+ * AnalyticsSystem — pedido do dono: o LOG precisa mostrar o estado de
+ * QUALQUER jogador, com cargo ou não, registrado ou não). Em vez disso, olha
+ * o histórico cru já persistido em pot_logs (Seção 1 do diagnóstico confirmou
+ * que TODO evento AdminSpectate cai lá, sem filtro nenhum) e usa o Action
+ * "Entered/Exited Spectator Mode" mais recente pra esse Alderon ID como
+ * fonte de verdade. Retorna null (mostra "Não definido") se nunca houve
+ * nenhum dos dois Actions ainda.
+ */
+function isCurrentlySpectating(guildId, alderonId, currentAction) {
+    if (currentAction === 'Entered Spectator Mode') return true;
+    if (currentAction === 'Exited Spectator Mode') return false;
+    if (!guildId || !alderonId) return null;
+
+    try {
+        const rows = db.prepare(`
+            SELECT event_data FROM pot_logs
+            WHERE guild_id = ? AND alderon_id = ? AND event_type = 'AdminSpectate'
+            ORDER BY created_at DESC, id DESC LIMIT 50
+        `).all(guildId, alderonId);
+        for (const row of rows) {
+            let parsed = {};
+            try { parsed = JSON.parse(row.event_data || '{}'); } catch (err) { continue; }
+            if (parsed.Action === 'Entered Spectator Mode') return true;
+            if (parsed.Action === 'Exited Spectator Mode') return false;
+        }
+    } catch (err) {
+        console.error('❌ [WebhookPayloads] Erro ao checar estado de espectador:', err.message);
+    }
+    return null;
+}
 
 /**
  * Nome do jogador + Alderon ID junto, formato padrão usado em TODO log de
@@ -403,34 +440,34 @@ async function formatMessage(potEvent, data, guild) {
         // bSpectatorMode: CONFIRMADO NÃO CONFIÁVEL com payloads reais de
         // produção (pot_logs, ver seção 62 do PREMIUM.txt) — em TODOS os
         // registros capturados, mesmo com Action="Entered Spectator Mode",
-        // esse campo veio `false`. Por isso o analytics de horas de
-        // espectador (AnalyticsSystem.recordAdminSpectateEvent,
-        // gatewayServer.js) passou a se basear no próprio `Action`
-        // ("Entered/Exited Spectator Mode") como sinal principal — só usa
-        // bSpectatorMode===true como fallback extra, não mais como sinal
-        // primário. Esta linha do painel (abaixo) continua mostrando o
-        // valor cru de bSpectatorMode mesmo assim, só pra exibição — não é
-        // mais a fonte de verdade usada pelo analytics.
+        // esse campo veio `false`. A linha abaixo NÃO usa mais esse campo —
+        // usa isCurrentlySpectating() (ver topo do arquivo), que deriva o
+        // estado real do histórico de Action em pot_logs, sem filtro de
+        // cargo/registro (pedido do dono: o LOG precisa valer pra QUALQUER
+        // jogador, com cargo ou não — diferente do crédito em
+        // staff_analytics, que é filtrado de propósito em
+        // AnalyticsSystem.recordAdminSpectateEvent).
         // Pedido do dono: linha própria com emoji (shieldcheck = está em
-        // modo espectador, shieldban = não está, "Não definido" quando o
-        // campo nem vier no payload).
+        // modo espectador, shieldban = não está, "Não definido" quando ainda
+        // não há nenhum Entered/Exited registrado pra esse Alderon ID).
         // Mesmo layout de heading+bullet do AdminCommand logo abaixo (pedido
         // do dono: vale pra qualquer log de comando/ação de admin, não só
         // AdminCommand).
         AdminSpectate: async () => {
             const role = d.Role && d.Role !== 'None' ? d.Role : 'Staff';
             const action = ADMIN_ACTION_LABELS[d.Action] || d.Action || 'realizou uma ação administrativa';
-            const spectatorLine = d.bSpectatorMode === true
+            const alderonId = d.PlayerAlderonId || d.AdminAlderonId;
+            const spectating = isCurrentlySpectating(guild?.id, alderonId, d.Action);
+            const spectatorLine = spectating === true
                 ? `Modo espectador: ${e('shieldcheck', '✅')}`
-                : d.bSpectatorMode === false
+                : spectating === false
                     ? `Modo espectador: ${e('shieldban', '🚫')}`
                     : 'Modo espectador: Não definido';
             // Pedido do dono: mesmo aviso do /historico staff (analyticsSystem.js
-            // SPECTATOR_DISCLAIMER) — o modo espectador está com um problema
-            // conhecido pra pegar informação real do jogo, então este log
-            // sozinho não deve embasar julgamento de staff no momento.
-            const disclaimer = `-# ${e('trianglealert', '⚠️')} Modo espectador está atualmente com problemas para adquirir informações reais do jogo e não deve ser considerado para julgamento de staffs no momento!`;
-            const alderonId = d.PlayerAlderonId || d.AdminAlderonId;
+            // SPECTATOR_DISCLAIMER) — o CRÉDITO de tempo/staff_analytics ainda
+            // fica incompleto pra quem não está registrado/com o cargo certo,
+            // então esses números não devem embasar julgamento de staff sozinhos.
+            const disclaimer = `-# ${e('trianglealert', '⚠️')} Os totais de tempo em modo espectador (staff_analytics) podem estar incompletos para staffs não registrados via /registrar ou sem o cargo configurado — não devem ser considerados sozinhos para julgamento de staffs!`;
             const discordPart = await discordIdentitySuffix(guild, alderonId);
             return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}\n${disclaimer}`;
         },
