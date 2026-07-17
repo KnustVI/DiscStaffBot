@@ -339,6 +339,18 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
 
     const finalCanvas = createCanvas(FINAL_W, FINAL_H);
     const fctx = finalCanvas.getContext('2d');
+    // Cantos arredondados na imagem final inteira — detalhe presente nos
+    // mockups mais recentes do Compy/Raptor (um rect full-canvas com
+    // rx="20", na resolução nativa de 800 de largura do card; aqui escalado
+    // proporcionalmente pro nosso canvas de 1000). Clip aplicado ANTES de
+    // desenhar qualquer coisa, então cobre plano de fundo + escurecida +
+    // card + sombra de uma vez, sem precisar recortar cada camada.
+    const CORNER_RADIUS = Math.round(20 * (FINAL_W / 800));
+    fctx.save();
+    fctx.beginPath();
+    fctx.roundRect(0, 0, FINAL_W, FINAL_H, CORNER_RADIUS);
+    fctx.clip();
+
     fctx.drawImage(bgImage, 0, 0);
     // Leve escurecida — sem isso, um plano de fundo muito claro/colorido
     // compete visualmente com o card por cima (mesmo o card tendo seu
@@ -356,7 +368,9 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     fctx.shadowOffsetX = 0;
     fctx.shadowOffsetY = 6 * SCALE;
     fctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, cardX, cardY, CARD_W, CARD_H);
-    fctx.restore();
+    fctx.restore(); // fecha o save() da sombra
+
+    fctx.restore(); // fecha o save() do clip de cantos arredondados
 
     return finalCanvas.toBuffer('image/png');
 }
