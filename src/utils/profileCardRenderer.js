@@ -43,6 +43,29 @@ const TIER_FILES = {
 const SCALE = 2; // upscala o SVG (rasterizado em escala nativa) pra sair nítido
 const STAR_SIZE = 46; // em unidades do card (716 de largura), antes do SCALE
 
+// Sombra dupla ("glow") replicando os filtros nativos do próprio SVG do
+// Figma (filter6_dd/filter7_dd/filter8_dd, que envolvem nome/Alderon/
+// Discord no arquivo original) — removidos junto com o texto/ícone que
+// embrulhavam (stripPathByPrefix não preserva o wrapper `<g filter=...>`),
+// então precisam ser reconstruídos aqui. Duas sombras diagonais opostas
+// (-5,-5 e +5,+5, ambas com blur 5, em unidades de card) em vez de uma
+// única sombra simples — é bem mais evidente/parecida com o mockup do que
+// uma sombra de um lado só.
+function drawWithGlow(ctx, drawFn) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 5 * SCALE;
+    ctx.shadowOffsetX = -5 * SCALE;
+    ctx.shadowOffsetY = -5 * SCALE;
+    drawFn();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowOffsetX = 5 * SCALE;
+    ctx.shadowOffsetY = 5 * SCALE;
+    drawFn();
+    ctx.restore();
+    drawFn(); // desenho final nítido, sem sombra, por cima das 2 sombras
+}
+
 // ==================== estrelas — pré-rasterizadas uma vez ====================
 
 let starImagesPromise = null;
@@ -167,14 +190,14 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @param {'free'|'compy'|'raptor'} opts.tier
  * @param {Buffer} opts.photoBuffer - bytes da foto (qualquer formato que o sharp leia)
  * @param {Buffer|null} [opts.backgroundBuffer] - bytes do plano de fundo (opcional).
- *   Quando presente, canvas final 1000x500 (plano de fundo cortado em
- *   cover fit pra esse tamanho). Card encaixado numa caixa de até 845x480
- *   preservando a proporção NATIVA dele (716:458 ≈ 1.56:1, sem esticar) —
- *   como a altura (480) é quem limita (largura=845 estouraria o canvas),
- *   o card sai com ~750 de largura. Encostado na borda ESQUERDA do canvas e
- *   centralizado verticalmente — ver FINAL_W/FINAL_H/CARD_W/CARD_H abaixo.
- *   Sombra projetada (drop shadow) no card pra se destacar do plano de
- *   fundo atrás.
+ *   Quando presente, o canvas final fica no tamanho EXATO do card (mesma
+ *   resolução nativa, sem caixa custom separada) — o plano de fundo cobre
+ *   esse canvas inteiro (cover fit) e funciona literalmente como o fundo
+ *   do próprio card, aparecendo só nos espaços transparentes que o card já
+ *   tem (à direita dos badges, embaixo da identificação). Cantos
+ *   arredondados na composição final (detalhe presente nos mockups do
+ *   Compy/Raptor). Sombra projetada (drop shadow) no card pra se destacar
+ *   do plano de fundo atrás.
  * @param {string} opts.nickname
  * @param {string} opts.alderonId
  * @param {string} opts.discordUsername
@@ -235,23 +258,17 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     // então não dá pra só ligar sombra antes de "desenhar o ícone" como se
     // faz com texto — em vez disso, recorta exatamente a caixa de cada
     // ícone (meta.iconBoxes, já teve a mesma imagem `base` como origem) e
-    // redesenha esse recorte por cima, na MESMA posição, com sombra ativada
+    // redesenha esse recorte por cima, na MESMA posição, com drawWithGlow
     // — o canvas calcula a sombra a partir do canal alfa do que for
     // desenhado, então funciona sem precisar saber o desenho exato do
     // ícone.
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-    ctx.shadowBlur = 8 * SCALE;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2 * SCALE;
     for (const box of meta.iconBoxes) {
         const sx = box.x * SCALE;
         const sy = box.y * SCALE;
         const sw = box.w * SCALE;
         const sh = box.h * SCALE;
-        ctx.drawImage(base, sx, sy, sw, sh, sx, sy, sw, sh);
+        drawWithGlow(ctx, () => ctx.drawImage(base, sx, sy, sw, sh, sx, sy, sw, sh));
     }
-    ctx.restore();
 
     const [starFull, starEmpty] = await loadStarImages();
     const starSize = STAR_SIZE * SCALE;
@@ -278,22 +295,19 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
         ctx.fillText(badgeLabels[i], bbox.x * SCALE, (pill.y + pill.h / 2 + BADGE_BASELINE_OFFSET) * SCALE);
     }
 
-    // Nome + linhas de identificação ganham sombra própria (pedido do
-    // dono) — mesmo motivo dos ícones acima: esse trecho do card fica fora
-    // da moldura preenchida, então quando há plano de fundo (foto) atrás
-    // dele, precisa de mais contraste pra continuar legível. Badges (acima)
-    // já sentam num fundo de pílula opaco, não precisam disso.
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-    ctx.shadowBlur = 8 * SCALE;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2 * SCALE;
+    // Nome + linhas de identificação ganham a mesma sombra dupla ("glow")
+    // dos ícones acima (drawWithGlow) — mesmo motivo: esse trecho do card
+    // fica fora da moldura preenchida, então quando há plano de fundo
+    // (foto) atrás dele, precisa de mais contraste pra continuar legível.
+    // Badges (acima) já sentam num fundo de pílula opaco, não precisam.
 
     // Nome (Tilt Warp, sempre caixa alta) — ancorado acima do primeiro ícone de identificação.
     const nickBox = meta.bboxes[3];
     ctx.fillStyle = nickBox.color;
     ctx.font = `${46 * SCALE}px "Tilt Warp"`;
-    ctx.fillText(nickname.toUpperCase(), nickBox.bbox.x * SCALE, (meta.iconBoxes[0].y - 6) * SCALE);
+    const nickX = nickBox.bbox.x * SCALE;
+    const nickY = (meta.iconBoxes[0].y - 6) * SCALE;
+    drawWithGlow(ctx, () => ctx.fillText(nickname.toUpperCase(), nickX, nickY));
 
     // Linhas de identificação — mesma lógica de âncora geométrica das badges.
     const IDENTITY_FONT = 17;
@@ -301,31 +315,34 @@ async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname
     ctx.font = `${IDENTITY_FONT * SCALE}px "Poppins Medium"`;
     const line1 = meta.bboxes[4];
     ctx.fillStyle = line1.color;
-    ctx.fillText(alderonId, line1.bbox.x * SCALE, (meta.iconBoxes[0].y + meta.iconBoxes[0].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE);
+    const line1X = line1.bbox.x * SCALE;
+    const line1Y = (meta.iconBoxes[0].y + meta.iconBoxes[0].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE;
+    drawWithGlow(ctx, () => ctx.fillText(alderonId, line1X, line1Y));
     const line2 = meta.bboxes[5];
     ctx.fillStyle = line2.color;
-    ctx.fillText(discordUsername, line2.bbox.x * SCALE, (meta.iconBoxes[1].y + meta.iconBoxes[1].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE);
-    ctx.restore();
+    const line2X = line2.bbox.x * SCALE;
+    const line2Y = (meta.iconBoxes[1].y + meta.iconBoxes[1].h / 2 + IDENTITY_BASELINE_OFFSET) * SCALE;
+    drawWithGlow(ctx, () => ctx.fillText(discordUsername, line2X, line2Y));
 
     if (!backgroundBuffer) {
         return canvas.toBuffer('image/png');
     }
 
     // ── Plano de fundo full-bleed atrás do card inteiro ────────────────────
-    // Imagem final 1000x500 (plano de fundo cortado em cover fit pra esse
-    // tamanho exato). Card ENCAIXADO dentro de uma caixa de até 845x480,
-    // preservando a proporção NATIVA dele (716:458 ≈ 1.56:1) — sem esticar.
-    // Como escalar pra largura=845 exigiria altura≈540 (estoura os 480 e o
-    // canvas de 500), quem manda é a ALTURA (480): a largura sai menor que
-    // 845 (≈750), sem distorcer nada. Alinhamento: encostado na borda
-    // ESQUERDA do canvas inteiro e centralizado verticalmente.
-    const FINAL_W = 1000;
-    const FINAL_H = 500;
-    const CARD_BOX_H = 480;
-    const CARD_W = Math.round(CARD_BOX_H * (canvas.width / canvas.height));
-    const CARD_H = CARD_BOX_H;
+    // Canvas final no tamanho EXATO do card (mesma resolução nativa, sem
+    // caixa custom separada) — pedido do dono: o plano de fundo tem que
+    // ficar "no tamanho exato do png" do card, igual ao mockup do Figma
+    // (o retângulo full-canvas de fundo que veio nos SVGs do Compy/Raptor
+    // era 800x427, do tamanho do card). O card cobre 100% do canvas (sem
+    // escalar/reposicionar) — o plano de fundo só aparece nos espaços
+    // transparentes que o próprio card já tem (à direita dos badges,
+    // embaixo da identificação).
+    const FINAL_W = canvas.width;
+    const FINAL_H = canvas.height;
+    const CARD_W = canvas.width;
+    const CARD_H = canvas.height;
     const cardX = 0;
-    const cardY = Math.round((FINAL_H - CARD_H) / 2);
+    const cardY = 0;
 
     let bgRotated;
     try {
