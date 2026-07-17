@@ -44,12 +44,12 @@ module.exports = {
             .setDescription('Corpo do comunicado (markdown suportado)')
             .setRequired(true)
             .setMaxLength(3900))
-        .addAttachmentOption(opt => opt.setName('imagem')
-            .setDescription('Imagem opcional pra acompanhar o comunicado')
-            .setRequired(false))
         .addStringOption(opt => opt.setName('confirmar')
             .setDescription(`Digite "${CONFIRM_PHRASE}" para confirmar o envio`)
-            .setRequired(true)),
+            .setRequired(true))
+        .addAttachmentOption(opt => opt.setName('imagem')
+            .setDescription('Imagem opcional pra acompanhar o comunicado')
+            .setRequired(false)),
 
     // client aqui é sempre o bot PRINCIPAL (já está em todos os servidores
     // de cliente) — ver src/systems/core/devBot.js.
