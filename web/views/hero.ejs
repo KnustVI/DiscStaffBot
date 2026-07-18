@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titan's Pass — O bot preferido da sua staff</title>
+
+    <!-- Fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN (mesmo padrão do resto do dashboard) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-dark': '#1F1D20',
+                        'titan-cream': '#F8DCC0',
+                        'titan-accent': '#803E30',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; background: #111111; }
+        [data-i18n-en] { display: none; }
+        html[data-lang="en"] [data-i18n-pt] { display: none; }
+        html[data-lang="en"] [data-i18n-en] { display: initial; }
+
+        .text-shadow-figma { text-shadow: 2px 5px 5px #000000; }
+
+        .btn-primary {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            min-width: 200px;
+            height: 39px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #F8DCC0;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn-primary:hover { background: #803E30; border-color: #F8DCC0; }
+        .btn-primary.small { min-width: 0; height: 39px; font-size: 15px; padding: 5px 18px; }
+        .nav-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 300;
+            font-size: 14px;
+            color: #F8DCC0;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .lang-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 14px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .lang-btn:hover { background: #803E30; border-color: #F8DCC0; }
+
+        .section-title {
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: clamp(22px, 3vw, 32px);
+            text-transform: uppercase;
+            color: #F8DCC0;
+        }
+        .feature-card {
+            box-shadow: inset 0 4px 4px rgba(0,0,0,0.25), 12px 15px 11.5px rgba(0,0,0,0.36), 0 0 2.3px #DCA15E;
+            border-radius: 10px;
+        }
+        .quote-card {
+            background: #1A1A1A;
+            border: 1px solid #3E3D38;
+            border-radius: 18px;
+            padding: 24px;
+        }
+        .icon-badge {
+            width: 75px; height: 75px; border-radius: 50%;
+            background: #4B2427; border: 4px solid #803E30;
+            box-shadow: 0 12px 18px 11px rgba(1, 2, 10, 0.45);
+            display: flex; align-items: center; justify-content: center;
+            flex: none;
+        }
+        .pricing-card {
+            background: #1A1A1A;
+            border: 1px solid #3E3D38;
+            border-radius: 18px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+        .pricing-card.featured { border-color: #803E30; box-shadow: 0 0 0 1px #803E30; }
+        .vine-divider { width: 100%; display: block; pointer-events: none; user-select: none; }
+
+        .cmp-table { width: 100%; max-width: 1100px; border-collapse: collapse; }
+        .cmp-table th, .cmp-table td {
+            border: 1px solid #F8DCC0; padding: 14px 16px; vertical-align: top;
+            font-family: 'Poppins', sans-serif; font-size: 14px; color: #F8DCC0;
+        }
+        .cmp-table th { font-family: 'Tilt Warp', sans-serif; font-size: 20px; text-transform: uppercase; }
+        .cmp-table td.label { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; }
+        .cmp-price { font-family: 'Tilt Warp', sans-serif; font-size: 24px; text-align: center; padding: 14px; }
+    </style>
+</head>
+<body class="text-titan-cream">
+
+<!-- ===================== NAV + HERO ===================== -->
+<div class="relative w-full" style="background: linear-gradient(180deg, #1F1D20 0%, #111111 100%);">
+
+    <nav class="w-full flex flex-wrap items-center justify-center relative z-10" style="gap: clamp(10px, 2vw, 20px); padding: 20px 16px 10px;">
+        <% if (user) { %>
+            <span class="absolute left-4 top-4 hidden md:flex items-center gap-2 text-sm opacity-80" style="font-family:'Poppins',sans-serif;">
+                <%= (user.nickname || user.global_name || user.username) %>
+            </span>
+        <% } %>
+        <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+        <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
+        <a href="#" class="nav-btn"><span data-i18n-pt>PATCH UPDATES</span><span data-i18n-en>PATCH UPDATES</span></a>
+        <a href="#" class="nav-btn"><span data-i18n-pt>DOCUMENTATION</span><span data-i18n-en>DOCUMENTATION</span></a>
+        <a href="#" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
+        <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
+    </nav>
+
+    <section class="relative w-full flex flex-col items-center text-center px-4" style="padding: 40px 16px 80px;">
+        <img src="/images/landing/hero-bg-texture.webp" alt=""
+             class="absolute top-0 left-0 w-full h-full object-cover opacity-70 pointer-events-none select-none" style="z-index:0;">
+        <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
+            <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass" style="width: clamp(220px, 30vw, 380px);">
+            <h1 class="section-title text-shadow-figma" style="max-width: 700px;">
+                <span data-i18n-pt>O BOT PREFERIDO DA SUA STAFF!</span>
+                <span data-i18n-en>THE BOT YOUR STAFF WILL LOVE!</span>
+            </h1>
+            <p style="font-family:'Poppins',sans-serif; font-weight:600; font-size: clamp(14px, 1.4vw, 20px); max-width: 680px; opacity: 0.95;" class="text-shadow-figma">
+                <span data-i18n-pt>Focando nas melhores ferramentas que sua staff pode precisar para moderar, fazer eventos, e ainda te ajuda a acompanhar com uma análise completa sobre o atendimento da equipe e a margem de punições e quebras no seu servidor.</span>
+                <span data-i18n-en>Focused on the best tools your staff could need to moderate, run events, and help you keep a complete overview of your team's performance and of punishments and rule-breaks on your server.</span>
+            </p>
+            <div class="flex flex-wrap items-center justify-center gap-4 mt-2">
+                <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" class="btn-primary" target="_blank" rel="noopener">
+                    <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
+                </a>
+                <a href="/dashboard" class="btn-primary">
+                    <span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span>
+                </a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<img src="/images/landing/vine-border-top.webp" alt="" class="vine-divider" style="margin-top:-2px;">
+
+<!-- ===================== FEATURE SECTIONS ===================== -->
+<main class="w-full flex flex-col items-center" style="background:#111111; gap: 80px; padding: 20px 16px 90px;">
+
+    <%
+    // Texto extraído do arquivo real de CSS do Figma (Hero css.txt) — não é
+    // mais aproximação por print. Cada seção: print à esquerda, texto à
+    // direita (empilha em telas pequenas).
+    const features = [
+        {
+            img: 'screenshot-perfil', titlePt: 'PERFIL PRÉ-HISTÓRICO', titleEn: 'PREHISTORIC PROFILE',
+            leadPt: 'Todos nossos usuários podem desfrutar de um perfil com títulos e badges de sua caminhada no jogo.',
+            leadEn: 'Every user gets to enjoy a profile with titles and badges tracking their journey in the game.',
+            subPt: 'PERFIL ACESSÁVEL EM QUALQUER SERVIDOR QUE USE O BOT.', subEn: 'A PROFILE AVAILABLE ON ANY SERVER RUNNING THE BOT.',
+            bodyPt: 'Perfis customizáveis com imagem, títulos e badges. Faça missões do bot em qualquer servidor para adquirir prêmios e status in-game.',
+            bodyEn: "Customizable profiles with image, titles, and badges. Complete the bot's missions on any server to earn rewards and in-game status.",
+        },
+        {
+            img: 'screenshot-reporte-chat', titlePt: 'SISTEMA DE REPORTE', titleEn: 'REPORT SYSTEM',
+            leadPt: 'Reporte com chat privado com os moderadores, trazendo mais informações do jogo ao chat por webhook!',
+            leadEn: 'Report through a private chat with the moderators, bringing more in-game context to the chat via webhook!',
+            subPt: 'INFORMAÇÕES DETALHADAS.', subEn: 'DETAILED INFORMATION.',
+            bodyPt: 'Cria chat privado para resolução ou revisão de punições. Faz relatório da última morte do personagem indicado pelo jogador. Inclui informações como data, local e jogadores envolvidos.',
+            bodyEn: "Creates a private chat for resolving or appealing punishments. Builds a report of the player's last death. Includes details like date, location, and everyone involved.",
+        },
+        {
+            img: 'screenshot-strike', titlePt: 'SISTEMA DE PUNIÇÃO', titleEn: 'PUNISHMENT SYSTEM',
+            leadPt: 'Integrado com pontuação de reputação e histórico de todos os usuários.',
+            leadEn: "Integrated with a reputation score and full history for every user.",
+            subPt: 'REGISTRO COMPLETO', subEn: 'FULL RECORD',
+            bodyPt: 'Todas as punições são registradas e notificam os usuários no privado do Discord, sem exposições desnecessárias.',
+            bodyEn: 'Every punishment is logged and the user is notified privately on Discord, with no unnecessary exposure.',
+        },
+        {
+            img: 'screenshot-strike-revogado', noHeading: true,
+            subPt: 'CONTROLE', subEn: 'CONTROL',
+            bodyPt: 'Punições e pontos são facilmente ajustáveis e possuem registros de tudo.',
+            bodyEn: 'Punishments and points are easy to adjust, with a full record kept of everything.',
+        },
+        {
+            img: 'screenshot-historico', noHeading: true,
+            subPt: 'HISTÓRICO', subEn: 'HISTORY',
+            bodyPt: 'Todo o histórico do player fica registrado sem exceções, com acesso somente para staffs, com informações isoladas por servidor.',
+            bodyEn: "A player's full history stays on record with no exceptions, accessible only to staff, isolated per server.",
+        },
+        {
+            img: 'screenshot-evento', titlePt: 'AUXILIAR DE EVENTOS', titleEn: 'EVENT HELPER',
+            leadPt: 'Cria, promove e chama seus players para todos os eventos agendados.',
+            leadEn: 'Creates, promotes, and pings your players for every scheduled event.',
+            subPt: 'AUXILIAR DE EVENTOS', subEn: 'EVENT HELPER',
+            bodyPt: 'Cria eventos no canal desejado. Agenda o evento pelo Discord. Posta o evento e chama os players nos horários agendados. Cria comando de TP para o evento direto do Discord, bastando o jogador estar online.',
+            bodyEn: 'Creates events in the desired channel. Schedules the event right on Discord. Posts the event and pings players at the scheduled time. Creates an in-Discord TP command for the event, as long as the player is online.',
+        },
+    ];
+    %>
+
+    <% features.forEach((f, i) => { %>
+        <div class="w-full flex flex-col <%= i % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse' %> items-center gap-10" style="max-width: 1100px;">
+            <img src="/images/landing/<%= f.img %>.webp" alt="" class="feature-card w-full lg:w-1/2" style="max-width: 420px; height: auto;">
+            <div class="w-full lg:w-1/2 flex flex-col gap-3">
+                <% if (!f.noHeading) { %>
+                    <h2 class="section-title text-shadow-figma"><span data-i18n-pt><%= f.titlePt %></span><span data-i18n-en><%= f.titleEn %></span></h2>
+                    <p style="font-family:'Poppins',sans-serif; font-weight:600; opacity: 0.9;" class="text-shadow-figma"><span data-i18n-pt><%= f.leadPt %></span><span data-i18n-en><%= f.leadEn %></span></p>
+                    <div class="w-full h-px" style="background:#3E3D38; margin: 8px 0;"></div>
+                <% } %>
+                <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
+                    <span data-i18n-pt><%= f.subPt %></span><span data-i18n-en><%= f.subEn %></span>
+                </h3>
+                <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                    <span data-i18n-pt><%= f.bodyPt %></span><span data-i18n-en><%= f.bodyEn %></span>
+                </p>
+            </div>
+        </div>
+    <% }); %>
+
+    <!-- AutoModeração — bloco só de texto (assim como no design original) -->
+    <div class="w-full flex flex-col items-center text-center gap-3" style="max-width: 1100px;">
+        <h2 class="section-title text-shadow-figma"><span data-i18n-pt>AUTOMODERAÇÃO</span><span data-i18n-en>AUTO-MODERATION</span></h2>
+        <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; max-width: 800px;" class="text-shadow-figma">
+            <span data-i18n-pt>Cargo temporário de strike. Maneja automaticamente cargos de reputação de acordo com a pontuação do player. Aplica ações de punição como ban/kick e mute no Discord ou no jogo via RCON.</span>
+            <span data-i18n-en>Temporary strike role. Automatically manages reputation roles based on the player's score. Applies punishment actions like ban/kick and mute on Discord or in-game via RCON.</span>
+        </p>
+    </div>
+
+    <!-- Análise e Histórico de Atividade Staff — dois prints empilhados + texto -->
+    <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
+        <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
+            <img src="/images/landing/screenshot-automod.webp" alt="" class="feature-card w-full">
+            <img src="/images/landing/screenshot-analise-staff.webp" alt="" class="feature-card w-full">
+        </div>
+        <div class="w-full lg:w-1/2 flex flex-col gap-3">
+            <h2 class="section-title text-shadow-figma"><span data-i18n-pt>ANÁLISE E HISTÓRICO DE ATIVIDADE STAFF</span><span data-i18n-en>STAFF ACTIVITY ANALYSIS & HISTORY</span></h2>
+            <p style="font-family:'Poppins',sans-serif; font-weight:600; opacity: 0.9;" class="text-shadow-figma">
+                <span data-i18n-pt>Diariamente apresentando dados de desempenho geral do servidor.</span>
+                <span data-i18n-en>Presenting daily server-wide performance data.</span>
+            </p>
+            <div class="w-full h-px" style="background:#3E3D38; margin: 8px 0;"></div>
+            <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
+                <span data-i18n-pt>AUTOSUPERVISÃO</span><span data-i18n-en>SELF-MONITORING</span>
+            </h3>
+            <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                <span data-i18n-pt>Maneja automaticamente cargos de reputação de acordo com a pontuação do player. Vigia e alerta sobre jogadores com reputação crítica negativa. Analisa os staffs mais ativos no sistema — aplicando punições, atendendo reportes ou criando eventos.</span>
+                <span data-i18n-en>Automatically manages reputation roles based on the player's score. Watches for and alerts on players with critically negative reputation. Analyzes the most active staff in the system — applying punishments, handling reports, or creating events.</span>
+            </p>
+        </div>
+    </div>
+
+</main>
+
+<img src="/images/landing/vine-border-dino-scene.webp" alt="" class="vine-divider">
+
+<!-- ===================== O QUE ESTAMOS PROMOVENDO ===================== -->
+<section class="w-full flex flex-col items-center" style="background:#111111; padding: 60px 16px;">
+    <h2 class="section-title text-shadow-figma mb-2 text-center">
+        <span data-i18n-pt>O QUE O TITAN'S PASS ESTÁ PROMOVENDO</span>
+        <span data-i18n-en>WHAT TITAN'S PASS IS DELIVERING</span>
+    </h2>
+    <p class="mb-10 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
+        <span data-i18n-pt>Usuários ativos de servidores de jogos aprovaram!</span>
+        <span data-i18n-en>Active users on game servers approve!</span>
+    </p>
+    <div class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" style="max-width: 1200px;">
+        <%
+        const quotes = [
+            { pt: '"O Titan\'s Pass tornou a experiência muito mais prática e organizada. O sistema é rápido, intuitivo e oferece benefícios realmente úteis. Recomendo para quem busca mais comodidade e vantagens dentro da comunidade."',
+              en: '"Titan\'s Pass made the experience much more practical and organized. The system is fast, intuitive, and offers genuinely useful benefits. I recommend it to anyone looking for more convenience and perks within the community."' },
+            { pt: '"Desde que comecei a utilizar o Titan\'s Pass, percebi uma grande diferença na qualidade da experiência. Os recursos são bem planejados, fáceis de acessar e agregam muito valor ao dia a dia. Excelente iniciativa."',
+              en: "\"Ever since I started using Titan's Pass, I've noticed a huge difference in the quality of the experience. The features are well planned, easy to access, and add a lot of value day to day. Excellent initiative.\"" },
+            { pt: '"O Titan\'s Pass entrega exatamente o que promete. Os benefícios são relevantes, o acesso é simples e a plataforma transmite profissionalismo em todos os detalhes. Um dos melhores sistemas de vantagens que já utilizei."',
+              en: "\"Titan's Pass delivers exactly what it promises. The benefits are relevant, access is simple, and the platform feels professional down to every detail. One of the best perk systems I've ever used.\"" },
+            { pt: '"Gostei bastante do Titan\'s Pass. Além de oferecer vantagens interessantes, ele incentiva a participação da comunidade e recompensa os membros de forma justa. A experiência é fluida e muito bem estruturada."',
+              en: "\"I really liked Titan's Pass. Besides offering interesting perks, it encourages community participation and rewards members fairly. The experience is smooth and very well structured.\"" },
+        ];
+        %>
+        <% quotes.forEach(q => { %>
+            <div class="quote-card flex flex-col items-center text-center gap-4">
+                <div class="icon-badge">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="#803E30"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5Z"/></svg>
+                </div>
+                <p style="font-family:'Poppins',sans-serif; font-size: 14px; opacity: 0.9;" class="text-shadow-figma">
+                    <span data-i18n-pt><%= q.pt %></span><span data-i18n-en><%= q.en %></span>
+                </p>
+            </div>
+        <% }); %>
+    </div>
+</section>
+
+<!-- ===================== PLAYER PREMIUM ===================== -->
+<section id="premium" class="w-full flex flex-col items-center" style="background:#111111; padding: 60px 16px;">
+    <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>PLAYER PREMIUM</span><span data-i18n-en>PLAYER PREMIUM</span></h2>
+    <p class="mb-10 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
+        <span data-i18n-pt>Personalize seu perfil e participe das missões mensais do bot!</span>
+        <span data-i18n-en>Customize your profile and take part in the bot's monthly missions!</span>
+    </p>
+    <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6" style="max-width: 1000px;">
+        <div class="pricing-card">
+            <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase;">FREE</h3>
+            <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9; margin-top:12px;">
+                <li><span data-i18n-pt>Perfil sincronizado com o Discord</span><span data-i18n-en>Profile synced with Discord</span></li>
+                <li><span data-i18n-pt>Badges de missões</span><span data-i18n-en>Mission badges</span></li>
+                <li><span data-i18n-pt>Títulos de missões</span><span data-i18n-en>Mission titles</span></li>
+                <li><span data-i18n-pt>Farm de caçadas por hora de jogo</span><span data-i18n-en>Hunt farming per hour played</span></li>
+            </ul>
+        </div>
+        <div class="pricing-card featured">
+            <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:#DCA15E;">COMPY</h3>
+            <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:#DCA15E;">R$10<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>
+            <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Free +</span><span data-i18n-en>Everything in Free +</span></p>
+            <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
+                <li><span data-i18n-pt>Perfil personalizável pela loja</span><span data-i18n-en>Store-customizable profile</span></li>
+                <li><span data-i18n-pt>Badge exclusivo</span><span data-i18n-en>Exclusive badge</span></li>
+                <li><span data-i18n-pt>Títulos exclusivos</span><span data-i18n-en>Exclusive titles</span></li>
+                <li><span data-i18n-pt>Boost de farm por troféu entregue</span><span data-i18n-en>Farm boost per trophy delivered</span></li>
+            </ul>
+        </div>
+        <div class="pricing-card">
+            <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:#FF4E3B;">RAPTOR</h3>
+            <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:#FF4E3B;">R$25<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>
+            <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Compy +</span><span data-i18n-en>Everything in Compy +</span></p>
+            <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
+                <li><span data-i18n-pt>Perfil 100% personalizável com suas próprias imagens</span><span data-i18n-en>100% custom profile with your own images</span></li>
+                <li><span data-i18n-pt>Boost de farm por missão Titan concluída</span><span data-i18n-en>Farm boost per completed Titan mission</span></li>
+                <li><span data-i18n-pt>Sorteio mensal de pacote de skins do POT</span><span data-i18n-en>Monthly PoT skin package giveaway</span></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== SERVER PREMIUM ===================== -->
+<section class="w-full flex flex-col items-center" style="background:#111111; padding: 20px 16px 70px;">
+    <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>SERVER PREMIUM</span><span data-i18n-en>SERVER PREMIUM</span></h2>
+    <p class="mb-4 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
+        <span data-i18n-pt>Melhore tudo que puder no seu servidor!</span>
+        <span data-i18n-en>Level up everything you can on your server!</span>
+    </p>
+    <p class="mb-10 text-center opacity-60 text-sm" style="font-family:'Poppins',sans-serif;">
+        <span data-i18n-pt>Necessário ser um Host de Path of Titans.</span>
+        <span data-i18n-en>Requires being a Path of Titans server host.</span>
+    </p>
+
+    <div class="w-full overflow-x-auto" style="max-width: 1150px;">
+    <table class="cmp-table mx-auto">
+        <thead>
+            <tr>
+                <th style="border:none;"></th>
+                <th>FREE</th>
+                <th style="color:#DCA15E;">RASTREADOR<br><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-pt>Tudo do Free +</span><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-en>Everything in Free +</span></th>
+                <th style="color:#FF4E3B;">CAÇADOR<br><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-pt>Tudo do Rastreador +</span><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-en>Everything in Rastreador +</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            <%
+            const rows = [
+                { labelPt: 'MISSÕES', labelEn: 'MISSIONS',
+                  free: { pt: "Missões mensais do Titan's Pass (em breve).", en: "Titan's Pass monthly missions (coming soon)." },
+                  rast: { pt: '1 missão mensal exclusiva para o servidor (em breve). Badge exclusiva para players (em breve).', en: '1 monthly mission exclusive to the server (coming soon). Exclusive badge for players (coming soon).' },
+                  cac: { pt: '2 missões mensais exclusivas para o servidor (em breve).', en: '2 monthly missions exclusive to the server (coming soon).' } },
+                { labelPt: 'REPORTES', labelEn: 'REPORTS',
+                  free: { pt: 'Até 1 chat de reporte ativo. Até 1 revisão de punição ativa. Cooldown de 6h.', en: 'Up to 1 active report chat. Up to 1 active punishment review. 6h cooldown.' },
+                  rast: { pt: 'Até 3 chats de reporte ativos. Até 3 revisões de punição ativas. Sem tempo de espera.', en: 'Up to 3 active report chats. Up to 3 active punishment reviews. No cooldown.' },
+                  cac: { pt: 'Chats de reporte ilimitados, sem tempo de espera. Resumo automático dos logs dos possíveis envolvidos direto no chat (em breve). Personalização de banners e mensagem do painel.', en: 'Unlimited report chats, no cooldown. Automatic summary of involved players\' logs right in the chat (coming soon). Banner and panel message customization.' } },
+                { labelPt: 'MODERAÇÃO', labelEn: 'MODERATION',
+                  free: { pt: 'Registro de punições.', en: 'Punishment logging.' },
+                  rast: { pt: 'Sistema de pontos de reputação. Cargo temporário de punição. Até 4 níveis de punição configuráveis. Histórico de punições.', en: 'Reputation point system. Temporary punishment role. Up to 4 configurable punishment levels. Punishment history.' },
+                  cac: { pt: 'Cargo temporário de punição. Até 10 níveis de punição configuráveis. Personalização de qual comando requer supervisão. Cargos de reputação automáticos. Análise de atividade de staff.', en: 'Temporary punishment role. Up to 10 configurable punishment levels. Customize which command requires supervisor approval. Automatic reputation roles. Staff activity analysis.' } },
+                { labelPt: 'EVENTOS', labelEn: 'EVENTS',
+                  free: { pt: 'Cria eventos em fóruns. Suporte para imagem de capa do evento.', en: 'Creates events in forums. Supports an event cover image.' },
+                  rast: { pt: 'Cria eventos diretamente no Discord. Marca automaticamente jogadores com o cargo selecionado.', en: 'Creates events directly on Discord. Automatically pings players with the selected role.' },
+                  cac: { pt: 'Anuncia automaticamente a criação, o início e o encerramento dos eventos. Faz postagem em redes sociais (em breve). Análise de atividade de staff.', en: 'Automatically announces event creation, start, and end. Posts to social media (coming soon). Staff activity analysis.' } },
+                { labelPt: 'INTEGRAÇÃO PATH OF TITANS', labelEn: 'PATH OF TITANS INTEGRATION',
+                  free: { pt: 'Logs de jogo por webhook.', en: 'In-game logs via webhook.' },
+                  rast: { pt: 'Ação automática em jogo (RCON) nas punições. Aviso automático em jogo antes de eventos. Botões de teleporte configuráveis.', en: 'Automatic in-game action (RCON) on punishments. Automatic in-game event reminders. Configurable teleport buttons.' },
+                  cac: { pt: 'Todos os comandos disponíveis para aplicar in-game via RCON. Comando de TP integrado à criação de eventos. Criar comando de buff personalizado. Postagem automática de ninhos (em breve). Mute automático in-game com filtro personalizado de palavras.', en: 'Every command available to apply in-game via RCON. TP command integrated into event creation. Create a custom buff command. Automatic nest posting (coming soon). Automatic in-game mute with a custom word filter.' } },
+                { labelPt: 'BONUS', labelEn: 'BONUS',
+                  free: { pt: '—', en: '—' },
+                  rast: { pt: 'O proprietário do servidor recebe Player Premium Compy gratuitamente.', en: 'The server owner gets Player Premium Compy for free.' },
+                  cac: { pt: 'O proprietário do servidor recebe Player Premium Raptor gratuitamente. Personalização de banners, cores e rodapé dos painéis.', en: 'The server owner gets Player Premium Raptor for free. Banner, color, and panel footer customization.' } },
+            ];
+            %>
+            <% rows.forEach(r => { %>
+                <tr>
+                    <td class="label"><span data-i18n-pt><%= r.labelPt %></span><span data-i18n-en><%= r.labelEn %></span></td>
+                    <td><span data-i18n-pt><%= r.free.pt %></span><span data-i18n-en><%= r.free.en %></span></td>
+                    <td><span data-i18n-pt><%= r.rast.pt %></span><span data-i18n-en><%= r.rast.en %></span></td>
+                    <td><span data-i18n-pt><%= r.cac.pt %></span><span data-i18n-en><%= r.cac.en %></span></td>
+                </tr>
+            <% }); %>
+            <tr>
+                <td class="label"><span data-i18n-pt>PREÇO</span><span data-i18n-en>PRICE</span></td>
+                <td class="cmp-price">R$0</td>
+                <td class="cmp-price" style="color:#DCA15E;">R$25<span style="font-size:14px;">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></td>
+                <td class="cmp-price" style="color:#FF4E3B;">R$40<span style="font-size:14px;">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+</section>
+
+<img src="/images/landing/dino-scene-bottom.webp" alt="" class="vine-divider">
+
+<!-- ===================== PORQUE USAR ===================== -->
+<section class="w-full flex flex-col items-center" style="background:#111111; padding: 60px 16px;">
+    <h2 class="section-title text-shadow-figma mb-10 text-center"><span data-i18n-pt>PORQUE USAR?</span><span data-i18n-en>WHY USE IT?</span></h2>
+    <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-10" style="max-width: 1100px;">
+        <%
+        const why = [
+            { icon: '<path d="M12 3v14"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/>', pt: 'Reduza tarefas repetitivas com sistemas automatizados que ajudam a manter a comunidade organizada, permitindo que a equipe foque no que realmente importa.',
+              en: 'Cut down on repetitive tasks with automated systems that help keep the community organized, letting your team focus on what really matters.' },
+            { icon: '<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>', pt: 'Centralize ferramentas de administração, moderação e monitoramento em uma única plataforma, simplificando a gestão do servidor e aumentando a eficiência da equipe.',
+              en: 'Centralize administration, moderation, and monitoring tools on a single platform, simplifying server management and boosting your team\'s efficiency.' },
+            { icon: '<circle cx="10" cy="14" r="6"/><path d="m21 3-6.75 6.75"/><path d="m16 3 5 5"/><path d="M10 10.5v7"/><path d="M6.5 14h7"/>', pt: 'Ofereça uma experiência mais dinâmica para os membros com recursos modernos, respostas rápidas e funcionalidades desenvolvidas para fortalecer o engajamento da comunidade.',
+              en: 'Offer members a more dynamic experience with modern features, fast responses, and functionality built to strengthen community engagement.' },
+        ];
+        %>
+        <% why.forEach(w => { %>
+            <div class="flex flex-col items-center text-center gap-4">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#F8DCC0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><%- w.icon %></svg>
+                <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9;" class="text-shadow-figma">
+                    <span data-i18n-pt><%= w.pt %></span><span data-i18n-en><%= w.en %></span>
+                </p>
+            </div>
+        <% }); %>
+    </div>
+    <div class="flex flex-wrap items-center justify-center gap-4 mt-12">
+        <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" class="btn-primary" target="_blank" rel="noopener">
+            <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
+        </a>
+        <a href="/dashboard" class="btn-primary">
+            <span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span>
+        </a>
+    </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="w-full flex flex-col items-center" style="background:#111111; padding: 30px 16px;">
+    <span class="opacity-80 text-sm" style="font-family:'Poppins',sans-serif; font-weight:300;">BY: KNUST SEIER VI</span>
+</footer>
+
+<script>
+    (function () {
+        const stored = localStorage.getItem('titanspass_lang') || 'pt';
+        document.documentElement.setAttribute('data-lang', stored);
+        document.getElementById('langBtnLabel').textContent = stored === 'pt' ? 'EN' : 'PT';
+    })();
+
+    function toggleLang() {
+        const current = document.documentElement.getAttribute('data-lang') || 'pt';
+        const next = current === 'pt' ? 'en' : 'pt';
+        document.documentElement.setAttribute('data-lang', next);
+        localStorage.setItem('titanspass_lang', next);
+        document.getElementById('langBtnLabel').textContent = next === 'pt' ? 'EN' : 'PT';
+    }
+</script>
+
+</body>
+</html>

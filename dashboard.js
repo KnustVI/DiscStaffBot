@@ -62,7 +62,7 @@ function loadDashboard(client) {
     // --- 4. MIDDLEWARES DE PROTEÇÃO ---
     function checkAuth(req, res, next) {
         if (req.isAuthenticated()) return next();
-        res.redirect('/login'); 
+        res.redirect('/dashboard');
     }
 
     // Middleware para injetar dados globais em todos os templates EJS
@@ -75,10 +75,10 @@ function loadDashboard(client) {
     // --- 5. ROTAS DE AUTENTICAÇÃO ---
     app.get('/login', passport.authenticate('discord'));
     
-    app.get('/auth/discord/callback', passport.authenticate('discord', { 
-        failureRedirect: '/' 
+    app.get('/auth/discord/callback', passport.authenticate('discord', {
+        failureRedirect: '/dashboard'
     }), (req, res) => {
-        req.session.save(() => res.redirect('/'));
+        req.session.save(() => res.redirect('/dashboard'));
     });
 
     app.get('/logout', (req, res) => {
@@ -92,11 +92,17 @@ function loadDashboard(client) {
 
     // --- 6. ROTAS DE NAVEGAÇÃO ---
 
-    // Index: Seleção de Servidores
+    // Landing page pública (apresentação do bot) — primeira coisa que
+    // qualquer visitante vê, sem precisar estar logado.
     app.get('/', (req, res) => {
+        res.render('hero');
+    });
+
+    // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
+    app.get('/dashboard', (req, res) => {
         let adminGuilds = [];
         if (req.user && req.user.guilds) {
-            adminGuilds = req.user.guilds.filter(g => 
+            adminGuilds = req.user.guilds.filter(g =>
                 (parseInt(g.permissions) & 0x8) === 0x8 // Permissão de ADMINISTRADOR
             ).map(g => ({
                 ...g,
@@ -110,11 +116,11 @@ function loadDashboard(client) {
     app.get('/home/:guildID', checkAuth, async (req, res) => {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
-        
-        if (!guild) return res.redirect('/');
+
+        if (!guild) return res.redirect('/dashboard');
 
         const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
 
         // Dados do DB para a Dashboard
         const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
@@ -132,10 +138,10 @@ function loadDashboard(client) {
     app.get('/manage/:guildID', checkAuth, async (req, res) => {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
-        
-        if (!guild) return res.redirect('/');
+
+        if (!guild) return res.redirect('/dashboard');
         const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/');
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
 
         const settingsRows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
