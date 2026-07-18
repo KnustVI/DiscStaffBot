@@ -129,40 +129,39 @@
             flex-direction: column;
         }
         .pricing-card.featured { border-color: #803E30; box-shadow: 0 0 0 1px #803E30; }
+        .pricing-card ul { font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; margin:0; opacity:0.9; }
+        .pricing-card ul li { display:flex; gap:8px; align-items:flex-start; }
+        .pricing-card ul li::before { content: '✓'; color: #F8DCC0; flex: none; }
+        .pricing-card .cat-label { font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-top:16px; margin-bottom:4px; }
+        .pricing-card .cat-label:first-of-type { margin-top:4px; }
 
-        .cmp-table { width: 100%; max-width: 1100px; border-collapse: collapse; }
-        .cmp-table th, .cmp-table td {
-            border: 1px solid #F8DCC0; padding: 14px 16px; vertical-align: top;
-            font-family: 'Poppins', sans-serif; font-size: 14px; color: #F8DCC0;
-        }
-        .cmp-table th { font-family: 'Tilt Warp', sans-serif; font-size: 20px; text-transform: uppercase; }
-        .cmp-table td.label { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap; }
-        .cmp-price { font-family: 'Tilt Warp', sans-serif; font-size: 24px; text-align: center; padding: 14px; }
+        .hero-section-padding { padding: 130px 16px 80px; }
+        @media (min-width: 900px) { .hero-section-padding { padding-top: 100px; } }
     </style>
 </head>
 <body class="text-titan-cream">
 
-<!-- ===================== NAV + HERO ===================== -->
-<div class="relative w-full" style="background: linear-gradient(180deg, #1F1D20 0%, #111111 100%);">
+<!-- ===================== NAV (fixa, independente do scroll) ===================== -->
+<nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+    <% if (user) { %>
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80" style="font-family:'Poppins',sans-serif;">
+            <%= (user.nickname || user.global_name || user.username) %>
+        </span>
+    <% } %>
+    <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
+    <a href="#" class="nav-btn"><span data-i18n-pt>PATCH UPDATES</span><span data-i18n-en>PATCH UPDATES</span></a>
+    <a href="#" class="nav-btn"><span data-i18n-pt>DOCUMENTATION</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="#" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
+    <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
+</nav>
 
-    <nav class="w-full flex flex-wrap items-center justify-center sticky top-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
-        <% if (user) { %>
-            <span class="absolute left-4 top-4 hidden md:flex items-center gap-2 text-sm opacity-80" style="font-family:'Poppins',sans-serif;">
-                <%= (user.nickname || user.global_name || user.username) %>
-            </span>
-        <% } %>
-        <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
-        <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-        <a href="#" class="nav-btn"><span data-i18n-pt>PATCH UPDATES</span><span data-i18n-en>PATCH UPDATES</span></a>
-        <a href="#" class="nav-btn"><span data-i18n-pt>DOCUMENTATION</span><span data-i18n-en>DOCUMENTATION</span></a>
-        <a href="#" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
-        <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
-    </nav>
-
-    <section class="relative w-full flex flex-col items-center text-center px-4" style="padding: 40px 16px 80px;">
-        <img src="/images/landing/hero-bg-texture.webp" alt=""
-             class="absolute top-0 left-0 w-full h-full object-cover opacity-70 pointer-events-none select-none" style="z-index:0;">
-        <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
+<!-- ===================== HERO ===================== -->
+<section class="relative w-full flex flex-col items-center text-center px-4 hero-section-padding" style="overflow:hidden; border-radius: 50px 50px 0 0; box-shadow: 0 -12px 26.2px rgba(0,0,0,0.47);">
+    <img src="/images/landing/hero-bg-texture.webp" alt=""
+         class="absolute top-0 left-0 w-full h-full object-cover pointer-events-none select-none" style="z-index:0;">
+    <div class="absolute top-0 left-0 w-full h-full" style="z-index:0; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,0.75) 100%);"></div>
+    <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
             <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass" style="width: clamp(220px, 30vw, 380px);">
             <h1 class="section-title text-shadow-figma" style="max-width: 700px;">
                 <span data-i18n-pt>O BOT PREFERIDO DA SUA STAFF!</span>
@@ -182,7 +181,6 @@
             </div>
         </div>
     </section>
-</div>
 
 <!-- ===================== FEATURE SECTIONS ===================== -->
 <main class="w-full flex flex-col items-center" style="background:#111111; gap: 80px; padding: 20px 16px 90px;">
@@ -381,61 +379,70 @@
         <span data-i18n-en>Requires being a Path of Titans server host.</span>
     </p>
 
-    <div class="w-full overflow-x-auto" style="max-width: 1150px;">
-    <table class="cmp-table mx-auto">
-        <thead>
-            <tr>
-                <th style="border:none;"></th>
-                <th>FREE</th>
-                <th style="color:#DCA15E;">RASTREADOR<br><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-pt>Tudo do Free +</span><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-en>Everything in Free +</span></th>
-                <th style="color:#FF4E3B;">CAÇADOR<br><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-pt>Tudo do Rastreador +</span><span style="font-family:'Poppins',sans-serif; font-size:12px; text-transform:none; opacity:0.7;" data-i18n-en>Everything in Rastreador +</span></th>
-            </tr>
-        </thead>
-        <tbody>
-            <%
-            const rows = [
-                { labelPt: 'MISSÕES', labelEn: 'MISSIONS',
-                  free: { pt: "Missões mensais do Titan's Pass (em breve).", en: "Titan's Pass monthly missions (coming soon)." },
-                  rast: { pt: '1 missão mensal exclusiva para o servidor (em breve). Badge exclusiva para players (em breve).', en: '1 monthly mission exclusive to the server (coming soon). Exclusive badge for players (coming soon).' },
-                  cac: { pt: '2 missões mensais exclusivas para o servidor (em breve).', en: '2 monthly missions exclusive to the server (coming soon).' } },
-                { labelPt: 'REPORTES', labelEn: 'REPORTS',
-                  free: { pt: 'Até 1 chat de reporte ativo. Até 1 revisão de punição ativa. Cooldown de 6h.', en: 'Up to 1 active report chat. Up to 1 active punishment review. 6h cooldown.' },
-                  rast: { pt: 'Até 3 chats de reporte ativos. Até 3 revisões de punição ativas. Sem tempo de espera.', en: 'Up to 3 active report chats. Up to 3 active punishment reviews. No cooldown.' },
-                  cac: { pt: 'Chats de reporte ilimitados, sem tempo de espera. Resumo automático dos logs dos possíveis envolvidos direto no chat (em breve). Personalização de banners e mensagem do painel.', en: 'Unlimited report chats, no cooldown. Automatic summary of involved players\' logs right in the chat (coming soon). Banner and panel message customization.' } },
-                { labelPt: 'MODERAÇÃO', labelEn: 'MODERATION',
-                  free: { pt: 'Registro de punições.', en: 'Punishment logging.' },
-                  rast: { pt: 'Sistema de pontos de reputação. Cargo temporário de punição. Até 4 níveis de punição configuráveis. Histórico de punições.', en: 'Reputation point system. Temporary punishment role. Up to 4 configurable punishment levels. Punishment history.' },
-                  cac: { pt: 'Cargo temporário de punição. Até 10 níveis de punição configuráveis. Personalização de qual comando requer supervisão. Cargos de reputação automáticos. Análise de atividade de staff.', en: 'Temporary punishment role. Up to 10 configurable punishment levels. Customize which command requires supervisor approval. Automatic reputation roles. Staff activity analysis.' } },
-                { labelPt: 'EVENTOS', labelEn: 'EVENTS',
-                  free: { pt: 'Cria eventos em fóruns. Suporte para imagem de capa do evento.', en: 'Creates events in forums. Supports an event cover image.' },
-                  rast: { pt: 'Cria eventos diretamente no Discord. Marca automaticamente jogadores com o cargo selecionado.', en: 'Creates events directly on Discord. Automatically pings players with the selected role.' },
-                  cac: { pt: 'Anuncia automaticamente a criação, o início e o encerramento dos eventos. Faz postagem em redes sociais (em breve). Análise de atividade de staff.', en: 'Automatically announces event creation, start, and end. Posts to social media (coming soon). Staff activity analysis.' } },
-                { labelPt: 'INTEGRAÇÃO PATH OF TITANS', labelEn: 'PATH OF TITANS INTEGRATION',
-                  free: { pt: 'Logs de jogo por webhook.', en: 'In-game logs via webhook.' },
-                  rast: { pt: 'Ação automática em jogo (RCON) nas punições. Aviso automático em jogo antes de eventos. Botões de teleporte configuráveis.', en: 'Automatic in-game action (RCON) on punishments. Automatic in-game event reminders. Configurable teleport buttons.' },
-                  cac: { pt: 'Todos os comandos disponíveis para aplicar in-game via RCON. Comando de TP integrado à criação de eventos. Criar comando de buff personalizado. Postagem automática de ninhos (em breve). Mute automático in-game com filtro personalizado de palavras.', en: 'Every command available to apply in-game via RCON. TP command integrated into event creation. Create a custom buff command. Automatic nest posting (coming soon). Automatic in-game mute with a custom word filter.' } },
-                { labelPt: 'BONUS', labelEn: 'BONUS',
-                  free: { pt: '—', en: '—' },
-                  rast: { pt: 'O proprietário do servidor recebe Player Premium Compy gratuitamente.', en: 'The server owner gets Player Premium Compy for free.' },
-                  cac: { pt: 'O proprietário do servidor recebe Player Premium Raptor gratuitamente. Personalização de banners, cores e rodapé dos painéis.', en: 'The server owner gets Player Premium Raptor for free. Banner, color, and panel footer customization.' } },
-            ];
-            %>
-            <% rows.forEach(r => { %>
-                <tr>
-                    <td class="label"><span data-i18n-pt><%= r.labelPt %></span><span data-i18n-en><%= r.labelEn %></span></td>
-                    <td><span data-i18n-pt><%= r.free.pt %></span><span data-i18n-en><%= r.free.en %></span></td>
-                    <td><span data-i18n-pt><%= r.rast.pt %></span><span data-i18n-en><%= r.rast.en %></span></td>
-                    <td><span data-i18n-pt><%= r.cac.pt %></span><span data-i18n-en><%= r.cac.en %></span></td>
-                </tr>
-            <% }); %>
-            <tr>
-                <td class="label"><span data-i18n-pt>PREÇO</span><span data-i18n-en>PRICE</span></td>
-                <td class="cmp-price">R$0</td>
-                <td class="cmp-price" style="color:#DCA15E;">R$25<span style="font-size:14px;">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></td>
-                <td class="cmp-price" style="color:#FF4E3B;">R$40<span style="font-size:14px;">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></td>
-            </tr>
-        </tbody>
-    </table>
+    <%
+    // Mesmas categorias de antes (Missões/Reportes/Moderação/Eventos/
+    // Integração/Bônus), mas agora como 3 cards com lista de bullets em vez
+    // de tabela — pedido do dono: em parágrafo corrido fica difícil ver o
+    // que entra em cada tier, igual o Player Premium já resolve com <ul>.
+    const serverRows = [
+        { labelPt: 'MISSÕES', labelEn: 'MISSIONS',
+          free: { pt: "Missões mensais do Titan's Pass (em breve).", en: "Titan's Pass monthly missions (coming soon)." },
+          rast: { pt: '1 missão mensal exclusiva para o servidor (em breve). Badge exclusiva para players (em breve).', en: '1 monthly mission exclusive to the server (coming soon). Exclusive badge for players (coming soon).' },
+          cac: { pt: '2 missões mensais exclusivas para o servidor (em breve).', en: '2 monthly missions exclusive to the server (coming soon).' } },
+        { labelPt: 'REPORTES', labelEn: 'REPORTS',
+          free: { pt: 'Até 1 chat de reporte ativo. Até 1 revisão de punição ativa. Cooldown de 6h.', en: 'Up to 1 active report chat. Up to 1 active punishment review. 6h cooldown.' },
+          rast: { pt: 'Até 3 chats de reporte ativos. Até 3 revisões de punição ativas. Sem tempo de espera.', en: 'Up to 3 active report chats. Up to 3 active punishment reviews. No cooldown.' },
+          cac: { pt: 'Chats de reporte ilimitados, sem tempo de espera. Resumo automático dos logs dos possíveis envolvidos direto no chat (em breve). Personalização de banners e mensagem do painel.', en: 'Unlimited report chats, no cooldown. Automatic summary of involved players\' logs right in the chat (coming soon). Banner and panel message customization.' } },
+        { labelPt: 'MODERAÇÃO', labelEn: 'MODERATION',
+          free: { pt: 'Registro de punições.', en: 'Punishment logging.' },
+          rast: { pt: 'Sistema de pontos de reputação. Cargo temporário de punição. Até 4 níveis de punição configuráveis. Histórico de punições.', en: 'Reputation point system. Temporary punishment role. Up to 4 configurable punishment levels. Punishment history.' },
+          cac: { pt: 'Cargo temporário de punição. Até 10 níveis de punição configuráveis. Personalização de qual comando requer supervisão. Cargos de reputação automáticos. Análise de atividade de staff.', en: 'Temporary punishment role. Up to 10 configurable punishment levels. Customize which command requires supervisor approval. Automatic reputation roles. Staff activity analysis.' } },
+        { labelPt: 'EVENTOS', labelEn: 'EVENTS',
+          free: { pt: 'Cria eventos em fóruns. Suporte para imagem de capa do evento.', en: 'Creates events in forums. Supports an event cover image.' },
+          rast: { pt: 'Cria eventos diretamente no Discord. Marca automaticamente jogadores com o cargo selecionado.', en: 'Creates events directly on Discord. Automatically pings players with the selected role.' },
+          cac: { pt: 'Anuncia automaticamente a criação, o início e o encerramento dos eventos. Faz postagem em redes sociais (em breve). Análise de atividade de staff.', en: 'Automatically announces event creation, start, and end. Posts to social media (coming soon). Staff activity analysis.' } },
+        { labelPt: 'INTEGRAÇÃO PATH OF TITANS', labelEn: 'PATH OF TITANS INTEGRATION',
+          free: { pt: 'Logs de jogo por webhook.', en: 'In-game logs via webhook.' },
+          rast: { pt: 'Ação automática em jogo (RCON) nas punições. Aviso automático em jogo antes de eventos. Botões de teleporte configuráveis.', en: 'Automatic in-game action (RCON) on punishments. Automatic in-game event reminders. Configurable teleport buttons.' },
+          cac: { pt: 'Todos os comandos disponíveis para aplicar in-game via RCON. Comando de TP integrado à criação de eventos. Criar comando de buff personalizado. Postagem automática de ninhos (em breve). Mute automático in-game com filtro personalizado de palavras.', en: 'Every command available to apply in-game via RCON. TP command integrated into event creation. Create a custom buff command. Automatic nest posting (coming soon). Automatic in-game mute with a custom word filter.' } },
+        { labelPt: 'BÔNUS', labelEn: 'BONUS',
+          free: null,
+          rast: { pt: 'O proprietário do servidor recebe Player Premium Compy gratuitamente.', en: 'The server owner gets Player Premium Compy for free.' },
+          cac: { pt: 'O proprietário do servidor recebe Player Premium Raptor gratuitamente. Personalização de banners, cores e rodapé dos painéis.', en: 'The server owner gets Player Premium Raptor for free. Banner, color, and panel footer customization.' } },
+    ];
+    // Quebra "Frase um. Frase dois." em bullets separados — mesmo espírito
+    // das listas do Player Premium.
+    const splitBullets = (text) => (text || '')
+        .split(/\.\s+/)
+        .map(s => s.replace(/\.$/, '').trim())
+        .filter(Boolean);
+
+    const serverTiers = [
+        { key: 'free', name: 'FREE', color: '#F8DCC0', price: 'R$0', tagPt: null, tagEn: null, featured: false },
+        { key: 'rast', name: 'RASTREADOR', color: '#DCA15E', price: 'R$25', tagPt: 'Tudo do Free +', tagEn: 'Everything in Free +', featured: true },
+        { key: 'cac', name: 'CAÇADOR', color: '#FF4E3B', price: 'R$40', tagPt: 'Tudo do Rastreador +', tagEn: 'Everything in Rastreador +', featured: false },
+    ];
+    %>
+    <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6" style="max-width: 1100px;">
+        <% serverTiers.forEach(tier => { %>
+            <div class="pricing-card <%= tier.featured ? 'featured' : '' %>">
+                <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:<%= tier.color %>;"><%= tier.name %></h3>
+                <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:<%= tier.color %>;"><%= tier.price %><span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>
+                <% if (tier.tagPt) { %>
+                    <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt><%= tier.tagPt %></span><span data-i18n-en><%= tier.tagEn %></span></p>
+                <% } %>
+                <% serverRows.forEach(row => { %>
+                    <% const cell = row[tier.key]; if (cell) { %>
+                        <p class="cat-label"><span data-i18n-pt><%= row.labelPt %></span><span data-i18n-en><%= row.labelEn %></span></p>
+                        <ul>
+                            <% splitBullets(cell.pt).forEach((b, bi) => { %>
+                                <li><span data-i18n-pt><%= b %></span><span data-i18n-en><%= splitBullets(cell.en)[bi] || '' %></span></li>
+                            <% }); %>
+                        </ul>
+                    <% } %>
+                <% }); %>
+            </div>
+        <% }); %>
     </div>
 </section>
 
