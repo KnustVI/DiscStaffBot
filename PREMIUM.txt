@@ -29,7 +29,9 @@ FREE
   cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
-- Farme de cacadas por hora de jogo. (ainda nao implementado - "vindo em breve")
+- Farme de cacadas por hora de jogo: gera moeda da lojinha do bot (sem
+  nenhum efeito na taxa de farm dentro do jogo em si), trocavel so por
+  customizacao de perfil. (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes ("Tudo do Free +")
 - Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
@@ -54,8 +56,10 @@ COMPY - R$10/mes ("Tudo do Free +")
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
-- Perfil personalizavel pela loja (badge/titulo exclusivos, boost de farm
-  por trofeu). (ainda nao implementado - "vindo em breve")
+- Perfil personalizavel pela loja (badge/titulo exclusivos). Boost de farm
+  por trofeu: gera moeda da lojinha do bot (sem nenhum efeito na taxa de
+  farm dentro do jogo em si), trocavel so por customizacao de perfil.
+  (ainda nao implementado - "vindo em breve")
 
 RAPTOR - R$25/mes ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
@@ -73,7 +77,9 @@ RAPTOR - R$25/mes ("Tudo do Compy +")
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
   versao "banco de titulos" pro Compy, ver acima).
 - Footer de perfil padrao do tier Raptor.
-- Boost de farm por missao Titan concluida. (ainda nao implementado - "vindo em breve")
+- Boost de farm por missao Titan concluida: gera moeda da lojinha do bot
+  (sem nenhum efeito na taxa de farm dentro do jogo em si), trocavel so
+  por customizacao de perfil. (ainda nao implementado - "vindo em breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
   (ainda nao implementado - "vindo em breve")
 
@@ -4437,3 +4443,28 @@ frente, nao so este relatorio):
   claramente distinta do card, sem nenhum erro); teste de corte com imagem
   listrada confirma que as proporções do recorte batem com o cálculo
   matemático esperado (sem distorção).
+
+100) Esclarecido nas seções 1-2: "boost de farm" NUNCA afeta a taxa de
+     farm dentro do jogo em si — só gera moeda da lojinha do bot
+------------------------------------------------------------------
+- Correção do dono, motivada por uma revisão do texto da landing page
+  pública (`web/views/hero.ejs`): o texto de PERFIL PRÉ-HISTÓRICO mencionava
+  "prêmios e status in-game" — o dono deixou claro que o bot NUNCA concede
+  vantagem/status dentro do jogo em si através de prêmios de missão; os
+  prêmios são só customização de perfil, pra contar a história do jogador.
+  Corrigido na landing page.
+- Mesma ambiguidade existia nas seções 1-2 deste arquivo: "Farme de caçadas
+  por hora de jogo" (Free), "boost de farm por troféu" (Compy) e "Boost de
+  farm por missão Titan concluída" (Raptor) podiam ser lidos como uma
+  alteração real da taxa de farm dentro do jogo. Esclarecido nas 3 linhas:
+  todos esses "boosts" geram MOEDA DA LOJINHA DO BOT, trocável só por
+  customização de perfil — nenhum efeito na taxa de farm do jogo em si.
+  Nenhuma mudança de comportamento, só de texto (nenhuma dessas 3 features
+  está implementada ainda, ver "vindo em breve" em cada uma).
+- Item ainda em aberto, não tocado nesta seção: "Sorteio SEMANAL de pacote
+  de skins do Path of Titans" (Raptor, seção Player Premium) continua
+  descrito como algo desbloqueado pela assinatura paga — isso é diferente
+  do caso do "boost de farm" (skins são conteúdo de jogo de verdade, não
+  moeda da lojinha) e já foi sinalizado antes como risco de compliance com
+  o Modding Agreement da Alderon Games (que proíbe vender/paywall skins).
+  Vale revisar antes de tirar do "vindo em breve".
