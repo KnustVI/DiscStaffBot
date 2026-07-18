@@ -360,6 +360,20 @@
         <span data-i18n-pt>Personalize seu perfil e participe das missões mensais do bot!</span>
         <span data-i18n-en>Customize your profile and take part in the bot's monthly missions!</span>
     </p>
+    <%
+    // Preço/pagamento variam por região (isBrazil, ver dashboard.js): Brasil
+    // continua 100% manual via Pix (como hoje), fora do Brasil vai por
+    // Ko-fi em US$ — pedido do dono, PayPal direto exigiria conta Empresa
+    // com CNPJ que ele não tem. O idioma exibido continua controlado pelo
+    // toggle EN/PT normal (data-i18n-*), independente da região.
+    function pricingCta(priceBR, priceIntl, color) {
+        const moneyLine = `<p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:${color};">${isBrazil ? priceBR : priceIntl}<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>`;
+        const ctaLine = isBrazil
+            ? `<p class="text-xs opacity-70 mb-3" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Pagamento manual via Pix — fale com a staff.</span><span data-i18n-en>Manual payment via Pix — contact the staff.</span></p>`
+            : `<a href="https://ko-fi.com/knustvi" target="_blank" rel="noopener" class="btn-primary small" style="min-width:0; margin-bottom:12px;"><span data-i18n-pt>Assinar via Ko-fi</span><span data-i18n-en>Subscribe via Ko-fi</span></a>`;
+        return moneyLine + ctaLine;
+    }
+    %>
     <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6" style="max-width: 1000px;">
         <div class="pricing-card">
             <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase;">FREE</h3>
@@ -372,7 +386,7 @@
         </div>
         <div class="pricing-card featured">
             <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:#DCA15E;">COMPY</h3>
-            <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:#DCA15E;">R$10<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>
+            <%- pricingCta('R$10', '$6', '#DCA15E') %>
             <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Free +</span><span data-i18n-en>Everything in Free +</span></p>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
                 <li><span data-i18n-pt>Perfil personalizável pela loja</span><span data-i18n-en>Store-customizable profile</span></li>
@@ -383,7 +397,7 @@
         </div>
         <div class="pricing-card">
             <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:#FF4E3B;">RAPTOR</h3>
-            <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:#FF4E3B;">R$25<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>
+            <%- pricingCta('R$25', '$12', '#FF4E3B') %>
             <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Compy +</span><span data-i18n-en>Everything in Compy +</span></p>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
                 <li><span data-i18n-pt>Perfil 100% personalizável com suas próprias imagens</span><span data-i18n-en>100% custom profile with your own images</span></li>
@@ -445,16 +459,20 @@
         .filter(Boolean);
 
     const serverTiers = [
-        { key: 'free', name: 'FREE', color: '#F8DCC0', price: 'R$0', tagPt: null, tagEn: null, featured: false },
-        { key: 'rast', name: 'RASTREADOR', color: '#DCA15E', price: 'R$25', tagPt: 'Tudo do Free +', tagEn: 'Everything in Free +', featured: true },
-        { key: 'cac', name: 'CAÇADOR', color: '#FF4E3B', price: 'R$40', tagPt: 'Tudo do Rastreador +', tagEn: 'Everything in Rastreador +', featured: false },
+        { key: 'free', name: 'FREE', color: '#F8DCC0', priceBR: 'R$0', priceIntl: '$0', tagPt: null, tagEn: null, featured: false },
+        { key: 'rast', name: 'RASTREADOR', color: '#DCA15E', priceBR: 'R$25', priceIntl: '$12', tagPt: 'Tudo do Free +', tagEn: 'Everything in Free +', featured: true },
+        { key: 'cac', name: 'CAÇADOR', color: '#FF4E3B', priceBR: 'R$40', priceIntl: '$28', tagPt: 'Tudo do Rastreador +', tagEn: 'Everything in Rastreador +', featured: false },
     ];
     %>
     <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6" style="max-width: 1100px;">
         <% serverTiers.forEach(tier => { %>
             <div class="pricing-card <%= tier.featured ? 'featured' : '' %>">
                 <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:<%= tier.color %>;"><%= tier.name %></h3>
-                <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:<%= tier.color %>;"><%= tier.price %><span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>
+                <% if (tier.key === 'free') { %>
+                    <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:<%= tier.color %>;"><%= tier.priceBR %></p>
+                <% } else { %>
+                    <%- pricingCta(tier.priceBR, tier.priceIntl, tier.color) %>
+                <% } %>
                 <% if (tier.tagPt) { %>
                     <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt><%= tier.tagPt %></span><span data-i18n-en><%= tier.tagEn %></span></p>
                 <% } %>

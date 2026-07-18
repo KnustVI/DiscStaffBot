@@ -1,9 +1,29 @@
 TITAN'S PASS - SISTEMA DE PREMIUM
 ==================================================
 Explicacao dos planos pagos do bot: Player Premium (por jogador) e Server
-Premium (por servidor). Pagamento e feito por fora (Pix, etc.) e o tier e
-concedido manualmente pelo desenvolvedor do bot - nao ha cobranca automatica
-ainda.
+Premium (por servidor). Tier e concedido manualmente pelo desenvolvedor do
+bot - nao ha cobranca automatica ainda (nem via Pix, nem via Ko-fi).
+
+PRECO/PAGAMENTO POR REGIAO (decidido nesta revisao - ver secao de changelog
+mais recente pro raciocinio completo): a landing page publica do dashboard
+(web/views/hero.ejs) detecta a regiao do visitante pelo header CF-IPCountry
+do Cloudflare e mostra:
+- BRASIL: preco em R$ (os de sempre), pagamento 100% manual via Pix - sem
+  mudanca nenhuma aqui, continua exatamente como já era.
+- FORA DO BRASIL: preco em US$, pagamento via Ko-fi (https://ko-fi.com/knustvi).
+  Motivo de ser Ko-fi e nao PayPal direto: PayPal exige conta Empresa pra
+  receber pagamento comercial recorrente, e conta Empresa no Brasil exige
+  CNPJ (confirmado na pagina oficial de ajuda do PayPal Brasil) - o dono
+  nao tem CNPJ. Ko-fi processa por baixo dos panos e nao tem essa exigencia
+  pro criador.
+  Os valores em US$ foram calculados pra, DEPOIS de descontada a taxa do
+  Ko-fi/processador de pagamento (~9% + taxa fixa, cenario mais caro
+  considerado), o valor liquido recebido ainda bater com a meta em dolar
+  (Compy $5, Rastreador/Raptor $10, Cacador $25) - por isso os precos
+  cobrados sao um pouco mais altos que a meta liquida (ver tabela abaixo).
+  Ko-fi so aceita pagamento por PayPal (nao aceita Pix) - por isso o Ko-fi
+  atende só o publico de fora do Brasil, o Brasil continua pelo fluxo
+  manual de sempre.
 
 
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
@@ -33,7 +53,7 @@ FREE
   nenhum efeito na taxa de farm dentro do jogo em si), trocavel so por
   customizacao de perfil. (ainda nao implementado - "vindo em breve")
 
-COMPY - R$10/mes ("Tudo do Free +")
+COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
   comprar OUTROS banners na lojinha do bot pra trocar por esse.
   (compra de banners na lojinha ainda nao implementado - "vindo em breve")
@@ -61,7 +81,7 @@ COMPY - R$10/mes ("Tudo do Free +")
   farm dentro do jogo em si), trocavel so por customizacao de perfil.
   (ainda nao implementado - "vindo em breve")
 
-RAPTOR - R$25/mes ("Tudo do Compy +")
+RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
   JA IMPLEMENTADO: o /perfil mostra um CARD completo (moldura, foto,
   badges de Titulo/Nivel/Especie, estrelas de honra, nome e identificacao)
@@ -175,7 +195,7 @@ FREE
 - /config punishments BLOQUEADO neste tier (nada a configurar, ja que
   reputacao esta desativada).
 
-RASTREADOR - R$25/mes ("Tudo do Free +")
+RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Missoes: 1 missao mensal exclusiva para o servidor. (ainda nao
   implementado - "vindo em breve")
 - Reportes: ate 3 chats de reporte ativos, ate 3 revisoes de punicao
@@ -237,7 +257,7 @@ RASTREADOR - R$25/mes ("Tudo do Free +")
 - BONUS: o DONO do servidor Discord ganha Player Premium Compy automaticamente
   ao comprar o Rastreador (JA IMPLEMENTADO - ver secao 3).
 
-CAÇADOR - R$40/mes ("Tudo do Rastreador +")
+CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi) ("Tudo do Rastreador +")
 - Missoes: 2 missoes mensais exclusivas para o servidor. (ainda nao
   implementado - "vindo em breve")
 - Analise de atividade de staff. Prioridade de suporte!
@@ -4468,3 +4488,47 @@ frente, nao so este relatorio):
   moeda da lojinha) e já foi sinalizado antes como risco de compliance com
   o Modding Agreement da Alderon Games (que proíbe vender/paywall skins).
   Vale revisar antes de tirar do "vindo em breve".
+
+101) Preço/pagamento dual por região: Brasil continua Pix manual em R$,
+     fora do Brasil vai por Ko-fi em US$
+------------------------------------------------------------------
+- Motivação: o dono queria abrir pagamento internacional, mas PayPal direto
+  exige conta Empresa pra receber pagamento comercial recorrente, e conta
+  Empresa no Brasil exige CNPJ (confirmado direto na página oficial de
+  ajuda do PayPal Brasil) — o dono só tem CPF. Decisão: usar Ko-fi como
+  intermediário (não exige a mesma coisa do lado do criador) só pro público
+  de fora do Brasil; o Brasil continua exatamente como sempre foi (Pix +
+  concessão manual pelo dono, sem nenhuma automação).
+- Preços em US$ calculados pra, DEPOIS da taxa do Ko-fi/processador de
+  pagamento (estimativa conservadora ~9% + taxa fixa, cenário de taxa mais
+  alta considerado — PayPal internacional), o valor líquido recebido ainda
+  bater com a meta em dólar pedida pelo dono (Compy $5, Rastreador/Raptor
+  $10, Caçador $25). Por isso os preços cobrados ficam um pouco acima da
+  meta líquida:
+     Compy:      R$10 (Brasil) / US$6/mês  (fora do Brasil)
+     Raptor:     R$25 (Brasil) / US$12/mês (fora do Brasil)
+     Rastreador: R$25 (Brasil) / US$12/mês (fora do Brasil)
+     Caçador:    R$40 (Brasil) / US$28/mês (fora do Brasil)
+- Ko-fi só aceita PayPal como forma de pagamento (não aceita Pix) — reforça
+  a separação: quem é do Brasil não usa Ko-fi de jeito nenhum, continua no
+  fluxo manual de sempre.
+- Implementado em `web/views/hero.ejs` (landing page pública): detecção de
+  região via header `CF-IPCountry` (injetado automaticamente pelo
+  Cloudflare em toda requisição que passa pelo Tunnel, sem precisar de
+  serviço de geolocalização externo — ver `dashboard.js`, rota `GET /`).
+  Fallback pra 'BR' se o header não vier (ex: acesso local sem Cloudflare
+  na frente), pra nunca mandar alguém pro Ko-fi por engano só por falta do
+  header. Brasil mostra preço em R$ + aviso de pagamento manual via Pix;
+  fora do Brasil mostra preço em US$ + botão que leva pro Ko-fi
+  (https://ko-fi.com/knustvi) — nenhum webhook/automação de concessão de
+  tier via Ko-fi implementado ainda, é só o link de pagamento por enquanto.
+  Idioma exibido (PT/EN) continua controlado pelo toggle normal da página,
+  independente da região — são coisas separadas (região decide moeda/forma
+  de pagamento, toggle decide idioma).
+- Painéis do bot no Discord (`/premium`) NÃO foram alterados — continuam só
+  em R$. Motivo: não existe sinal confiável de região dentro de uma
+  interaction do Discord (não dá pra ler IP), só o idioma do cliente
+  (`interaction.locale`), que é uma aproximação fraca demais pra decidir
+  moeda de cobrança. Ficou definido que o Discord é só R$/Pix, e US$/Ko-fi
+  é exclusivo da landing page pública, que é o canal voltado pra quem vem
+  de fora.

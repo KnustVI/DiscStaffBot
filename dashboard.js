@@ -94,8 +94,18 @@ function loadDashboard(client) {
 
     // Landing page pública (apresentação do bot) — primeira coisa que
     // qualquer visitante vê, sem precisar estar logado.
+    //
+    // Preço/forma de pagamento variam por região: Brasil continua 100%
+    // manual (Pix + concessão de tier na mão, como já é hoje, em R$);
+    // fora do Brasil vai por Ko-fi, em US$. `cf-ipcountry` é injetado
+    // automaticamente pelo Cloudflare em toda requisição que passa pelo
+    // Tunnel — não precisa de nenhum serviço de geolocalização externo.
+    // Fallback pra 'BR' se o header não vier (ex: acesso direto sem
+    // Cloudflare, como em dev local) — mantém o comportamento atual (Pix)
+    // como padrão seguro em vez de mandar todo mundo pro Ko-fi por engano.
     app.get('/', (req, res) => {
-        res.render('hero');
+        const country = req.headers['cf-ipcountry'] || 'BR';
+        res.render('hero', { isBrazil: country.toUpperCase() === 'BR' });
     });
 
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
