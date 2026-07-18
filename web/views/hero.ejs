@@ -135,10 +135,13 @@
         .pricing-card .cat-label { font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-top:16px; margin-bottom:4px; }
         .pricing-card .cat-label:first-of-type { margin-top:4px; }
 
-        /* padding-top real do hero = altura da nav (medida via JS, já que
+        /* margin-top (não padding!) = altura da nav (medida via JS, já que
            ela quebra linha de formas diferentes dependendo da largura da
-           tela) + uma folga — nunca fica "no chute" com breakpoint fixo. */
-        .hero-section-padding { padding: calc(var(--nav-height, 130px) + 20px) 16px 80px; }
+           tela) + uma folga — precisa ser margin pra empurrar a PRÓPRIA
+           caixa da seção (com border-radius/box-shadow) pra baixo da nav
+           fixa; com padding só o conteúdo descia, a caixa continuava
+           colada debaixo da nav e os cantos arredondados nunca apareciam. */
+        .hero-section-padding { margin-top: calc(var(--nav-height, 130px) + 16px); padding: 40px 16px 80px; }
 
         /* Nav mais compacta em telas pequenas — menos padding/gap/fonte
            reduz quantas linhas ela quebra num celular. */
