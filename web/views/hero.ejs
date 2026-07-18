@@ -458,16 +458,19 @@
         .map(s => s.replace(/\.$/, '').trim())
         .filter(Boolean);
 
+    // Nomes dos tiers de SERVER PREMIUM traduzidos pro inglês (Rastreador ->
+    // Tracker, Caçador -> Hunter) — Player Premium (Compy/Raptor) não muda,
+    // já são nomes em inglês. Ver PREMIUM.txt seção 102.
     const serverTiers = [
-        { key: 'free', name: 'FREE', color: '#F8DCC0', priceBR: 'R$0', priceIntl: '$0', tagPt: null, tagEn: null, featured: false },
-        { key: 'rast', name: 'RASTREADOR', color: '#DCA15E', priceBR: 'R$25', priceIntl: '$12', tagPt: 'Tudo do Free +', tagEn: 'Everything in Free +', featured: true },
-        { key: 'cac', name: 'CAÇADOR', color: '#FF4E3B', priceBR: 'R$40', priceIntl: '$28', tagPt: 'Tudo do Rastreador +', tagEn: 'Everything in Rastreador +', featured: false },
+        { key: 'free', namePt: 'FREE', nameEn: 'FREE', color: '#F8DCC0', priceBR: 'R$0', priceIntl: '$0', tagPt: null, tagEn: null, featured: false },
+        { key: 'rast', namePt: 'RASTREADOR', nameEn: 'TRACKER', color: '#DCA15E', priceBR: 'R$25', priceIntl: '$12', tagPt: 'Tudo do Free +', tagEn: 'Everything in Free +', featured: true },
+        { key: 'cac', namePt: 'CAÇADOR', nameEn: 'HUNTER', color: '#FF4E3B', priceBR: 'R$40', priceIntl: '$28', tagPt: 'Tudo do Rastreador +', tagEn: 'Everything in Tracker +', featured: false },
     ];
     %>
     <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6" style="max-width: 1100px;">
         <% serverTiers.forEach(tier => { %>
             <div class="pricing-card <%= tier.featured ? 'featured' : '' %>">
-                <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:<%= tier.color %>;"><%= tier.name %></h3>
+                <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase; color:<%= tier.color %>;"><span data-i18n-pt><%= tier.namePt %></span><span data-i18n-en><%= tier.nameEn %></span></h3>
                 <% if (tier.key === 'free') { %>
                     <p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:<%= tier.color %>;"><%= tier.priceBR %></p>
                 <% } else { %>

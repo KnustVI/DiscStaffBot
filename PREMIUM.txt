@@ -4532,3 +4532,24 @@ frente, nao so este relatorio):
   moeda de cobrança. Ficou definido que o Discord é só R$/Pix, e US$/Ko-fi
   é exclusivo da landing page pública, que é o canal voltado pra quem vem
   de fora.
+
+102) Nomes dos tiers de SERVER PREMIUM traduzidos pro inglês (Rastreador ->
+     Tracker, Caçador -> Hunter)
+------------------------------------------------------------------
+- Motivação: o toggle EN da landing page (`web/views/hero.ejs`, ver seção
+  101) traduzia todo o texto de benefícios do Server Premium pro inglês,
+  mas deixava o NOME do próprio tier em português ("RASTREADOR"/"CAÇADOR"
+  apareciam mesmo com a página em inglês) — inconsistente e confuso pra
+  quem não fala português. Corrigido pra:
+     RASTREADOR -> TRACKER
+     CAÇADOR    -> HUNTER
+- Player Premium (Compy/Raptor) NÃO muda — já são nomes em inglês.
+- Aplica em QUALQUER lugar que renderiza o nome do tier em inglês:
+  `web/views/hero.ejs` (cards de Server Premium, toggle EN) e a
+  descrição/benefícios/mensagem de boas-vindas dos tiers no Ko-fi
+  (Rastreador = Tracker, Caçador = Hunter nas duas peças de texto).
+- NÃO aplica ao nome em português usado em R$/Pix (Brasil) nem aos painéis
+  do bot no Discord (`/premium`, `/premium-admin`, `/config`) — esses
+  continuam só em português por decisão da seção 101 (sem sinal de região
+  dentro de uma interaction do Discord), então não faz sentido misturar um
+  nome de tier em inglês dentro de um painel 100% em português.
