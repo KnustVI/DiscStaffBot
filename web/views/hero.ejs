@@ -145,7 +145,7 @@
 <!-- ===================== NAV + HERO ===================== -->
 <div class="relative w-full" style="background: linear-gradient(180deg, #1F1D20 0%, #111111 100%);">
 
-    <nav class="w-full flex flex-wrap items-center justify-center relative z-10" style="gap: clamp(10px, 2vw, 20px); padding: 20px 16px 10px;">
+    <nav class="w-full flex flex-wrap items-center justify-center sticky top-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
         <% if (user) { %>
             <span class="absolute left-4 top-4 hidden md:flex items-center gap-2 text-sm opacity-80" style="font-family:'Poppins',sans-serif;">
                 <%= (user.nickname || user.global_name || user.username) %>
