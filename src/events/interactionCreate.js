@@ -48,6 +48,14 @@ module.exports = {
                 return;
             }
 
+            // ==================== SUPORTCHAT - ABRIR MODAL (IDIOMA) ====================
+            if (interaction.customId?.startsWith('suportchat:open:')) {
+                const lang = interaction.customId.split(':')[2];
+                const SupportChatSystem = require('../systems/support/supportChatSystem');
+                await interaction.showModal(SupportChatSystem.getOpenModal(lang));
+                return;
+            }
+
             // ==================== CADASTRO DE JOGADOR - ABRIR MODAL ====================
             if (interaction.customId === 'player_register:open') {
                 const PlayerRegistrationSystem = require('../systems/pot/playerRegistrationSystem');
@@ -130,6 +138,14 @@ module.exports = {
                 return;
             }
 
+            // ==================== SUPORTCHAT - FECHAR ATENDIMENTO ====================
+            if (interaction.customId === 'suportchat:close') {
+                await interaction.deferReply({ flags: 64 });
+                const SupportChatSystem = require('../systems/support/supportChatSystem');
+                await SupportChatSystem.closeTicket(interaction);
+                return;
+            }
+
             // ==================== MODAIS REPORTCHAT ====================
 
             if (interaction.customId === 'report_modal') {
@@ -141,6 +157,19 @@ module.exports = {
                     local: interaction.fields.getTextInputValue('local'),
                     personagem: interaction.fields.getTextInputValue('personagem'),
                     descricao: interaction.fields.getTextInputValue('descricao')
+                });
+                return;
+            }
+
+            if (interaction.customId?.startsWith('suportchat:modal:')) {
+                await interaction.deferReply({ flags: 64 });
+                const lang = interaction.customId.split(':')[2];
+                const SupportChatSystem = require('../systems/support/supportChatSystem');
+                await SupportChatSystem.openTicket(interaction, lang, {
+                    motivo: interaction.fields.getTextInputValue('motivo'),
+                    servidor: interaction.fields.getTextInputValue('servidor'),
+                    representante: interaction.fields.getTextInputValue('representante'),
+                    detalhes: interaction.fields.getTextInputValue('detalhes')
                 });
                 return;
             }
