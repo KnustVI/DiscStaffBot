@@ -203,9 +203,15 @@
      página, então a transição pro resto do conteúdo (bem mais longo que a
      imagem) fica invisível, sem precisar repetir a textura. -->
 <div class="relative w-full" style="overflow:hidden; border-radius: 50px 50px 0 0; box-shadow: 0 -12px 26.2px rgba(0,0,0,0.47);">
+    <!-- z-index NEGATIVO, não 0: main/sections abaixo são elementos
+         estáticos (sem position), e por padrão de empilhamento do CSS até
+         um descendente posicionado com z-index:0 pinta ACIMA de conteúdo
+         estático em fluxo normal, não importa a ordem no DOM — cobria a
+         página inteira. -1 garante que fique atrás de qualquer coisa
+         estática, sem precisar dar position:relative em cada section. -->
     <img src="/images/landing/hero-bg-texture.webp" alt=""
-         class="absolute top-0 left-0 w-full pointer-events-none select-none" style="height:auto; z-index:0;">
-    <div class="absolute top-0 left-0 w-full" style="aspect-ratio: 2160 / 2454; z-index:0; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,1) 100%);"></div>
+         class="absolute top-0 left-0 w-full pointer-events-none select-none" style="height:auto; z-index:-1;">
+    <div class="absolute top-0 left-0 w-full" style="aspect-ratio: 2160 / 2454; z-index:-1; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,1) 100%);"></div>
 
     <!-- ===================== HERO ===================== -->
     <section class="relative w-full flex flex-col items-center text-center px-4 hero-section-padding" style="z-index:10;">
