@@ -43,7 +43,11 @@ const ROLE_TABS = {
         label: 'Cargos Automáticos',
         icon: 'trendingup',
         headerTitle: '# CARGOS AUTOMÁTICOS - REPUTAÇÃO',
-        headerDesc: 'Estes cargos são atribuídos e removidos automaticamente pelo sistema, com base na reputação do membro e nas punições ativas. Não é necessário atribuí-los manualmente.',
+        headerDesc: 'Estes cargos são atribuídos e removidos automaticamente pelo sistema de reputação — não é necessário atribuí-los manualmente. Detalhes de cada um abaixo.',
+        // Só a parte que NÃO está em nenhuma descrição de campo: o corte por
+        // plano. "Atribuído automaticamente" já está no headerDesc acima E
+        // em cada campo, não repete aqui.
+        headerNote: `**Sobre o plano:** o cargo de **Strike (Temporário)** funciona em qualquer plano. Já **Exemplar** e **Problemático** só passam a ser atribuídos de verdade a partir do **Caçador** — em Free e Rastreador dá pra configurar os cargos aqui, mas o Automod diário que os aplica só roda no Caçador (use \`/premium\` pra saber mais).`,
         fields: [
             {
                 key: 'strike_role', icon: 'shieldalert', label: 'Strike (Temporário)',
@@ -66,7 +70,10 @@ const ROLE_TABS = {
         label: 'Moderação',
         icon: 'shieldcheck',
         headerTitle: '# CARGOS DE MODERAÇÃO',
-        headerDesc: 'Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas.',
+        headerDesc: 'Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas. Detalhes de cada um abaixo.',
+        // Só o que NÃO está em nenhuma descrição de campo: não precisa ser
+        // um cargo "oficial", e o limite por campo varia com o plano.
+        headerNote: 'Não precisam ser (nem representar) um cargo "oficial" do servidor — servem só para o bot saber quem tem permissão pra cada comando. O número de cargos permitido por campo varia com o plano (use `/premium` pra aumentar).',
         fields: [
             {
                 key: 'staff_role', icon: 'shield', label: 'Moderador (obrigatório)',
@@ -86,7 +93,10 @@ const ROLE_TABS = {
         label: 'Eventos',
         icon: 'partypopper',
         headerTitle: '# CARGOS DE EVENTOS',
-        headerDesc: 'Cargos usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.',
+        // Sem headerNote aqui de propósito: as 3 descrições de campo abaixo
+        // já cobrem tudo (quem usa, quem é avisado, e o corte por plano do
+        // canal de anúncios) — um texto genérico a mais só repetiria.
+        headerDesc: 'Cargos usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado. Detalhes de cada um abaixo.',
         fields: [
             {
                 key: 'event_role', icon: 'calendardays', label: 'Equipe de Eventos',
@@ -1167,18 +1177,11 @@ const ConfigSystem = {
             [tabData.headerTitle, tabData.headerDesc].join('\n'),
             rolesBuilder.assetThumbnail('icone_discord_roles') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
         );
-        if (tabKey === 'automod') {
-            rolesBuilder.text(
-                `${EMOJIS.messagesquare || 'ℹ️'} **Sobre estes cargos:** são auto-atribuíveis pelo sistema de reputação — o bot atribui e remove sozinho, a staff não precisa mexer manualmente. ` +
-                `O cargo de **Strike (Temporário)** funciona em qualquer plano. Já **Exemplar** e **Problemático** só são atribuídos automaticamente pelo Automod diário no plano **Caçador** — ` +
-                `em Free e Rastreador dá pra configurar os cargos aqui, mas eles só passam a ser atribuídos de verdade quando o servidor tiver o Caçador (${EMOJIS.badge || '🏅'} use \`/premium\` pra saber mais).`
-            );
-        } else {
-            rolesBuilder.text(
-                `${EMOJIS.messagesquare || 'ℹ️'} **Importante:** os cargos abaixo precisam estar configurados para os comandos correspondentes funcionarem. ` +
-                `Eles servem **apenas** para o bot saber quem pode usar cada comando — não precisam ser (nem representar) um cargo "oficial" do servidor. ` +
-                `Você pode escolher **até o limite do seu plano** (veja abaixo de cada campo), com \`/premium\` pra aumentar esse limite.`
-            );
+        // headerNote é opcional (ver ROLE_TABS) — só existe quando há algo
+        // relevante que NÃO esteja em nenhuma descrição de campo abaixo
+        // (ex: corte por plano). Eventos não tem um, de propósito.
+        if (tabData.headerNote) {
+            rolesBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} ${tabData.headerNote}`);
         }
         rolesBuilder.separator();
 
