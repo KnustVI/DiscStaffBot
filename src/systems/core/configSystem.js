@@ -556,6 +556,10 @@ const ConfigSystem = {
                 await this.handleReportChatMessageModal(interaction);
                 return;
             }
+            if (customId === 'config-personalizar:reportchat-welcome:modal') {
+                await this.handleReportChatWelcomeModal(interaction);
+                return;
+            }
             if (customId === 'config-personalizar:reportchat-reset') {
                 await this.resetReportChat(interaction);
                 return;
@@ -606,6 +610,10 @@ const ConfigSystem = {
             }
             if (interaction.customId === 'config-personalizar:reportchat-message:modal:submit') {
                 await this.processReportChatMessageModal(interaction);
+                return;
+            }
+            if (interaction.customId === 'config-personalizar:reportchat-welcome:modal:submit') {
+                await this.processReportChatWelcomeModal(interaction);
                 return;
             }
             if (interaction.customId === 'config-personalizar:aparencia-color:modal:submit') {
@@ -2169,14 +2177,55 @@ const ConfigSystem = {
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'reportchat');
     },
 
+    async handleReportChatWelcomeModal(interaction) {
+        if (!interaction.isButton()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita clicando no botão.');
+        }
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const currentMessage = this.getSetting(interaction.guildId, 'report_chat_welcome_message') || '';
+
+        const row = new ActionRowBuilder().addComponents(
+            new TextInputBuilder({
+                customId: 'report_chat_welcome_message',
+                label: 'Boas-vindas na thread (vazio = padrão do bot)',
+                style: TextInputStyle.Paragraph,
+                required: false,
+                maxLength: 1000,
+                value: currentMessage,
+                placeholder: 'Mensagem mostrada assim que a thread é aberta — vale pra reporte e pra revisão de punição...',
+            })
+        );
+
+        const modal = new ModalBuilder({ customId: 'config-personalizar:reportchat-welcome:modal:submit', title: 'Boas-vindas do Report-Chat', components: [row] });
+        await interaction.showModal(modal);
+    },
+
+    async processReportChatWelcomeModal(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        const newMessage = interaction.fields.getTextInputValue('report_chat_welcome_message').trim();
+        const oldMessage = this.getSetting(interaction.guildId, 'report_chat_welcome_message') || '';
+
+        this.setSetting(interaction.guildId, 'report_chat_welcome_message', newMessage || null);
+        this.clearCache(interaction.guildId);
+
+        const changeMessage = newMessage !== oldMessage
+            ? `${EMOJIS.circlecheck || '✅'} **Mensagem de boas-vindas do report-chat atualizada.**`
+            : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
+        if (newMessage !== oldMessage) await this.logConfigChange(interaction, `${EMOJIS.edit || '✏️'} Boas-vindas do report-chat foi ${newMessage ? 'alterada' : 'resetada para o padrão'}.`);
+        await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'reportchat');
+    },
+
     async resetReportChat(interaction) {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'report_chat_banner_key', null);
         this.setSetting(interaction.guildId, 'report_chat_message', null);
+        this.setSetting(interaction.guildId, 'report_chat_welcome_message', null);
         this.clearCache(interaction.guildId);
-        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner e mensagem do report-chat resetados para o padrão.`);
-        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner e mensagem resetados para o padrão!`, interaction.guild.name, 'reportchat');
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner e mensagens do report-chat resetados para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner e mensagens resetados para o padrão!`, interaction.guild.name, 'reportchat');
     },
 
     // ==================== APARÊNCIA GERAL (COR + FOOTER, CAÇADOR) ====================
@@ -2370,11 +2419,12 @@ const ConfigSystem = {
         } else if (activeTab === 'reportchat') {
             const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
             const customMessage = this.getSetting(guildId, 'report_chat_message');
+            const welcomeMessage = this.getSetting(guildId, 'report_chat_welcome_message');
             const bannerLabel = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === bannerKey)?.label || bannerKey;
 
             cb.text([
                 '# PERSONALIZAÇÃO DO REPORT-CHAT',
-                'Troque o banner e a mensagem de abertura do painel de report-chat (o mesmo que `/reportchat` posta no canal) — recurso exclusivo do plano Caçador.',
+                'Troque o banner, a mensagem de abertura do painel (o mesmo que `/reportchat` posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão) — recurso exclusivo do plano Caçador. O banner escolhido abaixo também aparece na thread.',
             ].join('\n'));
             cb.title(`${EMOJIS.image || '🖼️'} Banner atual`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${bannerLabel}`]);
@@ -2387,13 +2437,17 @@ const ConfigSystem = {
                     .setDefault(opt.value === bannerKey)
                 )));
             cb.separator();
-            cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem atual`, 2);
+            cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem do painel atual`, 2);
             cb.block([customMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (nenhuma mensagem customizada ainda).`]);
+            cb.separator();
+            cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem de boas-vindas atual (dentro da thread)`, 2);
+            cb.block([welcomeMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot — muda conforme é reporte ou revisão de punição (nenhuma mensagem customizada ainda).`]);
             // Botões de edição ficam DENTRO do painel, logo após a descrição
             // que editam — mesmo critério já aplicado aos selects de banner
             // (pedido do dono). Só a navegação entre abas fica fora.
             cb.buttons(
-                AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-message:modal', 'Editar Mensagem').setEmoji(EMOJIS.edit || '✏️'),
+                AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-message:modal', 'Editar Mensagem do Painel').setEmoji(EMOJIS.edit || '✏️'),
+                AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-welcome:modal', 'Editar Boas-vindas').setEmoji(EMOJIS.edit || '✏️'),
                 AdvancedContainerBuilder.dangerButton('config-personalizar:reportchat-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
             );
         } else {

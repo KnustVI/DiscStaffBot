@@ -273,6 +273,7 @@ module.exports = {
             if (interaction.customId === 'config-logs:criar') { await ConfigSystem.confirmCreateLogChannels(interaction); return; }
             if (interaction.customId === 'config-punishments:limites:modal:submit') { await ConfigSystem.processLimitesModal(interaction); return; }
             if (interaction.customId === 'config-personalizar:reportchat-message:modal') { await ConfigSystem.handleReportChatMessageModal(interaction); return; }
+            if (interaction.customId === 'config-personalizar:reportchat-welcome:modal') { await ConfigSystem.handleReportChatWelcomeModal(interaction); return; }
             if (interaction.customId === 'config-personalizar:aparencia-color:modal') { await ConfigSystem.handlePanelColorModal(interaction); return; }
             if (interaction.customId === 'config-personalizar:aparencia-footer:modal') { await ConfigSystem.handlePanelFooterModal(interaction); return; }
 

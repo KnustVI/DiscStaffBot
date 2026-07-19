@@ -445,12 +445,18 @@ class ReportChatSystem {
             // createBaseContainer, que usa a cor pra indicar status
             // waiting/fechado/inativo — essa continua intacta).
             const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+            // Banner e mensagem de boas-vindas customizáveis em /config
+            // personalizar (aba "reportchat", Caçador) — mesmo banner
+            // escolhido pro painel do canal, aplicado aqui também pra
+            // manter a mesma identidade visual na thread.
+            const threadBannerKey = ConfigSystem.getSetting(guild.id, 'report_chat_banner_key') || 'title_report_chat';
+            const welcomeMessage = ConfigSystem.getSetting(guild.id, 'report_chat_welcome_message');
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
-            threadBuilder.banner('title_report_chat');
+            threadBuilder.banner(threadBannerKey);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REPORTE | ${reportId}`);
-            threadBuilder.text(`Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
+            threadBuilder.text(welcomeMessage || `Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
             else threadBuilder.footer(guild.name);
 
@@ -614,11 +620,18 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
+            // Banner e mensagem de boas-vindas customizáveis em /config
+            // personalizar (aba "reportchat", Caçador) — mesmo texto/banner
+            // compartilhado com openReport() acima, já que /config
+            // personalizar trata os dois fluxos como um só ("report-chat").
+            const threadBannerKey = ConfigSystem.getSetting(guild.id, 'report_chat_banner_key') || 'title_report_chat';
+            const welcomeMessage = ConfigSystem.getSetting(guild.id, 'report_chat_welcome_message');
+
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
-            threadBuilder.banner('title_report_chat');
+            threadBuilder.banner(threadBannerKey);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
-            threadBuilder.text(`Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
+            threadBuilder.text(welcomeMessage || `Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
             else threadBuilder.footer(guild.name);
 
