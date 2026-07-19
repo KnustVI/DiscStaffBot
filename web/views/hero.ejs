@@ -508,18 +508,30 @@
     <h2 class="section-title text-shadow-figma mb-10 text-center"><span data-i18n-pt>PORQUE USAR?</span><span data-i18n-en>WHY USE IT?</span></h2>
     <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-10" style="max-width: 1100px;">
         <%
+        // Ícones reais do design (SVG completo por item, cada um já com seu
+        // próprio viewBox/stroke — substituem os ícones genéricos de
+        // placeholder usados antes). Mantidos como elemento <svg> inteiro em
+        // vez de só os <path>s porque os 3 vêm de fontes diferentes (a 1a
+        // leva viewBox 0 0 60 60 nativo; as outras duas também), então cada
+        // um se renderiza sozinho, sem precisar de um wrapper compartilhado
+        // com viewBox fixo que poderia cortar algum deles.
         const why = [
-            { icon: '<path d="M12 3v14"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/>', pt: 'Reduza tarefas repetitivas com sistemas automatizados que ajudam a manter a comunidade organizada, permitindo que a equipe foque no que realmente importa.',
+            { icon: `<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M30 42.5V7.5M45 27.5L30 42.5L15 27.5M47.5 52.5H12.5" stroke="#F8DCC0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+              pt: 'Reduza tarefas repetitivas com sistemas automatizados que ajudam a manter a comunidade organizada, permitindo que a equipe foque no que realmente importa.',
               en: 'Cut down on repetitive tasks with automated systems that help keep the community organized, letting your team focus on what really matters.' },
-            { icon: '<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>', pt: 'Centralize ferramentas de administração, moderação e monitoramento em uma única plataforma, simplificando a gestão do servidor e aumentando a eficiência da equipe.',
+            { icon: `<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 7.5V15C20 16.3261 19.4732 17.5979 18.5355 18.5355C17.5979 19.4732 16.3261 20 15 20H7.5M52.5 20H45C43.6739 20 42.4021 19.4732 41.4645 18.5355C40.5268 17.5979 40 16.3261 40 15V7.5M7.5 40H15C16.3261 40 17.5979 40.5268 18.5355 41.4645C19.4732 42.4021 20 43.6739 20 45V52.5M40 52.5V45C40 43.6739 40.5268 42.4021 41.4645 41.4645C42.4021 40.5268 43.6739 40 45 40H52.5" stroke="#F8DCC0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+              pt: 'Centralize ferramentas de administração, moderação e monitoramento em uma única plataforma, simplificando a gestão do servidor e aumentando a eficiência da equipe.',
               en: 'Centralize administration, moderation, and monitoring tools on a single platform, simplifying server management and boosting your team\'s efficiency.' },
-            { icon: '<circle cx="10" cy="14" r="6"/><path d="m21 3-6.75 6.75"/><path d="m16 3 5 5"/><path d="M10 10.5v7"/><path d="M6.5 14h7"/>', pt: 'Ofereça uma experiência mais dinâmica para os membros com recursos modernos, respostas rápidas e funcionalidades desenvolvidas para fortalecer o engajamento da comunidade.',
+            { icon: `<svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M25.1625 31.2325L9.71251 34.5275C9.11281 34.6577 8.48598 34.5465 7.9676 34.2181C7.44923 33.8897 7.08098 33.3704 6.94251 32.7725L5.60001 27.3975C5.44217 26.7499 5.5318 26.0667 5.85134 25.4818C6.17088 24.8968 6.69731 24.4522 7.32751 24.235L41.0875 13.135M33.9 29.3675L44.73 27.0575M40 52.5L32.2375 36.975M15.395 21.5825L18.18 32.7225M20 52.5L27.7625 36.975M41.2125 14.85C40.8911 13.5638 41.0938 12.2025 41.7759 11.0656C42.4581 9.92871 43.5638 9.10929 44.85 8.78755L47.575 8.10755C48.2178 7.94719 48.898 8.04854 49.4661 8.38932C50.0342 8.7301 50.4438 9.28245 50.605 9.92505L54.3925 25.075C54.5536 25.7182 54.4526 26.399 54.1118 26.9677C53.7709 27.5364 53.2181 27.9464 52.575 28.1075L49.85 28.7875C48.5637 29.1089 47.2024 28.9063 46.0656 28.2241C44.9287 27.542 44.1093 26.4362 43.7875 25.15L41.2125 14.85ZM35 32.5C35 35.2615 32.7614 37.5 30 37.5C27.2386 37.5 25 35.2615 25 32.5C25 29.7386 27.2386 27.5 30 27.5C32.7614 27.5 35 29.7386 35 32.5Z" stroke="#F8DCC0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
+              pt: 'Ofereça uma experiência mais dinâmica para os membros com recursos modernos, respostas rápidas e funcionalidades desenvolvidas para fortalecer o engajamento da comunidade.',
               en: 'Offer members a more dynamic experience with modern features, fast responses, and functionality built to strengthen community engagement.' },
         ];
         %>
         <% why.forEach(w => { %>
             <div class="flex flex-col items-center text-center gap-4">
-                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#F8DCC0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><%- w.icon %></svg>
+                <%- w.icon %>
                 <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9;" class="text-shadow-figma">
                     <span data-i18n-pt><%= w.pt %></span><span data-i18n-en><%= w.en %></span>
                 </p>
