@@ -82,6 +82,7 @@ const EMOJIS = {
     Herbivore: formatEmoji('1522508102652530841', 'Herbivore', false),
     HerbSkull: formatEmoji('1522508104120406158', 'HerbSkull', false),
     idcard: formatEmoji('1522487843052851312', 'idcard', false),
+    imagem: formatEmoji('1528328366556713092', 'imagem', false),
     language: formatEmoji('1522487289161187409', 'language', false),
     lightmode: formatEmoji('1522487290189053972', 'lightmode', false),
     listchecks: formatEmoji('1522487631123058790', 'listchecks', false),
