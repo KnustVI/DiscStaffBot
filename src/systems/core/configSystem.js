@@ -2388,10 +2388,13 @@ const ConfigSystem = {
             const strikeLabel = STRIKE_BANNER_OPTIONS.find(opt => opt.value === strikeBannerKey)?.label || strikeBannerKey;
             const unstrikeLabel = UNSTRIKE_BANNER_OPTIONS.find(opt => opt.value === unstrikeBannerKey)?.label || unstrikeBannerKey;
 
-            cb.text([
-                '# PERSONALIZAÇÃO — STRIKE / UNSTRIKE',
-                'Troque o banner mostrado no painel de aplicação (`/strike`) e de anulação (`/unstrike`) de punição — recurso exclusivo do plano Caçador.',
-            ].join('\n'));
+            cb.section(
+                [
+                    '# PERSONALIZAÇÃO — STRIKE / UNSTRIKE',
+                    'Troque o banner mostrado no painel de aplicação (`/strike`) e de anulação (`/unstrike`) de punição — recurso exclusivo do plano Caçador.',
+                ].join('\n'),
+                cb.assetThumbnail('icone_art') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
+            );
             cb.title(`${EMOJIS.image || '🖼️'} Banner do /strike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${strikeLabel}`]);
             // Select logo abaixo do bloco do PRÓPRIO banner (não no final do
@@ -2422,10 +2425,13 @@ const ConfigSystem = {
             const welcomeMessage = this.getSetting(guildId, 'report_chat_welcome_message');
             const bannerLabel = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === bannerKey)?.label || bannerKey;
 
-            cb.text([
-                '# PERSONALIZAÇÃO DO REPORT-CHAT',
-                'Troque o banner, a mensagem de abertura do painel (o mesmo que `/reportchat` posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão) — recurso exclusivo do plano Caçador. O banner escolhido abaixo também aparece na thread.',
-            ].join('\n'));
+            cb.section(
+                [
+                    '# PERSONALIZAÇÃO DO REPORT-CHAT',
+                    'Troque o banner, a mensagem de abertura do painel (o mesmo que `/reportchat` posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão) — recurso exclusivo do plano Caçador. O banner escolhido abaixo também aparece na thread.',
+                ].join('\n'),
+                cb.assetThumbnail('icone_art') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
+            );
             cb.title(`${EMOJIS.image || '🖼️'} Banner atual`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${bannerLabel}`]);
             cb.selectMenu(new StringSelectMenuBuilder()
@@ -2454,10 +2460,13 @@ const ConfigSystem = {
             const colorHex = this.getSetting(guildId, 'panel_accent_color');
             const footerText = this.getSetting(guildId, 'panel_footer_text');
 
-            cb.text([
-                '# APARÊNCIA GERAL',
-                'Cor de destaque e footer aplicados em `/strike`, `/unstrike`, report-chat, e nos logs de Punições/Reports/Geral — recurso exclusivo do plano Caçador.',
-            ].join('\n'));
+            cb.section(
+                [
+                    '# APARÊNCIA GERAL',
+                    'Cor de destaque e footer aplicados em `/strike`, `/unstrike`, report-chat, e nos logs de Punições/Reports/Geral — recurso exclusivo do plano Caçador.',
+                ].join('\n'),
+                cb.assetThumbnail('icone_art') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
+            );
             cb.title(`${EMOJIS.palette || '🎨'} Cor de destaque`, 2);
             cb.block([colorHex ? `${EMOJIS.circlecheck || '✅'} #${colorHex.toUpperCase()}` : `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (cada painel usa sua própria cor).`]);
             cb.buttons(AdvancedContainerBuilder.secondaryButton('config-personalizar:aparencia-color:modal', 'Editar Cor').setEmoji(EMOJIS.palette || '🎨'));
