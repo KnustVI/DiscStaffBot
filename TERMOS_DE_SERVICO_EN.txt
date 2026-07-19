@@ -89,9 +89,9 @@ Titan's Pass offers administrative tools that connect to your host's Path of Tit
 
 5. STORE, CURRENCY, AND PREMIUM SYSTEM:
 
-Titan's Pass has its own internal economy ("store currency"), earned through engagement (e.g., participating in missions, playtime, achievements) or included in Premium plans.
+Titan's Pass has its own internal economy, using a virtual currency called Hunt. Players can earn Hunt through special events in partnership with the server, giveaways, missions, and playtime — with higher earning rates depending on Premium tier.
 
-[==The Bot's store offers, and intends to continue offering, only profile-customization items within Titan's Pass itself==]{#66ff66} (avatar, background, badge, title, and similar), with no effect, advantage, or unlock within the Path of Titans game. No currency, item, or benefit acquired or earned through the Bot alters attributes, progress, growth, items, or any other aspect of the game itself.
+[==The Bot's store offers, and intends to continue offering, only profile-customization items within Titan's Pass itself==]{#66ff66} (avatar, background, badge, title, and similar), with no effect, advantage, or unlock within the Path of Titans game. No amount of Hunt, item, or benefit acquired or earned through the Bot alters attributes, progress, growth, items, or any other aspect of the game itself.
 
 Should the Bot later offer a skins project through mods, that content will be made available in compliance with Alderon Games' Modding Agreement, which prohibits selling or "paywalling" mods/UGC and prohibits granting in-game skins or benefits as a return for a donation or payment. No such feature will go live before that compliance is guaranteed.
 

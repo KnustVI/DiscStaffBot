@@ -49,8 +49,8 @@ FREE
   cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
-- Farme de cacadas por hora de jogo: gera moeda da lojinha do bot (sem
-  nenhum efeito na taxa de farm dentro do jogo em si), trocavel so por
+- Farme de cacadas por hora de jogo: gera Hunt (moeda da lojinha do bot,
+  sem nenhum efeito na taxa de farm dentro do jogo em si), trocavel so por
   customizacao de perfil. (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
@@ -77,9 +77,9 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
 - Perfil personalizavel pela loja (badge/titulo exclusivos). Boost de farm
-  por trofeu: gera moeda da lojinha do bot (sem nenhum efeito na taxa de
-  farm dentro do jogo em si), trocavel so por customizacao de perfil.
-  (ainda nao implementado - "vindo em breve")
+  por trofeu: gera Hunt (moeda da lojinha do bot, sem nenhum efeito na
+  taxa de farm dentro do jogo em si), trocavel so por customizacao de
+  perfil. (ainda nao implementado - "vindo em breve")
 
 RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
@@ -97,9 +97,10 @@ RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) 
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
   versao "banco de titulos" pro Compy, ver acima).
 - Footer de perfil padrao do tier Raptor.
-- Boost de farm por missao Titan concluida: gera moeda da lojinha do bot
-  (sem nenhum efeito na taxa de farm dentro do jogo em si), trocavel so
-  por customizacao de perfil. (ainda nao implementado - "vindo em breve")
+- Boost de farm por missao Titan concluida: gera Hunt (moeda da lojinha
+  do bot, sem nenhum efeito na taxa de farm dentro do jogo em si),
+  trocavel so por customizacao de perfil. (ainda nao implementado -
+  "vindo em breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
   (ainda nao implementado - "vindo em breve")
 
@@ -4573,3 +4574,28 @@ frente, nao so este relatorio):
   NÃO foi alterada de propósito — é um registro histórico do cálculo
   original (ver convenção de changelog no topo deste arquivo); o valor
   vigente é sempre o da Seção 2 e do código.
+
+104) Moeda da lojinha do bot ganha nome oficial: Hunt
+------------------------------------------------------------------
+- Definido pelo dono: a economia interna do bot (mencionada em várias
+  seções como "moeda da lojinha", ainda sem nome próprio) passa a se
+  chamar [==Hunt==] em qualquer lugar que a mencione — PREMIUM.txt (Seção
+  1, bullets Free/Compy/Raptor) e TERMOS_DE_SERVICO.txt/EN (Seção 5),
+  atualizados nesta mesma revisão pra manter os dois documentos
+  alinhados no nome.
+- Fontes de ganho AMPLIADAS na Seção 5 dos Termos (antes só citava missões/
+  tempo de jogo/conquistas de forma genérica): eventos especiais em
+  parceria com o servidor, sorteios, missões e horas de jogo — com taxa
+  maior conforme o nível Premium (mesmo mecanismo de "boost" já descrito
+  nos bullets de Compy/Raptor da Seção 1, só que agora nomeado).
+- Continua tudo "vindo em breve" — nenhuma fonte de ganho nem a loja em si
+  estão implementadas ainda (ver marcações individuais na Seção 1). Esta
+  seção só registra a decisão de nome/fontes de ganho, não muda o status
+  de implementação de nada.
+- Atenção pra uso futuro: o nome "Hunt" (moeda) e o nome do tier "Hunter"
+  (Caçador em inglês, ver seção 102) são parecidos o bastante pra causar
+  confusão em textos de marketing/suporte ("ganhei Hunt" vs "sou tier
+  Hunter") — vale revisar a redação com cuidado quando os dois aparecerem
+  no mesmo texto, mas nenhuma mudança de nome foi feita por conta disso
+  nesta revisão (ambos os nomes foram decisões deliberadas do dono, em
+  momentos diferentes).
