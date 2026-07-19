@@ -180,6 +180,14 @@
         syncNavHeight();
         window.addEventListener('resize', syncNavHeight);
         window.addEventListener('load', syncNavHeight);
+        // A webfont (Poppins) pode terminar de carregar DEPOIS do 'load' e
+        // reflowar o texto dos botões da nav, mudando quantas linhas ela
+        // ocupa — sem isso, o conteúdo abaixo fica com espaço de menos e a
+        // borda arredondada do hero some sob a nav quando ela cresce de 1
+        // pra 2 linhas depois da 1a medição.
+        if (window.document.fonts && window.document.fonts.ready) {
+            window.document.fonts.ready.then(syncNavHeight);
+        }
     })();
 </script>
 

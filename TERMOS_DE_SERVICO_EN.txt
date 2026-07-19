@@ -1,0 +1,222 @@
+TERMS OF SERVICE AND PRIVACY POLICY – TITAN'S PASS (testing phase)
+
+Last updated: 17.07.2026
+Version: 1.1 (Pre-launch)
+
+[==⚠️ READ BEFORE USING THE BOT==]{#ffcc00}
+
+By adding and using the Titan's Pass bot on a Discord server, you fully agree to these Terms of Service and Privacy Policy. ||If you do not agree, do not use the Bot, or remove it from the server immediately.||
+
+――――――――――――――――
+
+0. DISCLAIMER – PATH OF TITANS:
+
+Titan's Pass was created to be used alongside the Path of Titans game, but it is [==NOT AN OFFICIAL APPLICATION==]{#ff4444} of Alderon Games or any affiliated company.
+
+• The Bot is an independent project, made by fans for the community;
+• No association, endorsement, or official relationship with Alderon Games is claimed or implied;
+• Logos, names, and trademarks related to Path of Titans are the property of their respective owners;
+• Use of the Bot does not replace, alter, or interfere with the game's official Terms of Service;
+• The Bot operates in compliance with the legal documents published by Alderon Games, including (but not limited to) the Terms of Service, Use Policy, Modding Agreement, and Server Hosting Agreement, available at alderongames.com/legal;
+• In case of conflict between these Terms and Alderon Games' Terms, Alderon Games' Terms prevail.
+
+[==The Bot's developer is not responsible for actions taken by Alderon Games against servers or users who use the Bot, especially as a result of misuse of the game-integration tools described in Section 4.==]{#ffaa66}
+
+――――――――――――――――
+
+1. ABOUT THE BOT AND ITS CURRENT STATE:
+
+The Bot is in testing ("beta") phase – Instability, bugs, service outages, or temporary loss of configuration data or logs may occur, with or without prior notice.
+
+Titan's Pass brings together, today or in development, the following main areas:
+
+• Moderation: punishments/strikes with a reputation system, temporary roles, infraction logging;
+• Reports: a ticket/report-chat system for reports between members, with service rating;
+• Staff analytics: activity and performance metrics for the moderation team;
+• Game server integration (RCON and webhooks): receives events from the Path of Titans server (login/logout, combat, etc.) and lets server staff send administrative commands to the game through the Bot;
+• Player profiles: display of player statistics (playtime, reputation, Alderon ID) with customizable cards (avatar, background, badge);
+• Web admin panel (dashboard): configuration interface parallel to Discord commands;
+• Premium system: free and paid tiers with additional features, described in Section 5.
+
+During the testing phase, all features are free. Once testing ends, the Bot will operate under two models:
+
+• Free version: limited features;
+• Premium version: additional features, via subscription or one-time payment (to be defined).
+
+――――――――――――――――
+
+2. CHANGES TO FREE FEATURES AND PRICING:
+
+Any feature available in the free version may be changed, removed, or restricted at any time, with no need for individualized notice. Significant changes will be announced on the Bot's support server.
+
+Premium prices and plans may be changed at any time. Price changes only take effect for new billing cycles or new purchases, [==never retroactively==]{#66ff66}.
+
+The developer commits to giving at least [==14 days==]{#66ff66} advance notice of price changes or discontinuation of the free plan.
+
+――――――――――――――――
+
+3. ACCEPTABLE AND ETHICAL USE:
+
+By using the Bot, you agree that you will [==NOT==]{#ff4444}:
+
+• Use the Bot for harassment, discrimination, hate speech, threats, or any violation of Discord's Community Guidelines;
+
+• Manipulate false reports or abuse the automatic punishment system to harm other users;
+
+• Attempt to reverse-engineer, decompile, extract code from, or bypass the Bot's limit/restriction systems;
+
+• Use the Bot on servers whose main theme is [==illegal==]{#ff4444};
+
+• Use the Bot to simulate or impersonate an official representative of Alderon Games;
+
+• Use the Bot as a tool for reputational attacks, incitement to conflict between servers, organized defamation, or any attempt to manipulate the image of the Bot, of users, or of the Path of Titans game with the intent to harm third parties;
+
+• [==Expose reports, punishments, or Bot logs in large-scale public posts (e.g., social media, videos, streams, forums) with the intent to defame, expose, humiliate, or publicly embarrass users.==]{#ffaa66}
+
+[==These behaviors will lead to immediate and permanent revocation of access to the Bot, with no possibility of appeal.==]{#ff4444}
+
+――――――――――――――――
+
+4. GAME SERVER INTEGRATION (RCON) AND COMPLIANCE WITH ALDERON GAMES:
+
+Titan's Pass offers administrative tools that connect to your host's Path of Titans server (via RCON and webhooks), including, but not limited to: applying attributes/buffs to players (`/ingame-buff`), teleporting players during events, and other configurable administrative commands.
+
+[==These tools are made available exclusively for administrative use by the server's HOST/STAFF==]{#ffaa66}, as a convenience equivalent to the native RCON commands Alderon Games already makes available to any server administrator. They are [==NOT==]{#ff4444}, and must never be treated as, a benefit, reward, or advantage to be sold, raffled off, given in exchange for a favor, or in any way offered to an individual player in exchange for real money, donations, or payment of any kind.
+
+Specifically, it is [==PROHIBITED==]{#ff4444} for any server using the Bot to:
+
+• Sell, offer as a donation reward, or otherwise condition the use of `/ingame-buff`, teleports, or any other game-integration command on a payment made by a player;
+• Use these tools to grant advantages, bonuses, multipliers, or growth/farming rates within the game in exchange for real currency, under the terms of Alderon Games' Server Hosting Agreement (Section 1);
+• Use these tools to unlock in-game content, skins, or items in exchange for payment, under the terms of Alderon Games' Modding Agreement and Use Policy.
+
+[==Titan's Pass's developer is not responsible for misuse of these tools by a server's staff or administration.==]{#ff4444} Responsibility for compliant use with Alderon Games' policies rests solely with the server operating the Bot.
+
+Should the developer identify or receive proof that a server is using the game-integration tools in violation of Alderon Games' terms (including, but not limited to, selling or exchanging in-game advantages or unlocks for real money), [==the Bot's access for that specific server will be blocked, without prior notice and at the developer's sole discretion==]{#ff4444}, as per Section 10.
+
+――――――――――――――――
+
+5. STORE, CURRENCY, AND PREMIUM SYSTEM:
+
+Titan's Pass has its own internal economy ("store currency"), earned through engagement (e.g., participating in missions, playtime, achievements) or included in Premium plans.
+
+[==The Bot's store offers, and intends to continue offering, only profile-customization items within Titan's Pass itself==]{#66ff66} (avatar, background, badge, title, and similar), with no effect, advantage, or unlock within the Path of Titans game. No currency, item, or benefit acquired or earned through the Bot alters attributes, progress, growth, items, or any other aspect of the game itself.
+
+Should the Bot later offer a skins project through mods, that content will be made available in compliance with Alderon Games' Modding Agreement, which prohibits selling or "paywalling" mods/UGC and prohibits granting in-game skins or benefits as a return for a donation or payment. No such feature will go live before that compliance is guaranteed.
+
+Premium tiers (Free, Rastreador/Tracker, Caçador/Hunter for servers; Free, Compy, Raptor for players) grant access to tools, automations, higher limits, and customization — never advantages within the Path of Titans game itself. Details for each tier are described in the Bot's Premium reference document, available on the support server.
+
+――――――――――――――――
+
+6. PRIVACY POLICY – DATA COLLECTED:
+
+To operate moderation, reports, staff analytics, and game-integration features, the Bot may collect and store the following data:
+
+• User, role, channel, and message IDs — reference required for punishments and logs;
+• Message content — only when explicitly reported or configured for automatic moderation;
+• History of commands executed by staff — audit trail (who, when, which action);
+• Infraction records — punished user, reason, date, responsible moderator;
+• Server (guild) ID;
+• Alderon ID (player identification within Path of Titans);
+• Game statistics linked to the Alderon ID — playtime, online/offline status, and events received via the server's webhook;
+• Custom Bot settings;
+• Discord username/nickname;
+• Identification in logs and punishments;
+• Images uploaded by the user for profile customization (avatar/background/badge).
+
+The Bot does [==NOT==]{#ff4444} collect or store:
+
+• Passwords, tokens, real e-mail addresses, phone numbers;
+• Banking or credit card data;
+• Unreported private messages (DMs);
+• Voice or video call content;
+• Path of Titans account data (login, password, progress) beyond the Alderon ID;
+• Discord account data (login, password) beyond the user ID.
+
+――――――――――――――――
+
+7. STORAGE, RETENTION, AND SHARING:
+
+Storage: Data is kept in a secure environment, with access restricted to the developer.
+
+Retention: Data is retained only for as long as the Bot remains on the server.
+
+Sharing: The developer does not sell, rent, or share data with third parties for marketing or advertising purposes. Data may only be shared if:
+
+• [==Required by law==]{#ffaa66} or court order;
+• Necessary to investigate serious violations of these Terms, including misuse of the tools described in Section 4;
+• Reporting illegal activity to Discord Trust & Safety or Alderon Games, when applicable.
+
+――――――――――――――――
+
+8. YOUR RIGHTS OVER YOUR DATA:
+
+As a user or server administrator, you have the right to:
+
+• Request access to the data the Bot stores about you or your server;
+• Request correction of incorrect data;
+• Request deletion of your data (in whole or in part);
+• Revoke consent by removing the Bot from the server.
+
+All data is deleted when the Bot is removed from the server.
+
+――――――――――――――――
+
+9. RESPONSIBILITIES AND DISCLAIMER OF WARRANTIES:
+
+The Bot is provided [=="as is"==]{#ffaa66}. During the testing phase, there is no guarantee of availability, accuracy of punishments, or integrity of logs.
+
+The developer is not responsible for:
+
+• Punishments applied erroneously due to Bot failures or improper configuration;
+• Loss of settings, moderation history, or any data during the testing phase;
+• Violations of Discord's rules committed by members who used the Bot as a tool;
+• Data breaches resulting from an external intrusion into the infrastructure;
+• Any action taken by Alderon Games against servers or users who use the Bot;
+• [==Misuse of the report, punishment, analytics, or game-integration (RCON, buffs, teleport) tools by administrators or staff members.==]{#ff4444} The Bot provides the tools; how they are used is the sole and exclusive responsibility of the server and its moderators.
+
+The server administrator is solely responsible for reviewing the Bot's automatic actions and for ensuring that reports, punishments, and game-integration tools are not used for abusive or defamatory purposes, for improper public exposure, or in violation of Alderon Games' policies.
+
+――――――――――――――――
+
+10. VIOLATION OF THE TERMS:
+
+If the developer identifies misuse of the Bot, they may, without prior notice:
+
+• Block the Bot on a specific server;
+• Revoke free or premium access (without refund, in case of serious violation);
+• Report illegal activity to Discord Trust & Safety or the relevant authorities.
+
+[==In particular, should there be proof that a server used the game-integration tools (RCON, buffs, teleport, or any administrative Bot command) in violation of Alderon Games' Terms of Service, Use Policy, Modding Agreement, or Server Hosting Agreement — including selling or exchanging in-game advantages/benefits for real money — the Bot will be blocked for that specific server, immediately and at the developer's sole discretion.==]{#ff4444}
+
+A user who feels unfairly punished may appeal on the official support server.
+
+――――――――――――――――
+
+11. DEVELOPER'S RIGHTS:
+
+• Set and change prices, plans, and features at any time, with [==14 days==]{#66ff66} advance notice for changes affecting active users;
+• Put the Bot under maintenance or discontinue it, provided reasonable advance notice is given;
+• Refuse use of the Bot by any server that violates these Terms or Alderon Games' policies;
+• Change these Terms of Service and Privacy Policy at any time.
+
+[==Important:==]{#ffaa66} the user has the right to only agree to the version in effect at the time they started using the Bot.
+
+――――――――――――――――
+
+12. CONTACT AND SUPPORT:
+
+For questions, data-removal requests, reporting abuse, or exercising your privacy rights:
+
+• Support server: invite link
+• Use the [==/reportarbug==]{#ffaa66} command
+
+――――――――――――――――
+
+[==By using the Bot, you declare that you have read, understood, and agree to these Terms of Service and Privacy Policy.==]{#ffaa66}
+
+――――――――――――――――
+
+VERSION HISTORY:
+
+• v1.1 (17.07.2026): Added Section 4 (Game Server Integration / compliance with Alderon Games) and Section 5 (Store, Currency, and Premium System), clarifying that the Bot's internal economy does not grant in-game advantages and that RCON/buff tools are exclusively for host use, with a clause on blocking in case of proven misuse. Harmonized the advance-notice period (14 days) between Sections 2 and 11. Fixed typos and expanded Section 1 with the full list of the Bot's areas.
+• v1.0 (09.06.2026): Initial pre-launch version.

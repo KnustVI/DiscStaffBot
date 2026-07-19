@@ -74,15 +74,18 @@ function termosBlockToSection(block) {
     return { number, title, bodyHtml: parseTermosBody(bodyText) };
 }
 
-function parseTermosFile() {
-    const raw = fs.readFileSync(path.join(__dirname, 'TERMOS_DE_SERVICO.txt'), 'utf8');
+// labels: nome exato das linhas de metadado no idioma do arquivo (o PT usa
+// "Última atualização:"/"Versão:", o EN usa "Last updated:"/"Version:") —
+// só pra extrair essas duas linhas do preâmbulo, não afeta o resto do parser.
+function parseTermosFile(fileName, labels) {
+    const raw = fs.readFileSync(path.join(__dirname, fileName), 'utf8');
     const blocks = splitTermosBlocks(raw);
 
     const preambleLines = blocks[0].split('\n');
     const docTitle = preambleLines[0].trim();
-    const versionIdx = preambleLines.findIndex(l => l.trim().startsWith('Versão:'));
-    const lastUpdated = (preambleLines.find(l => l.trim().startsWith('Última atualização:')) || '').replace('Última atualização:', '').trim();
-    const version = (preambleLines.find(l => l.trim().startsWith('Versão:')) || '').replace('Versão:', '').trim();
+    const versionIdx = preambleLines.findIndex(l => l.trim().startsWith(labels.version));
+    const lastUpdated = (preambleLines.find(l => l.trim().startsWith(labels.lastUpdated)) || '').replace(labels.lastUpdated, '').trim();
+    const version = (preambleLines.find(l => l.trim().startsWith(labels.version)) || '').replace(labels.version, '').trim();
     const preambleHtml = parseTermosBody(preambleLines.slice(versionIdx + 1).join('\n').trim());
 
     return {
@@ -91,6 +94,33 @@ function parseTermosFile() {
         version,
         preambleHtml,
         sections: blocks.slice(1).map(termosBlockToSection),
+    };
+}
+
+// Junta as duas versões (PT = texto juridicamente vigente, EN = tradução de
+// cortesia — ver aviso na própria página) seção a seção, na ordem em que
+// aparecem em cada arquivo. Os dois .txt são escritos manualmente pra
+// manter a MESMA estrutura (mesmo número de seções, mesma ordem), então o
+// zip por índice é seguro; se um dia divergirem, o pior caso é uma seção
+// aparecer com título/corpo trocado — não um crash.
+function loadTermosBilingual() {
+    const pt = parseTermosFile('TERMOS_DE_SERVICO.txt', { lastUpdated: 'Última atualização:', version: 'Versão:' });
+    const en = parseTermosFile('TERMOS_DE_SERVICO_EN.txt', { lastUpdated: 'Last updated:', version: 'Version:' });
+
+    return {
+        docTitlePt: pt.docTitle,
+        docTitleEn: en.docTitle,
+        lastUpdated: pt.lastUpdated,
+        version: pt.version,
+        preambleHtmlPt: pt.preambleHtml,
+        preambleHtmlEn: en.preambleHtml,
+        sections: pt.sections.map((s, i) => ({
+            number: s.number,
+            titlePt: s.title,
+            titleEn: en.sections[i] ? en.sections[i].title : s.title,
+            bodyHtmlPt: s.bodyHtml,
+            bodyHtmlEn: en.sections[i] ? en.sections[i].bodyHtml : s.bodyHtml,
+        })),
     };
 }
 
@@ -199,7 +229,7 @@ function loadDashboard(client) {
     // pequeno e a página é pouco acessada, não vale a pena cachear e
     // arriscar servir uma versão desatualizada depois de uma edição.
     app.get('/termos', (req, res) => {
-        res.render('termos', parseTermosFile());
+        res.render('termos', loadTermosBilingual());
     });
 
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)

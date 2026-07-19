@@ -94,15 +94,21 @@
         }
         .btn-primary:hover { background: #803E30; border-color: #F8DCC0; }
 
+        /* Nav mais compacta em telas pequenas — mesmo ajuste do hero.ejs,
+           reduz quantas linhas ela quebra num celular. */
         @media (max-width: 640px) {
             .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
             .lang-btn { padding: 4px 10px; height: 26px; font-size: 12px; }
         }
 
-        /* margin-top (não padding) = altura real da nav, medida via JS — a
-           nav quebra em números de linha diferentes dependendo da largura
-           da tela, então um valor fixo quebraria em telas estreitas. */
-        .legal-page-padding { margin-top: calc(var(--nav-height, 90px) + 24px); }
+        /* margin-top (não padding) = altura real da nav, medida via JS —
+           igual ao hero.ejs. A nav quebra em números de linha diferentes
+           dependendo da largura da tela E de quando a webfont termina de
+           carregar (troca de fonte pode reflowar o texto e mudar quantas
+           linhas a nav ocupa DEPOIS da 1a medição) — ver script abaixo,
+           que re-mede em resize/load/fonts.ready. Fallback de 130px cobre
+           o pior caso (nav em 2 linhas) até o JS rodar. */
+        .legal-page-padding { margin-top: calc(var(--nav-height, 130px) + 24px); }
 
         .legal-doc {
             width: 100%;
@@ -121,14 +127,14 @@
         .legal-meta {
             font-size: 13px;
             opacity: 0.6;
-            margin-bottom: 28px;
+            margin-bottom: 16px;
         }
-        .legal-en-notice {
+        .legal-translation-notice {
             background: #1A1A1A;
             border: 1px solid #3E3D38;
             border-radius: 12px;
             padding: 14px 18px;
-            font-size: 14px;
+            font-size: 13px;
             opacity: 0.85;
             margin-bottom: 28px;
         }
@@ -164,12 +170,13 @@
 </head>
 <body class="text-titan-cream">
 
-<!-- ===================== NAV (fixa, independente do scroll) ===================== -->
+<!-- ===================== NAV (fixa, idêntica à da landing page) ===================== -->
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-    <a href="/dashboard" class="nav-btn"><span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span></a>
-    <a href="/termos" class="nav-btn"><span data-i18n-pt>TERMOS DE SERVIÇO</span><span data-i18n-en>TERMS OF SERVICE</span></a>
+    <a href="#" class="nav-btn"><span data-i18n-pt>PATCH UPDATES</span><span data-i18n-en>PATCH UPDATES</span></a>
+    <a href="#" class="nav-btn"><span data-i18n-pt>DOCUMENTATION</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="#" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
     <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
 </nav>
 <script>
@@ -181,30 +188,43 @@
         syncNavHeight();
         window.addEventListener('resize', syncNavHeight);
         window.addEventListener('load', syncNavHeight);
+        // A webfont (Poppins) pode terminar de carregar DEPOIS do 'load' e
+        // reflowar o texto dos botões, mudando quantas linhas a nav ocupa —
+        // sem isso, o conteúdo abaixo fica com espaço de menos e sobrepõe
+        // a nav quando ela cresce de 1 pra 2 linhas depois da 1a medição.
+        if (window.document.fonts && window.document.fonts.ready) {
+            window.document.fonts.ready.then(syncNavHeight);
+        }
     })();
 </script>
 
 <!-- ===================== DOCUMENTO ===================== -->
 <div class="legal-page-padding">
     <div class="legal-doc">
-        <h1><%= docTitle %></h1>
+        <h1><span data-i18n-pt><%= docTitlePt %></span><span data-i18n-en><%= docTitleEn %></span></h1>
         <p class="legal-meta">
             <span data-i18n-pt>Última atualização: <%= lastUpdated %> &middot; Versão: <%= version %></span>
             <span data-i18n-en>Last updated: <%= lastUpdated %> &middot; Version: <%= version %></span>
         </p>
 
-        <div class="legal-en-notice" data-i18n-en>
-            This document is currently only available in Portuguese — it's the legally binding version. If anything below is unclear, reach out on the support server or use <code>/reportarbug</code>.
+        <div class="legal-translation-notice">
+            <span data-i18n-pt>A versão em <strong>português</strong> é a juridicamente vigente. A versão em inglês é uma tradução de cortesia — em caso de divergência, o texto em português prevalece.</span>
+            <span data-i18n-en>The <strong>Portuguese</strong> version is the legally binding one. The English version is a courtesy translation — in case of any divergence, the Portuguese text prevails.</span>
         </div>
 
-        <%- preambleHtml %>
+        <div data-i18n-pt><%- preambleHtmlPt %></div>
+        <div data-i18n-en><%- preambleHtmlEn %></div>
 
         <% sections.forEach(section => { %>
-            <section class="<%= !section.title ? 'legal-closing' : '' %>">
-                <% if (section.title) { %>
-                    <h2><%= section.number ? section.number + '. ' + section.title : section.title %></h2>
+            <section class="<%= !section.titlePt ? 'legal-closing' : '' %>">
+                <% if (section.titlePt) { %>
+                    <h2>
+                        <span data-i18n-pt><%= section.number ? section.number + '. ' + section.titlePt : section.titlePt %></span>
+                        <span data-i18n-en><%= section.number ? section.number + '. ' + section.titleEn : section.titleEn %></span>
+                    </h2>
                 <% } %>
-                <%- section.bodyHtml %>
+                <div data-i18n-pt><%- section.bodyHtmlPt %></div>
+                <div data-i18n-en><%- section.bodyHtmlEn %></div>
             </section>
         <% }); %>
 
