@@ -255,8 +255,17 @@
             leadPt: 'Todos nossos usuários podem desfrutar de um perfil com títulos e badges de sua caminhada no jogo.',
             leadEn: 'Every user gets to enjoy a profile with titles and badges tracking their journey in the game.',
             subPt: 'PERFIL ACESSÁVEL EM QUALQUER SERVIDOR QUE USE O BOT.', subEn: 'A PROFILE AVAILABLE ON ANY SERVER RUNNING THE BOT.',
-            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e badges. Complete missões em qualquer servidor que utilize o bot para desbloquear recompensas que registram sua jornada e conquistas. Alguns servidores também poderão oferecer missões exclusivas com prêmios únicos. Em breve, o bot contará com sua própria moeda: Hunt. Ganhe Hunt jogando em servidores integrados ao sistema, completando missões e aproveitando bônus adicionais nos planos Premium. Os pontos poderão ser trocados por itens de personalização na loja, incluindo imagens criadas e enviadas pela comunidade, sempre com os devidos créditos aos seus autores. No futuro, a Hunt também poderá ser utilizada para participar de sorteios de pacotes de skins de Path of Titans e outros eventos especiais promovidos pela comunidade.',
-            bodyEn: "Fully customizable profiles with images, titles, and badges. Complete missions on any server running the bot to unlock rewards that track your journey and achievements. Some servers may also offer exclusive missions with unique prizes. Coming soon, the bot will have its own currency: Hunt. Earn Hunt by playing on servers integrated with the system, completing missions, and enjoying extra bonuses on Premium plans. Points can be exchanged for customization items in the shop, including images created and submitted by the community, always credited to their creators. In the future, Hunt may also be used to enter giveaways for Path of Titans skin packages and other special events hosted by the community.",
+            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e badges. Complete missões em qualquer servidor que utilize o bot para desbloquear recompensas que registram sua jornada e conquistas. Alguns servidores também poderão oferecer missões exclusivas com prêmios únicos.',
+            bodyEn: 'Fully customizable profiles with images, titles, and badges. Complete missions on any server running the bot to unlock rewards that track your journey and achievements. Some servers may also offer exclusive missions with unique prizes.',
+            // Subtópico "Hunt" — mesmo tratamento visual de AUTOSUPERVISÃO
+            // (bloco Análise/Staff abaixo): um <h3> junto de mais parágrafos,
+            // dentro do MESMO card, não uma feature nova. <strong> só aqui
+            // porque body2 é renderizado sem escape (ver loop de features).
+            body2HeadingPt: 'PONTOS DE CAÇADA!', body2HeadingEn: 'HUNT POINTS!',
+            body2Pt: 'Em breve, o bot contará com sua própria moeda: <strong>Hunt</strong>. Ganhe Hunt jogando em servidores integrados ao sistema, completando missões e aproveitando bônus adicionais nos planos Premium. Os pontos poderão ser trocados por itens de personalização na loja, incluindo imagens criadas e enviadas pela comunidade, sempre com os devidos créditos aos seus autores.',
+            body2En: 'Coming soon, the bot will have its own currency: <strong>Hunt</strong>. Earn Hunt by playing on servers integrated with the system, completing missions, and enjoying extra bonuses on Premium plans. Points can be exchanged for customization items in the shop, including images created and submitted by the community, always credited to their creators.',
+            body3Pt: 'No futuro, a Hunt também poderá ser utilizada para participar de sorteios de pacotes de skins de Path of Titans e outros eventos especiais promovidos pela comunidade.',
+            body3En: 'In the future, Hunt may also be used to enter giveaways for Path of Titans skin packages and other special events hosted by the community.',
         },
         {
             img: 'screenshot-reporte-chat', titlePt: 'SISTEMA DE REPORTE', titleEn: 'REPORT SYSTEM',
@@ -312,6 +321,19 @@
                 <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
                     <span data-i18n-pt><%= f.bodyPt %></span><span data-i18n-en><%= f.bodyEn %></span>
                 </p>
+                <% if (f.body2HeadingPt) { %>
+                    <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px); margin-top: 8px;">
+                        <span data-i18n-pt><%= f.body2HeadingPt %></span><span data-i18n-en><%= f.body2HeadingEn %></span>
+                    </h3>
+                    <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                        <span data-i18n-pt><%- f.body2Pt %></span><span data-i18n-en><%- f.body2En %></span>
+                    </p>
+                    <% if (f.body3Pt) { %>
+                        <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                            <span data-i18n-pt><%= f.body3Pt %></span><span data-i18n-en><%= f.body3En %></span>
+                        </p>
+                    <% } %>
+                <% } %>
             </div>
         </div>
     <% }); %>
