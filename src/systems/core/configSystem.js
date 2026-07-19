@@ -1857,7 +1857,7 @@ const ConfigSystem = {
         ];
         if (isCompyPlus) {
             row1Buttons.push(
-                new ButtonBuilder().setCustomId('perfil-edit:photo-info').setLabel('Foto de Perfil').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.image || '🖼️'),
+                new ButtonBuilder().setCustomId('perfil-edit:photo-info').setLabel('Foto de Perfil').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.imagem || '🖼️'),
                 new ButtonBuilder().setCustomId('perfil-edit:background-info').setLabel('Plano de Fundo').setStyle(ButtonStyle.Primary).setEmoji(EMOJIS.gallery || '🏞️'),
             );
         }
@@ -2085,7 +2085,7 @@ const ConfigSystem = {
         const changeMessage = oldValue !== chosenKey
             ? `${EMOJIS.circlecheck || '✅'} **Banner do /strike atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.image || '🖼️'} Banner do /strike: \`${oldValue}\` → \`${chosenKey}\``);
+        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.imagem || '🖼️'} Banner do /strike: \`${oldValue}\` → \`${chosenKey}\``);
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'strike');
     },
 
@@ -2109,7 +2109,7 @@ const ConfigSystem = {
         const changeMessage = oldValue !== chosenKey
             ? `${EMOJIS.circlecheck || '✅'} **Banner do /unstrike atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.image || '🖼️'} Banner do /unstrike: \`${oldValue}\` → \`${chosenKey}\``);
+        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.imagem || '🖼️'} Banner do /unstrike: \`${oldValue}\` → \`${chosenKey}\``);
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'strike');
     },
 
@@ -2133,7 +2133,7 @@ const ConfigSystem = {
         const changeMessage = oldValue !== chosenKey
             ? `${EMOJIS.circlecheck || '✅'} **Banner do report-chat atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
-        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.image || '🖼️'} Banner do report-chat: \`${oldValue}\` → \`${chosenKey}\``);
+        if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.imagem || '🖼️'} Banner do report-chat: \`${oldValue}\` → \`${chosenKey}\``);
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'reportchat');
     },
 
@@ -2395,7 +2395,7 @@ const ConfigSystem = {
                 ].join('\n'),
                 cb.assetThumbnail('icone_art') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
             );
-            cb.title(`${EMOJIS.image || '🖼️'} Banner do /strike`, 2);
+            cb.title(`${EMOJIS.imagem || '🖼️'} Banner do /strike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${strikeLabel}`]);
             // Select logo abaixo do bloco do PRÓPRIO banner (não no final do
             // painel) — pedido do dono, cada seleção fica junto da seção a
@@ -2409,7 +2409,7 @@ const ConfigSystem = {
                     .setDefault(opt.value === strikeBannerKey)
                 )));
             cb.separator();
-            cb.title(`${EMOJIS.image || '🖼️'} Banner do /unstrike`, 2);
+            cb.title(`${EMOJIS.imagem || '🖼️'} Banner do /unstrike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${unstrikeLabel}`]);
             cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:unstrike-banner')
@@ -2432,7 +2432,7 @@ const ConfigSystem = {
                 ].join('\n'),
                 cb.assetThumbnail('icone_art') || AdvancedContainerBuilder.thumbnail(interaction.guild.iconURL({ size: 128 }))
             );
-            cb.title(`${EMOJIS.image || '🖼️'} Banner atual`, 2);
+            cb.title(`${EMOJIS.imagem || '🖼️'} Banner atual`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${bannerLabel}`]);
             cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:reportchat-banner')
