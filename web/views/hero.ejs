@@ -191,11 +191,24 @@
     })();
 </script>
 
-<!-- ===================== HERO ===================== -->
-<section class="relative w-full flex flex-col items-center text-center px-4 hero-section-padding" style="overflow:hidden; border-radius: 50px 50px 0 0; box-shadow: 0 -12px 26.2px rgba(0,0,0,0.47);">
+<!-- ===================== FUNDO COMPARTILHADO (hero + conteúdo abaixo) ===================== -->
+<!-- Textura única cobrindo o hero E o topo do conteúdo abaixo dele — antes
+     era só um <img> recortado (object-cover) dentro da própria section do
+     hero. Agora é um <img> em fluxo normal (largura 100%, altura auto),
+     então estabelece a altura deste wrapper sozinho, sempre proporcional à
+     largura da tela (responsivo, sem recorte lateral — "fill horizontal").
+     O degradê por baixo tem o MESMO aspect-ratio da imagem (2160x2454, ver
+     web/public/images/landing/hero-bg-texture.webp) pra terminar EXATAMENTE
+     na borda de baixo dela, em #111111 opaco — mesma cor do fundo da
+     página, então a transição pro resto do conteúdo (bem mais longo que a
+     imagem) fica invisível, sem precisar repetir a textura. -->
+<div class="relative w-full" style="overflow:hidden; border-radius: 50px 50px 0 0; box-shadow: 0 -12px 26.2px rgba(0,0,0,0.47);">
     <img src="/images/landing/hero-bg-texture.webp" alt=""
-         class="absolute top-0 left-0 w-full h-full object-cover pointer-events-none select-none" style="z-index:0;">
-    <div class="absolute top-0 left-0 w-full h-full" style="z-index:0; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,0.75) 100%);"></div>
+         class="absolute top-0 left-0 w-full pointer-events-none select-none" style="height:auto; z-index:0;">
+    <div class="absolute top-0 left-0 w-full" style="aspect-ratio: 2160 / 2454; z-index:0; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,1) 100%);"></div>
+
+    <!-- ===================== HERO ===================== -->
+    <section class="relative w-full flex flex-col items-center text-center px-4 hero-section-padding" style="z-index:10;">
     <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
             <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass" style="width: clamp(220px, 30vw, 380px);">
             <h1 class="section-title text-shadow-figma" style="max-width: 700px;">
@@ -218,10 +231,10 @@
     </section>
 
 <!-- ===================== FEATURE SECTIONS ===================== -->
-<div class="w-full flex justify-center" style="background:#111111; padding: 40px 16px 0;">
+<div class="w-full flex justify-center" style="padding: 40px 16px 0;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<main class="w-full flex flex-col items-center" style="background:#111111; gap: 80px; padding: 20px 16px 90px;">
+<main class="w-full flex flex-col items-center" style="gap: 80px; padding: 20px 16px 90px;">
 
     <%
     // Texto extraído do arquivo real de CSS do Figma (Hero css.txt) — não é
@@ -329,10 +342,10 @@
 </main>
 
 <!-- ===================== O QUE ESTAMOS PROMOVENDO ===================== -->
-<div class="w-full flex justify-center" style="background:#111111; padding: 0 16px;">
+<div class="w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section class="w-full flex flex-col items-center" style="background:#111111; padding: 60px 16px;">
+<section class="w-full flex flex-col items-center" style="padding: 60px 16px;">
     <h2 class="section-title text-shadow-figma mb-2 text-center">
         <span data-i18n-pt>O QUE O TITAN'S PASS ESTÁ PROMOVENDO</span>
         <span data-i18n-en>WHAT TITAN'S PASS IS DELIVERING</span>
@@ -368,10 +381,10 @@
 </section>
 
 <!-- ===================== PLAYER PREMIUM ===================== -->
-<div class="w-full flex justify-center" style="background:#111111; padding: 0 16px;">
+<div class="w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section id="premium" class="w-full flex flex-col items-center" style="background:#111111; padding: 60px 16px;">
+<section id="premium" class="w-full flex flex-col items-center" style="padding: 60px 16px;">
     <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>PLAYER PREMIUM</span><span data-i18n-en>PLAYER PREMIUM</span></h2>
     <p class="mb-4 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
         <span data-i18n-pt>Personalize seu perfil e participe das missões mensais do bot!</span>
@@ -440,10 +453,10 @@
 </section>
 
 <!-- ===================== SERVER PREMIUM ===================== -->
-<div class="w-full flex justify-center" style="background:#111111; padding: 0 16px;">
+<div class="w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section class="w-full flex flex-col items-center" style="background:#111111; padding: 20px 16px 70px;">
+<section class="w-full flex flex-col items-center" style="padding: 20px 16px 70px;">
     <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>SERVER PREMIUM</span><span data-i18n-en>SERVER PREMIUM</span></h2>
     <p class="mb-4 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
         <span data-i18n-pt>Melhore tudo que puder no seu servidor!</span>
@@ -530,10 +543,10 @@
 </section>
 
 <!-- ===================== PORQUE USAR ===================== -->
-<div class="w-full flex justify-center" style="background:#111111; padding: 0 16px;">
+<div class="w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section class="w-full flex flex-col items-center" style="background:#111111; padding: 60px 16px;">
+<section class="w-full flex flex-col items-center" style="padding: 60px 16px;">
     <h2 class="section-title text-shadow-figma mb-10 text-center"><span data-i18n-pt>PORQUE USAR?</span><span data-i18n-en>WHY USE IT?</span></h2>
     <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-10" style="max-width: 1100px;">
         <%
@@ -576,6 +589,8 @@
         </a>
     </div>
 </section>
+</div>
+<!-- fim do wrapper de fundo compartilhado -->
 
 <!-- ===================== FOOTER ===================== -->
 <footer class="w-full flex flex-col items-center" style="background:#111111; padding: 30px 16px; gap: 10px;">
