@@ -79,8 +79,21 @@ function appendStatus(builder, guild, user) {
 
 function appendAcquire(builder) {
     builder.title(`${EMOJIS.wifi || '💬'} Como adquirir`, 2);
-    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} A concessão hoje é manual: fale com o desenvolvedor do bot (**/reportarbug**, opção Sugestão, ou contato direto) pra combinar o pagamento e ativar o tier. Uma forma automatizada de pagamento (Ko-fi) está a caminho.`);
+    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} A concessão hoje é manual: clique em **Adquirir** abaixo pra entrar no servidor de suporte e combinar o pagamento com a staff, ou use **/reportarbug** pra falar direto com o desenvolvedor.`);
     return builder;
+}
+
+// Link fixo pro servidor de suporte — mesmo link usado no botão "Adquirir"
+// da landing page (Brasil/Pix, ver web/views/hero.ejs). O painel do
+// Discord não faz detecção de região (ver PREMIUM.txt seção 101), então
+// esse botão é único pra qualquer um que rodar /premium, independente de
+// onde a pessoa está.
+const SUPPORT_SERVER_URL = 'https://discord.gg/fkD5FQktn6';
+
+function acquireRow() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Adquirir').setURL(SUPPORT_SERVER_URL).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.wifi || '🔗'),
+    );
 }
 
 function navRow(activeView = 'main') {
@@ -183,7 +196,7 @@ function payloadFor(view, guild, user) {
         : buildMainContainer(guild, user);
 
     const { components, flags, files } = builder.build();
-    return { components: [...components, navRow(resolvedView)], flags, files: [...(files || []), ...extraFiles] };
+    return { components: [...components, acquireRow(), navRow(resolvedView)], flags, files: [...(files || []), ...extraFiles] };
 }
 
 async function sendPanel(interaction, view = 'main') {

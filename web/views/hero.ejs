@@ -377,7 +377,8 @@
     function pricingCta(priceBR, priceIntl, color) {
         const moneyLine = `<p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:${color};">${isBrazil ? priceBR : priceIntl}<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>`;
         const ctaLine = isBrazil
-            ? `<p class="text-xs opacity-70 mb-3" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Pagamento manual via Pix — fale com a staff.</span><span data-i18n-en>Manual payment via Pix — contact the staff.</span></p>`
+            ? `<a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="btn-primary small" style="min-width:0; margin-bottom:6px;"><span data-i18n-pt>Adquirir</span><span data-i18n-en>Get it</span></a>
+               <p class="text-xs opacity-70 mb-3" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Pagamento manual via Pix — fale com a staff.</span><span data-i18n-en>Manual payment via Pix — talk to the staff.</span></p>`
             : `<a href="https://ko-fi.com/knustvi" target="_blank" rel="noopener" class="btn-primary small" style="min-width:0; margin-bottom:12px;"><span data-i18n-pt>Assinar via Ko-fi</span><span data-i18n-en>Subscribe via Ko-fi</span></a>`;
         return moneyLine + ctaLine;
     }
