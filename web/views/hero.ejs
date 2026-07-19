@@ -377,44 +377,13 @@
 
 </main>
 
-<!-- ===================== O QUE ESTAMOS PROMOVENDO ===================== -->
-<div class="relative w-full flex justify-center" style="padding: 0 16px;">
-    <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
-</div>
-<section class="relative w-full flex flex-col items-center" style="padding: 60px 16px;">
-    <h2 class="section-title text-shadow-figma mb-2 text-center">
-        <span data-i18n-pt>O QUE O TITAN'S PASS ESTÁ PROMOVENDO</span>
-        <span data-i18n-en>WHAT TITAN'S PASS IS DELIVERING</span>
-    </h2>
-    <p class="mb-10 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
-        <span data-i18n-pt>Usuários ativos de servidores de jogos aprovaram!</span>
-        <span data-i18n-en>Active users on game servers approve!</span>
-    </p>
-    <div class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" style="max-width: 1200px;">
-        <%
-        const quotes = [
-            { pt: '"O Titan\'s Pass tornou a experiência muito mais prática e organizada. O sistema é rápido, intuitivo e oferece benefícios realmente úteis. Recomendo para quem busca mais comodidade e vantagens dentro da comunidade."',
-              en: '"Titan\'s Pass made the experience much more practical and organized. The system is fast, intuitive, and offers genuinely useful benefits. I recommend it to anyone looking for more convenience and perks within the community."' },
-            { pt: '"Desde que comecei a utilizar o Titan\'s Pass, percebi uma grande diferença na qualidade da experiência. Os recursos são bem planejados, fáceis de acessar e agregam muito valor ao dia a dia. Excelente iniciativa."',
-              en: "\"Ever since I started using Titan's Pass, I've noticed a huge difference in the quality of the experience. The features are well planned, easy to access, and add a lot of value day to day. Excellent initiative.\"" },
-            { pt: '"O Titan\'s Pass entrega exatamente o que promete. Os benefícios são relevantes, o acesso é simples e a plataforma transmite profissionalismo em todos os detalhes. Um dos melhores sistemas de vantagens que já utilizei."',
-              en: "\"Titan's Pass delivers exactly what it promises. The benefits are relevant, access is simple, and the platform feels professional down to every detail. One of the best perk systems I've ever used.\"" },
-            { pt: '"Gostei bastante do Titan\'s Pass. Além de oferecer vantagens interessantes, ele incentiva a participação da comunidade e recompensa os membros de forma justa. A experiência é fluida e muito bem estruturada."',
-              en: "\"I really liked Titan's Pass. Besides offering interesting perks, it encourages community participation and rewards members fairly. The experience is smooth and very well structured.\"" },
-        ];
-        %>
-        <% quotes.forEach(q => { %>
-            <div class="quote-card flex flex-col items-center text-center gap-4">
-                <div class="icon-badge">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="#803E30"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-7 2-7 5v1h14v-1c0-3-3-5-7-5Z"/></svg>
-                </div>
-                <p style="font-family:'Poppins',sans-serif; font-size: 14px; opacity: 0.9;" class="text-shadow-figma">
-                    <span data-i18n-pt><%= q.pt %></span><span data-i18n-en><%= q.en %></span>
-                </p>
-            </div>
-        <% }); %>
-    </div>
-</section>
+<!-- ===================== O QUE ESTAMOS PROMOVENDO ==========================
+     Removido TEMPORARIAMENTE (pedido do dono, 2026-07-19): a seção inteira
+     era só protótipo, com 4 depoimentos fictícios de exemplo — ainda não
+     temos feedback real de usuário nenhum. Reverter este commit (ou
+     recuperar do histórico do git) assim que houver depoimentos de verdade
+     pra usar aqui, em vez de recriar a seção do zero.
+     ========================================================================= -->
 
 <!-- ===================== PLAYER PREMIUM ===================== -->
 <div class="relative w-full flex justify-center" style="padding: 0 16px;">
