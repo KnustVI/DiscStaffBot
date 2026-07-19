@@ -49,9 +49,9 @@ FREE
   cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
-- Farme de cacadas por hora de jogo: gera Hunt (moeda da lojinha do bot,
-  sem nenhum efeito na taxa de farm dentro do jogo em si), trocavel so por
-  customizacao de perfil. (ainda nao implementado - "vindo em breve")
+- Ganhe Hunt por hora de jogo (moeda da lojinha do bot, sem nenhum efeito
+  na taxa de farm dentro do jogo em si), trocavel so por customizacao de
+  perfil. (ainda nao implementado - "vindo em breve")
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
@@ -76,9 +76,9 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
-- Perfil personalizavel pela loja (badge/titulo exclusivos). Boost de farm
-  por trofeu: gera Hunt (moeda da lojinha do bot, sem nenhum efeito na
-  taxa de farm dentro do jogo em si), trocavel so por customizacao de
+- Perfil personalizavel pela loja (badge/titulo exclusivos). Ganho extra
+  de Hunt por trofeu entregue (moeda da lojinha do bot, sem nenhum efeito
+  na taxa de farm dentro do jogo em si), trocavel so por customizacao de
   perfil. (ainda nao implementado - "vindo em breve")
 
 RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Compy +")
@@ -97,10 +97,10 @@ RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) 
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
   versao "banco de titulos" pro Compy, ver acima).
 - Footer de perfil padrao do tier Raptor.
-- Boost de farm por missao Titan concluida: gera Hunt (moeda da lojinha
-  do bot, sem nenhum efeito na taxa de farm dentro do jogo em si),
-  trocavel so por customizacao de perfil. (ainda nao implementado -
-  "vindo em breve")
+- Ganho extra de Hunt por missao Titan concluida (moeda da lojinha do
+  bot, sem nenhum efeito na taxa de farm dentro do jogo em si), trocavel
+  so por customizacao de perfil. (ainda nao implementado - "vindo em
+  breve")
 - Sorteio SEMANAL de pacote de skins do Path of Titans.
   (ainda nao implementado - "vindo em breve")
 
@@ -4599,3 +4599,34 @@ frente, nao so este relatorio):
   no mesmo texto, mas nenhuma mudança de nome foi feita por conta disso
   nesta revisão (ambos os nomes foram decisões deliberadas do dono, em
   momentos diferentes).
+
+105) Landing page explica o sistema de Hunt na seção de Perfil + wording
+     "Boost de farm" trocado por "Ganho extra de Hunt" (evitar confusão
+     com efeito em jogo)
+------------------------------------------------------------------
+- `web/views/hero.ejs`, bloco de feature "PERFIL PRÉ-HISTÓRICO" (PT/EN),
+  ganhou um parágrafo "em breve" explicando a Hunt: nome, fontes de ganho
+  (horas de jogo em qualquer servidor com o bot, missões do bot ou do
+  servidor, taxa maior no Premium) e pra que serve (customização de
+  perfil na loja — incluindo imagens enviadas por OUTROS JOGADORES,
+  creditadas a quem enviou; e, no futuro, entrada em sorteios de pacotes
+  de skins da Alderon Games).
+- Mercado de imagens enviadas por jogadores é informação NOVA nesta
+  revisão, ainda não descrita em nenhuma outra seção deste arquivo nem
+  nos Termos — só documentado aqui e na landing page por enquanto. Como
+  tudo que envolve a loja, está "vindo em breve" (loja não implementada).
+- Motivação do 2º ponto (wording): "Boost de farm" (Seção 1, bullets
+  Compy/Raptor) e "Farme de caçadas"/"Hunt farming" (bullet Free) podiam
+  ser lidos como afetando a taxa de farm/crescimento DENTRO do jogo — o
+  texto já tinha uma cláusula esclarecendo que não afeta, mas o dono
+  pediu pra deixar isso inequívoco já no título do bullet, não só na
+  cláusula. Trocado em TODOS os lugares (Seção 1 aqui + os 3 bullets
+  correspondentes em `web/views/hero.ejs`) pra "Ganhe Hunt por hora de
+  jogo" (Free) / "Ganho extra de Hunt por troféu entregue" (Compy) /
+  "Ganho extra de Hunt por missão Titan concluída" (Raptor) — o verbo
+  agora é sempre "ganhar Hunt", nunca "boost"/"farm" sozinhos.
+- NÃO mudou o sorteio semanal de skins do Raptor (bullet separado, "vindo
+  em breve") nem criou vínculo entre ele e a futura entrada via Hunt
+  citada acima — são dois mecanismos distintos por enquanto (um bônus
+  automático do tier, outro uma troca por moeda), até o dono esclarecer
+  se um substitui o outro.
