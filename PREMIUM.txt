@@ -195,7 +195,7 @@ FREE
 - /config punishments BLOQUEADO neste tier (nada a configurar, ja que
   reputacao esta desativada).
 
-RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
+RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$14/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Missoes: 1 missao mensal exclusiva para o servidor. (ainda nao
   implementado - "vindo em breve")
 - Reportes: ate 3 chats de reporte ativos, ate 3 revisoes de punicao
@@ -4553,3 +4553,23 @@ frente, nao so este relatorio):
   continuam só em português por decisão da seção 101 (sem sinal de região
   dentro de uma interaction do Discord), então não faz sentido misturar um
   nome de tier em inglês dentro de um painel 100% em português.
+
+103) RASTREADOR/TRACKER internacional sobe de US$12 pra US$14/mês — Ko-fi
+     não aceita dois produtos com o mesmo preço
+------------------------------------------------------------------
+- Motivação: ao cadastrar os tiers de verdade no Ko-fi, o dono descobriu que
+  a plataforma não permite dois Membership Tiers DIFERENTES com o mesmo
+  preço — e Rastreador/Tracker (Server Premium) e Raptor (Player Premium)
+  tinham sido calculados pra US$12/mês os dois (ver seção 101), o que
+  colidia. Ajustado só o Rastreador/Tracker pra US$14/mês; Raptor continua
+  US$12/mês.
+- NÃO é um recálculo de taxa/meta líquida (a lógica da seção 101 continua
+  valendo) — é só um ajuste pra contornar a restrição da plataforma. O
+  preço em R$ (Brasil, Pix manual) NÃO muda — continua R$25/mês, já que o
+  Brasil nunca passa pelo Ko-fi.
+- Atualizado: preço internacional do Rastreador/Tracker na Seção 2 (linha
+  do tier) e em `web/views/hero.ejs` (`serverTiers`, `pricingCta` do card
+  Rastreador/Tracker). A tabela de exemplo de preços dentro da seção 101
+  NÃO foi alterada de propósito — é um registro histórico do cálculo
+  original (ver convenção de changelog no topo deste arquivo); o valor
+  vigente é sempre o da Seção 2 e do código.
