@@ -544,36 +544,56 @@ const ConfigSystem = {
                 await this.handleStrikeBannerSelect(interaction);
                 return;
             }
+            if (customId === 'config-personalizar:strike-banner-reset') {
+                await this.resetStrikeBanner(interaction);
+                return;
+            }
             if (customId === 'config-personalizar:unstrike-banner') {
                 await this.handleUnstrikeBannerSelect(interaction);
+                return;
+            }
+            if (customId === 'config-personalizar:unstrike-banner-reset') {
+                await this.resetUnstrikeBanner(interaction);
                 return;
             }
             if (customId === 'config-personalizar:reportchat-banner') {
                 await this.handleReportChatBannerSelect(interaction);
                 return;
             }
+            if (customId === 'config-personalizar:reportchat-banner-reset') {
+                await this.resetReportChatBanner(interaction);
+                return;
+            }
             if (customId === 'config-personalizar:reportchat-message:modal') {
                 await this.handleReportChatMessageModal(interaction);
+                return;
+            }
+            if (customId === 'config-personalizar:reportchat-message-reset') {
+                await this.resetReportChatMessage(interaction);
                 return;
             }
             if (customId === 'config-personalizar:reportchat-welcome:modal') {
                 await this.handleReportChatWelcomeModal(interaction);
                 return;
             }
-            if (customId === 'config-personalizar:reportchat-reset') {
-                await this.resetReportChat(interaction);
+            if (customId === 'config-personalizar:reportchat-welcome-reset') {
+                await this.resetReportChatWelcome(interaction);
                 return;
             }
             if (customId === 'config-personalizar:aparencia-color:modal') {
                 await this.handlePanelColorModal(interaction);
                 return;
             }
+            if (customId === 'config-personalizar:aparencia-color-reset') {
+                await this.resetPanelColor(interaction);
+                return;
+            }
             if (customId === 'config-personalizar:aparencia-footer:modal') {
                 await this.handlePanelFooterModal(interaction);
                 return;
             }
-            if (customId === 'config-personalizar:aparencia-reset') {
-                await this.resetPanelPersonalization(interaction);
+            if (customId === 'config-personalizar:aparencia-footer-reset') {
+                await this.resetPanelFooter(interaction);
                 return;
             }
             if (customId.startsWith('config-personalizar:tab:')) {
@@ -2089,6 +2109,15 @@ const ConfigSystem = {
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'strike');
     },
 
+    async resetStrikeBanner(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        this.setSetting(interaction.guildId, 'strike_banner_key', null);
+        this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner do /strike resetado para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner do /strike resetado para o padrão!`, interaction.guild.name, 'strike');
+    },
+
     async handleUnstrikeBannerSelect(interaction) {
         if (!interaction.isStringSelectMenu()) {
             return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
@@ -2111,6 +2140,15 @@ const ConfigSystem = {
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
         if (oldValue !== chosenKey) await this.logConfigChange(interaction, `${EMOJIS.imagem || '🖼️'} Banner do /unstrike: \`${oldValue}\` → \`${chosenKey}\``);
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'strike');
+    },
+
+    async resetUnstrikeBanner(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
+        this.setSetting(interaction.guildId, 'unstrike_banner_key', null);
+        this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner do /unstrike resetado para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner do /unstrike resetado para o padrão!`, interaction.guild.name, 'strike');
     },
 
     async handleReportChatBannerSelect(interaction) {
@@ -2217,15 +2255,34 @@ const ConfigSystem = {
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'reportchat');
     },
 
-    async resetReportChat(interaction) {
+    // Reset SEPARADO por campo (pedido do dono) — cada botão de edição do
+    // report-chat leva o próprio botão de reset logo abaixo, em vez de um
+    // "Resetar Padrão" único no fim do painel resetando tudo de uma vez.
+    async resetReportChatBanner(interaction) {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'report_chat_banner_key', null);
+        this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner do report-chat resetado para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner resetado para o padrão!`, interaction.guild.name, 'reportchat');
+    },
+
+    async resetReportChatMessage(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
         this.setSetting(interaction.guildId, 'report_chat_message', null);
+        this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Mensagem do painel do report-chat resetada para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Mensagem do painel resetada para o padrão!`, interaction.guild.name, 'reportchat');
+    },
+
+    async resetReportChatWelcome(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
         this.setSetting(interaction.guildId, 'report_chat_welcome_message', null);
         this.clearCache(interaction.guildId);
-        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner e mensagens do report-chat resetados para o padrão.`);
-        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner e mensagens resetados para o padrão!`, interaction.guild.name, 'reportchat');
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Mensagem de boas-vindas do report-chat resetada para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Mensagem de boas-vindas resetada para o padrão!`, interaction.guild.name, 'reportchat');
     },
 
     // ==================== APARÊNCIA GERAL (COR + FOOTER, CAÇADOR) ====================
@@ -2340,14 +2397,24 @@ const ConfigSystem = {
         await this.refreshPersonalizarPanel(interaction, changeMessage, interaction.guild.name, 'aparencia');
     },
 
-    async resetPanelPersonalization(interaction) {
+    // Reset SEPARADO (pedido do dono) — mesmo critério do report-chat acima:
+    // cada campo tem seu próprio botão de reset, não um só resetando os dois.
+    async resetPanelColor(interaction) {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'panel_accent_color', null);
+        this.clearCache(interaction.guildId);
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Cor dos painéis resetada para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Cor resetada para o padrão!`, interaction.guild.name, 'aparencia');
+    },
+
+    async resetPanelFooter(interaction) {
+        if (!(await this._assertPersonalizarAllowed(interaction))) return;
+
         this.setSetting(interaction.guildId, 'panel_footer_text', null);
         this.clearCache(interaction.guildId);
-        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Cor e footer dos painéis resetados para o padrão.`);
-        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Cor e footer resetados para o padrão!`, interaction.guild.name, 'aparencia');
+        await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Footer dos painéis resetado para o padrão.`);
+        await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Footer resetado para o padrão!`, interaction.guild.name, 'aparencia');
     },
 
     /**
@@ -2397,9 +2464,10 @@ const ConfigSystem = {
             );
             cb.title(`${EMOJIS.imagem || '🖼️'} Banner do /strike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${strikeLabel}`]);
-            // Select logo abaixo do bloco do PRÓPRIO banner (não no final do
-            // painel) — pedido do dono, cada seleção fica junto da seção a
-            // que pertence, em vez das duas juntas embaixo dos dois blocos.
+            // Select + reset logo abaixo do bloco do PRÓPRIO banner (não no
+            // final do painel) — pedido do dono, cada campo tem sua própria
+            // edição E seu próprio reset juntos, em vez de tudo agrupado
+            // embaixo de todos os blocos.
             cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:strike-banner')
                 .setPlaceholder('Escolha o banner do /strike...')
@@ -2408,6 +2476,7 @@ const ConfigSystem = {
                     .setValue(opt.value)
                     .setDefault(opt.value === strikeBannerKey)
                 )));
+            cb.buttons(AdvancedContainerBuilder.dangerButton('config-personalizar:strike-banner-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'));
             cb.separator();
             cb.title(`${EMOJIS.imagem || '🖼️'} Banner do /unstrike`, 2);
             cb.block([`${EMOJIS.circlecheck || '✅'} ${unstrikeLabel}`]);
@@ -2419,6 +2488,7 @@ const ConfigSystem = {
                     .setValue(opt.value)
                     .setDefault(opt.value === unstrikeBannerKey)
                 )));
+            cb.buttons(AdvancedContainerBuilder.dangerButton('config-personalizar:unstrike-banner-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'));
         } else if (activeTab === 'reportchat') {
             const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
             const customMessage = this.getSetting(guildId, 'report_chat_message');
@@ -2442,19 +2512,24 @@ const ConfigSystem = {
                     .setValue(opt.value)
                     .setDefault(opt.value === bannerKey)
                 )));
+            cb.buttons(AdvancedContainerBuilder.dangerButton('config-personalizar:reportchat-banner-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'));
             cb.separator();
             cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem do painel atual`, 2);
             cb.block([customMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (nenhuma mensagem customizada ainda).`]);
+            // Botão de edição + reset DENTRO do painel, logo após a descrição
+            // que editam (pedido do dono) — cada campo com os dois botões
+            // juntos, não agrupados no fim do painel. Só a navegação entre
+            // abas fica fora.
+            cb.buttons(
+                AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-message:modal', 'Editar Mensagem').setEmoji(EMOJIS.edit || '✏️'),
+                AdvancedContainerBuilder.dangerButton('config-personalizar:reportchat-message-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
+            );
             cb.separator();
             cb.title(`${EMOJIS.messagesquare || '💬'} Mensagem de boas-vindas atual (dentro da thread)`, 2);
             cb.block([welcomeMessage || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot — muda conforme é reporte ou revisão de punição (nenhuma mensagem customizada ainda).`]);
-            // Botões de edição ficam DENTRO do painel, logo após a descrição
-            // que editam — mesmo critério já aplicado aos selects de banner
-            // (pedido do dono). Só a navegação entre abas fica fora.
             cb.buttons(
-                AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-message:modal', 'Editar Mensagem do Painel').setEmoji(EMOJIS.edit || '✏️'),
                 AdvancedContainerBuilder.secondaryButton('config-personalizar:reportchat-welcome:modal', 'Editar Boas-vindas').setEmoji(EMOJIS.edit || '✏️'),
-                AdvancedContainerBuilder.dangerButton('config-personalizar:reportchat-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
+                AdvancedContainerBuilder.dangerButton('config-personalizar:reportchat-welcome-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
             );
         } else {
             const colorHex = this.getSetting(guildId, 'panel_accent_color');
@@ -2469,13 +2544,16 @@ const ConfigSystem = {
             );
             cb.title(`${EMOJIS.palette || '🎨'} Cor de destaque`, 2);
             cb.block([colorHex ? `${EMOJIS.circlecheck || '✅'} #${colorHex.toUpperCase()}` : `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot (cada painel usa sua própria cor).`]);
-            cb.buttons(AdvancedContainerBuilder.secondaryButton('config-personalizar:aparencia-color:modal', 'Editar Cor').setEmoji(EMOJIS.palette || '🎨'));
+            cb.buttons(
+                AdvancedContainerBuilder.secondaryButton('config-personalizar:aparencia-color:modal', 'Editar Cor').setEmoji(EMOJIS.palette || '🎨'),
+                AdvancedContainerBuilder.dangerButton('config-personalizar:aparencia-color-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
+            );
             cb.separator();
             cb.title(`${EMOJIS.messagesquare || '💬'} Footer`, 2);
             cb.block([footerText || `${EMOJIS.messagesquare || 'ℹ️'} Padrão do bot ("Produzido por KnustVI e T.Mach | Server: ${guildName}").`]);
             cb.buttons(
                 AdvancedContainerBuilder.secondaryButton('config-personalizar:aparencia-footer:modal', 'Editar Footer').setEmoji(EMOJIS.edit || '✏️'),
-                AdvancedContainerBuilder.dangerButton('config-personalizar:aparencia-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
+                AdvancedContainerBuilder.dangerButton('config-personalizar:aparencia-footer-reset', 'Resetar Padrão').setEmoji(EMOJIS.refreshccw || '⚠️'),
             );
         }
 
