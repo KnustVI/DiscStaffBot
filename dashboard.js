@@ -9,6 +9,11 @@ const SqliteSessionStore = require('./web/sqliteSessionStore');
 
 const app = express();
 
+// Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
+// — usado aqui só pra liberar o preview de região (BR/internacional) da
+// landing page pro dono logado, ver rota GET / mais abaixo.
+const DEVELOPER_ID = '203676076189286412';
+
 // ==================== PARSER DE TERMOS_DE_SERVICO.txt ====================
 // O .txt usa uma marcação própria (pensada pra ficar legível cru, sem
 // precisar abrir nada): [==texto==]{#hexcolor} pra destaque colorido,
@@ -219,9 +224,23 @@ function loadDashboard(client) {
     // Fallback pra 'BR' se o header não vier (ex: acesso direto sem
     // Cloudflare, como em dev local) — mantém o comportamento atual (Pix)
     // como padrão seguro em vez de mandar todo mundo pro Ko-fi por engano.
+    // Preview de região — só o dono (mesmo DEVELOPER_ID hardcoded em todo
+    // comando de developer) consegue forçar a versão internacional (Ko-fi)
+    // pra conferir visual/fluxo sem precisar estar de fato fora do Brasil.
+    // ?preview_region=intl|br só tem efeito com essa sessão logada — pra
+    // qualquer outro visitante o parâmetro é ignorado e a região real
+    // (Cloudflare) continua valendo, então não dá pra um visitante comum
+    // "escolher" a região só editando a URL.
+    const isOwnerSession = (req) => req.user && req.user.id === DEVELOPER_ID;
+
     app.get('/', (req, res) => {
         const country = req.headers['cf-ipcountry'] || 'BR';
-        res.render('hero', { isBrazil: country.toUpperCase() === 'BR' });
+        const detectedIsBrazil = country.toUpperCase() === 'BR';
+        const isOwner = isOwnerSession(req);
+        const regionOverride = isOwner && ['intl', 'br'].includes(req.query.preview_region) ? req.query.preview_region : null;
+        const isBrazil = regionOverride ? regionOverride === 'br' : detectedIsBrazil;
+
+        res.render('hero', { isBrazil, isOwner, regionOverride });
     });
 
     // Termos de Serviço e Política de Privacidade — parseados direto de

@@ -633,6 +633,21 @@
     <a href="/termos" class="opacity-70 hover:opacity-100 text-sm underline" style="font-family:'Poppins',sans-serif; font-weight:300; color:#F8DCC0;">
         <span data-i18n-pt>Termos de Serviço</span><span data-i18n-en>Terms of Service</span>
     </a>
+    <% if (typeof isOwner !== 'undefined' && isOwner) { %>
+        <!-- Só visível pra você (logado com o Discord do dono) — deixa
+             forçar a versão internacional (Ko-fi) da página pra conferir
+             visual/fluxo sem precisar estar de fato fora do Brasil. Não
+             aparece pra nenhum outro visitante, logado ou não. -->
+        <% if (regionOverride === 'intl') { %>
+            <a href="/" class="opacity-70 hover:opacity-100 text-sm underline" style="font-family:'Poppins',sans-serif; font-weight:300; color:#DCA15E;">
+                🔒 <span data-i18n-pt>Voltar pra versão Brasil (automática)</span><span data-i18n-en>Back to Brazil version (automatic)</span>
+            </a>
+        <% } else { %>
+            <a href="/?preview_region=intl" class="opacity-70 hover:opacity-100 text-sm underline" style="font-family:'Poppins',sans-serif; font-weight:300; color:#DCA15E;">
+                🔒 <span data-i18n-pt>Preview: versão internacional (Ko-fi)</span><span data-i18n-en>Preview: international version (Ko-fi)</span>
+            </a>
+        <% } %>
+    <% } %>
     <span class="opacity-80 text-sm" style="font-family:'Poppins',sans-serif; font-weight:300;">BY: KNUST SEIER VI</span>
 </footer>
 
