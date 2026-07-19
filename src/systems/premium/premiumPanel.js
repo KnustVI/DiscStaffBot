@@ -79,7 +79,7 @@ function appendStatus(builder, guild, user) {
 
 function appendAcquire(builder) {
     builder.title(`${EMOJIS.wifi || '💬'} Como adquirir`, 2);
-    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} A concessão hoje é manual: clique em **Adquirir** abaixo pra entrar no servidor de suporte e combinar o pagamento com a staff, ou use **/reportarbug** pra falar direto com o desenvolvedor.`);
+    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} A concessão hoje é manual: clique em **Assinar** abaixo pra entrar no servidor de suporte e combinar o pagamento com a staff, ou use **/reportarbug** pra falar direto com o desenvolvedor.`);
     return builder;
 }
 
@@ -92,7 +92,7 @@ const SUPPORT_SERVER_URL = 'https://discord.gg/fkD5FQktn6';
 
 function acquireRow() {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Adquirir').setURL(SUPPORT_SERVER_URL).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.wifi || '🔗'),
+        new ButtonBuilder().setLabel('Assinar').setURL(SUPPORT_SERVER_URL).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.wifi || '🔗'),
     );
 }
 
