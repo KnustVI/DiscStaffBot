@@ -56,6 +56,11 @@
             transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .btn-primary:hover { background: #803E30; border-color: #F8DCC0; }
+        .btn-primary:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
         .btn-primary.small { min-width: 0; height: 39px; font-size: 15px; padding: 5px 18px; }
         .nav-btn {
             box-sizing: border-box;
@@ -78,11 +83,24 @@
             transition: background 0.15s ease, border-color 0.15s ease;
         }
         .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
-        /* Padrão de botão desativado (ainda não existia) — usado nos itens
-           de nav que não têm destino pronto ainda (ex: Updates,
-           Documentação). pointer-events:none tira o hover/clique por
-           completo, sem precisar remover o href nem duplicar o HTML. */
-        .nav-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+        .nav-btn:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
+        /* Padrão de botão desativado — usado nos itens de nav que não têm
+           destino pronto ainda (ex: Updates, Documentação). Direto do
+           Figma (Mode=Disabled): fundo igual ao normal, só a borda fica
+           cinza (em vez do tom de destaque) e a sombra vira bem mais
+           discreta, sem o relevo do estado normal. pointer-events:none
+           tira o hover/clique por completo, sem precisar remover o href
+           nem duplicar o HTML. */
+        .nav-btn.disabled {
+            border-color: #3E3D38;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
+            cursor: not-allowed;
+            pointer-events: none;
+        }
         .lang-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -101,6 +119,11 @@
             transition: background 0.15s ease, border-color 0.15s ease;
         }
         .lang-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .lang-btn:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
 
         .section-title {
             font-family: 'Tilt Warp', sans-serif;
