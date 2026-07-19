@@ -53,6 +53,7 @@
             transition: background 0.15s ease, border-color 0.15s ease;
         }
         .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .nav-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
         .lang-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -174,8 +175,8 @@
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-    <a href="#" class="nav-btn"><span data-i18n-pt>PATCH UPDATES</span><span data-i18n-en>PATCH UPDATES</span></a>
-    <a href="#" class="nav-btn"><span data-i18n-pt>DOCUMENTATION</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
+    <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
     <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
     <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
 </nav>

@@ -78,6 +78,11 @@
             transition: background 0.15s ease, border-color 0.15s ease;
         }
         .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        /* Padrão de botão desativado (ainda não existia) — usado nos itens
+           de nav que não têm destino pronto ainda (ex: Updates,
+           Documentação). pointer-events:none tira o hover/clique por
+           completo, sem precisar remover o href nem duplicar o HTML. */
+        .nav-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
         .lang-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -162,8 +167,8 @@
     <% } %>
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-    <a href="#" class="nav-btn"><span data-i18n-pt>PATCH UPDATES</span><span data-i18n-en>PATCH UPDATES</span></a>
-    <a href="#" class="nav-btn"><span data-i18n-pt>DOCUMENTATION</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
+    <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
     <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
     <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
 </nav>
