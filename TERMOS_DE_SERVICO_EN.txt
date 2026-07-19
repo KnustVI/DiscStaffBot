@@ -81,17 +81,9 @@ By using the Bot, you agree that you will [==NOT==]{#ff4444}:
 
 Titan's Pass offers administrative tools that connect to your host's Path of Titans server (via RCON and webhooks), including, but not limited to: applying attributes/buffs to players (`/ingame-buff`), teleporting players during events, and other configurable administrative commands.
 
-[==These tools are made available exclusively for administrative use by the server's HOST/STAFF==]{#ffaa66}, as a convenience equivalent to the native RCON commands Alderon Games already makes available to any server administrator. They are [==NOT==]{#ff4444}, and must never be treated as, a benefit, reward, or advantage to be sold, raffled off, given in exchange for a favor, or in any way offered to an individual player in exchange for real money, donations, or payment of any kind.
+[==These tools are for the server's HOST/STAFF use only==]{#ffaa66} — a convenience equivalent to the native RCON commands Alderon Games already makes available to any administrator. [==It is PROHIBITED to sell, raffle off, donate, or in any way condition these tools (buffs, teleports, advantages, bonuses, growth/farming rates, or unlocking content/skins) on a payment made by a player==]{#ff4444}, whether in real money, donations, or any other form of payment — under the terms of Alderon Games' Server Hosting Agreement, Modding Agreement, and Use Policy.
 
-Specifically, it is [==PROHIBITED==]{#ff4444} for any server using the Bot to:
-
-• Sell, offer as a donation reward, or otherwise condition the use of `/ingame-buff`, teleports, or any other game-integration command on a payment made by a player;
-• Use these tools to grant advantages, bonuses, multipliers, or growth/farming rates within the game in exchange for real currency, under the terms of Alderon Games' Server Hosting Agreement (Section 1);
-• Use these tools to unlock in-game content, skins, or items in exchange for payment, under the terms of Alderon Games' Modding Agreement and Use Policy.
-
-[==Titan's Pass's developer is not responsible for misuse of these tools by a server's staff or administration.==]{#ff4444} Responsibility for compliant use with Alderon Games' policies rests solely with the server operating the Bot.
-
-Should the developer identify or receive proof that a server is using the game-integration tools in violation of Alderon Games' terms (including, but not limited to, selling or exchanging in-game advantages or unlocks for real money), [==the Bot's access for that specific server will be blocked, without prior notice and at the developer's sole discretion==]{#ff4444}, as per Section 10.
+[==Titan's Pass's developer is not responsible for misuse of these tools by a server's staff or administration==]{#ff4444} — responsibility for compliance with Alderon Games' policies rests solely with whoever operates the Bot. Where there is proof of misuse, [==the Bot's access for that specific server will be blocked, without prior notice and at the developer's sole discretion==]{#ff4444}, as per Section 10.
 
 ――――――――――――――――
 
