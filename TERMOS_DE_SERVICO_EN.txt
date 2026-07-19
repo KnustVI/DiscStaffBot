@@ -199,7 +199,7 @@ A user who feels unfairly punished may appeal on the official support server.
 
 For questions, data-removal requests, reporting abuse, or exercising your privacy rights:
 
-• Support server: invite link
+• Support server: https://discord.gg/fkD5FQktn6
 • Use the [==/reportarbug==]{#ffaa66} command
 
 ――――――――――――――――

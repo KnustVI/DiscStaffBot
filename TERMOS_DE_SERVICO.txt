@@ -199,7 +199,7 @@ O usuário que se sentir punido injustamente pode recorrer no servidor de suport
 
 Para dúvidas, solicitação de remoção de dados, reportar abuso ou exercer seus direitos de privacidade:
 
-• Servidor de suporte: link do convite
+• Servidor de suporte: https://discord.gg/fkD5FQktn6
 • Use o comando [==/reportarbug==]{#ffaa66}
 
 ――――――――――――――――
