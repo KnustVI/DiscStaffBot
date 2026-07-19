@@ -354,6 +354,24 @@ class ReportChatSystem {
 
     // ==================== PAINEL ====================
 
+    /**
+     * Banner e mensagem de boas-vindas da THREAD, personalizáveis a partir
+     * do Caçador (ver /config personalizar, aba "reportchat") — mesmo
+     * critério de getPanel() logo abaixo: a checagem de tier acontece AQUI
+     * na leitura, não só na escrita do painel de config. Se o servidor
+     * perder o Caçador, a thread volta a usar o banner/mensagem padrão do
+     * bot sozinha — o valor customizado continua salvo no banco (não é
+     * apagado), então volta a valer automaticamente se o Caçador for
+     * readquirido depois.
+     */
+    _resolveThreadPersonalization(guildId) {
+        const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
+        return {
+            bannerKey: (isCustomizable && ConfigSystem.getSetting(guildId, 'report_chat_banner_key')) || 'title_report_chat',
+            welcomeMessage: isCustomizable ? ConfigSystem.getSetting(guildId, 'report_chat_welcome_message') : null,
+        };
+    }
+
     getPanel(guildName, guildIcon, guildId) {
         // Banner, mensagem, cor e footer são personalizáveis a partir do
         // Caçador (ver /config personalizar) — fora desse tier (ou sem nada
@@ -445,12 +463,11 @@ class ReportChatSystem {
             // createBaseContainer, que usa a cor pra indicar status
             // waiting/fechado/inativo — essa continua intacta).
             const personalization = ConfigSystem.getPanelPersonalization(guild.id);
-            // Banner e mensagem de boas-vindas customizáveis em /config
-            // personalizar (aba "reportchat", Caçador) — mesmo banner
-            // escolhido pro painel do canal, aplicado aqui também pra
-            // manter a mesma identidade visual na thread.
-            const threadBannerKey = ConfigSystem.getSetting(guild.id, 'report_chat_banner_key') || 'title_report_chat';
-            const welcomeMessage = ConfigSystem.getSetting(guild.id, 'report_chat_welcome_message');
+            // Banner e mensagem de boas-vindas — mesmo banner escolhido pro
+            // painel do canal, aplicado aqui também pra manter a mesma
+            // identidade visual na thread (tier já checado dentro do
+            // helper, ver _resolveThreadPersonalization acima).
+            const { bannerKey: threadBannerKey, welcomeMessage } = this._resolveThreadPersonalization(guild.id);
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
@@ -620,12 +637,11 @@ class ReportChatSystem {
             });
             await thread.members.add(user.id);
 
-            // Banner e mensagem de boas-vindas customizáveis em /config
-            // personalizar (aba "reportchat", Caçador) — mesmo texto/banner
+            // Banner e mensagem de boas-vindas — mesmo texto/banner
             // compartilhado com openReport() acima, já que /config
-            // personalizar trata os dois fluxos como um só ("report-chat").
-            const threadBannerKey = ConfigSystem.getSetting(guild.id, 'report_chat_banner_key') || 'title_report_chat';
-            const welcomeMessage = ConfigSystem.getSetting(guild.id, 'report_chat_welcome_message');
+            // personalizar trata os dois fluxos como um só ("report-chat"),
+            // tier já checado dentro do helper.
+            const { bannerKey: threadBannerKey, welcomeMessage } = this._resolveThreadPersonalization(guild.id);
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
