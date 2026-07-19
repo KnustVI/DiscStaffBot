@@ -210,11 +210,15 @@ async function openTicket(interaction, lang, data) {
         .setStyle(ButtonStyle.Danger);
 
     const { components, flags, files } = threadBuilder.build();
+    // Deduplicado: se o próprio developer abrir o atendimento (self-test),
+    // user.id === DEVELOPER_ID e a Discord API rejeita ids repetidos em
+    // allowed_mentions.users com 50035 "Invalid Form Body".
+    const mentionUserIds = [...new Set([DEVELOPER_ID, user.id])];
     await thread.send({
         components: [...components, new ActionRowBuilder().addComponents(closeButton)],
         flags: [flags],
         files,
-        allowedMentions: { users: [DEVELOPER_ID, user.id] },
+        allowedMentions: { users: mentionUserIds },
     });
 
     await interaction.editReply({
