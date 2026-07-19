@@ -202,19 +202,22 @@
      na borda de baixo dela, em #111111 opaco — mesma cor do fundo da
      página, então a transição pro resto do conteúdo (bem mais longo que a
      imagem) fica invisível, sem precisar repetir a textura. -->
-<div class="relative w-full" style="overflow:hidden; border-radius: 50px 50px 0 0; box-shadow: 0 -12px 26.2px rgba(0,0,0,0.47);">
-    <!-- z-index NEGATIVO, não 0: main/sections abaixo são elementos
-         estáticos (sem position), e por padrão de empilhamento do CSS até
-         um descendente posicionado com z-index:0 pinta ACIMA de conteúdo
-         estático em fluxo normal, não importa a ordem no DOM — cobria a
-         página inteira. -1 garante que fique atrás de qualquer coisa
-         estática, sem precisar dar position:relative em cada section. -->
+<div class="relative w-full" style="overflow:hidden; border-radius: 50px 50px 0 0; box-shadow: 0 -12px 26.2px rgba(0,0,0,0.47); isolation:isolate;">
+    <!-- isolation:isolate faz este wrapper abrir seu PRÓPRIO contexto de
+         empilhamento — sem isso, z-index negativo em position:relative
+         "escapa" pro contexto do ancestral mais próximo que tiver um
+         (ficou atrás de coisa errada, imagem sumiu). Com o isolate, nem
+         precisa mais de z-index number nenhum: img/degradê (sem position
+         nenhuma além de absolute, sem z-index) pintam na ordem do DOM
+         igual conteúdo normal — como vêm ANTES do resto no HTML, ficam
+         atrás. main/sections abaixo só precisam de position:relative
+         (ver adiante) pra entrar nessa mesma camada de empilhamento. -->
     <img src="/images/landing/hero-bg-texture.webp" alt=""
-         class="absolute top-0 left-0 w-full pointer-events-none select-none" style="height:auto; z-index:-1;">
-    <div class="absolute top-0 left-0 w-full" style="aspect-ratio: 2160 / 2454; z-index:-1; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,1) 100%);"></div>
+         class="absolute top-0 left-0 w-full pointer-events-none select-none" style="height:auto;">
+    <div class="absolute top-0 left-0 w-full" style="aspect-ratio: 2160 / 2454; background: linear-gradient(180deg, rgba(31,29,32,0.35) 0%, rgba(17,17,17,1) 100%);"></div>
 
     <!-- ===================== HERO ===================== -->
-    <section class="relative w-full flex flex-col items-center text-center px-4 hero-section-padding" style="z-index:10;">
+    <section class="relative w-full flex flex-col items-center text-center px-4 hero-section-padding">
     <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
             <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass" style="width: clamp(220px, 30vw, 380px);">
             <h1 class="section-title text-shadow-figma" style="max-width: 700px;">
@@ -237,10 +240,10 @@
     </section>
 
 <!-- ===================== FEATURE SECTIONS ===================== -->
-<div class="w-full flex justify-center" style="padding: 40px 16px 0;">
+<div class="relative w-full flex justify-center" style="padding: 40px 16px 0;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<main class="w-full flex flex-col items-center" style="gap: 80px; padding: 20px 16px 90px;">
+<main class="relative w-full flex flex-col items-center" style="gap: 80px; padding: 20px 16px 90px;">
 
     <%
     // Texto extraído do arquivo real de CSS do Figma (Hero css.txt) — não é
@@ -348,10 +351,10 @@
 </main>
 
 <!-- ===================== O QUE ESTAMOS PROMOVENDO ===================== -->
-<div class="w-full flex justify-center" style="padding: 0 16px;">
+<div class="relative w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section class="w-full flex flex-col items-center" style="padding: 60px 16px;">
+<section class="relative w-full flex flex-col items-center" style="padding: 60px 16px;">
     <h2 class="section-title text-shadow-figma mb-2 text-center">
         <span data-i18n-pt>O QUE O TITAN'S PASS ESTÁ PROMOVENDO</span>
         <span data-i18n-en>WHAT TITAN'S PASS IS DELIVERING</span>
@@ -387,10 +390,10 @@
 </section>
 
 <!-- ===================== PLAYER PREMIUM ===================== -->
-<div class="w-full flex justify-center" style="padding: 0 16px;">
+<div class="relative w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section id="premium" class="w-full flex flex-col items-center" style="padding: 60px 16px;">
+<section id="premium" class="relative w-full flex flex-col items-center" style="padding: 60px 16px;">
     <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>PLAYER PREMIUM</span><span data-i18n-en>PLAYER PREMIUM</span></h2>
     <p class="mb-4 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
         <span data-i18n-pt>Personalize seu perfil e participe das missões mensais do bot!</span>
@@ -459,10 +462,10 @@
 </section>
 
 <!-- ===================== SERVER PREMIUM ===================== -->
-<div class="w-full flex justify-center" style="padding: 0 16px;">
+<div class="relative w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section class="w-full flex flex-col items-center" style="padding: 20px 16px 70px;">
+<section class="relative w-full flex flex-col items-center" style="padding: 20px 16px 70px;">
     <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>SERVER PREMIUM</span><span data-i18n-en>SERVER PREMIUM</span></h2>
     <p class="mb-4 text-center opacity-90 text-shadow-figma" style="font-family:'Poppins',sans-serif; font-weight:600;">
         <span data-i18n-pt>Melhore tudo que puder no seu servidor!</span>
@@ -549,10 +552,10 @@
 </section>
 
 <!-- ===================== PORQUE USAR ===================== -->
-<div class="w-full flex justify-center" style="padding: 0 16px;">
+<div class="relative w-full flex justify-center" style="padding: 0 16px;">
     <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
 </div>
-<section class="w-full flex flex-col items-center" style="padding: 60px 16px;">
+<section class="relative w-full flex flex-col items-center" style="padding: 60px 16px;">
     <h2 class="section-title text-shadow-figma mb-10 text-center"><span data-i18n-pt>PORQUE USAR?</span><span data-i18n-en>WHY USE IT?</span></h2>
     <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-10" style="max-width: 1100px;">
         <%
