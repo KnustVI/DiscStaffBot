@@ -1906,8 +1906,12 @@ const ConfigSystem = {
             }
             if (tier === 'raptor') {
                 const commandHint = kind === 'photo' ? '`/perfil-edit avatar:<sua imagem>`' : '`/perfil-edit plano_de_fundo:<sua imagem>`';
+                // Tamanho só faz sentido citar pro plano de fundo (banner
+                // atrás da mensagem inteira) — a foto de perfil é recortada
+                // na moldura do card, não tem um "formato ideal" de banner.
+                const sizeHint = kind === 'background' ? ' Tamanho ideal: **1300x300** (máximo aceito).' : '';
                 return await interaction.followUp({
-                    content: `${EMOJIS.messagesquare || 'ℹ️'} Você é Raptor — envie a imagem direto pelo comando: ${commandHint} (vazio remove a atual).`,
+                    content: `${EMOJIS.messagesquare || 'ℹ️'} Você é Raptor — envie a imagem direto pelo comando: ${commandHint} (vazio remove a atual).${sizeHint}`,
                     flags: MessageFlags.Ephemeral,
                 });
             }

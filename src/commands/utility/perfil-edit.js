@@ -69,7 +69,7 @@ module.exports = {
             .setDescription('[Raptor] Avatar/foto de perfil (vazio = remove a atual). Ignorado no Compy.')
             .setRequired(false))
         .addAttachmentOption(opt => opt.setName('plano_de_fundo')
-            .setDescription('[Raptor] Plano de fundo atrás da mensagem inteira (vazio = remove o atual). Ignorado no Compy.')
+            .setDescription('[Raptor] Plano de fundo (ideal 1300x300, máximo aceito). Vazio = remove atual. Ignorado no Compy.')
             .setRequired(false)),
 
     async execute(interaction, client) {
