@@ -3,10 +3,96 @@ const passport = require('passport');
 const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 const db = require('./src/database');
 const SqliteSessionStore = require('./web/sqliteSessionStore');
 
 const app = express();
+
+// ==================== PARSER DE TERMOS_DE_SERVICO.txt ====================
+// O .txt usa uma marcação própria (pensada pra ficar legível cru, sem
+// precisar abrir nada): [==texto==]{#hexcolor} pra destaque colorido,
+// ||texto|| como spoiler (sem sentido fora do Discord, só desembrulha),
+// `codigo` pra inline code, • pra bullet, e blocos de seção separados por
+// uma linha de travessões (――――). Convertido pra HTML aqui em vez de
+// reescrever o documento inteiro em EJS, pra nunca haver risco de divergir
+// do texto legal oficial (fonte única de verdade continua o .txt).
+function parseTermosInline(text) {
+    text = text.replace(/\[==(.+?)==\]\{#([0-9a-fA-F]{6})\}/g, (_, inner, color) =>
+        `<span style="color:#${color}; font-weight:600;">${inner}</span>`);
+    text = text.replace(/\|\|(.+?)\|\|/g, '$1');
+    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+    return text;
+}
+
+function parseTermosBody(bodyText) {
+    const chunks = bodyText.split(/\n\s*\n/).map(c => c.trim()).filter(Boolean);
+    const htmlParts = [];
+    for (const chunk of chunks) {
+        const lines = chunk.split('\n').map(l => l.trim()).filter(Boolean);
+        const isBulletList = lines.length > 0 && lines.every(l => l.startsWith('•'));
+        if (isBulletList) {
+            htmlParts.push('<ul>' + lines.map(l => `<li>${parseTermosInline(l.replace(/^•\s*/, ''))}</li>`).join('') + '</ul>');
+        } else {
+            htmlParts.push(`<p>${parseTermosInline(lines.join(' '))}</p>`);
+        }
+    }
+    return htmlParts.join('\n');
+}
+
+function splitTermosBlocks(raw) {
+    const DIVIDER = /^―{5,}$/;
+    const blocks = [];
+    let current = [];
+    for (const line of raw.split(/\r?\n/)) {
+        if (DIVIDER.test(line.trim())) {
+            blocks.push(current.join('\n').trim());
+            current = [];
+        } else {
+            current.push(line);
+        }
+    }
+    blocks.push(current.join('\n').trim());
+    return blocks.filter(Boolean);
+}
+
+function termosBlockToSection(block) {
+    const lines = block.split('\n');
+    const firstLine = (lines[0] || '').trim();
+    // Bloco "tem cabeçalho" quando a 1a linha termina em ':', não é bullet, e
+    // vem seguida de linha em branco (ex: "0. TÍTULO:" ou "HISTÓRICO DE
+    // VERSÕES:") — sem isso, o parágrafo de fechamento (sem número, só uma
+    // frase destacada) viraria seção fantasma.
+    const hasHeader = firstLine.endsWith(':') && !firstLine.startsWith('•') && (lines[1] || '').trim() === '';
+    if (!hasHeader) {
+        return { number: null, title: null, bodyHtml: parseTermosBody(block) };
+    }
+    const numberMatch = firstLine.match(/^(\d+)\.\s*/);
+    const number = numberMatch ? numberMatch[1] : null;
+    const title = firstLine.replace(/^(\d+)\.\s*/, '').replace(/:$/, '');
+    const bodyText = lines.slice(1).join('\n').trim();
+    return { number, title, bodyHtml: parseTermosBody(bodyText) };
+}
+
+function parseTermosFile() {
+    const raw = fs.readFileSync(path.join(__dirname, 'TERMOS_DE_SERVICO.txt'), 'utf8');
+    const blocks = splitTermosBlocks(raw);
+
+    const preambleLines = blocks[0].split('\n');
+    const docTitle = preambleLines[0].trim();
+    const versionIdx = preambleLines.findIndex(l => l.trim().startsWith('Versão:'));
+    const lastUpdated = (preambleLines.find(l => l.trim().startsWith('Última atualização:')) || '').replace('Última atualização:', '').trim();
+    const version = (preambleLines.find(l => l.trim().startsWith('Versão:')) || '').replace('Versão:', '').trim();
+    const preambleHtml = parseTermosBody(preambleLines.slice(versionIdx + 1).join('\n').trim());
+
+    return {
+        docTitle,
+        lastUpdated,
+        version,
+        preambleHtml,
+        sections: blocks.slice(1).map(termosBlockToSection),
+    };
+}
 
 function loadDashboard(client) {
     // --- 1. CONFIGURAÇÕES DE RENDERIZAÇÃO ---
@@ -106,6 +192,14 @@ function loadDashboard(client) {
     app.get('/', (req, res) => {
         const country = req.headers['cf-ipcountry'] || 'BR';
         res.render('hero', { isBrazil: country.toUpperCase() === 'BR' });
+    });
+
+    // Termos de Serviço e Política de Privacidade — parseados direto de
+    // TERMOS_DE_SERVICO.txt (raiz do repo) a cada request; documento é
+    // pequeno e a página é pouco acessada, não vale a pena cachear e
+    // arriscar servir uma versão desatualizada depois de uma edição.
+    app.get('/termos', (req, res) => {
+        res.render('termos', parseTermosFile());
     });
 
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)

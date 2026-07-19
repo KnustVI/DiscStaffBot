@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titan's Pass — Termos de Serviço</title>
+
+    <!-- Fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Tilt+Warp&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN (mesmo padrão do resto do dashboard) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-dark': '#1F1D20',
+                        'titan-cream': '#F8DCC0',
+                        'titan-accent': '#803E30',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; background: #111111; }
+        [data-i18n-en] { display: none; }
+        html[data-lang="en"] [data-i18n-pt] { display: none; }
+        html[data-lang="en"] [data-i18n-en] { display: initial; }
+
+        .nav-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 300;
+            font-size: 14px;
+            color: #F8DCC0;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .lang-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 14px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .lang-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .btn-primary {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            min-width: 200px;
+            height: 39px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 16px;
+            color: #F8DCC0;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn-primary:hover { background: #803E30; border-color: #F8DCC0; }
+
+        @media (max-width: 640px) {
+            .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
+            .lang-btn { padding: 4px 10px; height: 26px; font-size: 12px; }
+        }
+
+        /* margin-top (não padding) = altura real da nav, medida via JS — a
+           nav quebra em números de linha diferentes dependendo da largura
+           da tela, então um valor fixo quebraria em telas estreitas. */
+        .legal-page-padding { margin-top: calc(var(--nav-height, 90px) + 24px); }
+
+        .legal-doc {
+            width: 100%;
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 0 20px 80px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .legal-doc h1 {
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: clamp(24px, 3.4vw, 34px);
+            line-height: 1.25;
+            color: #F8DCC0;
+            margin: 0 0 12px;
+        }
+        .legal-meta {
+            font-size: 13px;
+            opacity: 0.6;
+            margin-bottom: 28px;
+        }
+        .legal-en-notice {
+            background: #1A1A1A;
+            border: 1px solid #3E3D38;
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 14px;
+            opacity: 0.85;
+            margin-bottom: 28px;
+        }
+        .legal-doc section { margin-bottom: 36px; }
+        .legal-doc section.legal-closing {
+            border-top: 1px solid #3E3D38;
+            border-bottom: 1px solid #3E3D38;
+            padding: 20px 0;
+            text-align: center;
+        }
+        .legal-doc h2 {
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: clamp(16px, 2vw, 19px);
+            text-transform: uppercase;
+            color: #DCA15E;
+            border-bottom: 1px solid #3E3D38;
+            padding-bottom: 10px;
+            margin: 0 0 14px;
+        }
+        .legal-doc p { font-size: 15px; line-height: 1.7; opacity: 0.92; margin: 0 0 14px; }
+        .legal-doc ul { margin: 0 0 14px; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+        .legal-doc li { font-size: 15px; line-height: 1.6; opacity: 0.92; }
+        .legal-doc code {
+            background: #2A2A2A;
+            border: 1px solid #3E3D38;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        .legal-back { display: flex; justify-content: center; margin-top: 44px; }
+    </style>
+</head>
+<body class="text-titan-cream">
+
+<!-- ===================== NAV (fixa, independente do scroll) ===================== -->
+<nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+    <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
+    <a href="/dashboard" class="nav-btn"><span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span></a>
+    <a href="/termos" class="nav-btn"><span data-i18n-pt>TERMOS DE SERVIÇO</span><span data-i18n-en>TERMS OF SERVICE</span></a>
+    <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
+</nav>
+<script>
+    (function () {
+        function syncNavHeight() {
+            var nav = document.querySelector('nav');
+            if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
+        }
+        syncNavHeight();
+        window.addEventListener('resize', syncNavHeight);
+        window.addEventListener('load', syncNavHeight);
+    })();
+</script>
+
+<!-- ===================== DOCUMENTO ===================== -->
+<div class="legal-page-padding">
+    <div class="legal-doc">
+        <h1><%= docTitle %></h1>
+        <p class="legal-meta">
+            <span data-i18n-pt>Última atualização: <%= lastUpdated %> &middot; Versão: <%= version %></span>
+            <span data-i18n-en>Last updated: <%= lastUpdated %> &middot; Version: <%= version %></span>
+        </p>
+
+        <div class="legal-en-notice" data-i18n-en>
+            This document is currently only available in Portuguese — it's the legally binding version. If anything below is unclear, reach out on the support server or use <code>/reportarbug</code>.
+        </div>
+
+        <%- preambleHtml %>
+
+        <% sections.forEach(section => { %>
+            <section class="<%= !section.title ? 'legal-closing' : '' %>">
+                <% if (section.title) { %>
+                    <h2><%= section.number ? section.number + '. ' + section.title : section.title %></h2>
+                <% } %>
+                <%- section.bodyHtml %>
+            </section>
+        <% }); %>
+
+        <div class="legal-back">
+            <a href="/" class="btn-primary"><span data-i18n-pt>VOLTAR AO SITE</span><span data-i18n-en>BACK TO SITE</span></a>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== FOOTER ===================== -->
+<footer class="w-full flex flex-col items-center" style="background:#111111; padding: 30px 16px;">
+    <span class="opacity-80 text-sm" style="font-family:'Poppins',sans-serif; font-weight:300;">BY: KNUST SEIER VI</span>
+</footer>
+
+<script>
+    (function () {
+        const stored = localStorage.getItem('titanspass_lang') || 'pt';
+        document.documentElement.setAttribute('data-lang', stored);
+        document.getElementById('langBtnLabel').textContent = stored === 'pt' ? 'EN' : 'PT';
+    })();
+
+    function toggleLang() {
+        const current = document.documentElement.getAttribute('data-lang') || 'pt';
+        const next = current === 'pt' ? 'en' : 'pt';
+        document.documentElement.setAttribute('data-lang', next);
+        localStorage.setItem('titanspass_lang', next);
+        document.getElementById('langBtnLabel').textContent = next === 'pt' ? 'EN' : 'PT';
+    }
+</script>
+
+</body>
+</html>
