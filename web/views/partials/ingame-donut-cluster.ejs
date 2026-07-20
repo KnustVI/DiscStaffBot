@@ -1,33 +1,33 @@
 <%#
   web/views/partials/ingame-donut-cluster.ejs
   Composição EXATA dos 3 donuts do painel "IN GAME" (Figma: Frame 11936,
-  canvas compartilhado 770x307) — o dono exportou o SVG completo do
-  Figma com os 3 anéis na MESMA folha de coordenadas (não 3 gráficos
-  independentes lado a lado por CSS margin, como as tentativas
-  anteriores tentaram aproximar) — cada um recortado pela sua própria
-  janela (clipPath com cantos arredondados de 20px). Geometria abaixo
-  (centro/raio/janela de cada anel) veio direto desse SVG, não é mais
-  aproximação nossa.
+  canvas compartilhado 770x307) — geometria (centro/raio/janela de cada
+  anel) extraída do SVG que o dono exportou do Figma, verificada de novo
+  por leitura completa + conferência adversarial do Moderação.txt.
 
-  O preenchimento dinâmico (percentual real) é recalculado via wedge-clip
-  sobre o MESMO anel — o Figma só exporta a forma cheia de uma elipse com
-  arco nativo (não o arco em si, que é uma propriedade do Figma sem
-  equivalente em CSS/SVG puro), então o valor de 50% que veio no export
-  era só o exemplo fixo daquele momento, não uma fórmula. A sombra/brilho
-  usa a MESMA receita de filtro do SVG original (feDropShadow preto
-  12/15/5.75 + feDropShadow na cor de destaque 0/0/1.15), aplicada só na
-  camada de trilho — a camada de preenchimento colorido no export do
-  Figma NÃO tem filtro nenhum, é cor chapada.
+  Recorte de cada janela usa um <svg> ANINHADO por donut, com viewBox
+  deslocado pra dentro do MESMO sistema de coordenadas absoluto (não um
+  clip-path por cima de tudo) — um clip-path num <g> que também tem
+  filter aplicado NÃO recorta de verdade em todo renderizador (confirmado
+  rasterizando e conferindo visualmente: o recorte simplesmente não
+  acontecia, os 3 anéis apareciam como círculos inteiros descobertos, se
+  sobrepondo muito além da janela pequena esperada). Viewport de <svg> é
+  clipagem nativa, muito mais confiável — cada janela vira seu próprio
+  <svg viewBox="winX winY winW winH">, então os paths (definidos nas
+  coordenadas absolutas do canvas 770x307) caem no lugar certo sozinhos,
+  sem precisar traduzir nada. Cantos arredondados (20px) ficam por conta
+  do container HTML (overflow:hidden + border-radius), não do SVG.
 
   NÃO troque os centros/raios/janelas dos 3 anéis sem um novo export do
-  Figma — confirmados pixel a pixel pelo dono.
+  Figma — confirmados pixel a pixel duas vezes. NÃO volte a usar
+  clip-path num <g> com filter sem testar de novo primeiro (ver aviso
+  acima).
 
   Uso: include( partials/ingame-donut-cluster , { donuts, clusterId } ) —
   donuts é um array de EXATAMENTE 3 objetos { title, value, percent,
   accent }, na ordem [pequeno-esquerda, pequeno-meio, grande-direita] (a
-  posição de cada um no canvas é fixa, não depende da ordem dos dados).
-  clusterId é opcional (default 'ingame') — só importa se dois clusters
-  aparecerem na mesma página, pra não colidir os ids de filter/clipPath.
+  posição de cada um no canvas é fixa). clusterId é opcional (default
+  'ingame') — só importa se dois clusters aparecerem na mesma página.
 %>
 <%
     const RINGS = [
@@ -47,7 +47,7 @@
     function wedgePath(cx, cy, rOuter, percent) {
         const p = Math.max(0, Math.min(100, Number(percent) || 0));
         if (p <= 0) return null;
-        const RW = rOuter + 20; // margem de segurança, cobre o anel inteiro
+        const RW = rOuter + 20;
         if (p >= 100) return circlePath(cx, cy, RW);
         const sweep = (p / 100) * 360;
         const toRad = (deg) => (deg * Math.PI) / 180;
@@ -59,28 +59,33 @@
     function accentHex(accent) { return accent === 'red' ? '#803E30' : '#DCA15E'; }
 %>
 <div class="idc-root">
-    <svg class="idc-svg" viewBox="0 0 <%= CANVAS_W %> <%= CANVAS_H %>" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <% RINGS.forEach((r, i) => { const hex = accentHex(donuts[i].accent); %>
-                <clipPath id="idc-win-<%= idcClusterId %>-<%= i %>">
-                    <rect x="<%= r.win.x %>" y="<%= r.win.y %>" width="<%= r.win.w %>" height="<%= r.win.h %>" rx="20"/>
-                </clipPath>
-                <filter id="idc-glow-<%= idcClusterId %>-<%= i %>" x="-30%" y="-20%" width="160%" height="150%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
-                    <feDropShadow dx="12" dy="15" stdDeviation="5.75" flood-color="#000000" flood-opacity="0.36" in="SourceGraphic" result="idc-shadow1-<%= idcClusterId %>-<%= i %>"/>
-                    <feDropShadow dx="0" dy="0" stdDeviation="1.15" flood-color="<%= hex %>" flood-opacity="1" in="idc-shadow1-<%= idcClusterId %>-<%= i %>"/>
-                </filter>
-                <% const wedge = wedgePath(r.cx, r.cy, r.rOuter, donuts[i].percent); %>
-                <% if (wedge) { %>
-                    <clipPath id="idc-wedge-<%= idcClusterId %>-<%= i %>"><path d="<%= wedge %>"/></clipPath>
-                <% } %>
-            <% }); %>
-        </defs>
-        <% RINGS.forEach((r, i) => {
-            const hex = accentHex(donuts[i].accent);
-            const wedge = wedgePath(r.cx, r.cy, r.rOuter, donuts[i].percent);
-            const ring = ringPath(r.cx, r.cy, r.rOuter, r.rInner);
-        %>
-            <g clip-path="url(#idc-win-<%= idcClusterId %>-<%= i %>)">
+    <% RINGS.forEach((r, i) => {
+        const hex = accentHex(donuts[i].accent);
+        const wedge = wedgePath(r.cx, r.cy, r.rOuter, donuts[i].percent);
+        const ring = ringPath(r.cx, r.cy, r.rOuter, r.rInner);
+        const leftPct = (r.win.x / CANVAS_W) * 100;
+        const topPct = (r.win.y / CANVAS_H) * 100;
+        const winWPct = (r.win.w / CANVAS_W) * 100;
+        const winHPct = (r.win.h / CANVAS_H) * 100;
+        const labelLeftPct = ((r.cx - r.win.x) / r.win.w) * 100;
+        const labelTopPct = ((r.cy - r.win.y) / r.win.h) * 100;
+        const labelWidthPct = ((r.rInner * 1.9) / r.win.w) * 100;
+    %>
+        <%# z-order: quem está mais à direita vem DEPOIS no HTML, então
+            fica na frente de quem está à esquerda onde as janelas se
+            sobrepõem (pedido do dono) — RINGS já está na ordem
+            esquerda->direita, então o forEach cuida disso sozinho. %>
+        <div class="idc-window" style="left: <%= leftPct.toFixed(2) %>%; top: <%= topPct.toFixed(2) %>%; width: <%= winWPct.toFixed(2) %>%; height: <%= winHPct.toFixed(2) %>%;">
+            <svg class="idc-svg" viewBox="<%= r.win.x %> <%= r.win.y %> <%= r.win.w %> <%= r.win.h %>" overflow="hidden" style="overflow: hidden;" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <filter id="idc-glow-<%= idcClusterId %>-<%= i %>" x="-30%" y="-20%" width="160%" height="150%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+                        <feDropShadow dx="12" dy="15" stdDeviation="5.75" flood-color="#000000" flood-opacity="0.36" in="SourceGraphic" result="idc-shadow1-<%= idcClusterId %>-<%= i %>"/>
+                        <feDropShadow dx="0" dy="0" stdDeviation="1.15" flood-color="<%= hex %>" flood-opacity="1" in="idc-shadow1-<%= idcClusterId %>-<%= i %>"/>
+                    </filter>
+                    <% if (wedge) { %>
+                        <clipPath id="idc-wedge-<%= idcClusterId %>-<%= i %>"><path d="<%= wedge %>"/></clipPath>
+                    <% } %>
+                </defs>
                 <g filter="url(#idc-glow-<%= idcClusterId %>-<%= i %>)">
                     <path d="<%= ring %>" fill-rule="evenodd" fill="#3E3D38" fill-opacity="0.2"/>
                 </g>
@@ -89,17 +94,11 @@
                         <path d="<%= ring %>" fill-rule="evenodd" fill="<%= hex %>"/>
                     </g>
                 <% } %>
-            </g>
-        <% }); %>
-    </svg>
-    <% RINGS.forEach((r, i) => {
-        const leftPct = (r.cx / CANVAS_W) * 100;
-        const topPct = (r.cy / CANVAS_H) * 100;
-        const widthPct = (r.rInner * 1.9 / CANVAS_W) * 100;
-    %>
-        <div class="idc-label" style="left: <%= leftPct.toFixed(2) %>%; top: <%= topPct.toFixed(2) %>%; width: <%= widthPct.toFixed(2) %>%;">
-            <span class="idc-title"><%= donuts[i].title %></span>
-            <span class="idc-value"><%= donuts[i].value %></span>
+            </svg>
+            <div class="idc-label" style="left: <%= labelLeftPct.toFixed(2) %>%; top: <%= labelTopPct.toFixed(2) %>%; width: <%= labelWidthPct.toFixed(2) %>%;">
+                <span class="idc-title"><%= donuts[i].title %></span>
+                <span class="idc-value"><%= donuts[i].value %></span>
+            </div>
         </div>
     <% }); %>
 </div>
@@ -111,7 +110,16 @@
         aspect-ratio: 770 / 307;
         margin-left: auto; /* Figma: cluster encostado na direita do card (Frame 3, justify-content:flex-end) */
     }
-    .idc-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .idc-window { position: absolute; }
+    .idc-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        overflow: hidden; /* clipagem real: viewport do SVG, não clip-path */
+        border-radius: 20px; /* cosmético (a maioria dos navegadores já corta certo pelo viewBox, isso só arredonda a borda visível) */
+    }
     .idc-label {
         position: absolute;
         transform: translate(-50%, -50%);
