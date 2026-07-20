@@ -41,7 +41,7 @@
         <!-- ALERTA (mesmo visual outline-chip da lista de staff, pedido do dono) -->
         <section class="flex flex-col gap-3">
             <% if (openReportsAlert.length === 0) { %>
-                <div class="outline-chip">
+                <div class="outline-chip is-lg">
                     <i data-lucide="shield-check" class="outline-chip-icon"></i>
                     <div class="outline-chip-text">
                         <span class="outline-chip-headline">Nenhum Alerta</span>
@@ -50,7 +50,7 @@
                 </div>
             <% } else { %>
                 <% openReportsAlert.forEach(r => { %>
-                    <div class="outline-chip is-bad">
+                    <div class="outline-chip is-lg is-bad">
                         <i data-lucide="shield-alert" class="outline-chip-icon"></i>
                         <div class="outline-chip-text">
                             <span class="outline-chip-headline"><%= r.report_id %></span>
@@ -65,46 +65,37 @@
             <%- include('partials/ingame-pulse', { pulse }) %>
         </div>
 
+        <%
+            // MODERAÇÃO/Punições e AUTOMODERAÇÃO seguem o MESMO padrão do
+            // IN GAME (confirmado por extração + conferência do
+            // Moderação.txt): 4 donuts, os 3 primeiros dourados
+            // (GraphicStyle) e o 4º maior/destacado em terracota
+            // (GraphicStyle2) — não 2 como a versão anterior tinha. O
+            // grande sempre por último no HTML (fica à direita/na frente,
+            // ver graph-card.ejs).
+            const punDonutsHtml =
+                include('partials/stat-donut', { id: 'pun-ativas', title: 'Ativas', value: `${punActive}`, percent: punTotal > 0 ? (punActive / punTotal) * 100 : 0, accent: 'gold' }) +
+                include('partials/stat-donut', { id: 'pun-revogadas', title: 'Revogadas', value: `${punRevoked}`, percent: punTotal > 0 ? (punRevoked / punTotal) * 100 : 0, accent: 'gold' }) +
+                include('partials/stat-donut', { id: 'pun-graves', title: 'Graves/Severas', value: `${punHighSeverity}`, percent: punTotal > 0 ? (punHighSeverity / punTotal) * 100 : 0, accent: 'gold' }) +
+                include('partials/stat-donut', { id: 'pun-total', title: 'Total Aplicadas', value: `${punTotal}`, percent: 100, accent: 'red', size: 'big' });
+
+            const autoDonutsHtml =
+                include('partials/stat-donut', { id: 'auto-palavras', title: 'Palavras Filtradas', value: `${filterWordCount}`, percent: 100, accent: 'gold' }) +
+                include('partials/stat-donut', { id: 'auto-niveis', title: 'Níveis Configurados', value: `${filterLevelCount}`, percent: 100, accent: 'gold' }) +
+                include('partials/stat-donut', { id: 'auto-punicoes', title: 'Punições Automáticas', value: `${autoPunishments}/${punTotal}`, percent: punTotal > 0 ? (autoPunishments / punTotal) * 100 : 0, accent: 'gold' }) +
+                include('partials/stat-donut', { id: 'auto-total', title: 'Total de Punições', value: `${punTotal}`, percent: 100, accent: 'red', size: 'big' });
+        %>
+
         <!-- MODERAÇÃO -->
-        <section class="titan-card-premium flex-col gap-4">
-            <h2 class="section-title text-lg">Punições</h2>
-            <div class="flex justify-evenly items-center flex-wrap gap-6">
-                <%- include('partials/stat-donut', {
-                    id: 'pun-ativas',
-                    title: 'Ativas',
-                    value: `${punActive}`,
-                    percent: punTotal > 0 ? (punActive / punTotal) * 100 : 0,
-                    accent: 'red',
-                }) %>
-                <%- include('partials/stat-donut', {
-                    id: 'pun-total',
-                    title: 'Total Aplicadas',
-                    value: `${punTotal}`,
-                    percent: 100,
-                    accent: 'gold',
-                }) %>
-            </div>
+        <section class="flex flex-col gap-3">
+            <h2 class="section-title text-lg px-2">Punições</h2>
+            <%- include('partials/graph-card', { bodyHtml: punDonutsHtml }) %>
         </section>
 
         <!-- AUTOMODERAÇÃO -->
-        <section class="titan-card-premium flex-col gap-4">
-            <h2 class="section-title text-lg">Automoderação</h2>
-            <div class="flex justify-evenly items-center flex-wrap gap-6">
-                <%- include('partials/stat-donut', {
-                    id: 'auto-palavras',
-                    title: 'Palavras Filtradas',
-                    value: `${filterWordCount}`,
-                    percent: 100,
-                    accent: 'gold',
-                }) %>
-                <%- include('partials/stat-donut', {
-                    id: 'auto-punicoes',
-                    title: 'Punições Automáticas',
-                    value: `${autoPunishments}/${punTotal}`,
-                    percent: punTotal > 0 ? (autoPunishments / punTotal) * 100 : 0,
-                    accent: 'red',
-                }) %>
-            </div>
+        <section class="flex flex-col gap-3">
+            <h2 class="section-title text-lg px-2">Automoderação</h2>
+            <%- include('partials/graph-card', { bodyHtml: autoDonutsHtml }) %>
         </section>
 
         <!-- CONFIGURAÇÕES -->

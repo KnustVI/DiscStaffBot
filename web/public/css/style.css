@@ -421,3 +421,15 @@ text-align: center;
     color: #F8DCC0;
     opacity: 0.85;
 }
+/* Variante "grande" (Figma: "Frame 22" do quadro de alerta, 802x138,
+   padding:30px, gap:8px, ícone 50x50, título 32px, subtítulo 20px — bem
+   maior que o chip compacto de staff, 314x90/padding:10px 20px). */
+.outline-chip.is-lg {
+    gap: 8px;
+    padding: 30px;
+    width: 100%;
+    max-width: 802px;
+}
+.outline-chip.is-lg .outline-chip-icon { width: 50px; height: 50px; }
+.outline-chip.is-lg .outline-chip-headline { font-size: clamp(20px, 3vw, 32px); }
+.outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(14px, 1.8vw, 20px); opacity: 1; }

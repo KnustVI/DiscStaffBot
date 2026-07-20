@@ -477,9 +477,14 @@ function loadDashboard(client) {
         const punByStatus = db.prepare('SELECT status, COUNT(*) c FROM punishments WHERE guild_id = ? GROUP BY status').all(guildID);
         const punActive = punByStatus.find(r => r.status === 'active')?.c || 0;
         const punTotal = punByStatus.reduce((sum, r) => sum + r.c, 0);
+        const punRevoked = punTotal - punActive;
+        const punHighSeverity = db.prepare(
+            "SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND level_severity IN ('Grave', 'Severa')"
+        ).get(guildID).c;
 
         const filterWordCount = db.prepare('SELECT COUNT(*) c FROM pot_chat_filters WHERE guild_id = ?').get(guildID).c;
         const autoPunishments = db.prepare('SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND moderator_id = ?').get(guildID, client.user.id).c;
+        const filterLevelCount = db.prepare('SELECT COUNT(DISTINCT level_id) c FROM pot_chat_filters WHERE guild_id = ?').get(guildID).c;
 
         const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
@@ -497,8 +502,11 @@ function loadDashboard(client) {
             openReportsAlert,
             punActive,
             punTotal,
+            punRevoked,
+            punHighSeverity,
             filterWordCount,
             autoPunishments,
+            filterLevelCount,
             settings,
             roles,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
