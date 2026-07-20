@@ -62,7 +62,9 @@
 
         <%- include('partials/page-header', { guild, pageLabel: 'REPORTES' }) %>
 
-        <%- include('partials/ingame-pulse', { pulse, showRoster: false }) %>
+        <div id="ingamePulseRoot" data-guild-id="<%= guild.id %>" data-show-roster="false">
+            <%- include('partials/ingame-pulse', { pulse, showRoster: false }) %>
+        </div>
 
         <!-- REPORTES ABERTOS -->
         <section class="titan-card-premium flex-col gap-4">
@@ -129,5 +131,6 @@
     </main>
 
     <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script src="/js/ingame-pulse-poll.js"></script>
 </body>
 </html>

@@ -61,7 +61,9 @@
             <% } %>
         </section>
 
-        <%- include('partials/ingame-pulse', { pulse }) %>
+        <div id="ingamePulseRoot" data-guild-id="<%= guild.id %>" data-show-roster="true">
+            <%- include('partials/ingame-pulse', { pulse }) %>
+        </div>
 
         <!-- MODERAÇÃO -->
         <section class="titan-card-premium flex-col gap-4">
@@ -196,5 +198,6 @@
     </main>
 
     <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script src="/js/ingame-pulse-poll.js"></script>
 </body>
 </html>

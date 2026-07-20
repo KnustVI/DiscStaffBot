@@ -418,6 +418,26 @@ function loadDashboard(client) {
         }
     });
 
+    // ==================== FRAGMENTOS (atualização em tempo real) ====================
+    // Devolve só o HTML do partial "IN GAME" já renderizado de novo com dado
+    // fresco — usado pelo polling client-side em
+    // web/public/js/ingame-pulse-poll.js (Moderação/Reports/Events) pra
+    // atualizar status de staff/donuts sem recarregar a página inteira.
+    // Mesmo padrão de auth das outras rotas por guild.
+    app.get('/fragments/ingame-pulse/:guildID', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
+
+        const pulse = await getServerPulse(guildID, guild);
+        res.render('partials/ingame-pulse', {
+            pulse,
+            showRoster: req.query.showRoster !== 'false',
+        });
+    });
+
     // ==================== MODERAÇÃO ====================
     app.get('/moderacao/:guildID', checkAuth, async (req, res) => {
         const { guildID } = req.params;
