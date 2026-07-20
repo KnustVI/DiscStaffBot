@@ -122,6 +122,8 @@ const EMOJIS = {
     plus: formatEmoji('1522487794369298534', 'plus', false),
     PotLogo: formatEmoji('1523231124095111199', 'PotLogo', false),
     power: formatEmoji('1522488117700071464', 'power', false),
+    powerverde: formatEmoji('1528561078299136130', 'powerverde', false),
+    powervermelho: formatEmoji('1528561060561289297', 'powervermelho', false),
     prize: formatEmoji('1522488035521069066', 'prize', false),
     raio: formatEmoji('1522521824779304970', 'raio', false),
     rcon: formatEmoji('1522521826402504764', 'rcon', false),
