@@ -222,7 +222,7 @@
                                 caber na tela e o tamanho de cada icone (minmax), nao a quantidade de
                                 colunas. Mostra TODOS os servidores que a pessoa administra — sem limite de 6. */ %>
                             <% guilds.forEach(guild => { %>
-                                <a href="/home/<%= guild.id %>"
+                                <a href="/moderacao/<%= guild.id %>"
                                    class="bg-titan-dark flex items-center justify-center cursor-pointer transition-all duration-200 hover:border-titan-accent hover:scale-105"
                                    style="aspect-ratio: 1 / 1; border-radius: 18.75%; border: 2px solid #3E3D38; box-shadow: 0 12px 18px 6px rgba(1, 2, 10, 0.38); overflow: hidden;">
                                     <% if (guild.icon) { %>

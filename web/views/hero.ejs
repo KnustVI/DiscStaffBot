@@ -195,9 +195,13 @@
 <!-- ===================== NAV (fixa, independente do scroll) ===================== -->
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <% if (user) { %>
-        <span class="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80" style="font-family:'Poppins',sans-serif;">
+        <a href="/dashboard" class="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <%= (user.nickname || user.global_name || user.username) %>
-        </span>
+        </a>
+    <% } else { %>
+        <a href="/login" class="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center" style="font-family:'Poppins',sans-serif; font-weight:600; font-size:12px; color:#F8DCC0; text-decoration:none; background:#2A2A2A; border:1px solid #803E30; border-radius:15px; padding:4px 14px; box-shadow:5px 5px 10px rgba(0,0,0,0.5), -5px -5px 10px rgba(0,0,0,0.7);">
+            <span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span>
+        </a>
     <% } %>
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
@@ -271,7 +275,7 @@
                 <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" class="btn-primary" target="_blank" rel="noopener">
                     <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
                 </a>
-                <a href="/dashboard" class="btn-primary disabled" aria-disabled="true" tabindex="-1">
+                <a href="/dashboard" class="btn-primary">
                     <span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span>
                 </a>
             </div>
@@ -623,7 +627,7 @@
         <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" class="btn-primary" target="_blank" rel="noopener">
             <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
         </a>
-        <a href="/dashboard" class="btn-primary disabled" aria-disabled="true" tabindex="-1">
+        <a href="/dashboard" class="btn-primary">
             <span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span>
         </a>
     </div>
