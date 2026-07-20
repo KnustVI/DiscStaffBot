@@ -5,13 +5,15 @@
   e web/public/css/style.css (.premium-card-graph-container etc), só
   parametrizado, pra não repetir o bloco a cada estatística.
 
-  Uso:
-    <%- include('partials/stat-donut', {
-      title: 'Jogadores Online',
-      value: '12/40',           // texto mostrado no centro do gráfico
-      percent: 30,               // 0-100, preenchimento do arco
-      accent: 'gold',            // 'gold' (padrão, --accent) ou 'red' (--surface)
-    }) %>
+  Uso (sem os delimitadores reais de tag do EJS de propósito — ver aviso
+  em sidebar-v2.ejs sobre por que um deles de verdade aqui dentro quebraria
+  a página):
+    include( partials/stat-donut , {
+      title: Jogadores Online ,
+      value: 12/40 ,             // texto mostrado no centro do gráfico
+      percent: 30,                // 0-100, preenchimento do arco
+      accent: gold ,              // gold (padrão, --accent) ou red (--surface)
+    } )
 -->
 <%
     const dTitle = title;

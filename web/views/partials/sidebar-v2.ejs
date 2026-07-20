@@ -11,14 +11,19 @@
   página própria — fica em `#` até existir uma. O sidebar.ejs ANTIGO (sem
   "-v2") continua intocado, incluído só em home.ejs/manage.ejs.
 
-  Como usar:
-    <%- include('partials/sidebar-v2', {
-      active: 'moderacao',      // chave do item atual (ver NAV_ITEMS abaixo) — sem isso, nada vem marcado
-      guild,                     // objeto Guild do discord.js — usado pra montar os hrefs /pagina/<guild.id>
+  Como usar (escrito sem os delimitadores reais de tag do EJS de propósito
+  — um deles de verdade aqui dentro deste comentário HTML seria executado
+  pelo EJS mesmo assim, já que ele processa o arquivo inteiro como texto
+  ANTES de virar HTML; isso já quebrou esta página uma vez, com "req is not
+  defined", porque req só existe dentro de uma requisição Express real):
+
+    include( partials/sidebar-v2 , {
+      active: moderacao ,      // chave do item atual (ver NAV_ITEMS abaixo) — sem isso, nada vem marcado
+      guild,                    // objeto Guild do discord.js — usado pra montar os hrefs /pagina/<guild.id>
       user: req.user,           // objeto do passport-discord (id, avatar, nickname/global_name/username)
-      role: 'Administrador',    // texto livre mostrado no badge abaixo do nome
+      role: Administrador ,     // texto livre mostrado no badge abaixo do nome
       nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
-    }) %>
+    } )
 
   O export do Figma não trazia o TEXTO real de cada botão (só largura do
   layer) — os rótulos abaixo foram escolhidos pelos ícones (Lucide, nomeados
