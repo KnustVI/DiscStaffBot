@@ -30,31 +30,29 @@
     const ipShowRoster = typeof showRoster === 'undefined' || showRoster;
     const IP_MAX_PLAYERS = 120; // capacidade máxima de um servidor de Path of Titans
 
-    // Ordem importa: o maior/destaque precisa ser o ÚLTIMO no HTML pra
-    // sobrar à direita com justify-content:flex-end (ver graph-card.ejs).
-    const ipDonutsHtml =
-        include('stat-donut', {
-            id: 'ingame-jogando',
+    // Ordem fixa (posição no canvas do Figma, não muda): [pequeno-esquerda,
+    // pequeno-meio, grande-direita] — ver ingame-donut-cluster.ejs.
+    const ipDonuts = [
+        {
             title: 'Jogando',
             value: `${pulse.staffPlaying}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffPlaying / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
-        }) +
-        include('stat-donut', {
-            id: 'ingame-espectador',
+        },
+        {
             title: 'Em modo espectador',
             value: `${pulse.staffSpectating}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffSpectating / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
-        }) +
-        include('stat-donut', {
-            id: 'ingame-online',
+        },
+        {
             title: 'Jogadores Online',
             value: `${pulse.playersOnline}/${IP_MAX_PLAYERS}`,
             percent: (pulse.playersOnline / IP_MAX_PLAYERS) * 100,
             accent: 'red',
-            size: 'big',
-        });
+        },
+    ];
+    const ipDonutsHtml = include('ingame-donut-cluster', { donuts: ipDonuts, clusterId: 'ingame' });
 %>
 <section class="ingame-pulse">
     <h2 class="ingame-pulse-title">IN GAME</h2>
@@ -105,16 +103,24 @@
        no site (pedido do dono) — separado do gap:12px genérico do
        .ingame-pulse (que é só entre título/card/lista). */
     .ingame-staff-grid-spacing { margin-top: 20px; margin-bottom: 20px; }
-    /* Sempre 3 por linha (pedido do dono, mesmo em telas menores — o
-       conteúdo encolhe/quebra dentro do chip em vez de reagrupar em menos
-       colunas). */
+    /* Grade exata do Figma (Frame 12016, confirmado por extração +
+       conferência linha a linha do Moderação.txt): 3 colunas de 314px,
+       gap de 20px nos dois eixos, chip 314x90 — 982px de largura total.
+       Sempre 3 por linha mesmo em telas menores (pedido do dono): o grid
+       vira fluido/proporcional abaixo de 982px em vez de reagrupar em
+       menos colunas (max-width trava no tamanho exato do Figma, min()
+       deixa encolher proporcionalmente nas telas onde 982px não cabe). */
     .ingame-staff-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+        gap: 20px;
+        width: 100%;
+        max-width: 982px;
     }
-    .ingame-staff-icon-size .outline-chip-icon { width: 40px; height: 40px; }
+    .ingame-staff-icon-size { aspect-ratio: 314 / 90; }
+    .ingame-staff-icon-size .outline-chip-icon { width: 50px; height: 50px; }
     @media (max-width: 640px) {
-        .ingame-staff-grid { gap: 8px; }
+        .ingame-staff-grid { gap: 10px; }
+        .ingame-staff-icon-size .outline-chip-icon { width: 34px; height: 34px; }
     }
 </style>

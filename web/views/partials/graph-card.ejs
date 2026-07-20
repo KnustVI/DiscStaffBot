@@ -29,6 +29,12 @@
     <%- bodyHtml %>
 </div>
 <style>
+    /* Padding real do Figma no card externo (Frame 2) é 0 — o respiro de
+       50px nas laterais e 20px no topo pertence ao FILHO (Frame 11936,
+       position:absolute right:0 top:20px dentro do card, não ao card em
+       si). Como não uso position:absolute aqui (o conteúdo já vira
+       responsivo sozinho via graph-card + margin-left:auto), aproximo só
+       o respiro do topo com padding-top — o filho cuida do resto. */
     .graph-card {
         box-sizing: border-box;
         display: flex;
@@ -38,8 +44,7 @@
         justify-content: flex-end;
         width: 100%;
         min-height: 220px;
-        padding: 20px clamp(16px, 4vw, 50px);
-        gap: 4px;
+        padding: 20px 0 0;
         background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
         box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
         border-radius: 20px;

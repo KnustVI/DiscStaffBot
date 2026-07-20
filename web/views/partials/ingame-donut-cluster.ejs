@@ -1,0 +1,133 @@
+<%#
+  web/views/partials/ingame-donut-cluster.ejs
+  Composição EXATA dos 3 donuts do painel "IN GAME" (Figma: Frame 11936,
+  canvas compartilhado 770x307) — o dono exportou o SVG completo do
+  Figma com os 3 anéis na MESMA folha de coordenadas (não 3 gráficos
+  independentes lado a lado por CSS margin, como as tentativas
+  anteriores tentaram aproximar) — cada um recortado pela sua própria
+  janela (clipPath com cantos arredondados de 20px). Geometria abaixo
+  (centro/raio/janela de cada anel) veio direto desse SVG, não é mais
+  aproximação nossa.
+
+  O preenchimento dinâmico (percentual real) é recalculado via wedge-clip
+  sobre o MESMO anel — o Figma só exporta a forma cheia de uma elipse com
+  arco nativo (não o arco em si, que é uma propriedade do Figma sem
+  equivalente em CSS/SVG puro), então o valor de 50% que veio no export
+  era só o exemplo fixo daquele momento, não uma fórmula. A sombra/brilho
+  usa a MESMA receita de filtro do SVG original (feDropShadow preto
+  12/15/5.75 + feDropShadow na cor de destaque 0/0/1.15), aplicada só na
+  camada de trilho — a camada de preenchimento colorido no export do
+  Figma NÃO tem filtro nenhum, é cor chapada.
+
+  NÃO troque os centros/raios/janelas dos 3 anéis sem um novo export do
+  Figma — confirmados pixel a pixel pelo dono.
+
+  Uso: include( partials/ingame-donut-cluster , { donuts, clusterId } ) —
+  donuts é um array de EXATAMENTE 3 objetos { title, value, percent,
+  accent }, na ordem [pequeno-esquerda, pequeno-meio, grande-direita] (a
+  posição de cada um no canvas é fixa, não depende da ordem dos dados).
+  clusterId é opcional (default 'ingame') — só importa se dois clusters
+  aparecerem na mesma página, pra não colidir os ids de filter/clipPath.
+%>
+<%
+    const RINGS = [
+        { cx: 196, cy: 214, rOuter: 140, rInner: 98, win: { x: 50, y: 66, w: 224, h: 241 } },
+        { cx: 390, cy: 214, rOuter: 140, rInner: 98, win: { x: 244, y: 66, w: 224, h: 241 } },
+        { cx: 623, cy: 187, rOuter: 179, rInner: 125.3, win: { x: 438, y: 0, w: 282, h: 307 } },
+    ];
+    const CANVAS_W = 770, CANVAS_H = 307;
+    const idcClusterId = (typeof clusterId !== 'undefined' && clusterId) ? String(clusterId).replace(/[^a-zA-Z0-9_-]/g, '') : 'ingame';
+
+    function circlePath(cx, cy, r) {
+        return `M ${cx + r},${cy} A ${r},${r} 0 0,1 ${cx},${cy + r} A ${r},${r} 0 0,1 ${cx - r},${cy} A ${r},${r} 0 0,1 ${cx},${cy - r} A ${r},${r} 0 0,1 ${cx + r},${cy} Z`;
+    }
+    function ringPath(cx, cy, rOuter, rInner) {
+        return `${circlePath(cx, cy, rOuter)} ${circlePath(cx, cy, rInner)}`;
+    }
+    function wedgePath(cx, cy, rOuter, percent) {
+        const p = Math.max(0, Math.min(100, Number(percent) || 0));
+        if (p <= 0) return null;
+        const RW = rOuter + 20; // margem de segurança, cobre o anel inteiro
+        if (p >= 100) return circlePath(cx, cy, RW);
+        const sweep = (p / 100) * 360;
+        const toRad = (deg) => (deg * Math.PI) / 180;
+        const start = { x: (cx + RW * Math.cos(toRad(-90))).toFixed(2), y: (cy + RW * Math.sin(toRad(-90))).toFixed(2) };
+        const end = { x: (cx + RW * Math.cos(toRad(-90 + sweep))).toFixed(2), y: (cy + RW * Math.sin(toRad(-90 + sweep))).toFixed(2) };
+        const largeArc = sweep > 180 ? 1 : 0;
+        return `M ${cx},${cy} L ${start.x},${start.y} A ${RW},${RW} 0 ${largeArc},1 ${end.x},${end.y} Z`;
+    }
+    function accentHex(accent) { return accent === 'red' ? '#803E30' : '#DCA15E'; }
+%>
+<div class="idc-root">
+    <svg class="idc-svg" viewBox="0 0 <%= CANVAS_W %> <%= CANVAS_H %>" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <% RINGS.forEach((r, i) => { const hex = accentHex(donuts[i].accent); %>
+                <clipPath id="idc-win-<%= idcClusterId %>-<%= i %>">
+                    <rect x="<%= r.win.x %>" y="<%= r.win.y %>" width="<%= r.win.w %>" height="<%= r.win.h %>" rx="20"/>
+                </clipPath>
+                <filter id="idc-glow-<%= idcClusterId %>-<%= i %>" x="-30%" y="-20%" width="160%" height="150%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+                    <feDropShadow dx="12" dy="15" stdDeviation="5.75" flood-color="#000000" flood-opacity="0.36" in="SourceGraphic" result="idc-shadow1-<%= idcClusterId %>-<%= i %>"/>
+                    <feDropShadow dx="0" dy="0" stdDeviation="1.15" flood-color="<%= hex %>" flood-opacity="1" in="idc-shadow1-<%= idcClusterId %>-<%= i %>"/>
+                </filter>
+                <% const wedge = wedgePath(r.cx, r.cy, r.rOuter, donuts[i].percent); %>
+                <% if (wedge) { %>
+                    <clipPath id="idc-wedge-<%= idcClusterId %>-<%= i %>"><path d="<%= wedge %>"/></clipPath>
+                <% } %>
+            <% }); %>
+        </defs>
+        <% RINGS.forEach((r, i) => {
+            const hex = accentHex(donuts[i].accent);
+            const wedge = wedgePath(r.cx, r.cy, r.rOuter, donuts[i].percent);
+            const ring = ringPath(r.cx, r.cy, r.rOuter, r.rInner);
+        %>
+            <g clip-path="url(#idc-win-<%= idcClusterId %>-<%= i %>)">
+                <g filter="url(#idc-glow-<%= idcClusterId %>-<%= i %>)">
+                    <path d="<%= ring %>" fill-rule="evenodd" fill="#3E3D38" fill-opacity="0.2"/>
+                </g>
+                <% if (wedge) { %>
+                    <g clip-path="url(#idc-wedge-<%= idcClusterId %>-<%= i %>)">
+                        <path d="<%= ring %>" fill-rule="evenodd" fill="<%= hex %>"/>
+                    </g>
+                <% } %>
+            </g>
+        <% }); %>
+    </svg>
+    <% RINGS.forEach((r, i) => {
+        const leftPct = (r.cx / CANVAS_W) * 100;
+        const topPct = (r.cy / CANVAS_H) * 100;
+        const widthPct = (r.rInner * 1.9 / CANVAS_W) * 100;
+    %>
+        <div class="idc-label" style="left: <%= leftPct.toFixed(2) %>%; top: <%= topPct.toFixed(2) %>%; width: <%= widthPct.toFixed(2) %>%;">
+            <span class="idc-title"><%= donuts[i].title %></span>
+            <span class="idc-value"><%= donuts[i].value %></span>
+        </div>
+    <% }); %>
+</div>
+<style>
+    .idc-root {
+        position: relative;
+        width: 100%;
+        max-width: 770px;
+        aspect-ratio: 770 / 307;
+        margin-left: auto; /* Figma: cluster encostado na direita do card (Frame 3, justify-content:flex-end) */
+    }
+    .idc-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .idc-label {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        text-align: center;
+        pointer-events: none;
+    }
+    .idc-title, .idc-value {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: clamp(11px, 1.7vw, 20px);
+        line-height: 1.25;
+        color: #F8DCC0;
+    }
+</style>
