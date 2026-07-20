@@ -383,3 +383,41 @@ text-align: center;
     cursor: not-allowed;
     pointer-events: none;
 }
+
+/* --- Outline Chip (Figma: "Frame 12007" etc, STAFF ONLINE/OFFLINE) ---
+   Cartão sem preenchimento, só contorno colorido + ícone + título/subtítulo
+   — usado pela lista de staff (ingame-pulse.ejs) E pelo quadro de alerta
+   (moderacao.ejs), mesmo visual nos dois lugares de propósito (pedido do
+   dono). Verde (--online) = ok/online, vermelho (--offline) = precisa de
+   atenção/offline. */
+.outline-chip {
+    --chip-color: #A5FFA1;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border: 1px solid var(--chip-color);
+    border-radius: 10px;
+    background: none;
+}
+.outline-chip.is-bad { --chip-color: #FF4E3B; }
+.outline-chip-icon { width: 34px; height: 34px; flex: none; color: var(--chip-color); }
+.outline-chip-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.outline-chip-headline {
+    font-family: 'Tilt Warp', cursive;
+    font-size: clamp(16px, 2.2vw, 26px);
+    line-height: 1.2;
+    color: #DCA15E;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.outline-chip-subtitle {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #F8DCC0;
+    opacity: 0.85;
+}

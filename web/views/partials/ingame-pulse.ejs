@@ -60,24 +60,24 @@
     <% if (ipShowRoster) { %>
         <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
         <% if (pulse.roster.length === 0) { %>
-            <p class="text-sm opacity-40 text-center mt-4">Nenhum cargo de staff configurado ainda.</p>
+            <p class="text-sm opacity-40 text-center ingame-staff-grid-spacing">Nenhum cargo de staff configurado ainda.</p>
         <% } else { %>
-            <div class="ingame-staff-grid">
+            <div class="ingame-staff-grid ingame-staff-grid-spacing">
                 <% online.forEach(staff => { %>
-                    <div class="ingame-staff-chip is-online">
-                        <i data-lucide="power" class="ingame-staff-icon"></i>
-                        <div class="flex flex-col">
-                            <span class="ingame-staff-headline">STAFF ONLINE</span>
-                            <span class="ingame-staff-status"><%= staff.moderating ? 'MODERANDO...' : 'JOGANDO...' %></span>
+                    <div class="outline-chip ingame-staff-icon-size">
+                        <i data-lucide="power" class="outline-chip-icon"></i>
+                        <div class="outline-chip-text">
+                            <span class="outline-chip-headline"><%= staff.name %></span>
+                            <span class="outline-chip-subtitle"><%= staff.moderating ? 'MODERANDO...' : 'JOGANDO...' %></span>
                         </div>
                     </div>
                 <% }); %>
                 <% offline.forEach(staff => { %>
-                    <div class="ingame-staff-chip is-offline">
-                        <i data-lucide="power" class="ingame-staff-icon"></i>
-                        <div class="flex flex-col">
-                            <span class="ingame-staff-headline">STAFF OFFLINE</span>
-                            <span class="ingame-staff-status">...</span>
+                    <div class="outline-chip is-bad ingame-staff-icon-size">
+                        <i data-lucide="power" class="outline-chip-icon"></i>
+                        <div class="outline-chip-text">
+                            <span class="outline-chip-headline"><%= staff.name %></span>
+                            <span class="outline-chip-subtitle">...</span>
                         </div>
                     </div>
                 <% }); %>
@@ -98,38 +98,20 @@
         text-transform: uppercase;
     }
 
+    /* 20px de respiro entre a lista de staff e o que vem antes/depois dela
+       no site (pedido do dono) — separado do gap:12px genérico do
+       .ingame-pulse (que é só entre título/card/lista). */
+    .ingame-staff-grid-spacing { margin-top: 20px; margin-bottom: 20px; }
+    /* Sempre 3 por linha (pedido do dono, mesmo em telas menores — o
+       conteúdo encolhe/quebra dentro do chip em vez de reagrupar em menos
+       colunas). */
     .ingame-staff-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 16px;
     }
-    .ingame-staff-chip {
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 20px;
-        border-radius: 10px;
-        border: 1px solid;
-        background: var(--bg-card);
-    }
-    .ingame-staff-chip.is-online { border-color: #A5FFA1; }
-    .ingame-staff-chip.is-offline { border-color: #FF4E3B; }
-    .ingame-staff-icon { width: 34px; height: 34px; flex: none; }
-    .ingame-staff-chip.is-online .ingame-staff-icon { color: #A5FFA1; }
-    .ingame-staff-chip.is-offline .ingame-staff-icon { color: #FF4E3B; }
-    .ingame-staff-headline {
-        font-family: 'Tilt Warp', sans-serif;
-        font-size: clamp(18px, 2.2vw, 26px);
-        line-height: 1.2;
-        color: #DCA15E;
-        text-transform: uppercase;
-    }
-    .ingame-staff-status {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 14px;
-        color: #F8DCC0;
-        opacity: 0.85;
+    .ingame-staff-icon-size .outline-chip-icon { width: 40px; height: 40px; }
+    @media (max-width: 640px) {
+        .ingame-staff-grid { gap: 8px; }
     }
 </style>

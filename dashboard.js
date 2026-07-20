@@ -51,16 +51,15 @@ async function getServerPulse(guildId, guild) {
     const roster = staffMembers.map(m => {
         const link = db.prepare('SELECT alderon_id FROM player_links WHERE user_id = ?').get(m.id);
         const potPlayer = link
-            ? db.prepare('SELECT is_online, dinosaur_active FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
+            ? db.prepare('SELECT is_online FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
             : null;
         const online = !!potPlayer?.is_online;
         const spectating = online && !!link && spectatingAlderonIds.has(link.alderon_id);
-        // "Jogando" (dono, 2026-07-20): fora do modo espectador E já deu
-        // respawn de dino — dinosaur_active só vira 1 no PlayerRespawn e
-        // zera no login/morte (ver comentário da coluna em schema.js), então
-        // cobre exatamente "não só online, já está jogando de fato" (não
-        // conta quem está parado na tela de seleção de dino).
-        const playing = online && !spectating && !!potPlayer?.dinosaur_active;
+        // "Jogando" (dono, 2026-07-20): online e fora do modo espectador —
+        // definição simples, mesma usada tanto no rótulo por staff quanto
+        // no total do donut (uma única fonte de verdade, sem os dois
+        // discordarem entre si).
+        const playing = online && !spectating;
         return {
             id: m.id,
             name: m.nickname || m.user.username,

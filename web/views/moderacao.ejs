@@ -38,23 +38,26 @@
             <div class="titan-card-premium !py-4 !px-6 text-sm text-titan-gold">Configurações salvas.</div>
         <% } %>
 
-        <!-- ALERTA -->
-        <section class="titan-card-premium flex-col gap-4">
-            <h2 class="section-title text-lg flex items-center gap-2">
-                <i data-lucide="shield-alert" class="w-5 h-5"></i>
-                <% if (openReportsAlert.length === 0) { %> Nenhum Alerta <% } else { %> <%= openReportsAlert.length %> Report(s) Aguardando Staff <% } %>
-            </h2>
+        <!-- ALERTA (mesmo visual outline-chip da lista de staff, pedido do dono) -->
+        <section class="flex flex-col gap-3">
             <% if (openReportsAlert.length === 0) { %>
-                <p class="text-sm opacity-40">Nada novo por aqui.</p>
+                <div class="outline-chip">
+                    <i data-lucide="shield-check" class="outline-chip-icon"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline">Nenhum Alerta</span>
+                        <span class="outline-chip-subtitle">Nada novo por aqui.....</span>
+                    </div>
+                </div>
             <% } else { %>
-                <ul class="flex flex-col gap-2">
-                    <% openReportsAlert.forEach(r => { %>
-                        <li class="flex justify-between items-center text-sm bg-[var(--bg-card)] rounded-[10px] px-4 py-2">
-                            <span><%= r.report_id %> — aberto por <@<%= r.user_id %>></span>
-                            <span class="opacity-40"><%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
-                        </li>
-                    <% }); %>
-                </ul>
+                <% openReportsAlert.forEach(r => { %>
+                    <div class="outline-chip is-bad">
+                        <i data-lucide="shield-alert" class="outline-chip-icon"></i>
+                        <div class="outline-chip-text">
+                            <span class="outline-chip-headline"><%= r.report_id %></span>
+                            <span class="outline-chip-subtitle">Aguardando staff — aberto por <@<%= r.user_id %>> em <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
+                        </div>
+                    </div>
+                <% }); %>
             <% } %>
         </section>
 
