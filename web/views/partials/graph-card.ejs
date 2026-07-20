@@ -1,0 +1,47 @@
+<%#
+  web/views/partials/graph-card.ejs
+  Card genérico pra qualquer conjunto de gráficos (spec Figma: "Frame 2" —
+  BgGradient + sombra dupla + cantos de 20px). Vira o card padrão de
+  qualquer painel de estatísticas do dashboard daqui pra frente, não só
+  o "IN GAME" — "Hug": o card só cresce/encolhe de acordo com o conteúdo
+  e a largura da tela, nunca deixa o conteúdo vazar pra fora dos cantos
+  arredondados (overflow:hidden).
+
+  Conteúdo é passado pré-renderizado (bodyHtml) em vez de via um "slot" —
+  EJS não tem esse conceito; o jeito certo é chamar include(...) como
+  função dentro de uma tag de scriptlet (sem o "-" de auto-output) pra
+  capturar o HTML como string, concatenar o quanto precisar, e passar aqui.
+
+  Comentário de verdade do EJS (abre com "menor, porcento"), não HTML —
+  esse tipo de comentário some do HTML final, o EJS descarta antes de
+  gerar a página. Mesmo assim sem os delimitadores reais de tag do EJS no
+  exemplo abaixo de propósito: esse tipo de comentário não aceita outra
+  tag de EJS aninhada dentro dele (testado — quebra o parser).
+
+  Uso:
+    const bodyHtml = include( partials/stat-donut , {...} ) + include( partials/stat-donut , {...} )
+    include( partials/graph-card , { bodyHtml, align: end } )  // align opcional: 'end' (padrão, Figma) ou 'center'
+%>
+<%
+    const gcAlign = typeof align !== 'undefined' && align === 'center' ? 'center' : 'flex-end';
+%>
+<div class="graph-card" style="justify-content: <%= gcAlign %>;">
+    <%- bodyHtml %>
+</div>
+<style>
+    .graph-card {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        width: 100%;
+        min-height: 220px;
+        padding: 20px clamp(16px, 4vw, 50px);
+        gap: 4px;
+        background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+        box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+</style>

@@ -1,45 +1,61 @@
-<!--
+<%#
   web/views/partials/ingame-pulse.ejs
   Bloco "IN GAME" do Figma (Moderação.txt/Reports.txt/Events.txt repetem
-  essa seção) — painel com 3 donuts (Jogando / Em modo espectador /
-  Moderadores online) + grade STAFF ONLINE/STAFF OFFLINE (Moderação e
-  Events only — Reports só tem os donuts, ver showRoster abaixo).
+  essa seção) — 3 donuts dentro de partials/graph-card (Jogando / Em modo
+  espectador / Jogadores Online) + grade STAFF ONLINE/STAFF OFFLINE
+  (Moderação e Events only — Reports só tem os donuts, ver showRoster
+  abaixo).
 
-  "Em modo espectador" = staff com sessão aberta em
-  pot_spectator_sessions (ligado via AdminSpectate no jogo) — dado real,
-  não presença do Discord (o bot não tem a intent GuildPresences). "Staff
-  offline" cobre quem tem o cargo de staff mas não está online no jogo.
+  O donut maior fica SEMPRE por último (mais à direita, com
+  justify-content:flex-end do card) e é SEMPRE "Jogadores Online" sobre
+  120 (capacidade máxima de um servidor de Path of Titans) — pedido do
+  dono, não é staff, é a contagem geral de jogadores no jogo. "Jogando"/
+  "Em modo espectador" continuam sendo sobre STAFF (pot_spectator_sessions
+  = sessão de AdminSpectate aberta no jogo, dado real, não presença do
+  Discord — o bot não tem a intent GuildPresences).
 
   Uso: include( partials/ingame-pulse , { pulse, showRoster } ) —
-  showRoster é opcional, default true; sem os delimitadores reais de tag
-  do EJS aqui de propósito, um deles de verdade dentro deste comentário
-  HTML seria executado pelo EJS mesmo assim (já quebrou a página uma vez,
-  ver o mesmo aviso em sidebar-v2.ejs).
--->
-<% const ipShowRoster = typeof showRoster === 'undefined' || showRoster; %>
-<section class="ingame-pulse">
-    <h2 class="ingame-pulse-title">IN GAME</h2>
-    <div class="ingame-pulse-panel">
-        <%- include('stat-donut', {
+  showRoster é opcional, default true.
+
+  Este é um comentário de verdade do EJS (abre com "menor, porcento"),
+  não um comentário de HTML — um comentário de HTML aparece no código
+  fonte que o navegador recebe (o navegador só esconde visualmente, o
+  texto continua lá), enquanto este daqui o EJS descarta antes de gerar a
+  página. Mesmo assim, sem os delimitadores reais de tag do EJS no exemplo
+  acima de propósito: um comentário deste tipo NÃO aceita outra tag de EJS
+  aninhada dentro dele (testado — quebra o parser), então nada de tag real
+  aqui dentro, nem pra exemplo.
+%>
+<%
+    const ipShowRoster = typeof showRoster === 'undefined' || showRoster;
+    const IP_MAX_PLAYERS = 120; // capacidade máxima de um servidor de Path of Titans
+
+    // Ordem importa: o maior/destaque precisa ser o ÚLTIMO no HTML pra
+    // sobrar à direita com justify-content:flex-end (ver graph-card.ejs).
+    const ipDonutsHtml =
+        include('stat-donut', {
             title: 'Jogando',
             value: `${pulse.staffPlaying}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffPlaying / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
-        }) %>
-        <%- include('stat-donut', {
+        }) +
+        include('stat-donut', {
             title: 'Em modo espectador',
             value: `${pulse.staffSpectating}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffSpectating / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
-        }) %>
-        <%- include('stat-donut', {
-            title: 'Moderadores online',
-            value: `${pulse.staffOnline}/${pulse.staffTotal}`,
-            percent: pulse.staffTotal > 0 ? (pulse.staffOnline / pulse.staffTotal) * 100 : 0,
+        }) +
+        include('stat-donut', {
+            title: 'Jogadores Online',
+            value: `${pulse.playersOnline}/${IP_MAX_PLAYERS}`,
+            percent: (pulse.playersOnline / IP_MAX_PLAYERS) * 100,
             accent: 'red',
             size: 'big',
-        }) %>
-    </div>
+        });
+%>
+<section class="ingame-pulse">
+    <h2 class="ingame-pulse-title">IN GAME</h2>
+    <%- include('graph-card', { bodyHtml: ipDonutsHtml }) %>
 
     <% if (ipShowRoster) { %>
         <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
@@ -80,18 +96,6 @@
         color: #FFFFFF;
         text-align: center;
         text-transform: uppercase;
-    }
-    .ingame-pulse-panel {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        align-items: flex-end;
-        gap: 4px;
-        min-height: 220px;
-        padding: 20px clamp(16px, 4vw, 50px);
-        background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
-        box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
-        border-radius: 20px;
     }
 
     .ingame-staff-grid {

@@ -1,15 +1,18 @@
-<!--
+<%#
   web/views/partials/page-header.ejs
   Cabeçalho "DASHBOARD" + "SERVERNAME | PÁGINA" + ícone do servidor (spec
   Figma: Frame 18/19/20/21, idêntico nas 3 páginas — Moderação/Reports/
   Events só trocam o texto da página).
 
+  Comentário de verdade do EJS (abre com "menor, porcento"), não HTML —
+  esse tipo de comentário some do HTML final, o EJS descarta antes de
+  gerar a página. Mesmo assim sem os delimitadores reais de tag do EJS no
+  exemplo abaixo de propósito: esse tipo de comentário não aceita outra
+  tag de EJS aninhada dentro dele (testado — quebra o parser).
+
   Uso: include( partials/page-header , { guild, pageLabel } ) —
-  pageLabel é o texto depois do "|" (ex: MODERAÇÃO/REPORTES/EVENTOS); sem
-  os delimitadores reais de tag do EJS aqui de propósito, ver aviso em
-  sidebar-v2.ejs sobre por que um deles de verdade dentro deste comentário
-  HTML quebraria a página.
--->
+  pageLabel é o texto depois do "|" (ex: MODERAÇÃO/REPORTES/EVENTOS).
+%>
 <%
     // Mesmo padrão de fallback (sem ícone) já usado em index.ejs.
     const phIconUrl = guild.icon

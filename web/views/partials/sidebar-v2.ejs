@@ -1,22 +1,30 @@
-<!--
+<%#
   web/views/partials/sidebar-v2.ejs
   ============================================================================
   Sidebar do dashboard, reconstruída a partir do export do Figma
   ("C:\...\Titan's Pass\sidebar.txt") — duas variantes (expandida/
   colapsada), alternadas por um botão, com preferência salva no navegador.
 
-  Ligado às 3 páginas reais construídas a partir de Moderação.txt/Reports.txt/
+  Ligado às páginas reais construídas a partir de Moderação.txt/Reports.txt/
   Events.txt (mesma pasta do sidebar.txt): moderacao, denuncias (Reports) e
-  eventos. O restante (premium, config, reputacao, ajuda) ainda não tem
-  página própria — fica em `#` até existir uma. O sidebar.ejs ANTIGO (sem
-  "-v2") continua intocado, incluído só em home.ejs/manage.ejs.
+  eventos. Premium/Ajuda ainda sem página própria (fica em `#`);
+  Configurações e Reputação removidos do menu por hora (pedido do dono,
+  2026-07-20 — sem página pronta ainda). O sidebar.ejs ANTIGO (sem "-v2")
+  continua intocado, incluído só em home.ejs/manage.ejs.
 
-  Como usar (escrito sem os delimitadores reais de tag do EJS de propósito
-  — um deles de verdade aqui dentro deste comentário HTML seria executado
-  pelo EJS mesmo assim, já que ele processa o arquivo inteiro como texto
-  ANTES de virar HTML; isso já quebrou esta página uma vez, com "req is not
-  defined", porque req só existe dentro de uma requisição Express real):
+  Comentário de verdade do EJS (abre com "menor, porcento"), não HTML —
+  esse tipo de comentário some do HTML final (um comentário de HTML
+  continua no código fonte que o navegador recebe, só fica invisível na
+  tela), o EJS descarta antes de gerar a página. Mesmo assim sem os
+  delimitadores reais de tag do EJS no exemplo abaixo de propósito: esse
+  tipo de comentário não aceita outra tag de EJS aninhada dentro dele
+  (testado — quebra o parser) — e antes desse arquivo usar comentário de
+  EJS de verdade, um comentário de HTML com uma tag de exemplo dentro
+  chegou a ser executada de verdade pelo EJS e quebrou a página inteira
+  com "req is not defined" (req só existe dentro de uma requisição Express
+  real, nunca dentro de um include isolado).
 
+  Como usar:
     include( partials/sidebar-v2 , {
       active: moderacao ,      // chave do item atual (ver NAV_ITEMS abaixo) — sem isso, nada vem marcado
       guild,                    // objeto Guild do discord.js — usado pra montar os hrefs /pagina/<guild.id>
@@ -31,7 +39,7 @@
   square-menu/message-circle-question-mark/log-out) cruzados com as
   funcionalidades reais do bot, com "eventos"↔"reputacao" confirmados
   diretamente com o dono (star = Eventos, square-menu = Reputação).
--->
+%>
 <%
     const sbGuild = typeof guild !== 'undefined' ? guild : null;
     const guildHref = (path) => sbGuild ? `/${path}/${sbGuild.id}` : '#';
