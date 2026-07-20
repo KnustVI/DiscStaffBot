@@ -98,91 +98,224 @@
             <%- include('partials/graph-card', { bodyHtml: autoDonutsHtml }) %>
         </section>
 
-        <!-- CONFIGURAÇÕES -->
-        <section class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-sm"><%= guild.name %> | Configurações</h2>
-            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
+        <%#
+            CONFIGURAÇÕES (Moderação.txt linhas 4523-7213, extraído + conferido
+            2x contra o arquivo). 3 cards, cada um com SEU PRÓPRIO form + botão
+            Salvar (espelha o Figma: cada painel tem seu próprio
+            BaseButtonCard/Button.text no final, não um botão único pra tudo) —
+            também evita que salvar um card apague campos dos outros dois
+            (dashboard.js só grava as chaves presentes no req.body de cada
+            submit). Campos de cargo continuam select (não o TextFieldWeb de
+            texto livre do Figma) porque a config real do bot é sempre um
+            Discord role id, não uma string digitada — só a casca visual
+            (wrapper dourado + campo escuro) segue o CSS exato.
+        %>
+        <section class="flex flex-col gap-6">
+            <h2 class="section-title text-sm px-2">Configurações</h2>
 
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Moderação</h3>
-                    <p class="text-xs opacity-50 mb-3">Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas.</p>
-                    <label class="text-xs opacity-60">Moderador (obrigatório)</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="shield"></i></div>
-                        <select name="staff_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= staffRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                    <label class="text-xs opacity-60">Supervisor</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="shield-ban"></i></div>
-                        <select name="supervisor_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= supervisorRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
+            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="config-card">
+                <div class="config-card-header">
+                    <i data-lucide="shield-check" class="config-card-icon"></i>
+                    <h3 class="config-card-title">Cargos de Moderação</h3>
                 </div>
+                <p class="config-card-desc">Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas. Detalhes de cada um abaixo. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
 
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos — Reputação</h3>
-                    <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação.</p>
-                    <label class="text-xs opacity-60">Strike (Temporário)</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="shield-alert"></i></div>
-                        <select name="strike_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                    <label class="text-xs opacity-60">Exemplar</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
-                        <select name="role_exemplar" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                    <label class="text-xs opacity-60">Problemático</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
-                        <select name="role_problematico" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Personalização</h3>
-                    <% if (!isCacador) { %>
-                        <p class="text-xs opacity-50 mb-3">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
-                    <% } else { %>
-                        <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="palette"></i></div>
-                            <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
+                <div class="config-fields">
+                    <div class="config-field">
+                        <div class="config-field-row">
+                            <i data-lucide="shield" class="config-field-icon"></i>
+                            <div class="config-field-text">
+                                <div class="config-field-label-row"><span class="config-field-label">MODERADOR</span></div>
+                                <p class="config-field-desc">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
+                            </div>
                         </div>
-                        <label class="text-xs opacity-60">Assinatura no rodapé dos painéis</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="edit"></i></div>
-                            <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" value="<%= settings.panel_footer_text || '' %>">
+                        <div class="config-field-input">
+                            <div class="config-field-input-inner">
+                                <select name="staff_role" class="config-field-select">
+                                    <option value="">— selecione um cargo —</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>" <%= staffRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
                         </div>
-                    <% } %>
+                    </div>
+
+                    <div class="config-field">
+                        <div class="config-field-row">
+                            <i data-lucide="eye" class="config-field-icon"></i>
+                            <div class="config-field-text">
+                                <div class="config-field-label-row"><span class="config-field-label">SUPERVISOR</span></div>
+                                <p class="config-field-desc">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
+                            </div>
+                        </div>
+                        <div class="config-field-input">
+                            <div class="config-field-input-inner">
+                                <select name="supervisor_role" class="config-field-select">
+                                    <option value="">— selecione um cargo —</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>" <%= supervisorRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <button type="submit" class="btn-salvar-final self-start">Salvar Alterações</button>
+                <button type="submit" class="config-save-btn"><i data-lucide="save" class="config-save-icon"></i>Salvar</button>
             </form>
+
+            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="config-card">
+                <div class="config-card-header">
+                    <i data-lucide="shield-alert" class="config-card-icon"></i>
+                    <h3 class="config-card-title">Cargos Automáticos — Reputação</h3>
+                </div>
+                <p class="config-card-desc">Estes cargos são atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente. Detalhes de cada um abaixo.</p>
+
+                <div class="config-fields">
+                    <div class="config-field">
+                        <div class="config-field-row">
+                            <i data-lucide="shield-off" class="config-field-icon"></i>
+                            <div class="config-field-text">
+                                <div class="config-field-label-row"><span class="config-field-label">STRIKE</span></div>
+                                <p class="config-field-desc">Atribuído automaticamente enquanto uma punição temporária está ativa. Removido quando a punição expira ou é anulada.</p>
+                            </div>
+                        </div>
+                        <div class="config-field-input">
+                            <div class="config-field-input-inner">
+                                <select name="strike_role" class="config-field-select">
+                                    <option value="">— selecione um cargo —</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-field">
+                        <div class="config-field-row">
+                            <i data-lucide="thumbs-up" class="config-field-icon"></i>
+                            <div class="config-field-text">
+                                <div class="config-field-label-row">
+                                    <span class="config-field-label">EXEMPLAR</span>
+                                    <span class="config-tier-badge">CAÇADOR</span>
+                                </div>
+                                <p class="config-field-desc">Atribuído automaticamente a membros com reputação acima do limite configurado em /config punishments. Indica bom comportamento.</p>
+                            </div>
+                        </div>
+                        <div class="config-field-input">
+                            <div class="config-field-input-inner">
+                                <select name="role_exemplar" class="config-field-select">
+                                    <option value="">— selecione um cargo —</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-field">
+                        <div class="config-field-row">
+                            <i data-lucide="thumbs-down" class="config-field-icon"></i>
+                            <div class="config-field-text">
+                                <div class="config-field-label-row">
+                                    <span class="config-field-label">PROBLEMÁTICO</span>
+                                    <span class="config-tier-badge">CAÇADOR</span>
+                                </div>
+                                <p class="config-field-desc">Atribuído automaticamente a membros com reputação abaixo do limite configurado em /config punishments. Sinaliza comportamento problemático.</p>
+                            </div>
+                        </div>
+                        <div class="config-field-input">
+                            <div class="config-field-input-inner">
+                                <select name="role_problematico" class="config-field-select">
+                                    <option value="">— selecione um cargo —</option>
+                                    <% roles.forEach(r => { %>
+                                        <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="config-save-btn"><i data-lucide="save" class="config-save-icon"></i>Salvar</button>
+            </form>
+
+            <div class="config-card">
+                <div class="config-card-header">
+                    <i data-lucide="palette" class="config-card-icon"></i>
+                    <h3 class="config-card-title">Personalização</h3>
+                    <span class="config-tier-badge">CAÇADOR</span>
+                </div>
+
+                <% if (!isCacador) { %>
+                    <p class="config-card-desc">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                <% } else { %>
+                    <p class="config-card-desc">Para deixar a cara do seu servidor.</p>
+
+                    <form action="/moderacao/<%= guild.id %>/save" method="POST" class="config-fields">
+                        <div class="config-field">
+                            <div class="config-field-row">
+                                <i data-lucide="palette" class="config-field-icon"></i>
+                                <div class="config-field-text">
+                                    <div class="config-field-label-row"><span class="config-field-label">COR (#<%= settings.panel_accent_color || 'DCA15E' %>)</span></div>
+                                    <p class="config-field-desc">Cor da borda dos painéis.</p>
+                                </div>
+                            </div>
+                            <div class="config-field-input">
+                                <div class="config-field-input-inner">
+                                    <input type="text" maxlength="6" class="config-field-text-input" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="config-field">
+                            <div class="config-field-row">
+                                <i data-lucide="edit" class="config-field-icon"></i>
+                                <div class="config-field-text">
+                                    <div class="config-field-label-row"><span class="config-field-label">FOOTER</span></div>
+                                    <p class="config-field-desc">Assinatura abaixo dos painéis.</p>
+                                </div>
+                            </div>
+                            <div class="config-field-input">
+                                <div class="config-field-input-inner">
+                                    <input type="text" maxlength="100" class="config-field-text-input" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="config-save-btn"><i data-lucide="save" class="config-save-icon"></i>Salvar</button>
+                    </form>
+
+                    <h4 class="config-subtitle">Strike e Unstrike</h4>
+
+                    <div class="config-fields">
+                        <div class="config-field">
+                            <div class="config-field-row">
+                                <i data-lucide="image" class="config-field-icon"></i>
+                                <div class="config-field-text">
+                                    <div class="config-field-label-row"><span class="config-field-label">BANNER STRIKE</span></div>
+                                    <p class="config-field-desc">Capa do painel</p>
+                                </div>
+                            </div>
+                            <div class="config-banner-preview" style="background-image: url('/images/title-strike.webp');"></div>
+                        </div>
+
+                        <div class="config-field">
+                            <div class="config-field-row">
+                                <i data-lucide="image" class="config-field-icon"></i>
+                                <div class="config-field-text">
+                                    <div class="config-field-label-row"><span class="config-field-label">BANNER UNSTRIKE</span></div>
+                                    <p class="config-field-desc">Capa do painel</p>
+                                </div>
+                            </div>
+                            <div class="config-banner-preview" style="background-image: url('/images/title-strike-removido.webp');"></div>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
         </section>
 
         <footer class="flex justify-end pb-2">

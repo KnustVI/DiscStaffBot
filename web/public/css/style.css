@@ -434,4 +434,204 @@ text-align: center;
 }
 .outline-chip.is-lg .outline-chip-icon { width: 50px; height: 50px; }
 .outline-chip.is-lg .outline-chip-headline { font-size: clamp(14px, 2.2vw, 22px); }
+
+/* ===================== CONFIGURAÇÕES (Moderação.txt, linhas 4523-7213) =====================
+   3 cards ("Cargos de Moderação"/"Cargos Automáticos - Reputação"/"Personalização"),
+   extraídos e conferidos 2x (extração + verificação adversarial) contra o
+   arquivo. Cor/sombra/raio do card são IDÊNTICOS aos das seções anteriores
+   (BgGradient + CardShasow do Figma, já usados em graph-card.ejs) — só a
+   forma do conteúdo interno muda (coluna de formulário, não linha de
+   donuts). Fontes ~10pt menores que o valor exato do Figma (mesmo pedido
+   do dono já aplicado no resto da página): título 32px→clamp(18,2.4vw,24),
+   label/legenda 20px→clamp(12,1.4vw,15), texto de ajuda 16px→clamp(10,1.1vw,12). */
+.config-card {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1430px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 30px clamp(16px, 5vw, 80px);
+    background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+    box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+    border-radius: 20px;
+}
+.config-card-header {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    text-align: center;
+}
+.config-card-icon { width: 56px; height: 56px; flex: none; color: #DCA15E; }
+.config-card-title {
+    font-family: 'Tilt Warp', cursive;
+    font-weight: 400;
+    font-size: clamp(18px, 2.4vw, 24px);
+    line-height: 1.25;
+    text-transform: uppercase;
+    color: #F8DCC0;
+}
+.config-card-desc {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: clamp(12px, 1.4vw, 15px);
+    line-height: 1.5;
+    color: #F8DCC0;
+    text-align: center;
+    max-width: 900px;
+}
+/* Tier pill decorativo (Figma: badge "Hunter", gradiente/borda/raio
+   idênticos) — mostrado nos campos EXEMPLAR/PROBLEMÁTICO e no título de
+   Personalização, os únicos pontos do arquivo onde o badge aparece
+   (Moderador/Supervisor/Strike não têm). Texto real "CAÇADOR" em vez do
+   literal "HUNTER" do arquivo — nome interno do Figma que não existe em
+   nenhum outro lugar do produto (a tier real sempre foi chamada de
+   Caçador, ver PREMIUM.txt); manter "Hunter" na tela seria inconsistente
+   com o resto do site, então só a forma do badge é literal, o texto usa
+   o nome de tier de verdade. */
+.config-tier-badge {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    height: 22px;
+    flex: none;
+    background: linear-gradient(179.54deg, #4B2427 47.59%, #803E30 99.6%);
+    border: 3px solid #803E30;
+    box-shadow: 0px 8px 14px 6px rgba(1, 2, 10, 0.4);
+    border-radius: 147.5px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: #F8DCC0;
+    white-space: nowrap;
+}
+.config-fields {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    width: 100%;
+    max-width: 600px;
+}
+.config-field { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.config-field-row { display: flex; flex-direction: row; align-items: center; gap: 16px; }
+.config-field-icon { width: 32px; height: 32px; flex: none; color: #DCA15E; }
+.config-field-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.config-field-label-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.config-field-label {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: clamp(12px, 1.4vw, 15px);
+    line-height: 1.5;
+    color: #FFFFFF;
+}
+.config-field-desc {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: clamp(10px, 1.1vw, 12px);
+    line-height: 1.5;
+    color: #FFFFFF;
+    opacity: 0.85;
+}
+/* TextFieldWeb do Figma: wrapper sólido dourado (#DCA15E bg+borda+sombra
+   tripla) por fora, campo escuro (#1F1D20 bg, borda #DCA15E) por dentro —
+   os dois <select>/<input> reais do bot usam essa mesma casca visual. */
+.config-field-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #DCA15E;
+    border: 1px solid #DCA15E;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    padding: 3px;
+}
+.config-field-input-inner {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    background: #1F1D20;
+    border: 1px solid #DCA15E;
+    border-radius: 10px;
+    padding: 12px 16px;
+}
+.config-field-select, .config-field-text-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: clamp(12px, 1.4vw, 15px);
+    color: #F8DCC0;
+}
+.config-field-select { appearance: none; -webkit-appearance: none; cursor: pointer; }
+.config-field-select option { background: #1F1D20; color: #F8DCC0; }
+.config-field-text-input::placeholder { color: #3E3D38; }
+
+/* Sub-título interno (Figma: "STRIKE E UNSTRIKE" dentro do card de
+   Personalização, mesmo estilo "Head" do título do card, só menor). */
+.config-subtitle {
+    font-family: 'Tilt Warp', cursive;
+    font-weight: 400;
+    font-size: clamp(15px, 1.9vw, 19px);
+    text-transform: uppercase;
+    color: #F8DCC0;
+    text-align: center;
+    width: 100%;
+}
+/* Prévia dos banners STRIKE/UNSTRIKE (Figma: "TITLE REPORT CHAT",
+   600x138, background:url(...)) — só leitura, sem uploader no web hoje. */
+.config-banner-preview {
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 600 / 138;
+    border-radius: 10px;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Botão Salvar (Figma: "BaseButtonCard"/"Button.text" — 200x48 exatos,
+   bg #2A2A2A, borda 2px #803E30, sombra 0px 12px 19.5px 2px). Ícone
+   lucide "save" no lugar do disquete de 3 formas absolutas do Figma —
+   mesmo conceito visual, sem reconstruir path a path. */
+.config-save-btn {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 24px;
+    height: 40px;
+    align-self: center;
+    margin-top: 4px;
+    background: #2A2A2A;
+    border: 2px solid #803E30;
+    box-shadow: 0px 12px 19.5px 2px rgba(1, 2, 10, 0.49);
+    border-radius: 15px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: clamp(12px, 1.4vw, 15px);
+    color: #F8DCC0;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.config-save-btn:hover { background: #803E30; }
+.config-save-icon { width: 16px; height: 16px; flex: none; }
+
+@media (max-width: 640px) {
+    .config-card { padding: 24px 20px; }
+    .config-card-icon { width: 44px; height: 44px; }
+    .config-field-icon { width: 26px; height: 26px; }
+}
 .outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(12px, 1.4vw, 15px); opacity: 1; }
