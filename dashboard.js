@@ -24,6 +24,28 @@ const REPORT_STATUS_LABELS = {
     closed_with_reason: 'Concluído',
 };
 
+// Cache curto do guild.members.fetch() (chamada cara/sujeita a rate limit
+// da API do Discord) — sem isso, a lista de staff some/pisca sempre que
+// essa chamada falha ou demora, e agora ela roda TANTO a cada carregamento
+// de página QUANTO a cada poll de 15s do ingame-pulse-poll.js, multiplicando
+// a frequência. Guarda o último resultado bom por guild; se um fetch novo
+// falhar, cai pro cache (mesmo vencido) em vez de virar lista vazia — é
+// isso que fazia a lista "sumir em alguns momentos".
+const memberFetchCache = new Map(); // guildId -> { members, expiresAt }
+const MEMBER_FETCH_TTL_MS = 25000;
+
+async function getCachedMembers(guild) {
+    const cached = memberFetchCache.get(guild.id);
+    if (cached && cached.expiresAt > Date.now()) return cached.members;
+
+    const fresh = await guild.members.fetch().catch(() => null);
+    if (fresh) {
+        memberFetchCache.set(guild.id, { members: fresh, expiresAt: Date.now() + MEMBER_FETCH_TTL_MS });
+        return fresh;
+    }
+    return cached ? cached.members : new Map();
+}
+
 // "Pulso" do servidor (jogadores/staff online agora) — reaproveitado pelas
 // páginas de Moderação, Reports e Events (o Figma repete a mesma seção "IN
 // GAME"/"STAFF ONLINE" nelas). Staff "online"/"offline" aqui é status EM
@@ -37,7 +59,7 @@ async function getServerPulse(guildId, guild) {
         ...ConfigSystem.getRoleIds(guildId, 'event_role'),
     ]);
 
-    const members = staffRoleIds.size > 0 ? await guild.members.fetch().catch(() => new Map()) : new Map();
+    const members = staffRoleIds.size > 0 ? await getCachedMembers(guild) : new Map();
     const staffMembers = [...members.values()].filter(m => [...staffRoleIds].some(id => m.roles.cache.has(id)));
 
     // "Em modo espectador" (Figma) = staff com sessão aberta em
