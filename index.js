@@ -94,6 +94,37 @@ process.on('uncaughtException', (error) => {
     console.error('❌ Exceção não capturada:', error);
 });
 
+// ==================== DESLIGAMENTO GRACIOSO ====================
+// Faltava completamente antes — sem handler nenhum de SIGTERM/SIGINT, todo
+// restart do processo (deploy, `pm2 restart`, crash) matava o bot na hora,
+// e o Gateway do PoT nunca tinha chance de despachar combates ainda
+// acumulando (dentro da janela de inatividade antes do relatório fechar
+// sozinho) — CONFIRMADO ser a causa real de "quase não chegam relatórios
+// de combate" (ver gatewayServer.js.stop). Timeout de segurança abaixo do
+// kill_timeout padrão do pm2 (1.6s) pra garantir que o processo sempre
+// saia sozinho a tempo, em vez de levar um SIGKILL no meio do flush —
+// se o dono quiser dar mais tempo pro flush completar (vários encontros
+// pendentes de uma vez), vale aumentar o kill_timeout do pm2 pra esse app.
+async function gracefulShutdown(signal) {
+    console.log(`\n🛑 Recebido ${signal}, desligando graciosamente...`);
+    try {
+        const { getInstance } = require('./src/integrations/pathoftitans');
+        const potIntegration = getInstance(); // sem client: só pega a instância já existente, não reinicializa
+        if (potIntegration?.gateway) {
+            await Promise.race([
+                potIntegration.gateway.stop(),
+                new Promise((resolve) => setTimeout(resolve, 1200)),
+            ]);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao desligar o Gateway do PoT:', error.message);
+    }
+    process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 // ==================== LOGIN DO BOT ====================
 // Pega o token do .env
 const TOKEN = process.env.TOKEN;

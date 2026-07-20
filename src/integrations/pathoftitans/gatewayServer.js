@@ -285,13 +285,29 @@ class PoTGatewayServer {
         });
     }
 
-    stop() {
+    /**
+     * CONFIRMADO ser a causa real de "quase não chegam relatórios de
+     * combate" reportado pelo dono: antes, este método só limpava os
+     * timers de inatividade e descartava qualquer encontro ainda em
+     * aberto, sem enviar nada — e não existe (nem existia) NENHUM handler
+     * de SIGTERM/SIGINT no bot pra sequer chamar este método (ver
+     * index.js). Todo restart do processo (deploy, `pm2 restart`, crash)
+     * simplesmente matava o processo na hora, e qualquer combate ainda
+     * dentro da janela de inatividade (5min por padrão, ver
+     * _getDamageBatchIdleMs) desaparecia com ele — sem relatório, sem
+     * rastro nenhum. Agora despacha (relatório parcial, com o que já foi
+     * acumulado até aqui) cada encontro pendente antes de desligar, em vez
+     * de descartar.
+     */
+    async stop() {
         if (this.server) {
             this.server.close();
             this.isRunning = false;
         }
-        for (const encounter of this.damageEncounters.values()) {
-            if (encounter.timer) clearTimeout(encounter.timer);
+        const pendingIds = [...this.damageEncounters.keys()];
+        if (pendingIds.length > 0) {
+            console.log(`⚔️ [Gateway] Encerrando com ${pendingIds.length} encontro(s) de combate pendente(s) — despachando antes de desligar...`);
+            await Promise.all(pendingIds.map((id) => this._flushEncounter(id)));
         }
         this.damageEncounters.clear();
     }

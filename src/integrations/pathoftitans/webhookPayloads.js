@@ -57,6 +57,14 @@ function formatDamageType(type) {
     return DAMAGE_TYPE_LABELS[type] || type || 'Desconhecida';
 }
 
+// Texto explicativo do relatório de combate/dano (mesmo aviso nos dois
+// formatos, combate e isolado) — reescrito a pedido do dono pra explicar O
+// MECANISMO de captura (por que pode vir incompleto/fora de ordem), em vez
+// de só avisar "pode estar errado" sem dizer o motivo.
+const DAMAGE_REPORT_DISCLAIMER =
+    'O relatório de combate capta primeiro todo o dano causado a um jogador até ele não tomar mais dano por um determinado tempo, cada dano é relatado em ordem e de acordo com o que recebemos do jogo. Por vários motivos ele pode não estar 100% correto.\n' +
+    '- Valores de dano são aproximados.';
+
 /**
  * Emoji de dieta (carnívoro/herbívoro/onívoro) pra usar sempre que um log
  * mencionar a espécie de um dinossauro. Vem do campo "Diet" que o PRÓPRIO
@@ -688,15 +696,18 @@ function findEncounterLocation(encounter) {
 
 /**
  * Junta strings (uma por "item" — um participante, um segmento de dano...)
- * em blocos de texto o MAIOR possível sem passar de maxChars, separando
- * itens dentro do mesmo bloco por uma linha em branco (pra manter a
- * separação visual que cada item tinha quando era seu próprio componente).
- * Cada bloco devolvido vira UM componente TextDisplay só — é isso que evita
- * "1 componente por item" (a raiz do bug de combates grandes estourarem o
- * limite de 40 componentes de um Container, ver buildDamageReportPayload).
+ * em blocos de texto o MAIOR possível sem passar de maxChars. Itens dentro
+ * do mesmo bloco são separados por UMA quebra de linha só (pedido do dono:
+ * a linha em branco entre cada jogador/segmento deixava o relatório
+ * desnecessariamente espaçado, ocupando mais caracteres à toa e piorando
+ * exatamente o problema de tamanho que a paginação abaixo existe pra
+ * evitar — usava '\n\n' antes). Cada bloco devolvido vira UM componente
+ * TextDisplay só — é isso que evita "1 componente por item" (a raiz do bug
+ * de combates grandes estourarem o limite de 40 componentes de um
+ * Container, ver buildDamageReportPayload).
  */
 function chunkIntoBlocks(items, maxChars) {
-    const SEP = '\n\n';
+    const SEP = '\n';
     const blocks = [];
     let current = [];
     let currentLen = 0;
@@ -878,10 +889,7 @@ function buildDamageReportPayload(encounter, guild) {
 
     if (hasOtherPlayerInvolved) {
         addTitle(`${e('Atack', '⚔️')} RELATÓRIO DE COMBATE`, 1);
-        addText(
-            'O relatório de combate é feito com atraso e não reflete 100% do que ocorreu em um combate e pode cometer erros — em caso de quebra de regra, avalie sempre um vídeo e outros fatos e logs.\n' +
-            'Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.'
-        );
+        addText(DAMAGE_REPORT_DISCLAIMER);
         addSeparator();
 
         addTitle('JOGADORES ENVOLVIDOS', 2);
@@ -917,7 +925,7 @@ function buildDamageReportPayload(encounter, guild) {
         // "jogadores envolvidos" nem de "local" — vai direto pro cabeçalho
         // do jogador e a lista de dano.
         addTitle(`${e('olho', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
-        addText('Valores de dano aplicados são aproximados e não refletem o dano 100% correto em jogo.');
+        addText(DAMAGE_REPORT_DISCLAIMER);
 
         const [onlyKey] = encounter.participants.keys();
         const p = participant(onlyKey);
