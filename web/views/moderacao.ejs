@@ -60,25 +60,6 @@
 
         <%- include('partials/ingame-pulse', { pulse }) %>
 
-        <!-- REPORTES -->
-        <section class="titan-card-premium flex-col gap-4">
-            <h2 class="section-title text-lg">Reportes</h2>
-            <div class="flex justify-evenly items-center flex-wrap gap-6">
-                <%- include('partials/stat-donut', {
-                    title: 'Abertos',
-                    value: `${reportsOpen}`,
-                    percent: (reportsOpen + reportsClosed) > 0 ? (reportsOpen / (reportsOpen + reportsClosed)) * 100 : 0,
-                    accent: 'red',
-                }) %>
-                <%- include('partials/stat-donut', {
-                    title: 'Fechados',
-                    value: `${reportsClosed}`,
-                    percent: (reportsOpen + reportsClosed) > 0 ? (reportsClosed / (reportsOpen + reportsClosed)) * 100 : 0,
-                    accent: 'gold',
-                }) %>
-            </div>
-        </section>
-
         <!-- MODERAÇÃO -->
         <section class="titan-card-premium flex-col gap-4">
             <h2 class="section-title text-lg">Punições</h2>

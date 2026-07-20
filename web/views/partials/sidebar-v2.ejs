@@ -35,13 +35,14 @@
 <%
     const sbGuild = typeof guild !== 'undefined' ? guild : null;
     const guildHref = (path) => sbGuild ? `/${path}/${sbGuild.id}` : '#';
+    // Configurações e Reputação removidos por hora (pedido do dono,
+    // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
+    // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
     const NAV_ITEMS = [
         { key: 'premium', label: 'Premium', icon: 'gem', href: '#', accent: true },
-        { key: 'config', label: 'Configurações', icon: 'cog', href: guildHref('manage') },
         { key: 'moderacao', label: 'Moderação', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', label: 'Eventos', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', label: 'Denúncias', icon: 'message-square-warning', href: guildHref('reports') },
-        { key: 'reputacao', label: 'Reputação', icon: 'square-menu', href: '#' },
         { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '#' },
         { key: 'sair', label: 'Sair', icon: 'log-out', href: '/logout' },
     ];

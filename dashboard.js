@@ -51,15 +51,22 @@ async function getServerPulse(guildId, guild) {
     const roster = staffMembers.map(m => {
         const link = db.prepare('SELECT alderon_id FROM player_links WHERE user_id = ?').get(m.id);
         const potPlayer = link
-            ? db.prepare('SELECT is_online FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
+            ? db.prepare('SELECT is_online, dinosaur_active FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
             : null;
         const online = !!potPlayer?.is_online;
         const spectating = online && !!link && spectatingAlderonIds.has(link.alderon_id);
+        // "Jogando" (dono, 2026-07-20): fora do modo espectador E já deu
+        // respawn de dino — dinosaur_active só vira 1 no PlayerRespawn e
+        // zera no login/morte (ver comentário da coluna em schema.js), então
+        // cobre exatamente "não só online, já está jogando de fato" (não
+        // conta quem está parado na tela de seleção de dino).
+        const playing = online && !spectating && !!potPlayer?.dinosaur_active;
         return {
             id: m.id,
             name: m.nickname || m.user.username,
             online,
             moderating: spectating,
+            playing,
         };
     });
 
@@ -67,6 +74,7 @@ async function getServerPulse(guildId, guild) {
     const playersTotal = db.prepare('SELECT COUNT(*) c FROM pot_players WHERE guild_id = ?').get(guildId).c;
     const staffOnline = roster.filter(s => s.online).length;
     const staffSpectating = roster.filter(s => s.moderating).length;
+    const staffPlaying = roster.filter(s => s.playing).length;
 
     return {
         roster,
@@ -74,7 +82,7 @@ async function getServerPulse(guildId, guild) {
         playersTotal,
         staffOnline,
         staffSpectating,
-        staffPlaying: staffOnline - staffSpectating,
+        staffPlaying,
         staffModerating: staffSpectating,
         staffTotal: roster.length,
     };
@@ -429,9 +437,6 @@ function loadDashboard(client) {
         const punActive = punByStatus.find(r => r.status === 'active')?.c || 0;
         const punTotal = punByStatus.reduce((sum, r) => sum + r.c, 0);
 
-        const reportsOpen = db.prepare("SELECT COUNT(*) c FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'").get(guildID).c;
-        const reportsClosed = db.prepare("SELECT COUNT(*) c FROM reports WHERE guild_id = ? AND status LIKE 'closed%'").get(guildID).c;
-
         const filterWordCount = db.prepare('SELECT COUNT(*) c FROM pot_chat_filters WHERE guild_id = ?').get(guildID).c;
         const autoPunishments = db.prepare('SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND moderator_id = ?').get(guildID, client.user.id).c;
 
@@ -451,8 +456,6 @@ function loadDashboard(client) {
             openReportsAlert,
             punActive,
             punTotal,
-            reportsOpen,
-            reportsClosed,
             filterWordCount,
             autoPunishments,
             settings,

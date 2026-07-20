@@ -1,9 +1,12 @@
 <!--
   web/views/partials/stat-donut.ejs
-  Card de gráfico donut reutilizável (spec Figma: "Donut Graphic" + "Frame
-  15" com Title/Subtitle) — reaproveita o SVG/CSS já existente em home.ejs
-  e web/public/css/style.css (.premium-card-graph-container etc), só
-  parametrizado, pra não repetir o bloco a cada estatística.
+  Card de gráfico donut (spec Figma exata: "Donut Graphic"/"Frame 11936" —
+  um círculo maior que o próprio card, recortado por overflow:hidden, com
+  um disco escuro (track) por baixo e um conic-gradient colorido (fill) por
+  cima preenchendo X%). O Figma usa uma Ellipse nativa com propriedade de
+  arco (não exportável em CSS puro — "Copy CSS" só traz os dois círculos
+  cheios sobrepostos); conic-gradient é o jeito certo de recriar isso em
+  CSS de um jeito que realmente varia com o percentual real, em vez de fixo.
 
   Uso (sem os delimitadores reais de tag do EJS de propósito — ver aviso
   em sidebar-v2.ejs sobre por que um deles de verdade aqui dentro quebraria
@@ -12,7 +15,7 @@
       title: Jogadores Online ,
       value: 12/40 ,             // texto mostrado no centro do gráfico
       percent: 30,                // 0-100, preenchimento do arco
-      accent: gold ,              // gold (padrão, --accent) ou red (--surface)
+      accent: gold ,              // gold (#DCA15E, padrão) ou red (#803E30, --surface)
       size: big ,                 // opcional — 'big' pro donut maior/destaque (Figma: ~1.27x), omitir pro tamanho normal
     } )
 -->
@@ -21,36 +24,76 @@
     const dValue = value;
     const dPercent = Math.max(0, Math.min(100, Number(percent) || 0));
     const dAccent = typeof accent !== 'undefined' && accent === 'red' ? 'red' : 'gold';
+    const dColor = dAccent === 'red' ? '#803E30' : '#DCA15E';
     const dBig = typeof size !== 'undefined' && size === 'big';
-    const CIRC = 2 * Math.PI * 35;
-    const dOffset = CIRC - (dPercent / 100) * CIRC;
 %>
-<div class="relative flex items-center justify-center<%= dBig ? ' stat-donut-slot-big' : ' stat-donut-slot' %>">
-    <div class="premium-card-graph-container<%= dBig ? ' stat-donut-big' : '' %>">
-        <svg class="premium-graph-inner" viewBox="0 0 100 100">
-            <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
-            <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
-            <circle class="premium-circle-bg" cx="50" cy="50" r="35"></circle>
-            <circle class="premium-circle-progress<%= dAccent === 'red' ? ' stat-donut-red' : '' %>"
-                    cx="50" cy="50" r="35"
-                    stroke-dasharray="<%= CIRC.toFixed(1) %>"
-                    stroke-dashoffset="<%= dOffset.toFixed(1) %>">
-            </circle>
-        </svg>
-        <div class="premium-graph-label-container">
-            <span class="premium-graph-title"><%= dTitle %></span>
-            <span class="premium-graph-value"><%= dValue %></span>
-        </div>
+<div class="stat-donut-frame<%= dBig ? ' is-big' : '' %>">
+    <div class="stat-donut-circle">
+        <div class="stat-donut-track" style="box-shadow: 0px 0px 2.3px <%= dColor %>, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);"></div>
+        <div class="stat-donut-fill" style="background: conic-gradient(<%= dColor %> <%= dPercent.toFixed(1) %>%, transparent 0);"></div>
+    </div>
+    <div class="stat-donut-label">
+        <span class="stat-donut-title"><%= dTitle %></span>
+        <span class="stat-donut-value"><%= dValue %></span>
     </div>
 </div>
 <style>
-    .stat-donut-red { stroke: var(--surface); }
     /* Tamanhos responsivos (clamp) em vez dos 224x241/282x307 fixos do
        Figma — padrão do site é sempre funcionar em mobile (ver
-       web_ui_always_responsive). ~1.27x de diferença entre normal/big,
-       mesma proporção do Figma (282/224). */
-    .stat-donut-slot, .stat-donut-slot-big { flex: none; }
-    .premium-card-graph-container { width: clamp(120px, 15vw, 170px); height: clamp(128px, 16vw, 182px); }
-    .premium-card-graph-container.stat-donut-big { width: clamp(150px, 19vw, 216px); height: clamp(160px, 20vw, 231px); margin: 0 -12px; }
-    .stat-donut-slot { margin: 0 -10px; }
+       web_ui_always_responsive). Mesma proporção ~1.27x entre normal/big
+       do Figma (282/224), e mesma proporção altura:largura de cada um
+       (241/224 ≈ 1.076 / 307/282 ≈ 1.089). */
+    .stat-donut-frame {
+        position: relative;
+        flex: none;
+        width: clamp(120px, 15vw, 170px);
+        height: clamp(129px, 16.14vw, 183px);
+        overflow: hidden;
+        border-radius: 20px;
+        margin: 0 -18px;
+    }
+    .stat-donut-frame.is-big {
+        width: clamp(150px, 19vw, 216px);
+        height: clamp(163px, 20.7vw, 235px);
+        margin: 0 -12px;
+        z-index: 1;
+    }
+    /* Círculo maior que o próprio frame (125%/127% de largura, altura
+       travada em 1:1 via aspect-ratio — o frame NÃO é quadrado, então
+       height% sozinho não daria um círculo de verdade) e deslocado pro
+       canto superior esquerdo (~2-3%), igual ao left:6px/top:8px do Figma
+       — é esse deslocamento que cria o recorte em formato de arco. */
+    .stat-donut-circle {
+        position: absolute;
+        width: 125%;
+        aspect-ratio: 1 / 1;
+        left: 2.7%;
+        top: 3.3%;
+    }
+    .stat-donut-frame.is-big .stat-donut-circle { width: 127%; left: 2.1%; top: 2.6%; }
+    .stat-donut-track, .stat-donut-fill {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+    }
+    .stat-donut-track { background: rgba(62, 61, 56, 0.2); }
+    .stat-donut-label {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        text-align: center;
+        padding: 0 10px;
+        pointer-events: none;
+    }
+    .stat-donut-title, .stat-donut-value {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: clamp(13px, 1.4vw, 20px);
+        line-height: 1.3;
+        color: #F8DCC0;
+    }
 </style>
