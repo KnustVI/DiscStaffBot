@@ -70,12 +70,14 @@
             <h2 class="section-title text-lg">Punições</h2>
             <div class="flex justify-evenly items-center flex-wrap gap-6">
                 <%- include('partials/stat-donut', {
+                    id: 'pun-ativas',
                     title: 'Ativas',
                     value: `${punActive}`,
                     percent: punTotal > 0 ? (punActive / punTotal) * 100 : 0,
                     accent: 'red',
                 }) %>
                 <%- include('partials/stat-donut', {
+                    id: 'pun-total',
                     title: 'Total Aplicadas',
                     value: `${punTotal}`,
                     percent: 100,
@@ -89,12 +91,14 @@
             <h2 class="section-title text-lg">Automoderação</h2>
             <div class="flex justify-evenly items-center flex-wrap gap-6">
                 <%- include('partials/stat-donut', {
+                    id: 'auto-palavras',
                     title: 'Palavras Filtradas',
                     value: `${filterWordCount}`,
                     percent: 100,
                     accent: 'gold',
                 }) %>
                 <%- include('partials/stat-donut', {
+                    id: 'auto-punicoes',
                     title: 'Punições Automáticas',
                     value: `${autoPunishments}/${punTotal}`,
                     percent: punTotal > 0 ? (autoPunishments / punTotal) * 100 : 0,

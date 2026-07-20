@@ -1,14 +1,18 @@
 <%#
   web/views/partials/stat-donut.ejs
-  Anel de progresso — usa as classes .premium-* que já existem em
-  web/public/css/style.css (mesmas de home.ejs: container que recorta um
-  SVG maior/rotacionado, 4 círculos empilhados pra dar profundidade/glow).
-  Essa técnica foi confirmada correta pelo dono duas vezes (era a usada na
-  primeira versão de moderacao.ejs, direto do Moderação.txt original) —
-  as tentativas seguintes de "melhorar" trocando pra um anel próprio só
-  pioraram; a única coisa que precisava de ajuste era o POSICIONAMENTO
-  dentro do card (ver graph-card.ejs/ingame-pulse.ejs), não o anel em si.
-  NÃO troque a técnica de novo sem confirmar antes.
+  Anel de progresso — usa o PATH SVG real exportado do Figma (o dono
+  mandou o "Ellipse 49"/trilho exato, com filtro de sombra/glow também
+  exato), não mais uma aproximação nossa. Reaproveita o MESMO path pra
+  duas camadas: o trilho (sempre visível, cinza translúcido) e o
+  preenchimento (cor de destaque, recortado por um "wedge" de pizza do
+  centro do anel até o ângulo correspondente ao percentual real — é assim
+  que a Ellipse 50 do Figma "acompanha" o valor, já que Figma não exporta
+  arco nativo de elipse em CSS/SVG, só a forma cheia).
+
+  NÃO troque a forma do anel (o path "d" abaixo) sem um novo export do
+  Figma — geometria confirmada pixel-a-pixel pelo dono. Tamanho
+  pequeno/grande é só escala (mesmo viewBox, width/height diferentes via
+  CSS); cor é só o "accent" (a mesma forma, glow recalculado pra cor).
 
   Comentário de verdade do EJS (abre com "menor, porcento"), não HTML —
   esse tipo de comentário some do HTML final (o de HTML só fica invisível
@@ -19,58 +23,114 @@
 
   Uso:
     include( partials/stat-donut , {
+      id: online ,                // único na página (vira id de <filter>/<clipPath> do SVG) — sem isso, dois donuts na mesma página colidem
       title: Jogadores Online ,
       value: 9/120 ,              // texto mostrado no centro do gráfico
       percent: 30,                // 0-100, preenchimento do anel
-      accent: gold ,              // gold (padrão, --accent) ou red (--surface)
+      accent: gold ,              // gold (padrão, #DCA15E) ou red (#803E30)
       size: big ,                 // opcional — 'big' pro donut maior/destaque (~1.26x), omitir pro tamanho normal
     } )
 %>
 <%
+    const dId = (typeof id !== 'undefined' && id) ? String(id).replace(/[^a-zA-Z0-9_-]/g, '') : String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const dTitle = title;
     const dValue = value;
     const dPercent = Math.max(0, Math.min(100, Number(percent) || 0));
-    const dAccent = typeof accent !== 'undefined' && accent === 'red' ? 'red' : 'gold';
+    const dAccentHex = (typeof accent !== 'undefined' && accent === 'red') ? '#803E30' : '#DCA15E';
     const dBig = typeof size !== 'undefined' && size === 'big';
-    const R = 35;
-    const CIRC = 2 * Math.PI * R;
-    const dOffset = CIRC - (dPercent / 100) * CIRC;
+
+    // Path exato do Figma (Ellipse 49, viewBox 0 0 279 302) — anel completo
+    // (círculo externo + interno em sentido oposto = buraco no meio via
+    // fill-rule evenodd), recortado pela própria viewBox — é isso que dá
+    // o efeito de "arco" mesmo sendo uma forma fechada por baixo.
+    const RING_PATH = 'M360.3 181.3C360.3 280.159 280.159 360.3 181.3 360.3C82.4408 360.3 2.2998 280.159 2.2998 181.3C2.2998 82.441 82.4408 2.3 181.3 2.3C280.159 2.3 360.3 82.441 360.3 181.3ZM55.9998 181.3C55.9998 250.501 112.099 306.6 181.3 306.6C250.501 306.6 306.6 250.501 306.6 181.3C306.6 112.099 250.501 56 181.3 56C112.099 56 55.9998 112.099 55.9998 181.3Z';
+    const CX = 181.3, CY = 181.3, R_WEDGE = 200; // R_WEDGE > raio externo (179) de sobra, cobre o anel inteiro
+
+    function polar(angleDeg) {
+        const rad = (angleDeg * Math.PI) / 180;
+        return { x: (CX + R_WEDGE * Math.cos(rad)).toFixed(2), y: (CY + R_WEDGE * Math.sin(rad)).toFixed(2) };
+    }
+    // "Fatia de pizza" do centro do anel até o ângulo do percentual —
+    // início às 12h (-90deg), sentido horário. 0% = nada; 100% = círculo
+    // cheio (caso especial, senão start==end vira um arco degenerado).
+    let wedgePath = null;
+    if (dPercent > 0) {
+        if (dPercent >= 100) {
+            wedgePath = `M ${CX - R_WEDGE},${CY} A ${R_WEDGE},${R_WEDGE} 0 1,1 ${CX + R_WEDGE},${CY} A ${R_WEDGE},${R_WEDGE} 0 1,1 ${CX - R_WEDGE},${CY} Z`;
+        } else {
+            const sweep = (dPercent / 100) * 360;
+            const start = polar(-90);
+            const end = polar(-90 + sweep);
+            const largeArc = sweep > 180 ? 1 : 0;
+            wedgePath = `M ${CX},${CY} L ${start.x},${start.y} A ${R_WEDGE},${R_WEDGE} 0 ${largeArc},1 ${end.x},${end.y} Z`;
+        }
+    }
+
 %>
 <div class="relative flex items-center justify-center<%= dBig ? ' stat-donut-slot-big' : ' stat-donut-slot' %>">
-    <div class="premium-card-graph-container<%= dBig ? ' is-big' : '' %><%= dAccent === 'red' ? ' is-red' : '' %>">
-        <svg class="premium-graph-inner" viewBox="0 0 100 100">
-            <circle class="premium-circle-34" cx="50" cy="50" r="<%= R %>"></circle>
-            <circle class="premium-circle-shadow" cx="50" cy="50" r="<%= R %>"></circle>
-            <circle class="premium-circle-bg" cx="50" cy="50" r="<%= R %>"></circle>
-            <circle class="premium-circle-progress"
-                    cx="50" cy="50" r="<%= R %>"
-                    stroke-dasharray="<%= CIRC.toFixed(2) %>"
-                    stroke-dashoffset="<%= dOffset.toFixed(2) %>">
-            </circle>
+    <div class="stat-donut-frame<%= dBig ? ' is-big' : '' %>">
+        <svg class="stat-donut-svg" viewBox="0 0 279 302" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="donut-glow-<%= dId %>" x="-30%" y="-20%" width="160%" height="150%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+                    <%# As duas sombras do Figma encadeadas — a 2a precisa receber "in" o
+                        resultado da 1a explicitamente, senão as duas usam SourceGraphic
+                        por padrão e a 1a desaparece (só a última sombra do filtro conta). %>
+                    <feDropShadow dx="12" dy="15" stdDeviation="5.75" flood-color="#000000" flood-opacity="0.36" in="SourceGraphic" result="donut-shadow1-<%= dId %>"/>
+                    <feDropShadow dx="0" dy="0" stdDeviation="1.15" flood-color="<%= dAccentHex %>" flood-opacity="1" in="donut-shadow1-<%= dId %>"/>
+                </filter>
+                <clipPath id="donut-wedge-<%= dId %>">
+                    <% if (wedgePath) { %><path d="<%= wedgePath %>"/><% } %>
+                </clipPath>
+            </defs>
+            <path class="stat-donut-track" d="<%= RING_PATH %>" fill-rule="evenodd" filter="url(#donut-glow-<%= dId %>)"/>
+            <% if (wedgePath) { %>
+                <path d="<%= RING_PATH %>" fill-rule="evenodd" fill="<%= dAccentHex %>"
+                      clip-path="url(#donut-wedge-<%= dId %>)" filter="url(#donut-glow-<%= dId %>)"/>
+            <% } %>
         </svg>
-        <div class="premium-graph-label-container">
-            <span class="premium-graph-title"><%= dTitle %></span>
-            <span class="premium-graph-value"><%= dValue %></span>
+        <div class="stat-donut-label">
+            <span class="stat-donut-title"><%= dTitle %></span>
+            <span class="stat-donut-value"><%= dValue %></span>
         </div>
     </div>
 </div>
 <style>
-    /* Variante "big" (Figma: donut de destaque ~1.26x maior) — escala o
-       container E o SVG interno na mesma proporção, o resto (raio,
-       stroke-width, rotação) já escala sozinho junto por causa do viewBox. */
-    .premium-card-graph-container.is-big { width: 189px; height: 202px; }
-    .premium-card-graph-container.is-big .premium-graph-inner { width: 277px; height: 315px; top: -35px; left: -11px; }
-    /* Variante "red" (Figma: GraphicStyle2, donut de Jogadores Online) —
-       --accent é fixo dourado em style.css, aqui sobrescreve só a cor do
-       preenchimento pra --surface (vermelho/terracota). */
-    .premium-card-graph-container.is-red .premium-circle-progress { stroke: var(--surface); }
-    .premium-card-graph-container.is-red .premium-circle-34,
-    .premium-card-graph-container.is-red .premium-circle-shadow { filter: none; }
+    /* 279x302 é o tamanho "nativo" (mesmo do export usado pro path acima,
+       perto do Grafico grande do Figma, 282x307) — o pequeno é só uma
+       escala pra baixo do mesmo SVG (mesmo viewBox, width/height menores),
+       não uma forma diferente. */
+    .stat-donut-frame { position: relative; width: 224px; height: 242px; flex: none; }
+    .stat-donut-frame.is-big { width: 279px; height: 302px; }
+    .stat-donut-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .stat-donut-track { fill: #3E3D38; fill-opacity: 0.2; }
+    .stat-donut-label {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        text-align: center;
+        padding: 0 20%;
+        pointer-events: none;
+    }
+    .stat-donut-title, .stat-donut-value {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: clamp(13px, 1.3vw, 20px);
+        line-height: 1.3;
+        color: #F8DCC0;
+    }
 
     /* Sobreposição entre donuts — valor exato do Figma (margin: 0 -30px
-       nos pequenos, o grande não tem margem própria). Fica no wrapper, não
-       no card em si, pra não interferir no recorte (overflow:hidden) do
-       .premium-card-graph-container. */
+       nos pequenos, o grande não tem margem própria). */
     .stat-donut-slot { margin: 0 -30px; }
     .stat-donut-slot-big { margin: 0; z-index: 1; }
+
+    @media (max-width: 480px) {
+        .stat-donut-frame { width: 160px; height: 173px; }
+        .stat-donut-frame.is-big { width: 200px; height: 216px; }
+        .stat-donut-slot { margin: 0 -20px; }
+    }
 </style>

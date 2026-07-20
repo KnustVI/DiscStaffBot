@@ -34,18 +34,21 @@
     // sobrar à direita com justify-content:flex-end (ver graph-card.ejs).
     const ipDonutsHtml =
         include('stat-donut', {
+            id: 'ingame-jogando',
             title: 'Jogando',
             value: `${pulse.staffPlaying}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffPlaying / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
         }) +
         include('stat-donut', {
+            id: 'ingame-espectador',
             title: 'Em modo espectador',
             value: `${pulse.staffSpectating}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffSpectating / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
         }) +
         include('stat-donut', {
+            id: 'ingame-online',
             title: 'Jogadores Online',
             value: `${pulse.playersOnline}/${IP_MAX_PLAYERS}`,
             percent: (pulse.playersOnline / IP_MAX_PLAYERS) * 100,
