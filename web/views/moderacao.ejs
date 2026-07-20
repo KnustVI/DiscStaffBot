@@ -88,19 +88,19 @@
 
         <!-- MODERAÇÃO -->
         <section class="flex flex-col gap-3">
-            <h2 class="section-title text-lg px-2">Punições</h2>
+            <h2 class="section-title text-sm px-2">Punições</h2>
             <%- include('partials/graph-card', { bodyHtml: punDonutsHtml }) %>
         </section>
 
         <!-- AUTOMODERAÇÃO -->
         <section class="flex flex-col gap-3">
-            <h2 class="section-title text-lg px-2">Automoderação</h2>
+            <h2 class="section-title text-sm px-2">Automoderação</h2>
             <%- include('partials/graph-card', { bodyHtml: autoDonutsHtml }) %>
         </section>
 
         <!-- CONFIGURAÇÕES -->
         <section class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
+            <h2 class="section-title text-sm"><%= guild.name %> | Configurações</h2>
             <form action="/moderacao/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
 
                 <div>

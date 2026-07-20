@@ -406,7 +406,7 @@ text-align: center;
 .outline-chip-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .outline-chip-headline {
     font-family: 'Tilt Warp', cursive;
-    font-size: clamp(16px, 2.2vw, 26px);
+    font-size: clamp(12px, 1.8vw, 18px);
     line-height: 1.2;
     color: #DCA15E;
     text-transform: uppercase;
@@ -417,13 +417,15 @@ text-align: center;
 .outline-chip-subtitle {
     font-family: 'Poppins', sans-serif;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     color: #F8DCC0;
     opacity: 0.85;
 }
 /* Variante "grande" (Figma: "Frame 22" do quadro de alerta, 802x138,
-   padding:30px, gap:8px, ícone 50x50, título 32px, subtítulo 20px — bem
-   maior que o chip compacto de staff, 314x90/padding:10px 20px). */
+   padding:30px, gap:8px, ícone 50x50 — bem maior que o chip compacto de
+   staff, 314x90/padding:10px 20px). Fonte ~10pt menor que o valor exato
+   do Figma (32px/20px) a pedido do dono — a caixa continua no tamanho
+   exato, só o texto ficou grande demais nela. */
 .outline-chip.is-lg {
     gap: 8px;
     padding: 30px;
@@ -431,5 +433,5 @@ text-align: center;
     max-width: 802px;
 }
 .outline-chip.is-lg .outline-chip-icon { width: 50px; height: 50px; }
-.outline-chip.is-lg .outline-chip-headline { font-size: clamp(20px, 3vw, 32px); }
-.outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(14px, 1.8vw, 20px); opacity: 1; }
+.outline-chip.is-lg .outline-chip-headline { font-size: clamp(14px, 2.2vw, 22px); }
+.outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(12px, 1.4vw, 15px); opacity: 1; }
