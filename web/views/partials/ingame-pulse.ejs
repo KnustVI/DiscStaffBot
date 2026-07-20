@@ -1,78 +1,131 @@
 <!--
   web/views/partials/ingame-pulse.ejs
-  Bloco "IN GAME" + "STAFF ONLINE/STAFF OFFLINE" do Figma (Moderação.txt e
-  Events.txt repetem essa seção idêntica) — dado real vindo de
-  getServerPulse() em dashboard.js: jogadores/staff online são status EM
-  JOGO (pot_players.is_online, via webhook de login do PoT), não presença
-  do Discord.
+  Bloco "IN GAME" do Figma (Moderação.txt/Reports.txt/Events.txt repetem
+  essa seção) — painel com 3 donuts (Jogando / Em modo espectador /
+  Moderadores online) + grade STAFF ONLINE/STAFF OFFLINE (Moderação e
+  Events only — Reports só tem os donuts, ver showRoster abaixo).
 
-  Uso: include( partials/ingame-pulse , { pulse } ) — sem os delimitadores
-  reais de tag do EJS aqui de propósito, um deles de verdade dentro deste
-  comentário HTML seria executado pelo EJS mesmo assim (já quebrou a
-  página uma vez, ver o mesmo aviso em sidebar-v2.ejs).
+  "Em modo espectador" = staff com sessão aberta em
+  pot_spectator_sessions (ligado via AdminSpectate no jogo) — dado real,
+  não presença do Discord (o bot não tem a intent GuildPresences). "Staff
+  offline" cobre quem tem o cargo de staff mas não está online no jogo.
+
+  Uso: include( partials/ingame-pulse , { pulse, showRoster } ) —
+  showRoster é opcional, default true; sem os delimitadores reais de tag
+  do EJS aqui de propósito, um deles de verdade dentro deste comentário
+  HTML seria executado pelo EJS mesmo assim (já quebrou a página uma vez,
+  ver o mesmo aviso em sidebar-v2.ejs).
 -->
-<section class="titan-card-premium flex-col gap-8">
-    <h2 class="section-title text-lg">IN GAME</h2>
-    <div class="flex justify-evenly items-center flex-wrap gap-6">
+<% const ipShowRoster = typeof showRoster === 'undefined' || showRoster; %>
+<section class="ingame-pulse">
+    <h2 class="ingame-pulse-title">IN GAME</h2>
+    <div class="ingame-pulse-panel">
         <%- include('stat-donut', {
-            title: 'Jogadores Online',
-            value: `${pulse.playersOnline}/${pulse.playersTotal}`,
-            percent: pulse.playersTotal > 0 ? (pulse.playersOnline / pulse.playersTotal) * 100 : 0,
+            title: 'Jogando',
+            value: `${pulse.staffPlaying}/${pulse.staffTotal}`,
+            percent: pulse.staffTotal > 0 ? (pulse.staffPlaying / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
         }) %>
         <%- include('stat-donut', {
-            title: 'Staffs Online',
+            title: 'Em modo espectador',
+            value: `${pulse.staffSpectating}/${pulse.staffTotal}`,
+            percent: pulse.staffTotal > 0 ? (pulse.staffSpectating / pulse.staffTotal) * 100 : 0,
+            accent: 'gold',
+        }) %>
+        <%- include('stat-donut', {
+            title: 'Moderadores online',
             value: `${pulse.staffOnline}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffOnline / pulse.staffTotal) * 100 : 0,
-            accent: 'gold',
-        }) %>
-        <%- include('stat-donut', {
-            title: 'Staffs Moderando',
-            value: `${pulse.staffModerating}/${pulse.staffOnline}`,
-            percent: pulse.staffOnline > 0 ? (pulse.staffModerating / pulse.staffOnline) * 100 : 0,
             accent: 'red',
+            size: 'big',
         }) %>
     </div>
 
-    <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
-    <% if (pulse.roster.length === 0) { %>
-        <p class="text-sm opacity-40 text-center">Nenhum cargo de staff configurado ainda.</p>
-    <% } else { %>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <% online.forEach(staff => { %>
-                <div class="ingame-staff-chip is-online">
-                    <i data-lucide="circle-dot" class="ingame-staff-dot"></i>
-                    <div class="flex flex-col">
-                        <span class="ingame-staff-name"><%= staff.name %></span>
-                        <span class="ingame-staff-status"><%= staff.moderating ? 'MODERANDO...' : 'JOGANDO...' %></span>
+    <% if (ipShowRoster) { %>
+        <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
+        <% if (pulse.roster.length === 0) { %>
+            <p class="text-sm opacity-40 text-center mt-4">Nenhum cargo de staff configurado ainda.</p>
+        <% } else { %>
+            <div class="ingame-staff-grid">
+                <% online.forEach(staff => { %>
+                    <div class="ingame-staff-chip is-online">
+                        <i data-lucide="power" class="ingame-staff-icon"></i>
+                        <div class="flex flex-col">
+                            <span class="ingame-staff-headline">STAFF ONLINE</span>
+                            <span class="ingame-staff-status"><%= staff.moderating ? 'MODERANDO...' : 'JOGANDO...' %></span>
+                        </div>
                     </div>
-                </div>
-            <% }); %>
-            <% offline.forEach(staff => { %>
-                <div class="ingame-staff-chip is-offline">
-                    <i data-lucide="circle-dot" class="ingame-staff-dot"></i>
-                    <div class="flex flex-col">
-                        <span class="ingame-staff-name"><%= staff.name %></span>
-                        <span class="ingame-staff-status">STAFF OFFLINE</span>
+                <% }); %>
+                <% offline.forEach(staff => { %>
+                    <div class="ingame-staff-chip is-offline">
+                        <i data-lucide="power" class="ingame-staff-icon"></i>
+                        <div class="flex flex-col">
+                            <span class="ingame-staff-headline">STAFF OFFLINE</span>
+                            <span class="ingame-staff-status">...</span>
+                        </div>
                     </div>
-                </div>
-            <% }); %>
-        </div>
+                <% }); %>
+            </div>
+        <% } %>
     <% } %>
 </section>
 <style>
+    .ingame-pulse { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+    .ingame-pulse-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 400;
+        font-size: clamp(16px, 2vw, 24px);
+        line-height: 1.5;
+        letter-spacing: 0.3em;
+        color: #FFFFFF;
+        text-align: center;
+        text-transform: uppercase;
+    }
+    .ingame-pulse-panel {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 4px;
+        min-height: 220px;
+        padding: 20px clamp(16px, 4vw, 50px);
+        background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+        box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        border-radius: 20px;
+    }
+
+    .ingame-staff-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+    }
     .ingame-staff-chip {
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 16px;
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 1px solid;
         background: var(--bg-card);
-        border: 1px solid rgba(248, 220, 192, 0.08);
-        border-radius: 12px;
     }
-    .ingame-staff-dot { width: 10px; height: 10px; flex: none; }
-    .ingame-staff-chip.is-online .ingame-staff-dot { color: #4ADE80; }
-    .ingame-staff-chip.is-offline .ingame-staff-dot { color: #7A2E2E; }
-    .ingame-staff-name { font-family: var(--font-head); font-size: 0.85rem; color: var(--text-primary); }
-    .ingame-staff-status { font-family: var(--font-body); font-size: 0.7rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+    .ingame-staff-chip.is-online { border-color: #A5FFA1; }
+    .ingame-staff-chip.is-offline { border-color: #FF4E3B; }
+    .ingame-staff-icon { width: 34px; height: 34px; flex: none; }
+    .ingame-staff-chip.is-online .ingame-staff-icon { color: #A5FFA1; }
+    .ingame-staff-chip.is-offline .ingame-staff-icon { color: #FF4E3B; }
+    .ingame-staff-headline {
+        font-family: 'Tilt Warp', sans-serif;
+        font-size: clamp(18px, 2.2vw, 26px);
+        line-height: 1.2;
+        color: #DCA15E;
+        text-transform: uppercase;
+    }
+    .ingame-staff-status {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        color: #F8DCC0;
+        opacity: 0.85;
+    }
 </style>

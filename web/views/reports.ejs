@@ -60,14 +60,9 @@
 
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
 
-        <header class="flex justify-between items-end px-2">
-            <div>
-                <h1 class="tilt-warp text-2xl uppercase tracking-[1px]"><%= guild.name %> | Reportes</h1>
-                <p class="text-[11px] opacity-40 uppercase tracking-[2px]">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
-            </div>
-        </header>
+        <%- include('partials/page-header', { guild, pageLabel: 'REPORTES' }) %>
 
-        <%- include('partials/ingame-pulse', { pulse }) %>
+        <%- include('partials/ingame-pulse', { pulse, showRoster: false }) %>
 
         <!-- REPORTES ABERTOS -->
         <section class="titan-card-premium flex-col gap-4">

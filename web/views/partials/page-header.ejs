@@ -1,0 +1,73 @@
+<!--
+  web/views/partials/page-header.ejs
+  Cabeçalho "DASHBOARD" + "SERVERNAME | PÁGINA" + ícone do servidor (spec
+  Figma: Frame 18/19/20/21, idêntico nas 3 páginas — Moderação/Reports/
+  Events só trocam o texto da página).
+
+  Uso: include( partials/page-header , { guild, pageLabel } ) —
+  pageLabel é o texto depois do "|" (ex: MODERAÇÃO/REPORTES/EVENTOS); sem
+  os delimitadores reais de tag do EJS aqui de propósito, ver aviso em
+  sidebar-v2.ejs sobre por que um deles de verdade dentro deste comentário
+  HTML quebraria a página.
+-->
+<%
+    // Mesmo padrão de fallback (sem ícone) já usado em index.ejs.
+    const phIconUrl = guild.icon
+        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
+        : `/images/guild-fallback-${(guild.id % 4) + 1}.svg`;
+%>
+<header class="page-header">
+    <div class="page-header-text">
+        <h1 class="page-header-title">DASHBOARD</h1>
+        <p class="page-header-subtitle"><%= guild.name %> | <%= pageLabel %></p>
+    </div>
+    <div class="page-header-icon">
+        <img src="<%= phIconUrl %>" alt="">
+    </div>
+</header>
+<style>
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 0 8px;
+    }
+    .page-header-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .page-header-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 400;
+        font-size: clamp(24px, 4vw, 40px);
+        line-height: 1.4;
+        letter-spacing: 0.3em;
+        color: #DCA15E;
+        white-space: nowrap;
+    }
+    .page-header-subtitle {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 400;
+        font-size: clamp(14px, 2vw, 24px);
+        line-height: 1.4;
+        letter-spacing: 0.3em;
+        color: #F8DCC0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .page-header-icon {
+        box-sizing: border-box;
+        flex: none;
+        width: clamp(56px, 7vw, 80px);
+        height: clamp(56px, 7vw, 80px);
+        border: 2px solid #803E30;
+        border-radius: 15px;
+        box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
+        overflow: hidden;
+        background: #4B2427;
+    }
+    .page-header-icon img { width: 100%; height: 100%; object-fit: cover; }
+    @media (max-width: 480px) {
+        .page-header-subtitle { letter-spacing: 0.15em; }
+        .page-header-title { letter-spacing: 0.15em; }
+    }
+</style>

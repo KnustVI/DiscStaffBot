@@ -13,6 +13,7 @@
       value: 12/40 ,             // texto mostrado no centro do gráfico
       percent: 30,                // 0-100, preenchimento do arco
       accent: gold ,              // gold (padrão, --accent) ou red (--surface)
+      size: big ,                 // opcional — 'big' pro donut maior/destaque (Figma: ~1.27x), omitir pro tamanho normal
     } )
 -->
 <%
@@ -20,11 +21,12 @@
     const dValue = value;
     const dPercent = Math.max(0, Math.min(100, Number(percent) || 0));
     const dAccent = typeof accent !== 'undefined' && accent === 'red' ? 'red' : 'gold';
+    const dBig = typeof size !== 'undefined' && size === 'big';
     const CIRC = 2 * Math.PI * 35;
     const dOffset = CIRC - (dPercent / 100) * CIRC;
 %>
-<div class="relative flex-1 flex items-center justify-center">
-    <div class="premium-card-graph-container">
+<div class="relative flex items-center justify-center<%= dBig ? ' stat-donut-slot-big' : ' stat-donut-slot' %>">
+    <div class="premium-card-graph-container<%= dBig ? ' stat-donut-big' : '' %>">
         <svg class="premium-graph-inner" viewBox="0 0 100 100">
             <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
             <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
@@ -43,4 +45,12 @@
 </div>
 <style>
     .stat-donut-red { stroke: var(--surface); }
+    /* Tamanhos responsivos (clamp) em vez dos 224x241/282x307 fixos do
+       Figma — padrão do site é sempre funcionar em mobile (ver
+       web_ui_always_responsive). ~1.27x de diferença entre normal/big,
+       mesma proporção do Figma (282/224). */
+    .stat-donut-slot, .stat-donut-slot-big { flex: none; }
+    .premium-card-graph-container { width: clamp(120px, 15vw, 170px); height: clamp(128px, 16vw, 182px); }
+    .premium-card-graph-container.stat-donut-big { width: clamp(150px, 19vw, 216px); height: clamp(160px, 20vw, 231px); margin: 0 -12px; }
+    .stat-donut-slot { margin: 0 -10px; }
 </style>

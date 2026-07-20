@@ -40,16 +40,13 @@ async function getServerPulse(guildId, guild) {
     const members = staffRoleIds.size > 0 ? await guild.members.fetch().catch(() => new Map()) : new Map();
     const staffMembers = [...members.values()].filter(m => [...staffRoleIds].some(id => m.roles.cache.has(id)));
 
-    // Staff presente em algum report AINDA ABERTO = "moderando agora" — sinal
-    // real (reports.staffs), não presença do Discord.
-    const openReportStaffIds = new Set();
-    for (const row of db.prepare("SELECT staffs FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'").all(guildId)) {
-        try {
-            JSON.parse(row.staffs || '[]').forEach(s => openReportStaffIds.add(s.id));
-        } catch (err) {
-            // reports.staffs corrompido/vazio — ignora esta linha, não quebra o resto.
-        }
-    }
+    // "Em modo espectador" (Figma) = staff com sessão aberta em
+    // pot_spectator_sessions (ligado/desligado via AdminSpectate no jogo —
+    // ver analyticsSystem.js) — sinal real de "moderando agora", bem mais
+    // direto que inferir por presença numa thread de report.
+    const spectatingAlderonIds = new Set(
+        db.prepare('SELECT alderon_id FROM pot_spectator_sessions WHERE guild_id = ?').all(guildId).map(r => r.alderon_id)
+    );
 
     const roster = staffMembers.map(m => {
         const link = db.prepare('SELECT alderon_id FROM player_links WHERE user_id = ?').get(m.id);
@@ -57,23 +54,28 @@ async function getServerPulse(guildId, guild) {
             ? db.prepare('SELECT is_online FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
             : null;
         const online = !!potPlayer?.is_online;
+        const spectating = online && !!link && spectatingAlderonIds.has(link.alderon_id);
         return {
             id: m.id,
             name: m.nickname || m.user.username,
             online,
-            moderating: online && openReportStaffIds.has(m.id),
+            moderating: spectating,
         };
     });
 
     const playersOnline = db.prepare('SELECT COUNT(*) c FROM pot_players WHERE guild_id = ? AND is_online = 1').get(guildId).c;
     const playersTotal = db.prepare('SELECT COUNT(*) c FROM pot_players WHERE guild_id = ?').get(guildId).c;
+    const staffOnline = roster.filter(s => s.online).length;
+    const staffSpectating = roster.filter(s => s.moderating).length;
 
     return {
         roster,
         playersOnline,
         playersTotal,
-        staffOnline: roster.filter(s => s.online).length,
-        staffModerating: roster.filter(s => s.moderating).length,
+        staffOnline,
+        staffSpectating,
+        staffPlaying: staffOnline - staffSpectating,
+        staffModerating: staffSpectating,
         staffTotal: roster.length,
     };
 }
