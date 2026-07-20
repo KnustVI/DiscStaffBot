@@ -31,10 +31,10 @@
     const CIRC = 2 * Math.PI * R;
     const dOffset = CIRC - (dPercent / 100) * CIRC;
 %>
-<div class="stat-donut<%= dBig ? ' is-big' : '' %>">
+<div class="stat-donut<%= dBig ? ' is-big' : '' %>" style="--donut-accent: <%= dAccent === 'red' ? '#803E30' : '#DCA15E' %>;">
     <svg class="stat-donut-svg" viewBox="0 0 100 100">
         <circle class="stat-donut-track" cx="50" cy="50" r="<%= R %>"></circle>
-        <circle class="stat-donut-fill<%= dAccent === 'red' ? ' is-red' : '' %>"
+        <circle class="stat-donut-fill"
                 cx="50" cy="50" r="<%= R %>"
                 stroke-dasharray="<%= CIRC.toFixed(2) %>"
                 stroke-dashoffset="<%= dOffset.toFixed(2) %>">
@@ -67,20 +67,31 @@
         margin: 0 -14px;
         z-index: 1;
     }
-    .stat-donut-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+    /* Anel bem mais grosso que a 1a tentativa (15 -> 22, sobre raio 38) —
+       o Figma usa um disco quase cheio, não uma linha fina — e o "trilho"
+       (parte vazia) ganha um brilho na cor de destaque (mesma ideia do
+       "box-shadow: 0 0 2.3px <accent>" do Figma nas duas Ellipses, cheia
+       ou vazia) pra nunca ficar invisível mesmo quando o valor real é 0%. */
+    .stat-donut-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+        filter: drop-shadow(0 0 3px var(--donut-accent));
+    }
     .stat-donut-track {
         fill: none;
-        stroke: rgba(62, 61, 56, 0.5);
-        stroke-width: 15;
+        stroke: rgba(110, 106, 98, 0.45);
+        stroke-width: 22;
     }
     .stat-donut-fill {
         fill: none;
-        stroke: #DCA15E;
-        stroke-width: 15;
+        stroke: var(--donut-accent);
+        stroke-width: 22;
         stroke-linecap: butt;
         transition: stroke-dashoffset 0.3s ease;
     }
-    .stat-donut-fill.is-red { stroke: var(--surface, #803E30); }
     .stat-donut-label {
         position: relative;
         display: flex;
