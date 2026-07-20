@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .report-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid rgba(248, 220, 192, 0.08);
+            border-radius: 14px;
+            padding: 16px 20px;
+        }
+        .report-status {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 3px 12px;
+            opacity: 0.85;
+        }
+        .report-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 0.75rem;
+            opacity: 0.55;
+        }
+        .report-card-meta span { display: inline-flex; align-items: center; gap: 5px; }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[30px] pl-[30px] hidden lg:block">
+        <%- include('partials/sidebar-v2', { active: 'denuncias', guild, nickname, role }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+
+        <header class="flex justify-between items-end px-2">
+            <div>
+                <h1 class="tilt-warp text-2xl uppercase tracking-[1px]"><%= guild.name %> | Reportes</h1>
+                <p class="text-[11px] opacity-40 uppercase tracking-[2px]">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
+            </div>
+        </header>
+
+        <%- include('partials/ingame-pulse', { pulse }) %>
+
+        <!-- REPORTES ABERTOS -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Reportes Abertos</h2>
+            <% if (openReports.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhum reporte aberto no momento.</p>
+            <% } else { %>
+                <div class="flex flex-col gap-3">
+                    <% openReports.forEach(r => { %>
+                        <div class="report-card">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="flag" class="w-4 h-4 text-titan-accent"></i>
+                                <span class="font-semibold"><%= r.report_id %></span>
+                                <span class="report-status"><%= r.statusLabel %></span>
+                            </div>
+                            <div class="report-card-meta">
+                                <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <@<%= r.user_id %>></span>
+                                <% if (r.agid) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> AGID <%= r.agid %></span><% } %>
+                                <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
+                            </div>
+                            <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
+                                <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
+                            </a>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <!-- REPORTES FECHADOS -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Reportes Fechados</h2>
+            <p class="text-xs opacity-40 -mt-2">O Titan's Pass não guarda a conversa dos reportes fora do Discord — mantenha os tópicos criados para histórico.</p>
+            <% if (closedReports.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhum reporte fechado ainda.</p>
+            <% } else { %>
+                <div class="flex flex-col gap-3">
+                    <% closedReports.forEach(r => { %>
+                        <div class="report-card">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="flag" class="w-4 h-4 text-titan-accent"></i>
+                                <span class="font-semibold"><%= r.report_id %></span>
+                                <span class="report-status"><%= r.statusLabel %></span>
+                            </div>
+                            <div class="report-card-meta">
+                                <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <@<%= r.user_id %>></span>
+                                <% if (r.agid) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> AGID <%= r.agid %></span><% } %>
+                                <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
+                            </div>
+                            <% if (r.punishment) { %><p class="text-xs opacity-60">Punição aplicada: <%= r.punishment %></p><% } %>
+                            <% if (r.closed_reason) { %><p class="text-xs opacity-60">Motivo de fechamento: <%= r.closed_reason %></p><% } %>
+                            <% if (r.rating) { %><p class="text-xs opacity-60">Avaliação: <%= r.rating %>/5<% if (r.rating_comment) { %> — "<%= r.rating_comment %>"<% } %></p><% } %>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

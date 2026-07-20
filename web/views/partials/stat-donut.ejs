@@ -1,0 +1,44 @@
+<!--
+  web/views/partials/stat-donut.ejs
+  Card de gráfico donut reutilizável (spec Figma: "Donut Graphic" + "Frame
+  15" com Title/Subtitle) — reaproveita o SVG/CSS já existente em home.ejs
+  e web/public/css/style.css (.premium-card-graph-container etc), só
+  parametrizado, pra não repetir o bloco a cada estatística.
+
+  Uso:
+    <%- include('partials/stat-donut', {
+      title: 'Jogadores Online',
+      value: '12/40',           // texto mostrado no centro do gráfico
+      percent: 30,               // 0-100, preenchimento do arco
+      accent: 'gold',            // 'gold' (padrão, --accent) ou 'red' (--surface)
+    }) %>
+-->
+<%
+    const dTitle = title;
+    const dValue = value;
+    const dPercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    const dAccent = typeof accent !== 'undefined' && accent === 'red' ? 'red' : 'gold';
+    const CIRC = 2 * Math.PI * 35;
+    const dOffset = CIRC - (dPercent / 100) * CIRC;
+%>
+<div class="relative flex-1 flex items-center justify-center">
+    <div class="premium-card-graph-container">
+        <svg class="premium-graph-inner" viewBox="0 0 100 100">
+            <circle class="premium-circle-34" cx="50" cy="50" r="35"></circle>
+            <circle class="premium-circle-shadow" cx="50" cy="50" r="35"></circle>
+            <circle class="premium-circle-bg" cx="50" cy="50" r="35"></circle>
+            <circle class="premium-circle-progress<%= dAccent === 'red' ? ' stat-donut-red' : '' %>"
+                    cx="50" cy="50" r="35"
+                    stroke-dasharray="<%= CIRC.toFixed(1) %>"
+                    stroke-dashoffset="<%= dOffset.toFixed(1) %>">
+            </circle>
+        </svg>
+        <div class="premium-graph-label-container">
+            <span class="premium-graph-title"><%= dTitle %></span>
+            <span class="premium-graph-value"><%= dValue %></span>
+        </div>
+    </div>
+</div>
+<style>
+    .stat-donut-red { stroke: var(--surface); }
+</style>

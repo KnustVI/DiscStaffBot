@@ -1,0 +1,334 @@
+<!--
+  web/views/partials/sidebar-v2.ejs
+  ============================================================================
+  Sidebar do dashboard, reconstruída a partir do export do Figma
+  ("C:\...\Titan's Pass\sidebar.txt") — duas variantes (expandida/
+  colapsada), alternadas por um botão, com preferência salva no navegador.
+
+  Ligado às 3 páginas reais construídas a partir de Moderação.txt/Reports.txt/
+  Events.txt (mesma pasta do sidebar.txt): moderacao, denuncias (Reports) e
+  eventos. O restante (premium, config, reputacao, ajuda) ainda não tem
+  página própria — fica em `#` até existir uma. O sidebar.ejs ANTIGO (sem
+  "-v2") continua intocado, incluído só em home.ejs/manage.ejs.
+
+  Como usar:
+    <%- include('partials/sidebar-v2', {
+      active: 'moderacao',      // chave do item atual (ver NAV_ITEMS abaixo) — sem isso, nada vem marcado
+      guild,                     // objeto Guild do discord.js — usado pra montar os hrefs /pagina/<guild.id>
+      user: req.user,           // objeto do passport-discord (id, avatar, nickname/global_name/username)
+      role: 'Administrador',    // texto livre mostrado no badge abaixo do nome
+      nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
+    }) %>
+
+  O export do Figma não trazia o TEXTO real de cada botão (só largura do
+  layer) — os rótulos abaixo foram escolhidos pelos ícones (Lucide, nomeados
+  no próprio CSS: gem/cog/shield-user/star/message-square-warning/
+  square-menu/message-circle-question-mark/log-out) cruzados com as
+  funcionalidades reais do bot, com "eventos"↔"reputacao" confirmados
+  diretamente com o dono (star = Eventos, square-menu = Reputação).
+-->
+<%
+    const sbGuild = typeof guild !== 'undefined' ? guild : null;
+    const guildHref = (path) => sbGuild ? `/${path}/${sbGuild.id}` : '#';
+    const NAV_ITEMS = [
+        { key: 'premium', label: 'Premium', icon: 'gem', href: '#', accent: true },
+        { key: 'config', label: 'Configurações', icon: 'cog', href: guildHref('manage') },
+        { key: 'moderacao', label: 'Moderação', icon: 'shield-user', href: guildHref('moderacao') },
+        { key: 'eventos', label: 'Eventos', icon: 'star', href: guildHref('events') },
+        { key: 'denuncias', label: 'Denúncias', icon: 'message-square-warning', href: guildHref('reports') },
+        { key: 'reputacao', label: 'Reputação', icon: 'square-menu', href: '#' },
+        { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '#' },
+        { key: 'sair', label: 'Sair', icon: 'log-out', href: '/logout' },
+    ];
+    const activeKey = typeof active !== 'undefined' ? active : null;
+    const sbUser = typeof user !== 'undefined' ? user : null;
+    const sbRole = typeof role !== 'undefined' ? role : 'Membro';
+    const sbNickname = (typeof nickname !== 'undefined' && nickname)
+        || (sbUser && (sbUser.nickname || sbUser.global_name || sbUser.username))
+        || 'Convidado';
+    const sbAvatarUrl = (sbUser && sbUser.avatar)
+        ? `https://cdn.discordapp.com/avatars/${sbUser.id}/${sbUser.avatar}.png`
+        : null;
+%>
+<aside class="tp-sidebar" id="tpSidebar" data-collapsed="false">
+    <div class="tp-sidebar-inner">
+        <div class="tp-sidebar-top">
+            <div class="tp-sidebar-logo">
+                <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass">
+            </div>
+            <button type="button" class="tp-sidebar-toggle" id="tpSidebarToggle" aria-label="Recolher/expandir menu" aria-expanded="true">
+                <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
+                <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
+            </button>
+        </div>
+
+        <nav class="tp-sidebar-nav">
+            <% NAV_ITEMS.forEach(item => { %>
+                <a href="<%= item.href %>"
+                   class="tp-sidebar-btn<%= item.key === activeKey ? ' active' : '' %><%= item.accent ? ' accent' : '' %>"
+                   title="<%= item.label %>">
+                    <i data-lucide="<%= item.icon %>"></i>
+                    <span class="tp-sidebar-label"><%= item.label %></span>
+                </a>
+            <% }); %>
+        </nav>
+
+        <div class="tp-sidebar-profile">
+            <div class="tp-sidebar-avatar">
+                <% if (sbAvatarUrl) { %>
+                    <img src="<%= sbAvatarUrl %>" alt="">
+                <% } else { %>
+                    <i data-lucide="user"></i>
+                <% } %>
+            </div>
+            <div class="tp-sidebar-profile-info">
+                <span class="tp-sidebar-nickname"><%= sbNickname %></span>
+                <span class="tp-sidebar-role"><%= sbRole %></span>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<style>
+    /* ==================== SIDEBAR — variáveis compartilhadas ==================== */
+    .tp-sidebar {
+        --tp-w-expanded: 400px;
+        --tp-w-collapsed: 121px;
+        box-sizing: border-box;
+        font-family: 'Poppins', sans-serif;
+        width: var(--tp-w-expanded);
+        max-width: 100%;
+        flex: none;
+        /* BgGradient + CardShadow, direto do Figma */
+        background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+        box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        border-radius: 20px;
+        overflow-y: auto;
+        transition: width 0.2s ease;
+    }
+    .tp-sidebar * { box-sizing: border-box; }
+    .tp-sidebar-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 20px 50px;
+        min-height: 100%;
+    }
+
+    /* ==================== TOPO (logo + botão recolher) ==================== */
+    .tp-sidebar-top {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    .tp-sidebar-logo { display: flex; justify-content: center; padding: 10px 0; width: 100%; }
+    .tp-sidebar-logo img { width: 100%; max-width: 254px; height: auto; }
+
+    .tp-sidebar-toggle {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 46px;
+        height: 46px;
+        flex: none;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        border-radius: 15px;
+        color: #F8DCC0;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .tp-sidebar-toggle:hover { background: #803E30; border-color: #F8DCC0; }
+    .tp-sidebar-toggle:active {
+        background: #4B2427;
+        border-color: #803E30;
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+    }
+    .tp-sidebar-toggle svg { width: 25px; height: 25px; }
+    .tp-icon-collapsed { display: none; }
+
+    /* ==================== NAVEGAÇÃO ==================== */
+    .tp-sidebar-nav {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        padding: 30px 0;
+    }
+    .tp-sidebar-btn {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        height: 40px;
+        padding: 5px 20px;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        border-radius: 15px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .tp-sidebar-btn:hover { background: #803E30; border-color: #F8DCC0; }
+    .tp-sidebar-btn:active {
+        background: #4B2427;
+        border-color: #803E30;
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+    }
+    .tp-sidebar-btn.active { border-color: #F8DCC0; }
+    .tp-sidebar-btn svg { width: 20px; height: 21px; flex: none; color: #F8DCC0; }
+    .tp-sidebar-btn.accent svg,
+    .tp-sidebar-btn.accent .tp-sidebar-label { color: #DCA15E; }
+    .tp-sidebar-label {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 20px;
+        line-height: 30px;
+        color: #F8DCC0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ==================== PERFIL ==================== */
+    .tp-sidebar-profile {
+        margin-top: auto;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+        padding: 10px;
+    }
+    .tp-sidebar-avatar {
+        box-sizing: border-box;
+        flex: none;
+        width: 75px;
+        height: 75px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #4B2427;
+        border: 4px solid #803E30;
+        box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
+        border-radius: 50%;
+        overflow: hidden;
+    }
+    .tp-sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .tp-sidebar-avatar svg { width: 53px; height: 53px; color: #803E30; }
+    .tp-sidebar-profile-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        min-width: 0;
+    }
+    .tp-sidebar-nickname {
+        font-family: 'Tilt Warp', sans-serif;
+        font-size: 20px;
+        line-height: 25px;
+        color: #F8DCC0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+    }
+    .tp-sidebar-role {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 20px;
+        background: #4B2427;
+        border: 1px solid #803E30;
+        border-radius: 50px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 14px;
+        line-height: 21px;
+        color: #F8DCC0;
+        white-space: nowrap;
+    }
+
+    /* ==================== ESTADO COLAPSADO (Size=Close) ==================== */
+    /* Ativado via [data-collapsed="true"] (JS, botão de toggle) OU
+       automaticamente em telas estreitas (media query abaixo) — sempre
+       responsivo, mesmo sem o usuário nunca ter clicado no toggle. */
+    .tp-sidebar[data-collapsed="true"] { width: var(--tp-w-collapsed); }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-inner { padding: 20px; gap: 30px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: 60px; }
+    .tp-sidebar[data-collapsed="true"] .tp-icon-expanded { display: none; }
+    .tp-sidebar[data-collapsed="true"] .tp-icon-collapsed { display: block; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-toggle { width: 60px; height: 60px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-nav { gap: 10px; padding: 0; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-btn { width: 60px; height: 60px; padding: 10px; gap: 0; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-label { display: none; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile { flex-direction: column; gap: 10px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-avatar { width: 80px; height: 80px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile-info { display: none; }
+
+    /* Sempre responsivo (padrão do site): telas estreitas começam
+       colapsadas por padrão (só ícones), mesmo sem preferência salva —
+       o JS abaixo ainda respeita uma preferência explícita do usuário se
+       existir, isso aqui é só o valor inicial em telas pequenas. */
+    @media (max-width: 640px) {
+        .tp-sidebar:not([data-user-set]) { width: var(--tp-w-collapsed); }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: 20px; gap: 30px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: 60px; }
+        .tp-sidebar:not([data-user-set]) .tp-icon-expanded { display: none; }
+        .tp-sidebar:not([data-user-set]) .tp-icon-collapsed { display: block; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-toggle { width: 60px; height: 60px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-nav { gap: 10px; padding: 0; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-btn { width: 60px; height: 60px; padding: 10px; gap: 0; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-label { display: none; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-profile { flex-direction: column; gap: 10px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-avatar { width: 80px; height: 80px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-profile-info { display: none; }
+    }
+</style>
+
+<!-- Lucide (mesmo CDN já usado pra ícones em outras telas do projeto,
+     confiável e MIT — evita redesenhar 10 paths de SVG na mão) -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script>
+    (function () {
+        var sidebar = document.getElementById('tpSidebar');
+        var toggle = document.getElementById('tpSidebarToggle');
+        if (!sidebar || !toggle) return;
+
+        function applyState(collapsed) {
+            sidebar.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
+            toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        }
+
+        // Preferência salva do USUÁRIO (clique explícito no toggle) tem
+        // prioridade sobre o padrão responsivo por tamanho de tela —
+        // [data-user-set] desliga a media query em CSS assim que existe
+        // uma escolha explícita, pra não brigar uma com a outra.
+        var stored = localStorage.getItem('tpSidebarCollapsed');
+        if (stored !== null) {
+            sidebar.setAttribute('data-user-set', '');
+            applyState(stored === 'true');
+        }
+
+        toggle.addEventListener('click', function () {
+            var next = sidebar.getAttribute('data-collapsed') !== 'true';
+            sidebar.setAttribute('data-user-set', '');
+            applyState(next);
+            localStorage.setItem('tpSidebarCollapsed', String(next));
+        });
+
+        if (window.lucide) window.lucide.createIcons();
+    })();
+</script>

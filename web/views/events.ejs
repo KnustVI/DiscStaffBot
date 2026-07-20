@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventos | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .event-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid rgba(248, 220, 192, 0.08);
+            border-radius: 14px;
+            padding: 16px 20px;
+        }
+        .event-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 0.75rem;
+            opacity: 0.55;
+        }
+        .event-card-meta span { display: inline-flex; align-items: center; gap: 5px; }
+        .event-live-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #4ADE80; display: inline-block;
+            box-shadow: 0 0 6px #4ADE80;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[30px] pl-[30px] hidden lg:block">
+        <%- include('partials/sidebar-v2', { active: 'eventos', guild, nickname, role }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+
+        <header class="flex justify-between items-end px-2">
+            <div>
+                <h1 class="tilt-warp text-2xl uppercase tracking-[1px]"><%= guild.name %> | Eventos</h1>
+                <p class="text-[11px] opacity-40 uppercase tracking-[2px]">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
+            </div>
+        </header>
+
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="titan-card-premium !py-4 !px-6 text-sm text-titan-gold">Configurações salvas.</div>
+        <% } %>
+
+        <%- include('partials/ingame-pulse', { pulse }) %>
+
+        <!-- ACONTECENDO AGORA -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg flex items-center gap-2">
+                <% if (happeningNow.length > 0) { %><span class="event-live-dot"></span><% } %>
+                Acontecendo Agora
+            </h2>
+            <% if (happeningNow.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhum evento acontecendo agora.</p>
+            <% } else { %>
+                <div class="flex flex-col gap-3">
+                    <% happeningNow.forEach(ev => { %>
+                        <div class="event-card">
+                            <span class="font-semibold"><%= ev.name %></span>
+                            <div class="event-card-meta">
+                                <% if (ev.scheduledEndTimestamp) { %><span><i data-lucide="clock" class="w-3.5 h-3.5"></i> Termina <%= new Date(ev.scheduledEndTimestamp).toLocaleString('pt-BR') %></span><% } %>
+                                <% if (typeof ev.userCount === 'number') { %><span><i data-lucide="users" class="w-3.5 h-3.5"></i> <%= ev.userCount %> inscrito(s)</span><% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <!-- EVENTOS AGENDADOS -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Eventos Agendados</h2>
+            <% if (scheduledEvents.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhum evento agendado.</p>
+            <% } else { %>
+                <div class="flex flex-col gap-3">
+                    <% scheduledEvents.forEach(ev => { %>
+                        <div class="event-card">
+                            <span class="font-semibold"><%= ev.name %></span>
+                            <div class="event-card-meta">
+                                <% if (ev.scheduledStartTimestamp) { %><span><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i> <%= new Date(ev.scheduledStartTimestamp).toLocaleString('pt-BR') %></span><% } %>
+                                <% if (typeof ev.userCount === 'number') { %><span><i data-lucide="users" class="w-3.5 h-3.5"></i> <%= ev.userCount %> inscrito(s)</span><% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <!-- CONFIGURAÇÕES -->
+        <section class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
+            <form action="/events/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Eventos</h3>
+                    <p class="text-xs opacity-50 mb-3">Usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.</p>
+                    <label class="text-xs opacity-60">Equipe de Eventos</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="shield"></i></div>
+                        <select name="event_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= eventRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Notificação de Eventos</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="megaphone"></i></div>
+                        <select name="event_notify_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= eventNotifyRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Canal de Anúncios</h3>
+                    <% if (!isCacador) { %>
+                        <p class="text-xs opacity-50 mb-3">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <% } else { %>
+                        <p class="text-xs opacity-50 mb-3">Canal onde o bot anuncia automaticamente a criação, o início e o encerramento de cada evento.</p>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="megaphone"></i></div>
+                            <select name="event_announce_channel" class="input-premium-field">
+                                <option value="">— selecione um canal —</option>
+                                <% channels.forEach(c => { %>
+                                    <option value="<%= c.id %>" <%= settings.event_announce_channel === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                    <% } %>
+                </div>
+
+                <button type="submit" class="btn-salvar-final self-start">Salvar Alterações</button>
+            </form>
+        </section>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

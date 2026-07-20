@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderação | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[30px] pl-[30px] hidden lg:block">
+        <%- include('partials/sidebar-v2', { active: 'moderacao', guild, nickname, role }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+
+        <header class="flex justify-between items-end px-2">
+            <div>
+                <h1 class="tilt-warp text-2xl uppercase tracking-[1px]"><%= guild.name %> | Moderação</h1>
+                <p class="text-[11px] opacity-40 uppercase tracking-[2px]">Bem-vindo de volta, <span class="text-titan-gold"><%= nickname %></span></p>
+            </div>
+        </header>
+
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="titan-card-premium !py-4 !px-6 text-sm text-titan-gold">Configurações salvas.</div>
+        <% } %>
+
+        <!-- ALERTA -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                <% if (openReportsAlert.length === 0) { %> Nenhum Alerta <% } else { %> <%= openReportsAlert.length %> Report(s) Aguardando Staff <% } %>
+            </h2>
+            <% if (openReportsAlert.length === 0) { %>
+                <p class="text-sm opacity-40">Nada novo por aqui.</p>
+            <% } else { %>
+                <ul class="flex flex-col gap-2">
+                    <% openReportsAlert.forEach(r => { %>
+                        <li class="flex justify-between items-center text-sm bg-[var(--bg-card)] rounded-[10px] px-4 py-2">
+                            <span><%= r.report_id %> — aberto por <@<%= r.user_id %>></span>
+                            <span class="opacity-40"><%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
+                        </li>
+                    <% }); %>
+                </ul>
+            <% } %>
+        </section>
+
+        <%- include('partials/ingame-pulse', { pulse }) %>
+
+        <!-- REPORTES -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Reportes</h2>
+            <div class="flex justify-evenly items-center flex-wrap gap-6">
+                <%- include('partials/stat-donut', {
+                    title: 'Abertos',
+                    value: `${reportsOpen}`,
+                    percent: (reportsOpen + reportsClosed) > 0 ? (reportsOpen / (reportsOpen + reportsClosed)) * 100 : 0,
+                    accent: 'red',
+                }) %>
+                <%- include('partials/stat-donut', {
+                    title: 'Fechados',
+                    value: `${reportsClosed}`,
+                    percent: (reportsOpen + reportsClosed) > 0 ? (reportsClosed / (reportsOpen + reportsClosed)) * 100 : 0,
+                    accent: 'gold',
+                }) %>
+            </div>
+        </section>
+
+        <!-- MODERAÇÃO -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Punições</h2>
+            <div class="flex justify-evenly items-center flex-wrap gap-6">
+                <%- include('partials/stat-donut', {
+                    title: 'Ativas',
+                    value: `${punActive}`,
+                    percent: punTotal > 0 ? (punActive / punTotal) * 100 : 0,
+                    accent: 'red',
+                }) %>
+                <%- include('partials/stat-donut', {
+                    title: 'Total Aplicadas',
+                    value: `${punTotal}`,
+                    percent: 100,
+                    accent: 'gold',
+                }) %>
+            </div>
+        </section>
+
+        <!-- AUTOMODERAÇÃO -->
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Automoderação</h2>
+            <div class="flex justify-evenly items-center flex-wrap gap-6">
+                <%- include('partials/stat-donut', {
+                    title: 'Palavras Filtradas',
+                    value: `${filterWordCount}`,
+                    percent: 100,
+                    accent: 'gold',
+                }) %>
+                <%- include('partials/stat-donut', {
+                    title: 'Punições Automáticas',
+                    value: `${autoPunishments}/${punTotal}`,
+                    percent: punTotal > 0 ? (autoPunishments / punTotal) * 100 : 0,
+                    accent: 'red',
+                }) %>
+            </div>
+        </section>
+
+        <!-- CONFIGURAÇÕES -->
+        <section class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
+            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Moderação</h3>
+                    <p class="text-xs opacity-50 mb-3">Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas.</p>
+                    <label class="text-xs opacity-60">Moderador (obrigatório)</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="shield"></i></div>
+                        <select name="staff_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= staffRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Supervisor</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="shield-ban"></i></div>
+                        <select name="supervisor_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= supervisorRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos — Reputação</h3>
+                    <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação.</p>
+                    <label class="text-xs opacity-60">Strike (Temporário)</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="shield-alert"></i></div>
+                        <select name="strike_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Exemplar</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
+                        <select name="role_exemplar" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Problemático</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
+                        <select name="role_problematico" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Personalização</h3>
+                    <% if (!isCacador) { %>
+                        <p class="text-xs opacity-50 mb-3">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <% } else { %>
+                        <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="palette"></i></div>
+                            <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
+                        </div>
+                        <label class="text-xs opacity-60">Assinatura no rodapé dos painéis</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="edit"></i></div>
+                            <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" value="<%= settings.panel_footer_text || '' %>">
+                        </div>
+                    <% } %>
+                </div>
+
+                <button type="submit" class="btn-salvar-final self-start">Salvar Alterações</button>
+            </form>
+        </section>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

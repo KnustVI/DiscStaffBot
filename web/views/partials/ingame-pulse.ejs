@@ -1,0 +1,75 @@
+<!--
+  web/views/partials/ingame-pulse.ejs
+  Bloco "IN GAME" + "STAFF ONLINE/STAFF OFFLINE" do Figma (Moderação.txt e
+  Events.txt repetem essa seção idêntica) — dado real vindo de
+  getServerPulse() em dashboard.js: jogadores/staff online são status EM
+  JOGO (pot_players.is_online, via webhook de login do PoT), não presença
+  do Discord.
+
+  Uso: <%- include('partials/ingame-pulse', { pulse }) %>
+-->
+<section class="titan-card-premium flex-col gap-8">
+    <h2 class="section-title text-lg">IN GAME</h2>
+    <div class="flex justify-evenly items-center flex-wrap gap-6">
+        <%- include('stat-donut', {
+            title: 'Jogadores Online',
+            value: `${pulse.playersOnline}/${pulse.playersTotal}`,
+            percent: pulse.playersTotal > 0 ? (pulse.playersOnline / pulse.playersTotal) * 100 : 0,
+            accent: 'gold',
+        }) %>
+        <%- include('stat-donut', {
+            title: 'Staffs Online',
+            value: `${pulse.staffOnline}/${pulse.staffTotal}`,
+            percent: pulse.staffTotal > 0 ? (pulse.staffOnline / pulse.staffTotal) * 100 : 0,
+            accent: 'gold',
+        }) %>
+        <%- include('stat-donut', {
+            title: 'Staffs Moderando',
+            value: `${pulse.staffModerating}/${pulse.staffOnline}`,
+            percent: pulse.staffOnline > 0 ? (pulse.staffModerating / pulse.staffOnline) * 100 : 0,
+            accent: 'red',
+        }) %>
+    </div>
+
+    <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
+    <% if (pulse.roster.length === 0) { %>
+        <p class="text-sm opacity-40 text-center">Nenhum cargo de staff configurado ainda.</p>
+    <% } else { %>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <% online.forEach(staff => { %>
+                <div class="ingame-staff-chip is-online">
+                    <i data-lucide="circle-dot" class="ingame-staff-dot"></i>
+                    <div class="flex flex-col">
+                        <span class="ingame-staff-name"><%= staff.name %></span>
+                        <span class="ingame-staff-status"><%= staff.moderating ? 'MODERANDO...' : 'JOGANDO...' %></span>
+                    </div>
+                </div>
+            <% }); %>
+            <% offline.forEach(staff => { %>
+                <div class="ingame-staff-chip is-offline">
+                    <i data-lucide="circle-dot" class="ingame-staff-dot"></i>
+                    <div class="flex flex-col">
+                        <span class="ingame-staff-name"><%= staff.name %></span>
+                        <span class="ingame-staff-status">STAFF OFFLINE</span>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    <% } %>
+</section>
+<style>
+    .ingame-staff-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        background: var(--bg-card);
+        border: 1px solid rgba(248, 220, 192, 0.08);
+        border-radius: 12px;
+    }
+    .ingame-staff-dot { width: 10px; height: 10px; flex: none; }
+    .ingame-staff-chip.is-online .ingame-staff-dot { color: #4ADE80; }
+    .ingame-staff-chip.is-offline .ingame-staff-dot { color: #7A2E2E; }
+    .ingame-staff-name { font-family: var(--font-head); font-size: 0.85rem; color: var(--text-primary); }
+    .ingame-staff-status { font-family: var(--font-body); font-size: 0.7rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+</style>

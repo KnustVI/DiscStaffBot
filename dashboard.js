@@ -4,10 +4,79 @@ const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const { GuildScheduledEventStatus, ChannelType } = require('discord.js');
 const db = require('./src/database');
 const SqliteSessionStore = require('./web/sqliteSessionStore');
+const ConfigSystem = require('./src/systems/core/configSystem');
+const PremiumSystem = require('./src/systems/premium/premiumSystem');
 
 const app = express();
+
+// Rótulos exibidos pra web dos status reais de reports.status (mesmo mapa
+// usado em reportChatSystem.js:89-106) — 'closed_no_reason'/'closed_with_reason'
+// são os dois únicos valores "fechado" (checados via LIKE 'closed%' nas
+// queries abaixo, não existe um booleano is_closed na tabela).
+const REPORT_STATUS_LABELS = {
+    waiting: 'Aguardando staff',
+    responded: 'Staff respondeu',
+    inactive: 'Inativo (24h sem mensagens)',
+    closed_no_reason: 'Fechado sem motivo',
+    closed_with_reason: 'Concluído',
+};
+
+// "Pulso" do servidor (jogadores/staff online agora) — reaproveitado pelas
+// páginas de Moderação, Reports e Events (o Figma repete a mesma seção "IN
+// GAME"/"STAFF ONLINE" nelas). Staff "online"/"offline" aqui é status EM
+// JOGO (via pot_players.is_online, alimentado pelo webhook de login do PoT),
+// não presença do Discord — o bot não tem a intent GuildPresences habilitada,
+// e o dono confirmou que o sentido real dessa seção é status em jogo mesmo.
+async function getServerPulse(guildId, guild) {
+    const staffRoleIds = new Set([
+        ...ConfigSystem.getRoleIds(guildId, 'staff_role'),
+        ...ConfigSystem.getRoleIds(guildId, 'supervisor_role'),
+        ...ConfigSystem.getRoleIds(guildId, 'event_role'),
+    ]);
+
+    const members = staffRoleIds.size > 0 ? await guild.members.fetch().catch(() => new Map()) : new Map();
+    const staffMembers = [...members.values()].filter(m => [...staffRoleIds].some(id => m.roles.cache.has(id)));
+
+    // Staff presente em algum report AINDA ABERTO = "moderando agora" — sinal
+    // real (reports.staffs), não presença do Discord.
+    const openReportStaffIds = new Set();
+    for (const row of db.prepare("SELECT staffs FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'").all(guildId)) {
+        try {
+            JSON.parse(row.staffs || '[]').forEach(s => openReportStaffIds.add(s.id));
+        } catch (err) {
+            // reports.staffs corrompido/vazio — ignora esta linha, não quebra o resto.
+        }
+    }
+
+    const roster = staffMembers.map(m => {
+        const link = db.prepare('SELECT alderon_id FROM player_links WHERE user_id = ?').get(m.id);
+        const potPlayer = link
+            ? db.prepare('SELECT is_online FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
+            : null;
+        const online = !!potPlayer?.is_online;
+        return {
+            id: m.id,
+            name: m.nickname || m.user.username,
+            online,
+            moderating: online && openReportStaffIds.has(m.id),
+        };
+    });
+
+    const playersOnline = db.prepare('SELECT COUNT(*) c FROM pot_players WHERE guild_id = ? AND is_online = 1').get(guildId).c;
+    const playersTotal = db.prepare('SELECT COUNT(*) c FROM pot_players WHERE guild_id = ?').get(guildId).c;
+
+    return {
+        roster,
+        playersOnline,
+        playersTotal,
+        staffOnline: roster.filter(s => s.online).length,
+        staffModerating: roster.filter(s => s.moderating).length,
+        staffTotal: roster.length,
+    };
+}
 
 // Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
 // — usado aqui só pra liberar o preview de região (BR/internacional) da
@@ -338,6 +407,184 @@ function loadDashboard(client) {
             console.error("Erro ao salvar:", err);
             res.status(500).send("Erro interno ao salvar.");
         }
+    });
+
+    // ==================== MODERAÇÃO ====================
+    app.get('/moderacao/:guildID', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.redirect('/dashboard');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+
+        const pulse = await getServerPulse(guildID, guild);
+
+        const openReportsAlert = db.prepare(
+            "SELECT report_id, user_id, created_at FROM reports WHERE guild_id = ? AND status = 'waiting' ORDER BY created_at DESC"
+        ).all(guildID);
+
+        const punByStatus = db.prepare('SELECT status, COUNT(*) c FROM punishments WHERE guild_id = ? GROUP BY status').all(guildID);
+        const punActive = punByStatus.find(r => r.status === 'active')?.c || 0;
+        const punTotal = punByStatus.reduce((sum, r) => sum + r.c, 0);
+
+        const reportsOpen = db.prepare("SELECT COUNT(*) c FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%'").get(guildID).c;
+        const reportsClosed = db.prepare("SELECT COUNT(*) c FROM reports WHERE guild_id = ? AND status LIKE 'closed%'").get(guildID).c;
+
+        const filterWordCount = db.prepare('SELECT COUNT(*) c FROM pot_chat_filters WHERE guild_id = ?').get(guildID).c;
+        const autoPunishments = db.prepare('SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND moderator_id = ?').get(guildID, client.user.id).c;
+
+        const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
+        const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
+        const roles = [...guild.roles.cache.values()].filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position);
+        const staffRoleIds = ConfigSystem.getRoleIds(guildID, 'staff_role');
+        const supervisorRoleIds = ConfigSystem.getRoleIds(guildID, 'supervisor_role');
+
+        res.render('moderacao', {
+            guild,
+            nickname: member.nickname || member.user.username,
+            role: 'Administrador',
+            pulse,
+            staffRoleIds,
+            supervisorRoleIds,
+            openReportsAlert,
+            punActive,
+            punTotal,
+            reportsOpen,
+            reportsClosed,
+            filterWordCount,
+            autoPunishments,
+            settings,
+            roles,
+            isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
+            success: req.query.success === 'true',
+        });
+    });
+
+    app.post('/moderacao/:guildID/save', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
+
+        const { staff_role, supervisor_role, strike_role, role_exemplar, role_problematico, panel_accent_color, panel_footer_text } = req.body;
+        ConfigSystem.setRoleIds(guildID, 'staff_role', staff_role ? [staff_role] : []);
+        ConfigSystem.setRoleIds(guildID, 'supervisor_role', supervisor_role ? [supervisor_role] : []);
+        ConfigSystem.setSetting(guildID, 'strike_role', strike_role || null);
+        ConfigSystem.setSetting(guildID, 'role_exemplar', role_exemplar || null);
+        ConfigSystem.setSetting(guildID, 'role_problematico', role_problematico || null);
+        // Personalização de painéis é exclusiva do plano Caçador (mesma checagem
+        // de getPanelPersonalization, configSystem.js:2308-2319) — ignora
+        // silenciosamente em vez de travar o resto do formulário.
+        if (PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+            ConfigSystem.setSetting(guildID, 'panel_accent_color', (panel_accent_color || '').replace(/^#/, '') || null);
+            ConfigSystem.setSetting(guildID, 'panel_footer_text', panel_footer_text || null);
+        }
+        res.redirect(`/moderacao/${guildID}?success=true`);
+    });
+
+    // ==================== REPORTS (DENÚNCIAS) ====================
+    app.get('/reports/:guildID', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.redirect('/dashboard');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+
+        const pulse = await getServerPulse(guildID, guild);
+
+        // AGID (Alderon ID) só existe se quem abriu o report tiver vinculado a
+        // conta via /registrar (player_links) — quando não tem, a linha some
+        // no template em vez de mostrar algo inventado (mesmo critério já usado
+        // no card de identidade do ReportChat, ver userIdentity.js:30-40).
+        const enrich = (row) => {
+            const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(row.user_id);
+            return {
+                ...row,
+                agid: link?.alderon_id || null,
+                playerName: link?.player_name || null,
+                statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
+            };
+        };
+
+        const openReports = db.prepare(
+            "SELECT * FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%' ORDER BY created_at DESC"
+        ).all(guildID).map(enrich);
+        const closedReports = db.prepare(
+            "SELECT * FROM reports WHERE guild_id = ? AND status LIKE 'closed%' ORDER BY closed_at DESC LIMIT 30"
+        ).all(guildID).map(enrich);
+
+        res.render('reports', {
+            guild,
+            nickname: member.nickname || member.user.username,
+            role: 'Administrador',
+            pulse,
+            openReports,
+            closedReports,
+        });
+    });
+
+    // ==================== EVENTS ====================
+    app.get('/events/:guildID', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.redirect('/dashboard');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+
+        const pulse = await getServerPulse(guildID, guild);
+
+        // Eventos são nativos do Discord (guild.scheduledEvents), não uma tabela
+        // própria — buscados um a um com withUserCount pra pegar "inscritos"
+        // (scheduledEvent.userCount), que o bot nunca guardava até hoje.
+        const eventList = await guild.scheduledEvents.fetch().catch(() => new Map());
+        const eventsWithCounts = await Promise.all(
+            [...eventList.values()].map(ev =>
+                guild.scheduledEvents.fetch({ guildScheduledEvent: ev.id, withUserCount: true }).catch(() => ev)
+            )
+        );
+        const happeningNow = eventsWithCounts.filter(ev => ev.status === GuildScheduledEventStatus.Active);
+        const scheduledEvents = eventsWithCounts.filter(ev => ev.status === GuildScheduledEventStatus.Scheduled);
+
+        const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
+        const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
+        const roles = [...guild.roles.cache.values()].filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position);
+        const channels = [...guild.channels.cache.values()].filter(c => c.type === ChannelType.GuildText);
+        const eventRoleIds = ConfigSystem.getRoleIds(guildID, 'event_role');
+        const eventNotifyRoleIds = ConfigSystem.getRoleIds(guildID, 'event_notify_role');
+
+        res.render('events', {
+            guild,
+            nickname: member.nickname || member.user.username,
+            role: 'Administrador',
+            pulse,
+            happeningNow,
+            scheduledEvents,
+            settings,
+            roles,
+            channels,
+            eventRoleIds,
+            eventNotifyRoleIds,
+            isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
+            success: req.query.success === 'true',
+        });
+    });
+
+    app.post('/events/:guildID/save', checkAuth, async (req, res) => {
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
+
+        const { event_role, event_notify_role, event_announce_channel } = req.body;
+        ConfigSystem.setRoleIds(guildID, 'event_role', event_role ? [event_role] : []);
+        ConfigSystem.setRoleIds(guildID, 'event_notify_role', event_notify_role ? [event_notify_role] : []);
+        // Canal de anúncios é exclusivo do plano Caçador (configSystem.js:113-119).
+        if (PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+            ConfigSystem.setSetting(guildID, 'event_announce_channel', event_announce_channel || null);
+        }
+        res.redirect(`/events/${guildID}?success=true`);
     });
 
     const PORT = process.env.DASHBOARD_PORT || 3000;
