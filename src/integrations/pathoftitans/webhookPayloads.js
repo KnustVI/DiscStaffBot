@@ -165,6 +165,38 @@ function nameWithId(name, alderonId) {
 }
 
 /**
+ * " (<@userId>)" quando o AlderonId estiver vinculado a uma conta Discord
+ * (/registrar) — string vazia sem vínculo/erro, nunca quebra a mensagem.
+ * Síncrono de propósito (sem fetch de membro) — diferente de
+ * discordIdentitySuffix (usado em logs de comando/staff), aqui qualquer
+ * jogador pode aparecer, não só quem tem cargo, então não faz sentido
+ * mostrar cargo nenhum.
+ */
+function mentionFor(alderonId) {
+    if (!alderonId) return '';
+    let linked;
+    try {
+        linked = PlayerRegistry.getPlayerByAlderonId(alderonId);
+    } catch (err) {
+        return '';
+    }
+    return linked?.user_id ? ` (<@${linked.user_id}>)` : '';
+}
+
+/**
+ * Igual nameWithId, com a menção do Discord (mentionFor) anexada — pedido
+ * do dono: no relatório de combate, mencionar o jogador quando ele
+ * estiver registrado. Usado só no relatório de combate/dano
+ * (buildDamageReportPayload) e no painel de morte instantânea
+ * (buildKillPanel) — os outros ~15 usos de nameWithId neste arquivo
+ * (missões, ninhos, chat, comandos admin...) continuam sem menção,
+ * de propósito, pra não sair mencionando jogador em todo log do bot.
+ */
+function nameWithMention(name, alderonId) {
+    return `${nameWithId(name, alderonId)}${mentionFor(alderonId)}`;
+}
+
+/**
  * " (NomeDoDino `IDDoDino`)" — identificação do DINOSSAURO em si (distinto
  * do jogador, que já é identificado por nameWithId). Pedido do dono: sempre
  * que characterName/characterId vierem no payload, mostrar como
@@ -608,7 +640,7 @@ function buildKillPanel(data, guild, receivedAt) {
 
     builder.title('Vítima', 3);
     builder.text(
-        `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}\n` +
+        `- ${d.VictimName || 'Desconhecido'} | ${d.VictimAlderonId || '—'} | ${d.VictimRole || '—'}${mentionFor(d.VictimAlderonId)}\n` +
         `${victimDiet ? `${victimDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.VictimDinosaurType) || 'Desconhecido'} - ${d.DinosaurVictimName || 'Desconhecido'} (${formatGrowthStage(d.VictimGrowth) || '—'})`
     );
     builder.separator();
@@ -616,7 +648,7 @@ function buildKillPanel(data, guild, receivedAt) {
     if (hasKiller) {
         builder.title('Matador', 3);
         builder.text(
-            `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}\n` +
+            `- ${d.KillerName || 'Desconhecido'} | ${d.KillerAlderonId || '—'} | ${d.KillerRole || '—'}${mentionFor(d.KillerAlderonId)}\n` +
             `${killerDiet ? `${killerDiet} ` : ''}${PlayerRegistry.sanitizeDinosaurType(d.KillerDinosaurType) || 'Desconhecido'} - ${d.KillerCharacterName || 'Desconhecido'} (${formatGrowthStage(d.KillerGrowth) || '—'})`
         );
         builder.separator();
@@ -755,14 +787,14 @@ function chunkIntoBlocks(items, maxChars) {
 function buildDamageReportPayload(encounter, guild) {
     const e = (key, fallback) => resolveEmoji(guild, key, fallback);
     const participant = (key) => encounter.participants.get(key) || { name: 'Desconhecido', alderonId: null };
-    const participantLabel = (key) => nameWithId(participant(key).name, participant(key).alderonId);
+    const participantLabel = (key) => nameWithMention(participant(key).name, participant(key).alderonId);
     // Mesmo nome+ID acima, mas com o emoji de dieta na frente — pedido do
     // dono: todo log de dano/morte também mostra o emoji do dino, não só o
     // cabeçalho de "Jogadores Envolvidos" (que já tinha desde a seção 26).
     const participantLabelWithDiet = (key) => {
         const p = participant(key);
         const diet = dietEmoji(p.diet, guild);
-        return `${diet ? `${diet} ` : ''}${nameWithId(p.name, p.alderonId)}`;
+        return `${diet ? `${diet} ` : ''}${nameWithMention(p.name, p.alderonId)}`;
     };
 
     // ── Eventos agrupados em segmentos, na ordem de PRIMEIRA aparição —
@@ -895,7 +927,7 @@ function buildDamageReportPayload(encounter, guild) {
         addTitle('JOGADORES ENVOLVIDOS', 2);
         const participantItems = [...encounter.participants.keys()].map((key) => {
             const p = participant(key);
-            const lines = [`### ${nameWithId(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
+            const lines = [`### ${nameWithMention(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
             const identityLine = participantDinoIdentityLine(p);
             if (identityLine) lines.push(identityLine);
             return lines.join('\n');
@@ -929,7 +961,7 @@ function buildDamageReportPayload(encounter, guild) {
 
         const [onlyKey] = encounter.participants.keys();
         const p = participant(onlyKey);
-        const lines = [`### ${nameWithId(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
+        const lines = [`### ${nameWithMention(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
         const identityLine = participantDinoIdentityLine(p);
         if (identityLine) lines.push(identityLine);
         addText(lines.join('\n'));
