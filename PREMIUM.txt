@@ -29,6 +29,20 @@ do Cloudflare e mostra:
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
 
+MOEDA HUNT (ver secao 107): economia interna do bot, sem NENHUM efeito
+dentro do jogo Path of Titans em si - nao altera taxa de farm, crescimento,
+atributos, progresso ou qualquer outro aspecto do jogo. Ganha-se Hunt
+jogando/completando missoes (gatilho exato varia por tier, ver bullets
+abaixo) e ela so pode ser trocada por: (1) personalizacao de perfil na
+loja do bot (avatar/plano de fundo/badge/titulo) e (2), futuramente,
+recursos de criacao de cla dentro da comunidade - APENAS isso. Hunt NUNCA
+pode ser trocada por Marks, dinheiro real ou virtual, nem qualquer
+beneficio ou vantagem dentro do jogo, incluindo skins - conformidade com o
+Server Hosting Agreement da Alderon Games (proibe oferecer skins/conteudo
+do jogo como recompensa de evento/doacao e proibe vender vantagem em jogo
+ou taxa de ganho de moeda virtual em troca de dinheiro real). Sistema de
+Hunt/loja ainda NAO implementado - "vindo em breve" em todo tier.
+
 FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar) - PUBLICO desde a
   revisao mais recente (JA IMPLEMENTADO): /perfil deixou de ser ephemeral,
@@ -49,9 +63,9 @@ FREE
   cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
-- Ganhe Hunt por hora de jogo (moeda da lojinha do bot, sem nenhum efeito
-  na taxa de farm dentro do jogo em si), trocavel so por customizacao de
-  perfil. (ainda nao implementado - "vindo em breve")
+- Ganha Hunt jogando (por hora de jogo) em qualquer servidor integrado ao
+  bot - ver moeda Hunt no topo desta secao. (ainda nao implementado -
+  "vindo em breve")
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
@@ -76,10 +90,10 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
-- Perfil personalizavel pela loja (badge/titulo exclusivos). Ganho extra
-  de Hunt por trofeu entregue (moeda da lojinha do bot, sem nenhum efeito
-  na taxa de farm dentro do jogo em si), trocavel so por customizacao de
-  perfil. (ainda nao implementado - "vindo em breve")
+- Perfil personalizavel pela loja (badge/titulo exclusivos). Completar
+  missoes recompensa com Hunt, alem do ganho por hora de jogo do Free -
+  ver moeda Hunt no topo desta secao. (ainda nao implementado - "vindo em
+  breve")
 
 RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
@@ -97,12 +111,9 @@ RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) 
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
   versao "banco de titulos" pro Compy, ver acima).
 - Footer de perfil padrao do tier Raptor.
-- Ganho extra de Hunt por missao Titan concluida (moeda da lojinha do
-  bot, sem nenhum efeito na taxa de farm dentro do jogo em si), trocavel
-  so por customizacao de perfil. (ainda nao implementado - "vindo em
-  breve")
-- Sorteio SEMANAL de pacote de skins do Path of Titans.
-  (ainda nao implementado - "vindo em breve")
+- Completar missoes recompensa com Hunt, incluindo Missoes Titan
+  exclusivas deste tier - ver moeda Hunt no topo desta secao. (ainda nao
+  implementado - "vindo em breve")
 
 O QUE JA FUNCIONA HOJE, DE VERDADE:
 - O tier em si (concessao/expiracao/consulta) - ver secao 3.
@@ -162,9 +173,10 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   migradas pro pool dinamico de PLANO DE FUNDO (ver secao 98) - o pool de
   AVATAR comeca vazio ate o dono cadastrar fotos novas via /perfil-pool add
   avatar.
-- Loja (comprar fotos/badges/titulos/sorteio) e so a FUNDACAO (o sistema
-  de tier), ainda NAO tem loja implementada de fato - a foto por menu do
-  Compy (acima) e um recurso PROPRIO, nao depende da loja.
+- Loja (trocar Hunt por fotos/badges/titulos/recursos de cla) e so a
+  FUNDACAO (o sistema de tier), ainda NAO tem loja implementada de fato -
+  a foto por menu do Compy (acima) e um recurso PROPRIO, nao depende da
+  loja.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -4680,3 +4692,66 @@ frente, nao so este relatorio):
   Strike, DM ao alvo, log de punições — todo o núcleo de execução
   (`_executeStrike`/`applyPunishment`/`buildStrikeConfirmPreview`) é o
   mesmo de antes, só a IDENTIFICAÇÃO do alvo e a ORIGEM do nível mudaram.
+
+107) Sorteio de skins removido das tabelas de Player Premium + moeda Hunt
+     ganha explicação própria e restrição explícita, em conformidade com
+     o Server Hosting Agreement da Alderon Games
+------------------------------------------------------------------
+- Pedido do dono: remover (por hora) o bullet de sorteio de skins do
+  Path of Titans das 3 tabelas de Player Premium (Seção 1 aqui,
+  `web/views/hero.ejs`) — Raptor tinha "Sorteio semanal/mensal de pacote
+  de skins" como benefício exclusivo. Motivo além do pedido em si: o
+  Server Hosting Agreement da Alderon Games (seção 2.b) lista
+  explicitamente o que um host pode oferecer como recompensa de
+  evento/doação/engajamento da comunidade — títulos, cores de texto,
+  status, cargos, emotes e avatares de chat — e fecha com "nenhuma outra
+  feature exclusiva pode ser oferecida se não se encaixar nessas
+  categorias, incluindo (mas não limitado a) skins, criaturas, mapas ou
+  outro conteúdo do jogo". Ou seja, skins como recompensa de
+  sorteio/engajamento da comunidade não é uma categoria permitida pelo
+  próprio acordo, independente de envolver dinheiro ou não — não é só
+  uma decisão de produto, é um requisito de conformidade real.
+- Free e Compy/Raptor agora descrevem o MESMO tipo de gatilho de ganho de
+  Hunt, unificado: Free ganha por hora de jogo; Compy e Raptor (que já
+  incluem o benefício do Free) ganham TAMBÉM completando missões (Raptor
+  especificamente por Missões Titan, exclusivas do tier) — antes o bullet
+  do Compy dizia "por troféu entregue", uma mecânica diferente da do
+  Raptor ("por missão Titan concluída"); unificado pra "completar missão"
+  em ambos, conforme pedido do dono.
+- Nova explicação de UMA linha só sobre a Hunt, no topo da Seção 1 (Player
+  Premium), em vez de repetir o mesmo parênteses 3 vezes (uma por tier) —
+  cobre: (1) zero efeito dentro do jogo Path of Titans (não altera farm,
+  crescimento, atributos, progresso), (2) só pode ser trocada por
+  personalização de perfil na loja do bot E, futuramente, por recursos de
+  criação de clã dentro da comunidade — nada além disso, e (3) NUNCA pode
+  ser trocada por Marks, dinheiro real ou virtual, ou qualquer benefício/
+  vantagem dentro do jogo, skins incluídas. Os 3 bullets de tier (Free/
+  Compy/Raptor) agora só dizem o GATILHO de ganho e apontam de volta pra
+  essa explicação, em vez de repetir a restrição inteira.
+- `TERMOS_DE_SERVICO.txt`/`TERMOS_DE_SERVICO_EN.txt` (Seção 5, documento
+  legal de verdade, servido ao vivo em `/termos` via `dashboard.js`
+  `parseTermosFile`) ganharam a mesma restrição explícita ("Hunt não pode,
+  em nenhuma circunstância, ser trocada por Marks, dinheiro real ou
+  virtual, benefícios ou vantagens dentro do jogo, ou skins") e a menção à
+  futura criação de clã — o texto anterior já era bem conservador
+  (nenhuma menção a skins como recompensa, já dizia "sem qualquer efeito,
+  vantagem ou desbloqueio dentro do jogo"), só não tinha a proibição
+  nomeada explicitamente nem a criação de clã como uso futuro previsto.
+- `web/views/hero.ejs` (landing page pública, PT+EN): bloco de feature
+  "PERFIL PRÉ-HISTÓRICO" (explicação da Hunt) e os 3 cards de preço
+  (Free/Compy/Raptor) atualizados no mesmo sentido — cards de Compy/Raptor
+  unificados pra "Ganho extra de Hunt por missão concluída", bullet de
+  sorteio de skin do Raptor removido, texto de "no futuro" sobre sorteios
+  substituído pela restrição de troca (loja de personalização + criação
+  de clã, nunca Marks/dinheiro/vantagem em jogo/skins).
+- NÃO mexido: `src/systems/premium/premiumPanel.js` (aba Player Premium
+  do `/premium`) não tem texto sobre Hunt/sorteio no código — só renderiza
+  a imagem estática `assets/images/VIEW PLAYER PREMIUM.webp` (asset key
+  `view_player_premium`). Essa imagem PODE mostrar o sorteio de skins
+  visualmente (binário, não verificável por código) — precisa ser
+  conferida e regerada manualmente pelo dono se mostrar o benefício
+  removido, mesmo critério já usado pra `TABELA SERVER PREMIUM.webp`
+  (seção "Conventions" do CLAUDE.md).
+- Sistema de Hunt/loja/clãs continua 100% "vindo em breve" — nada disso
+  foi implementado nesta revisão, só a DESCRIÇÃO do que vai valer quando
+  for implementado.
