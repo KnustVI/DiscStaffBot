@@ -163,9 +163,18 @@ module.exports = {
         .setName('strike')
         .setDescription('⚖️ Aplica uma punição a um jogador.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        // Discord exige que opções obrigatórias venham ANTES das opcionais
+        // na lista (rejeitado com erro 50035/APPLICATION_COMMAND_OPTIONS_
+        // REQUIRED_INVALID se não seguir essa ordem — usuario/agid vinham
+        // antes de motivo, o deploy inteiro falhava e o servidor ficava com
+        // a definição antiga do comando, sem nenhum aviso visível pro
+        // staff). `motivo` é a ÚNICA opção realmente obrigatória no schema
+        // do Discord (usuario/agid são opcionais no schema mesmo sendo "pelo
+        // menos um dos dois" na prática — isso é validado em código, não dá
+        // pra expressar "um OU outro" na API do Discord).
+        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
         .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator no Discord (informe este e/ou agid)').setRequired(false))
         .addStringOption(opt => opt.setName('agid').setDescription('Alderon ID do jogador (informe este e/ou usuario)').setRequired(false))
-        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
         .addStringOption(opt => opt.setName('nivel').setDescription('Nível de punição (obrigatório a partir do Rastreador — comece a digitar pra ver as opções)').setRequired(false).setAutocomplete(true))
         .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (só Free — Rastreador+ usa a do nível). Ex: 10m, 1h, 3d, vazio=permanente').setRequired(false))
         .addStringOption(opt => opt.setName('discord_act').setDescription('Ação imediata no Discord (precisa do jogador ter Discord vinculado)')
