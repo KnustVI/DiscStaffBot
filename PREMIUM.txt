@@ -181,11 +181,12 @@ FREE
   (contadores SEPARADOS - pode ter os dois abertos ao mesmo tempo, so nao
   pode abrir um 2o do MESMO tipo), cooldown de 6h entre aberturas (conta
   pra qualquer um dos dois tipos).
-- Punicoes: registro de punicoes via /strike registro (sem niveis - so
-  usuario/motivo/duracao, vazio = permanente). NAO aplica acoes automaticas
-  no Discord (timeout/kick/ban) nem no jogo (RCON). Sem sistema de
-  reputacao (pontos nao sao calculados/salvos). Sem niveis de punicao
-  customizados (0 niveis permitidos - ver secao 14).
+- Punicoes: /strike aplica punicao simples neste tier (sem niveis - so
+  usuario/motivo/duracao, vazio = permanente; `agid` nao se aplica aqui,
+  precisa de `usuario`). NAO aplica acoes automaticas no Discord
+  (timeout/kick/ban) nem no jogo (RCON). Sem sistema de reputacao (pontos
+  nao sao calculados/salvos). Sem niveis de punicao customizados (0 niveis
+  permitidos - ver secao 14).
 - Eventos: /evento cria eventos em foruns, com suporte a imagem de capa -
   sem evento agendado do Discord, sem marcar cargo de notificacao.
 - Integracao Path of Titans: logs de jogo (recebidos normalmente via
@@ -205,21 +206,24 @@ RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$14/mes (fora do Brasil, via Ko-
   punicao, ate 4 niveis de punicao TOTALMENTE customizaveis (nome,
   severidade, pontos, duracao e acao em jogo via RCON - configurados em
   /config punishments, criados via botao "Criar Nivel"), historico de
-  punicoes (/historico liberado). /strike ganha o subcomando ingame (pune
-  so pelo Alderon ID, usando os niveis criados) - funciona pra jogador
-  registrado (/registrar) ou nao: sem vinculo Discord, a acao em jogo e o
-  registro acontecem do mesmo jeito, so nao ha DM nem acao automatica no
-  Discord (sem conta pra notificar/aplicar, mesmo que `discord_act` seja
-  escolhido). Acao em jogo via RCON JA ATIVA aqui (antes so no Cacador).
-  Acao automatica no Discord (timeout/kick/ban) via `/strike ingame`
-  TAMBEM JA ATIVA aqui (JA IMPLEMENTADO - ver secao 75) - opcao
+  punicoes (/historico liberado). A partir daqui `nivel` passa a ser
+  OBRIGATORIO em /strike (selecionado por autocomplete, ja que os niveis
+  sao customizados por servidor, um por um - nao da pra listar como opcao
+  fixa) - duracao/pontos/acao em jogo vem SEMPRE do nivel escolhido, nunca
+  de um valor manual (JA IMPLEMENTADO - ver secao 106, que unificou o
+  comando). Aceita `usuario` e/ou `agid` (pelo menos um dos dois,
+  obrigatorio): informar so `agid` sem conta Discord vinculada pune so em
+  jogo (registra a punicao e aplica a acao em jogo do nivel normalmente,
+  IGNORA `discord_act` - sem conta pra aplicar nele); informar so
+  `usuario` sem Alderon ID vinculado pede pra refazer o comando com
+  `agid`, orientando o jogador a rodar /registrar (a acao em jogo do
+  nivel precisa de um AGID de verdade). Acao em jogo via RCON JA ATIVA
+  aqui (antes so no Cacador). Acao automatica no Discord (timeout/kick/
+  ban) TAMBEM JA ATIVA aqui (JA IMPLEMENTADO - ver secao 75) - opcao
   `discord_act` opcional no comando, aplicada junto da acao em jogo
   quando o alvo tiver conta Discord vinculada. O flag
   `discordActionsEnabled` (premiumSystem.js) ja era true neste tier desde
   antes; faltava só o comando expor a opcao, o que a secao 75 corrigiu.
-  Continua exclusivo do Cacador: o modo manual completo (/strike
-  personalizado, sem niveis, com os campos discord_act/jogo_act
-  independentes e nao presos a um nivel) - ver abaixo.
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
   Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
@@ -270,17 +274,10 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
 - Punicoes: cargo temporario de punicao, ate 10 niveis de punicao
   totalmente customizaveis (JA IMPLEMENTADO - mesmo sistema do Rastreador,
   so que com o dobro do limite de niveis), cargos de reputacao automaticos
-  (Exemplar/Problematico) - acao em jogo via RCON usando niveis (/strike
-  ingame) ja vem desde o Rastreador (ver secao Rastreador acima), aqui so
-  ganha os cargos automaticos de reputacao e a analise de staff. `/strike
-  personalizado` (modo manual completo, restrito ao cargo Supervisor, SEM
-  niveis - so motivo+duracao obrigatorios, aceita usuario OU agid, campos
-  discord_act/jogo_act pra escolher a acao) e EXCLUSIVO deste tier
-  (Rastreador e Free ficam de fora) - e o UNICO jeito de aplicar acao
-  automatica no Discord (timeout/kick/ban) hoje, ja que /strike ingame nao
-  tem essa opcao. Como personalizado nao usa nivel, nao ha pontos de
-  reputacao a descontar - a tela de confirmacao e o resumo avisam o staff
-  disso explicitamente, sugerindo /repset se precisar ajustar manualmente.
+  (Exemplar/Problematico) - o resto de /strike (nivel obrigatorio,
+  discord_act, resolucao de usuario/agid) ja vem desde o Rastreador (ver
+  secao Rastreador acima), aqui so ganha os cargos automaticos de
+  reputacao e a analise de staff.
   Automod diario (recuperacao de reputacao + cargos automaticos) com a
   QUANTIDADE de pontos recuperados por dia configuravel em /config
   punishments (padrao: 1 ponto/dia). Aprovacao de Supervisor por nivel de
@@ -375,11 +372,10 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - Sistema de reputacao ligado a partir do Rastreador (Free = desligado).
 - Acoes automaticas no Discord via /strike (timeout/kick/ban) a partir do
   Rastreador (JA IMPLEMENTADO - ver secao 75; antes so no Cacador, e antes
-  disso o flag ficou pronto mas sem nenhum comando expor a opcao) - via
-  `/strike ingame` (`discord_act` opcional, junto de um nivel) ou
-  `/strike personalizado` (exclusivo Cacador, ver abaixo). No Free a
-  punicao continua so registrada, sem aplicar nenhuma acao (avisado na
-  propria tela de confirmacao do /strike).
+  disso o flag ficou pronto mas sem nenhum comando expor a opcao) - opcao
+  `discord_act` opcional, aplicada junto da acao em jogo do nivel
+  escolhido. No Free a punicao continua so registrada, sem aplicar nenhuma
+  acao (avisado na propria tela de confirmacao do /strike).
 - Acao em jogo (RCON) a partir do Rastreador - antes so no Cacador.
 - Aprovacao de Supervisor por severidade (niveis Grave/Severa) OU duracao
   (>72h ou permanente), em qualquer tier.
@@ -389,20 +385,19 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   automatica dos pontos configurados antes desta revisao (settings antigos
   strike_points_1..5 ficam inertes no banco; cada servidor recria os
   niveis do zero em /config punishments).
-- /strike virou 1 comando com 3 subcomandos: registro (simples, sem
-  nivel/acao automatica, disponivel em QUALQUER tier), ingame (pune so pelo
-  Alderon ID, usa um nivel pra aplicar acao em jogo via RCON, a partir do
-  Rastreador, funciona registrado ou nao - `discord_act` opcional JA
-  IMPLEMENTADO desde a secao 75, aplica tambem no Discord se o alvo tiver
-  conta vinculada) e personalizado (modo manual completo, restrito ao
-  cargo Supervisor E EXCLUSIVO do Cacador - Rastreador e Free ficam de
-  fora - SEM niveis, so motivo+duracao obrigatorios, aceita usuario OU
-  agid, unico SEM nivel que ainda assim tem discord_act/jogo_act
-  independentes). Ingame/personalizado sao os unicos que aplicam acoes
-  automaticas - registro e so isso mesmo, registro.
-  Um /strike "sem subcomando nenhum" nao e possivel -
-  a API do Discord nao deixa misturar opcoes de topo com subcomandos no
-  mesmo comando.
+- /strike virou 1 comando UNICO, SEM subcomandos (JA IMPLEMENTADO - ver
+  secao 106) - o antigo modo manual (`/strike personalizado`, sem nivel,
+  exclusivo Cacador) foi REMOVIDO por completo: toda punicao a partir do
+  Rastreador agora usa um nivel, sem excecao. Campos: `usuario` (opcional),
+  `agid` (opcional, pelo menos um dos dois e obrigatorio), `motivo`
+  (sempre obrigatorio), `nivel` (por autocomplete, OBRIGATORIO a partir do
+  Rastreador - Free nao tem niveis, entao nao se aplica), `duracao` (so
+  usada no Free - Rastreador+ usa sempre a duracao do nivel escolhido) e
+  `discord_act` (opcional). No Free, o comando funciona como o antigo
+  "registro": so `usuario`+`motivo`(+`duracao`), sem nivel/RCON/acao
+  automatica. No Rastreador+: `agid` sem vinculo Discord pune so em jogo
+  (ignora `discord_act`); `usuario` sem AGID vinculado pede pra refazer o
+  comando com `agid`.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
   atual de features). /historico staff (sub-comando, so Cacador de
@@ -4630,3 +4625,58 @@ frente, nao so este relatorio):
   citada acima — são dois mecanismos distintos por enquanto (um bônus
   automático do tier, outro uma troca por moeda), até o dono esclarecer
   se um substitui o outro.
+
+106) /strike UNIFICADO: fim dos subcomandos, nível sempre obrigatório a
+     partir do Rastreador (Free mantém o registro simples)
+------------------------------------------------------------------
+- Pedido do dono: os 3 subcomandos (`registro`/`ingame`/`personalizado`)
+  causavam uma inconsistência real — nenhum deles obrigava um nível de
+  punição de verdade (`personalizado` nunca usava nível nenhum, e o staff
+  podia escolher `registro` mesmo num servidor com níveis configurados).
+  `/strike` virou 1 comando ÚNICO, sem subcomando nenhum — campos
+  `usuario` (opcional), `agid` (opcional, pelo menos um dos dois é
+  obrigatório), `motivo` (sempre obrigatório), `nivel`, `duracao` e
+  `discord_act` (opcionais na definição do comando, mas com regras
+  próprias por tier — ver abaixo). `/strike personalizado` (o modo manual
+  sem nível, exclusivo Caçador) foi REMOVIDO por completo — não existe
+  mais punição sem nível a partir do Rastreador.
+- `nivel` agora é selecionado por AUTOCOMPLETE (`setAutocomplete(true)` na
+  opção + `autocomplete()` novo em `strike/index.js`, roteado a partir de
+  `src/events/interactionCreate.js` — PRIMEIRO uso de autocomplete no bot
+  inteiro, infraestrutura nova) em vez do select-menu pós-comando que
+  `ingame.js`/`personalizado.js` usavam antes (`showLevelSelector`/
+  `handleLevelSelect`/`_mergeLevelIntoSession`, removidos de
+  `punishmentSystem.js` por ficarem mortos). Motivo de não dar pra usar
+  `.addChoices()` fixo: níveis são customizados por servidor (até 10 no
+  Caçador), a API do Discord não aceita opção dinâmica sem autocomplete.
+- Free NÃO tem níveis (`maxPunishmentLevels = 0`) — se nível virasse
+  sempre obrigatório, o Free perderia a capacidade de punir por completo.
+  Confirmado com o dono: Free MANTÉM o registro simples de sempre (só
+  `usuario`+`motivo`+`duracao` opcional, sem RCON/nível/ação automática,
+  `agid`/`nivel`/`discord_act` não se aplicam) — `/strike` detecta o tier
+  internamente e chama `registro.js` (mantido quase sem alteração,
+  continua lendo os mesmos nomes de opção) só quando o servidor não é
+  Rastreador+; do Rastreador pra cima, nível é sempre obrigatório e a
+  duração/pontos/ação em jogo vêm sempre dele, nunca de `duracao` (que
+  nesse caso é ignorada).
+- Regras de identificação (usuario/agid) no caminho Rastreador+, pedido
+  literal do dono: nem usuario nem agid informados → erro exigindo pelo
+  menos um; só `agid` sem conta Discord vinculada → segue como alvo
+  sintético "só em jogo" (mesma convenção já existente de
+  `_unregisteredTargetId`) — registra a punição e aplica a ação em jogo
+  do nível normalmente, IGNORANDO `discord_act` (sem conta pra aplicar
+  nele); só `usuario` sem AGID vinculado → erro pedindo pra refazer o
+  comando com `agid`, orientando o jogador a rodar /registrar (a ação em
+  jogo do nível precisa de um Alderon ID de verdade). O aviso de "sem
+  Discord vinculado" aparece na própria prévia de confirmação (campo
+  novo `session.noteText`, generalizado do antigo `reputationNote` — que
+  só existia pra avisar sobre a falta de dedução de reputação do extinto
+  `/strike personalizado` e agora também cobre esse caso, sempre visível
+  independente de `reputationEnabled`).
+- NÃO mudou: `/unstrike` (comando totalmente independente, opera sobre
+  `punishments` já gravadas, nunca dependeu de subcomando nenhum),
+  aprovação de Supervisor por severidade/duração (ou por nível
+  configurável no Caçador), ação em jogo via RCON, cargo temporário de
+  Strike, DM ao alvo, log de punições — todo o núcleo de execução
+  (`_executeStrike`/`applyPunishment`/`buildStrikeConfirmPreview`) é o
+  mesmo de antes, só a IDENTIFICAÇÃO do alvo e a ORIGEM do nível mudaram.

@@ -1,16 +1,17 @@
-// src/commands/strike/registro.js — /strike registro
-// Registro simples de punição — disponível em QUALQUER tier (incluindo
-// Free), sem nível/severidade, sem pontos extras além da dedução padrão de
-// reputação (se o tier tiver reputationEnabled) e sem nenhuma ação
-// automática (nem no Discord, nem em jogo). Ao contrário de /strike ingame
-// e /strike personalizado — que usam um nível pra aplicar ação em jogo via
-// RCON — este subcomando é puramente registro.
+// src/commands/strike/registro.js
+// Caminho FREE do /strike unificado (ver src/commands/strike/index.js) —
+// chamado diretamente de lá quando o servidor não tem plano Rastreador+
+// (sem níveis de punição disponíveis, ver punishmentLevels.js). Registro
+// simples: sem nível/severidade, sem ação automática (nem Discord nem em
+// jogo), só a dedução padrão de reputação (se o tier tiver
+// reputationEnabled). Free perderia a capacidade de punir por completo se
+// nível fosse sempre obrigatório (Free tem maxPunishmentLevels = 0) — por
+// isso este caminho continua existindo à parte, preservando o que já era
+// documentado no Free (ver PREMIUM.txt, seção 1).
 //
-// Nota: um /strike "bare" (sem subcomando nenhum) não é possível enquanto
-// ingame/personalizado existirem como subcomandos — a API do Discord não
-// permite misturar opções de topo com subcomandos no mesmo comando. Por
-// isso este vira um subcomando próprio, com nome "registro" (não "strike",
-// pra evitar a redundância de "/strike strike").
+// Lê `usuario`/`motivo`/`duracao`/`report` direto de interaction.options —
+// são os MESMOS nomes de opção do comando único /strike agora (antes eram
+// opções do subcomando "registro" que dava nome a este arquivo).
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');

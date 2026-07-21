@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/systems/moderation/punishmentSystem.js
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index.js');
 const { EMOJIS } = require('../../database/emojis.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
@@ -416,9 +416,6 @@ const PunishmentSystem = {
                 case 'confirm':
                     await this.handleStrikeConfirmation(interaction, subAction);
                     break;
-                case 'level_select':
-                    await this.handleLevelSelect(interaction, subAction);
-                    break;
                 case 'unstrike_confirm':
                     await this.handleUnstrikeConfirmation(interaction, subAction);
                     break;
@@ -427,9 +424,6 @@ const PunishmentSystem = {
                     break;
                 case 'supervisor_reject':
                     await this.handleSupervisorApproval(interaction, param, false);
-                    break;
-                case 'personalizado_identify':
-                    await this.handlePersonalizadoIdentify(interaction, subAction);
                     break;
                 default:
                     await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, COLORS.ERROR, interaction.guild?.name));
@@ -441,108 +435,10 @@ const PunishmentSystem = {
     },
 
     /**
-     * Mostra o select-menu com os níveis de punição do servidor — usado por
-     * ingame.js/personalizado.js (não por registro.js, que é registro puro sem
-     * nível) depois de já terem staged os dados básicos (SessionManager,
-     * chave 'strike_staging'). A escolha do nível é processada por
-     * handleLevelSelect (customId `punishment:level_select:<subcommand>`).
-     */
-    async showLevelSelector(interaction, subcommand) {
-        const guildId = interaction.guildId;
-        const levels = PunishmentLevels.getLevels(guildId);
-        if (levels.length === 0) {
-            return await interaction.editReply(this._simpleReply(
-                `${EMOJIS.circlealert || '❌'} Este servidor ainda não tem nenhum nível de punição configurado. Peça a um administrador para criar em /config punishments.`,
-                COLORS.ERROR, interaction.guild?.name,
-            ));
-        }
-
-        const menu = new StringSelectMenuBuilder()
-            .setCustomId(`punishment:level_select:${subcommand}`)
-            .setPlaceholder('Selecione o nível de punição')
-            .addOptions(levels.map((level) => new StringSelectMenuOptionBuilder()
-                .setLabel(level.name)
-                .setDescription(`${level.severity} | -${level.points} pts | ${level.duration_str || 'Permanente'}`)
-                .setValue(String(level.id))));
-
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        builder.title(`${EMOJIS.gavel || '⚖️'} Escolha o nível de punição`, 1);
-        builder.text('Selecione abaixo qual nível de punição customizado deste servidor será aplicado.');
-        builder.selectMenu(menu);
-        builder.footer(interaction.guild.name, 'Esta seleção expira em 2 minutos.');
-
-        const { components, flags } = builder.build();
-        await interaction.editReply({ components, flags: [flags] });
-    },
-
-    /**
-     * Select-menu de nível (usado por /strike ingame/discord/personalizado) —
-     * o staff já staged os dados básicos (alvo, motivo, overrides) em
-     * SessionManager sob 'strike_staging' antes de mostrar este menu; ao
-     * escolher um nível, mescla os dois e mostra a MESMA prévia de
-     * confirmação usada em qualquer fluxo (buildStrikeConfirmPreview).
-     */
-    async handleLevelSelect(interaction, subcommand) {
-        const guild = interaction.guild;
-        const staff = interaction.user;
-
-        const staging = SessionManager.get(staff.id, guild.id, 'strike_staging', 'strike_staging');
-        if (!staging) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, COLORS.ERROR, guild?.name));
-        }
-
-        const levelId = interaction.values?.[0];
-        const level = PunishmentLevels.getLevel(guild.id, levelId);
-        if (!level) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Este nível não existe mais.`, COLORS.ERROR, guild?.name));
-        }
-
-        const session = this._mergeLevelIntoSession(staging, level);
-        SessionManager.delete(staff.id, guild.id, 'strike_staging', 'strike_staging');
-        SessionManager.set(staff.id, guild.id, 'strike_pending', 'strike_pending', session, 120000);
-
-        const preview = await this.buildStrikeConfirmPreview(session, guild, interaction.member);
-        await interaction.editReply(preview);
-    },
-
-    /**
-     * Combina o nível escolhido com os dados staged pelo subcomando de
-     * /strike — overrides manuais (duração/ação no jogo, só em
-     * /strike personalizado) sempre têm prioridade sobre o valor do nível.
-     */
-    _mergeLevelIntoSession(staging, level) {
-        return {
-            targetId: staging.targetId,
-            // Todo subcomando (registro/ingame/personalizado) já pede motivo
-            // digitado — fallback pro nome do nível só por segurança, nunca
-            // deveria disparar na prática (o motivo vira <banreason>/
-            // <userbanreason> no RCON, mostrado ao próprio jogador punido).
-            reason: staging.reason || `Punição aplicada: ${level.name}`,
-            reportId: staging.reportId || null,
-            levelId: level.id,
-            levelName: level.name,
-            levelSeverity: level.severity,
-            levelAction: staging.jogoActOverride || level.action || 'none',
-            pointsLost: level.points,
-            durationStr: staging.durationOverride || level.duration_str || '',
-            discordAct: staging.discordAct || 'none',
-            jogoAct: staging.jogoActOverride || level.action || 'none',
-            alderonId: staging.alderonId || null,
-            // Nome de exibição pra alvo sem conta Discord vinculada (ver
-            // PunishmentSystem._unregisteredTargetId) — ignorado se o alvo
-            // tiver Discord real, que já tem nome próprio.
-            targetPlayerName: staging.targetPlayerName || null,
-            // Só é consultado no plano Caçador (ver requiresSupervisorApproval)
-            // — Free/Rastreador ignoram e usam a regra automática de sempre.
-            levelRequiresApproval: !!level.requires_supervisor_approval,
-        };
-    },
-
-    /**
-     * Monta o container + botões de confirmação de um /strike (qualquer um
-     * dos 3 subcomandos) — extraído do que antes era montado inline dentro
-     * do antigo comando único /strike, agora reaproveitado por
-     * registro.js/ingame.js/personalizado.js e por handleLevelSelect.
+     * Monta o container + botões de confirmação de um /strike — usado tanto
+     * pelo caminho Free (registro.js, sem nível) quanto pelo caminho
+     * Rastreador+ (src/commands/strike/index.js, sempre com nível) do
+     * comando único /strike (ver ambos pra contexto completo do fluxo).
      *
      * @returns {Promise<{ components: object[], flags: number[] }>} pronto para editReply/reply
      */
@@ -577,9 +473,13 @@ const PunishmentSystem = {
         builder.separator();
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             builder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos a perder:** -${session.pointsLost || 0} (${currentRep} → ${previewPoints})`);
-            if (session.reputationNote) {
-                builder.text(`${EMOJIS.trianglealert || '⚠️'} ${session.reputationNote}`);
-            }
+        }
+        // Nota geral (ex: alvo sem Discord vinculado, punição só em jogo) —
+        // fora do gate de reputação de propósito: é um aviso sobre a
+        // IDENTIDADE do alvo, não sobre pontos, então precisa aparecer
+        // mesmo em planos sem reputationEnabled.
+        if (session.noteText) {
+            builder.text(`${EMOJIS.trianglealert || '⚠️'} ${session.noteText}`);
         }
         builder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
         if (session.discordAct && session.discordAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).discordActionsEnabled) {
@@ -607,79 +507,6 @@ const PunishmentSystem = {
 
         const { components, flags } = builder.build();
         return { components: [...components, row], flags: [flags] };
-    },
-
-    /**
-     * Clique em "Sim"/"Não" no painel de identificação de /strike
-     * personalizado (ver src/commands/strike/personalizado.js
-     * showIdentifyPanel) — mostrado quando só usuario OU só agid foi
-     * informado, sem discord_act/jogo_act.
-     *
-     * "não" → registra sem nenhuma ação, usando o que foi encontrado na
-     * busca (mesmo padrão de /strike registro, mas com o alvo já
-     * identificado por AGID/Discord).
-     * "sim" → não dá pra injetar opções numa interação já em andamento
-     * (discord_act/jogo_act são opções do SLASH COMMAND, fixas na hora de
-     * digitar) — só informa o que foi encontrado e pede pro staff refazer
-     * o comando já com as ações desejadas.
-     */
-    async handlePersonalizadoIdentify(interaction, decision) {
-        const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_personalizado_identify', 'strike_personalizado_identify');
-        if (!session) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike personalizado novamente.`, COLORS.ERROR, interaction.guild?.name));
-        }
-        SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_personalizado_identify', 'strike_personalizado_identify');
-
-        if (decision === 'no') {
-            const guild = interaction.guild;
-            const staff = interaction.user;
-
-            const isUnregisteredTarget = this._isUnregisteredTargetId(session.targetId);
-            let targetMember = null;
-            if (!isUnregisteredTarget) {
-                targetMember = await guild.members.fetch(session.targetId).catch(() => null);
-            }
-            const isStaffHigher = targetMember &&
-                targetMember.roles.highest.position >= interaction.member.roles.highest.position &&
-                staff.id !== guild.ownerId;
-            if (isStaffHigher) {
-                db.logActivity(guild.id, staff.id, 'strike_denied', session.targetId, { command: 'strike_personalizado', reason: 'Hierarquia insuficiente' });
-                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Você não pode punir este membro.`, COLORS.ERROR, guild.name));
-            }
-
-            const finalSession = {
-                targetId: session.targetId,
-                alderonId: session.alderonId || null,
-                targetPlayerName: session.targetPlayerName || null,
-                reason: session.reason,
-                reportId: session.reportId,
-                durationStr: session.durationStr,
-                discordAct: 'none',
-                jogoAct: 'none',
-                pointsLost: 0,
-                levelId: null, levelName: null, levelSeverity: null,
-                // Mesmo aviso de src/commands/strike/personalizado.js
-                // (proceedToConfirm) — este caminho ("não aplicar ação") é o
-                // outro lugar que monta uma sessão de /strike personalizado.
-                reputationNote: 'Este subcomando não usa níveis de punição, nenhuma dedução de reputação é aplicada aqui... Se necessário use /repset.',
-            };
-
-            SessionManager.set(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending', finalSession, 120000);
-            const preview = await this.buildStrikeConfirmPreview(finalSession, guild, interaction.member);
-            return await interaction.editReply(preview);
-        }
-
-        if (decision === 'yes') {
-            const identity = session.discordMention
-                ? `${session.discordMention}${session.alderonId ? ` \`${session.alderonId}\`` : ''}`
-                : `${session.targetPlayerName || 'jogador'}${session.alderonId ? ` \`${session.alderonId}\`` : ''}`;
-            return await interaction.editReply(this._simpleReply(
-                `${EMOJIS.circlecheck || '✅'} Identificado: ${identity}. Rode **/strike personalizado** de novo com os mesmos dados, agora preenchendo \`discord_act\` e/ou \`jogo_act\` com a ação desejada.`,
-                COLORS.DEFAULT, interaction.guild?.name,
-            ));
-        }
-
-        return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação não reconhecida.`, COLORS.ERROR, interaction.guild?.name));
     },
 
     async handleStrikeConfirmation(interaction, action) {
@@ -912,7 +739,7 @@ const PunishmentSystem = {
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId, targetPlayerName, reputationNote } = session;
+        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId, targetPlayerName, noteText } = session;
 
         // Alvo sem conta Discord conhecida (ver UNREGISTERED_TARGET_PREFIX) —
         // não tem User/Member real pra buscar, monta um "usuário" sintético só
@@ -1106,7 +933,7 @@ const PunishmentSystem = {
 
         return {
             success: true, strikeId, targetUser, pointsLost, newPoints,
-            dmDelivered, logSent, roleStatusMsg, ingameActionResult, isUnregisteredTarget, reputationNote,
+            dmDelivered, logSent, roleStatusMsg, ingameActionResult, isUnregisteredTarget, noteText,
         };
     },
 
@@ -1126,8 +953,8 @@ const PunishmentSystem = {
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             lines.push(`${emojis.doublearrowdown || '📉'} ${result.pointsLost} pts perdidos`);
             lines.push(`${emojis.star || '⭐'} Reputação: ${result.newPoints}/100`);
-            if (result.reputationNote) lines.push(`${emojis.trianglealert || '⚠️'} ${result.reputationNote}`);
         }
+        if (result.noteText) lines.push(`${emojis.trianglealert || '⚠️'} ${result.noteText}`);
         lines.push(dmStatusMsg);
         if (result.roleStatusMsg) lines.push(result.roleStatusMsg);
         if (result.ingameActionResult) lines.push(`${emojis.game || '🎮'} ${result.ingameActionResult}`);

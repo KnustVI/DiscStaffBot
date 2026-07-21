@@ -22,6 +22,26 @@ module.exports = {
         const safeGuildId = interaction.guildId || 'dm';
 
         try {
+            // ==================== AUTOCOMPLETE ====================
+            // Tem que vir ANTES de isCommand() (são tipos de interação
+            // diferentes, mas melhor não depender só disso) e NUNCA passar
+            // por deferReply/handleCommand — autocomplete responde com
+            // interaction.respond() em até 3s, não aceita defer nenhum.
+            if (interaction.isAutocomplete()) {
+                const command = client.commands.get(interaction.commandName);
+                if (command && typeof command.autocomplete === 'function') {
+                    try {
+                        await command.autocomplete(interaction, client);
+                    } catch (err) {
+                        console.error(`❌ Erro no autocomplete de /${interaction.commandName}:`, err);
+                        await interaction.respond([]).catch(() => {});
+                    }
+                } else {
+                    await interaction.respond([]).catch(() => {});
+                }
+                return;
+            }
+
             if (interaction.isCommand()) {
                 await handler.handleCommand(interaction);
                 return;
