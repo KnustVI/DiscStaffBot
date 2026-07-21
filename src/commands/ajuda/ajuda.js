@@ -85,7 +85,7 @@ function buildPageSetupModeration(guildName, emojis) {
     builder.block([
         '• Máximo: **100 pontos** | Mínimo: **0 pontos**.',
         '• Perda por strike a partir do plano **Rastreador** (no Free, o strike fica registrado, mas não mexe em pontos).',
-        '• Recuperação automática diária a partir do plano **Rastreador**: fixa em **1 ponto/dia**. No plano **Caçador**, essa quantidade é configurável em /config punishments (ver tópico Premium).',
+        '• Recuperação automática diária a partir do plano **Rastreador**: fixa em **1 ponto/dia**. No plano **Caçador**, essa quantidade é configurável em /config punishments.',
     ]);
 
     builder.footer(guildName);
@@ -126,40 +126,6 @@ function buildPageSystems(guildName, emojis) {
     return builder;
 }
 
-function buildPagePremium(guildName, emojis) {
-    const builder = newPage(emojis);
-    pageHeader(builder, 'PREMIUM', 'O Titan\'s Pass tem dois planos pagos, independentes entre si:');
-
-    builder.title(`${emojis.badge || '🏅'} Player Premium (por jogador, global)`, 2);
-    builder.block([
-        '• **Free** — perfil sincronizado com Discord. *(server badges, títulos e boost de farm: vindo em breve)*',
-        '• **Compy (R$10/mês)** — tudo do Free + perfil personalizável pela loja, badge/títulos exclusivos e boost de farm por troféu. *(vindo em breve)*',
-        '• **Raptor (R$25/mês)** — tudo do Compy + perfil 100% personalizado (banner próprio, já disponível via `/perfil-edit`), boost de farm por missão e sorteio semanal de skin do PoT. *(os dois últimos: vindo em breve)*',
-        `• Esse vínculo é **global** — vale em qualquer servidor com o bot, uma assinatura só.`,
-    ]);
-    builder.separator();
-
-    builder.title(`${emojis.shield || '🛡️'} Server Premium (por servidor)`, 2);
-    builder.block([
-        '• **Free** — logs de sistema (inclui logs de jogo); 1 chat de reporte + 1 revisão de punição abertos por vez, 6h de cooldown; sem reputação, sem ações automáticas de punição (Discord ou jogo); `/evento` só posta no fórum.',
-        '• **Rastreador (R$25/mês)** — tudo do Free + 3 chats + 3 revisões sem cooldown, reputação ativada, `/historico` liberado, `/evento` cria também o evento agendado do Discord, ações automáticas de punição no Discord e no jogo (RCON) já liberadas pelo `/strike`.',
-        '• **Caçador (R$40/mês)** — tudo do Rastreador + chats/revisões ilimitados, automod diário, análise de staff. O dono do servidor ganha Player Premium **Raptor** de bônus (Rastreador dá **Compy**).',
-        `• ${emojis.trianglealert || '⚠️'} É preciso ser um Host de Path of Titans pra adquirir qualquer tier pago do Server Premium.`,
-    ]);
-    builder.separator();
-
-    builder.title(`${emojis.gauge || '📊'} Como conferir seu tier`, 2);
-    builder.block([
-        '• **/perfil** — mostra seu Player Premium, se houver.',
-        '• **/premium** — mostra todos os planos, valores, como adquirir, e o Server/Player Premium atuais.',
-    ]);
-    builder.separator();
-    builder.text(`${emojis.messagesquare || 'ℹ️'} A concessão hoje é manual — fale com o desenvolvedor do bot (**/reportarbug**, opção Sugestão) pra assinar.`);
-
-    builder.footer(guildName);
-    return builder;
-}
-
 // ==================== TÓPICO — MEMBROS COMUNS ====================
 
 function buildPageUserSimple(displayName, guildName, emojis) {
@@ -180,7 +146,7 @@ function buildPageUserSimple(displayName, guildName, emojis) {
 
     builder.title(`${emojis.star || '⭐'} Reputação`, 2);
     builder.block([
-        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Rastreador — ver tópico Premium).',
+        '• Sua reputação começa em **100 pontos** (recurso a partir do plano Rastreador).',
         '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo.',
         '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos (só no plano Caçador).',
     ]);
@@ -242,14 +208,12 @@ function getTopics(isAdmin, ctx) {
             { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageWelcome(displayName, guildName, emojis, true) },
             { key: 'setup', label: 'Configuração & Moderação', emoji: emojis.gavel || '⚖️', build: () => buildPageSetupModeration(guildName, emojis) },
             { key: 'systems', label: 'Sistemas do Servidor', emoji: emojis.trendingup || '📈', build: () => buildPageSystems(guildName, emojis) },
-            { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
             { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
         ];
     }
 
     return [
         { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
-        { key: 'premium', label: 'Premium', emoji: emojis.badge || '🏅', build: () => buildPagePremium(guildName, emojis) },
         { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
     ];
 }
