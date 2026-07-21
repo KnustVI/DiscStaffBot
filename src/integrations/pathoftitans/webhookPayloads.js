@@ -57,10 +57,11 @@ function formatDamageType(type) {
     return DAMAGE_TYPE_LABELS[type] || type || 'Desconhecida';
 }
 
-// Texto explicativo do relatório de combate/dano (mesmo aviso nos dois
-// formatos, combate e isolado) — reescrito a pedido do dono pra explicar O
-// MECANISMO de captura (por que pode vir incompleto/fora de ordem), em vez
-// de só avisar "pode estar errado" sem dizer o motivo.
+// Texto explicativo do RELATÓRIO DE COMBATE (multi-jogador) — reescrito a
+// pedido do dono pra explicar O MECANISMO de captura (por que pode vir
+// incompleto/fora de ordem), em vez de só avisar "pode estar errado" sem
+// dizer o motivo. NÃO usado no Relatório de Dano Isolado (pedido do dono:
+// dano próprio/ambiente não precisa desse aviso).
 const DAMAGE_REPORT_DISCLAIMER =
     'O relatório de combate capta primeiro todo o dano causado a um jogador até ele não tomar mais dano por um determinado tempo, cada dano é relatado em ordem e de acordo com o que recebemos do jogo. Por vários motivos ele pode não estar 100% correto.\n' +
     '- Valores de dano são aproximados.';
@@ -957,7 +958,6 @@ function buildDamageReportPayload(encounter, guild) {
         // "jogadores envolvidos" nem de "local" — vai direto pro cabeçalho
         // do jogador e a lista de dano.
         addTitle(`${e('olho', '👁️')} RELATÓRIO DE DANO ISOLADO`, 1);
-        addText(DAMAGE_REPORT_DISCLAIMER);
 
         const [onlyKey] = encounter.participants.keys();
         const p = participant(onlyKey);
