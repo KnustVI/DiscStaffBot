@@ -352,15 +352,18 @@ function loadDashboard(client) {
     });
 
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
+    // Só mostra servidores onde o bot JÁ ESTÁ (pedido do dono) — antes
+    // listava todo servidor que o usuário administra no Discord, mesmo sem
+    // o bot lá (o ícone levava pra /moderacao/:guildID, que redireciona de
+    // volta pro dashboard nesse caso já que client.guilds.cache não acha a
+    // guild — clicável, mas sem nenhum efeito visível, confuso).
     app.get('/dashboard', (req, res) => {
         let adminGuilds = [];
         if (req.user && req.user.guilds) {
             adminGuilds = req.user.guilds.filter(g =>
-                (parseInt(g.permissions) & 0x8) === 0x8 // Permissão de ADMINISTRADOR
-            ).map(g => ({
-                ...g,
-                botIn: client.guilds.cache.has(g.id)
-            }));
+                (parseInt(g.permissions) & 0x8) === 0x8 && // Permissão de ADMINISTRADOR
+                client.guilds.cache.has(g.id) // bot precisa estar no servidor
+            );
         }
         res.render('index', { guilds: adminGuilds });
     });
