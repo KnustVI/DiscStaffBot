@@ -60,7 +60,7 @@
 
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
 
-        <%- include('partials/page-header', { guild, pageLabel: 'REPORTES' }) %>
+        <%- include('partials/page-header', { guild, pageLabel: 'REPORTES', pageRoute, otherGuilds }) %>
 
         <div id="ingamePulseRoot" data-guild-id="<%= guild.id %>" data-show-roster="false">
             <%- include('partials/ingame-pulse', { pulse, showRoster: false }) %>

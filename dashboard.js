@@ -286,6 +286,19 @@ function loadDashboard(client) {
         res.redirect('/dashboard');
     }
 
+    // Servidores que o usuário administra E onde o bot já está — mesmo
+    // filtro usado em /dashboard (ver rota abaixo), reaproveitado pelo
+    // seletor de servidor no ícone do page-header (troca de servidor sem
+    // precisar voltar pro /dashboard) nas páginas de Moderação/Reports/
+    // Eventos.
+    function getAdminGuildsWithBot(req) {
+        if (!req.user || !req.user.guilds) return [];
+        return req.user.guilds.filter(g =>
+            (parseInt(g.permissions) & 0x8) === 0x8 && // Permissão de ADMINISTRADOR
+            client.guilds.cache.has(g.id) // bot precisa estar no servidor
+        );
+    }
+
     // Middleware para injetar dados globais em todos os templates EJS
     app.use((req, res, next) => {
         res.locals.user = req.user || null;
@@ -358,14 +371,7 @@ function loadDashboard(client) {
     // volta pro dashboard nesse caso já que client.guilds.cache não acha a
     // guild — clicável, mas sem nenhum efeito visível, confuso).
     app.get('/dashboard', (req, res) => {
-        let adminGuilds = [];
-        if (req.user && req.user.guilds) {
-            adminGuilds = req.user.guilds.filter(g =>
-                (parseInt(g.permissions) & 0x8) === 0x8 && // Permissão de ADMINISTRADOR
-                client.guilds.cache.has(g.id) // bot precisa estar no servidor
-            );
-        }
-        res.render('index', { guilds: adminGuilds });
+        res.render('index', { guilds: getAdminGuildsWithBot(req) });
     });
 
     // Home do Servidor (Stats)
@@ -494,14 +500,25 @@ function loadDashboard(client) {
         const roles = [...guild.roles.cache.values()].filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position);
         const staffRoleIds = ConfigSystem.getRoleIds(guildID, 'staff_role');
         const supervisorRoleIds = ConfigSystem.getRoleIds(guildID, 'supervisor_role');
+        // Mesmo limite por tier já usado no painel /config roles do Discord
+        // (ver configSystem.js ROLE_TABS.moderation.fields[*].roleLimitKey) —
+        // decide se cada campo vira select simples ou chips+botão de
+        // adicionar em partials/role-picker.ejs.
+        const roleLimits = {
+            moderador: PremiumSystem.getRoleLimit(guildID, 'moderador'),
+            supervisor: PremiumSystem.getRoleLimit(guildID, 'supervisor'),
+        };
 
         res.render('moderacao', {
             guild,
             nickname: member.nickname || member.user.username,
             role: 'Administrador',
+            pageRoute: 'moderacao',
+            otherGuilds: getAdminGuildsWithBot(req),
             pulse,
             staffRoleIds,
             supervisorRoleIds,
+            roleLimits,
             openReportsAlert,
             punActive,
             punTotal,
@@ -530,8 +547,23 @@ function loadDashboard(client) {
         // o card de cargos apagaria panel_accent_color/panel_footer_text (e
         // vice-versa) por eles chegarem undefined no req.body.
         const body = req.body;
-        if ('staff_role' in body) ConfigSystem.setRoleIds(guildID, 'staff_role', body.staff_role ? [body.staff_role] : []);
-        if ('supervisor_role' in body) ConfigSystem.setRoleIds(guildID, 'supervisor_role', body.supervisor_role ? [body.supervisor_role] : []);
+        // MODERADOR/SUPERVISOR agora aceitam mais de um cargo (ver
+        // partials/role-picker.ejs) — cada cargo chega como um hidden
+        // input separado, mesmo `name`; com express.urlencoded({extended:
+        // true}) isso já vira array sozinho, mas um só cargo ainda chega
+        // como string solta (comportamento do próprio parser), daí o
+        // toArray. Limite reaplicado aqui (defesa em profundidade: mesmo
+        // limite do tier, ver PremiumSystem.getRoleLimit) — o picker já
+        // trava no client, mas um POST forjado não passa por ele.
+        const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
+        if ('staff_role' in body) {
+            const limit = PremiumSystem.getRoleLimit(guildID, 'moderador');
+            ConfigSystem.setRoleIds(guildID, 'staff_role', toArray(body.staff_role).filter(Boolean).slice(0, limit));
+        }
+        if ('supervisor_role' in body) {
+            const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
+            ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
+        }
         if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
         if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
         if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
@@ -580,6 +612,8 @@ function loadDashboard(client) {
             guild,
             nickname: member.nickname || member.user.username,
             role: 'Administrador',
+            pageRoute: 'reports',
+            otherGuilds: getAdminGuildsWithBot(req),
             pulse,
             openReports,
             closedReports,
@@ -619,6 +653,8 @@ function loadDashboard(client) {
             guild,
             nickname: member.nickname || member.user.username,
             role: 'Administrador',
+            pageRoute: 'events',
+            otherGuilds: getAdminGuildsWithBot(req),
             pulse,
             happeningNow,
             scheduledEvents,

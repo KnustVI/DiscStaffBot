@@ -32,7 +32,7 @@
 
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
 
-        <%- include('partials/page-header', { guild, pageLabel: 'MODERAÇÃO' }) %>
+        <%- include('partials/page-header', { guild, pageLabel: 'MODERAÇÃO', pageRoute, otherGuilds }) %>
 
         <% if (typeof success !== 'undefined' && success) { %>
             <div class="titan-card-premium !py-4 !px-6 text-sm text-titan-gold">Configurações salvas.</div>
@@ -105,10 +105,16 @@
             BaseButtonCard/Button.text no final, não um botão único pra tudo) —
             também evita que salvar um card apague campos dos outros dois
             (dashboard.js só grava as chaves presentes no req.body de cada
-            submit). Campos de cargo continuam select (não o TextFieldWeb de
-            texto livre do Figma) porque a config real do bot é sempre um
-            Discord role id, não uma string digitada — só a casca visual
-            (wrapper dourado + campo escuro) segue o CSS exato.
+            submit). Campos de cargo usam partials/role-picker (Figma
+            "TextFieldMobile" — cápsula + botão circular de adicionar) em
+            vez do TextFieldWeb de texto livre, porque a config real do bot
+            é sempre um Discord role id, não uma string digitada. Cada
+            campo vira select simples OU chips+botão "+" dependendo do
+            limite de cargos do tier atual (roleLimits, mesmo
+            PremiumSystem.getRoleLimit do painel /config roles do Discord)
+            — MODERADOR/SUPERVISOR aceitam mais de um cargo a partir do
+            Rastreador/Caçador; STRIKE/EXEMPLAR/PROBLEMÁTICO são sempre um
+            só (sem roleLimitKey em configSystem.js).
         %>
         <section class="flex flex-col gap-6">
             <h2 class="section-title text-sm px-2">Configurações</h2>
@@ -129,16 +135,7 @@
                                 <p class="config-field-desc">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
                             </div>
                         </div>
-                        <div class="config-field-input">
-                            <div class="config-field-input-inner">
-                                <select name="staff_role" class="config-field-select">
-                                    <option value="">— selecione um cargo —</option>
-                                    <% roles.forEach(r => { %>
-                                        <option value="<%= r.id %>" <%= staffRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-                        </div>
+                        <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador }) %>
                     </div>
 
                     <div class="config-field">
@@ -149,16 +146,7 @@
                                 <p class="config-field-desc">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
                             </div>
                         </div>
-                        <div class="config-field-input">
-                            <div class="config-field-input-inner">
-                                <select name="supervisor_role" class="config-field-select">
-                                    <option value="">— selecione um cargo —</option>
-                                    <% roles.forEach(r => { %>
-                                        <option value="<%= r.id %>" <%= supervisorRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-                        </div>
+                        <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor }) %>
                     </div>
                 </div>
 
@@ -181,16 +169,7 @@
                                 <p class="config-field-desc">Atribuído automaticamente enquanto uma punição temporária está ativa. Removido quando a punição expira ou é anulada.</p>
                             </div>
                         </div>
-                        <div class="config-field-input">
-                            <div class="config-field-input-inner">
-                                <select name="strike_role" class="config-field-select">
-                                    <option value="">— selecione um cargo —</option>
-                                    <% roles.forEach(r => { %>
-                                        <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-                        </div>
+                        <%- include('partials/role-picker', { id: 'strike-role', name: 'strike_role', roles, selectedIds: settings.strike_role ? [settings.strike_role] : [], limit: 1 }) %>
                     </div>
 
                     <div class="config-field">
@@ -204,16 +183,7 @@
                                 <p class="config-field-desc">Atribuído automaticamente a membros com reputação acima do limite configurado em /config punishments. Indica bom comportamento.</p>
                             </div>
                         </div>
-                        <div class="config-field-input">
-                            <div class="config-field-input-inner">
-                                <select name="role_exemplar" class="config-field-select">
-                                    <option value="">— selecione um cargo —</option>
-                                    <% roles.forEach(r => { %>
-                                        <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-                        </div>
+                        <%- include('partials/role-picker', { id: 'role-exemplar', name: 'role_exemplar', roles, selectedIds: settings.role_exemplar ? [settings.role_exemplar] : [], limit: 1 }) %>
                     </div>
 
                     <div class="config-field">
@@ -227,16 +197,7 @@
                                 <p class="config-field-desc">Atribuído automaticamente a membros com reputação abaixo do limite configurado em /config punishments. Sinaliza comportamento problemático.</p>
                             </div>
                         </div>
-                        <div class="config-field-input">
-                            <div class="config-field-input-inner">
-                                <select name="role_problematico" class="config-field-select">
-                                    <option value="">— selecione um cargo —</option>
-                                    <% roles.forEach(r => { %>
-                                        <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
-                                    <% }); %>
-                                </select>
-                            </div>
-                        </div>
+                        <%- include('partials/role-picker', { id: 'role-problematico', name: 'role_problematico', roles, selectedIds: settings.role_problematico ? [settings.role_problematico] : [], limit: 1 }) %>
                     </div>
                 </div>
 
@@ -327,5 +288,6 @@
 
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script src="/js/ingame-pulse-poll.js"></script>
+    <script src="/js/role-picker.js"></script>
 </body>
 </html>

@@ -1,0 +1,87 @@
+<%#
+  web/views/partials/role-picker.ejs
+  Componente de seleção de cargo (spec Figma: "TextFieldMobile" — cápsula
+  dourada + campo escuro + botão circular de adicionar), usado em todo
+  campo de cargo da Configurações. Reaproveita a MESMA casca visual do
+  TextFieldWeb já usada em COR/FOOTER (.config-field-input/-inner/-select,
+  ver style.css) — só acrescenta o que faltava pro Figma novo: chips
+  removíveis + botão circular "+".
+
+  Dois modos, decididos por `limit` (tier atual, mesmo
+  PremiumSystem.getRoleLimit já usado no painel /config roles do Discord —
+  ver configSystem.js ROLE_TABS[*].fields[*].roleLimitKey):
+    - limit <= 1: select simples estilizado (sem chips/botão) — o próprio
+      <select> já É o campo submetido (name=<name>). Cobre strike_role/
+      role_exemplar/role_problematico (sem roleLimitKey, sempre 1) e
+      qualquer campo multi quando o tier atual só permite 1 mesmo.
+    - limit > 1: chips + select (só cargos AINDA não escolhidos) + botão
+      "+" até o limite. Cada cargo vira um <input type="hidden"
+      name=<name>> — com express.urlencoded({extended:true}) (já
+      configurado em dashboard.js), múltiplos campos com o MESMO name
+      viram um array em req.body sozinhos, sem nada extra no server.
+
+  Uso: include( partials/role-picker , { id, name, roles, selectedIds, limit } )
+    id          — string única na página (prefixo dos ids internos)
+    name        — nome do campo do form (ex: staff_role)
+    roles       — array de cargos do servidor [{ id, name }, ...]
+    selectedIds — array de ids já selecionados (na ordem salva)
+    limit       — número máximo de cargos pra este campo, no tier atual
+%>
+<%
+    const rpId = String(id).replace(/[^a-zA-Z0-9_-]/g, '');
+    const rpLimit = Math.max(1, Number(limit) || 1);
+    const rpSelected = (selectedIds || []).map(rid => roles.find(r => r.id === rid)).filter(Boolean);
+    const rpAvailable = roles.filter(r => !rpSelected.some(s => s.id === r.id));
+%>
+<% if (rpLimit <= 1) { %>
+    <div class="config-field-input">
+        <div class="config-field-input-inner">
+            <select name="<%= name %>" class="config-field-select">
+                <option value="">— selecione um cargo —</option>
+                <% roles.forEach(r => { %>
+                    <option value="<%= r.id %>" <%= (rpSelected[0] && rpSelected[0].id === r.id) ? 'selected' : '' %>><%= r.name %></option>
+                <% }); %>
+            </select>
+        </div>
+    </div>
+<% } else { %>
+    <div class="role-picker" data-role-picker data-name="<%= name %>" data-limit="<%= rpLimit %>" id="rp-<%= rpId %>">
+        <%# roles vem de guild.roles.cache (instâncias reais do discord.js) —
+            nunca stringify direto: além de inflar o payload à toa, algumas
+            versões carregam referência de volta pra guild/client, o que
+            quebra JSON.stringify com "Converting circular structure to
+            JSON". Reduz pra só id/name antes, mesmo dado que o resto do
+            template já usa. %>
+        <script type="application/json" class="role-picker-data"><%- JSON.stringify(roles.map(r => ({ id: r.id, name: r.name }))).replace(/</g, '\\u003c') %></script>
+
+        <div class="role-picker-chips" data-chips>
+            <% rpSelected.forEach(r => { %>
+                <span class="role-chip" data-role-id="<%= r.id %>">
+                    <span class="role-chip-name"><%= r.name %></span>
+                    <button type="button" class="role-chip-remove" aria-label="Remover cargo">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <input type="hidden" name="<%= name %>" value="<%= r.id %>">
+                </span>
+            <% }); %>
+        </div>
+
+        <div class="role-picker-row" data-row <%- rpSelected.length >= rpLimit ? 'style="display:none;"' : '' %>>
+            <div class="config-field-input">
+                <div class="config-field-input-inner">
+                    <select class="config-field-select" data-select>
+                        <option value="">— selecione um cargo —</option>
+                        <% rpAvailable.forEach(r => { %>
+                            <option value="<%= r.id %>"><%= r.name %></option>
+                        <% }); %>
+                    </select>
+                </div>
+            </div>
+            <button type="button" class="role-picker-add-btn" data-add aria-label="Adicionar cargo">
+                <i data-lucide="plus"></i>
+            </button>
+        </div>
+
+        <span class="role-picker-limit" data-counter><%= rpSelected.length %>/<%= rpLimit %> cargos</span>
+    </div>
+<% } %>

@@ -447,8 +447,6 @@ text-align: center;
 .config-card {
     box-sizing: border-box;
     width: 100%;
-    max-width: 1430px;
-    margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -577,6 +575,84 @@ text-align: center;
 .config-field-select { appearance: none; -webkit-appearance: none; cursor: pointer; }
 .config-field-select option { background: #1F1D20; color: #F8DCC0; }
 .config-field-text-input::placeholder { color: #3E3D38; }
+
+/* Seletor de cargo com suporte a MÚLTIPLOS valores (Figma: "TextFieldMobile"
+   — cápsula + botão circular "+") — ver partials/role-picker.ejs. O campo
+   em si (.config-field-input dentro de .role-picker-row) reaproveita a
+   mesma casca do TextFieldWeb acima; só os chips e o botão são novos. */
+.role-picker { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.role-picker-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.role-chip {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 14px;
+    background: #1F1D20;
+    border: 1px solid #DCA15E;
+    border-radius: 147.5px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: #F8DCC0;
+    max-width: 100%;
+}
+.role-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-chip-remove {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    color: #DCA15E;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+.role-chip-remove:hover { background: #803E30; color: #F8DCC0; }
+.role-chip-remove i { width: 14px; height: 14px; }
+
+.role-picker-row { display: flex; align-items: center; gap: 12px; width: 100%; }
+.role-picker-row .config-field-input { flex: 1 1 auto; min-width: 0; }
+
+/* Botão circular de adicionar (Figma: "Margin"+"Ellipse 67", 39x37) — cor
+   cream por padrão, mesma paleta "Disabled" do resto do arquivo quando o
+   limite do tier é atingido (linha escondida via JS antes de precisar
+   desabilitar o botão em si, mas o :disabled fica de defesa). */
+.role-picker-add-btn {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 39px;
+    height: 37px;
+    flex: none;
+    background: #F8DCC0;
+    border: none;
+    border-radius: 50%;
+    color: #1F1D20;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.role-picker-add-btn:hover { background: #DCA15E; transform: scale(1.06); }
+.role-picker-add-btn:disabled {
+    background: #2A2A2A;
+    color: #3E3D38;
+    cursor: not-allowed;
+    transform: none;
+}
+.role-picker-add-btn i { width: 18px; height: 18px; }
+
+.role-picker-limit {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    color: #A89986;
+}
 
 /* Sub-título interno (Figma: "STRIKE E UNSTRIKE" dentro do card de
    Personalização, mesmo estilo "Head" do título do card, só menor). */
