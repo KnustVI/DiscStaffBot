@@ -110,9 +110,20 @@ async function getServerPulse(guildId, guild) {
 }
 
 // Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
-// — usado aqui só pra liberar o preview de região (BR/internacional) da
-// landing page pro dono logado, ver rota GET / mais abaixo.
+// — usado aqui pra liberar o preview de região (BR/internacional) da
+// landing page pro dono logado (GET /) e, agora, pra travar o dashboard
+// só pro dono enquanto ele está em desenvolvimento (ver
+// DASHBOARD_LOCKED_TO_OWNER abaixo).
 const DEVELOPER_ID = '203676076189286412';
+
+// Trava temporária (pedido do dono, 2026-08-02): enquanto o dashboard
+// ainda está em desenvolvimento, só quem loga com o DEVELOPER_ID acima
+// consegue de fato entrar — visitante não logado ainda vê o botão de
+// login normal (senão o próprio dono nunca provaria quem é), mas
+// qualquer OUTRA conta logada esbarra num aviso em vez do conteúdo real
+// (ver GET /dashboard e o gate em /moderacao, /reports, /events abaixo).
+// Pra reabrir o dashboard pro público, é só trocar pra false.
+const DASHBOARD_LOCKED_TO_OWNER = true;
 
 // ==================== PARSER DE TERMOS_DE_SERVICO.txt ====================
 // O .txt usa uma marcação própria (pensada pra ficar legível cru, sem
@@ -299,6 +310,16 @@ function loadDashboard(client) {
         );
     }
 
+    // Ver DASHBOARD_LOCKED_TO_OWNER no topo do arquivo — chamado logo após
+    // checkAuth (que já garante req.user) em toda página/save de servidor
+    // (moderação/reports/eventos), pra ninguém além do dono entrar
+    // enquanto o dashboard está em desenvolvimento. Manda pra /dashboard
+    // em vez de responder 403 direto porque é lá que mora o aviso
+    // explicando o motivo (ver GET /dashboard).
+    function isDashboardLocked(req) {
+        return DASHBOARD_LOCKED_TO_OWNER && req.user.id !== DEVELOPER_ID;
+    }
+
     // Middleware para injetar dados globais em todos os templates EJS
     app.use((req, res, next) => {
         res.locals.user = req.user || null;
@@ -371,7 +392,11 @@ function loadDashboard(client) {
     // volta pro dashboard nesse caso já que client.guilds.cache não acha a
     // guild — clicável, mas sem nenhum efeito visível, confuso).
     app.get('/dashboard', (req, res) => {
-        res.render('index', { guilds: getAdminGuildsWithBot(req) });
+        // Não logado ainda vê a tela de login normal (pode ser o próprio
+        // dono provando quem é) — só quem JÁ ESTÁ logado como outra conta
+        // vê o aviso de "em desenvolvimento" no lugar da lista de servidores.
+        const locked = DASHBOARD_LOCKED_TO_OWNER && req.user && req.user.id !== DEVELOPER_ID;
+        res.render('index', { guilds: locked ? [] : getAdminGuildsWithBot(req), locked });
     });
 
     // Home do Servidor (Stats)
@@ -471,6 +496,7 @@ function loadDashboard(client) {
 
     // ==================== MODERAÇÃO ====================
     app.get('/moderacao/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
@@ -535,6 +561,7 @@ function loadDashboard(client) {
     });
 
     app.post('/moderacao/:guildID/save', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('Guild não encontrada.');
@@ -579,6 +606,7 @@ function loadDashboard(client) {
 
     // ==================== REPORTS (DENÚNCIAS) ====================
     app.get('/reports/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
@@ -622,6 +650,7 @@ function loadDashboard(client) {
 
     // ==================== EVENTS ====================
     app.get('/events/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
@@ -669,6 +698,7 @@ function loadDashboard(client) {
     });
 
     app.post('/events/:guildID/save', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('Guild não encontrada.');

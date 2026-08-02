@@ -187,7 +187,7 @@
                     </p>
                     <p class="text-titan-cream"
                        style="font-family: 'Poppins', sans-serif; font-size: clamp(12px, 1.3vw, 16px);">
-                        <% if (user) { %> Escolha o servidor que vai manejar <% } else { %> Entre para gerenciar seus servidores <% } %>
+                        <% if (typeof locked !== 'undefined' && locked) { %> Voltamos em breve <% } else if (user) { %> Escolha o servidor que vai manejar <% } else { %> Entre para gerenciar seus servidores <% } %>
                     </p>
                 </div>
             </div>
@@ -214,7 +214,9 @@
                     </div>
 
                     <!-- Grid de Servidores -->
-                    <% if (guilds.length > 0) { %>
+                    <% if (typeof locked !== 'undefined' && locked) { %>
+                        <%- include('partials/dev-overlay-card') %>
+                    <% } else if (guilds.length > 0) { %>
                         <div class="grid"
                              style="grid-template-columns: repeat(3, minmax(30px, 72px)); gap: clamp(8px, 1.6vw, 14px); width: 100%; max-width: 244px;">
 

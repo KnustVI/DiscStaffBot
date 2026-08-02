@@ -1,0 +1,73 @@
+<%#
+  web/views/partials/dev-overlay-card.ejs
+  Cartão "dashboard em desenvolvimento" (pedido do dono, 2026-08-02) — só
+  o CONTEÚDO do aviso, sem o fundo/backdrop de overlay: quem inclui decide
+  se envolve num backdrop fixo (hero.ejs, aparece por cima da página ao
+  clicar no botão Dashboard) ou mostra direto no lugar do conteúdo normal
+  (index.ejs, quando a própria página carrega já bloqueada — ver
+  DASHBOARD_LOCKED_TO_OWNER em dashboard.js).
+
+  Uso: include( partials/dev-overlay-card )  — sem parâmetros.
+
+  Ícone é SVG inline (path do Lucide "triangle-alert" copiado, não
+  data-lucide) de propósito — nem index.ejs nem hero.ejs carregam o script
+  do lucide hoje (usam SVG cru pros ícones da nav), então data-lucide
+  ficaria sem nunca virar ícone nenhum aqui.
+%>
+<div class="dev-overlay-card">
+    <div class="dev-overlay-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <path d="M12 9v4"/>
+            <path d="M12 17h.01"/>
+        </svg>
+    </div>
+    <h2 class="dev-overlay-title">Dashboard em desenvolvimento</h2>
+    <p class="dev-overlay-text">Estamos preparando o dashboard com calma antes de abrir pra todo mundo. Por enquanto, só o desenvolvedor tem acesso pra testes — volte em breve!</p>
+    <a href="/" class="btn-primary">VOLTAR AO INÍCIO</a>
+</div>
+<style>
+    .dev-overlay-card {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        text-align: center;
+        max-width: 420px;
+        width: 100%;
+        padding: 36px 28px;
+        background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+        border: 1px solid #3E3D38;
+        border-radius: 20px;
+        box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8);
+    }
+    .dev-overlay-icon {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 60px;
+        height: 60px;
+        flex: none;
+        background: #2A2A2A;
+        border: 2px solid #803E30;
+        border-radius: 50%;
+        color: #DCA15E;
+    }
+    .dev-overlay-icon svg { width: 28px; height: 28px; }
+    .dev-overlay-title {
+        font-family: 'Tilt Warp', sans-serif;
+        font-size: clamp(17px, 2.2vw, 22px);
+        letter-spacing: 0.05em;
+        color: #F8DCC0;
+        text-transform: uppercase;
+    }
+    .dev-overlay-text {
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #F8DCC0;
+        opacity: 0.85;
+    }
+</style>

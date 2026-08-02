@@ -72,6 +72,21 @@
             cursor: not-allowed;
             pointer-events: none;
         }
+        /* Backdrop do aviso "dashboard em desenvolvimento" (ver
+           partials/dev-overlay-card.ejs pro cartão em si) — some por cima
+           da página ao clicar num .dashboard-link[data-locked]. */
+        .dev-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(10, 9, 10, 0.85);
+            backdrop-filter: blur(4px);
+        }
+        .dev-overlay[hidden] { display: none; }
         .nav-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -195,7 +210,7 @@
 <!-- ===================== NAV (fixa, independente do scroll) ===================== -->
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <% if (user) { %>
-        <a href="/dashboard" class="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %> style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <%= (user.nickname || user.global_name || user.username) %>
         </a>
     <% } else { %>
@@ -275,7 +290,7 @@
                 <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" class="btn-primary" target="_blank" rel="noopener">
                     <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
                 </a>
-                <a href="/dashboard" class="btn-primary">
+                <a href="/dashboard" class="dashboard-link btn-primary" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>>
                     <span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span>
                 </a>
             </div>
@@ -626,7 +641,7 @@
         <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" class="btn-primary" target="_blank" rel="noopener">
             <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
         </a>
-        <a href="/dashboard" class="btn-primary">
+        <a href="/dashboard" class="dashboard-link btn-primary" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>>
             <span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span>
         </a>
     </div>
@@ -657,7 +672,41 @@
     <span class="opacity-80 text-sm" style="font-family:'Poppins',sans-serif; font-weight:300;">BY: KNUST SEIER VI</span>
 </footer>
 
+<%#
+  Overlay do botão Dashboard travado (pedido do dono, 2026-08-02): enquanto
+  DASHBOARD_LOCKED_TO_OWNER estiver true (dashboard.js), os 3 links
+  ".dashboard-link" acima ganham data-locked pra quem não é o dono — o
+  clique é interceptado (JS abaixo) e mostra isto por cima da página em
+  vez de navegar pra /dashboard (que aplicaria o MESMO bloqueio de novo,
+  só que depois de um reload inteiro). O dono continua navegando normal
+  (sem data-locked, sem listener, link funciona como sempre).
+%>
+<div class="dev-overlay" id="devOverlay" hidden>
+    <%- include('partials/dev-overlay-card') %>
+</div>
+
 <script>
+    (function () {
+        var overlay = document.getElementById('devOverlay');
+        if (!overlay) return;
+
+        function openOverlay() { overlay.hidden = false; }
+        function closeOverlay() { overlay.hidden = true; }
+
+        document.querySelectorAll('.dashboard-link[data-locked]').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                openOverlay();
+            });
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeOverlay();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeOverlay();
+        });
+    })();
+
     (function () {
         const stored = localStorage.getItem('titanspass_lang') || 'pt';
         document.documentElement.setAttribute('data-lang', stored);
