@@ -82,12 +82,27 @@ async function getServerPulse(guildId, guild) {
         // no total do donut (uma única fonte de verdade, sem os dois
         // discordarem entre si).
         const playing = online && !spectating;
+
+        // "Maior cargo no discord" (pedido do dono) — não existe conceito de
+        // cargo/rank EM JOGO nos dados do PoT hoje (pot_players não guarda
+        // isso), então usa sempre a posição real do cargo mais alto entre os
+        // cargos de staff (staff_role/supervisor_role/event_role) que o
+        // membro tem no servidor.
+        const memberStaffRoles = [...m.roles.cache.values()].filter(r => staffRoleIds.has(r.id));
+        const topRole = memberStaffRoles.sort((a, b) => b.position - a.position)[0];
+
         return {
             id: m.id,
             name: m.nickname || m.user.username,
+            cargo: topRole ? topRole.name : '—',
             online,
             moderating: spectating,
             playing,
+            // Texto literal do card (pedido do dono: "Online ou Offline ou
+            // Espectador") — a cor da borda continua só 2 estados (verde/
+            // vermelho, ver ingame-pulse.ejs), pois "Espectador" ainda é
+            // online (só uma sub-condição dele).
+            statusLabel: spectating ? 'Espectador' : (online ? 'Online' : 'Offline'),
         };
     });
 
