@@ -74,7 +74,7 @@
         <% } else { %>
             <div class="ingame-staff-grid ingame-staff-grid-spacing">
                 <% online.forEach(staff => { %>
-                    <div class="staff-chip ingame-staff-icon-size">
+                    <div class="staff-chip">
                         <i data-lucide="power" class="staff-chip-icon"></i>
                         <div class="staff-chip-col">
                             <span class="staff-chip-name"><%= staff.name %></span>
@@ -84,7 +84,7 @@
                     </div>
                 <% }); %>
                 <% offline.forEach(staff => { %>
-                    <div class="staff-chip is-offline ingame-staff-icon-size">
+                    <div class="staff-chip is-offline">
                         <i data-lucide="power" class="staff-chip-icon"></i>
                         <div class="staff-chip-col">
                             <span class="staff-chip-name"><%= staff.name %></span>
@@ -117,27 +117,33 @@
        no site (pedido do dono) — separado do gap:12px genérico do
        .ingame-pulse (que é só entre título/card/lista). */
     .ingame-staff-grid-spacing { margin-top: 20px; margin-bottom: 20px; }
-    /* Grade do Figma ("Property 1=Online"/"Property 1=Offline", 205x94,
-       card menor que o anterior a pedido do dono): 3 colunas de 205px,
-       gap de 20px nos dois eixos — 655px de largura total. Sempre 3 por
-       linha mesmo em telas menores (pedido do dono, mantido do tamanho
-       antigo): o grid vira fluido/proporcional abaixo de 655px em vez de
-       reagrupar em menos colunas. */
+    /* Linha de cards de staff — trocado de CSS grid (3 colunas fixas,
+       travadas em 655px de largura total) pra flexbox com wrap (pedido do
+       dono): cada .staff-chip agora abraça o próprio conteúdo (largura
+       natural, não mais esticado pra preencher uma coluna de grid), a
+       linha inteira preenche a largura máxima do corpo (sem max-width
+       aqui — o container já herda 100% do body da página) e o
+       justify-content:center centraliza tanto uma linha cheia quanto a
+       última linha incompleta. Isso substitui a decisão anterior de
+       "sempre 3 por linha" — agora quantos cards cabem por linha depende
+       da largura de cada card + do espaço disponível. */
     .ingame-staff-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 20px;
         width: 100%;
-        max-width: 655px;
     }
-    .ingame-staff-icon-size { aspect-ratio: 205 / 94; }
 
-    /* Card de staff (Figma: "Property 1=Online"/"Property 1=Offline") —
-       borda verde/vermelha + ícone + 3 linhas de texto (nome/cargo/status,
-       ver doc-comment no topo do arquivo). Próprio daqui, não reaproveita
-       .outline-chip: o Figma empilha o texto em 3 linhas com o status
-       numa linha própria embaixo, layout diferente do chip de 2 linhas
-       usado no quadro de alerta (moderacao.ejs). */
+    /* Card de staff (Figma: "Property 1=Online"/"Property 1=Offline",
+       205x94 usado como referência de padding/gap/fontes, não mais como
+       tamanho travado) — borda verde/vermelha + ícone + 3 linhas de texto
+       (nome/cargo/status, ver doc-comment no topo do arquivo). Próprio
+       daqui, não reaproveita .outline-chip: o Figma empilha o texto em 3
+       linhas com o status numa linha própria embaixo, layout diferente do
+       chip de 2 linhas usado no quadro de alerta (moderacao.ejs).
+       min-width mantém o "peso" visual do Figma pra nomes curtos; o card
+       cresce além disso se o nome/cargo precisar de mais espaço. */
     .staff-chip {
         --chip-color: #A5FFA1;
         box-sizing: border-box;
@@ -148,12 +154,16 @@
         border: 1px solid var(--chip-color);
         border-radius: 10px;
         background: none;
-        width: 100%;
-        height: 100%;
+        flex: 0 0 auto;
+        min-width: 205px;
     }
     .staff-chip.is-offline { --chip-color: #FF4E3B; }
     .staff-chip-icon { width: 50px; height: 50px; flex: none; color: var(--chip-color); }
-    .staff-chip-col { display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 2px; }
+    /* max-width é só uma rede de segurança pra nicknames do Discord fora
+       do comum (até 32 caracteres) não esticarem o card demais — nomes/
+       cargos normais ficam bem abaixo disso e o card hugga em volta deles
+       sem sobrar espaço. */
+    .staff-chip-col { display: flex; flex-direction: column; justify-content: center; min-width: 0; max-width: 220px; gap: 2px; }
     .staff-chip-name {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
