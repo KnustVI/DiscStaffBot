@@ -12,6 +12,7 @@ const ConfigSystem = require('./src/systems/core/configSystem');
 const PremiumSystem = require('./src/systems/premium/premiumSystem');
 const CustomBannerResolver = require('./src/utils/customBannerResolver');
 const { storeImageBuffer } = require('./src/utils/imageStorage');
+const ProfileImagePool = require('./src/systems/pot/profileImagePool');
 
 const app = express();
 
@@ -142,15 +143,28 @@ async function getServerPulse(guildId, guild) {
     };
 }
 
-// Resolve a `value` de uma opção de banner (ConfigSystem.STRIKE_BANNER_
-// OPTIONS/UNSTRIKE_BANNER_OPTIONS, ex: 'title_strike'/'foto_perfil_01')
-// pra URL servível pelo dashboard — os mesmos arquivos do imageManager
-// (assets/images/, usados como attachment:// no Discord) foram copiados
-// pra web/public/images/ com hífen em vez de underscore (mesmo padrão já
-// usado por title-strike.webp/title-strike-removido.webp antes desta
-// função existir), então a troca de separador já resolve os dois casos.
+// Resolve a `value` de uma opção de banner ESTÁTICA (só sobra "Padrão do
+// bot" nas 3 listas depois da unificação com o pool dinâmico — ex:
+// 'title_strike') pra URL servível pelo dashboard — os mesmos arquivos do
+// imageManager (assets/images/, usados como attachment:// no Discord)
+// foram copiados pra web/public/images/ com hífen em vez de underscore,
+// então a troca de separador já resolve.
 function bannerOptionUrl(value) {
     return `/images/${String(value).replace(/_/g, '-')}.webp`;
+}
+
+// getStrikeBannerOptions()/etc. (configSystem.js) misturam a opção estática
+// "Padrão do bot" com fotos do pool dinâmico ("pool:<id>", ver
+// ProfileImagePool) — cada uma precisa de uma resolução de URL diferente
+// (arquivo local vs. fetch no canal de armazenamento do bot), daí essa
+// função async por cima das opções síncronas.
+async function resolveBannerOptionsWithUrls(client, options) {
+    return Promise.all(options.map(async opt => ({
+        ...opt,
+        url: ProfileImagePool.isPoolValue(opt.value)
+            ? await ProfileImagePool.resolveImageUrl(client, 'banner', ProfileImagePool.poolIdFromValue(opt.value))
+            : bannerOptionUrl(opt.value),
+    })));
 }
 
 // Estatísticas de Punições/Automoderação (moderacao.ejs) — função própria
@@ -476,6 +490,46 @@ function loadDashboard(client) {
         res.render('termos', loadTermosBilingual());
     });
 
+    // ==================== POOL DE IMAGENS (só o dono) ====================
+    // Ativa/desativa a visibilidade pública de cada imagem do pool dinâmico
+    // (avatar/plano de fundo/emblema/banner — ver profileImagePool.js) sem
+    // precisar removê-la de verdade (pedido do dono, preparação pro pool
+    // ficar mais aberto no futuro). Página GLOBAL, sem :guildID (o pool não
+    // pertence a nenhum servidor). isOwnerSession (não isDashboardLocked,
+    // que é só o cadeado temporário de "site em desenvolvimento") é o gate
+    // certo aqui — fica restrito ao dono pra sempre, mesmo depois do resto
+    // do dashboard abrir pra outros admins.
+    const IMAGE_POOL_TYPES = [
+        { type: 'avatar', label: 'Avatar (Foto de Perfil)' },
+        { type: 'background', label: 'Plano de Fundo' },
+        { type: 'badge', label: 'Emblema' },
+        { type: 'banner', label: 'Banner (Personalização)' },
+    ];
+
+    app.get('/dev/image-pool', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+
+        const groups = await Promise.all(IMAGE_POOL_TYPES.map(async ({ type, label }) => {
+            const rows = ProfileImagePool.listImages(type);
+            const images = await Promise.all(rows.map(async row => ({
+                ...row,
+                url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
+            })));
+            return { type, label, images };
+        }));
+
+        res.render('dev-image-pool', { groups });
+    });
+
+    app.post('/dev/image-pool/:type/:id/toggle', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const { type } = req.params;
+        const id = Number(req.params.id);
+        const row = ProfileImagePool.getByTypeAndId(type, id);
+        if (row) ProfileImagePool.setPublic(type, id, !row.is_public);
+        res.redirect('/dev/image-pool');
+    });
+
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
     // Só mostra servidores onde o bot JÁ ESTÁ (pedido do dono) — antes
     // listava todo servidor que o usuário administra no Discord, mesmo sem
@@ -642,14 +696,13 @@ function loadDashboard(client) {
         // (Strike/Unstrike, Aparência Geral — ver configSystem.js
         // refreshPersonalizarPanel; Report-Chat mora em GET /reports/:guildID,
         // ver lá), mesmas opções/rótulos nos dois lugares via
-        // ConfigSystem.*_OPTIONS. A key da opção de banner vira o nome do
-        // arquivo web (bannerOptionUrl) — o pool de fotos genéricas + os
-        // banners padrão foram copiados pra web/public/images/ com hífen em
-        // vez de underscore (mesmo padrão já usado por title-strike.webp).
+        // ConfigSystem.get*BannerOptions() — vêm do pool dinâmico de imagens
+        // agora (ver profileImagePool.js), só "Padrão do bot" continua
+        // estático (resolveBannerOptionsWithUrls trata os dois casos).
         const strikeBannerKey = settings.strike_banner_key || 'title_strike';
         const unstrikeBannerKey = settings.unstrike_banner_key || 'title_strike_removido';
-        const strikeBannerOptions = ConfigSystem.STRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
-        const unstrikeBannerOptions = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
+        const strikeBannerOptions = await resolveBannerOptionsWithUrls(client, ConfigSystem.getStrikeBannerOptions());
+        const unstrikeBannerOptions = await resolveBannerOptionsWithUrls(client, ConfigSystem.getUnstrikeBannerOptions());
         // Prévia da imagem PRÓPRIA enviada (Caçador, upload direto em vez de
         // escolher da galeria) — null se não houver upload ativo pra esse
         // campo, ver src/utils/customBannerResolver.js.
@@ -670,6 +723,7 @@ function loadDashboard(client) {
             guild,
             nickname: member.nickname || member.user.username,
             role: 'Administrador',
+            isOwner: isOwnerSession(req),
             pageRoute: 'moderacao',
             otherGuilds: getAdminGuildsWithBot(req),
             pulse,
@@ -763,7 +817,7 @@ function loadDashboard(client) {
                     // do Discord (isValidOption, configSystem.js) — o picker
                     // do dashboard já só manda um dos valores válidos, isso
                     // aqui é defesa contra um POST forjado.
-                    const isValid = ConfigSystem.STRIKE_BANNER_OPTIONS.some(opt => opt.value === body.strike_banner_key);
+                    const isValid = ConfigSystem.getStrikeBannerOptions().some(opt => opt.value === body.strike_banner_key);
                     if (isValid) {
                         ConfigSystem.setSetting(guildID, 'strike_banner_key', body.strike_banner_key);
                         ConfigSystem.setSetting(guildID, 'strike_banner_message_id', null);
@@ -777,7 +831,7 @@ function loadDashboard(client) {
                         ConfigSystem.setSetting(guildID, 'unstrike_banner_message_id', result.messageId);
                     }
                 } else if ('unstrike_banner_key' in body) {
-                    const isValid = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.some(opt => opt.value === body.unstrike_banner_key);
+                    const isValid = ConfigSystem.getUnstrikeBannerOptions().some(opt => opt.value === body.unstrike_banner_key);
                     if (isValid) {
                         ConfigSystem.setSetting(guildID, 'unstrike_banner_key', body.unstrike_banner_key);
                         ConfigSystem.setSetting(guildID, 'unstrike_banner_message_id', null);
@@ -806,12 +860,12 @@ function loadDashboard(client) {
         // Personalização do Report-Chat (bloco do /config personalizar do
         // Discord, ver configSystem.js refreshPersonalizarPanel) mora aqui
         // na aba de Denúncias, não em Moderação (pedido do dono) — mesmo
-        // padrão de bannerOptionUrl/ConfigSystem.*_OPTIONS já usado em
-        // GET /moderacao/:guildID pro Strike/Unstrike.
+        // padrão de resolveBannerOptionsWithUrls/ConfigSystem.get*BannerOptions()
+        // já usado em GET /moderacao/:guildID pro Strike/Unstrike.
         const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
         const reportChatBannerKey = settings.report_chat_banner_key || 'title_report_chat';
-        const reportChatBannerOptions = ConfigSystem.REPORT_CHAT_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
+        const reportChatBannerOptions = await resolveBannerOptionsWithUrls(client, ConfigSystem.getReportChatBannerOptions());
         // Prévia da imagem PRÓPRIA enviada (Caçador, upload direto em vez de
         // escolher da galeria) — null se não houver upload ativo.
         const reportChatCustomBannerUrl = await CustomBannerResolver.resolveBannerUrl(client, guildID, 'reportchat');
@@ -820,6 +874,7 @@ function loadDashboard(client) {
             guild,
             nickname: member.nickname || member.user.username,
             role: 'Administrador',
+            isOwner: isOwnerSession(req),
             pageRoute: 'reports',
             otherGuilds: getAdminGuildsWithBot(req),
             pulse,
@@ -870,7 +925,7 @@ function loadDashboard(client) {
                     // Discord (isValidOption) — o picker do dashboard já só
                     // manda um dos valores válidos, isso aqui é defesa
                     // contra um POST forjado.
-                    const isValid = ConfigSystem.REPORT_CHAT_BANNER_OPTIONS.some(opt => opt.value === body.report_chat_banner_key);
+                    const isValid = ConfigSystem.getReportChatBannerOptions().some(opt => opt.value === body.report_chat_banner_key);
                     if (isValid) {
                         ConfigSystem.setSetting(guildID, 'report_chat_banner_key', body.report_chat_banner_key);
                         ConfigSystem.setSetting(guildID, 'report_chat_banner_message_id', null);
@@ -923,6 +978,7 @@ function loadDashboard(client) {
             guild,
             nickname: member.nickname || member.user.username,
             role: 'Administrador',
+            isOwner: isOwnerSession(req),
             pageRoute: 'events',
             otherGuilds: getAdminGuildsWithBot(req),
             pulse,

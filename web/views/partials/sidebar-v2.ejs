@@ -46,12 +46,17 @@
     // Configurações e Reputação removidos por hora (pedido do dono,
     // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
     // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
+    const sbIsOwner = typeof isOwner !== 'undefined' && isOwner;
     const NAV_ITEMS = [
         { key: 'premium', label: 'Premium', icon: 'gem', href: '#', accent: true },
         { key: 'moderacao', label: 'Moderação', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', label: 'Eventos', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', label: 'Denúncias', icon: 'message-square-warning', href: guildHref('reports') },
         { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '#' },
+        // Só o dono do bot vê esse item (pedido do dono: controle de
+        // visibilidade do pool de imagens, ver dashboard.js /dev/image-pool)
+        // — página global, sem :guildID, por isso não usa guildHref.
+        ...(sbIsOwner ? [{ key: 'image-pool', label: 'Pool de Imagens', icon: 'images', href: '/dev/image-pool' }] : []),
         { key: 'sair', label: 'Sair', icon: 'log-out', href: '/logout' },
     ];
     const activeKey = typeof active !== 'undefined' ? active : null;

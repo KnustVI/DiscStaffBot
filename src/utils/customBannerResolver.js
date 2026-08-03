@@ -2,8 +2,14 @@
 /**
  * Resolve o banner de /strike, /unstrike e do report-chat (Caçador,
  * /config personalizar) — cada um pode estar configurado como:
- *   - uma chave estática do ImageManager (banner padrão do bot ou uma das
- *     12 fotos do pool, ex: "title_strike"/"foto_perfil_05");
+ *   - uma chave estática do ImageManager (só o banner padrão do bot hoje,
+ *     ex: "title_strike" — configs salvas ANTES da unificação com o pool
+ *     dinâmico também podem ter uma chave de foto antiga aqui, ex:
+ *     "foto_perfil_05", ainda resolvida do mesmo jeito);
+ *   - um valor "pool:<id>" (imagem do pool dinâmico, ver
+ *     src/systems/pot/profileImagePool.js — mesmo pool usado pelos pickers
+ *     de avatar/plano de fundo/emblema do /perfil-edit, unificado aqui a
+ *     pedido do dono);
  *   - ou o valor-sentinela 'custom_upload', quando o dono do servidor
  *     enviou uma imagem própria (via /config personalizar no Discord ou
  *     upload no dashboard) — nesse caso o arquivo de verdade fica guardado
@@ -48,9 +54,16 @@ async function resolveBanner(client, guildId, field) {
     const cfg = _fieldConfig(field);
     const ConfigSystem = require('../systems/core/configSystem');
     const PremiumSystem = require('../systems/premium/premiumSystem');
+    const ProfileImagePool = require('../systems/pot/profileImagePool');
 
     const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
     const bannerKey = (isCustomizable && ConfigSystem.getSetting(guildId, cfg.keySetting)) || cfg.defaultKey;
+
+    if (ProfileImagePool.isPoolValue(bannerKey)) {
+        const poolId = ProfileImagePool.poolIdFromValue(bannerKey);
+        const buffer = await ProfileImagePool.resolveImageBuffer(client, 'banner', poolId);
+        return buffer ? { type: 'buffer', value: buffer } : { type: 'key', value: cfg.defaultKey };
+    }
 
     if (bannerKey !== 'custom_upload') {
         return { type: 'key', value: bannerKey };
@@ -91,8 +104,15 @@ async function resolveBanner(client, guildId, field) {
 async function resolveBannerUrl(client, guildId, field) {
     const cfg = _fieldConfig(field);
     const ConfigSystem = require('../systems/core/configSystem');
+    const ProfileImagePool = require('../systems/pot/profileImagePool');
 
     const bannerKey = ConfigSystem.getSetting(guildId, cfg.keySetting);
+
+    if (ProfileImagePool.isPoolValue(bannerKey)) {
+        const poolId = ProfileImagePool.poolIdFromValue(bannerKey);
+        return await ProfileImagePool.resolveImageUrl(client, 'banner', poolId);
+    }
+
     if (bannerKey !== 'custom_upload') return null;
 
     const messageId = ConfigSystem.getSetting(guildId, cfg.messageIdSetting);

@@ -1,0 +1,139 @@
+<%#
+  web/views/dev-image-pool.ejs
+  Página GLOBAL (sem :guildID — o pool de imagens não pertence a nenhum
+  servidor), restrita ao dono do bot (isOwnerSession, ver dashboard.js
+  GET /dev/image-pool) — ativa/desativa a visibilidade pública de cada
+  imagem do pool dinâmico (avatar/plano de fundo/emblema/banner, ver
+  src/systems/pot/profileImagePool.js) sem precisar removê-la de verdade.
+  Adicionar/remover imagem continua só pelo Discord (/perfil-pool) — aqui
+  é só o controle de visibilidade que só o dono tem.
+
+  Uso: res.render('dev-image-pool', { groups })
+    groups — array [{ type, label, images: [{ id, label, url, is_public,
+             created_at }] }], ver dashboard.js GET /dev/image-pool.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pool de Imagens (Dev) | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .pool-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+        .pool-item {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 160px;
+            padding: 10px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.25);
+            border-radius: 10px;
+        }
+        .pool-item-thumb {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            border-radius: 8px;
+            background-color: #1F1D20;
+            background-size: cover;
+            background-position: center;
+        }
+        .pool-item-label {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #F8DCC0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pool-item-meta { font-size: 0.7rem; opacity: 0.5; }
+        .pool-item-badge {
+            display: inline-flex;
+            align-self: flex-start;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .pool-item-badge.is-public { background: rgba(165, 255, 161, 0.15); color: #A5FFA1; }
+        .pool-item-badge.is-private { background: rgba(255, 78, 59, 0.15); color: #FF4E3B; }
+        .pool-toggle-btn {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(248, 220, 192, 0.25);
+            background: transparent;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .pool-toggle-btn:hover { background: rgba(248, 220, 192, 0.1); }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto" style="max-width: 1100px; margin: 0 auto;">
+
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="section-title text-xl">Pool de Imagens</h1>
+                <p class="text-xs opacity-50 mt-1">Ativa/desativa cada imagem sem remover do pool — imagens privadas somem dos menus de escolha (avatar/plano de fundo/emblema/banner), mas continuam guardadas. Adicionar/remover imagem ainda é só pelo <code>/perfil-pool</code> no Discord.</p>
+            </div>
+            <a href="/dashboard" class="btn-primary !min-w-0">← Voltar</a>
+        </div>
+
+        <% groups.forEach(group => { %>
+            <section class="titan-card-premium flex-col gap-4">
+                <h2 class="section-title text-lg"><%= group.label %> (<%= group.images.length %>)</h2>
+                <% if (group.images.length === 0) { %>
+                    <p class="text-sm opacity-40">Nenhuma imagem cadastrada ainda — use <code>/perfil-pool add tipo:<%= group.type %></code> no Discord.</p>
+                <% } else { %>
+                    <div class="pool-grid">
+                        <% group.images.forEach(img => { %>
+                            <div class="pool-item">
+                                <div class="pool-item-thumb" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"></div>
+                                <span class="pool-item-label"><%= img.label %></span>
+                                <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
+                                <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
+                                <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/toggle" method="POST">
+                                    <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
+                                </form>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } %>
+            </section>
+        <% }); %>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+</body>
+</html>

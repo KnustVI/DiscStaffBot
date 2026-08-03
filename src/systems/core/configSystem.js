@@ -163,50 +163,25 @@ const LOG_FIELDS = [
 ];
 
 /**
- * Pool de fotos genéricas (assets/images/FOTO PERFIL 01..12.webp) — usado
- * SÓ pelos banners de /config reportchat/strike/unstrike (ver
- * REPORT_CHAT_BANNER_OPTIONS/STRIKE_BANNER_OPTIONS/UNSTRIKE_BANNER_OPTIONS
- * abaixo), que continuam vindo de arquivo estático via imageManager. NÃO é
- * mais usado pelos pickers de /perfil-edit (avatar/plano de fundo) — essas
- * mesmas 12 fotos foram migradas pro pool DINÂMICO de plano de fundo
- * (profile_image_pool, tipo 'background' — ver migrate-fotos-plano-fundo.js
- * e getBackgroundOptions abaixo), a pedido do dono: elas passam a ser SÓ
- * plano de fundo, não aparecem mais como opção de avatar. As fotos padrão de
- * cada tier (foto_perfil_free/compy/raptor) ficam DE FORA dessa lista: são
- * os fallbacks fixos de quando ninguém escolheu nada (ver DEFAULT_CARD_
- * PHOTOS em playerRegistrationSystem.js), não faz sentido oferecê-las como
- * opção pra "trocar por" — dono pediu remoção por serem repetidas.
- */
-const PLAYER_PHOTO_OPTIONS = [
-    { value: 'foto_perfil_01', label: 'Planeta Âmbar' },
-    { value: 'foto_perfil_02', label: 'Suchomimus' },
-    { value: 'foto_perfil_03', label: 'Desert Hunt' },
-    { value: 'foto_perfil_04', label: 'Rex Beach' },
-    { value: 'foto_perfil_05', label: 'Green Trike' },
-    { value: 'foto_perfil_06', label: 'Yuty Look' },
-    { value: 'foto_perfil_07', label: 'Yuty Snow' },
-    { value: 'foto_perfil_08', label: "Parassaur's Forest" },
-    { value: 'foto_perfil_09', label: 'Desert Migration' },
-    { value: 'foto_perfil_10', label: 'Family Hunt' },
-    { value: 'foto_perfil_11', label: 'Forest Lurker' },
-    { value: 'foto_perfil_12', label: 'Trike Family' },
-];
-
-/**
- * Opções de avatar/plano de fundo/emblema pro /perfil-edit — 100% vindas do
- * pool DINÂMICO (profile_image_pool, alimentado via /perfil-pool no bot
- * developer — ver profileImagePool.js), sem nenhum pool estático hardcoded
- * por trás. Cada entrada usa "pool:<id>" como value (distingue de uma chave
- * estática do imageManager, ainda usada em OUTROS pickers — ver
- * PLAYER_PHOTO_OPTIONS acima). Recalculado a cada chamada (nunca cacheado)
- * — o pool pode mudar a qualquer momento. Limitado a 25 (limite de opções
- * de um StringSelectMenu do Discord). Os 3 pools começam vazios até o dono
- * cadastrar imagens; avatar/emblema seguem vazios até então, plano de fundo
- * já vem seeded com as 12 fotos genéricas migradas (ver
- * migrate-fotos-plano-fundo.js).
+ * Opções de avatar/plano de fundo/emblema/banner pro /perfil-edit E pro
+ * /config personalizar (banner de Strike/Unstrike/Report-Chat) — 100%
+ * vindas do pool DINÂMICO (profile_image_pool, alimentado via /perfil-pool
+ * no bot developer ou pela página /dev/image-pool do dashboard — ver
+ * profileImagePool.js), sem nenhum pool estático hardcoded por trás. A
+ * galeria de banner era um array separado (PLAYER_PHOTO_OPTIONS, resolvido
+ * via imageManager/assets/images) até essa unificação (pedido do dono) —
+ * removido, os 4 tipos usam a mesma fonte agora.
+ *
+ * Cada entrada usa "pool:<id>" como value (distingue de uma chave estática
+ * do imageManager, ex: "title_strike" — ainda válida em configs SALVAS
+ * antes desta mudança, só não aparece mais no menu). publicOnly:true (só
+ * imagens que o dono não escondeu, ver ProfileImagePool.setPublic) é o que
+ * todo picker voltado ao usuário comum usa. Recalculado a cada chamada
+ * (nunca cacheado) — o pool pode mudar a qualquer momento. Limitado a 25
+ * (limite de opções de um StringSelectMenu do Discord).
  */
 function _poolOptions(poolType) {
-    return ProfileImagePool.listImages(poolType).map(row => ({
+    return ProfileImagePool.listImages(poolType, { publicOnly: true }).map(row => ({
         value: ProfileImagePool.toPoolValue(row.id),
         label: row.label,
     })).slice(0, 25);
@@ -223,28 +198,26 @@ function getBadgeOptions() {
 
 /**
  * Opções de banner pro painel de /config reportchat (Caçador) — a primeira
- * ("Padrão do bot") reseta pra imagem original; as demais são o pool de
- * fotos genéricas acima, reaproveitado aqui em vez de pedir upload próprio.
+ * ("Padrão do bot") reseta pra imagem original (única opção estática que
+ * sobra: é a imagem oficial do bot, não um item de conteúdo trocável); as
+ * demais vêm do pool dinâmico tipo 'banner' (ver _poolOptions acima).
  */
-const REPORT_CHAT_BANNER_OPTIONS = [
-    { value: 'title_report_chat', label: 'Padrão do bot' },
-    ...PLAYER_PHOTO_OPTIONS,
-];
+function getReportChatBannerOptions() {
+    return [{ value: 'title_report_chat', label: 'Padrão do bot' }, ..._poolOptions('banner')];
+}
 
 /**
  * Opções de banner de /strike e /unstrike (painel de aplicação/anulação de
- * punição) — /config personalizar, exclusivo Caçador. Mesmo pool de fotos
- * genéricas reaproveitado acima, cada lista só troca a opção "Padrão do bot"
- * pelo banner original de cada painel (ver punishmentSystem.js).
+ * punição) — /config personalizar, exclusivo Caçador. Mesmo pool dinâmico
+ * de banner acima, cada função só troca a opção "Padrão do bot" pelo
+ * banner original de cada painel (ver punishmentSystem.js).
  */
-const STRIKE_BANNER_OPTIONS = [
-    { value: 'title_strike', label: 'Padrão do bot' },
-    ...PLAYER_PHOTO_OPTIONS,
-];
-const UNSTRIKE_BANNER_OPTIONS = [
-    { value: 'title_strike_removido', label: 'Padrão do bot' },
-    ...PLAYER_PHOTO_OPTIONS,
-];
+function getStrikeBannerOptions() {
+    return [{ value: 'title_strike', label: 'Padrão do bot' }, ..._poolOptions('banner')];
+}
+function getUnstrikeBannerOptions() {
+    return [{ value: 'title_strike_removido', label: 'Padrão do bot' }, ..._poolOptions('banner')];
+}
 
 // Rótulo exibido no painel de /config personalizar pro banner atual de cada
 // campo — 'custom_upload' (imagem própria enviada, ver customBannerResolver.js)
@@ -258,17 +231,17 @@ function _resolveBannerLabel(bannerKey, options) {
 
 const ConfigSystem = {
     STAFF_ROLE_KEYS,
-    PLAYER_PHOTO_OPTIONS,
-    // Exportados pro dashboard web reaproveitar como fonte única de verdade
+    // Exportadas pro dashboard web reaproveitar como fonte única de verdade
     // (mesmas opções/rótulos de banner do /config personalizar do Discord,
     // ver dashboard.js GET/POST /moderacao/:guildID) — em vez de duplicar
     // essa lista lá. O painel web usa a MESMA estrutura de 3 blocos do
-    // comando (Strike/Unstrike, Report-Chat, Aparência Geral), pedido do
-    // dono depois de perceber que só o banner de Strike/Unstrike tinha
-    // sido levado pro site, faltando Report-Chat inteiro.
-    STRIKE_BANNER_OPTIONS,
-    UNSTRIKE_BANNER_OPTIONS,
-    REPORT_CHAT_BANNER_OPTIONS,
+    // comando (Strike/Unstrike, Report-Chat, Aparência Geral). Viraram
+    // FUNÇÕES (não const) quando o banner passou a vir do pool dinâmico —
+    // o pool pode mudar a qualquer momento, precisa recalcular a cada
+    // chamada (mesmo padrão de getAvatarOptions/getBackgroundOptions).
+    getStrikeBannerOptions,
+    getUnstrikeBannerOptions,
+    getReportChatBannerOptions,
 
     getSetting(guildId, key) {
         try {
@@ -2115,8 +2088,10 @@ const ConfigSystem = {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         const chosenKey = interaction.values[0];
-        const isValidOption = STRIKE_BANNER_OPTIONS.some(opt => opt.value === chosenKey);
-        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+        const strikeOptions = getStrikeBannerOptions();
+        const isValidOption = strikeOptions.some(opt => opt.value === chosenKey);
+        const isValidImage = isValidOption && (ProfileImagePool.isPoolValue(chosenKey) || imageManager.hasImage(chosenKey));
+        if (!isValidImage) {
             return await ResponseManager.error(interaction, 'Imagem inválida.');
         }
 
@@ -2129,7 +2104,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'strike_banner_message_id', null);
         this.clearCache(interaction.guildId);
 
-        const label = STRIKE_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const label = strikeOptions.find(opt => opt.value === chosenKey)?.label || chosenKey;
         const changeMessage = oldValue !== chosenKey
             ? `${EMOJIS.circlecheck || '✅'} **Banner do /strike atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
@@ -2154,8 +2129,10 @@ const ConfigSystem = {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         const chosenKey = interaction.values[0];
-        const isValidOption = UNSTRIKE_BANNER_OPTIONS.some(opt => opt.value === chosenKey);
-        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+        const unstrikeOptions = getUnstrikeBannerOptions();
+        const isValidOption = unstrikeOptions.some(opt => opt.value === chosenKey);
+        const isValidImage = isValidOption && (ProfileImagePool.isPoolValue(chosenKey) || imageManager.hasImage(chosenKey));
+        if (!isValidImage) {
             return await ResponseManager.error(interaction, 'Imagem inválida.');
         }
 
@@ -2164,7 +2141,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'unstrike_banner_message_id', null);
         this.clearCache(interaction.guildId);
 
-        const label = UNSTRIKE_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const label = unstrikeOptions.find(opt => opt.value === chosenKey)?.label || chosenKey;
         const changeMessage = oldValue !== chosenKey
             ? `${EMOJIS.circlecheck || '✅'} **Banner do /unstrike atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
@@ -2189,8 +2166,10 @@ const ConfigSystem = {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         const chosenKey = interaction.values[0];
-        const isValidOption = REPORT_CHAT_BANNER_OPTIONS.some(opt => opt.value === chosenKey);
-        if (!isValidOption || !imageManager.hasImage(chosenKey)) {
+        const reportChatOptions = getReportChatBannerOptions();
+        const isValidOption = reportChatOptions.some(opt => opt.value === chosenKey);
+        const isValidImage = isValidOption && (ProfileImagePool.isPoolValue(chosenKey) || imageManager.hasImage(chosenKey));
+        if (!isValidImage) {
             return await ResponseManager.error(interaction, 'Imagem inválida.');
         }
 
@@ -2199,7 +2178,7 @@ const ConfigSystem = {
         this.setSetting(interaction.guildId, 'report_chat_banner_message_id', null);
         this.clearCache(interaction.guildId);
 
-        const label = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
+        const label = reportChatOptions.find(opt => opt.value === chosenKey)?.label || chosenKey;
         const changeMessage = oldValue !== chosenKey
             ? `${EMOJIS.circlecheck || '✅'} **Banner do report-chat atualizado:** ${label}.`
             : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma alteração foi detectada.`;
@@ -2485,8 +2464,10 @@ const ConfigSystem = {
         if (activeTab === 'strike') {
             const strikeBannerKey = this.getSetting(guildId, 'strike_banner_key') || 'title_strike';
             const unstrikeBannerKey = this.getSetting(guildId, 'unstrike_banner_key') || 'title_strike_removido';
-            const strikeLabel = _resolveBannerLabel(strikeBannerKey, STRIKE_BANNER_OPTIONS);
-            const unstrikeLabel = _resolveBannerLabel(unstrikeBannerKey, UNSTRIKE_BANNER_OPTIONS);
+            const strikeBannerOptions = getStrikeBannerOptions();
+            const unstrikeBannerOptions = getUnstrikeBannerOptions();
+            const strikeLabel = _resolveBannerLabel(strikeBannerKey, strikeBannerOptions);
+            const unstrikeLabel = _resolveBannerLabel(unstrikeBannerKey, unstrikeBannerOptions);
 
             cb.section(
                 [
@@ -2504,7 +2485,7 @@ const ConfigSystem = {
             cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:strike-banner')
                 .setPlaceholder('Escolha o banner do /strike...')
-                .addOptions(STRIKE_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                .addOptions(strikeBannerOptions.map(opt => new StringSelectMenuOptionBuilder()
                     .setLabel(opt.label)
                     .setValue(opt.value)
                     .setDefault(opt.value === strikeBannerKey)
@@ -2516,7 +2497,7 @@ const ConfigSystem = {
             cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:unstrike-banner')
                 .setPlaceholder('Escolha o banner do /unstrike...')
-                .addOptions(UNSTRIKE_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                .addOptions(unstrikeBannerOptions.map(opt => new StringSelectMenuOptionBuilder()
                     .setLabel(opt.label)
                     .setValue(opt.value)
                     .setDefault(opt.value === unstrikeBannerKey)
@@ -2526,7 +2507,8 @@ const ConfigSystem = {
             const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
             const customMessage = this.getSetting(guildId, 'report_chat_message');
             const welcomeMessage = this.getSetting(guildId, 'report_chat_welcome_message');
-            const bannerLabel = _resolveBannerLabel(bannerKey, REPORT_CHAT_BANNER_OPTIONS);
+            const reportChatBannerOptions = getReportChatBannerOptions();
+            const bannerLabel = _resolveBannerLabel(bannerKey, reportChatBannerOptions);
 
             cb.section(
                 [
@@ -2540,7 +2522,7 @@ const ConfigSystem = {
             cb.selectMenu(new StringSelectMenuBuilder()
                 .setCustomId('config-personalizar:reportchat-banner')
                 .setPlaceholder('Escolha o banner...')
-                .addOptions(REPORT_CHAT_BANNER_OPTIONS.map(opt => new StringSelectMenuOptionBuilder()
+                .addOptions(reportChatBannerOptions.map(opt => new StringSelectMenuOptionBuilder()
                     .setLabel(opt.label)
                     .setValue(opt.value)
                     .setDefault(opt.value === bannerKey)

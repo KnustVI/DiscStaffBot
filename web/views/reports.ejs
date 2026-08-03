@@ -55,7 +55,7 @@
 <body class="flex min-h-screen">
 
     <aside class="shrink-0 h-screen sticky top-0 py-[30px] pl-[30px] hidden lg:block">
-        <%- include('partials/sidebar-v2', { active: 'denuncias', guild, nickname, role }) %>
+        <%- include('partials/sidebar-v2', { active: 'denuncias', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false }) %>
     </aside>
 
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">

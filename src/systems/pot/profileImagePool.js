@@ -1,12 +1,22 @@
 // src/systems/pot/profileImagePool.js
 /**
- * Pool de imagens (avatar/plano de fundo/emblema) usado pelos 3 pickers de
- * /perfil-edit — alimentado pelo dono via /perfil-pool (bot developer),
- * sem precisar editar código/redeployar a cada imagem nova. PLAYER_PHOTO_
- * OPTIONS (configSystem.js) continua existindo à parte, mas hoje só serve
- * os banners de /config reportchat/strike/unstrike — as 12 fotos que antes
- * também apareciam como avatar/plano de fundo foram migradas pra cá (tipo
- * 'background', ver migrate-fotos-plano-fundo.js na raiz do projeto).
+ * Pool de imagens (avatar/plano de fundo/emblema/banner) usado pelos 3
+ * pickers de /perfil-edit E pela galeria de banner de /config personalizar
+ * (Strike/Unstrike/Report-Chat, Discord + dashboard) — alimentado pelo dono
+ * via /perfil-pool (bot developer), sem precisar editar código/redeployar a
+ * cada imagem nova. Unificado (pedido do dono): a galeria de banner usava
+ * um array estático à parte (PLAYER_PHOTO_OPTIONS em configSystem.js,
+ * resolvido via imageManager/assets/images) até essa mudança — agora os 4
+ * tipos vêm 100% daqui. "Padrão do bot" de cada banner continua sendo a
+ * única exceção estática (é a imagem oficial do bot, não um item do pool).
+ *
+ * Cada imagem pode ser marcada pública ou privada (is_public, ver
+ * setPublic() abaixo) — controle exclusivo do dono, pela página
+ * /dev/image-pool do dashboard, pra esconder uma imagem do menu de escolha
+ * sem precisar removê-la de verdade (preparação pro pool ficar mais aberto
+ * no futuro). listImages(type, {publicOnly:true}) é o que os pickers
+ * voltados ao usuário comum usam; sem esse filtro (developer command
+ * /perfil-pool listar, e a própria página /dev/image-pool) o dono vê tudo.
  *
  * Mesmo padrão de armazenamento já usado pro upload próprio do Raptor
  * (banner_message_id/background_message_id em player_links): a imagem em si
@@ -16,13 +26,15 @@
  *
  * Valores selecionáveis vindos deste pool usam o prefixo "pool:<id>" nas
  * colunas selected_photo_key/selected_background_key/selected_badge_key de
- * player_links, pra distinguir de uma chave estática do imageManager
- * (ex: "foto_perfil_01", ainda usada pelos banners citados acima) sem
- * precisar de nenhuma coluna nova.
+ * player_links (e nas chaves de banner strike_banner_key/etc, ver
+ * src/utils/customBannerResolver.js), pra distinguir de uma chave estática
+ * do imageManager (ex: "title_strike", "foto_perfil_01" — essa segunda
+ * continua funcionando pra configs salvas ANTES desta unificação, só saiu
+ * do menu de opções) sem precisar de nenhuma coluna nova.
  */
 const db = require('../../database/index');
 
-const VALID_TYPES = ['avatar', 'background', 'badge'];
+const VALID_TYPES = ['avatar', 'background', 'badge', 'banner'];
 const POOL_PREFIX = 'pool:';
 
 function toPoolValue(id) {
@@ -63,7 +75,30 @@ function removeImage(type, id) {
     return row;
 }
 
-function listImages(type) {
+/**
+ * Liga/desliga a visibilidade pública de uma imagem (pedido do dono: dá pra
+ * esconder do menu de escolha sem remover de verdade) — ver setPublic
+ * abaixo pra quem grava, e o filtro publicOnly de listImages pra quem lê.
+ */
+function setPublic(type, id, isPublic) {
+    const row = getByTypeAndId(type, id);
+    if (!row) return null;
+    db.prepare(`UPDATE profile_image_pool SET is_public = ? WHERE type = ? AND id = ?`).run(isPublic ? 1 : 0, type, id);
+    return getByTypeAndId(type, id);
+}
+
+/**
+ * @param {string} type
+ * @param {{publicOnly?: boolean}} [opts] - publicOnly:true filtra só
+ *   is_public=1 (pickers voltados ao usuário comum); sem isso, devolve TUDO
+ *   (developer command /perfil-pool listar e a página /dev/image-pool do
+ *   dono, que precisam ver as imagens escondidas também).
+ */
+function listImages(type, opts = {}) {
+    const { publicOnly = false } = opts;
+    if (publicOnly) {
+        return db.prepare(`SELECT * FROM profile_image_pool WHERE type = ? AND is_public = 1 ORDER BY id ASC`).all(type);
+    }
     return db.prepare(`SELECT * FROM profile_image_pool WHERE type = ? ORDER BY id ASC`).all(type);
 }
 
@@ -111,6 +146,7 @@ module.exports = {
     getByTypeAndId,
     addImage,
     removeImage,
+    setPublic,
     listImages,
     resolveImageUrl,
     resolveImageBuffer,

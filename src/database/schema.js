@@ -352,7 +352,8 @@ const SCHEMA = {
             label TEXT NOT NULL,
             message_id TEXT NOT NULL,
             created_by TEXT,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            is_public INTEGER NOT NULL DEFAULT 1
         )
     `,
 

@@ -212,6 +212,13 @@ class DatabaseManager {
             this.ensureColumn('staff_analytics', 'nametag_toggles_not_spectating', 'INTEGER DEFAULT 0');
             this.ensureColumn('staff_analytics', 'spectator_seconds', 'INTEGER DEFAULT 0');
 
+            // Ativa/desativa uma imagem do pool sem removê-la de verdade
+            // (pedido do dono: controle só dele, pelo dashboard, pra
+            // esconder imagens do menu de escolha sem perder o cadastro) —
+            // ver src/systems/pot/profileImagePool.js. Default 1: bancos já
+            // existentes não perdem nenhuma imagem que já estava visível.
+            this.ensureColumn('profile_image_pool', 'is_public', 'INTEGER NOT NULL DEFAULT 1');
+
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —
             // ver PremiumSystem.GUILD_TIERS). Idempotente: depois da primeira

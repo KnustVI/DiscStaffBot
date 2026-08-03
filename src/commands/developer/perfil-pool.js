@@ -1,21 +1,25 @@
 // src/commands/developer/perfil-pool.js
 /**
  * Gerencia os pools de imagens usados na personalização de /perfil (avatar/
- * foto de perfil, plano de fundo, emblema) — complementa os pools estáticos
- * hardcoded em configSystem.js (PLAYER_PHOTO_OPTIONS etc, vindos de arquivos
- * em assets/images/ via imageManager) com entradas adicionadas em runtime,
- * sem precisar editar código/redeployar a cada imagem nova. Ver
- * src/systems/pot/profileImagePool.js pro armazenamento (mesmo padrão de
- * "reenvia pro canal fixo, guarda só o ID da mensagem" já usado pro upload
- * próprio do Raptor em /perfil-edit).
+ * foto de perfil, plano de fundo, emblema) E na galeria de banner de
+ * /config personalizar (Strike/Unstrike/Report-Chat, tipo 'banner') —
+ * unificado (pedido do dono): antes o banner vinha de um array estático
+ * hardcoded em configSystem.js, agora os 4 tipos usam o mesmo pool
+ * dinâmico. Ver src/systems/pot/profileImagePool.js pro armazenamento
+ * (mesmo padrão de "reenvia pro canal fixo, guarda só o ID da mensagem"
+ * já usado pro upload próprio do Raptor em /perfil-edit).
  *
  * "Avatar" aqui é o mesmo conceito de "foto de perfil" no resto do bot (a
  * foto recortada dentro do card) — o tipo interno usado é 'avatar' porque
  * foi assim que o dono pediu, mas alimenta o MESMO pool que o picker "Foto
  * de Perfil" do /perfil-edit já usa. Emblema é liberado em QUALQUER tier de
- * Player Premium; avatar/plano de fundo continuam Compy+ — esse gate é todo
- * checado do lado da SELEÇÃO (configSystem.js), não aqui: este comando só
- * adiciona/remove/lista o que existe no pool.
+ * Player Premium; avatar/plano de fundo continuam Compy+; banner é Caçador
+ * (servidor) — esse gate é todo checado do lado da SELEÇÃO (configSystem.js),
+ * não aqui: este comando só adiciona/remove/lista o que existe no pool.
+ *
+ * Toda imagem nova entra PÚBLICA por padrão (is_public, ver profileImagePool.js)
+ * — o dono pode escondê-la depois sem remover de verdade, pela página
+ * /dev/image-pool do dashboard (não por este comando).
  *
  * Diferente dos outros comandos de developer (reset-db, reset-reports,
  * premium-admin, combat-config), este NÃO recebe servidor_id: os pools de
@@ -35,8 +39,9 @@ const TYPE_CHOICES = [
     { name: 'Avatar (foto de perfil)', value: 'avatar' },
     { name: 'Plano de fundo', value: 'background' },
     { name: 'Emblema', value: 'badge' },
+    { name: 'Banner (Personalização)', value: 'banner' },
 ];
-const TYPE_LABELS = { avatar: 'Avatar', background: 'Plano de fundo', badge: 'Emblema' };
+const TYPE_LABELS = { avatar: 'Avatar', background: 'Plano de fundo', badge: 'Emblema', banner: 'Banner (Personalização)' };
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -44,7 +49,7 @@ try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('perfil-pool')
-        .setDescription('🔒 Gerencia os pools de avatar/plano de fundo/emblema do /perfil (restrito ao desenvolvedor do bot)')
+        .setDescription('🔒 Gerencia os pools de avatar/plano de fundo/emblema/banner (restrito ao desenvolvedor do bot)')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(sub => sub
             .setName('add')
@@ -94,9 +99,14 @@ module.exports = {
                 const row = ProfileImagePool.addImage(tipo, nome, result.messageId, user.id);
                 db.logActivity(null, user.id, 'perfil_pool_add', null, { tipo, id: row.id, nome });
 
-                const availabilityNote = tipo === 'badge'
-                    ? 'Já aparece no menu de escolha do `/perfil-edit` em QUALQUER tier (Emblema é liberado pra todos).'
-                    : 'Já aparece no menu de escolha do `/perfil-edit` pra jogadores Player Premium Compy ou superior.';
+                let availabilityNote;
+                if (tipo === 'badge') {
+                    availabilityNote = 'Já aparece no menu de escolha do `/perfil-edit` em QUALQUER tier (Emblema é liberado pra todos).';
+                } else if (tipo === 'banner') {
+                    availabilityNote = 'Já aparece na galeria de banner do `/config personalizar` (Strike/Unstrike/Report-Chat) pra servidores Caçador, no Discord e no dashboard.';
+                } else {
+                    availabilityNote = 'Já aparece no menu de escolha do `/perfil-edit` pra jogadores Player Premium Compy ou superior.';
+                }
 
                 builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
                     .text([
