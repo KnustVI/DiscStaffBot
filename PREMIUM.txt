@@ -304,7 +304,10 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   inalterada) - navegacao por botao abaixo do painel. Banner do painel de
   /strike e /unstrike TAMBEM personalizavel agora (JA IMPLEMENTADO - ver
   secao 73), junto do banner/mensagem do reportchat, tudo unificado em
-  /config personalizar (Caçador).
+  /config personalizar (Caçador) - tanto pelo Discord quanto pelo
+  dashboard web (aba Moderacao/Reportes), com upload de imagem PROPRIA
+  alem do menu de fotos prontas (JA IMPLEMENTADO - ver secao 108), mesmo
+  padrao ja usado no upload proprio do Player Premium Raptor.
 - Eventos: anuncia automaticamente CRIACAO/INICIO/ENCERRAMENTO dos eventos,
   JA IMPLEMENTADO (ver secao 86) - canal dedicado configuravel em
   /config roles (aba Eventos, campo "Canal de Anuncios de Eventos",
@@ -4755,3 +4758,37 @@ frente, nao so este relatorio):
 - Sistema de Hunt/loja/clãs continua 100% "vindo em breve" — nada disso
   foi implementado nesta revisão, só a DESCRIÇÃO do que vai valer quando
   for implementado.
+
+108) /config personalizar (Caçador) ganha upload de imagem própria pros
+     banners de /strike, /unstrike e report-chat, no Discord E no
+     dashboard web
+------------------------------------------------------------------
+- Divergência apontada pelo dono: o pool de 12 fotos genéricas usado nos
+  banners de `/config personalizar` é o MESMO pool usado pela
+  personalização de foto de perfil do Player Premium Compy (escolha por
+  MENU, sem upload — ver seção 60). A partir do tier Compy+1 (Raptor,
+  Player Premium) o jogador já pode enviar imagem própria via
+  `/perfil-edit`. Esse mesmo salto — "banco de fotos pro tier do meio,
+  upload próprio a partir do tier de cima" — nunca tinha sido levado pro
+  lado SERVIDOR: `/config personalizar` só tinha o menu, mesmo sendo
+  Caçador (tier equivalente ao Raptor na progressão de planos). Corrigido:
+  os 3 banners (Strike/Unstrike/Report-Chat) agora aceitam upload de
+  imagem própria, sem deixar de oferecer o menu de fotos prontas.
+- Discord: `/config personalizar` ganha 3 opções de anexo opcionais —
+  `banner_strike`, `banner_unstrike`, `banner_reportchat`. Enviar qualquer
+  uma delas guarda a imagem no mesmo canal de armazenamento já usado pelo
+  upload próprio do Raptor (`BANNER_STORAGE_CHANNEL_ID`), sem precisar de
+  nenhum arquivo novo em `assets/images/`. Sem anexo nenhum, o comando
+  continua abrindo o painel de sempre (escolher por menu).
+- Dashboard web: as galerias de banner de Moderação (Strike/Unstrike) e
+  Reportes (Report-Chat) ganham um campo de upload próprio logo abaixo de
+  cada galeria, com prévia da imagem atual quando já houver um upload
+  ativo — enviar um arquivo aqui tem prioridade sobre a opção marcada na
+  galeria no mesmo envio.
+- Escolher uma foto do menu (Discord ou site) ou resetar o banner sempre
+  substitui/limpa o upload próprio anterior — nunca fica um upload órfão
+  guardado sem efeito.
+- Se o servidor perder o Caçador, os 3 banners (upload ou menu, tanto faz)
+  voltam sozinhos pro padrão do bot — mesmo critério já usado por toda a
+  personalização (a checagem de tier acontece na LEITURA, não só na
+  escrita).

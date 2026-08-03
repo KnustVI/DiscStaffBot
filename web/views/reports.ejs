@@ -80,7 +80,7 @@
             próprio + <form class="contents"> já usado em moderacao.ejs/
             events.ejs pro bloco Caçador-exclusivo no fim da página.
         %>
-        <form action="/reports/<%= guild.id %>/save" method="POST" class="contents">
+        <form action="/reports/<%= guild.id %>/save" method="POST" enctype="multipart/form-data" class="contents">
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
                     Personalização
@@ -101,6 +101,15 @@
                             </label>
                         <% }); %>
                     </div>
+                    <label class="text-xs opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                    <% if (reportChatCustomBannerUrl) { %>
+                        <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= reportChatCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
+                    <% } %>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="upload"></i></div>
+                        <input type="file" name="report_chat_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
+                    </div>
+                    <p class="text-xs opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (reportChatCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
 
                     <label class="text-xs opacity-60 block mt-4">Mensagem do painel (vazio = padrão do bot)</label>
                     <div class="input-container-premium has-textarea">

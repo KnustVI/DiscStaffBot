@@ -1,0 +1,111 @@
+// src/utils/customBannerResolver.js
+/**
+ * Resolve o banner de /strike, /unstrike e do report-chat (Caçador,
+ * /config personalizar) — cada um pode estar configurado como:
+ *   - uma chave estática do ImageManager (banner padrão do bot ou uma das
+ *     12 fotos do pool, ex: "title_strike"/"foto_perfil_05");
+ *   - ou o valor-sentinela 'custom_upload', quando o dono do servidor
+ *     enviou uma imagem própria (via /config personalizar no Discord ou
+ *     upload no dashboard) — nesse caso o arquivo de verdade fica guardado
+ *     como mensagem no canal fixo BANNER_STORAGE_CHANNEL_ID (mesma receita
+ *     já usada pelo upload próprio do Player Premium Raptor, ver
+ *     playerRegistrationSystem.js _resolveCardPhotoBuffer/_resolveBackgroundBuffer).
+ *
+ * Único lugar que sabe fazer essa resolução — usado tanto por
+ * punishmentSystem.js (banner de /strike e /unstrike) quanto por
+ * reportChatSystem.js (banner do painel e da thread de report-chat),
+ * evita duplicar a lógica de fetch nos dois.
+ *
+ * A checagem de tier acontece AQUI na leitura (não só na escrita do painel
+ * de /config personalizar) — se o servidor perder o Caçador, o banner volta
+ * sozinho pro padrão do bot, sem precisar resetar nada (mesmo critério já
+ * usado por toda a personalização, ver configSystem.js getPanelPersonalization).
+ */
+const FIELD_CONFIG = {
+    strike: { keySetting: 'strike_banner_key', messageIdSetting: 'strike_banner_message_id', defaultKey: 'title_strike' },
+    unstrike: { keySetting: 'unstrike_banner_key', messageIdSetting: 'unstrike_banner_message_id', defaultKey: 'title_strike_removido' },
+    reportchat: { keySetting: 'report_chat_banner_key', messageIdSetting: 'report_chat_banner_message_id', defaultKey: 'title_report_chat' },
+};
+
+function _fieldConfig(field) {
+    const cfg = FIELD_CONFIG[field];
+    if (!cfg) throw new Error(`customBannerResolver: campo desconhecido "${field}" (use 'strike'/'unstrike'/'reportchat')`);
+    return cfg;
+}
+
+/**
+ * @param {import('discord.js').Client} client
+ * @param {string} guildId
+ * @param {'strike'|'unstrike'|'reportchat'} field
+ * @returns {Promise<{type: 'key', value: string} | {type: 'buffer', value: Buffer}>}
+ *   'key' -> passar pra builder.banner(value) (comportamento de sempre).
+ *   'buffer' -> passar pra builder.bannerFromBuffer(value) (upload próprio).
+ *   Qualquer falha ao buscar o upload próprio cai silenciosamente pro
+ *   banner padrão do bot ({type:'key', value: defaultKey}) — nunca quebra
+ *   o painel por causa disso.
+ */
+async function resolveBanner(client, guildId, field) {
+    const cfg = _fieldConfig(field);
+    const ConfigSystem = require('../systems/core/configSystem');
+    const PremiumSystem = require('../systems/premium/premiumSystem');
+
+    const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
+    const bannerKey = (isCustomizable && ConfigSystem.getSetting(guildId, cfg.keySetting)) || cfg.defaultKey;
+
+    if (bannerKey !== 'custom_upload') {
+        return { type: 'key', value: bannerKey };
+    }
+
+    const messageId = ConfigSystem.getSetting(guildId, cfg.messageIdSetting);
+    const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
+    if (!messageId || !storageChannelId) return { type: 'key', value: cfg.defaultKey };
+
+    try {
+        const storageChannel = await client.channels.fetch(storageChannelId);
+        const storedMessage = await storageChannel.messages.fetch(messageId);
+        const url = storedMessage.attachments.first()?.url;
+        if (!url) return { type: 'key', value: cfg.defaultKey };
+
+        const res = await fetch(url);
+        if (!res.ok) return { type: 'key', value: cfg.defaultKey };
+
+        return { type: 'buffer', value: Buffer.from(await res.arrayBuffer()) };
+    } catch (err) {
+        return { type: 'key', value: cfg.defaultKey };
+    }
+}
+
+/**
+ * Versão leve pro dashboard web mostrar a PRÉVIA da imagem própria sem
+ * precisar baixar os bytes (o navegador busca direto da URL retornada) —
+ * só devolve a URL fresca do attachment guardado, ou null se não houver
+ * upload próprio ativo pra esse campo. Sem checagem de tier aqui: quem
+ * chama (dashboard.js) já só usa isso dentro de um bloco isCacador no
+ * template.
+ *
+ * @param {import('discord.js').Client} client
+ * @param {string} guildId
+ * @param {'strike'|'unstrike'|'reportchat'} field
+ * @returns {Promise<string|null>}
+ */
+async function resolveBannerUrl(client, guildId, field) {
+    const cfg = _fieldConfig(field);
+    const ConfigSystem = require('../systems/core/configSystem');
+
+    const bannerKey = ConfigSystem.getSetting(guildId, cfg.keySetting);
+    if (bannerKey !== 'custom_upload') return null;
+
+    const messageId = ConfigSystem.getSetting(guildId, cfg.messageIdSetting);
+    const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
+    if (!messageId || !storageChannelId) return null;
+
+    try {
+        const storageChannel = await client.channels.fetch(storageChannelId);
+        const storedMessage = await storageChannel.messages.fetch(messageId);
+        return storedMessage.attachments.first()?.url || null;
+    } catch (err) {
+        return null;
+    }
+}
+
+module.exports = { resolveBanner, resolveBannerUrl };

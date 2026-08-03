@@ -36,6 +36,7 @@ const {
     ButtonBuilder,
     ButtonStyle,
     MessageFlags,
+    AttachmentBuilder,
 } = require('discord.js');
 const imageManager = require('./imageManager');
 
@@ -125,6 +126,26 @@ class AdvancedContainerBuilder {
         const url = imageManager.getUrl(key);
         const attachment = imageManager.getAttachment(key);
         if (!url || !attachment) return this;
+
+        this.components.push({ kind: 'gallery', payload: [url] });
+        this._files.push(attachment);
+        return this.separator();
+    }
+
+    /**
+     * Igual a banner(), mas a partir de um Buffer cru em vez de uma chave
+     * fixa do ImageManager — usado pro banner de imagem PRÓPRIA (upload,
+     * ver src/utils/customBannerResolver.js) de /strike, /unstrike e do
+     * report-chat, cujo arquivo não mora em assets/images. Mesma estrutura
+     * interna (gallery + attachment acumulado em `_files` + separador).
+     *
+     * @param {Buffer} buffer - bytes crus da imagem (já reencodados/redimensionados)
+     * @param {string} [filename] - nome do arquivo no attachment:// (só precisa bater com o AttachmentBuilder abaixo)
+     * @returns {this}
+     */
+    bannerFromBuffer(buffer, filename = 'banner.webp') {
+        const url = `attachment://${filename}`;
+        const attachment = new AttachmentBuilder(buffer, { name: filename });
 
         this.components.push({ kind: 'gallery', payload: [url] });
         this._files.push(attachment);

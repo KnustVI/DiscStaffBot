@@ -364,28 +364,32 @@ class ReportChatSystem {
      * apagado), então volta a valer automaticamente se o Caçador for
      * readquirido depois.
      */
-    _resolveThreadPersonalization(guildId) {
+    async _resolveThreadPersonalization(guildId) {
         const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
+        const CustomBannerResolver = require('../../utils/customBannerResolver');
         return {
-            bannerKey: (isCustomizable && ConfigSystem.getSetting(guildId, 'report_chat_banner_key')) || 'title_report_chat',
+            banner: await CustomBannerResolver.resolveBanner(this.client, guildId, 'reportchat'),
             welcomeMessage: isCustomizable ? ConfigSystem.getSetting(guildId, 'report_chat_welcome_message') : null,
         };
     }
 
-    getPanel(guildName, guildIcon, guildId) {
+    async getPanel(guildName, guildIcon, guildId) {
         // Banner, mensagem, cor e footer são personalizáveis a partir do
         // Caçador (ver /config personalizar) — fora desse tier (ou sem nada
         // configurado ainda), cai sempre no padrão do bot. A checagem de
         // tier acontece AQUI (na leitura), não só na escrita: se o servidor
         // perder o Caçador, volta pro padrão sozinho, sem precisar resetar
-        // nada.
+        // nada. Banner pode ser a chave estática do bot, uma foto do pool
+        // ou uma imagem própria enviada (ver customBannerResolver.js).
         const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
-        const bannerKey = (isCustomizable && ConfigSystem.getSetting(guildId, 'report_chat_banner_key')) || 'title_report_chat';
+        const CustomBannerResolver = require('../../utils/customBannerResolver');
+        const banner = await CustomBannerResolver.resolveBanner(this.client, guildId, 'reportchat');
         const customMessage = isCustomizable ? ConfigSystem.getSetting(guildId, 'report_chat_message') : null;
         const personalization = ConfigSystem.getPanelPersonalization(guildId);
 
         const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
-        builder.banner(bannerKey);
+        if (banner.type === 'buffer') builder.bannerFromBuffer(banner.value);
+        else builder.banner(banner.value);
         builder.text(`## ${EMOJIS.ticket || '🎫'} Denúncia de jogador`);
         builder.text(customMessage || [
             `- **Abra um Reporte**: Clique no botão abaixo para abrir uma denúncia.`,
@@ -467,11 +471,12 @@ class ReportChatSystem {
             // painel do canal, aplicado aqui também pra manter a mesma
             // identidade visual na thread (tier já checado dentro do
             // helper, ver _resolveThreadPersonalization acima).
-            const { bannerKey: threadBannerKey, welcomeMessage } = this._resolveThreadPersonalization(guild.id);
+            const { banner: threadBanner, welcomeMessage } = await this._resolveThreadPersonalization(guild.id);
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
-            threadBuilder.banner(threadBannerKey);
+            if (threadBanner.type === 'buffer') threadBuilder.bannerFromBuffer(threadBanner.value);
+            else threadBuilder.banner(threadBanner.value);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REPORTE | ${reportId}`);
             threadBuilder.text(welcomeMessage || `Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
@@ -641,11 +646,12 @@ class ReportChatSystem {
             // compartilhado com openReport() acima, já que /config
             // personalizar trata os dois fluxos como um só ("report-chat"),
             // tier já checado dentro do helper.
-            const { bannerKey: threadBannerKey, welcomeMessage } = this._resolveThreadPersonalization(guild.id);
+            const { banner: threadBanner, welcomeMessage } = await this._resolveThreadPersonalization(guild.id);
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
-            threadBuilder.banner(threadBannerKey);
+            if (threadBanner.type === 'buffer') threadBuilder.bannerFromBuffer(threadBanner.value);
+            else threadBuilder.banner(threadBanner.value);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
             threadBuilder.text(welcomeMessage || `Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);

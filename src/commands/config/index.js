@@ -28,7 +28,16 @@ module.exports = {
             .setDescription('⚖️ Configura os níveis de punição e limites de reputação.'))
         .addSubcommand(sub => sub
             .setName('personalizar')
-            .setDescription('🖼️ Personaliza banners de /strike, /unstrike e do report-chat (Caçador).'))
+            .setDescription('🖼️ Personaliza banners de /strike, /unstrike e do report-chat (Caçador).')
+            .addAttachmentOption(opt => opt.setName('banner_strike')
+                .setDescription('[Caçador] Envie sua própria imagem pro banner do /strike (em vez de escolher do menu).')
+                .setRequired(false))
+            .addAttachmentOption(opt => opt.setName('banner_unstrike')
+                .setDescription('[Caçador] Envie sua própria imagem pro banner do /unstrike (em vez de escolher do menu).')
+                .setRequired(false))
+            .addAttachmentOption(opt => opt.setName('banner_reportchat')
+                .setDescription('[Caçador] Envie sua própria imagem pro banner do report-chat (em vez de escolher do menu).')
+                .setRequired(false)))
         .addSubcommand(sub => sub
             .setName('buffs')
             .setDescription('💉 Cria e edita buffs (presets de setattr em lote) (Caçador).'))

@@ -88,7 +88,14 @@
             <section> ficam como filhos diretos do gap-[30px] do <main>,
             exatamente como se não houvesse form nenhum ali no meio.
         %>
-        <form action="/moderacao/<%= guild.id %>/save" method="POST" class="contents">
+        <%#
+            enctype multipart/form-data (pedido do dono: upload de imagem
+            própria pros banners de Strike/Unstrike, Caçador) — não quebra
+            os campos de texto/rádio/select existentes, multer.fields()
+            popula req.body pra eles normalmente (ver dashboard.js POST
+            /moderacao/:guildID/save).
+        %>
+        <form action="/moderacao/<%= guild.id %>/save" method="POST" enctype="multipart/form-data" class="contents">
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
                 <div class="flex flex-col gap-8">
@@ -178,6 +185,15 @@
                                 </label>
                             <% }); %>
                         </div>
+                        <label class="text-xs opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <% if (strikeCustomBannerUrl) { %>
+                            <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= strikeCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
+                        <% } %>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="upload"></i></div>
+                            <input type="file" name="strike_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
+                        </div>
+                        <p class="text-xs opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (strikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
 
                         <label class="text-xs opacity-60 block mt-4">Banner Unstrike</label>
                         <div class="banner-picker">
@@ -189,6 +205,15 @@
                                 </label>
                             <% }); %>
                         </div>
+                        <label class="text-xs opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <% if (unstrikeCustomBannerUrl) { %>
+                            <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= unstrikeCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
+                        <% } %>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="upload"></i></div>
+                            <input type="file" name="unstrike_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
+                        </div>
+                        <p class="text-xs opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (unstrikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
                     </div>
 
                     <div>

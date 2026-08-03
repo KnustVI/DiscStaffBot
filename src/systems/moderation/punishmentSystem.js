@@ -222,27 +222,6 @@ const PunishmentSystem = {
     },
 
     /**
-     * Banner do painel de /strike e /unstrike, personalizável a partir do
-     * Caçador (ver /config personalizar). A checagem de tier acontece AQUI
-     * na leitura, não só na escrita do painel de config — se o servidor
-     * perder o Caçador, volta pro padrão do bot sozinho, sem precisar
-     * resetar nada (mesmo critério já usado em reportChatSystem.js.getPanel).
-     */
-    _resolveStrikeBannerKey(guildId) {
-        const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
-        if (!isCustomizable) return 'title_strike';
-        const ConfigSystem = require('../core/configSystem');
-        return ConfigSystem.getSetting(guildId, 'strike_banner_key') || 'title_strike';
-    },
-
-    _resolveUnstrikeBannerKey(guildId) {
-        const isCustomizable = guildId && PremiumSystem.isGuildAtLeast(guildId, 'cacador');
-        if (!isCustomizable) return 'title_strike_removido';
-        const ConfigSystem = require('../core/configSystem');
-        return ConfigSystem.getSetting(guildId, 'unstrike_banner_key') || 'title_strike_removido';
-    },
-
-    /**
      * Cor de destaque e footer customizados (aba "Aparência Geral" de
      * /config personalizar) — ver ConfigSystem.getPanelPersonalization.
      * Usado nos painéis de /strike e /unstrike, e nos logs de punição
@@ -269,10 +248,18 @@ const PunishmentSystem = {
         }
     },
 
-    generateStrikeUnifiedContainer(target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
+    async generateStrikeUnifiedContainer(client, target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
         const personalization = this._resolvePersonalization(guildId);
         const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.ERROR });
-        builder.banner(this._resolveStrikeBannerKey(guildId));
+        // Banner padrão do bot / pool de fotos / imagem própria enviada via
+        // /config personalizar ou pelo dashboard — ver customBannerResolver.js.
+        const CustomBannerResolver = require('../../utils/customBannerResolver');
+        const strikeBanner = await CustomBannerResolver.resolveBanner(client, guildId, 'strike');
+        if (strikeBanner.type === 'buffer') {
+            builder.bannerFromBuffer(strikeBanner.value);
+        } else {
+            builder.banner(strikeBanner.value);
+        }
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -318,10 +305,18 @@ const PunishmentSystem = {
         return builder;
     },
 
-    generateUnstrikeUnifiedContainer(target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName, guildId) {
+    async generateUnstrikeUnifiedContainer(client, target, moderator, strikeNumber, reason, pointsRestored, newPoints, originalReason, guildName, guildId) {
         const personalization = this._resolvePersonalization(guildId);
         const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.SUCCESS });
-        builder.banner(this._resolveUnstrikeBannerKey(guildId));
+        // Banner padrão do bot / pool de fotos / imagem própria enviada via
+        // /config personalizar ou pelo dashboard — ver customBannerResolver.js.
+        const CustomBannerResolver = require('../../utils/customBannerResolver');
+        const unstrikeBanner = await CustomBannerResolver.resolveBanner(client, guildId, 'unstrike');
+        if (unstrikeBanner.type === 'buffer') {
+            builder.bannerFromBuffer(unstrikeBanner.value);
+        } else {
+            builder.banner(unstrikeBanner.value);
+        }
 
         // ── Apresentação padrão: Moderador primeiro, logo após o banner ─────
         const moderatorAvatar = moderator.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png';
@@ -898,8 +893,8 @@ const PunishmentSystem = {
 
         await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
 
-        const containerBuilder = this.generateStrikeUnifiedContainer(
-            targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
+        const containerBuilder = await this.generateStrikeUnifiedContainer(
+            interaction.client, targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
             pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id,
             jogoAct, ingameActionResult
         );
@@ -1076,8 +1071,8 @@ const PunishmentSystem = {
             await AnalyticsSystem.updateStaffAnalytics(guildId, staff.id);
 
             const targetUser = await interaction.client.users.fetch(punishment.user_id).catch(() => null);
-            const containerBuilder = this.generateUnstrikeUnifiedContainer(
-                targetUser, staff, punishmentId, reason, pointsRestored, newPoints, punishment.reason, guild.name, guildId
+            const containerBuilder = await this.generateUnstrikeUnifiedContainer(
+                interaction.client, targetUser, staff, punishmentId, reason, pointsRestored, newPoints, punishment.reason, guild.name, guildId
             );
             const { components, flags, files: filesPayload } = containerBuilder.build();
 

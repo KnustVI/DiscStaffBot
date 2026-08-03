@@ -246,6 +246,16 @@ const UNSTRIKE_BANNER_OPTIONS = [
     ...PLAYER_PHOTO_OPTIONS,
 ];
 
+// Rótulo exibido no painel de /config personalizar pro banner atual de cada
+// campo — 'custom_upload' (imagem própria enviada, ver customBannerResolver.js)
+// não está em nenhuma das listas *_BANNER_OPTIONS acima, então cai fora do
+// .find() comum; tratado à parte pra não mostrar a chave crua "custom_upload"
+// pro dono do servidor.
+function _resolveBannerLabel(bannerKey, options) {
+    if (bannerKey === 'custom_upload') return 'Imagem própria (upload)';
+    return options.find(opt => opt.value === bannerKey)?.label || bannerKey;
+}
+
 const ConfigSystem = {
     STAFF_ROLE_KEYS,
     PLAYER_PHOTO_OPTIONS,
@@ -2112,6 +2122,11 @@ const ConfigSystem = {
 
         const oldValue = this.getSetting(interaction.guildId, 'strike_banner_key') || 'title_strike';
         this.setSetting(interaction.guildId, 'strike_banner_key', chosenKey);
+        // Escolher do menu sobrepõe um upload próprio anterior — zera o
+        // message_id órfão junto (ver customBannerResolver.js), senão ele
+        // fica guardado sem nenhum efeito até o dia em que alguém setar
+        // 'custom_upload' de novo por engano.
+        this.setSetting(interaction.guildId, 'strike_banner_message_id', null);
         this.clearCache(interaction.guildId);
 
         const label = STRIKE_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
@@ -2126,6 +2141,7 @@ const ConfigSystem = {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'strike_banner_key', null);
+        this.setSetting(interaction.guildId, 'strike_banner_message_id', null);
         this.clearCache(interaction.guildId);
         await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner do /strike resetado para o padrão.`);
         await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner do /strike resetado para o padrão!`, interaction.guild.name, 'strike');
@@ -2145,6 +2161,7 @@ const ConfigSystem = {
 
         const oldValue = this.getSetting(interaction.guildId, 'unstrike_banner_key') || 'title_strike_removido';
         this.setSetting(interaction.guildId, 'unstrike_banner_key', chosenKey);
+        this.setSetting(interaction.guildId, 'unstrike_banner_message_id', null);
         this.clearCache(interaction.guildId);
 
         const label = UNSTRIKE_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
@@ -2159,6 +2176,7 @@ const ConfigSystem = {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'unstrike_banner_key', null);
+        this.setSetting(interaction.guildId, 'unstrike_banner_message_id', null);
         this.clearCache(interaction.guildId);
         await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner do /unstrike resetado para o padrão.`);
         await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner do /unstrike resetado para o padrão!`, interaction.guild.name, 'strike');
@@ -2178,6 +2196,7 @@ const ConfigSystem = {
 
         const oldValue = this.getSetting(interaction.guildId, 'report_chat_banner_key') || 'title_report_chat';
         this.setSetting(interaction.guildId, 'report_chat_banner_key', chosenKey);
+        this.setSetting(interaction.guildId, 'report_chat_banner_message_id', null);
         this.clearCache(interaction.guildId);
 
         const label = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === chosenKey)?.label || chosenKey;
@@ -2275,6 +2294,7 @@ const ConfigSystem = {
         if (!(await this._assertPersonalizarAllowed(interaction))) return;
 
         this.setSetting(interaction.guildId, 'report_chat_banner_key', null);
+        this.setSetting(interaction.guildId, 'report_chat_banner_message_id', null);
         this.clearCache(interaction.guildId);
         await this.logConfigChange(interaction, `${EMOJIS.refreshccw || '⚠️'} Banner do report-chat resetado para o padrão.`);
         await this.refreshPersonalizarPanel(interaction, `${EMOJIS.circlecheck || '✅'} Banner resetado para o padrão!`, interaction.guild.name, 'reportchat');
@@ -2465,8 +2485,8 @@ const ConfigSystem = {
         if (activeTab === 'strike') {
             const strikeBannerKey = this.getSetting(guildId, 'strike_banner_key') || 'title_strike';
             const unstrikeBannerKey = this.getSetting(guildId, 'unstrike_banner_key') || 'title_strike_removido';
-            const strikeLabel = STRIKE_BANNER_OPTIONS.find(opt => opt.value === strikeBannerKey)?.label || strikeBannerKey;
-            const unstrikeLabel = UNSTRIKE_BANNER_OPTIONS.find(opt => opt.value === unstrikeBannerKey)?.label || unstrikeBannerKey;
+            const strikeLabel = _resolveBannerLabel(strikeBannerKey, STRIKE_BANNER_OPTIONS);
+            const unstrikeLabel = _resolveBannerLabel(unstrikeBannerKey, UNSTRIKE_BANNER_OPTIONS);
 
             cb.section(
                 [
@@ -2506,7 +2526,7 @@ const ConfigSystem = {
             const bannerKey = this.getSetting(guildId, 'report_chat_banner_key') || 'title_report_chat';
             const customMessage = this.getSetting(guildId, 'report_chat_message');
             const welcomeMessage = this.getSetting(guildId, 'report_chat_welcome_message');
-            const bannerLabel = REPORT_CHAT_BANNER_OPTIONS.find(opt => opt.value === bannerKey)?.label || bannerKey;
+            const bannerLabel = _resolveBannerLabel(bannerKey, REPORT_CHAT_BANNER_OPTIONS);
 
             cb.section(
                 [

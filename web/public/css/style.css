@@ -323,6 +323,28 @@ textarea.input-premium-field {
 }
 .input-container-premium.has-textarea { align-items: flex-start; }
 
+/* <input type="file"> reaproveitando o mesmo campo (upload de imagem
+   própria pros banners, pedido do dono — Caçador) — o botão nativo do
+   seletor de arquivo (::file-selector-button) não herda nada do resto do
+   tema sozinho, então ganha estilo próprio aqui (cápsula dourada, mesma
+   cor de .icon-box) em vez de ficar com a aparência crua do sistema
+   operacional. */
+.input-premium-field[type="file"] { padding: 8px 15px; cursor: pointer; }
+.input-premium-field[type="file"]::file-selector-button {
+    margin-right: 12px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+    background: #DCA15E;
+    color: #131314;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.input-premium-field[type="file"]::file-selector-button:hover { background: #F8DCC0; }
+
 /* Galeria de escolha de banner (pedido do dono: dar no site a mesma
    personalização de imagem que já existe no /config personalizar do
    Discord — lá é um <select> de texto por limitação do próprio Discord;

@@ -4,13 +4,31 @@ const { Strategy } = require('passport-discord');
 const session = require('express-session');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 const { GuildScheduledEventStatus, ChannelType } = require('discord.js');
 const db = require('./src/database');
 const SqliteSessionStore = require('./web/sqliteSessionStore');
 const ConfigSystem = require('./src/systems/core/configSystem');
 const PremiumSystem = require('./src/systems/premium/premiumSystem');
+const CustomBannerResolver = require('./src/utils/customBannerResolver');
+const { storeImageBuffer } = require('./src/utils/imageStorage');
 
 const app = express();
+
+// Upload de banner próprio (Personalização/Report-Chat) — mesmo whitelist
+// de formato do lado Discord (src/utils/imageStorage.js), guardado só em
+// memória (nunca gravado em disco): storeImageBuffer já reencoda/reenvia
+// pro canal de armazenamento do bot antes de qualquer coisa persistir.
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 8 * 1024 * 1024 },
+    fileFilter(req, file, cb) {
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) {
+            return cb(new Error('O arquivo enviado precisa ser uma imagem estática (png, jpg ou webp).'));
+        }
+        cb(null, true);
+    },
+});
 
 // Rótulos exibidos pra web dos status reais de reports.status (mesmo mapa
 // usado em reportChatSystem.js:89-106) — 'closed_no_reason'/'closed_with_reason'
@@ -632,6 +650,11 @@ function loadDashboard(client) {
         const unstrikeBannerKey = settings.unstrike_banner_key || 'title_strike_removido';
         const strikeBannerOptions = ConfigSystem.STRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
         const unstrikeBannerOptions = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
+        // Prévia da imagem PRÓPRIA enviada (Caçador, upload direto em vez de
+        // escolher da galeria) — null se não houver upload ativo pra esse
+        // campo, ver src/utils/customBannerResolver.js.
+        const strikeCustomBannerUrl = await CustomBannerResolver.resolveBannerUrl(client, guildID, 'strike');
+        const unstrikeCustomBannerUrl = await CustomBannerResolver.resolveBannerUrl(client, guildID, 'unstrike');
         const staffRoleIds = ConfigSystem.getRoleIds(guildID, 'staff_role');
         const supervisorRoleIds = ConfigSystem.getRoleIds(guildID, 'supervisor_role');
         // Mesmo limite por tier já usado no painel /config roles do Discord
@@ -668,11 +691,17 @@ function loadDashboard(client) {
             unstrikeBannerKey,
             strikeBannerOptions,
             unstrikeBannerOptions,
+            strikeCustomBannerUrl,
+            unstrikeCustomBannerUrl,
             saved: req.query.saved,
         });
     });
 
-    app.post('/moderacao/:guildID/save', checkAuth, async (req, res) => {
+    app.post(
+        '/moderacao/:guildID/save',
+        checkAuth,
+        upload.fields([{ name: 'strike_banner_file', maxCount: 1 }, { name: 'unstrike_banner_file', maxCount: 1 }]),
+        async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
@@ -683,6 +712,7 @@ function loadDashboard(client) {
         // Só grava as chaves que vieram NESTE submit (checagem "in body") —
         // defensivo mesmo com 1 form só hoje, não custa nada manter.
         const body = req.body;
+        const files = req.files || {};
         try {
             // MODERADOR/SUPERVISOR agora aceitam mais de um cargo (ver
             // partials/role-picker.ejs) — cada cargo chega como um hidden
@@ -710,21 +740,48 @@ function loadDashboard(client) {
             // os blocos do /config personalizar do Discord relevantes pra
             // Moderação (Strike/Unstrike, Aparência Geral); Report-Chat tem
             // seu próprio save em POST /reports/:guildID/save.
+            const strikeFile = files.strike_banner_file?.[0];
+            const unstrikeFile = files.unstrike_banner_file?.[0];
             const personalizarFields = ['panel_accent_color', 'panel_footer_text', 'strike_banner_key', 'unstrike_banner_key'];
-            if (personalizarFields.some(f => f in body) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+            if ((personalizarFields.some(f => f in body) || strikeFile || unstrikeFile) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
                 if ('panel_accent_color' in body) ConfigSystem.setSetting(guildID, 'panel_accent_color', (body.panel_accent_color || '').replace(/^#/, '') || null);
                 if ('panel_footer_text' in body) ConfigSystem.setSetting(guildID, 'panel_footer_text', body.panel_footer_text || null);
-                // Mesma validação de valor do painel /config personalizar do
-                // Discord (isValidOption, configSystem.js) — o picker do
-                // dashboard já só manda um dos valores válidos, isso aqui é
-                // defesa contra um POST forjado.
-                if ('strike_banner_key' in body) {
+
+                // Upload de imagem própria tem prioridade sobre a galeria —
+                // se um arquivo veio junto, ele vence mesmo com um rádio
+                // marcado no mesmo submit (mesma receita de storeImageBuffer
+                // usada pelo upload próprio do Discord, ver
+                // src/utils/imageStorage.js/customBannerResolver.js).
+                if (strikeFile) {
+                    const result = await storeImageBuffer(client, strikeFile.buffer, `Banner do /strike de \`${guild.name}\` (\`${guild.id}\`)`);
+                    if (result.ok) {
+                        ConfigSystem.setSetting(guildID, 'strike_banner_key', 'custom_upload');
+                        ConfigSystem.setSetting(guildID, 'strike_banner_message_id', result.messageId);
+                    }
+                } else if ('strike_banner_key' in body) {
+                    // Mesma validação de valor do painel /config personalizar
+                    // do Discord (isValidOption, configSystem.js) — o picker
+                    // do dashboard já só manda um dos valores válidos, isso
+                    // aqui é defesa contra um POST forjado.
                     const isValid = ConfigSystem.STRIKE_BANNER_OPTIONS.some(opt => opt.value === body.strike_banner_key);
-                    if (isValid) ConfigSystem.setSetting(guildID, 'strike_banner_key', body.strike_banner_key);
+                    if (isValid) {
+                        ConfigSystem.setSetting(guildID, 'strike_banner_key', body.strike_banner_key);
+                        ConfigSystem.setSetting(guildID, 'strike_banner_message_id', null);
+                    }
                 }
-                if ('unstrike_banner_key' in body) {
+
+                if (unstrikeFile) {
+                    const result = await storeImageBuffer(client, unstrikeFile.buffer, `Banner do /unstrike de \`${guild.name}\` (\`${guild.id}\`)`);
+                    if (result.ok) {
+                        ConfigSystem.setSetting(guildID, 'unstrike_banner_key', 'custom_upload');
+                        ConfigSystem.setSetting(guildID, 'unstrike_banner_message_id', result.messageId);
+                    }
+                } else if ('unstrike_banner_key' in body) {
                     const isValid = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.some(opt => opt.value === body.unstrike_banner_key);
-                    if (isValid) ConfigSystem.setSetting(guildID, 'unstrike_banner_key', body.unstrike_banner_key);
+                    if (isValid) {
+                        ConfigSystem.setSetting(guildID, 'unstrike_banner_key', body.unstrike_banner_key);
+                        ConfigSystem.setSetting(guildID, 'unstrike_banner_message_id', null);
+                    }
                 }
             }
             res.redirect(`/moderacao/${guildID}?saved=success`);
@@ -755,6 +812,9 @@ function loadDashboard(client) {
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
         const reportChatBannerKey = settings.report_chat_banner_key || 'title_report_chat';
         const reportChatBannerOptions = ConfigSystem.REPORT_CHAT_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
+        // Prévia da imagem PRÓPRIA enviada (Caçador, upload direto em vez de
+        // escolher da galeria) — null se não houver upload ativo.
+        const reportChatCustomBannerUrl = await CustomBannerResolver.resolveBannerUrl(client, guildID, 'reportchat');
 
         res.render('reports', {
             guild,
@@ -769,11 +829,16 @@ function loadDashboard(client) {
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
             reportChatBannerKey,
             reportChatBannerOptions,
+            reportChatCustomBannerUrl,
             saved: req.query.saved,
         });
     });
 
-    app.post('/reports/:guildID/save', checkAuth, async (req, res) => {
+    app.post(
+        '/reports/:guildID/save',
+        checkAuth,
+        upload.single('report_chat_banner_file'),
+        async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
@@ -782,18 +847,34 @@ function loadDashboard(client) {
         if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
 
         const body = req.body;
+        const bannerFile = req.file;
         try {
             // Personalização do Report-Chat é exclusiva do plano Caçador
             // (mesma checagem de getPanelPersonalization, configSystem.js) —
             // ignora silenciosamente em vez de travar o resto do formulário.
             const reportChatFields = ['report_chat_banner_key', 'report_chat_message', 'report_chat_welcome_message'];
-            if (reportChatFields.some(f => f in body) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
-                // Mesma validação do painel /config personalizar do Discord
-                // (isValidOption) — o picker do dashboard já só manda um dos
-                // valores válidos, isso aqui é defesa contra um POST forjado.
-                if ('report_chat_banner_key' in body) {
+            if ((reportChatFields.some(f => f in body) || bannerFile) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+                // Upload de imagem própria tem prioridade sobre a galeria —
+                // se um arquivo veio junto, ele vence mesmo com um rádio
+                // marcado no mesmo submit (mesma receita de storeImageBuffer
+                // usada pelo upload próprio do Discord, ver
+                // src/utils/imageStorage.js/customBannerResolver.js).
+                if (bannerFile) {
+                    const result = await storeImageBuffer(client, bannerFile.buffer, `Banner do report-chat de \`${guild.name}\` (\`${guild.id}\`)`);
+                    if (result.ok) {
+                        ConfigSystem.setSetting(guildID, 'report_chat_banner_key', 'custom_upload');
+                        ConfigSystem.setSetting(guildID, 'report_chat_banner_message_id', result.messageId);
+                    }
+                } else if ('report_chat_banner_key' in body) {
+                    // Mesma validação do painel /config personalizar do
+                    // Discord (isValidOption) — o picker do dashboard já só
+                    // manda um dos valores válidos, isso aqui é defesa
+                    // contra um POST forjado.
                     const isValid = ConfigSystem.REPORT_CHAT_BANNER_OPTIONS.some(opt => opt.value === body.report_chat_banner_key);
-                    if (isValid) ConfigSystem.setSetting(guildID, 'report_chat_banner_key', body.report_chat_banner_key);
+                    if (isValid) {
+                        ConfigSystem.setSetting(guildID, 'report_chat_banner_key', body.report_chat_banner_key);
+                        ConfigSystem.setSetting(guildID, 'report_chat_banner_message_id', null);
+                    }
                 }
                 // Mesmo limite de 1000 caracteres do modal do Discord
                 // (TextInputBuilder maxLength) — o <textarea> do dashboard já

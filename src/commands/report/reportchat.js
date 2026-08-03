@@ -18,7 +18,7 @@ module.exports = {
     async execute(interaction, client) {
         
         const reportSystem = new ReportChatSystem(client);
-        const panel = reportSystem.getPanel(interaction.guild.name, interaction.guild.iconURL(), interaction.guild.id);
+        const panel = await reportSystem.getPanel(interaction.guild.name, interaction.guild.iconURL(), interaction.guild.id);
         
         // Enviar o painel no canal (fora da interação)
         await interaction.channel.send(panel);
