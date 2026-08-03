@@ -5,7 +5,8 @@
  * automaticamente no banco — sem isso, ele ficaria "aberto" pra sempre e,
  * com o limite de chats do tier Free, bloquearia o usuário de abrir outro.
  *
- * Também descobre QUEM apagou (pedido do dono, pro dashboard mostrar) — o
+ * Também descobre QUEM apagou (pedido do dono, pro dashboard mostrar e pro
+ * log Geral do servidor — ver reportChatSystem.js _logThreadDeleted) — o
  * evento threadDelete do Discord não vem com o executor, só com a thread em
  * si, então é resolvido via audit log logo em seguida.
  */

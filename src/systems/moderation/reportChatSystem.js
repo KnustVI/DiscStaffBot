@@ -958,7 +958,7 @@ class ReportChatSystem {
      * @param {string|null} [deletedBy] - ID de quem apagou (null se o audit
      *   log não achou/expirou — ainda registra a exclusão em si, só sem autor).
      */
-    releaseReportByThreadId(threadId, deletedBy = null) {
+    async releaseReportByThreadId(threadId, deletedBy = null) {
         const report = db.prepare(`SELECT * FROM reports WHERE thread_id = ?`).get(threadId);
         if (!report) return null;
 
@@ -976,7 +976,43 @@ class ReportChatSystem {
             this.updateStatus(report.guild_id, `#R${report.report_number}`, 'closed_no_reason').catch(() => {});
         }
 
+        await this._logThreadDeleted(report, deletedBy);
+
         return report;
+    }
+
+    /**
+     * Avisa no canal de log Geral (pedido do dono) sempre que um tópico de
+     * report/revisão é apagado — mesmo canal/estilo já usado por
+     * ConfigSystem.logConfigChange, mas sem precisar de uma interaction de
+     * verdade (esse evento vem do gateway puro, ver src/events/threadDelete.js).
+     * Falha silenciosamente se o canal não estiver configurado ou não puder
+     * ser alcançado, mesmo padrão dos demais envios de log.
+     */
+    async _logThreadDeleted(report, deletedBy) {
+        try {
+            const guild = this.client.guilds.cache.get(report.guild_id);
+            if (!guild) return;
+
+            const logChannelId = ConfigSystem.getUnifiedGeneralLogChannel(report.guild_id);
+            if (!logChannelId) return;
+            const channel = await guild.channels.fetch(logChannelId).catch(() => null);
+            if (!channel) return;
+
+            const personalization = ConfigSystem.getPanelPersonalization(report.guild_id);
+            const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.ERROR });
+            builder.title(`${EMOJIS.trianglealert || '⚠️'} Tópico de Report Apagado`);
+            builder.text(`**Report:** ${EMOJIS.ticket || '🎫'} ${report.report_id}`);
+            builder.text(`**Apagado por:** ${deletedBy ? `<@${deletedBy}>` : 'Não identificado (audit log não encontrou a exclusão)'}`);
+            builder.separator();
+            if (personalization.footerText) builder.footerRaw(personalization.footerText);
+            else builder.footer(guild.name);
+
+            const { components, flags } = builder.build();
+            await channel.send({ components, flags: [flags] });
+        } catch (error) {
+            console.error('❌ [ReportChatSystem] Erro ao enviar log de tópico apagado:', error);
+        }
     }
 
     async _tryArchiveThread(guildId, threadId) {
