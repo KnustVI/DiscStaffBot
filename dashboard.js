@@ -530,6 +530,41 @@ function loadDashboard(client) {
         res.redirect('/dev/image-pool');
     });
 
+    // Upload direto pelo dashboard (pedido do dono: não precisar ir no
+    // Discord toda vez) — mesma receita de storeImageBuffer já usada pro
+    // upload próprio de banner (POST /moderacao/:guildID/save), só que
+    // gravando no pool em vez de num setting de guild específico.
+    app.post(
+        '/dev/image-pool/:type/upload',
+        checkAuth,
+        upload.single('imagem'),
+        async (req, res) => {
+            if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+            const { type } = req.params;
+            if (!ProfileImagePool.VALID_TYPES.includes(type)) return res.status(400).send('Tipo de pool inválido.');
+
+            const label = (req.body.label || '').trim();
+            const file = req.file;
+            if (label && file) {
+                const result = await storeImageBuffer(client, file.buffer, `${type} (pool) — "${label}" adicionado via dashboard por \`${req.user.username}\``);
+                if (result.ok) {
+                    ProfileImagePool.addImage(type, label, result.messageId, req.user.id);
+                }
+            }
+            res.redirect('/dev/image-pool');
+        }
+    );
+
+    // Remove de verdade (diferente do toggle, que só esconde) — mesmo
+    // efeito de /perfil-pool remover no Discord, só que pelo dashboard.
+    app.post('/dev/image-pool/:type/:id/delete', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const { type } = req.params;
+        const id = Number(req.params.id);
+        ProfileImagePool.removeImage(type, id);
+        res.redirect('/dev/image-pool');
+    });
+
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
     // Só mostra servidores onde o bot JÁ ESTÁ (pedido do dono) — antes
     // listava todo servidor que o usuário administra no Discord, mesmo sem

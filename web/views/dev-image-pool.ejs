@@ -2,11 +2,11 @@
   web/views/dev-image-pool.ejs
   Página GLOBAL (sem :guildID — o pool de imagens não pertence a nenhum
   servidor), restrita ao dono do bot (isOwnerSession, ver dashboard.js
-  GET /dev/image-pool) — ativa/desativa a visibilidade pública de cada
-  imagem do pool dinâmico (avatar/plano de fundo/emblema/banner, ver
-  src/systems/pot/profileImagePool.js) sem precisar removê-la de verdade.
-  Adicionar/remover imagem continua só pelo Discord (/perfil-pool) — aqui
-  é só o controle de visibilidade que só o dono tem.
+  GET /dev/image-pool) — gerencia o pool dinâmico (avatar/plano de
+  fundo/emblema/banner, ver src/systems/pot/profileImagePool.js): sobe
+  imagem nova, ativa/desativa visibilidade sem remover, ou apaga de
+  verdade. Mesmas ações do /perfil-pool no Discord (add/remover), só que
+  pelo dashboard, mais o toggle de público/privado que só existe aqui.
 
   Uso: res.render('dev-image-pool', { groups })
     groups — array [{ type, label, images: [{ id, label, url, is_public,
@@ -79,38 +79,105 @@
         }
         .pool-item-badge.is-public { background: rgba(165, 255, 161, 0.15); color: #A5FFA1; }
         .pool-item-badge.is-private { background: rgba(255, 78, 59, 0.15); color: #FF4E3B; }
-        .pool-toggle-btn {
+        .pool-item-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+        .pool-toggle-btn, .pool-delete-btn {
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
             font-size: 0.75rem;
+            width: 100%;
             padding: 6px 10px;
             border-radius: 8px;
             border: 1px solid rgba(248, 220, 192, 0.25);
             background: transparent;
             color: #F8DCC0;
             cursor: pointer;
-            transition: background 0.15s ease;
+            transition: background 0.15s ease, border-color 0.15s ease;
         }
         .pool-toggle-btn:hover { background: rgba(248, 220, 192, 0.1); }
+        .pool-delete-btn { border-color: rgba(255, 78, 59, 0.3); color: #FF4E3B; }
+        .pool-delete-btn:hover { background: rgba(255, 78, 59, 0.12); }
+
+        /* Form de upload no topo de cada card — mesma cápsula
+           .input-container-premium/.input-premium-field do resto do
+           dashboard, só compacta (label curto + arquivo lado a lado). */
+        .pool-upload-form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: #131314;
+            border: 1px dashed rgba(217, 163, 98, 0.3);
+            border-radius: 10px;
+        }
+        .pool-upload-form input[type="text"] {
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+            width: 200px;
+        }
+        .pool-upload-form input[type="file"] {
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.8rem;
+        }
+        .pool-upload-form input[type="file"]::file-selector-button {
+            margin-right: 10px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #DCA15E;
+            color: #131314;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .pool-upload-submit {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            background: #DCA15E;
+            color: #131314;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .pool-upload-submit:hover { background: #F8DCC0; }
     </style>
 </head>
 <body class="flex min-h-screen">
 
-    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto" style="max-width: 1100px; margin: 0 auto;">
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
 
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
                 <h1 class="section-title text-xl">Pool de Imagens</h1>
-                <p class="text-xs opacity-50 mt-1">Ativa/desativa cada imagem sem remover do pool — imagens privadas somem dos menus de escolha (avatar/plano de fundo/emblema/banner), mas continuam guardadas. Adicionar/remover imagem ainda é só pelo <code>/perfil-pool</code> no Discord.</p>
+                <p class="text-xs opacity-50 mt-1">Suba imagens novas, ative/desative sem remover (imagens privadas somem dos menus de escolha — avatar/plano de fundo/emblema/banner — mas continuam guardadas) ou apague de verdade. As mesmas ações também existem pelo <code>/perfil-pool</code> no Discord.</p>
             </div>
-            <a href="/dashboard" class="btn-primary !min-w-0">← Voltar</a>
+            <a href="/dashboard" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
+            </a>
         </div>
 
         <% groups.forEach(group => { %>
             <section class="titan-card-premium flex-col gap-4">
                 <h2 class="section-title text-lg"><%= group.label %> (<%= group.images.length %>)</h2>
+
+                <form class="pool-upload-form" action="/dev/image-pool/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
+                    <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
+                    <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
+                    <button type="submit" class="pool-upload-submit">Adicionar</button>
+                </form>
+
                 <% if (group.images.length === 0) { %>
-                    <p class="text-sm opacity-40">Nenhuma imagem cadastrada ainda — use <code>/perfil-pool add tipo:<%= group.type %></code> no Discord.</p>
+                    <p class="text-sm opacity-40">Nenhuma imagem cadastrada ainda.</p>
                 <% } else { %>
                     <div class="pool-grid">
                         <% group.images.forEach(img => { %>
@@ -119,9 +186,14 @@
                                 <span class="pool-item-label"><%= img.label %></span>
                                 <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                                 <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
-                                <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/toggle" method="POST">
-                                    <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
-                                </form>
+                                <div class="pool-item-actions">
+                                    <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/toggle" method="POST">
+                                        <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
+                                    </form>
+                                    <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
+                                        <button type="submit" class="pool-delete-btn">Excluir</button>
+                                    </form>
+                                </div>
                             </div>
                         <% }); %>
                     </div>
@@ -135,5 +207,8 @@
             </span>
         </footer>
     </main>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>if (window.lucide) window.lucide.createIcons();</script>
 </body>
 </html>
