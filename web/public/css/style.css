@@ -59,6 +59,21 @@ body {
     letter-spacing: 2px;
 }
 
+/* Título tipo "IN GAME" (Poppins fino, bem espaçado, branco, centralizado)
+   — movido de partials/ingame-pulse.ejs pra cá pra virar classe global
+   (pedido do dono: "Punições"/"Automoderação" de moderation-stats.ejs
+   usam o mesmo espaçamento/fonte/tamanho do título IN GAME acima delas). */
+.ingame-pulse-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    font-size: clamp(12px, 1.6vw, 18px);
+    line-height: 1.5;
+    letter-spacing: 0.3em;
+    color: #FFFFFF;
+    text-align: center;
+    text-transform: uppercase;
+}
+
 /* --- SIDEBAR: Comportamento de Barra Lateral --- */
 .sidebar {
     width: 320px;

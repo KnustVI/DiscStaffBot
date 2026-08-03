@@ -102,16 +102,10 @@
 </section>
 <style>
     .ingame-pulse { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-    .ingame-pulse-title {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 400;
-        font-size: clamp(12px, 1.6vw, 18px);
-        line-height: 1.5;
-        letter-spacing: 0.3em;
-        color: #FFFFFF;
-        text-align: center;
-        text-transform: uppercase;
-    }
+    /* .ingame-pulse-title mudou pra web/public/css/style.css (pedido do
+       dono: "Punições"/"Automoderação" de moderation-stats.ejs usam o
+       mesmo estilo agora) — classe global, não fica mais só neste
+       parcial. */
 
     /* 20px de respiro entre a lista de staff e o que vem antes/depois dela
        no site (pedido do dono) — separado do gap:12px genérico do

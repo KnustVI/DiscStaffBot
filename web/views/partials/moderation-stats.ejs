@@ -12,6 +12,12 @@
     punRevoked, punHighSeverity, filterWordCount, filterLevelCount,
     autoPunishments } ) — os 7 valores vêm de
   dashboard.js:getModerationStats().
+
+  Títulos "Punições"/"Automoderação" usam .ingame-pulse-title (pedido do
+  dono: mesmo espaçamento/fonte/tamanho do título "IN GAME" que fica logo
+  acima deles na página) — classe global em web/public/css/style.css,
+  não .section-title (esse aqui é usado em várias outras páginas/títulos
+  que não devem mudar).
 %>
 <%
     const punDonutsHtml =
@@ -28,12 +34,12 @@
 %>
 <!-- MODERAÇÃO -->
 <section class="flex flex-col gap-3">
-    <h2 class="section-title text-sm px-2">Punições</h2>
+    <h2 class="ingame-pulse-title">Punições</h2>
     <%- include('graph-card', { bodyHtml: punDonutsHtml }) %>
 </section>
 
 <!-- AUTOMODERAÇÃO -->
 <section class="flex flex-col gap-3">
-    <h2 class="section-title text-sm px-2">Automoderação</h2>
+    <h2 class="ingame-pulse-title">Automoderação</h2>
     <%- include('graph-card', { bodyHtml: autoDonutsHtml }) %>
 </section>
