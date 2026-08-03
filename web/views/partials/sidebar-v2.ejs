@@ -113,16 +113,17 @@
         width: var(--tp-w-expanded);
         max-width: 100%;
         flex: none;
-        /* Fundo transparente (pedido do dono — o gradiente cinza sólido do
-           Figma original ficava parecendo um bloco maciço). A sombra grande
-           do Figma (-25px 47px 68.1px, 74% preto) também foi removida —
-           mesmo com o fundo transparente, essa sombra sozinha já pintava um
-           "borrão" escuro atrás do sidebar do tamanho do card inteiro,
-           dando exatamente a aparência de fundo sólido que o dono queria
-           tirar. Sobra só um brilho bem sutil no canto (glint de borda), sem
-           nenhuma sombra grande projetada. */
-        background: transparent;
-        box-shadow: 0.5px -0.5px 0.5px #F8DCC0;
+        /* Pedido do dono: manter o DESIGN de card (não sumir com ele, como
+           uma tentativa anterior fez ao zerar o fundo) — só trocar o
+           gradiente cinza sólido do Figma original (radial-gradient com
+           #111111/#29272A, lia como um bloco maciço) pela MESMA receita de
+           fundo já usada pelos outros cards do dashboard
+           (.titan-card-premium: gradiente + sombra + borda finos), pra o
+           sidebar "flutuar" junto com os cards de gráficos/configurações
+           em vez de destoar como uma caixa cinza à parte. */
+        background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+        box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
+        border: 1px solid rgba(0, 0, 0, 0.4);
         border-radius: 20px;
         overflow-y: auto;
         transition: width 0.2s ease;
