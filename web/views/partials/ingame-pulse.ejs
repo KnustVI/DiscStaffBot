@@ -1,10 +1,11 @@
 <%#
   web/views/partials/ingame-pulse.ejs
   Bloco "IN GAME" do Figma (Moderação.txt/Reports.txt/Events.txt repetem
-  essa seção) — 3 donuts dentro de partials/graph-card (Jogando / Em modo
-  espectador / Jogadores Online) + grade STAFF ONLINE/STAFF OFFLINE
-  (Moderação e Events only — Reports só tem os donuts, ver showRoster
-  abaixo).
+  essa seção) — grade STAFF ONLINE/STAFF OFFLINE (Moderação e Events
+  only — Reports só tem os donuts, ver showRoster abaixo) PRIMEIRO,
+  depois o título "IN GAME" + 3 donuts dentro de partials/graph-card
+  (Jogando / Em modo espectador / Jogadores Online). Ordem trocada a
+  pedido do dono (lista de staff acima dos gráficos, não abaixo).
 
   O donut maior fica SEMPRE por último (mais à direita, com
   justify-content:flex-end do card) e é SEMPRE "Jogadores Online" sobre
@@ -55,9 +56,6 @@
     const ipDonutsHtml = include('ingame-donut-cluster', { donuts: ipDonuts, clusterId: 'ingame' });
 %>
 <section class="ingame-pulse">
-    <h2 class="ingame-pulse-title">IN GAME</h2>
-    <%- include('graph-card', { bodyHtml: ipDonutsHtml }) %>
-
     <% if (ipShowRoster) { %>
         <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
         <% if (pulse.roster.length === 0) { %>
@@ -85,6 +83,9 @@
             </div>
         <% } %>
     <% } %>
+
+    <h2 class="ingame-pulse-title">IN GAME</h2>
+    <%- include('graph-card', { bodyHtml: ipDonutsHtml }) %>
 </section>
 <style>
     .ingame-pulse { display: flex; flex-direction: column; gap: 12px; width: 100%; }
