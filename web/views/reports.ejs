@@ -62,6 +62,8 @@
 
         <%- include('partials/page-header', { guild, pageLabel: 'REPORTES', pageRoute, otherGuilds }) %>
 
+        <%- include('partials/save-result-overlay', { saved }) %>
+
         <div id="ingamePulseRoot" data-guild-id="<%= guild.id %>" data-show-roster="false">
             <%- include('partials/ingame-pulse', { pulse, showRoster: false }) %>
         </div>
@@ -69,6 +71,53 @@
         <div id="reportsListRoot" data-poll-url="/fragments/reports-list/<%= guild.id %>">
             <%- include('partials/reports-list', { guild, openReports, closedReports }) %>
         </div>
+
+        <%#
+            Personalização do Report-Chat — bloco do /config personalizar do
+            Discord (ver configSystem.js refreshPersonalizarPanel), movido
+            pra cá (pedido do dono: personalização de report-chat pertence
+            à aba de Denúncias, não à de Moderação). Mesmo padrão de card
+            próprio + <form class="contents"> já usado em moderacao.ejs/
+            events.ejs pro bloco Caçador-exclusivo no fim da página.
+        %>
+        <form action="/reports/<%= guild.id %>/save" method="POST" class="contents">
+            <section class="titan-card-premium flex-col gap-6">
+                <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
+                    Personalização
+                    <%- include('partials/tier-badge') %>
+                </h2>
+                <% if (!isCacador) { %>
+                    <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                <% } else { %>
+                    <p class="text-xs opacity-50 -mt-3">Troque o banner, a mensagem de abertura do painel (o mesmo que /reportchat posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão). O banner escolhido abaixo também aparece na thread.</p>
+
+                    <label class="text-xs opacity-60">Banner do Report-Chat</label>
+                    <div class="banner-picker">
+                        <% reportChatBannerOptions.forEach(opt => { %>
+                            <label class="banner-picker-option">
+                                <input type="radio" name="report_chat_banner_key" value="<%= opt.value %>" <%= opt.value === reportChatBannerKey ? 'checked' : '' %>>
+                                <span class="banner-picker-thumb" style="background-image:url('<%= opt.url %>')"></span>
+                                <span class="banner-picker-label"><%= opt.label %></span>
+                            </label>
+                        <% }); %>
+                    </div>
+
+                    <label class="text-xs opacity-60 block mt-4">Mensagem do painel (vazio = padrão do bot)</label>
+                    <div class="input-container-premium has-textarea">
+                        <div class="icon-box"><i data-lucide="message-square"></i></div>
+                        <textarea class="input-premium-field" name="report_chat_message" maxlength="1000" rows="3" placeholder="Explique como abrir um reporte ou revisar uma punição neste servidor..."><%= settings.report_chat_message || '' %></textarea>
+                    </div>
+
+                    <label class="text-xs opacity-60">Boas-vindas na thread (vazio = padrão do bot)</label>
+                    <div class="input-container-premium has-textarea">
+                        <div class="icon-box"><i data-lucide="message-square"></i></div>
+                        <textarea class="input-premium-field" name="report_chat_welcome_message" maxlength="1000" rows="3" placeholder="Mensagem mostrada assim que a thread é aberta — vale pra reporte e pra revisão de punição..."><%= settings.report_chat_welcome_message || '' %></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                <% } %>
+            </section>
+        </form>
 
         <footer class="flex justify-end pb-2">
             <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">

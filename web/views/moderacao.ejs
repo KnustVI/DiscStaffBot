@@ -145,13 +145,15 @@
             </section>
 
             <%#
-                Personalização espelha 1:1 os 3 blocos do /config
-                personalizar do Discord (Strike/Unstrike, Report-Chat,
+                Personalização espelha os blocos do /config personalizar do
+                Discord relevantes PRA MODERAÇÃO (Strike/Unstrike,
                 Aparência Geral — ver configSystem.js
-                refreshPersonalizarPanel) — mesmos rótulos/descrições/
-                placeholders dos dois lados, pedido do dono depois de notar
-                que a versão anterior só tinha levado o banner de Strike/
-                Unstrike pro site, faltando Report-Chat inteiro.
+                refreshPersonalizarPanel), mesmos rótulos/descrições/
+                placeholders dos dois lados. O bloco de Report-Chat mora em
+                reports.ejs (pedido do dono: personalização de report-chat
+                pertence à aba de Denúncias, não à de Moderação) — mesmo
+                comando do Discord, só a página web que separa por
+                contexto.
             %>
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
@@ -186,34 +188,6 @@
                                     <span class="banner-picker-label"><%= opt.label %></span>
                                 </label>
                             <% }); %>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Report-Chat</h3>
-                        <p class="text-xs opacity-50 mb-3">Troque o banner, a mensagem de abertura do painel (o mesmo que /reportchat posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão). O banner escolhido abaixo também aparece na thread.</p>
-
-                        <label class="text-xs opacity-60">Banner do Report-Chat</label>
-                        <div class="banner-picker">
-                            <% reportChatBannerOptions.forEach(opt => { %>
-                                <label class="banner-picker-option">
-                                    <input type="radio" name="report_chat_banner_key" value="<%= opt.value %>" <%= opt.value === reportChatBannerKey ? 'checked' : '' %>>
-                                    <span class="banner-picker-thumb" style="background-image:url('<%= opt.url %>')"></span>
-                                    <span class="banner-picker-label"><%= opt.label %></span>
-                                </label>
-                            <% }); %>
-                        </div>
-
-                        <label class="text-xs opacity-60 block mt-4">Mensagem do painel (vazio = padrão do bot)</label>
-                        <div class="input-container-premium has-textarea">
-                            <div class="icon-box"><i data-lucide="message-square"></i></div>
-                            <textarea class="input-premium-field" name="report_chat_message" maxlength="1000" rows="3" placeholder="Explique como abrir um reporte ou revisar uma punição neste servidor..."><%= settings.report_chat_message || '' %></textarea>
-                        </div>
-
-                        <label class="text-xs opacity-60">Boas-vindas na thread (vazio = padrão do bot)</label>
-                        <div class="input-container-premium has-textarea">
-                            <div class="icon-box"><i data-lucide="message-square"></i></div>
-                            <textarea class="input-premium-field" name="report_chat_welcome_message" maxlength="1000" rows="3" placeholder="Mensagem mostrada assim que a thread é aberta — vale pra reporte e pra revisão de punição..."><%= settings.report_chat_welcome_message || '' %></textarea>
                         </div>
                     </div>
 
