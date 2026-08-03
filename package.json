@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "convert-images": "node scripts/convert-images-to-webp.js",
-    "sync-emojis": "node scripts/sync-emojis.js"
+    "sync-emojis": "node scripts/sync-emojis.js",
+    "generate-premium-images": "node scripts/generate-premium-images.js"
   },
   "keywords": [],
   "author": "",
