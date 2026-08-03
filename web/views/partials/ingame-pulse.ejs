@@ -120,17 +120,19 @@
     /* Linha de cards de staff — trocado de CSS grid (3 colunas fixas,
        travadas em 655px de largura total) pra flexbox com wrap (pedido do
        dono): cada .staff-chip agora abraça o próprio conteúdo (largura
-       natural, não mais esticado pra preencher uma coluna de grid), a
+       natural, não mais esticado pra preencher uma coluna de grid), e a
        linha inteira preenche a largura máxima do corpo (sem max-width
-       aqui — o container já herda 100% do body da página) e o
-       justify-content:center centraliza tanto uma linha cheia quanto a
-       última linha incompleta. Isso substitui a decisão anterior de
-       "sempre 3 por linha" — agora quantos cards cabem por linha depende
-       da largura de cada card + do espaço disponível. */
+       aqui — o container já herda 100% do body da página). Alinhado à
+       esquerda (justify-content:flex-start) — testado centralizado
+       primeiro a pedido do dono, mas ficou ruim (linha incompleta
+       "flutuando" no meio), então virou esquerda pra direita preenchendo
+       a linha. Isso substitui a decisão anterior de "sempre 3 por linha"
+       — agora quantos cards cabem por linha depende da largura de cada
+       card + do espaço disponível. */
     .ingame-staff-grid {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 20px;
         width: 100%;
     }
