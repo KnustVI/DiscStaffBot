@@ -9,8 +9,9 @@
   Uso: include( partials/reports-list , { guild, openReports, closedReports } )
     guild         — precisa de guild.id pro link "Investigar" (canal/thread)
     openReports   — array já enriquecido (agid/playerName/discordUsername/
-                    closedByName/threadDeletedByName/statusLabel), ver
-                    dashboard.js:getReportsData()
+                    discordRoleLabel/closedByName/closedByRoleLabel/
+                    threadDeletedByName/threadDeletedByRoleLabel/
+                    statusLabel), ver dashboard.js:getReportsData()
     closedReports — idem, filtrado por status fechado
 
   discordUsername/playerName (pedido do dono: a lista não mostrava nem um
@@ -18,6 +19,13 @@
   resolve em HTML, aparecia como texto cru) vêm resolvidos prontos de
   dashboard.js (cache do client + fallback pra tabela `users`), não
   precisam de nenhuma resolução aqui.
+
+  *RoleLabel (discordRoleLabel/closedByRoleLabel/threadDeletedByRoleLabel)
+  — pedido do dono: informar sempre se quem é mencionado (autor do
+  report, quem fechou, quem apagou o tópico) é staff ou não, validado
+  pelos cargos configurados em config-roles. Já vem pronto de
+  dashboard.js:resolveStaffRoleLabel — "Não é staff" ou o nome do maior
+  cargo de staff (posição mais alta no Discord) que a pessoa tem.
 
   O botão "Investigar" (link pro tópico) só aparece quando o tópico ainda
   existe (r.thread_id E não tem threadDeletedByName) — se foi apagado, no
@@ -45,7 +53,7 @@
                         <span class="report-status"><%= r.statusLabel %></span>
                     </div>
                     <div class="report-card-meta">
-                        <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %></span>
+                        <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %> (<%= r.discordRoleLabel %>)</span>
                         <% if (r.playerName) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> <%= r.playerName %><% if (r.agid) { %> (AGID <%= r.agid %>)<% } %></span>
                         <% } else if (r.agid) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> AGID <%= r.agid %></span><% } %>
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
@@ -55,7 +63,7 @@
                             <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
                         </a>
                     <% } else if (r.threadDeletedByName) { %>
-                        <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %></p>
+                        <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } %>
                 </div>
             <% }); %>
@@ -79,17 +87,17 @@
                         <span class="report-status"><%= r.statusLabel %></span>
                     </div>
                     <div class="report-card-meta">
-                        <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %></span>
+                        <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %> (<%= r.discordRoleLabel %>)</span>
                         <% if (r.playerName) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> <%= r.playerName %><% if (r.agid) { %> (AGID <%= r.agid %>)<% } %></span>
                         <% } else if (r.agid) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> AGID <%= r.agid %></span><% } %>
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                     </div>
                     <% if (r.punishment) { %><p class="text-xs opacity-60">Punição aplicada: <%= r.punishment %></p><% } %>
                     <% if (r.closed_reason) { %><p class="text-xs opacity-60">Motivo de fechamento: <%= r.closed_reason %></p><% } %>
-                    <p class="text-xs opacity-60">Fechado por: <%= r.closedByName || 'Automático (sistema)' %></p>
+                    <p class="text-xs opacity-60">Fechado por: <%= r.closedByName || 'Automático (sistema)' %><% if (r.closedByRoleLabel) { %> (<%= r.closedByRoleLabel %>)<% } %></p>
                     <% if (r.rating) { %><p class="text-xs opacity-60">Avaliação: <%= r.rating %>/5<% if (r.rating_comment) { %> — "<%= r.rating_comment %>"<% } %></p><% } %>
                     <% if (r.threadDeletedByName) { %>
-                        <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %></p>
+                        <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } else if (r.thread_id) { %>
                         <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
                             <i data-lucide="telescope" class="w-4 h-4"></i> Investigar

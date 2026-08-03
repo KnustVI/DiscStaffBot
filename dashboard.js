@@ -65,6 +65,25 @@ async function getCachedMembers(guild) {
     return cached ? cached.members : new Map();
 }
 
+// Cargo de staff de MAIOR posição no Discord que um membro possui, entre os
+// 3 cargos configurados em config-roles (staff_role/supervisor_role/
+// event_role) — "maior cargo no discord" (pedido do dono). Não existe
+// conceito de cargo/rank EM JOGO nos dados do PoT hoje, então usa sempre a
+// posição real do cargo mais alto no servidor. staffRoleIds é opcional
+// (getServerPulse já calcula o Set uma vez pra todo o roster; quem chama
+// avulso, como resolveStaffRoleLabel abaixo, deixa em branco).
+function highestStaffRoleName(guildId, member, staffRoleIds) {
+    if (!member) return null;
+    const ids = staffRoleIds || new Set([
+        ...ConfigSystem.getRoleIds(guildId, 'staff_role'),
+        ...ConfigSystem.getRoleIds(guildId, 'supervisor_role'),
+        ...ConfigSystem.getRoleIds(guildId, 'event_role'),
+    ]);
+    const memberStaffRoles = [...member.roles.cache.values()].filter(r => ids.has(r.id));
+    const topRole = memberStaffRoles.sort((a, b) => b.position - a.position)[0];
+    return topRole ? topRole.name : null;
+}
+
 // "Pulso" do servidor (jogadores/staff online agora) — reaproveitado pelas
 // páginas de Moderação, Reports e Events (o Figma repete a mesma seção "IN
 // GAME"/"STAFF ONLINE" nelas). Staff "online"/"offline" aqui é status EM
@@ -102,18 +121,10 @@ async function getServerPulse(guildId, guild) {
         // discordarem entre si).
         const playing = online && !spectating;
 
-        // "Maior cargo no discord" (pedido do dono) — não existe conceito de
-        // cargo/rank EM JOGO nos dados do PoT hoje (pot_players não guarda
-        // isso), então usa sempre a posição real do cargo mais alto entre os
-        // cargos de staff (staff_role/supervisor_role/event_role) que o
-        // membro tem no servidor.
-        const memberStaffRoles = [...m.roles.cache.values()].filter(r => staffRoleIds.has(r.id));
-        const topRole = memberStaffRoles.sort((a, b) => b.position - a.position)[0];
-
         return {
             id: m.id,
             name: m.nickname || m.user.username,
-            cargo: topRole ? topRole.name : '—',
+            cargo: highestStaffRoleName(guildId, m, staffRoleIds) || '—',
             online,
             moderating: spectating,
             playing,
@@ -205,6 +216,21 @@ function resolveUserDisplayName(client, userId) {
     return dbUser?.username || `Usuário desconhecido (${userId})`;
 }
 
+// "(Cargo)" ao lado de qualquer usuário mencionado num report — pedido do
+// dono: sempre informar se é staff ou não, validado pelos cargos
+// configurados em config-roles (não qualquer cargo do Discord), mostrando
+// o maior cargo dele (mesmo conceito de highestStaffRoleName/getServerPulse
+// acima). Cache-only de propósito, mesmo motivo de resolveUserDisplayName —
+// sem fetch por usuário numa lista com dezenas de linhas. Staff quase
+// sempre já está em cache (interage com o bot via comandos); se não
+// estiver, cai em "Não é staff" — mesmo risco aceito já documentado ali.
+function resolveStaffRoleLabel(client, guildId, userId) {
+    if (!userId) return null;
+    const guild = client.guilds.cache.get(guildId);
+    const member = guild?.members.cache.get(userId);
+    return highestStaffRoleName(guildId, member) || 'Não é staff';
+}
+
 // getModerationStats acima: reaproveitado pelo carregamento normal de
 // /reports/:guildID e pelo fragment de poll (GET
 // /fragments/reports-list/:guildID). Precisa do client pra resolver nome
@@ -219,8 +245,11 @@ function getReportsData(guildId, client) {
             agid: link?.alderon_id || null,
             playerName: link?.player_name || null,
             discordUsername: resolveUserDisplayName(client, row.user_id),
+            discordRoleLabel: resolveStaffRoleLabel(client, guildId, row.user_id),
             closedByName: row.closed_by ? resolveUserDisplayName(client, row.closed_by) : null,
+            closedByRoleLabel: row.closed_by ? resolveStaffRoleLabel(client, guildId, row.closed_by) : null,
             threadDeletedByName: row.thread_deleted_by ? resolveUserDisplayName(client, row.thread_deleted_by) : null,
+            threadDeletedByRoleLabel: row.thread_deleted_by ? resolveStaffRoleLabel(client, guildId, row.thread_deleted_by) : null,
             statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
         };
     };
