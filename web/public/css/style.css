@@ -271,9 +271,18 @@ text-align: center;
 }
 /* Respiro entre o <label> do campo (ex: "Strike (Temporário)") e a caixa
    logo abaixo — estava colado (pedido do dono). Sibling adjacente pega
-   qualquer label seguido de .input-container-premium, sem precisar
-   editar margem em cada página que usa esse padrão. */
-label + .input-container-premium { margin-top: 8px; }
+   qualquer label seguido de .input-container-premium/.banner-picker, sem
+   precisar editar margem em cada página que usa esse padrão. */
+label + .input-container-premium,
+label + .banner-picker { margin-top: 8px; }
+
+/* Mesma ideia, mas pro parágrafo de DESCRIÇÃO (texto explicativo acima do
+   label, ex: "Tem autoridade para aprovar...") quando ele é o elemento
+   direto antes de um dropdown/caixa de texto/anexo de arquivo — pedido do
+   dono, 2px em todas as páginas que usam esse padrão. */
+p + .input-container-premium,
+p + .banner-picker,
+p + .role-picker { margin-top: 2px; }
 
 /* A caixinha dourada do ícone */
 .icon-box {
@@ -305,19 +314,20 @@ label + .input-container-premium { margin-top: 8px; }
 
 /* <textarea> reaproveitando o mesmo campo (mensagens do Report-Chat,
    personalização — ver reports.ejs) — herda a base de .input-premium-
-   field acima, só ajusta o que é específico de textarea: padding nos 4
-   lados (o texto ficava colado na borda de cima, pedido do dono: nunca
-   deixar nada sem margem, mínimo 5px — aqui usa bem mais que o mínimo),
-   altura mínima, fonte (textarea não herda font-family sozinho em todo
-   navegador) e resize só vertical (o padrão do browser é nas duas
-   direções, quebra o cantinho arredondado do container ao esticar pra
-   largura). O .input-container-premium.has-textarea (classe própria no
-   HTML, em vez de :has() por compatibilidade) vira align-items:flex-start
-   pra a icon-box ficar no topo, não flutuando no centro vertical do
-   textarea inteiro. */
+   field acima, só ajusta o que é específico de textarea: padding-top MAIOR
+   que os outros 3 lados (o texto ainda estava colando na linha de cima,
+   pedido do dono — 18px em vez de 15px garante uma folga visível mesmo
+   com a fonte/line-height do texto), altura mínima maior (caixa um pouco
+   mais alta, pedido do dono), fonte (textarea não herda font-family
+   sozinho em todo navegador) e resize só vertical (o padrão do browser é
+   nas duas direções, quebra o cantinho arredondado do container ao
+   esticar pra largura). O .input-container-premium.has-textarea (classe
+   própria no HTML, em vez de :has() por compatibilidade) vira
+   align-items:flex-start pra a icon-box ficar no topo, não flutuando no
+   centro vertical do textarea inteiro. */
 textarea.input-premium-field {
-    min-height: 80px;
-    padding: 14px 15px;
+    min-height: 100px;
+    padding: 18px 15px 14px;
     font-family: inherit;
     resize: vertical;
 }
