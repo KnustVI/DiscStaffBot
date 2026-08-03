@@ -68,7 +68,21 @@
             <%- include('partials/ingame-pulse', { pulse, showRoster: false }) %>
         </div>
 
-        <div id="reportsListRoot" data-poll-url="/fragments/reports-list/<%= guild.id %>">
+        <%#
+            class="contents" (pedido do dono: mesma distribuição de espaço
+            da página de Moderação) — sem isso, este <div> vira uma caixa
+            própria no meio do layout e quebra a cadeia de gap-[30px] do
+            <main>: "Reportes Abertos" e "Reportes Fechados" (os 2
+            <section> de dentro de partials/reports-list.ejs) ficavam
+            colados um no outro, sem nenhum respiro entre eles. Com
+            display:contents o <div> some da árvore de layout e os 2
+            <section> passam a ser filhos diretos do <main>, herdando o
+            mesmo gap — igual o <form class="contents"> já faz com
+            Configurações/Personalização em moderacao.ejs. Não afeta o
+            poll-fragment.js: ele só faz root.innerHTML/dataset, nada
+            depende do <div> ter caixa própria.
+        %>
+        <div id="reportsListRoot" data-poll-url="/fragments/reports-list/<%= guild.id %>" class="contents">
             <%- include('partials/reports-list', { guild, openReports, closedReports }) %>
         </div>
 

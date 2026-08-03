@@ -113,8 +113,11 @@
         width: var(--tp-w-expanded);
         max-width: 100%;
         flex: none;
-        /* BgGradient + CardShadow, direto do Figma */
-        background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+        /* Fundo transparente (pedido do dono — o gradiente cinza sólido do
+           Figma original ficava parecendo um bloco maciço); mantém só a
+           sombra/brilho de borda pra ainda dar profundidade sem preencher
+           com cor. */
+        background: transparent;
         box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
         border-radius: 20px;
         overflow-y: auto;
