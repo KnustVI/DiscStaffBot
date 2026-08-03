@@ -553,4 +553,71 @@ text-align: center;
     color: #A89986;
 }
 
+/* Overlay genérico (backdrop + cartão centralizado) — pedido do dono pro
+   aviso de sucesso/falha ao salvar Configurações (ver
+   partials/save-result-overlay.ejs), mesma receita já usada em
+   web/views/hero.ejs pro aviso de "dashboard em desenvolvimento" (aquela
+   cópia é local à hero.ejs/index.ejs, que têm <style> próprio e não usam
+   este arquivo compartilhado — aqui é a versão pras páginas que ficam
+   atrás do login, moderacao.ejs/events.ejs, que sim usam). Reaproveitável
+   por qualquer outro aviso modal futuro do dashboard.  */
+.dev-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(10, 9, 10, 0.85);
+    backdrop-filter: blur(4px);
+}
+.dev-overlay-card {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+    max-width: 420px;
+    width: 100%;
+    padding: 36px 28px;
+    background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+    border: 1px solid #3E3D38;
+    border-radius: 20px;
+    box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8);
+}
+.dev-overlay-icon {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    flex: none;
+    background: #2A2A2A;
+    border: 2px solid #803E30;
+    border-radius: 50%;
+    color: #DCA15E;
+}
+.dev-overlay-icon i, .dev-overlay-icon svg { width: 28px; height: 28px; }
+/* Variantes de cor pro resultado do save — sucesso em verde, falha no
+   vermelho/terracota já usado pro resto de "erro" no site. */
+.dev-overlay-card.is-success .dev-overlay-icon { border-color: #4B7B4B; color: #7ED17E; }
+.dev-overlay-card.is-error .dev-overlay-icon { border-color: #803E30; color: #FF6B5B; }
+.dev-overlay-title {
+    font-family: 'Tilt Warp', cursive;
+    font-size: clamp(17px, 2.2vw, 22px);
+    letter-spacing: 0.05em;
+    color: #F8DCC0;
+    text-transform: uppercase;
+}
+.dev-overlay-text {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #F8DCC0;
+    opacity: 0.85;
+}
+
 .outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(12px, 1.4vw, 15px); opacity: 1; }

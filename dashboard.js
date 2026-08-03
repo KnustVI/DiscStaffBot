@@ -556,7 +556,7 @@ function loadDashboard(client) {
             settings,
             roles,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
-            success: req.query.success === 'true',
+            saved: req.query.saved,
         });
     });
 
@@ -568,40 +568,42 @@ function loadDashboard(client) {
         const member = await guild.members.fetch(req.user.id).catch(() => null);
         if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
 
-        // A CONFIGURAÇÕES agora tem 3 <form> separados (um por card, espelhando
-        // o próprio Figma — cada card tem seu próprio botão Salvar). Só grava
-        // as chaves que vieram NESTE submit (checagem "in body"), senão salvar
-        // o card de cargos apagaria panel_accent_color/panel_footer_text (e
-        // vice-versa) por eles chegarem undefined no req.body.
+        // Só grava as chaves que vieram NESTE submit (checagem "in body") —
+        // defensivo mesmo com 1 form só hoje, não custa nada manter.
         const body = req.body;
-        // MODERADOR/SUPERVISOR agora aceitam mais de um cargo (ver
-        // partials/role-picker.ejs) — cada cargo chega como um hidden
-        // input separado, mesmo `name`; com express.urlencoded({extended:
-        // true}) isso já vira array sozinho, mas um só cargo ainda chega
-        // como string solta (comportamento do próprio parser), daí o
-        // toArray. Limite reaplicado aqui (defesa em profundidade: mesmo
-        // limite do tier, ver PremiumSystem.getRoleLimit) — o picker já
-        // trava no client, mas um POST forjado não passa por ele.
-        const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
-        if ('staff_role' in body) {
-            const limit = PremiumSystem.getRoleLimit(guildID, 'moderador');
-            ConfigSystem.setRoleIds(guildID, 'staff_role', toArray(body.staff_role).filter(Boolean).slice(0, limit));
+        try {
+            // MODERADOR/SUPERVISOR agora aceitam mais de um cargo (ver
+            // partials/role-picker.ejs) — cada cargo chega como um hidden
+            // input separado, mesmo `name`; com express.urlencoded({extended:
+            // true}) isso já vira array sozinho, mas um só cargo ainda chega
+            // como string solta (comportamento do próprio parser), daí o
+            // toArray. Limite reaplicado aqui (defesa em profundidade: mesmo
+            // limite do tier, ver PremiumSystem.getRoleLimit) — o picker já
+            // trava no client, mas um POST forjado não passa por ele.
+            const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
+            if ('staff_role' in body) {
+                const limit = PremiumSystem.getRoleLimit(guildID, 'moderador');
+                ConfigSystem.setRoleIds(guildID, 'staff_role', toArray(body.staff_role).filter(Boolean).slice(0, limit));
+            }
+            if ('supervisor_role' in body) {
+                const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
+                ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
+            }
+            if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
+            if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
+            if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
+            // Personalização de painéis é exclusiva do plano Caçador (mesma checagem
+            // de getPanelPersonalization, configSystem.js:2308-2319) — ignora
+            // silenciosamente em vez de travar o resto do formulário.
+            if (('panel_accent_color' in body || 'panel_footer_text' in body) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+                if ('panel_accent_color' in body) ConfigSystem.setSetting(guildID, 'panel_accent_color', (body.panel_accent_color || '').replace(/^#/, '') || null);
+                if ('panel_footer_text' in body) ConfigSystem.setSetting(guildID, 'panel_footer_text', body.panel_footer_text || null);
+            }
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao salvar configurações de moderação:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
         }
-        if ('supervisor_role' in body) {
-            const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
-            ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
-        }
-        if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
-        if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
-        if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
-        // Personalização de painéis é exclusiva do plano Caçador (mesma checagem
-        // de getPanelPersonalization, configSystem.js:2308-2319) — ignora
-        // silenciosamente em vez de travar o resto do formulário.
-        if (('panel_accent_color' in body || 'panel_footer_text' in body) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
-            if ('panel_accent_color' in body) ConfigSystem.setSetting(guildID, 'panel_accent_color', (body.panel_accent_color || '').replace(/^#/, '') || null);
-            if ('panel_footer_text' in body) ConfigSystem.setSetting(guildID, 'panel_footer_text', body.panel_footer_text || null);
-        }
-        res.redirect(`/moderacao/${guildID}?success=true`);
     });
 
     // ==================== REPORTS (DENÚNCIAS) ====================
@@ -693,7 +695,7 @@ function loadDashboard(client) {
             eventRoleIds,
             eventNotifyRoleIds,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
-            success: req.query.success === 'true',
+            saved: req.query.saved,
         });
     });
 
@@ -705,14 +707,19 @@ function loadDashboard(client) {
         const member = await guild.members.fetch(req.user.id).catch(() => null);
         if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
 
-        const { event_role, event_notify_role, event_announce_channel } = req.body;
-        ConfigSystem.setRoleIds(guildID, 'event_role', event_role ? [event_role] : []);
-        ConfigSystem.setRoleIds(guildID, 'event_notify_role', event_notify_role ? [event_notify_role] : []);
-        // Canal de anúncios é exclusivo do plano Caçador (configSystem.js:113-119).
-        if (PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
-            ConfigSystem.setSetting(guildID, 'event_announce_channel', event_announce_channel || null);
+        try {
+            const { event_role, event_notify_role, event_announce_channel } = req.body;
+            ConfigSystem.setRoleIds(guildID, 'event_role', event_role ? [event_role] : []);
+            ConfigSystem.setRoleIds(guildID, 'event_notify_role', event_notify_role ? [event_notify_role] : []);
+            // Canal de anúncios é exclusivo do plano Caçador (configSystem.js:113-119).
+            if (PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+                ConfigSystem.setSetting(guildID, 'event_announce_channel', event_announce_channel || null);
+            }
+            res.redirect(`/events/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao salvar configurações de eventos:', error);
+            res.redirect(`/events/${guildID}?saved=error`);
         }
-        res.redirect(`/events/${guildID}?success=true`);
     });
 
     const PORT = process.env.DASHBOARD_PORT || 3000;

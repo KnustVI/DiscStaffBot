@@ -1,0 +1,66 @@
+<%#
+  web/views/partials/save-result-overlay.ejs
+  Overlay de sucesso/falha ao salvar Configurações (Moderação/Eventos) —
+  pedido do dono. As rotas POST /moderacao/:guildID/save e
+  /events/:guildID/save redirecionam de volta pra página com
+  ?saved=success ou ?saved=error (a última só quando o try/catch da rota
+  pega uma exceção de verdade salvando — ver dashboard.js) — este parcial
+  só decide o que mostrar a partir desse parâmetro, sem lógica própria.
+
+  Fecha sozinho (sucesso: 3.5s; erro: fica até o usuário fechar, é mais
+  importante ele ler/agir) ou no clique fora/Esc/botão — e limpa o
+  ?saved= da URL ao fechar (history.replaceState) pra um F5 não reabrir o
+  aviso à toa.
+
+  Usa ícones lucide (data-lucide), não SVG cru — diferente do
+  dev-overlay-card.ejs (hero.ejs/index.ejs, que não carregam o script do
+  lucide), moderacao.ejs/events.ejs já chamam lucide.createIcons() no
+  fim da página.
+
+  Uso: include( partials/save-result-overlay , { saved } ) — saved vem
+  direto de req.query.saved ('success'/'error'/undefined).
+%>
+<% if (typeof saved !== 'undefined' && (saved === 'success' || saved === 'error')) { %>
+    <% const srIsOk = saved === 'success'; %>
+    <div class="dev-overlay" id="saveResultOverlay">
+        <div class="dev-overlay-card <%= srIsOk ? 'is-success' : 'is-error' %>">
+            <div class="dev-overlay-icon">
+                <i data-lucide="<%= srIsOk ? 'check-circle' : 'circle-alert' %>"></i>
+            </div>
+            <h2 class="dev-overlay-title"><%= srIsOk ? 'Configurações salvas' : 'Falha ao salvar' %></h2>
+            <p class="dev-overlay-text">
+                <%= srIsOk
+                    ? 'Suas alterações foram aplicadas com sucesso.'
+                    : 'Alguma coisa deu errado e as alterações não foram salvas. Tente novamente — se persistir, avise o suporte.' %>
+            </p>
+            <button type="button" class="btn-primary" id="saveResultClose" style="min-width:0; padding:10px 32px;">FECHAR</button>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var overlay = document.getElementById('saveResultOverlay');
+            var closeBtn = document.getElementById('saveResultClose');
+            if (!overlay) return;
+
+            function stripQueryParam() {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('saved');
+                window.history.replaceState({}, '', url);
+            }
+            function close() {
+                overlay.remove();
+                stripQueryParam();
+            }
+            closeBtn.addEventListener('click', close);
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) close();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') close();
+            });
+            <% if (srIsOk) { %>
+            setTimeout(close, 3500);
+            <% } %>
+        })();
+    </script>
+<% } %>

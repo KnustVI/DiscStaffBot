@@ -34,9 +34,7 @@
 
         <%- include('partials/page-header', { guild, pageLabel: 'MODERAÇÃO', pageRoute, otherGuilds }) %>
 
-        <% if (typeof success !== 'undefined' && success) { %>
-            <div class="titan-card-premium !py-4 !px-6 text-sm text-titan-gold">Configurações salvas.</div>
-        <% } %>
+        <%- include('partials/save-result-overlay', { saved }) %>
 
         <!-- ALERTA (mesmo visual outline-chip da lista de staff, pedido do dono) -->
         <section class="flex flex-col gap-3">
