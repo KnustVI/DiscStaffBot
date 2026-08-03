@@ -1,48 +1,56 @@
 <%#
   web/views/partials/role-picker.ejs
-  Componente de seleção de cargo (spec Figma: "TextFieldMobile" — cápsula
-  dourada + campo escuro + botão circular de adicionar), usado em todo
-  campo de cargo da Configurações. Reaproveita a MESMA casca visual do
-  TextFieldWeb já usada em COR/FOOTER (.config-field-input/-inner/-select,
-  ver style.css) — só acrescenta o que faltava pro Figma novo: chips
-  removíveis + botão circular "+".
+  Componente de seleção de cargo — modo chips usa o CSS "TextFieldMobile"
+  do Figma (cápsula dourada + campo escuro + botão circular de
+  adicionar) pro <select> de "escolher cargo pra adicionar" dentro dele
+  (.config-field-input/-inner/-select, ver style.css); o resto da página
+  voltou pro visual simples de sempre (.input-container-premium) a pedido
+  do dono, só esse componente manteve a cápsula por ser onde o botão "+"
+  mora de verdade.
 
   Dois modos, decididos por `limit` (tier atual, mesmo
   PremiumSystem.getRoleLimit já usado no painel /config roles do Discord —
   ver configSystem.js ROLE_TABS[*].fields[*].roleLimitKey):
-    - limit <= 1: select simples estilizado (sem chips/botão) — o próprio
-      <select> já É o campo submetido (name=<name>). Cobre strike_role/
-      role_exemplar/role_problematico (sem roleLimitKey, sempre 1) e
-      qualquer campo multi quando o tier atual só permite 1 mesmo.
+    - limit <= 1: select simples no visual ANTIGO do dashboard
+      (.input-container-premium/.icon-box/.input-premium-field, mesmo
+      padrão de events.ejs) — o próprio <select> já É o campo submetido
+      (name=<name>). Cobre strike_role/role_exemplar/role_problematico
+      (sem roleLimitKey, sempre 1) e qualquer campo multi quando o tier
+      atual só permite 1 mesmo (ex: Moderador/Supervisor no Free).
     - limit > 1: chips + select (só cargos AINDA não escolhidos) + botão
-      "+" até o limite. Cada cargo vira um <input type="hidden"
-      name=<name>> — com express.urlencoded({extended:true}) (já
-      configurado em dashboard.js), múltiplos campos com o MESMO name
-      viram um array em req.body sozinhos, sem nada extra no server.
+      "+" até o limite — visual próprio (Figma "TextFieldMobile", pedido
+      à parte, mantido mesmo depois do resto da página voltar pro visual
+      simples). Cada cargo vira um <input type="hidden" name=<name>> —
+      com express.urlencoded({extended:true}) (já configurado em
+      dashboard.js), múltiplos campos com o MESMO name viram um array em
+      req.body sozinhos, sem nada extra no server.
 
-  Uso: include( partials/role-picker , { id, name, roles, selectedIds, limit } )
+  Uso: include( partials/role-picker , { id, name, roles, selectedIds, limit, icon } )
     id          — string única na página (prefixo dos ids internos)
     name        — nome do campo do form (ex: staff_role)
     roles       — array de cargos do servidor [{ id, name }, ...]
     selectedIds — array de ids já selecionados (na ordem salva)
     limit       — número máximo de cargos pra este campo, no tier atual
+    icon        — nome do ícone lucide pro modo select único (opcional,
+                  default 'shield') — sem efeito no modo chips (que não
+                  usa ícone, é só o Figma TextFieldMobile puro)
 %>
 <%
     const rpId = String(id).replace(/[^a-zA-Z0-9_-]/g, '');
     const rpLimit = Math.max(1, Number(limit) || 1);
     const rpSelected = (selectedIds || []).map(rid => roles.find(r => r.id === rid)).filter(Boolean);
     const rpAvailable = roles.filter(r => !rpSelected.some(s => s.id === r.id));
+    const rpIcon = (typeof icon !== 'undefined' && icon) ? icon : 'shield';
 %>
 <% if (rpLimit <= 1) { %>
-    <div class="config-field-input">
-        <div class="config-field-input-inner">
-            <select name="<%= name %>" class="config-field-select">
-                <option value="">— selecione um cargo —</option>
-                <% roles.forEach(r => { %>
-                    <option value="<%= r.id %>" <%= (rpSelected[0] && rpSelected[0].id === r.id) ? 'selected' : '' %>><%= r.name %></option>
-                <% }); %>
-            </select>
-        </div>
+    <div class="input-container-premium">
+        <div class="icon-box"><i data-lucide="<%= rpIcon %>"></i></div>
+        <select name="<%= name %>" class="input-premium-field">
+            <option value="">— selecione um cargo —</option>
+            <% roles.forEach(r => { %>
+                <option value="<%= r.id %>" <%= (rpSelected[0] && rpSelected[0].id === r.id) ? 'selected' : '' %>><%= r.name %></option>
+            <% }); %>
+        </select>
     </div>
 <% } else { %>
     <div class="role-picker" data-role-picker data-name="<%= name %>" data-limit="<%= rpLimit %>" id="rp-<%= rpId %>">

@@ -99,184 +99,90 @@
         </section>
 
         <%#
-            CONFIGURAÇÕES (Moderação.txt linhas 4523-7213, extraído + conferido
-            2x contra o arquivo). 3 cards, cada um com SEU PRÓPRIO form + botão
-            Salvar (espelha o Figma: cada painel tem seu próprio
-            BaseButtonCard/Button.text no final, não um botão único pra tudo) —
-            também evita que salvar um card apague campos dos outros dois
-            (dashboard.js só grava as chaves presentes no req.body de cada
-            submit). Campos de cargo usam partials/role-picker (Figma
-            "TextFieldMobile" — cápsula + botão circular de adicionar) em
-            vez do TextFieldWeb de texto livre, porque a config real do bot
-            é sempre um Discord role id, não uma string digitada. Cada
-            campo vira select simples OU chips+botão "+" dependendo do
-            limite de cargos do tier atual (roleLimits, mesmo
-            PremiumSystem.getRoleLimit do painel /config roles do Discord)
-            — MODERADOR/SUPERVISOR aceitam mais de um cargo a partir do
-            Rastreador/Caçador; STRIKE/EXEMPLAR/PROBLEMÁTICO são sempre um
-            só (sem roleLimitKey em configSystem.js).
+            CONFIGURAÇÕES — visual simples (mesmo padrão de events.ejs: 1
+            card único, 1 form só, categorias como <div>+<h3>, botão
+            Salvar único no final) — pedido do dono, que preferiu esse
+            estilo ao card-por-bloco que eu tinha construído seguindo o
+            CSS exato do Figma. Única coisa do rebuild anterior que FICA:
+            Moderador/Supervisor continuam usando partials/role-picker
+            (chips + botão de adicionar) — funcionalidade pedida à parte,
+            não é só visual, então não volta a ser select único nos tiers
+            que permitem mais de 1 cargo (Rastreador+/Caçador). No Free
+            (limite 1), o próprio role-picker já cai sozinho no visual
+            simples (ver partials/role-picker.ejs).
         %>
-        <section class="flex flex-col gap-6">
-            <h2 class="section-title text-sm px-2">Configurações</h2>
+        <section class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
+            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
 
-            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="config-card">
-                <div class="config-card-header">
-                    <i data-lucide="shield-check" class="config-card-icon"></i>
-                    <h3 class="config-card-title">Cargos de Moderação</h3>
-                </div>
-                <p class="config-card-desc">Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas. Detalhes de cada um abaixo. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
-
-                <div class="config-fields">
-                    <div class="config-field">
-                        <div class="config-field-row">
-                            <i data-lucide="shield" class="config-field-icon"></i>
-                            <div class="config-field-text">
-                                <div class="config-field-label-row"><span class="config-field-label">MODERADOR</span></div>
-                                <p class="config-field-desc">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
-                            </div>
-                        </div>
-                        <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador }) %>
-                    </div>
-
-                    <div class="config-field">
-                        <div class="config-field-row">
-                            <i data-lucide="eye" class="config-field-icon"></i>
-                            <div class="config-field-text">
-                                <div class="config-field-label-row"><span class="config-field-label">SUPERVISOR</span></div>
-                                <p class="config-field-desc">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
-                            </div>
-                        </div>
-                        <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor }) %>
-                    </div>
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Moderação</h3>
+                    <p class="text-xs opacity-50 mb-3">Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
+                    <label class="text-xs opacity-60">Moderador (obrigatório)</label>
+                    <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
+                    <label class="text-xs opacity-60 block mt-3">Supervisor</label>
+                    <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
                 </div>
 
-                <button type="submit" class="config-save-btn"><i data-lucide="save" class="config-save-icon"></i>Salvar</button>
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos — Reputação</h3>
+                    <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
+                    <label class="text-xs opacity-60">Strike (Temporário)</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="shield-alert"></i></div>
+                        <select name="strike_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Exemplar</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
+                        <select name="role_exemplar" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Problemático</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
+                        <select name="role_problematico" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Personalização</h3>
+                    <% if (!isCacador) { %>
+                        <p class="text-xs opacity-50 mb-3">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <% } else { %>
+                        <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="palette"></i></div>
+                            <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
+                        </div>
+                        <label class="text-xs opacity-60">Assinatura no rodapé dos painéis</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="edit"></i></div>
+                            <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
+                        </div>
+                        <label class="text-xs opacity-60">Banner Strike</label>
+                        <div class="rounded-lg mb-3" style="aspect-ratio: 600/138; max-width:400px; background-image:url('/images/title-strike.webp'); background-size:cover; background-position:center;"></div>
+                        <label class="text-xs opacity-60">Banner Unstrike</label>
+                        <div class="rounded-lg" style="aspect-ratio: 600/138; max-width:400px; background-image:url('/images/title-strike-removido.webp'); background-size:cover; background-position:center;"></div>
+                    <% } %>
+                </div>
+
+                <button type="submit" class="btn-salvar-final self-start">Salvar Alterações</button>
             </form>
-
-            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="config-card">
-                <div class="config-card-header">
-                    <i data-lucide="shield-alert" class="config-card-icon"></i>
-                    <h3 class="config-card-title">Cargos Automáticos — Reputação</h3>
-                </div>
-                <p class="config-card-desc">Estes cargos são atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente. Detalhes de cada um abaixo.</p>
-
-                <div class="config-fields">
-                    <div class="config-field">
-                        <div class="config-field-row">
-                            <i data-lucide="shield-off" class="config-field-icon"></i>
-                            <div class="config-field-text">
-                                <div class="config-field-label-row"><span class="config-field-label">STRIKE</span></div>
-                                <p class="config-field-desc">Atribuído automaticamente enquanto uma punição temporária está ativa. Removido quando a punição expira ou é anulada.</p>
-                            </div>
-                        </div>
-                        <%- include('partials/role-picker', { id: 'strike-role', name: 'strike_role', roles, selectedIds: settings.strike_role ? [settings.strike_role] : [], limit: 1 }) %>
-                    </div>
-
-                    <div class="config-field">
-                        <div class="config-field-row">
-                            <i data-lucide="thumbs-up" class="config-field-icon"></i>
-                            <div class="config-field-text">
-                                <div class="config-field-label-row">
-                                    <span class="config-field-label">EXEMPLAR</span>
-                                    <span class="config-tier-badge">CAÇADOR</span>
-                                </div>
-                                <p class="config-field-desc">Atribuído automaticamente a membros com reputação acima do limite configurado em /config punishments. Indica bom comportamento.</p>
-                            </div>
-                        </div>
-                        <%- include('partials/role-picker', { id: 'role-exemplar', name: 'role_exemplar', roles, selectedIds: settings.role_exemplar ? [settings.role_exemplar] : [], limit: 1 }) %>
-                    </div>
-
-                    <div class="config-field">
-                        <div class="config-field-row">
-                            <i data-lucide="thumbs-down" class="config-field-icon"></i>
-                            <div class="config-field-text">
-                                <div class="config-field-label-row">
-                                    <span class="config-field-label">PROBLEMÁTICO</span>
-                                    <span class="config-tier-badge">CAÇADOR</span>
-                                </div>
-                                <p class="config-field-desc">Atribuído automaticamente a membros com reputação abaixo do limite configurado em /config punishments. Sinaliza comportamento problemático.</p>
-                            </div>
-                        </div>
-                        <%- include('partials/role-picker', { id: 'role-problematico', name: 'role_problematico', roles, selectedIds: settings.role_problematico ? [settings.role_problematico] : [], limit: 1 }) %>
-                    </div>
-                </div>
-
-                <button type="submit" class="config-save-btn"><i data-lucide="save" class="config-save-icon"></i>Salvar</button>
-            </form>
-
-            <div class="config-card">
-                <div class="config-card-header">
-                    <i data-lucide="palette" class="config-card-icon"></i>
-                    <h3 class="config-card-title">Personalização</h3>
-                    <span class="config-tier-badge">CAÇADOR</span>
-                </div>
-
-                <% if (!isCacador) { %>
-                    <p class="config-card-desc">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
-                <% } else { %>
-                    <p class="config-card-desc">Para deixar a cara do seu servidor.</p>
-
-                    <form action="/moderacao/<%= guild.id %>/save" method="POST" class="config-fields">
-                        <div class="config-field">
-                            <div class="config-field-row">
-                                <i data-lucide="palette" class="config-field-icon"></i>
-                                <div class="config-field-text">
-                                    <div class="config-field-label-row"><span class="config-field-label">COR (#<%= settings.panel_accent_color || 'DCA15E' %>)</span></div>
-                                    <p class="config-field-desc">Cor da borda dos painéis.</p>
-                                </div>
-                            </div>
-                            <div class="config-field-input">
-                                <div class="config-field-input-inner">
-                                    <input type="text" maxlength="6" class="config-field-text-input" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="config-field">
-                            <div class="config-field-row">
-                                <i data-lucide="edit" class="config-field-icon"></i>
-                                <div class="config-field-text">
-                                    <div class="config-field-label-row"><span class="config-field-label">FOOTER</span></div>
-                                    <p class="config-field-desc">Assinatura abaixo dos painéis.</p>
-                                </div>
-                            </div>
-                            <div class="config-field-input">
-                                <div class="config-field-input-inner">
-                                    <input type="text" maxlength="100" class="config-field-text-input" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="config-save-btn"><i data-lucide="save" class="config-save-icon"></i>Salvar</button>
-                    </form>
-
-                    <h4 class="config-subtitle">Strike e Unstrike</h4>
-
-                    <div class="config-fields">
-                        <div class="config-field">
-                            <div class="config-field-row">
-                                <i data-lucide="image" class="config-field-icon"></i>
-                                <div class="config-field-text">
-                                    <div class="config-field-label-row"><span class="config-field-label">BANNER STRIKE</span></div>
-                                    <p class="config-field-desc">Capa do painel</p>
-                                </div>
-                            </div>
-                            <div class="config-banner-preview" style="background-image: url('/images/title-strike.webp');"></div>
-                        </div>
-
-                        <div class="config-field">
-                            <div class="config-field-row">
-                                <i data-lucide="image" class="config-field-icon"></i>
-                                <div class="config-field-text">
-                                    <div class="config-field-label-row"><span class="config-field-label">BANNER UNSTRIKE</span></div>
-                                    <p class="config-field-desc">Capa do painel</p>
-                                </div>
-                            </div>
-                            <div class="config-banner-preview" style="background-image: url('/images/title-strike-removido.webp');"></div>
-                        </div>
-                    </div>
-                <% } %>
-            </div>
         </section>
 
         <footer class="flex justify-end pb-2">
