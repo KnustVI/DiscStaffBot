@@ -63,38 +63,9 @@
             <%- include('partials/ingame-pulse', { pulse }) %>
         </div>
 
-        <%
-            // MODERAÇÃO/Punições e AUTOMODERAÇÃO seguem o MESMO padrão do
-            // IN GAME (confirmado por extração + conferência do
-            // Moderação.txt): 4 donuts, os 3 primeiros dourados
-            // (GraphicStyle) e o 4º maior/destacado em terracota
-            // (GraphicStyle2) — não 2 como a versão anterior tinha. O
-            // grande sempre por último no HTML (fica à direita/na frente,
-            // ver graph-card.ejs).
-            const punDonutsHtml =
-                include('partials/stat-donut', { id: 'pun-ativas', title: 'Ativas', value: `${punActive}`, percent: punTotal > 0 ? (punActive / punTotal) * 100 : 0, accent: 'gold' }) +
-                include('partials/stat-donut', { id: 'pun-revogadas', title: 'Revogadas', value: `${punRevoked}`, percent: punTotal > 0 ? (punRevoked / punTotal) * 100 : 0, accent: 'gold' }) +
-                include('partials/stat-donut', { id: 'pun-graves', title: 'Graves/Severas', value: `${punHighSeverity}`, percent: punTotal > 0 ? (punHighSeverity / punTotal) * 100 : 0, accent: 'gold' }) +
-                include('partials/stat-donut', { id: 'pun-total', title: 'Total Aplicadas', value: `${punTotal}`, percent: 100, accent: 'red', size: 'big' });
-
-            const autoDonutsHtml =
-                include('partials/stat-donut', { id: 'auto-palavras', title: 'Palavras Filtradas', value: `${filterWordCount}`, percent: 100, accent: 'gold' }) +
-                include('partials/stat-donut', { id: 'auto-niveis', title: 'Níveis Configurados', value: `${filterLevelCount}`, percent: 100, accent: 'gold' }) +
-                include('partials/stat-donut', { id: 'auto-punicoes', title: 'Punições Automáticas', value: `${autoPunishments}/${punTotal}`, percent: punTotal > 0 ? (autoPunishments / punTotal) * 100 : 0, accent: 'gold' }) +
-                include('partials/stat-donut', { id: 'auto-total', title: 'Total de Punições', value: `${punTotal}`, percent: 100, accent: 'red', size: 'big' });
-        %>
-
-        <!-- MODERAÇÃO -->
-        <section class="flex flex-col gap-3">
-            <h2 class="section-title text-sm px-2">Punições</h2>
-            <%- include('partials/graph-card', { bodyHtml: punDonutsHtml }) %>
-        </section>
-
-        <!-- AUTOMODERAÇÃO -->
-        <section class="flex flex-col gap-3">
-            <h2 class="section-title text-sm px-2">Automoderação</h2>
-            <%- include('partials/graph-card', { bodyHtml: autoDonutsHtml }) %>
-        </section>
+        <div id="moderationStatsRoot" data-poll-url="/fragments/moderation-stats/<%= guild.id %>">
+            <%- include('partials/moderation-stats', { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments }) %>
+        </div>
 
         <%#
             CONFIGURAÇÕES — visual simples (mesmo padrão de events.ejs: 1
@@ -192,6 +163,7 @@
 
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script src="/js/ingame-pulse-poll.js"></script>
+    <script src="/js/poll-fragment.js"></script>
     <script src="/js/role-picker.js"></script>
 </body>
 </html>

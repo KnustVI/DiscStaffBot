@@ -109,6 +109,53 @@ async function getServerPulse(guildId, guild) {
     };
 }
 
+// Estatísticas de Punições/Automoderação (moderacao.ejs) — função própria
+// pra poder ser chamada tanto no carregamento normal de
+// /moderacao/:guildID quanto no fragment de poll em tempo real (GET
+// /fragments/moderation-stats/:guildID, pedido do dono: "gráficos"
+// também em tempo real, mesmo padrão já usado em getServerPulse acima),
+// sem duplicar as queries nos dois lugares.
+function getModerationStats(guildId, botUserId) {
+    const punByStatus = db.prepare('SELECT status, COUNT(*) c FROM punishments WHERE guild_id = ? GROUP BY status').all(guildId);
+    const punActive = punByStatus.find(r => r.status === 'active')?.c || 0;
+    const punTotal = punByStatus.reduce((sum, r) => sum + r.c, 0);
+    const punRevoked = punTotal - punActive;
+    const punHighSeverity = db.prepare(
+        "SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND level_severity IN ('Grave', 'Severa')"
+    ).get(guildId).c;
+
+    const filterWordCount = db.prepare('SELECT COUNT(*) c FROM pot_chat_filters WHERE guild_id = ?').get(guildId).c;
+    const autoPunishments = db.prepare('SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND moderator_id = ?').get(guildId, botUserId).c;
+    const filterLevelCount = db.prepare('SELECT COUNT(DISTINCT level_id) c FROM pot_chat_filters WHERE guild_id = ?').get(guildId).c;
+
+    return { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments };
+}
+
+// Reports abertos/fechados (reports.ejs) — mesmo motivo de
+// getModerationStats acima: reaproveitado pelo carregamento normal de
+// /reports/:guildID e pelo fragment de poll (GET
+// /fragments/reports-list/:guildID).
+function getReportsData(guildId) {
+    const enrich = (row) => {
+        const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(row.user_id);
+        return {
+            ...row,
+            agid: link?.alderon_id || null,
+            playerName: link?.player_name || null,
+            statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
+        };
+    };
+
+    const openReports = db.prepare(
+        "SELECT * FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%' ORDER BY created_at DESC"
+    ).all(guildId).map(enrich);
+    const closedReports = db.prepare(
+        "SELECT * FROM reports WHERE guild_id = ? AND status LIKE 'closed%' ORDER BY closed_at DESC LIMIT 30"
+    ).all(guildId).map(enrich);
+
+    return { openReports, closedReports };
+}
+
 // Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
 // — usado aqui pra liberar o preview de região (BR/internacional) da
 // landing page pro dono logado (GET /) e, agora, pra travar o dashboard
@@ -481,6 +528,7 @@ function loadDashboard(client) {
     // atualizar status de staff/donuts sem recarregar a página inteira.
     // Mesmo padrão de auth das outras rotas por guild.
     app.get('/fragments/ingame-pulse/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.status(403).send('');
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('');
@@ -492,6 +540,37 @@ function loadDashboard(client) {
             pulse,
             showRoster: req.query.showRoster !== 'false',
         });
+    });
+
+    // Punições/Automoderação (moderacao.ejs) em tempo real — pedido do
+    // dono ("gráficos" também em tempo real, mesmo padrão do fragment de
+    // IN GAME acima). Só consultas ao banco (getModerationStats), sem
+    // fetch de membros — não precisa do cache/TTL usado em
+    // getCachedMembers/getServerPulse.
+    app.get('/fragments/moderation-stats/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.status(403).send('');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
+
+        const stats = getModerationStats(guildID, client.user.id);
+        res.render('partials/moderation-stats', stats);
+    });
+
+    // Lista de reports (reports.ejs) em tempo real — pedido do dono
+    // ("chats de reportes" também em tempo real).
+    app.get('/fragments/reports-list/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.status(403).send('');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('');
+        const member = await guild.members.fetch(req.user.id).catch(() => null);
+        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
+
+        const { openReports, closedReports } = getReportsData(guildID);
+        res.render('partials/reports-list', { guild, openReports, closedReports });
     });
 
     // ==================== MODERAÇÃO ====================
@@ -509,17 +588,7 @@ function loadDashboard(client) {
             "SELECT report_id, user_id, created_at FROM reports WHERE guild_id = ? AND status = 'waiting' ORDER BY created_at DESC"
         ).all(guildID);
 
-        const punByStatus = db.prepare('SELECT status, COUNT(*) c FROM punishments WHERE guild_id = ? GROUP BY status').all(guildID);
-        const punActive = punByStatus.find(r => r.status === 'active')?.c || 0;
-        const punTotal = punByStatus.reduce((sum, r) => sum + r.c, 0);
-        const punRevoked = punTotal - punActive;
-        const punHighSeverity = db.prepare(
-            "SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND level_severity IN ('Grave', 'Severa')"
-        ).get(guildID).c;
-
-        const filterWordCount = db.prepare('SELECT COUNT(*) c FROM pot_chat_filters WHERE guild_id = ?').get(guildID).c;
-        const autoPunishments = db.prepare('SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND moderator_id = ?').get(guildID, client.user.id).c;
-        const filterLevelCount = db.prepare('SELECT COUNT(DISTINCT level_id) c FROM pot_chat_filters WHERE guild_id = ?').get(guildID).c;
+        const { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments } = getModerationStats(guildID, client.user.id);
 
         const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
@@ -616,27 +685,7 @@ function loadDashboard(client) {
         if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
 
         const pulse = await getServerPulse(guildID, guild);
-
-        // AGID (Alderon ID) só existe se quem abriu o report tiver vinculado a
-        // conta via /registrar (player_links) — quando não tem, a linha some
-        // no template em vez de mostrar algo inventado (mesmo critério já usado
-        // no card de identidade do ReportChat, ver userIdentity.js:30-40).
-        const enrich = (row) => {
-            const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(row.user_id);
-            return {
-                ...row,
-                agid: link?.alderon_id || null,
-                playerName: link?.player_name || null,
-                statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
-            };
-        };
-
-        const openReports = db.prepare(
-            "SELECT * FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%' ORDER BY created_at DESC"
-        ).all(guildID).map(enrich);
-        const closedReports = db.prepare(
-            "SELECT * FROM reports WHERE guild_id = ? AND status LIKE 'closed%' ORDER BY closed_at DESC LIMIT 30"
-        ).all(guildID).map(enrich);
+        const { openReports, closedReports } = getReportsData(guildID);
 
         res.render('reports', {
             guild,
