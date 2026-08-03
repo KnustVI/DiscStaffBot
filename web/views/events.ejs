@@ -107,11 +107,18 @@
             <% } %>
         </section>
 
-        <!-- CONFIGURAÇÕES -->
-        <section class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
-            <form action="/events/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
-
+        <%#
+            CONFIGURAÇÕES — Canal de Anúncios (Caçador-exclusivo) virou um
+            CARD PRÓPRIO no fim da página, mesmo tratamento de
+            moderacao.ejs (pedido do dono, ver doc-comment lá). Ainda o
+            MESMO <form>/POST/botão Salvar — o <form> usa display:contents
+            (classe "contents") pra não virar uma caixa própria no meio do
+            layout, os dois <section> ficam como filhos diretos do
+            gap-[30px] do <main>.
+        %>
+        <form action="/events/<%= guild.id %>/save" method="POST" class="contents">
+            <section class="titan-card-premium flex-col gap-6">
+                <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
                 <div>
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Eventos</h3>
                     <p class="text-xs opacity-50 mb-3">Usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.</p>
@@ -136,28 +143,31 @@
                         </select>
                     </div>
                 </div>
+            </section>
 
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Canal de Anúncios</h3>
-                    <% if (!isCacador) { %>
-                        <p class="text-xs opacity-50 mb-3">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
-                    <% } else { %>
-                        <p class="text-xs opacity-50 mb-3">Canal onde o bot anuncia automaticamente a criação, o início e o encerramento de cada evento.</p>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="megaphone"></i></div>
-                            <select name="event_announce_channel" class="input-premium-field">
-                                <option value="">— selecione um canal —</option>
-                                <% channels.forEach(c => { %>
-                                    <option value="<%= c.id %>" <%= settings.event_announce_channel === c.id ? 'selected' : '' %>>#<%= c.name %></option>
-                                <% }); %>
-                            </select>
-                        </div>
-                    <% } %>
-                </div>
+            <section class="titan-card-premium flex-col gap-6">
+                <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
+                    Canal de Anúncios
+                    <%- include('partials/tier-badge') %>
+                </h2>
+                <% if (!isCacador) { %>
+                    <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                <% } else { %>
+                    <p class="text-xs opacity-50 mb-3">Canal onde o bot anuncia automaticamente a criação, o início e o encerramento de cada evento.</p>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="megaphone"></i></div>
+                        <select name="event_announce_channel" class="input-premium-field">
+                            <option value="">— selecione um canal —</option>
+                            <% channels.forEach(c => { %>
+                                <option value="<%= c.id %>" <%= settings.event_announce_channel === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                <% } %>
 
-                <button type="submit" class="btn-salvar-final self-start">Salvar Alterações</button>
-            </form>
-        </section>
+                <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+            </section>
+        </form>
 
         <footer class="flex justify-end pb-2">
             <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">

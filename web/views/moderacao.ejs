@@ -68,75 +68,91 @@
         </div>
 
         <%#
-            CONFIGURAÇÕES — visual simples (mesmo padrão de events.ejs: 1
-            card único, 1 form só, categorias como <div>+<h3>, botão
-            Salvar único no final) — pedido do dono, que preferiu esse
-            estilo ao card-por-bloco que eu tinha construído seguindo o
-            CSS exato do Figma. Única coisa do rebuild anterior que FICA:
-            Moderador/Supervisor continuam usando partials/role-picker
-            (chips + botão de adicionar) — funcionalidade pedida à parte,
-            não é só visual, então não volta a ser select único nos tiers
-            que permitem mais de 1 cargo (Rastreador+/Caçador). No Free
+            CONFIGURAÇÕES — visual simples (mesmo padrão de events.ejs:
+            categorias como <div>+<h3>, botão Salvar único no final) —
+            pedido do dono, que preferiu esse estilo ao card-por-bloco que
+            eu tinha construído seguindo o CSS exato do Figma. Moderador/
+            Supervisor continuam usando partials/role-picker (chips +
+            botão de adicionar) — funcionalidade pedida à parte, não é só
+            visual, então não volta a ser select único nos tiers que
+            permitem mais de 1 cargo (Rastreador+/Caçador). No Free
             (limite 1), o próprio role-picker já cai sozinho no visual
             simples (ver partials/role-picker.ejs).
+
+            Personalização virou um CARD PRÓPRIO no fim da página (pedido
+            do dono) em vez de mais um <div> dentro do card único de
+            Configurações — ainda é o MESMO <form>/POST/botão Salvar (só
+            um envio, sem duplicar rota no dashboard.js), só que o <form>
+            agora usa display:contents (classe "contents" do Tailwind)
+            pra não virar uma caixa própria no meio do layout: os dois
+            <section> ficam como filhos diretos do gap-[30px] do <main>,
+            exatamente como se não houvesse form nenhum ali no meio.
         %>
-        <section class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
-            <form action="/moderacao/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
+        <form action="/moderacao/<%= guild.id %>/save" method="POST" class="contents">
+            <section class="titan-card-premium flex-col gap-6">
+                <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
+                <div class="flex flex-col gap-8">
 
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
-                    <p class="text-xs opacity-50 mb-3">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
+                        <p class="text-xs opacity-50 mb-3">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
 
-                    <label class="text-xs opacity-60">Supervisor</label>
-                    <p class="text-xs opacity-40 mb-2">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
-                    <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
+                        <label class="text-xs opacity-60">Supervisor</label>
+                        <p class="text-xs opacity-40 mb-2">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
+                        <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
 
-                    <label class="text-xs opacity-60 block mt-4">Moderador (obrigatório)</label>
-                    <p class="text-xs opacity-40 mb-2">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
-                    <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
+                        <label class="text-xs opacity-60 block mt-4">Moderador (obrigatório)</label>
+                        <p class="text-xs opacity-40 mb-2">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
+                        <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
+                    </div>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos — Reputação</h3>
+                        <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
+                        <label class="text-xs opacity-60">Strike (Temporário)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="shield-alert"></i></div>
+                            <select name="strike_role" class="input-premium-field">
+                                <option value="">— selecione um cargo —</option>
+                                <% roles.forEach(r => { %>
+                                    <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <label class="text-xs opacity-60">Exemplar</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
+                            <select name="role_exemplar" class="input-premium-field">
+                                <option value="">— selecione um cargo —</option>
+                                <% roles.forEach(r => { %>
+                                    <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        <label class="text-xs opacity-60">Problemático</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
+                            <select name="role_problematico" class="input-premium-field">
+                                <option value="">— selecione um cargo —</option>
+                                <% roles.forEach(r => { %>
+                                    <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                    </div>
+
                 </div>
+            </section>
 
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos — Reputação</h3>
-                    <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
-                    <label class="text-xs opacity-60">Strike (Temporário)</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="shield-alert"></i></div>
-                        <select name="strike_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                    <label class="text-xs opacity-60">Exemplar</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
-                        <select name="role_exemplar" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                    <label class="text-xs opacity-60">Problemático</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
-                        <select name="role_problematico" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Personalização</h3>
-                    <% if (!isCacador) { %>
-                        <p class="text-xs opacity-50 mb-3">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
-                    <% } else { %>
+            <section class="titan-card-premium flex-col gap-6">
+                <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
+                    Personalização
+                    <%- include('partials/tier-badge') %>
+                </h2>
+                <% if (!isCacador) { %>
+                    <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                <% } else { %>
+                    <div class="flex flex-col gap-3">
                         <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="palette"></i></div>
@@ -151,12 +167,12 @@
                         <div class="rounded-lg mb-3" style="aspect-ratio: 600/138; max-width:400px; background-image:url('/images/title-strike.webp'); background-size:cover; background-position:center;"></div>
                         <label class="text-xs opacity-60">Banner Unstrike</label>
                         <div class="rounded-lg" style="aspect-ratio: 600/138; max-width:400px; background-image:url('/images/title-strike-removido.webp'); background-size:cover; background-position:center;"></div>
-                    <% } %>
-                </div>
+                    </div>
+                <% } %>
 
-                <button type="submit" class="btn-salvar-final self-start">Salvar Alterações</button>
-            </form>
-        </section>
+                <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+            </section>
+        </form>
 
         <footer class="flex justify-end pb-2">
             <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
