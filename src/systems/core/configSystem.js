@@ -69,23 +69,26 @@ const ROLE_TABS = {
     moderation: {
         label: 'Moderação',
         icon: 'shieldcheck',
-        headerTitle: '# CARGOS DE MODERAÇÃO',
-        headerDesc: 'Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas. Detalhes de cada um abaixo.',
+        headerTitle: '# EQUIPE DE MODERAÇÃO',
+        headerDesc: 'Cargos que permitem uso dos comandos relacionados a moderação. Detalhes de cada um abaixo.',
         // Só o que NÃO está em nenhuma descrição de campo: não precisa ser
         // um cargo "oficial", e o limite por campo varia com o plano.
         headerNote: 'Não precisam ser (nem representar) um cargo "oficial" do servidor — servem só para o bot saber quem tem permissão pra cada comando. O número de cargos permitido por campo varia com o plano (use `/premium` pra aumentar).',
+        // Supervisor vem antes de Moderador (pedido do dono, 2026-08-03):
+        // tem mais autoridade, então aparece primeiro tanto aqui quanto no
+        // dashboard web (mesma ordem nos dois lugares, ver moderacao.ejs).
         fields: [
             {
-                key: 'staff_role', icon: 'shield', label: 'Moderador (obrigatório)',
-                desc: 'Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema. Também conta como staff para a checagem de horas em modo espectador (analytics, plano Caçador).',
-                customId: 'config-roles:staff',
-                roleLimitKey: 'moderador',
-            },
-            {
                 key: 'supervisor_role', icon: 'shieldban', label: 'Supervisor',
-                desc: 'Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado. Também conta como staff para horas em modo espectador (analytics, plano Caçador).',
+                desc: 'Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.',
                 customId: 'config-roles:supervisor',
                 roleLimitKey: 'supervisor',
+            },
+            {
+                key: 'staff_role', icon: 'shield', label: 'Moderador (obrigatório)',
+                desc: 'Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.',
+                customId: 'config-roles:staff',
+                roleLimitKey: 'moderador',
             },
         ],
     },

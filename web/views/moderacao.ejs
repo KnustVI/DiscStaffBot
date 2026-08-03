@@ -85,12 +85,16 @@
             <form action="/moderacao/<%= guild.id %>/save" method="POST" class="flex flex-col gap-8">
 
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Moderação</h3>
-                    <p class="text-xs opacity-50 mb-3">Cargos que controlam quem pode usar os comandos de moderação e quem pode aprovar as punições mais severas. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
-                    <label class="text-xs opacity-60">Moderador (obrigatório)</label>
-                    <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
-                    <label class="text-xs opacity-60 block mt-3">Supervisor</label>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
+                    <p class="text-xs opacity-50 mb-3">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
+
+                    <label class="text-xs opacity-60">Supervisor</label>
+                    <p class="text-xs opacity-40 mb-2">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
                     <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
+
+                    <label class="text-xs opacity-60 block mt-4">Moderador (obrigatório)</label>
+                    <p class="text-xs opacity-40 mb-2">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
+                    <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
                 </div>
 
                 <div>
