@@ -124,6 +124,12 @@
         background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
         box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         border: 1px solid rgba(0, 0, 0, 0.4);
+        /* O inset 0.5px 0.5px acima (o mesmo dos outros cards) é sutil
+           demais nesse card bem mais alto/largo — sozinho ficava
+           imperceptível (pedido do dono: "faltou a linha clara esquerda").
+           border-left próprio garante essa linha visível de verdade, sem
+           mudar as outras 3 bordas (continuam iguais aos outros cards). */
+        border-left: 1.5px solid rgba(248, 220, 192, 0.3);
         border-radius: 20px;
         overflow-y: auto;
         transition: width 0.2s ease;
