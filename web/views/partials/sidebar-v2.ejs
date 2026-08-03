@@ -114,11 +114,15 @@
         max-width: 100%;
         flex: none;
         /* Fundo transparente (pedido do dono — o gradiente cinza sólido do
-           Figma original ficava parecendo um bloco maciço); mantém só a
-           sombra/brilho de borda pra ainda dar profundidade sem preencher
-           com cor. */
+           Figma original ficava parecendo um bloco maciço). A sombra grande
+           do Figma (-25px 47px 68.1px, 74% preto) também foi removida —
+           mesmo com o fundo transparente, essa sombra sozinha já pintava um
+           "borrão" escuro atrás do sidebar do tamanho do card inteiro,
+           dando exatamente a aparência de fundo sólido que o dono queria
+           tirar. Sobra só um brilho bem sutil no canto (glint de borda), sem
+           nenhuma sombra grande projetada. */
         background: transparent;
-        box-shadow: 0.5px -0.5px 0.5px #F8DCC0, -25px 47px 68.1px rgba(0, 0, 0, 0.74);
+        box-shadow: 0.5px -0.5px 0.5px #F8DCC0;
         border-radius: 20px;
         overflow-y: auto;
         transition: width 0.2s ease;
