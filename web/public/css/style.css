@@ -303,6 +303,57 @@ label + .input-container-premium { margin-top: 8px; }
    padding evita que a letra fique colada na borda da lista). */
 .input-premium-field option { background: #1F1D20; color: #F8DCC0; padding: 8px 12px; }
 
+/* Galeria de escolha de banner (pedido do dono: dar no site a mesma
+   personalização de imagem que já existe no /config personalizar do
+   Discord — lá é um <select> de texto por limitação do próprio Discord;
+   aqui o site pode mostrar a prévia de cada opção). Cada opção é um
+   <label> com um <input type="radio"> escondido — a seleção usa só CSS
+   (:checked), sem precisar de JS. Mesmas opções/nomes de
+   ConfigSystem.STRIKE_BANNER_OPTIONS/UNSTRIKE_BANNER_OPTIONS (dashboard.js
+   GET /moderacao/:guildID), fonte única de verdade com o Discord. */
+.banner-picker { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.banner-picker-option {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 150px;
+    cursor: pointer;
+}
+.banner-picker-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+.banner-picker-thumb {
+    box-sizing: border-box;
+    aspect-ratio: 600 / 138;
+    border-radius: 10px;
+    background-color: #131314;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid rgba(217, 163, 98, 0.25);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.banner-picker-option:hover .banner-picker-thumb { border-color: rgba(217, 163, 98, 0.6); }
+.banner-picker-option input:checked + .banner-picker-thumb {
+    border-color: #DCA15E;
+    box-shadow: 0 0 0 2px rgba(220, 161, 94, 0.35);
+}
+.banner-picker-option input:focus-visible + .banner-picker-thumb { outline: 2px solid #DCA15E; outline-offset: 2px; }
+.banner-picker-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+    color: #F8DCC0;
+    opacity: 0.7;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Ajuste para a Grid de Níveis */
 .level-row {
     display: flex;

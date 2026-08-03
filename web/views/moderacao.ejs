@@ -164,9 +164,28 @@
                             <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
                         </div>
                         <label class="text-xs opacity-60">Banner Strike</label>
-                        <div class="rounded-lg mb-3" style="aspect-ratio: 600/138; max-width:400px; background-image:url('/images/title-strike.webp'); background-size:cover; background-position:center;"></div>
+                        <p class="text-xs opacity-40">Banner mostrado no painel de aplicação de punição (/strike) — mesmas opções do <code>/config personalizar</code> no Discord.</p>
+                        <div class="banner-picker">
+                            <% strikeBannerOptions.forEach(opt => { %>
+                                <label class="banner-picker-option">
+                                    <input type="radio" name="strike_banner_key" value="<%= opt.value %>" <%= opt.value === strikeBannerKey ? 'checked' : '' %>>
+                                    <span class="banner-picker-thumb" style="background-image:url('<%= opt.url %>')"></span>
+                                    <span class="banner-picker-label"><%= opt.label %></span>
+                                </label>
+                            <% }); %>
+                        </div>
+
                         <label class="text-xs opacity-60">Banner Unstrike</label>
-                        <div class="rounded-lg" style="aspect-ratio: 600/138; max-width:400px; background-image:url('/images/title-strike-removido.webp'); background-size:cover; background-position:center;"></div>
+                        <p class="text-xs opacity-40">Banner mostrado no painel de anulação de punição (/unstrike) — mesmas opções do <code>/config personalizar</code> no Discord.</p>
+                        <div class="banner-picker">
+                            <% unstrikeBannerOptions.forEach(opt => { %>
+                                <label class="banner-picker-option">
+                                    <input type="radio" name="unstrike_banner_key" value="<%= opt.value %>" <%= opt.value === unstrikeBannerKey ? 'checked' : '' %>>
+                                    <span class="banner-picker-thumb" style="background-image:url('<%= opt.url %>')"></span>
+                                    <span class="banner-picker-label"><%= opt.label %></span>
+                                </label>
+                            <% }); %>
+                        </div>
                     </div>
                 <% } %>
 

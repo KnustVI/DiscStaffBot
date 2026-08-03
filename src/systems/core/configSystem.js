@@ -249,6 +249,12 @@ const UNSTRIKE_BANNER_OPTIONS = [
 const ConfigSystem = {
     STAFF_ROLE_KEYS,
     PLAYER_PHOTO_OPTIONS,
+    // Exportados pro dashboard web reaproveitar como fonte única de verdade
+    // (mesmas opções de banner do /config personalizar do Discord, ver
+    // dashboard.js GET/POST /moderacao/:guildID) — em vez de duplicar essa
+    // lista lá.
+    STRIKE_BANNER_OPTIONS,
+    UNSTRIKE_BANNER_OPTIONS,
 
     getSetting(guildId, key) {
         try {

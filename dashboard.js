@@ -124,6 +124,17 @@ async function getServerPulse(guildId, guild) {
     };
 }
 
+// Resolve a `value` de uma opção de banner (ConfigSystem.STRIKE_BANNER_
+// OPTIONS/UNSTRIKE_BANNER_OPTIONS, ex: 'title_strike'/'foto_perfil_01')
+// pra URL servível pelo dashboard — os mesmos arquivos do imageManager
+// (assets/images/, usados como attachment:// no Discord) foram copiados
+// pra web/public/images/ com hífen em vez de underscore (mesmo padrão já
+// usado por title-strike.webp/title-strike-removido.webp antes desta
+// função existir), então a troca de separador já resolve os dois casos.
+function bannerOptionUrl(value) {
+    return `/images/${String(value).replace(/_/g, '-')}.webp`;
+}
+
 // Estatísticas de Punições/Automoderação (moderacao.ejs) — função própria
 // pra poder ser chamada tanto no carregamento normal de
 // /moderacao/:guildID quanto no fragment de poll em tempo real (GET
@@ -608,6 +619,16 @@ function loadDashboard(client) {
         const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
         const roles = [...guild.roles.cache.values()].filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position);
+        // Mesmas opções de banner do /config personalizar do Discord (ver
+        // ConfigSystem.STRIKE_BANNER_OPTIONS/UNSTRIKE_BANNER_OPTIONS) — a
+        // key vira o nome do arquivo web (bannerOptionUrl), o pool de fotos
+        // genéricas foi copiado pra web/public/images/ como foto-perfil-01
+        // a 12.webp (mesmas fotos, nome com hífen em vez de underscore, pra
+        // seguir o padrão já usado por title-strike.webp).
+        const strikeBannerKey = settings.strike_banner_key || 'title_strike';
+        const unstrikeBannerKey = settings.unstrike_banner_key || 'title_strike_removido';
+        const strikeBannerOptions = ConfigSystem.STRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
+        const unstrikeBannerOptions = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
         const staffRoleIds = ConfigSystem.getRoleIds(guildID, 'staff_role');
         const supervisorRoleIds = ConfigSystem.getRoleIds(guildID, 'supervisor_role');
         // Mesmo limite por tier já usado no painel /config roles do Discord
@@ -640,6 +661,10 @@ function loadDashboard(client) {
             settings,
             roles,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
+            strikeBannerKey,
+            unstrikeBannerKey,
+            strikeBannerOptions,
+            unstrikeBannerOptions,
             saved: req.query.saved,
         });
     });
@@ -679,9 +704,24 @@ function loadDashboard(client) {
             // Personalização de painéis é exclusiva do plano Caçador (mesma checagem
             // de getPanelPersonalization, configSystem.js:2308-2319) — ignora
             // silenciosamente em vez de travar o resto do formulário.
-            if (('panel_accent_color' in body || 'panel_footer_text' in body) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
+            if (
+                ('panel_accent_color' in body || 'panel_footer_text' in body || 'strike_banner_key' in body || 'unstrike_banner_key' in body)
+                && PremiumSystem.isGuildAtLeast(guildID, 'cacador')
+            ) {
                 if ('panel_accent_color' in body) ConfigSystem.setSetting(guildID, 'panel_accent_color', (body.panel_accent_color || '').replace(/^#/, '') || null);
                 if ('panel_footer_text' in body) ConfigSystem.setSetting(guildID, 'panel_footer_text', body.panel_footer_text || null);
+                // Mesma validação de valor do painel /config personalizar do
+                // Discord (isValidOption, configSystem.js) — o picker do
+                // dashboard já só manda um dos valores válidos, isso aqui é
+                // defesa contra um POST forjado.
+                if ('strike_banner_key' in body) {
+                    const isValid = ConfigSystem.STRIKE_BANNER_OPTIONS.some(opt => opt.value === body.strike_banner_key);
+                    if (isValid) ConfigSystem.setSetting(guildID, 'strike_banner_key', body.strike_banner_key);
+                }
+                if ('unstrike_banner_key' in body) {
+                    const isValid = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.some(opt => opt.value === body.unstrike_banner_key);
+                    if (isValid) ConfigSystem.setSetting(guildID, 'unstrike_banner_key', body.unstrike_banner_key);
+                }
             }
             res.redirect(`/moderacao/${guildID}?saved=success`);
         } catch (error) {
