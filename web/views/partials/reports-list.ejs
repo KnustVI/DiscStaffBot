@@ -51,7 +51,7 @@
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                     </div>
                     <% if (r.thread_id && !r.threadDeletedByName) { %>
-                        <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
+                        <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
                             <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
                         </a>
                     <% } else if (r.threadDeletedByName) { %>
@@ -91,7 +91,7 @@
                     <% if (r.threadDeletedByName) { %>
                         <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %></p>
                     <% } else if (r.thread_id) { %>
-                        <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
+                        <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
                             <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
                         </a>
                     <% } %>
