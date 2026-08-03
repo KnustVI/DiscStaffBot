@@ -190,16 +190,37 @@ function getModerationStats(guildId, botUserId) {
 }
 
 // Reports abertos/fechados (reports.ejs) — mesmo motivo de
+// Nome de exibição de um usuário do Discord a partir só do ID — tenta o
+// cache do client PRIMEIRO (rápido, sem chamada de API, e mais atualizado
+// que o banco pra quem o bot já viu recentemente), cai pra tabela `users`
+// (snapshot salvo por db.ensureUser em qualquer interação) se não estiver
+// em cache. Sem fetch() de propósito: a lista de reports pode ter dezenas
+// de usuários pra resolver (reporter/closed_by/thread_deleted_by de cada
+// linha), um fetch por usuário seria lento e bateria em rate limit à toa.
+function resolveUserDisplayName(client, userId) {
+    if (!userId) return null;
+    const cached = client.users.cache.get(userId);
+    if (cached) return cached.username;
+    const dbUser = db.prepare('SELECT username FROM users WHERE user_id = ?').get(userId);
+    return dbUser?.username || `Usuário desconhecido (${userId})`;
+}
+
 // getModerationStats acima: reaproveitado pelo carregamento normal de
 // /reports/:guildID e pelo fragment de poll (GET
-// /fragments/reports-list/:guildID).
-function getReportsData(guildId) {
+// /fragments/reports-list/:guildID). Precisa do client pra resolver nome
+// do Discord de quem abriu/fechou/apagou o tópico (ver
+// resolveUserDisplayName acima) — pedido do dono: a lista não mostrava
+// nem o nome do Discord nem o nome em jogo do jogador antes disso.
+function getReportsData(guildId, client) {
     const enrich = (row) => {
         const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(row.user_id);
         return {
             ...row,
             agid: link?.alderon_id || null,
             playerName: link?.player_name || null,
+            discordUsername: resolveUserDisplayName(client, row.user_id),
+            closedByName: row.closed_by ? resolveUserDisplayName(client, row.closed_by) : null,
+            threadDeletedByName: row.thread_deleted_by ? resolveUserDisplayName(client, row.thread_deleted_by) : null,
             statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
         };
     };
@@ -702,7 +723,7 @@ function loadDashboard(client) {
         const member = await guild.members.fetch(req.user.id).catch(() => null);
         if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
 
-        const { openReports, closedReports } = getReportsData(guildID);
+        const { openReports, closedReports } = getReportsData(guildID, client);
         res.render('partials/reports-list', { guild, openReports, closedReports });
     });
 
@@ -890,7 +911,7 @@ function loadDashboard(client) {
         if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
 
         const pulse = await getServerPulse(guildID, guild);
-        const { openReports, closedReports } = getReportsData(guildID);
+        const { openReports, closedReports } = getReportsData(guildID, client);
 
         // Personalização do Report-Chat (bloco do /config personalizar do
         // Discord, ver configSystem.js refreshPersonalizarPanel) mora aqui

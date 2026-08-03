@@ -97,6 +97,7 @@ const SCHEMA = {
             closed_by TEXT,
             closed_reason TEXT,
             closed_at INTEGER,
+            thread_deleted_by TEXT,
             punishment TEXT,
             rating INTEGER,
             rating_comment TEXT,

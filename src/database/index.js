@@ -115,6 +115,13 @@ class DatabaseManager {
             // se a coluna já existe, o erro é ignorado).
             this.ensureColumn('reports', 'type', "TEXT NOT NULL DEFAULT 'report'");
             this.ensureColumn('reports', 'punishment_id', 'INTEGER');
+            // Quem apagou o tópico do report/revisão (Discord não manda o
+            // executor no evento threadDelete — resolvido via audit log,
+            // ver src/events/threadDelete.js). Fica separado de closed_by
+            // (quem fechou o report DE VERDADE, pelo fluxo normal) — um
+            // tópico pode ser apagado bem depois do report já ter sido
+            // fechado normalmente, são duas informações independentes.
+            this.ensureColumn('reports', 'thread_deleted_by', 'TEXT');
             // Verificação em jogo (RCON) do cadastro manual de jogador — colunas
             // já preparadas, mas o envio do código pelo chat do jogo ainda não
             // está ativado (ver potPlayerRegistry.js). Ver /registrar.

@@ -942,22 +942,39 @@ class ReportChatSystem {
     // automaticamente, independente do tier.
 
     /**
-     * Libera automaticamente um report quando sua thread é apagada
-     * (ver src/events/threadDelete.js) — sem isso, apagar a thread deixaria
-     * o report "aberto" pra sempre no banco.
+     * Registra quem apagou o tópico de um report/revisão (ver
+     * src/events/threadDelete.js, resolvido via audit log — o evento em si
+     * não vem com o executor) e, se o report ainda estava ABERTO, libera a
+     * vaga automaticamente (mesmo critério de sempre — sem isso, apagar a
+     * thread deixaria o report "aberto" pra sempre no banco).
+     *
+     * thread_deleted_by é gravado SEMPRE que a thread some, independente do
+     * status — um tópico pode ser apagado bem depois do report já ter sido
+     * fechado normalmente (limpeza de canal, por exemplo); isso é uma
+     * informação separada de quem fechou o report de verdade (closed_by),
+     * pedido do dono pro dashboard mostrar as duas coisas.
+     *
+     * @param {string} threadId
+     * @param {string|null} [deletedBy] - ID de quem apagou (null se o audit
+     *   log não achou/expirou — ainda registra a exclusão em si, só sem autor).
      */
-    releaseReportByThreadId(threadId) {
-        const report = db.prepare(`
-            SELECT * FROM reports WHERE thread_id = ? AND status NOT IN ('closed_no_reason', 'closed_with_reason')
-        `).get(threadId);
+    releaseReportByThreadId(threadId, deletedBy = null) {
+        const report = db.prepare(`SELECT * FROM reports WHERE thread_id = ?`).get(threadId);
         if (!report) return null;
 
         db.prepare(`
-            UPDATE reports SET status = 'closed_no_reason', closed_reason = ?, closed_at = ?
-            WHERE guild_id = ? AND report_number = ?
-        `).run('Thread excluída - liberado automaticamente', Date.now(), report.guild_id, report.report_number);
+            UPDATE reports SET thread_deleted_by = ? WHERE guild_id = ? AND report_number = ?
+        `).run(deletedBy, report.guild_id, report.report_number);
 
-        this.updateStatus(report.guild_id, `#R${report.report_number}`, 'closed_no_reason').catch(() => {});
+        const wasOpen = !['closed_no_reason', 'closed_with_reason'].includes(report.status);
+        if (wasOpen) {
+            db.prepare(`
+                UPDATE reports SET status = 'closed_no_reason', closed_reason = ?, closed_at = ?
+                WHERE guild_id = ? AND report_number = ?
+            `).run('Thread excluída - liberado automaticamente', Date.now(), report.guild_id, report.report_number);
+
+            this.updateStatus(report.guild_id, `#R${report.report_number}`, 'closed_no_reason').catch(() => {});
+        }
 
         return report;
     }
