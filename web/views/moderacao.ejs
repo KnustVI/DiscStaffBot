@@ -144,6 +144,15 @@
                 </div>
             </section>
 
+            <%#
+                Personalização espelha 1:1 os 3 blocos do /config
+                personalizar do Discord (Strike/Unstrike, Report-Chat,
+                Aparência Geral — ver configSystem.js
+                refreshPersonalizarPanel) — mesmos rótulos/descrições/
+                placeholders dos dois lados, pedido do dono depois de notar
+                que a versão anterior só tinha levado o banner de Strike/
+                Unstrike pro site, faltando Report-Chat inteiro.
+            %>
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
                     Personalização
@@ -152,19 +161,12 @@
                 <% if (!isCacador) { %>
                     <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
                 <% } else { %>
-                    <div class="flex flex-col gap-3">
-                        <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="palette"></i></div>
-                            <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
-                        </div>
-                        <label class="text-xs opacity-60">Assinatura no rodapé dos painéis</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="edit"></i></div>
-                            <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
-                        </div>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Strike / Unstrike</h3>
+                        <p class="text-xs opacity-50 mb-3">Troque o banner mostrado no painel de aplicação (/strike) e de anulação (/unstrike) de punição.</p>
+
                         <label class="text-xs opacity-60">Banner Strike</label>
-                        <p class="text-xs opacity-40">Banner mostrado no painel de aplicação de punição (/strike) — mesmas opções do <code>/config personalizar</code> no Discord.</p>
                         <div class="banner-picker">
                             <% strikeBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -175,8 +177,7 @@
                             <% }); %>
                         </div>
 
-                        <label class="text-xs opacity-60">Banner Unstrike</label>
-                        <p class="text-xs opacity-40">Banner mostrado no painel de anulação de punição (/unstrike) — mesmas opções do <code>/config personalizar</code> no Discord.</p>
+                        <label class="text-xs opacity-60 block mt-4">Banner Unstrike</label>
                         <div class="banner-picker">
                             <% unstrikeBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -187,6 +188,51 @@
                             <% }); %>
                         </div>
                     </div>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Report-Chat</h3>
+                        <p class="text-xs opacity-50 mb-3">Troque o banner, a mensagem de abertura do painel (o mesmo que /reportchat posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão). O banner escolhido abaixo também aparece na thread.</p>
+
+                        <label class="text-xs opacity-60">Banner do Report-Chat</label>
+                        <div class="banner-picker">
+                            <% reportChatBannerOptions.forEach(opt => { %>
+                                <label class="banner-picker-option">
+                                    <input type="radio" name="report_chat_banner_key" value="<%= opt.value %>" <%= opt.value === reportChatBannerKey ? 'checked' : '' %>>
+                                    <span class="banner-picker-thumb" style="background-image:url('<%= opt.url %>')"></span>
+                                    <span class="banner-picker-label"><%= opt.label %></span>
+                                </label>
+                            <% }); %>
+                        </div>
+
+                        <label class="text-xs opacity-60 block mt-4">Mensagem do painel (vazio = padrão do bot)</label>
+                        <div class="input-container-premium has-textarea">
+                            <div class="icon-box"><i data-lucide="message-square"></i></div>
+                            <textarea class="input-premium-field" name="report_chat_message" maxlength="1000" rows="3" placeholder="Explique como abrir um reporte ou revisar uma punição neste servidor..."><%= settings.report_chat_message || '' %></textarea>
+                        </div>
+
+                        <label class="text-xs opacity-60">Boas-vindas na thread (vazio = padrão do bot)</label>
+                        <div class="input-container-premium has-textarea">
+                            <div class="icon-box"><i data-lucide="message-square"></i></div>
+                            <textarea class="input-premium-field" name="report_chat_welcome_message" maxlength="1000" rows="3" placeholder="Mensagem mostrada assim que a thread é aberta — vale pra reporte e pra revisão de punição..."><%= settings.report_chat_welcome_message || '' %></textarea>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Aparência Geral</h3>
+                        <p class="text-xs opacity-50 mb-3">Cor de destaque e footer aplicados em /strike, /unstrike, report-chat, e nos logs de Punições/Reports/Geral.</p>
+
+                        <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="palette"></i></div>
+                            <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
+                        </div>
+                        <label class="text-xs opacity-60">Assinatura no rodapé dos painéis</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="edit"></i></div>
+                            <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
+                        </div>
+                    </div>
+
                 <% } %>
 
                 <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>

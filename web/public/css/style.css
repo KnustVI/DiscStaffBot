@@ -303,6 +303,24 @@ label + .input-container-premium { margin-top: 8px; }
    padding evita que a letra fique colada na borda da lista). */
 .input-premium-field option { background: #1F1D20; color: #F8DCC0; padding: 8px 12px; }
 
+/* <textarea> reaproveitando o mesmo campo (mensagens do Report-Chat,
+   personalização — ver moderacao.ejs) — herda a base de .input-premium-
+   field acima, só ajusta o que é específico de textarea: altura mínima,
+   fonte (textarea não herda font-family sozinho em todo navegador) e
+   resize só vertical (o padrão do browser é nas duas direções, quebra o
+   cantinho arredondado do container ao esticar pra largura). O
+   .input-container-premium.has-textarea (classe própria no HTML, em vez
+   de :has() por compatibilidade) vira align-items:flex-start pra a
+   icon-box ficar no topo, não flutuando no centro vertical do textarea
+   inteiro. */
+textarea.input-premium-field {
+    min-height: 80px;
+    padding-top: 12px;
+    font-family: inherit;
+    resize: vertical;
+}
+.input-container-premium.has-textarea { align-items: flex-start; }
+
 /* Galeria de escolha de banner (pedido do dono: dar no site a mesma
    personalização de imagem que já existe no /config personalizar do
    Discord — lá é um <select> de texto por limitação do próprio Discord;

@@ -250,11 +250,15 @@ const ConfigSystem = {
     STAFF_ROLE_KEYS,
     PLAYER_PHOTO_OPTIONS,
     // Exportados pro dashboard web reaproveitar como fonte única de verdade
-    // (mesmas opções de banner do /config personalizar do Discord, ver
-    // dashboard.js GET/POST /moderacao/:guildID) — em vez de duplicar essa
-    // lista lá.
+    // (mesmas opções/rótulos de banner do /config personalizar do Discord,
+    // ver dashboard.js GET/POST /moderacao/:guildID) — em vez de duplicar
+    // essa lista lá. O painel web usa a MESMA estrutura de 3 blocos do
+    // comando (Strike/Unstrike, Report-Chat, Aparência Geral), pedido do
+    // dono depois de perceber que só o banner de Strike/Unstrike tinha
+    // sido levado pro site, faltando Report-Chat inteiro.
     STRIKE_BANNER_OPTIONS,
     UNSTRIKE_BANNER_OPTIONS,
+    REPORT_CHAT_BANNER_OPTIONS,
 
     getSetting(guildId, key) {
         try {

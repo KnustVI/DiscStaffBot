@@ -619,16 +619,20 @@ function loadDashboard(client) {
         const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
         const roles = [...guild.roles.cache.values()].filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position);
-        // Mesmas opções de banner do /config personalizar do Discord (ver
-        // ConfigSystem.STRIKE_BANNER_OPTIONS/UNSTRIKE_BANNER_OPTIONS) — a
-        // key vira o nome do arquivo web (bannerOptionUrl), o pool de fotos
-        // genéricas foi copiado pra web/public/images/ como foto-perfil-01
-        // a 12.webp (mesmas fotos, nome com hífen em vez de underscore, pra
-        // seguir o padrão já usado por title-strike.webp).
+        // Personalização (card no fim da página) espelha os 3 blocos do
+        // /config personalizar do Discord (Strike/Unstrike, Report-Chat,
+        // Aparência Geral — ver configSystem.js refreshPersonalizarPanel),
+        // mesmas opções/rótulos nos dois lugares via ConfigSystem.*_OPTIONS.
+        // A key da opção de banner vira o nome do arquivo web
+        // (bannerOptionUrl) — o pool de fotos genéricas + os 3 banners
+        // padrão foram copiados pra web/public/images/ com hífen em vez de
+        // underscore (mesmo padrão já usado por title-strike.webp).
         const strikeBannerKey = settings.strike_banner_key || 'title_strike';
         const unstrikeBannerKey = settings.unstrike_banner_key || 'title_strike_removido';
+        const reportChatBannerKey = settings.report_chat_banner_key || 'title_report_chat';
         const strikeBannerOptions = ConfigSystem.STRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
         const unstrikeBannerOptions = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
+        const reportChatBannerOptions = ConfigSystem.REPORT_CHAT_BANNER_OPTIONS.map(opt => ({ ...opt, url: bannerOptionUrl(opt.value) }));
         const staffRoleIds = ConfigSystem.getRoleIds(guildID, 'staff_role');
         const supervisorRoleIds = ConfigSystem.getRoleIds(guildID, 'supervisor_role');
         // Mesmo limite por tier já usado no painel /config roles do Discord
@@ -663,8 +667,10 @@ function loadDashboard(client) {
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
             strikeBannerKey,
             unstrikeBannerKey,
+            reportChatBannerKey,
             strikeBannerOptions,
             unstrikeBannerOptions,
+            reportChatBannerOptions,
             saved: req.query.saved,
         });
     });
@@ -703,11 +709,15 @@ function loadDashboard(client) {
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
             // Personalização de painéis é exclusiva do plano Caçador (mesma checagem
             // de getPanelPersonalization, configSystem.js:2308-2319) — ignora
-            // silenciosamente em vez de travar o resto do formulário.
-            if (
-                ('panel_accent_color' in body || 'panel_footer_text' in body || 'strike_banner_key' in body || 'unstrike_banner_key' in body)
-                && PremiumSystem.isGuildAtLeast(guildID, 'cacador')
-            ) {
+            // silenciosamente em vez de travar o resto do formulário. Espelha
+            // os 3 blocos do /config personalizar do Discord (Strike/
+            // Unstrike, Report-Chat, Aparência Geral).
+            const personalizarFields = [
+                'panel_accent_color', 'panel_footer_text',
+                'strike_banner_key', 'unstrike_banner_key',
+                'report_chat_banner_key', 'report_chat_message', 'report_chat_welcome_message',
+            ];
+            if (personalizarFields.some(f => f in body) && PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
                 if ('panel_accent_color' in body) ConfigSystem.setSetting(guildID, 'panel_accent_color', (body.panel_accent_color || '').replace(/^#/, '') || null);
                 if ('panel_footer_text' in body) ConfigSystem.setSetting(guildID, 'panel_footer_text', body.panel_footer_text || null);
                 // Mesma validação de valor do painel /config personalizar do
@@ -722,6 +732,16 @@ function loadDashboard(client) {
                     const isValid = ConfigSystem.UNSTRIKE_BANNER_OPTIONS.some(opt => opt.value === body.unstrike_banner_key);
                     if (isValid) ConfigSystem.setSetting(guildID, 'unstrike_banner_key', body.unstrike_banner_key);
                 }
+                if ('report_chat_banner_key' in body) {
+                    const isValid = ConfigSystem.REPORT_CHAT_BANNER_OPTIONS.some(opt => opt.value === body.report_chat_banner_key);
+                    if (isValid) ConfigSystem.setSetting(guildID, 'report_chat_banner_key', body.report_chat_banner_key);
+                }
+                // Mesmo limite de 1000 caracteres do modal do Discord
+                // (TextInputBuilder maxLength) — o <textarea> do dashboard já
+                // tem maxlength="1000" no HTML, isso aqui é a mesma defesa
+                // contra POST forjado dos campos acima.
+                if ('report_chat_message' in body) ConfigSystem.setSetting(guildID, 'report_chat_message', (body.report_chat_message || '').trim().slice(0, 1000) || null);
+                if ('report_chat_welcome_message' in body) ConfigSystem.setSetting(guildID, 'report_chat_welcome_message', (body.report_chat_welcome_message || '').trim().slice(0, 1000) || null);
             }
             res.redirect(`/moderacao/${guildID}?saved=success`);
         } catch (error) {
