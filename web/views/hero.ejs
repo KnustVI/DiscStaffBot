@@ -610,8 +610,13 @@
 
     <!-- Análise e Histórico de Atividade Staff — dois mockups empilhados + texto
          (pedido do dono, 2026-08-03: mesmo estilo .mockup-panel usado em
-         AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima) -->
-    <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
+         AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima).
+         lg:flex-row-reverse (pedido do dono, mesmo dia): a seção Dashboard
+         Web logo acima já é mockup-esquerda/texto-direita (índice par no
+         array features) — sem o reverse aqui, as duas seguidas ficavam com
+         o mockup do MESMO lado, quebrando o zigue-zague que o resto da
+         página mantém (Perfil/Reporte/Punição etc. alternam a cada seção). -->
+    <div class="w-full flex flex-col lg:flex-row-reverse items-center gap-10" style="max-width: 1100px;">
         <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
             <%- mockupPanel({
                 topbarPt: 'REPUTAÇÃO', topbarEn: 'REPUTATION', stacked: true,
