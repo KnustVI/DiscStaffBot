@@ -7,10 +7,11 @@
 
   Ligado às páginas reais construídas a partir de Moderação.txt/Reports.txt/
   Events.txt (mesma pasta do sidebar.txt): moderacao, denuncias (Reports) e
-  eventos. Premium/Ajuda ainda sem página própria (fica em `#`);
-  Configurações e Reputação removidos do menu por hora (pedido do dono,
-  2026-07-20 — sem página pronta ainda). O sidebar.ejs ANTIGO (sem "-v2")
-  continua intocado, incluído só em home.ejs/manage.ejs.
+  eventos. Ajuda aponta pra /documentacao (pedido do dono, 2026-08-03).
+  Premium ainda sem página própria (fica em `#`); Configurações e
+  Reputação removidos do menu por hora (pedido do dono, 2026-07-20 — sem
+  página pronta ainda). O sidebar.ejs ANTIGO (sem "-v2") continua
+  intocado, incluído só em home.ejs/manage.ejs.
 
   Comentário de verdade do EJS (abre com "menor, porcento"), não HTML —
   esse tipo de comentário some do HTML final (um comentário de HTML
@@ -52,7 +53,7 @@
         { key: 'moderacao', label: 'Moderação', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', label: 'Eventos', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', label: 'Denúncias', icon: 'message-square-warning', href: guildHref('reports') },
-        { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '#' },
+        { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '/documentacao' },
         // Só o dono do bot vê esse item (pedido do dono: controle de
         // visibilidade do pool de imagens, ver dashboard.js /dev/image-pool)
         // — página global, sem :guildID, por isso não usa guildHref.

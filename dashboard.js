@@ -620,6 +620,16 @@ function loadDashboard(client) {
         res.render('termos', loadTermosBilingual());
     });
 
+    // Documentação pública de todos os comandos do bot (pedido do dono,
+    // 2026-08-03: "criar nossa página de documentação... mostrando a
+    // melhor forma de usar o bot atualmente") — sem login, mesmo padrão
+    // de / (hero) e /termos. Conteúdo é estático (hardcoded em
+    // documentacao.ejs), não gerado a partir dos comandos reais — ver
+    // docblock no topo da view.
+    app.get('/documentacao', (req, res) => {
+        res.render('documentacao', { isOwner: isOwnerSession(req) });
+    });
+
     // ==================== POOL DE IMAGENS (só o dono) ====================
     // Ativa/desativa a visibilidade pública de cada imagem do pool dinâmico
     // (avatar/plano de fundo/emblema/banner — ver profileImagePool.js) sem
