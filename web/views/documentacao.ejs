@@ -82,7 +82,7 @@
             box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
             font-family: 'Poppins', sans-serif;
             font-weight: 300;
-            font-size: 14px;
+            font-size: 16px;
             color: #F8DCC0;
             text-decoration: none;
             white-space: nowrap;
@@ -144,7 +144,7 @@
         .docs-toc::-webkit-scrollbar-thumb { background: #803E30; border-radius: 10px; }
         .docs-toc::-webkit-scrollbar-thumb:hover { background: #DCA15E; }
         .docs-toc a {
-            font-family: 'Poppins', sans-serif; font-size: 13px; color: #F8DCC0; opacity: 0.6;
+            font-family: 'Poppins', sans-serif; font-size: 14px; color: #F8DCC0; opacity: 0.6;
             text-decoration: none; padding: 6px 10px; border-radius: 8px;
             transition: opacity 0.15s ease, background 0.15s ease;
         }
@@ -158,7 +158,7 @@
         .toc-group summary {
             cursor: pointer; list-style: none;
             display: flex; align-items: center; justify-content: space-between; gap: 6px;
-            font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 10.5px;
+            font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 11.5px;
             text-transform: uppercase; letter-spacing: 0.6px; color: #F8DCC0; opacity: 0.55;
             padding: 10px 10px;
             transition: opacity 0.15s ease;
@@ -350,6 +350,20 @@ function rconCmdCard(cmd) {
     </div>`;
 }
 
+// Card de PÁGINA do dashboard web (não é um comando de barra — sem "/nome",
+// sem tabela de opções). Reaproveita a mesma moldura .cmd-card pra ficar
+// visualmente igual ao resto da página; a badge é sempre "Administrador"
+// porque toda página do dashboard exige essa permissão no servidor.
+function pageCard({ id, titlePt, titleEn, descPt, descEn, notePt, noteEn, bulletsPt, bulletsEn }) {
+    const bulletsHtml = bulletsPt ? `<ul style="margin:0; padding-left:20px; display:flex; flex-direction:column; gap:4px; font-family:'Poppins',sans-serif; font-size:14px; opacity:0.85; line-height:1.5;">${bulletsPt.map((b, i) => `<li>${t(b, bulletsEn[i])}</li>`).join('')}</ul>` : '';
+    return `<div class="cmd-card" id="${id}">
+        <div class="cmd-head"><span class="cmd-name">${t(titlePt, titleEn)}</span>${permBadge('Administrador', 'Administrator')}</div>
+        <p class="cmd-desc">${t(descPt, descEn)}</p>
+        ${bulletsHtml}
+        ${notePt ? `<p class="cmd-note">${t(notePt, noteEn)}</p>` : ''}
+    </div>`;
+}
+
 // ===================== ÍNDICE (TOC) =====================
 // labelPt/labelEn = rótulo descritivo (traduzido); label sozinho = nome
 // literal de comando (ex: "/strike") — nunca traduzido, é o nome real
@@ -358,6 +372,12 @@ const toc = [
     { catPt: 'Comece Aqui', catEn: 'Get Started', items: [
         { id: 'comece-aqui', labelPt: 'Primeiros Passos', labelEn: 'Getting Started' },
         { id: 'legenda', labelPt: 'Como ler esta página', labelEn: 'How to read this page' },
+    ] },
+    { catPt: 'Dashboard Web', catEn: 'Web Dashboard', items: [
+        { id: 'dash-intro', labelPt: 'Como acessar', labelEn: 'How to access' },
+        { id: 'dash-moderacao', labelPt: 'Página de Moderação', labelEn: 'Moderation page' },
+        { id: 'dash-denuncias', labelPt: 'Página de Denúncias', labelEn: 'Reports page' },
+        { id: 'dash-eventos', labelPt: 'Página de Eventos', labelEn: 'Events page' },
     ] },
     { catPt: 'Perfil & Premium', catEn: 'Profile & Premium', items: [
         { id: 'cmd-registrar', label: '/registrar' }, { id: 'cmd-perfil', label: '/perfil' },
@@ -461,6 +481,70 @@ const toc = [
                 <span class="legend-item"><span class="badge tier-rastreador">RASTREADOR+</span> <%- t('— exige plano Rastreador ou Caçador', '— requires the Rastreador or Caçador plan') %></span>
                 <span class="legend-item"><span class="badge tier-cacador">CAÇADOR</span> <%- t('— exclusivo do plano Caçador', '— exclusive to the Caçador plan') %></span>
                 <span class="legend-item"><%- t('🔒 — exige também o cargo de Supervisor, além de Staff', '🔒 — also requires the Supervisor role, in addition to Staff') %></span>
+            </div>
+        </section>
+
+        <!-- ===================== DASHBOARD WEB ===================== -->
+        <section id="dash-intro">
+            <div class="docs-cat-header">
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Dashboard Web</span><span data-i18n-en>Web Dashboard</span></h2>
+                <p class="docs-cat-desc"><%- t('Um painel completo pela web pra sua staff administrar o servidor sem precisar digitar comando por comando no Discord — com dados que se atualizam sozinhos, em tempo real.', 'A full web panel for your staff to manage the server without typing commands one by one in Discord — with data that updates on its own, in real time.') %></p>
+            </div>
+            <div class="docs-cat-body">
+                <div class="docs-callout">
+                    <p style="font-family:'Poppins',sans-serif; font-size:14px; margin:0; opacity:0.9;"><%- t('Como acessar:', 'How to access it:') %></p>
+                    <ul>
+                        <li><%- t('Clique em <strong>ENTRAR</strong> no topo de qualquer página do site e faça login com sua conta do Discord.', 'Click <strong>ENTRAR</strong> (login) at the top of any page on the site and sign in with your Discord account.') %></li>
+                        <li><%- t('Só quem tem permissão de <strong>Administrador</strong> no servidor consegue abrir o painel dele — sem essa permissão, o servidor nem aparece na lista.', 'Only someone with <strong>Administrator</strong> permission on the server can open its panel — without it, the server doesn\'t even show up in the list.') %></li>
+                        <li><%- t('Depois de logado, escolha qual servidor gerenciar na tela de seleção — o mesmo login funciona pra qualquer servidor onde você seja admin e o bot esteja presente.', "After logging in, choose which server to manage on the selection screen — the same login works for any server where you're an admin and the bot is present.") %></li>
+                        <li><%- t('As páginas de Moderação, Denúncias e Eventos se atualizam sozinhas a cada ~15 segundos, sem precisar dar F5.', 'The Moderation, Reports, and Events pages update on their own every ~15 seconds, no need to refresh.') %></li>
+                    </ul>
+                </div>
+                <%- pageCard({
+                    id: 'dash-moderacao', titlePt: 'Página de Moderação', titleEn: 'Moderation Page',
+                    descPt: 'Visão geral de punições e automoderação do servidor.',
+                    descEn: "Overview of the server's punishments and auto-moderation.",
+                    bulletsPt: [
+                        'Gráficos de punições ativas, revogadas e de severidade alta.',
+                        'Estatísticas de automoderação: palavras filtradas, níveis configurados, punições aplicadas automaticamente.',
+                        'Alertas de denúncias aguardando atendimento.',
+                        'Configuração de cargos (Moderador/Supervisor) e personalização de banners — os mesmos painéis de /config roles e /config personalizar, só que pela web.',
+                    ],
+                    bulletsEn: [
+                        'Charts for active, revoked, and high-severity punishments.',
+                        'Auto-moderation stats: filtered words, configured levels, automatically applied punishments.',
+                        'Alerts for reports awaiting attention.',
+                        'Role configuration (Moderator/Supervisor) and banner customization — the same panels as /config roles and /config personalizar, just on the web.',
+                    ],
+                }) %>
+                <%- pageCard({
+                    id: 'dash-denuncias', titlePt: 'Página de Denúncias', titleEn: 'Reports Page',
+                    descPt: 'Lista de denúncias abertas e fechadas, com busca e paginação — pensada pra continuar usável mesmo com centenas de denúncias acumuladas.',
+                    descEn: 'A list of open and closed reports, with search and pagination — built to stay usable even with hundreds of reports piled up.',
+                    bulletsPt: [
+                        'Busca por ID da denúncia (ex: R128) ou pelo nome de quem abriu.',
+                        'Mostra quem abriu, quem fechou, e o cargo de staff de cada pessoa mencionada — validado pelos cargos configurados em /config roles.',
+                        'Link direto pro tópico no Discord, quando ele ainda existir — se foi apagado, mostra quem apagou.',
+                    ],
+                    bulletsEn: [
+                        'Search by report ID (e.g. R128) or by the name of whoever opened it.',
+                        'Shows who opened it, who closed it, and the staff role of everyone mentioned — validated against the roles configured in /config roles.',
+                        'Direct link to the Discord thread, when it still exists — if it was deleted, shows who deleted it.',
+                    ],
+                }) %>
+                <%- pageCard({
+                    id: 'dash-eventos', titlePt: 'Página de Eventos', titleEn: 'Events Page',
+                    descPt: 'Mostra os eventos acontecendo agora e os agendados — os mesmos eventos criados com /evento no Discord.',
+                    descEn: 'Shows the events happening now and the scheduled ones — the same events created with /evento on Discord.',
+                    bulletsPt: [
+                        'Eventos "acontecendo agora" e "agendados", com número de inscritos.',
+                        'Configuração dos cargos de Equipe de Eventos e Notificação.',
+                    ],
+                    bulletsEn: [
+                        'Events "happening now" and "scheduled", with subscriber counts.',
+                        'Configuration for the Event Team and Notification roles.',
+                    ],
+                }) %>
             </div>
         </section>
 

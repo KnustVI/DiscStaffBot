@@ -219,7 +219,12 @@
         border-color: #803E30;
         box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
     }
-    .tp-sidebar-btn.active { border-color: #F8DCC0; }
+    <%# Mesmo visual de "página atual" já padronizado no resto do site
+        (.nav-btn.is-active na Hero/Documentação — pedido do dono,
+        2026-08-04: "botões da sidebar devem se comportar visualmente
+        igual os botões da barra de navegação do topo da página hero"),
+        em vez do border-color sozinho que só essa sidebar usava antes. %>
+    .tp-sidebar-btn.active { background: #4B2427; border-color: #DCA15E; }
     .tp-sidebar-btn svg { width: 20px; height: 21px; flex: none; color: #F8DCC0; }
     .tp-sidebar-btn.accent svg,
     .tp-sidebar-btn.accent .tp-sidebar-label { color: #DCA15E; }
