@@ -253,6 +253,7 @@
         </a>
     <% } %>
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <a href="/dashboard" class="dashboard-link nav-btn" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span></a>
     <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
     <a href="#" class="nav-btn" style="opacity:0.4; pointer-events:none;" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
     <a href="/documentacao" class="nav-btn is-active"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>

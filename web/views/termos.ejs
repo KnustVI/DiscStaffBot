@@ -197,6 +197,7 @@
 <!-- ===================== NAV (fixa, idêntica à da landing page) ===================== -->
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <a href="/dashboard" class="dashboard-link nav-btn" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span></a>
     <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
     <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
     <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
