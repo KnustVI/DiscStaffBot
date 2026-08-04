@@ -158,6 +158,20 @@
         border-radius: 20px;
         overflow-y: auto;
         transition: width 0.2s ease;
+        /* Pedido do dono, 2026-08-04 (último ajuste): "se a largura for
+           menor a ponto de cortar o texto dos botões, vira a versão só
+           ícone; se sobrar espaço de novo, volta ao original" — vira uma
+           @container query própria (ver bloco "AUTO-ÍCONE" mais abaixo)
+           em vez de mais um breakpoint de viewport: media query olha pra
+           largura da JANELA, container query olha pra largura REAL desta
+           sidebar — captura qualquer motivo dela ficar estreita (zoom do
+           navegador, --tp-w-expanded fluido (clamp) numa faixa mais
+           apertada, etc.), não só "a tela é pequena". Reversível sozinho:
+           não é um estado salvo tipo o toggle manual, é reavaliado a
+           cada resize, então volta pro normal automaticamente assim que
+           couber. */
+        container-type: inline-size;
+        container-name: tpsidebar;
     }
     .tp-sidebar * { box-sizing: border-box; }
     .tp-sidebar-inner {
@@ -381,6 +395,38 @@
             --tp-collapsed-avatar: 52px;
             --tp-collapsed-logo: 40px;
         }
+    }
+
+    /* ==================== AUTO-ÍCONE (largura real da sidebar, não da janela) ====================
+       Mesmo tratamento visual de [data-collapsed="true"]/:not([data-user-set])
+       acima, só que disparado pela largura ATUAL da própria .tp-sidebar
+       (container query, ver container-type/-name nela) em vez de
+       data-collapsed ou da largura da janela — cobre o caso de
+       --tp-w-expanded (fluido, clamp) cair numa faixa estreita demais
+       pro texto do botão mais longo (ex: "Denúncias") continuar
+       confortável, mesmo em janelas ≥1024px onde nenhum dos outros dois
+       gatilhos entra em ação. 300px dá folga pro texto NÃO virar
+       reticências antes de esconder o rótulo de vez.
+
+       De propósito NÃO muda a largura da própria .tp-sidebar aqui (só
+       padding interno + tamanho dos filhos) — um container não pode
+       depender do resultado da própria query pra definir o tamanho no
+       MESMO eixo que está sendo consultado (senão vira um ciclo:
+       encolhe → a query já não bate mais → volta a crescer → bate de
+       novo → ciclo). Trocar só os descendentes é seguro e continua
+       resolvendo o problema real (texto cortado). */
+    @container tpsidebar (max-width: 300px) {
+        .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
+        .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
+        .tp-icon-expanded { display: none; }
+        .tp-icon-collapsed { display: block; }
+        .tp-sidebar-toggle { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); }
+        .tp-sidebar-nav { gap: 10px; padding: 0; }
+        .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
+        .tp-sidebar-label { display: none; }
+        .tp-sidebar-profile { flex-direction: column; gap: 10px; }
+        .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
+        .tp-sidebar-profile-info { display: none; }
     }
 </style>
 
