@@ -63,7 +63,21 @@
             <%- include('partials/ingame-pulse', { pulse }) %>
         </div>
 
-        <div id="moderationStatsRoot" data-poll-url="/fragments/moderation-stats/<%= guild.id %>">
+        <%#
+            class="contents" (mesmo motivo de #reportsListRoot em
+            reports.ejs): sem isso, este <div> vira uma caixa própria no
+            meio do layout e os 2 <section> de dentro de
+            partials/moderation-stats.ejs ("Punições"/"Automoderação")
+            ficam colados um no outro, sem o gap-[30px] do <main> entre
+            eles (pedido do dono: título de Automoderação estava colado no
+            bloco de Punições acima). Com display:contents o <div> some da
+            árvore de layout e os 2 <section> passam a ser filhos diretos
+            do <main>, herdando o mesmo espaçamento de todo o resto da
+            página. Não afeta o poll-fragment.js: ele só faz
+            root.innerHTML/dataset, nada depende do <div> ter caixa
+            própria.
+        %>
+        <div id="moderationStatsRoot" data-poll-url="/fragments/moderation-stats/<%= guild.id %>" class="contents">
             <%- include('partials/moderation-stats', { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments }) %>
         </div>
 
