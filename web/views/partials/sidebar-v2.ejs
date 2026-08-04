@@ -112,8 +112,27 @@
 <style>
     /* ==================== SIDEBAR — variáveis compartilhadas ==================== */
     .tp-sidebar {
-        --tp-w-expanded: 400px;
+        /* Pedido do dono, 2026-08-04: "sidebar pode também diminuir de
+           acordo com a tela? e ser mais responsível?" — antes disto,
+           --tp-w-expanded era um valor fixo de 400px em QUALQUER largura
+           ≥1024px (só saltava pro modo colapsado abaixo disso, ver
+           media query mais abaixo) — sem nenhuma escala gradual entre
+           1024px e uma tela ultrawide, por exemplo. clamp() faz ela
+           encolher continuamente com a largura da janela, sem precisar
+           de mais um breakpoint fixo pra cada tamanho de tela. Mesma
+           ideia pro padding horizontal interno (--tp-inner-pad-x), que
+           era 50px fixo dos dois lados mesmo quando a sidebar já tinha
+           encolhido. Os --tp-collapsed-* abaixo existem só pra não
+           duplicar cada tamanho entre [data-collapsed="true"] (toggle
+           manual) e :not([data-user-set]) (colapso automático) — trocar
+           um valor aqui já atualiza os dois lugares. */
+        --tp-w-expanded: clamp(260px, 26vw, 400px);
         --tp-w-collapsed: 121px;
+        --tp-inner-pad-x: clamp(20px, 6vw, 50px);
+        --tp-collapsed-pad: 20px;
+        --tp-collapsed-btn: 60px;
+        --tp-collapsed-avatar: 80px;
+        --tp-collapsed-logo: 60px;
         box-sizing: border-box;
         font-family: 'Poppins', sans-serif;
         width: var(--tp-w-expanded);
@@ -146,7 +165,7 @@
         flex-direction: column;
         align-items: center;
         gap: 10px;
-        padding: 20px 50px;
+        padding: 20px var(--tp-inner-pad-x);
         min-height: 100%;
     }
 
@@ -305,16 +324,16 @@
        automaticamente em telas estreitas (media query abaixo) — sempre
        responsivo, mesmo sem o usuário nunca ter clicado no toggle. */
     .tp-sidebar[data-collapsed="true"] { width: var(--tp-w-collapsed); }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-inner { padding: 20px; gap: 30px; }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: 60px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
     .tp-sidebar[data-collapsed="true"] .tp-icon-expanded { display: none; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-collapsed { display: block; }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-toggle { width: 60px; height: 60px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-toggle { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-nav { gap: 10px; padding: 0; }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-btn { width: 60px; height: 60px; padding: 10px; gap: 0; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-label { display: none; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile { flex-direction: column; gap: 10px; }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-avatar { width: 80px; height: 80px; }
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-profile-info { display: none; }
 
     /* Sempre responsivo (padrão do site): telas estreitas começam
@@ -334,17 +353,34 @@
        nasce colapsado (só ícones) em vez de espremer o conteúdo. */
     @media (max-width: 1023px) {
         .tp-sidebar:not([data-user-set]) { width: var(--tp-w-collapsed); }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: 20px; gap: 30px; }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: 60px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
         .tp-sidebar:not([data-user-set]) .tp-icon-expanded { display: none; }
         .tp-sidebar:not([data-user-set]) .tp-icon-collapsed { display: block; }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-toggle { width: 60px; height: 60px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-toggle { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-nav { gap: 10px; padding: 0; }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-btn { width: 60px; height: 60px; padding: 10px; gap: 0; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-label { display: none; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-profile { flex-direction: column; gap: 10px; }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-avatar { width: 80px; height: 80px; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-profile-info { display: none; }
+    }
+
+    /* Mais um degrau, só pra celular pequeno (pedido do dono: "mais
+       responsivo") — reduz os próprios tamanhos do modo colapsado (não
+       só a largura da coluna) pra não ficar apertado numa tela de
+       ~320-375px. Como tudo acima usa var(--tp-collapsed-*), só
+       redefinir as variáveis aqui já atualiza os dois seletores
+       (toggle manual E colapso automático) de uma vez, sem duplicar
+       regra nenhuma. */
+    @media (max-width: 480px) {
+        .tp-sidebar {
+            --tp-w-collapsed: 88px;
+            --tp-collapsed-pad: 12px;
+            --tp-collapsed-btn: 46px;
+            --tp-collapsed-avatar: 52px;
+            --tp-collapsed-logo: 40px;
+        }
     }
 </style>
 
