@@ -9,11 +9,16 @@
 
   Sem login (mesmo padrão de hero.ejs/termos.ejs) — qualquer visitante
   pode consultar, é justamente o que convence um dono de servidor a
-  convidar o bot. Conteúdo só em português: os próprios comandos/
-  descrições do bot no Discord já são só em português (o toggle EN/PT da
-  Hero é só pro texto de marketing, não muda a língua real do bot), então
-  documentar em inglês aqui criaria uma referência que não bate com o
-  produto de verdade.
+  convidar o bot.
+
+  BILÍNGUE (pedido do dono, 2026-08-04) — mesmo padrão data-i18n-pt/en +
+  toggle de hero.ejs/termos.ejs, reaproveitando a MESMA chave de
+  localStorage ("titanspass_lang"): quem trocou pra EN na Hero já abre
+  esta página em EN também. Os NOMES/OPÇÕES literais de comando (ex:
+  "usuario", "motivo", "cargo") NÃO são traduzidos — são os parâmetros
+  reais que aparecem no Discord, que só existe em português; traduzir
+  esses criaria uma referência que não bate com o produto de verdade.
+  Só a prosa explicativa (descrições, notas, rótulos de tipo) é bilíngue.
 
   Os 7 comandos /ingame-* (RCON) têm ~57 subcomandos somados — em vez de
   um cmd-card expandido por subcomando (viraria uma página absurda),
@@ -21,8 +26,8 @@
   "normais" usam cmd-card (nome + badges + descrição + tabela de opções +
   subcomandos, se houver).
 
-  Fonte de verdade do conteúdo: catálogo extraído direto do código nesta
-  sessão (src/commands/**, src/systems/pot/rconCommandCatalog.js,
+  Fonte de verdade do conteúdo: catálogo extraído direto do código
+  (src/commands/**, src/systems/pot/rconCommandCatalog.js,
   premiumSystem.js, configSystem.js) — não é aproximação, foi conferido
   arquivo por arquivo. Se um comando mudar de comportamento/opções depois
   desta página existir, ela PODE ficar desatualizada (nada aqui é gerado
@@ -59,6 +64,9 @@
         html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; background: #111111; }
         html { scroll-behavior: smooth; }
         body { color: #F8DCC0; }
+        [data-i18n-en] { display: none; }
+        html[data-lang="en"] [data-i18n-pt] { display: none; }
+        html[data-lang="en"] [data-i18n-en] { display: initial; }
 
         .nav-btn {
             box-sizing: border-box;
@@ -82,8 +90,27 @@
         }
         .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
         .nav-btn.is-active { background: #4B2427; border-color: #DCA15E; }
+        .lang-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 14px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .lang-btn:hover { background: #803E30; border-color: #F8DCC0; }
         @media (max-width: 640px) {
             .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
+            .lang-btn { padding: 4px 10px; height: 26px; font-size: 12px; }
         }
 
         .docs-header-padding { margin-top: calc(var(--nav-height, 60px) + 32px); padding: 0 16px; }
@@ -122,9 +149,10 @@
             transition: opacity 0.15s ease, background 0.15s ease;
         }
         .docs-toc a:hover { opacity: 1; background: rgba(255,255,255,0.04); }
-        <%# Cada categoria da sidebar vira um <details> nativo — pedido do
-            dono: "cada categoria pode ser aberta mostrando a lista de
-            comandos". Sem JS: <details>/<summary> já dão o toggle sozinhos. %>
+        <%# Cada categoria da sidebar vira um <details> nativo, SEM "open"
+            (pedido do dono: "deixe as abas sempre fechadas ao carregar a
+            página") — sem JS, <details>/<summary> já dão o toggle
+            sozinhos. %>
         .toc-group { border-bottom: 1px solid rgba(62,61,56,0.5); }
         .toc-group:last-child { border-bottom: none; }
         .toc-group summary {
@@ -217,14 +245,15 @@
         </a>
     <% } else { %>
         <a href="/login" class="absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center" style="font-family:'Poppins',sans-serif; font-weight:600; font-size:12px; color:#F8DCC0; text-decoration:none; background:#2A2A2A; border:1px solid #803E30; border-radius:15px; padding:4px 14px; box-shadow:5px 5px 10px rgba(0,0,0,0.5), -5px -5px 10px rgba(0,0,0,0.7);">
-            ENTRAR
+            <span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span>
         </a>
     <% } %>
-    <a href="/" class="nav-btn">HOME</a>
-    <a href="/#premium" class="nav-btn">PREMIUM</a>
-    <a href="#" class="nav-btn" style="opacity:0.4; pointer-events:none;" aria-disabled="true" tabindex="-1">UPDATES</a>
-    <a href="/documentacao" class="nav-btn is-active">DOCUMENTAÇÃO</a>
-    <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn">SUPORTE</a>
+    <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
+    <a href="#" class="nav-btn" style="opacity:0.4; pointer-events:none;" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
+    <a href="/documentacao" class="nav-btn is-active"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
+    <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
 </nav>
 <script>
     (function () {
@@ -239,89 +268,142 @@
             window.document.fonts.ready.then(syncNavHeight);
         }
     })();
+    (function () {
+        const stored = localStorage.getItem('titanspass_lang') || 'pt';
+        document.documentElement.setAttribute('data-lang', stored);
+        document.getElementById('langBtnLabel').textContent = stored === 'pt' ? 'EN' : 'PT';
+    })();
+    function toggleLang() {
+        const current = document.documentElement.getAttribute('data-lang') || 'pt';
+        const next = current === 'pt' ? 'en' : 'pt';
+        document.documentElement.setAttribute('data-lang', next);
+        localStorage.setItem('titanspass_lang', next);
+        document.getElementById('langBtnLabel').textContent = next === 'pt' ? 'EN' : 'PT';
+    }
 </script>
 
 <%
 // ===================== HELPERS DE RENDER =====================
-// Ver docblock no topo do arquivo — cmdCard cobre os ~18 comandos
-// "normais"; rconCmdCard cobre os 7 grupos de RCON (subcomandos demais
-// pra virar um cmd-card expandido cada).
-function permBadge(text) { return `<span class="badge perm">${text}</span>`; }
+// t(pt, en) monta o par de <span data-i18n-*> usado em TODO texto bilíngue
+// da página — ver docblock no topo do arquivo. cmdCard cobre os ~18
+// comandos "normais"; rconCmdCard cobre os 7 grupos de RCON (subcomandos
+// demais pra virar um cmd-card expandido cada).
+function t(pt, en) { return `<span data-i18n-pt>${pt}</span><span data-i18n-en>${en ?? pt}</span>`; }
+
+// Vocabulário fixo de "Tipo" das tabelas de opção — em vez de pedir
+// typePt/typeEn em CADA option (dezenas delas), só a chave PT precisa
+// ser informada; a tradução vem deste dicionário. Cai pro próprio texto
+// PT se não encontrar (nunca quebra, só fica sem traduzir esse caso raro).
+const TYPE_EN = {
+    'Usuário': 'User', 'Texto': 'Text', 'Texto (autocomplete)': 'Text (autocomplete)',
+    'Número': 'Number', 'Número (0-100)': 'Number (0-100)',
+    'Anexo': 'Attachment', 'Anexo (PNG/JPEG)': 'Attachment (PNG/JPEG)',
+    'Escolha': 'Choice', 'Canal (fórum)': 'Channel (forum)', 'Canal (voz/palco)': 'Channel (voice/stage)',
+    'Texto (máx. 100)': 'Text (max. 100)', 'Texto (máx. 1000)': 'Text (max. 1000)',
+};
+function typeLabel(pt) { return t(pt, TYPE_EN[pt] || pt); }
+
+function permBadge(pt, en) { return `<span class="badge perm">${t(pt, en)}</span>`; }
 function tierBadge(tier) {
     const map = {
-        free: ['FREE', 'tier-free'],
-        rastreador: ['RASTREADOR+', 'tier-rastreador'],
-        cacador: ['CAÇADOR', 'tier-cacador'],
+        free: ['FREE', 'FREE', 'tier-free'],
+        rastreador: ['RASTREADOR+', 'RASTREADOR+', 'tier-rastreador'],
+        cacador: ['CAÇADOR', 'CAÇADOR', 'tier-cacador'],
     };
-    const [label, cls] = map[tier] || map.free;
-    return `<span class="badge ${cls}">${label}</span>`;
+    const [pt, en, cls] = map[tier] || map.free;
+    return `<span class="badge ${cls}">${t(pt, en)}</span>`;
 }
 function optTable(opts) {
     if (!opts || !opts.length) return '';
-    const rows = opts.map(o => `<tr><td><code>${o.name}</code></td><td>${o.type}</td><td>${o.req ? 'Sim' : 'Não'}</td><td>${o.desc}</td></tr>`).join('');
-    return `<div class="cmd-table-wrap"><table class="cmd-table"><thead><tr><th>Opção</th><th>Tipo</th><th>Obrigatório</th><th>Descrição</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    const rows = opts.map(o => `<tr><td><code>${o.name}</code></td><td>${typeLabel(o.type)}</td><td>${o.req ? t('Sim', 'Yes') : t('Não', 'No')}</td><td>${t(o.descPt, o.descEn)}</td></tr>`).join('');
+    return `<div class="cmd-table-wrap"><table class="cmd-table"><thead><tr><th>${t('Opção', 'Option')}</th><th>${t('Tipo', 'Type')}</th><th>${t('Obrigatório', 'Required')}</th><th>${t('Descrição', 'Description')}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function cmdCard(cmd) {
-    const badges = [permBadge(cmd.perm)];
+    const badges = [permBadge(cmd.permPt, cmd.permEn)];
     if (cmd.tier) badges.push(tierBadge(cmd.tier));
     const subsHtml = (cmd.subs || []).map(s => `
         <div class="cmd-sub">
             <p class="cmd-sub-name">/${cmd.name} ${s.name}</p>
-            <p class="cmd-desc">${s.desc}</p>
+            <p class="cmd-desc">${t(s.descPt, s.descEn)}</p>
             ${s.tier ? `<div>${tierBadge(s.tier)}</div>` : ''}
             ${optTable(s.opts)}
         </div>
     `).join('');
     return `<div class="cmd-card" id="cmd-${cmd.id}">
         <div class="cmd-head"><span class="cmd-name">/${cmd.name}</span>${badges.join('')}</div>
-        <p class="cmd-desc">${cmd.desc}</p>
-        ${cmd.note ? `<p class="cmd-note">${cmd.note}</p>` : ''}
+        <p class="cmd-desc">${t(cmd.descPt, cmd.descEn)}</p>
+        ${cmd.notePt ? `<p class="cmd-note">${t(cmd.notePt, cmd.noteEn)}</p>` : ''}
         ${optTable(cmd.opts)}
         ${subsHtml}
     </div>`;
 }
 function rconCmdCard(cmd) {
-    const rows = cmd.subs.map(s => `<tr><td><code>${s.name}</code>${s.locked ? ' 🔒' : ''}</td><td>${s.desc}</td><td>${s.opts || '—'}</td></tr>`).join('');
+    const rows = cmd.subs.map(s => `<tr><td><code>${s.name}</code>${s.locked ? ' 🔒' : ''}</td><td>${t(s.descPt, s.descEn)}</td><td>${s.opts ? (s.optsIsProse ? t(s.opts, s.optsEn) : s.opts) : '—'}</td></tr>`).join('');
     return `<div class="cmd-card" id="cmd-${cmd.id}">
         <div class="cmd-head">
             <span class="cmd-name">/${cmd.name}</span>
-            ${permBadge(cmd.openToAll ? 'Todos (só listplayers)' : 'Staff')}
+            ${cmd.openToAll ? permBadge('Todos (só listplayers)', 'Everyone (listplayers only)') : permBadge('Staff', 'Staff')}
             ${tierBadge('cacador')}
         </div>
-        <p class="cmd-desc">${cmd.desc}</p>
-        <div class="cmd-table-wrap"><table class="cmd-table"><thead><tr><th>Subcomando</th><th>O que faz</th><th>Opções</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="cmd-desc">${t(cmd.descPt, cmd.descEn)}</p>
+        <div class="cmd-table-wrap"><table class="cmd-table"><thead><tr><th>${t('Subcomando', 'Subcommand')}</th><th>${t('O que faz', 'What it does')}</th><th>${t('Opções', 'Options')}</th></tr></thead><tbody>${rows}</tbody></table></div>
     </div>`;
 }
 
 // ===================== ÍNDICE (TOC) =====================
+// labelPt/labelEn = rótulo descritivo (traduzido); label sozinho = nome
+// literal de comando (ex: "/strike") — nunca traduzido, é o nome real
+// digitado no Discord.
 const toc = [
-    { cat: 'Comece Aqui', items: [{ id: 'comece-aqui', label: 'Primeiros Passos' }, { id: 'legenda', label: 'Como ler esta página' }] },
-    { cat: 'Perfil & Premium', items: [{ id: 'cmd-registrar', label: '/registrar' }, { id: 'cmd-perfil', label: '/perfil' }, { id: 'cmd-perfil-edit', label: '/perfil-edit' }, { id: 'cmd-premium', label: '/premium' }] },
-    { cat: 'Moderação', items: [{ id: 'cmd-strike', label: '/strike' }, { id: 'cmd-unstrike', label: '/unstrike' }, { id: 'cmd-repset', label: '/repset' }, { id: 'cmd-historico', label: '/historico' }] },
-    { cat: 'Denúncias & Eventos', items: [{ id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' }] },
-    { cat: 'Configuração (Admin)', items: [{ id: 'cmd-config', label: '/config' }, { id: 'cmd-potserver', label: '/potserver' }, { id: 'cmd-ping', label: '/ping' }] },
-    { cat: 'Integração PoT / RCON', items: [{ id: 'cmd-ingame-comandos', label: '/ingame-comandos' }, { id: 'cmd-ingame-admin', label: '/ingame-admin' }, { id: 'cmd-ingame-buff', label: '/ingame-buff' }, { id: 'cmd-ingame-event', label: '/ingame-event' }, { id: 'cmd-ingame-list', label: '/ingame-list' }, { id: 'cmd-ingame-map', label: '/ingame-map' }, { id: 'cmd-ingame-marks', label: '/ingame-marks' }, { id: 'cmd-ingame-message', label: '/ingame-message' }, { id: 'cmd-ingame-stats', label: '/ingame-stats' }] },
-    { cat: 'Ajuda & Suporte', items: [{ id: 'cmd-ajuda', label: '/ajuda' }, { id: 'cmd-botstatus', label: '/botstatus' }, { id: 'cmd-reportarbug', label: '/reportarbug' }] },
+    { catPt: 'Comece Aqui', catEn: 'Get Started', items: [
+        { id: 'comece-aqui', labelPt: 'Primeiros Passos', labelEn: 'Getting Started' },
+        { id: 'legenda', labelPt: 'Como ler esta página', labelEn: 'How to read this page' },
+    ] },
+    { catPt: 'Perfil & Premium', catEn: 'Profile & Premium', items: [
+        { id: 'cmd-registrar', label: '/registrar' }, { id: 'cmd-perfil', label: '/perfil' },
+        { id: 'cmd-perfil-edit', label: '/perfil-edit' }, { id: 'cmd-premium', label: '/premium' },
+    ] },
+    { catPt: 'Moderação', catEn: 'Moderation', items: [
+        { id: 'cmd-strike', label: '/strike' }, { id: 'cmd-unstrike', label: '/unstrike' },
+        { id: 'cmd-repset', label: '/repset' }, { id: 'cmd-historico', label: '/historico' },
+    ] },
+    { catPt: 'Denúncias & Eventos', catEn: 'Reports & Events', items: [
+        { id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' },
+    ] },
+    { catPt: 'Configuração (Admin)', catEn: 'Configuration (Admin)', items: [
+        { id: 'cmd-config', label: '/config' }, { id: 'cmd-potserver', label: '/potserver' }, { id: 'cmd-ping', label: '/ping' },
+    ] },
+    { catPt: 'Integração PoT / RCON', catEn: 'PoT Integration / RCON', items: [
+        { id: 'cmd-ingame-comandos', label: '/ingame-comandos' }, { id: 'cmd-ingame-admin', label: '/ingame-admin' },
+        { id: 'cmd-ingame-buff', label: '/ingame-buff' }, { id: 'cmd-ingame-event', label: '/ingame-event' },
+        { id: 'cmd-ingame-list', label: '/ingame-list' }, { id: 'cmd-ingame-map', label: '/ingame-map' },
+        { id: 'cmd-ingame-marks', label: '/ingame-marks' }, { id: 'cmd-ingame-message', label: '/ingame-message' },
+        { id: 'cmd-ingame-stats', label: '/ingame-stats' },
+    ] },
+    { catPt: 'Ajuda & Suporte', catEn: 'Help & Support', items: [
+        { id: 'cmd-ajuda', label: '/ajuda' }, { id: 'cmd-botstatus', label: '/botstatus' }, { id: 'cmd-reportarbug', label: '/reportarbug' },
+    ] },
 ];
 %>
 
 <div class="docs-header-padding">
     <div class="flex flex-col items-center text-center gap-3" style="max-width: 720px; margin: 0 auto;">
-        <h1 class="section-title" style="font-size: clamp(28px, 4vw, 44px);">DOCUMENTAÇÃO</h1>
+        <h1 class="section-title" style="font-size: clamp(28px, 4vw, 44px);"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></h1>
         <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.85; line-height:1.55;">
-            Guia completo de todos os comandos do Titan's Pass — moderação, denúncias, eventos, integração com Path of Titans via RCON, e configuração do servidor. Use o índice ao lado (ou o menu abaixo, no celular) pra pular direto pro que precisa.
+            <span data-i18n-pt>Guia completo de todos os comandos do Titan's Pass — moderação, denúncias, eventos, integração com Path of Titans via RCON, e configuração do servidor. Use o índice ao lado (ou o menu abaixo, no celular) pra pular direto pro que precisa.</span>
+            <span data-i18n-en>The complete guide to every Titan's Pass command — moderation, reports, events, Path of Titans integration via RCON, and server configuration. Use the index on the side (or the menu below, on mobile) to jump straight to what you need.</span>
         </p>
     </div>
 </div>
 
 <div class="docs-shell">
-    <!-- TOC desktop, sticky -->
+    <!-- TOC desktop, sticky, categorias fechadas por padrão -->
     <aside class="docs-toc hidden lg:flex">
         <% toc.forEach(group => { %>
-            <details class="toc-group" open>
-                <summary><%= group.cat %></summary>
+            <details class="toc-group">
+                <summary><span data-i18n-pt><%= group.catPt %></span><span data-i18n-en><%= group.catEn %></span></summary>
                 <div class="toc-links">
-                    <% group.items.forEach(item => { %><a href="#<%= item.id %>"><%= item.label %></a><% }); %>
+                    <% group.items.forEach(item => { %><a href="#<%= item.id %>"><% if (item.labelPt) { %><span data-i18n-pt><%= item.labelPt %></span><span data-i18n-en><%= item.labelEn %></span><% } else { %><%= item.label %><% } %></a><% }); %>
                 </div>
             </details>
         <% }); %>
@@ -330,11 +412,11 @@ const toc = [
     <main class="docs-main">
         <!-- TOC mobile, colapsável -->
         <details class="docs-mobile-toc lg:hidden">
-            <summary>Índice</summary>
+            <summary><span data-i18n-pt>Índice</span><span data-i18n-en>Index</span></summary>
             <div class="docs-mobile-toc-list">
                 <% toc.forEach(group => { %>
-                    <span class="toc-cat"><%= group.cat %></span>
-                    <% group.items.forEach(item => { %><a href="#<%= item.id %>"><%= item.label %></a><% }); %>
+                    <span class="toc-cat"><span data-i18n-pt><%= group.catPt %></span><span data-i18n-en><%= group.catEn %></span></span>
+                    <% group.items.forEach(item => { %><a href="#<%= item.id %>"><% if (item.labelPt) { %><span data-i18n-pt><%= item.labelPt %></span><span data-i18n-en><%= item.labelEn %></span><% } else { %><%= item.label %><% } %></a><% }); %>
                 <% }); %>
             </div>
         </details>
@@ -342,22 +424,27 @@ const toc = [
         <!-- ===================== COMECE AQUI ===================== -->
         <section id="comece-aqui">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Primeiros Passos</h2>
-                <p class="docs-cat-desc">O caminho recomendado pra configurar o bot num servidor novo, do zero até denúncias/eventos/moderação funcionando.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Primeiros Passos</span><span data-i18n-en>Getting Started</span></h2>
+                <p class="docs-cat-desc"><span data-i18n-pt>O caminho recomendado pra configurar o bot num servidor novo, do zero até denúncias/eventos/moderação funcionando.</span><span data-i18n-en>The recommended path to set up the bot on a new server, from zero to reports/events/moderation working.</span></p>
             </div>
+            <%
+            // Pedido do dono (2026-08-04): lista numerada (ol nativo já
+            // numera sozinho), sem a legenda explicando ESSENCIAL/OPCIONAL
+            // (as duas badges continuam em cada item, só a linha extra
+            // explicando o que elas significam saiu). Ordem/conteúdo exatos
+            // que o dono passou.
+            const essential = t('ESSENCIAL', 'ESSENTIAL');
+            const optional = t('OPCIONAL', 'OPTIONAL');
+            %>
             <div class="docs-callout">
-                <div class="legend" style="margin-bottom: 2px;">
-                    <span class="legend-item"><span class="badge status-essential">ESSENCIAL</span> pro funcionamento básico</span>
-                    <span class="legend-item"><span class="badge status-optional">OPCIONAL</span> só se você precisar do recurso</span>
-                </div>
                 <ol>
-                    <li><strong>Convide o bot</strong> com permissão de Administrador (necessário pra gerenciar cargos, canais e enviar mensagens nos formatos que o bot usa) — <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener" style="color:#DCA15E;">clique aqui pra convidar</a>.</li>
-                    <li><span class="badge status-essential">ESSENCIAL</span> Configure os cargos da equipe em <code>/config roles</code> — pelo menos o cargo de <strong>Moderador</strong> é obrigatório pra qualquer comando de moderação funcionar.</li>
-                    <li><span class="badge status-essential">ESSENCIAL</span> Configure os canais de log em <code>/config logs</code> (Geral/AutoMod, Punições, ReportChat, Staff) — sem isso, os registros não vão pra lugar nenhum.</li>
-                    <li><span class="badge status-optional">OPCIONAL</span> Publique o painel de denúncias com <code>/reportchat</code> no canal onde os jogadores devem reportar.</li>
-                    <li><span class="badge status-optional">OPCIONAL</span> Se você hospeda um servidor de <em>Path of Titans</em>, rode <code>/potserver setup</code> informando IP/senha/porta do RCON — conecta o servidor e já gera o token usado pelos webhooks também. Só faz sentido se você realmente hospeda um servidor; usar os comandos <code>/ingame-*</code> de controle remoto especificamente exige o plano <strong>Caçador</strong>.</li>
-                    <li><span class="badge status-essential">ESSENCIAL</span> Depois do setup, configure os canais em <code>/potserver logs</code> — é o que registra no Discord tudo que acontece no servidor de jogo (login, mortes, combate...). Funciona em <strong>qualquer plano, incluindo o Free</strong> — diferente dos comandos de RCON, não exige Caçador.</li>
-                    <li>Todo membro pode rodar <code>/registrar</code> pra vincular a conta do Discord ao Alderon ID (Path of Titans) — é o que liga o perfil, o histórico e os comandos in-game a cada pessoa.</li>
+                    <li><%- t('<strong>Convide o bot</strong> com permissão de Administrador (necessário pra gerenciar cargos, canais e enviar mensagens nos formatos que o bot usa) — <a href="https://discord.com/oauth2/authorize?client_id=' + bot.user.id + '&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener" style="color:#DCA15E;">clique aqui pra convidar</a>.', '<strong>Invite the bot</strong> with Administrator permission (needed to manage roles, channels, and send messages in the formats the bot uses) — <a href="https://discord.com/oauth2/authorize?client_id=' + bot.user.id + '&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener" style="color:#DCA15E;">click here to invite it</a>.') %></li>
+                    <li><span class="badge status-essential"><%- essential %></span> <%- t('Configure os cargos da equipe em <code>/config roles</code> — pelo menos o cargo de <strong>Moderador</strong> é obrigatório pra qualquer comando de moderação funcionar.', "Set up your team's roles in <code>/config roles</code> — at minimum, the <strong>Moderator</strong> role is required for any moderation command to work.") %></li>
+                    <li><span class="badge status-essential"><%- essential %></span> <%- t('Configure os canais de log em <code>/config logs</code> (Geral/AutoMod, Punições, ReportChat, Staff) — sem isso, os registros não vão pra lugar nenhum.', "Set up the log channels in <code>/config logs</code> (General/AutoMod, Punishments, ReportChat, Staff) — without this, records don't go anywhere.") %></li>
+                    <li><span class="badge status-essential"><%- essential %></span> <%- t('Depois do setup, configure os canais em <code>/potserver logs</code> — é o que registra no Discord tudo que acontece no servidor de jogo (login, mortes, combate...). Funciona em <strong>qualquer plano, incluindo o Free</strong> — diferente dos comandos de RCON, não exige Caçador.', 'After setup, configure the channels in <code>/potserver logs</code> — this records everything happening on the game server (logins, deaths, combat...) in Discord. Works on <strong>any plan, including Free</strong> — unlike RCON commands, it does not require Caçador.') %></li>
+                    <li><%- t('Todo membro pode rodar <code>/registrar</code> pra vincular a conta do Discord ao Alderon ID (Path of Titans) — é o que liga o perfil, o histórico e os comandos in-game a cada pessoa.', "Any member can run <code>/registrar</code> to link their Discord account to their Alderon ID (Path of Titans) — this is what connects the profile, history, and in-game commands to each person.") %></li>
+                    <li><span class="badge status-optional"><%- optional %></span> <%- t('Publique o painel de denúncias com <code>/reportchat</code> no canal onde os jogadores devem reportar.', "Publish the report panel with <code>/reportchat</code> in the channel where players should submit reports.") %></li>
+                    <li><span class="badge status-optional"><%- optional %></span> <%- t('Se você hospeda um servidor de <em>Path of Titans</em>, rode <code>/potserver setup</code> informando IP/senha/porta do RCON — conecta o servidor e já gera o token usado pelos webhooks também. Só faz sentido se você realmente hospeda um servidor; usar os comandos <code>/ingame-*</code> de controle remoto especificamente exige o plano <strong>Caçador</strong>.', 'If you host a <em>Path of Titans</em> server, run <code>/potserver setup</code> with your RCON IP/password/port — this connects the server and also generates the token used by webhooks. Only relevant if you actually host a server; using the <code>/ingame-*</code> remote-control commands specifically requires the <strong>Caçador</strong> plan.') %></li>
                 </ol>
             </div>
         </section>
@@ -365,50 +452,56 @@ const toc = [
         <!-- ===================== LEGENDA ===================== -->
         <section id="legenda">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Como Ler Esta Página</h2>
-                <p class="docs-cat-desc">Cada comando abaixo mostra quem pode usá-lo e se ele exige um plano específico do servidor. As cores das badges de plano são as mesmas da <a href="/#premium" style="color:#DCA15E;">tabela de preços</a>.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Como Ler Esta Página</span><span data-i18n-en>How to Read This Page</span></h2>
+                <p class="docs-cat-desc"><%- t('Cada comando abaixo mostra quem pode usá-lo e se ele exige um plano específico do servidor. As cores das badges de plano são as mesmas da <a href="/#premium" style="color:#DCA15E;">tabela de preços</a>.', 'Each command below shows who can use it and whether it requires a specific server plan. The plan badge colors match the <a href="/#premium" style="color:#DCA15E;">pricing table</a>.') %></p>
             </div>
             <div class="legend">
-                <span class="legend-item"><span class="badge perm">Permissão</span> — quem pode rodar o comando (Discord ou cargo configurado em <code>/config roles</code>)</span>
-                <span class="legend-item"><span class="badge tier-free">FREE</span> — disponível em qualquer plano</span>
-                <span class="legend-item"><span class="badge tier-rastreador">RASTREADOR+</span> — exige plano Rastreador ou Caçador</span>
-                <span class="legend-item"><span class="badge tier-cacador">CAÇADOR</span> — exclusivo do plano Caçador</span>
-                <span class="legend-item">🔒 — exige também o cargo de Supervisor, além de Staff</span>
+                <span class="legend-item"><span class="badge perm"><%- t('Permissão', 'Permission') %></span> <%- t('— quem pode rodar o comando (Discord ou cargo configurado em <code>/config roles</code>)', '— who can run the command (Discord permission or a role configured in <code>/config roles</code>)') %></span>
+                <span class="legend-item"><span class="badge tier-free">FREE</span> <%- t('— disponível em qualquer plano', '— available on any plan') %></span>
+                <span class="legend-item"><span class="badge tier-rastreador">RASTREADOR+</span> <%- t('— exige plano Rastreador ou Caçador', '— requires the Rastreador or Caçador plan') %></span>
+                <span class="legend-item"><span class="badge tier-cacador">CAÇADOR</span> <%- t('— exclusivo do plano Caçador', '— exclusive to the Caçador plan') %></span>
+                <span class="legend-item"><%- t('🔒 — exige também o cargo de Supervisor, além de Staff', '🔒 — also requires the Supervisor role, in addition to Staff') %></span>
             </div>
         </section>
 
         <!-- ===================== PERFIL & PREMIUM ===================== -->
         <section id="perfil-premium">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Perfil & Premium do Jogador</h2>
-                <p class="docs-cat-desc">Comandos abertos a qualquer membro — vínculo com o jogo, perfil pessoal e o que cada plano de jogador (Free/Compy/Raptor) libera.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Perfil & Premium do Jogador</span><span data-i18n-en>Player Profile & Premium</span></h2>
+                <p class="docs-cat-desc"><%- t('Comandos abertos a qualquer membro — vínculo com o jogo, perfil pessoal e o que cada plano de jogador (Free/Compy/Raptor) libera.', 'Commands open to any member — linking your game account, your personal profile, and what each player plan (Free/Compy/Raptor) unlocks.') %></p>
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'registrar', name: 'registrar', perm: 'Todos',
-                    desc: 'Abre o painel para vincular a conta do Discord ao Alderon ID (Path of Titans). É um vínculo GLOBAL — vale em qualquer servidor que use o bot, não precisa refazer em cada um.',
+                    id: 'registrar', name: 'registrar', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Abre o painel para vincular a conta do Discord ao Alderon ID (Path of Titans). É um vínculo GLOBAL — vale em qualquer servidor que use o bot, não precisa refazer em cada um.',
+                    descEn: "Opens the panel to link your Discord account to your Alderon ID (Path of Titans). It's a GLOBAL link — it works on any server running the bot, no need to redo it on each one.",
                 }) %>
                 <%- cmdCard({
-                    id: 'perfil', name: 'perfil', perm: 'Todos',
-                    desc: 'Mostra o cartão de perfil (Discord + vínculo com Path of Titans) — o seu, ou o de outra pessoa/Alderon ID.',
+                    id: 'perfil', name: 'perfil', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Mostra o cartão de perfil (Discord + vínculo com Path of Titans) — o seu, ou o de outra pessoa/Alderon ID.',
+                    descEn: "Shows the profile card (Discord + Path of Titans link) — yours, or someone else's/an Alderon ID.",
                     opts: [
-                        { name: 'usuario', type: 'Usuário', req: false, desc: 'Padrão: você mesmo. Use este OU alderon_id, não os dois.' },
-                        { name: 'alderon_id', type: 'Texto', req: false, desc: 'Consulta pelo ID do jogo em vez de uma conta Discord.' },
+                        { name: 'usuario', type: 'Usuário', req: false, descPt: 'Padrão: você mesmo. Use este OU alderon_id, não os dois.', descEn: 'Default: yourself. Use this OR alderon_id, not both.' },
+                        { name: 'alderon_id', type: 'Texto', req: false, descPt: 'Consulta pelo ID do jogo em vez de uma conta Discord.', descEn: 'Looks up by the in-game ID instead of a Discord account.' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'perfil-edit', name: 'perfil-edit', perm: 'Todos (registrado)',
-                    desc: 'Sem anexos, abre um painel com tudo que o seu plano de jogador permite personalizar (foto de perfil, plano de fundo, título, emblema). Enviar um anexo em avatar/plano_de_fundo sobe a imagem direto, pulando o painel — um anexo vazio remove a imagem atual.',
-                    note: 'Emblema: liberado em qualquer plano. Foto de perfil/plano de fundo/título: exige Player Premium Compy (escolha por galeria) ou Raptor (upload da sua própria imagem).',
+                    id: 'perfil-edit', name: 'perfil-edit', permPt: 'Todos (registrado)', permEn: 'Everyone (registered)',
+                    descPt: 'Sem anexos, abre um painel com tudo que o seu plano de jogador permite personalizar (foto de perfil, plano de fundo, título, emblema). Enviar um anexo em avatar/plano_de_fundo sobe a imagem direto, pulando o painel — um anexo vazio remove a imagem atual.',
+                    descEn: "Without attachments, opens a panel with everything your player plan lets you customize (profile picture, background, title, badge). Sending an attachment in avatar/plano_de_fundo uploads the image directly, skipping the panel — an empty attachment removes the current image.",
+                    notePt: 'Emblema: liberado em qualquer plano. Foto de perfil/plano de fundo/título: exige Player Premium Compy (escolha por galeria) ou Raptor (upload da sua própria imagem).',
+                    noteEn: "Badge: available on any plan. Profile picture/background/title: requires Player Premium Compy (gallery choice) or Raptor (upload your own image).",
                     opts: [
-                        { name: 'avatar', type: 'Anexo', req: false, desc: 'Só processado no plano Raptor.' },
-                        { name: 'plano_de_fundo', type: 'Anexo', req: false, desc: 'Só processado no plano Raptor.' },
+                        { name: 'avatar', type: 'Anexo', req: false, descPt: 'Só processado no plano Raptor.', descEn: 'Only processed on the Raptor plan.' },
+                        { name: 'plano_de_fundo', type: 'Anexo', req: false, descPt: 'Só processado no plano Raptor.', descEn: 'Only processed on the Raptor plan.' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'premium', name: 'premium', perm: 'Todos',
-                    desc: 'Vitrine dos planos Premium (jogador e servidor) com painel navegável por botão e o status atual de quem usou o comando.',
-                    note: 'Preços e o que cada plano libera: veja a tabela completa em /#premium.',
+                    id: 'premium', name: 'premium', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Vitrine dos planos Premium (jogador e servidor) com painel navegável por botão e o status atual de quem usou o comando.',
+                    descEn: "A showcase of the Premium plans (player and server) with a button-navigable panel and the current status of whoever ran the command.",
+                    notePt: 'Preços e o que cada plano libera: veja a tabela completa em /#premium.',
+                    noteEn: 'Prices and what each plan unlocks: see the full table at /#premium.',
                 }) %>
             </div>
         </section>
@@ -416,51 +509,56 @@ const toc = [
         <!-- ===================== MODERAÇÃO ===================== -->
         <section id="moderacao">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Moderação</h2>
-                <p class="docs-cat-desc">Punições, reputação e histórico — os comandos do dia a dia da staff.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Moderação</span><span data-i18n-en>Moderation</span></h2>
+                <p class="docs-cat-desc"><%- t('Punições, reputação e histórico — os comandos do dia a dia da staff.', "Punishments, reputation, and history — staff's day-to-day commands.") %></p>
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'strike', name: 'strike', perm: 'Moderador + hierarquia',
-                    desc: 'Aplica uma punição. No plano <strong>Free</strong>, vira um registro simples (sem nível, sem ação automática — só usuário, motivo e uma duração opcional). No <strong>Rastreador+</strong>, um nível fica sempre obrigatório (autocomplete dos níveis configurados em <code>/config punishments</code>) — duração, pontos perdidos e qualquer ação automática vêm sempre do nível escolhido, nunca do campo duração. Sempre mostra uma prévia de confirmação antes de aplicar de verdade (expira em 2 minutos).',
-                    note: 'Aceita usuário e/ou Alderon ID — só AGID sem vínculo Discord registra um "alvo sintético" (punição só em jogo). Não é possível punir alguém com cargo igual ou superior ao seu.',
+                    id: 'strike', name: 'strike', permPt: 'Moderador + hierarquia', permEn: 'Moderator + hierarchy',
+                    descPt: 'Aplica uma punição. No plano <strong>Free</strong>, vira um registro simples (sem nível, sem ação automática — só usuário, motivo e uma duração opcional). No <strong>Rastreador+</strong>, um nível fica sempre obrigatório (autocomplete dos níveis configurados em <code>/config punishments</code>) — duração, pontos perdidos e qualquer ação automática vêm sempre do nível escolhido, nunca do campo duração. Sempre mostra uma prévia de confirmação antes de aplicar de verdade (expira em 2 minutos).',
+                    descEn: "Applies a punishment. On the <strong>Free</strong> plan, it becomes a simple record (no level, no automatic action — just user, reason, and an optional duration). On <strong>Rastreador+</strong>, a level is always required (autocomplete from the levels configured in <code>/config punishments</code>) — duration, points lost, and any automatic action always come from the chosen level, never from the duration field. Always shows a confirmation preview before actually applying it (expires in 2 minutes).",
+                    notePt: 'Aceita usuário e/ou Alderon ID — só AGID sem vínculo Discord registra um "alvo sintético" (punição só em jogo). Não é possível punir alguém com cargo igual ou superior ao seu.',
+                    noteEn: 'Accepts a Discord user and/or Alderon ID — an AGID alone with no Discord link registers a "synthetic target" (in-game-only punishment). You cannot punish someone with a role equal to or higher than yours.',
                     opts: [
-                        { name: 'motivo', type: 'Texto', req: true, desc: 'Motivo da punição.' },
-                        { name: 'usuario', type: 'Usuário', req: false, desc: 'Use este e/ou agid.' },
-                        { name: 'agid', type: 'Texto', req: false, desc: 'Alderon ID do jogador.' },
-                        { name: 'nivel', type: 'Texto (autocomplete)', req: false, desc: 'Obrigatório a partir do Rastreador. Vem de /config punishments.' },
-                        { name: 'duracao', type: 'Texto', req: false, desc: 'Só tem efeito no plano Free.' },
-                        { name: 'discord_act', type: 'Escolha', req: false, desc: 'Nenhuma / Mute / Expulsar / Banir.' },
-                        { name: 'report', type: 'Texto', req: false, desc: 'ID de uma denúncia existente (ex: #R5) pra vincular a punição a ela.' },
+                        { name: 'motivo', type: 'Texto', req: true, descPt: 'Motivo da punição.', descEn: 'Reason for the punishment.' },
+                        { name: 'usuario', type: 'Usuário', req: false, descPt: 'Use este e/ou agid.', descEn: 'Use this and/or agid.' },
+                        { name: 'agid', type: 'Texto', req: false, descPt: 'Alderon ID do jogador.', descEn: "The player's Alderon ID." },
+                        { name: 'nivel', type: 'Texto (autocomplete)', req: false, descPt: 'Obrigatório a partir do Rastreador. Vem de /config punishments.', descEn: 'Required from Rastreador onward. Comes from /config punishments.' },
+                        { name: 'duracao', type: 'Texto', req: false, descPt: 'Só tem efeito no plano Free.', descEn: 'Only has an effect on the Free plan.' },
+                        { name: 'discord_act', type: 'Escolha', req: false, descPt: 'Nenhuma / Mute / Expulsar / Banir.', descEn: 'None / Mute / Kick / Ban.' },
+                        { name: 'report', type: 'Texto', req: false, descPt: 'ID de uma denúncia existente (ex: #R5) pra vincular a punição a ela.', descEn: 'ID of an existing report (e.g. #R5) to link the punishment to it.' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'unstrike', name: 'unstrike', perm: 'Moderador + hierarquia',
-                    desc: 'Anula um strike ativo (pelo número mostrado como "Strike #N", não o ID interno do banco) e devolve os pontos de reputação perdidos, após confirmação por botão (expira em 2 minutos).',
+                    id: 'unstrike', name: 'unstrike', permPt: 'Moderador + hierarquia', permEn: 'Moderator + hierarchy',
+                    descPt: 'Anula um strike ativo (pelo número mostrado como "Strike #N", não o ID interno do banco) e devolve os pontos de reputação perdidos, após confirmação por botão (expira em 2 minutos).',
+                    descEn: 'Reverses an active strike (by the number shown as "Strike #N", not the internal database ID) and returns the reputation points lost, after button confirmation (expires in 2 minutes).',
                     opts: [
-                        { name: 'id', type: 'Número', req: true, desc: 'O número do strike a anular (Strike #N).' },
-                        { name: 'motivo', type: 'Texto', req: true, desc: 'Motivo da anulação.' },
+                        { name: 'id', type: 'Número', req: true, descPt: 'O número do strike a anular (Strike #N).', descEn: 'The strike number to reverse (Strike #N).' },
+                        { name: 'motivo', type: 'Texto', req: true, descPt: 'Motivo da anulação.', descEn: 'Reason for reversing it.' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'repset', name: 'repset', perm: 'Moderador + hierarquia', tier: 'rastreador',
-                    desc: 'Ajusta manualmente a reputação de um usuário para um valor absoluto (0-100). Envia uma DM ao jogador avisando e registra no canal de log de Punições.',
+                    id: 'repset', name: 'repset', permPt: 'Moderador + hierarquia', permEn: 'Moderator + hierarchy', tier: 'rastreador',
+                    descPt: 'Ajusta manualmente a reputação de um usuário para um valor absoluto (0-100). Envia uma DM ao jogador avisando e registra no canal de log de Punições.',
+                    descEn: "Manually sets a user's reputation to an absolute value (0-100). Sends the player a DM notifying them and logs it in the Punishments log channel.",
                     opts: [
-                        { name: 'usuario', type: 'Usuário', req: true, desc: '' },
-                        { name: 'pontos', type: 'Número (0-100)', req: true, desc: 'Novo valor absoluto de reputação.' },
-                        { name: 'motivo', type: 'Texto', req: true, desc: '' },
+                        { name: 'usuario', type: 'Usuário', req: true, descPt: '', descEn: '' },
+                        { name: 'pontos', type: 'Número (0-100)', req: true, descPt: 'Novo valor absoluto de reputação.', descEn: 'New absolute reputation value.' },
+                        { name: 'motivo', type: 'Texto', req: true, descPt: '', descEn: '' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'historico', name: 'historico', perm: 'Varia por subcomando',
-                    desc: 'Consulta o histórico de um jogador (punições/reputação) ou a atividade agregada da staff, em lista paginada.',
+                    id: 'historico', name: 'historico', permPt: 'Varia por subcomando', permEn: 'Varies by subcommand',
+                    descPt: 'Consulta o histórico de um jogador (punições/reputação) ou a atividade agregada da staff, em lista paginada.',
+                    descEn: "Looks up a player's history (punishments/reputation) or aggregated staff activity, in a paginated list.",
                     subs: [
-                        { name: 'jogador', desc: 'Histórico de punições e reputação de um jogador — aberto a qualquer membro.', tier: 'rastreador', opts: [
-                            { name: 'usuario', type: 'Usuário', req: false, desc: 'Use este OU alderon_id.' },
-                            { name: 'alderon_id', type: 'Texto', req: false, desc: '' },
+                        { name: 'jogador', descPt: 'Histórico de punições e reputação de um jogador — aberto a qualquer membro.', descEn: "A player's punishment and reputation history — open to any member.", tier: 'rastreador', opts: [
+                            { name: 'usuario', type: 'Usuário', req: false, descPt: 'Use este OU alderon_id.', descEn: 'Use this OR alderon_id.' },
+                            { name: 'alderon_id', type: 'Texto', req: false, descPt: '', descEn: '' },
                         ] },
-                        { name: 'staff', desc: 'Atividade de um membro da staff, ou o ranking de todos se ninguém for indicado. Exige cargo de Staff pra usar.', tier: 'cacador', opts: [
-                            { name: 'staff', type: 'Usuário', req: false, desc: 'Vazio = ranking geral.' },
+                        { name: 'staff', descPt: 'Atividade de um membro da staff, ou o ranking de todos se ninguém for indicado. Exige cargo de Staff pra usar.', descEn: 'Activity for a staff member, or the ranking of everyone if no one is specified. Requires the Staff role to use.', tier: 'cacador', opts: [
+                            { name: 'staff', type: 'Usuário', req: false, descPt: 'Vazio = ranking geral.', descEn: 'Empty = overall ranking.' },
                         ] },
                     ],
                 }) %>
@@ -470,26 +568,29 @@ const toc = [
         <!-- ===================== DENÚNCIAS & EVENTOS ===================== -->
         <section id="denuncias-eventos">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Denúncias & Eventos</h2>
-                <p class="docs-cat-desc">O painel de denúncias que os jogadores usam, e a criação de eventos da comunidade.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Denúncias & Eventos</span><span data-i18n-en>Reports & Events</span></h2>
+                <p class="docs-cat-desc"><%- t('O painel de denúncias que os jogadores usam, e a criação de eventos da comunidade.', "The report panel players use, and creating community events.") %></p>
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'reportchat', name: 'reportchat', perm: 'Administrador',
-                    desc: 'Publica no canal atual o painel de ReportChat: um botão "Reportar Jogador" que qualquer membro pode clicar pra abrir uma thread privada com a staff. Normalmente só precisa ser rodado uma vez, no canal de denúncias do servidor.',
+                    id: 'reportchat', name: 'reportchat', permPt: 'Administrador', permEn: 'Administrator',
+                    descPt: 'Publica no canal atual o painel de ReportChat: um botão "Reportar Jogador" que qualquer membro pode clicar pra abrir uma thread privada com a staff. Normalmente só precisa ser rodado uma vez, no canal de denúncias do servidor.',
+                    descEn: "Publishes the ReportChat panel in the current channel: a \"Report Player\" button any member can click to open a private thread with staff. Usually only needs to be run once, in the server's report channel.",
                 }) %>
                 <%- cmdCard({
-                    id: 'evento', name: 'evento', perm: 'Gerenciar Eventos + cargo Equipe de Eventos',
-                    desc: 'Cria e publica um evento da comunidade: baixa a imagem enviada e publica um post no fórum escolhido, com título, descrição, imagem e data. A partir do plano Rastreador, também cria um Evento Agendado nativo do Discord e marca o cargo de notificação; no plano Caçador, ganha também botão de teleporte automático e anúncio num canal dedicado.',
-                    note: 'No plano Free, publica só o post no fórum — sem evento agendado nem marcação de cargo. É preciso ter o cargo "Equipe de Eventos" configurado em /config roles.',
+                    id: 'evento', name: 'evento', permPt: 'Gerenciar Eventos + cargo Equipe de Eventos', permEn: 'Manage Events + Event Team role',
+                    descPt: 'Cria e publica um evento da comunidade: baixa a imagem enviada e publica um post no fórum escolhido, com título, descrição, imagem e data. A partir do plano Rastreador, também cria um Evento Agendado nativo do Discord e marca o cargo de notificação; no plano Caçador, ganha também botão de teleporte automático e anúncio num canal dedicado.',
+                    descEn: "Creates and publishes a community event: downloads the uploaded image and posts it to the chosen forum, with title, description, image, and date. From the Rastreador plan onward, it also creates a native Discord Scheduled Event and pings the notification role; on Caçador, it also gets an automatic teleport button and an announcement in a dedicated channel.",
+                    notePt: 'No plano Free, publica só o post no fórum — sem evento agendado nem marcação de cargo. É preciso ter o cargo "Equipe de Eventos" configurado em /config roles.',
+                    noteEn: 'On the Free plan, it only publishes the forum post — no scheduled event or role ping. You need the "Event Team" role configured in /config roles.',
                     opts: [
-                        { name: 'forum', type: 'Canal (fórum)', req: true, desc: 'Onde a thread do evento é criada.' },
-                        { name: 'titulo', type: 'Texto (máx. 100)', req: true, desc: '' },
-                        { name: 'descricao', type: 'Texto (máx. 1000)', req: true, desc: '' },
-                        { name: 'imagem', type: 'Anexo (PNG/JPEG)', req: true, desc: 'Máximo 1920×1279.' },
-                        { name: 'data', type: 'Texto', req: true, desc: 'Formato DD/MM/AAAA HH:MM, precisa ser uma data futura.' },
-                        { name: 'local_canal', type: 'Canal (voz/palco)', req: false, desc: 'Use este OU local_descricao — um dos dois é obrigatório fora do plano Free.' },
-                        { name: 'local_descricao', type: 'Texto (máx. 100)', req: false, desc: 'Local em texto livre.' },
+                        { name: 'forum', type: 'Canal (fórum)', req: true, descPt: 'Onde a thread do evento é criada.', descEn: 'Where the event thread is created.' },
+                        { name: 'titulo', type: 'Texto (máx. 100)', req: true, descPt: '', descEn: '' },
+                        { name: 'descricao', type: 'Texto (máx. 1000)', req: true, descPt: '', descEn: '' },
+                        { name: 'imagem', type: 'Anexo (PNG/JPEG)', req: true, descPt: 'Máximo 1920×1279.', descEn: 'Maximum 1920×1279.' },
+                        { name: 'data', type: 'Texto', req: true, descPt: 'Formato DD/MM/AAAA HH:MM, precisa ser uma data futura.', descEn: 'Format DD/MM/YYYY HH:MM, must be a future date.' },
+                        { name: 'local_canal', type: 'Canal (voz/palco)', req: false, descPt: 'Use este OU local_descricao — um dos dois é obrigatório fora do plano Free.', descEn: 'Use this OR local_descricao — one of the two is required outside the Free plan.' },
+                        { name: 'local_descricao', type: 'Texto (máx. 100)', req: false, descPt: 'Local em texto livre.', descEn: 'Free-text location.' },
                     ],
                 }) %>
             </div>
@@ -498,46 +599,49 @@ const toc = [
         <!-- ===================== CONFIGURAÇÃO (ADMIN) ===================== -->
         <section id="configuracao">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Configuração (Admin)</h2>
-                <p class="docs-cat-desc">Comandos de administração do servidor — todos exigem permissão de Administrador no Discord.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Configuração (Admin)</span><span data-i18n-en>Configuration (Admin)</span></h2>
+                <p class="docs-cat-desc"><%- t("Comandos de administração do servidor — todos exigem permissão de Administrador no Discord.", "Server administration commands — all of them require Discord's Administrator permission.") %></p>
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'config', name: 'config', perm: 'Administrador',
-                    desc: 'Comando único que abre os painéis de configuração do servidor — cada subcomando é um painel próprio, sem precisar decorar mais nada.',
+                    id: 'config', name: 'config', permPt: 'Administrador', permEn: 'Administrator',
+                    descPt: 'Comando único que abre os painéis de configuração do servidor — cada subcomando é um painel próprio, sem precisar decorar mais nada.',
+                    descEn: "A single command that opens the server's configuration panels — each subcommand is its own panel, no need to memorize anything else.",
                     subs: [
-                        { name: 'roles', desc: 'Painel de cargos automáticos: Moderação (Moderador/Supervisor), Cargos Automáticos (reputação: Exemplar/Problemático/Strike temporário) e Eventos (Equipe de Eventos/Notificação).' },
-                        { name: 'logs', desc: 'Painel único dos 4 canais de log: Geral/AutoMod, Punições, ReportChat e Staff.' },
-                        { name: 'punishments', desc: 'Painel de pontos por nível de strike e limites de reputação.', tier: 'rastreador' },
-                        { name: 'personalizar', desc: 'Painel de banners usados em /strike, /unstrike e no ReportChat — escolha entre o padrão do bot, a galeria de imagens do pool, ou envie a sua própria pelas opções abaixo.', tier: 'cacador', opts: [
-                            { name: 'banner_strike', type: 'Anexo', req: false, desc: 'Se enviado, sobe direto (pula o painel de escolha).' },
-                            { name: 'banner_unstrike', type: 'Anexo', req: false, desc: '' },
-                            { name: 'banner_reportchat', type: 'Anexo', req: false, desc: '' },
+                        { name: 'roles', descPt: 'Painel de cargos automáticos: Moderação (Moderador/Supervisor), Cargos Automáticos (reputação: Exemplar/Problemático/Strike temporário) e Eventos (Equipe de Eventos/Notificação).', descEn: 'Panel for automatic roles: Moderation (Moderator/Supervisor), Automatic Roles (reputation: Exemplary/Problematic/Temporary Strike), and Events (Event Team/Notification).' },
+                        { name: 'logs', descPt: 'Painel único dos 4 canais de log: Geral/AutoMod, Punições, ReportChat e Staff.', descEn: 'Single panel for the 4 log channels: General/AutoMod, Punishments, ReportChat, and Staff.' },
+                        { name: 'punishments', descPt: 'Painel de pontos por nível de strike e limites de reputação.', descEn: 'Panel for points per strike level and reputation thresholds.', tier: 'rastreador' },
+                        { name: 'personalizar', descPt: 'Painel de banners usados em /strike, /unstrike e no ReportChat — escolha entre o padrão do bot, a galeria de imagens do pool, ou envie a sua própria pelas opções abaixo.', descEn: "Panel for the banners used in /strike, /unstrike, and ReportChat — choose between the bot's default, the image pool gallery, or upload your own via the options below.", tier: 'cacador', opts: [
+                            { name: 'banner_strike', type: 'Anexo', req: false, descPt: 'Se enviado, sobe direto (pula o painel de escolha).', descEn: 'If sent, uploads directly (skips the selection panel).' },
+                            { name: 'banner_unstrike', type: 'Anexo', req: false, descPt: '', descEn: '' },
+                            { name: 'banner_reportchat', type: 'Anexo', req: false, descPt: '', descEn: '' },
                         ] },
-                        { name: 'buffs', desc: 'Painel de criação/edição de buffs — presets de atributos (RCON) aplicados em lote num jogador com /ingame-buff aplicar. Exige também o cargo de Supervisor, além do plano.', tier: 'cacador' },
-                        { name: 'filtro', desc: 'Painel do filtro de palavras do chat em jogo, com ação automática configurável. Exige também o cargo de Supervisor, além do plano.', tier: 'cacador' },
+                        { name: 'buffs', descPt: 'Painel de criação/edição de buffs — presets de atributos (RCON) aplicados em lote num jogador com /ingame-buff aplicar. Exige também o cargo de Supervisor, além do plano.', descEn: 'Panel for creating/editing buffs — batches of attribute presets (RCON) applied to a player with /ingame-buff aplicar. Also requires the Supervisor role, in addition to the plan.', tier: 'cacador' },
+                        { name: 'filtro', descPt: 'Painel do filtro de palavras do chat em jogo, com ação automática configurável. Exige também o cargo de Supervisor, além do plano.', descEn: 'Panel for the in-game chat word filter, with configurable automatic action. Also requires the Supervisor role, in addition to the plan.', tier: 'cacador' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'potserver', name: 'potserver', perm: 'Administrador',
-                    desc: 'Gerencia a integração com o servidor de jogo Path of Titans (conexão RCON + webhooks de eventos do jogo). Veja a seção Integração PoT / RCON abaixo pra entender o que isso desbloqueia.',
+                    id: 'potserver', name: 'potserver', permPt: 'Administrador', permEn: 'Administrator',
+                    descPt: 'Gerencia a integração com o servidor de jogo Path of Titans (conexão RCON + webhooks de eventos do jogo). Veja a seção Integração PoT / RCON abaixo pra entender o que isso desbloqueia.',
+                    descEn: "Manages the Path of Titans game server integration (RCON connection + game event webhooks). See the PoT Integration / RCON section below to understand what this unlocks.",
                     subs: [
-                        { name: 'setup', desc: 'Salva IP, senha e porta do RCON, gera (ou reaproveita) o token de autenticação do webhook, e testa a conexão na hora.', opts: [
-                            { name: 'ip', type: 'Texto', req: true, desc: '' },
-                            { name: 'rcon_password', type: 'Texto', req: true, desc: '' },
-                            { name: 'rcon_port', type: 'Número', req: true, desc: '' },
-                            { name: 'nome', type: 'Texto', req: false, desc: 'Nome de exibição do servidor.' },
+                        { name: 'setup', descPt: 'Salva IP, senha e porta do RCON, gera (ou reaproveita) o token de autenticação do webhook, e testa a conexão na hora.', descEn: "Saves the RCON IP, password, and port, generates (or reuses) the webhook auth token, and tests the connection right away.", opts: [
+                            { name: 'ip', type: 'Texto', req: true, descPt: '', descEn: '' },
+                            { name: 'rcon_password', type: 'Texto', req: true, descPt: '', descEn: '' },
+                            { name: 'rcon_port', type: 'Número', req: true, descPt: '', descEn: '' },
+                            { name: 'nome', type: 'Texto', req: false, descPt: 'Nome de exibição do servidor.', descEn: "The server's display name." },
                         ] },
-                        { name: 'logs', desc: 'Abre o painel de configuração dos canais/webhooks de eventos do jogo (login, mortes, combate...). Exige ter rodado setup antes. Funciona em qualquer plano, incluindo o Free — só o relatório de combate detalhado exige Rastreador+.' },
-                        { name: 'status', desc: 'Mostra IP/porta, quantos webhooks estão configurados, o token (mascarado), estatísticas de uso, e testa o RCON ao vivo.' },
-                        { name: 'reset', desc: 'Apaga configurações, com confirmação por botão.', opts: [
-                            { name: 'scope', type: 'Escolha', req: true, desc: 'server = só a config do servidor (mantém o token) · logs = só os webhooks · all = tudo, incluindo revogar o token.' },
+                        { name: 'logs', descPt: 'Abre o painel de configuração dos canais/webhooks de eventos do jogo (login, mortes, combate...). Exige ter rodado setup antes. Funciona em qualquer plano, incluindo o Free — só o relatório de combate detalhado exige Rastreador+.', descEn: 'Opens the panel to configure channels/webhooks for game events (logins, deaths, combat...). Requires having run setup first. Works on any plan, including Free — only the detailed combat report requires Rastreador+.' },
+                        { name: 'status', descPt: 'Mostra IP/porta, quantos webhooks estão configurados, o token (mascarado), estatísticas de uso, e testa o RCON ao vivo.', descEn: 'Shows the IP/port, how many webhooks are configured, the token (masked), usage stats, and live-tests RCON.' },
+                        { name: 'reset', descPt: 'Apaga configurações, com confirmação por botão.', descEn: 'Deletes configuration, with button confirmation.', opts: [
+                            { name: 'scope', type: 'Escolha', req: true, descPt: 'server = só a config do servidor (mantém o token) · logs = só os webhooks · all = tudo, incluindo revogar o token.', descEn: 'server = just the server config (keeps the token) · logs = just the webhooks · all = everything, including revoking the token.' },
                         ] },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'ping', name: 'ping', perm: 'Todos',
-                    desc: 'Latência do bot (ping do WebSocket), com um indicador visual de status. Aberto a qualquer membro, apesar de morar na mesma categoria dos comandos de configuração.',
+                    id: 'ping', name: 'ping', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Latência do bot (ping do WebSocket), com um indicador visual de status. Aberto a qualquer membro, apesar de morar na mesma categoria dos comandos de configuração.',
+                    descEn: "The bot's latency (WebSocket ping), with a visual status indicator. Open to any member, even though it lives in the same category as the configuration commands.",
                 }) %>
             </div>
         </section>
@@ -545,108 +649,117 @@ const toc = [
         <!-- ===================== INTEGRAÇÃO POT / RCON ===================== -->
         <section id="integracao-pot">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Integração Path of Titans / RCON</h2>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Integração Path of Titans / RCON</span><span data-i18n-en>Path of Titans Integration / RCON</span></h2>
                 <p class="docs-cat-desc">
-                    Depois de conectar seu servidor com <code>/potserver setup</code> (exige RCON habilitado no seu servidor de PoT), o plano <strong>Caçador</strong> libera ~57 comandos de RCON direto do Discord, agrupados em 7 comandos por categoria — sem precisar abrir o console do jogo. Todos exigem ter um cargo de Staff configurado em <code>/config roles</code>; os marcados com 🔒 exigem também o cargo de Supervisor. Toda ação fica registrada no canal de log configurado.
+                    <%- t('Depois de conectar seu servidor com <code>/potserver setup</code> (exige RCON habilitado no seu servidor de PoT), o plano <strong>Caçador</strong> libera ~57 comandos de RCON direto do Discord, agrupados em 7 comandos por categoria — sem precisar abrir o console do jogo. Todos exigem ter um cargo de Staff configurado em <code>/config roles</code>; os marcados com 🔒 exigem também o cargo de Supervisor. Toda ação fica registrada no canal de log configurado.', 'After connecting your server with <code>/potserver setup</code> (requires RCON enabled on your PoT server), the <strong>Caçador</strong> plan unlocks ~57 RCON commands directly from Discord, grouped into 7 commands by category — no need to open the game console. All of them require a Staff role configured in <code>/config roles</code>; the ones marked 🔒 also require the Supervisor role. Every action gets logged to the configured log channel.') %>
                 </p>
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'ingame-comandos', name: 'ingame-comandos', perm: 'Staff',
-                    desc: 'Lista paginada (uma categoria por página) com todos os comandos /ingame-* e suas opções — a referência completa direto no Discord, sempre atualizada com o que está realmente configurado no seu bot.',
+                    id: 'ingame-comandos', name: 'ingame-comandos', permPt: 'Staff', permEn: 'Staff',
+                    descPt: 'Lista paginada (uma categoria por página) com todos os comandos /ingame-* e suas opções — a referência completa direto no Discord, sempre atualizada com o que está realmente configurado no seu bot.',
+                    descEn: "A paginated list (one category per page) with every /ingame-* command and its options — the complete reference right in Discord, always up to date with what's actually configured on your bot.",
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-admin', name: 'ingame-admin',
-                    desc: 'Comandos administrativos do servidor (categoria "Admin" do RCON oficial do jogo).',
+                    descPt: 'Comandos administrativos do servidor (categoria "Admin" do RCON oficial do jogo).',
+                    descEn: "Server administration commands (the official game RCON's \"Admin\" category).",
                     subs: [
-                        { name: 'save / load', desc: 'Salva/carrega os dados do servidor.' },
-                        { name: 'promote', locked: true, desc: 'Promove o jogador a um cargo de admin.', opts: 'usuario/agid, cargo' },
-                        { name: 'demote', locked: true, desc: 'Remove o cargo de admin do jogador.', opts: 'usuario/agid' },
-                        { name: 'cancelrestart', locked: true, desc: 'Cancela um reinício agendado.' },
-                        { name: 'restart', locked: true, desc: 'Agenda um reinício.', opts: 'segundos' },
-                        { name: 'reloadrules', desc: 'Recarrega as regras do servidor.' },
-                        { name: 'whitelist / delwhitelist', desc: 'Adiciona/remove o jogador da whitelist.', opts: 'usuario/agid' },
-                        { name: 'reloadwhitelist / reloadmotd', desc: 'Recarrega a whitelist/mensagem do dia.' },
-                        { name: 'alloweditabilities', desc: 'Permite o jogador editar habilidades.', opts: 'usuario/agid' },
-                        { name: 'serverinfo', locked: true, desc: 'Mostra informações do servidor.' },
+                        { name: 'save / load', descPt: 'Salva/carrega os dados do servidor.', descEn: "Saves/loads the server's data." },
+                        { name: 'promote', locked: true, descPt: 'Promove o jogador a um cargo de admin.', descEn: 'Promotes the player to an admin role.', opts: 'usuario/agid, cargo' },
+                        { name: 'demote', locked: true, descPt: 'Remove o cargo de admin do jogador.', descEn: "Removes the player's admin role.", opts: 'usuario/agid' },
+                        { name: 'cancelrestart', locked: true, descPt: 'Cancela um reinício agendado.', descEn: 'Cancels a scheduled restart.' },
+                        { name: 'restart', locked: true, descPt: 'Agenda um reinício.', descEn: 'Schedules a restart.', opts: 'segundos' },
+                        { name: 'reloadrules', descPt: 'Recarrega as regras do servidor.', descEn: "Reloads the server's rules." },
+                        { name: 'whitelist / delwhitelist', descPt: 'Adiciona/remove o jogador da whitelist.', descEn: 'Adds/removes the player from the whitelist.', opts: 'usuario/agid' },
+                        { name: 'reloadwhitelist / reloadmotd', descPt: 'Recarrega a whitelist/mensagem do dia.', descEn: 'Reloads the whitelist/message of the day.' },
+                        { name: 'alloweditabilities', descPt: 'Permite o jogador editar habilidades.', descEn: 'Allows the player to edit abilities.', opts: 'usuario/agid' },
+                        { name: 'serverinfo', locked: true, descPt: 'Mostra informações do servidor.', descEn: 'Shows server information.' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-buff', name: 'ingame-buff',
-                    desc: 'Aplica um buff (preset de atributos configurado em /config buffs) num jogador — verifica se ele está online antes de aplicar.',
+                    descPt: 'Aplica um buff (preset de atributos configurado em /config buffs) num jogador — verifica se ele está online antes de aplicar.',
+                    descEn: "Applies a buff (an attribute preset configured in /config buffs) to a player — checks whether they're online before applying it.",
                     subs: [
-                        { name: 'aplicar', desc: 'Abre um menu pra escolher qual buff configurado aplicar no jogador.', opts: 'usuario/agid' },
-                        { name: 'listar', desc: 'Lista os buffs configurados no servidor e seus atributos.', opts: '—' },
+                        { name: 'aplicar', descPt: 'Abre um menu pra escolher qual buff configurado aplicar no jogador.', descEn: 'Opens a menu to choose which configured buff to apply to the player.', opts: 'usuario/agid' },
+                        { name: 'listar', descPt: 'Lista os buffs configurados no servidor e seus atributos.', descEn: "Lists the server's configured buffs and their attributes.", opts: '—' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-event', name: 'ingame-event',
-                    desc: 'Comandos de eventos/criaturas do RCON (categoria "Event"). Não confundir com /evento, que é o agendamento de eventos da comunidade.',
+                    descPt: 'Comandos de eventos/criaturas do RCON (categoria "Event"). Não confundir com /evento, que é o agendamento de eventos da comunidade.',
+                    descEn: 'RCON event/creature commands (the "Event" category). Not to be confused with /evento, which schedules community events.',
                     subs: [
-                        { name: 'setwound / setpermawound', desc: 'Aplica ferimento temporário/permanente ao jogador.', opts: 'usuario/agid, categoria, valor' },
-                        { name: 'skipshed', desc: 'Pula a muda (troca de pele) do jogador.', opts: 'usuario/agid' },
-                        { name: 'spawncritter', desc: 'Spawna criaturas pequenas.', opts: 'nome, quantidade' },
-                        { name: 'countcritters / clearcritters', desc: 'Conta/remove as criaturas ativas no mapa.' },
-                        { name: 'freezecritters', desc: 'Congela ou descongela as criaturas.', opts: 'congelar (sim/não)' },
+                        { name: 'setwound / setpermawound', descPt: 'Aplica ferimento temporário/permanente ao jogador.', descEn: 'Applies a temporary/permanent wound to the player.', opts: 'usuario/agid, categoria, valor' },
+                        { name: 'skipshed', descPt: 'Pula a muda (troca de pele) do jogador.', descEn: "Skips the player's shed (skin change).", opts: 'usuario/agid' },
+                        { name: 'spawncritter', descPt: 'Spawna criaturas pequenas.', descEn: 'Spawns small critters.', opts: 'nome, quantidade' },
+                        { name: 'countcritters / clearcritters', descPt: 'Conta/remove as criaturas ativas no mapa.', descEn: 'Counts/removes the active critters on the map.' },
+                        { name: 'freezecritters', descPt: 'Congela ou descongela as criaturas.', descEn: 'Freezes or unfreezes the critters.', opts: 'congelar (sim/não)' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-list', name: 'ingame-list', openToAll: true,
-                    desc: 'Comandos de listagem/consulta. listplayers é o único subcomando aberto a QUALQUER membro do servidor — os outros seguem restritos à staff.',
+                    descPt: 'Comandos de listagem/consulta. listplayers é o único subcomando aberto a QUALQUER membro do servidor — os outros seguem restritos à staff.',
+                    descEn: 'Listing/lookup commands. listplayers is the only subcommand open to ANY server member — the others remain staff-only.',
                     subs: [
-                        { name: 'listplayers', desc: 'Lista os jogadores conectados agora + total online.', opts: '— (aberto a todos)' },
-                        { name: 'listpoi', desc: 'Lista os pontos de interesse do mapa.' },
-                        { name: 'listquests', desc: 'Lista as missões disponíveis.' },
-                        { name: 'listroles', desc: 'Lista os cargos de admin do servidor de jogo.' },
-                        { name: 'listwaters', desc: 'Lista as fontes de água do mapa.' },
-                        { name: 'listwaystones', desc: 'Lista os waystones (pedras de teleporte).' },
-                        { name: 'listcreatormode', desc: 'Lista os saves salvos do modo criador.' },
+                        { name: 'listplayers', descPt: 'Lista os jogadores conectados agora + total online.', descEn: 'Lists currently connected players + total online.', opts: '— (aberto a todos)', optsEn: '— (open to everyone)', optsIsProse: true },
+                        { name: 'listpoi', descPt: 'Lista os pontos de interesse do mapa.', descEn: "Lists the map's points of interest." },
+                        { name: 'listquests', descPt: 'Lista as missões disponíveis.', descEn: 'Lists the available quests.' },
+                        { name: 'listroles', descPt: 'Lista os cargos de admin do servidor de jogo.', descEn: "Lists the game server's admin roles." },
+                        { name: 'listwaters', descPt: 'Lista as fontes de água do mapa.', descEn: "Lists the map's water sources." },
+                        { name: 'listwaystones', descPt: 'Lista os waystones (pedras de teleporte).', descEn: 'Lists the waystones (teleport stones).' },
+                        { name: 'listcreatormode', descPt: 'Lista os saves salvos do modo criador.', descEn: 'Lists the saved creator mode saves.' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-map', name: 'ingame-map',
-                    desc: 'Comandos de mapa/mundo — clima, hora, água, modo criador.',
+                    descPt: 'Comandos de mapa/mundo — clima, hora, água, modo criador.',
+                    descEn: 'Map/world commands — weather, time, water, creator mode.',
                     subs: [
-                        { name: 'weather', desc: 'Muda o clima do servidor.', opts: 'tipo' },
-                        { name: 'timeofday', desc: 'Muda a hora do dia.', opts: 'hora' },
-                        { name: 'waterquality', desc: 'Ajusta a qualidade da água de uma área.', opts: 'tag, porcentagem' },
-                        { name: 'waystonecooldown', desc: 'Ajusta o cooldown de um waystone.', opts: 'tag, porcentagem' },
-                        { name: 'clearcreatorobjects / resetcreatormode / replenishcreatormode', desc: 'Limpa/reseta/reabastece o modo criador.' },
-                        { name: 'loadcreatormode / savecreatormode / removecreatormode', desc: 'Carrega/salva/remove um save do modo criador.', opts: 'nome' },
+                        { name: 'weather', descPt: 'Muda o clima do servidor.', descEn: "Changes the server's weather.", opts: 'tipo' },
+                        { name: 'timeofday', descPt: 'Muda a hora do dia.', descEn: 'Changes the time of day.', opts: 'hora' },
+                        { name: 'waterquality', descPt: 'Ajusta a qualidade da água de uma área.', descEn: "Adjusts an area's water quality.", opts: 'tag, porcentagem' },
+                        { name: 'waystonecooldown', descPt: 'Ajusta o cooldown de um waystone.', descEn: "Adjusts a waystone's cooldown.", opts: 'tag, porcentagem' },
+                        { name: 'clearcreatorobjects / resetcreatormode / replenishcreatormode', descPt: 'Limpa/reseta/reabastece o modo criador.', descEn: 'Clears/resets/replenishes creator mode.' },
+                        { name: 'loadcreatormode / savecreatormode / removecreatormode', descPt: 'Carrega/salva/remove um save do modo criador.', descEn: 'Loads/saves/removes a creator mode save.', opts: 'nome' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-marks', name: 'ingame-marks',
-                    desc: 'Comandos de marcas (pontos de dano/prestígio no jogo).',
+                    descPt: 'Comandos de marcas (pontos de dano/prestígio no jogo).',
+                    descEn: "Marks commands (in-game damage/prestige points).",
                     subs: [
-                        { name: 'setmarks', desc: 'Define um valor absoluto de marcas.', opts: 'usuario/agid, numero' },
-                        { name: 'addmarks / removemarks', desc: 'Adiciona/remove marcas do jogador.', opts: 'usuario/agid, numero' },
-                        { name: 'addmarksall', locked: true, desc: 'Adiciona marcas para todo mundo online.', opts: 'numero' },
+                        { name: 'setmarks', descPt: 'Define um valor absoluto de marcas.', descEn: 'Sets an absolute marks value.', opts: 'usuario/agid, numero' },
+                        { name: 'addmarks / removemarks', descPt: 'Adiciona/remove marcas do jogador.', descEn: "Adds/removes marks from the player.", opts: 'usuario/agid, numero' },
+                        { name: 'addmarksall', locked: true, descPt: 'Adiciona marcas para todo mundo online.', descEn: 'Adds marks for everyone online.', opts: 'numero' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-message', name: 'ingame-message',
-                    desc: 'Comandos de mensagens/anúncios in-game.',
+                    descPt: 'Comandos de mensagens/anúncios in-game.',
+                    descEn: 'In-game message/announcement commands.',
                     subs: [
-                        { name: 'systemmessage', desc: 'Envia uma mensagem de sistema pra um jogador.', opts: 'usuario/agid, mensagem' },
-                        { name: 'whisper', desc: 'Sussurra uma mensagem privada pra um jogador.', opts: 'usuario/agid, mensagem' },
-                        { name: 'systemmessageall', desc: 'Mensagem de sistema pra todos.', opts: 'mensagem' },
-                        { name: 'announce', desc: 'Anúncio pra todos.', opts: 'mensagem' },
+                        { name: 'systemmessage', descPt: 'Envia uma mensagem de sistema pra um jogador.', descEn: 'Sends a system message to a player.', opts: 'usuario/agid, mensagem' },
+                        { name: 'whisper', descPt: 'Sussurra uma mensagem privada pra um jogador.', descEn: 'Whispers a private message to a player.', opts: 'usuario/agid, mensagem' },
+                        { name: 'systemmessageall', descPt: 'Mensagem de sistema pra todos.', descEn: 'System message to everyone.', opts: 'mensagem' },
+                        { name: 'announce', descPt: 'Anúncio pra todos.', descEn: 'Announcement to everyone.', opts: 'mensagem' },
                     ],
                 }) %>
                 <%- rconCmdCard({
                     id: 'ingame-stats', name: 'ingame-stats',
-                    desc: 'Comandos de atributos/status do dinossauro ("Change Stats").',
+                    descPt: 'Comandos de atributos/status do dinossauro ("Change Stats").',
+                    descEn: 'Dinosaur attribute/status commands ("Change Stats").',
                     subs: [
-                        { name: 'heal', desc: 'Cura o jogador (vazio = você mesmo).', opts: 'usuario/agid' },
-                        { name: 'healall', locked: true, desc: 'Cura todo mundo online.' },
-                        { name: 'godmode', locked: true, desc: 'Ativa/desativa o modo deus.', opts: 'usuario/agid' },
-                        { name: 'setattr', desc: 'Define um atributo específico.', opts: 'usuario/agid, atributo, valor' },
-                        { name: 'setattrall', locked: true, desc: 'Define um atributo pra todo mundo online.', opts: 'atributo, valor' },
-                        { name: 'getattr', locked: true, desc: 'Consulta um atributo específico.', opts: 'usuario/agid, atributo' },
-                        { name: 'getallattr', locked: true, desc: 'Consulta todos os atributos do jogador.', opts: 'usuario/agid' },
-                        { name: 'rewardgrowth / rewardwellrested', desc: 'Recompensa crescimento/descanso.', opts: 'usuario/agid, valor' },
-                        { name: 'clearcooldowns', desc: 'Limpa os cooldowns do jogador.' },
+                        { name: 'heal', descPt: 'Cura o jogador (vazio = você mesmo).', descEn: 'Heals the player (empty = yourself).', opts: 'usuario/agid' },
+                        { name: 'healall', locked: true, descPt: 'Cura todo mundo online.', descEn: 'Heals everyone online.' },
+                        { name: 'godmode', locked: true, descPt: 'Ativa/desativa o modo deus.', descEn: 'Toggles god mode.', opts: 'usuario/agid' },
+                        { name: 'setattr', descPt: 'Define um atributo específico.', descEn: 'Sets a specific attribute.', opts: 'usuario/agid, atributo, valor' },
+                        { name: 'setattrall', locked: true, descPt: 'Define um atributo pra todo mundo online.', descEn: 'Sets an attribute for everyone online.', opts: 'atributo, valor' },
+                        { name: 'getattr', locked: true, descPt: 'Consulta um atributo específico.', descEn: 'Looks up a specific attribute.', opts: 'usuario/agid, atributo' },
+                        { name: 'getallattr', locked: true, descPt: 'Consulta todos os atributos do jogador.', descEn: "Looks up all of the player's attributes.", opts: 'usuario/agid' },
+                        { name: 'rewardgrowth / rewardwellrested', descPt: 'Recompensa crescimento/descanso.', descEn: 'Rewards growth/rest.', opts: 'usuario/agid, valor' },
+                        { name: 'clearcooldowns', descPt: 'Limpa os cooldowns do jogador.', descEn: "Clears the player's cooldowns." },
                     ],
                 }) %>
             </div>
@@ -655,30 +768,33 @@ const toc = [
         <!-- ===================== AJUDA & SUPORTE ===================== -->
         <section id="ajuda-suporte">
             <div class="docs-cat-header">
-                <h2 class="section-title docs-cat-title">Ajuda & Suporte</h2>
-                <p class="docs-cat-desc">Guia interativo dentro do próprio Discord, status do bot, e como falar com a gente.</p>
+                <h2 class="section-title docs-cat-title"><span data-i18n-pt>Ajuda & Suporte</span><span data-i18n-en>Help & Support</span></h2>
+                <p class="docs-cat-desc"><%- t('Guia interativo dentro do próprio Discord, status do bot, e como falar com a gente.', 'An interactive guide right inside Discord, bot status, and how to reach us.') %></p>
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'ajuda', name: 'ajuda', perm: 'Todos',
-                    desc: 'Guia interativo do bot, navegado por menu — mostra um conteúdo mais completo (configuração/moderação/sistemas do servidor) pra quem é Administrador, e uma versão enxuta pra membros comuns.',
+                    id: 'ajuda', name: 'ajuda', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Guia interativo do bot, navegado por menu — mostra um conteúdo mais completo (configuração/moderação/sistemas do servidor) pra quem é Administrador, e uma versão enxuta pra membros comuns.',
+                    descEn: "An interactive, menu-driven bot guide — shows fuller content (configuration/moderation/server systems) for Administrators, and a lighter version for regular members.",
                 }) %>
                 <%- cmdCard({
-                    id: 'botstatus', name: 'botstatus', perm: 'Administrador',
-                    desc: 'Painel de saúde do bot: uptime e ping sempre visíveis; a partir do plano Caçador, também mostra estatísticas do servidor (punições, reputação média, status do AutoMod).',
+                    id: 'botstatus', name: 'botstatus', permPt: 'Administrador', permEn: 'Administrator',
+                    descPt: 'Painel de saúde do bot: uptime e ping sempre visíveis; a partir do plano Caçador, também mostra estatísticas do servidor (punições, reputação média, status do AutoMod).',
+                    descEn: "The bot's health panel: uptime and ping always visible; from the Caçador plan onward, it also shows server stats (punishments, average reputation, AutoMod status).",
                 }) %>
                 <%- cmdCard({
-                    id: 'reportarbug', name: 'reportarbug', perm: 'Todos',
-                    desc: 'Envia uma sugestão ou relato de bug direto pro desenvolvedor do bot.',
+                    id: 'reportarbug', name: 'reportarbug', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Envia uma sugestão ou relato de bug direto pro desenvolvedor do bot.',
+                    descEn: "Sends a suggestion or bug report straight to the bot's developer.",
                     opts: [
-                        { name: 'tipo', type: 'Escolha', req: true, desc: 'Sugerir Melhoria ou Reportar Bug/Erro.' },
-                        { name: 'mensagem', type: 'Texto', req: true, desc: '' },
+                        { name: 'tipo', type: 'Escolha', req: true, descPt: 'Sugerir Melhoria ou Reportar Bug/Erro.', descEn: 'Suggest an Improvement or Report a Bug/Error.' },
+                        { name: 'mensagem', type: 'Texto', req: true, descPt: '', descEn: '' },
                     ],
                 }) %>
                 <div class="docs-callout">
-                    <p style="font-family:'Poppins',sans-serif; font-size:14px; margin:0; opacity:0.9;">Precisa de ajuda que não está aqui? Entre no nosso servidor de suporte.</p>
+                    <p style="font-family:'Poppins',sans-serif; font-size:14px; margin:0; opacity:0.9;"><%- t('Precisa de ajuda que não está aqui? Entre no nosso servidor de suporte.', "Need help with something not covered here? Join our support server.") %></p>
                     <div class="docs-footer-links">
-                        <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn" style="height:36px; padding:6px 22px;">ENTRAR NO SUPORTE</a>
+                        <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn" style="height:36px; padding:6px 22px;"><span data-i18n-pt>ENTRAR NO SUPORTE</span><span data-i18n-en>JOIN SUPPORT</span></a>
                     </div>
                 </div>
             </div>
@@ -689,7 +805,7 @@ const toc = [
 <!-- ===================== FOOTER ===================== -->
 <footer class="w-full flex flex-col items-center" style="background:#111111; padding: 30px 16px; gap: 10px; border-top: 1px solid #3E3D38;">
     <a href="/termos" class="opacity-70 hover:opacity-100 text-sm underline" style="font-family:'Poppins',sans-serif; font-weight:300; color:#F8DCC0;">
-        Termos de Serviço
+        <span data-i18n-pt>Termos de Serviço</span><span data-i18n-en>Terms of Service</span>
     </a>
     <span class="opacity-80 text-sm" style="font-family:'Poppins',sans-serif; font-weight:300;">BY: KNUST SEIER VI</span>
 </footer>
