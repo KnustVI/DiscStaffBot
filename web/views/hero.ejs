@@ -371,6 +371,7 @@
         bolt: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg>',
         check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>',
         chart: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 15v3M12 10v8M17 6v12"/></svg>',
+        lock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
     };
 
     // Anel de progresso minúsculo (stroke-dasharray simples — versão
@@ -405,8 +406,11 @@
     // Painel completo (moldura .feature-card + .mockup-panel por dentro) —
     // showRail liga a "barra lateral" de 4 ícones (só usada no mockup do
     // Dashboard Web, pra lembrar o sidebar real); rings é opcional (só o
-    // Dashboard usa, pros 3 gráficos de progresso).
-    function mockupPanel({ topbarPt, topbarEn, showRail, rings, rows }) {
+    // Dashboard usa, pros 3 gráficos de progresso). stacked:true tira o
+    // "lg:w-1/2" (usado quando o mockup entra num par empilhado dentro de
+    // uma coluna que JÁ é metade da largura — ver bloco de Análise/Staff
+    // mais abaixo, mesmo motivo dos 2 <img> empilhados que ele substitui).
+    function mockupPanel({ topbarPt, topbarEn, showRail, rings, rows, stacked }) {
         const railHtml = showRail ? `<div class="mockup-rail">
             <div class="mockup-rail-icon is-active">${mockupIcons.chart}</div>
             <div class="mockup-rail-icon">${mockupIcons.shield}</div>
@@ -417,7 +421,8 @@
             ? `<div class="mockup-rings">${rings.map(r => mockupRing(r.percent, r.hex, r.value)).join('')}</div>`
             : '';
         const rowsHtml = rows.map(mockupRow).join('');
-        return `<div class="feature-card mockup-panel w-full lg:w-1/2" style="max-width: 420px;">
+        const widthClass = stacked ? 'w-full' : 'w-full lg:w-1/2';
+        return `<div class="feature-card mockup-panel ${widthClass}" style="max-width: 420px;">
             <div class="mockup-topbar">
                 <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot is-accent"></span>
                 <span class="mockup-topbar-label"><span data-i18n-pt>${topbarPt}</span><span data-i18n-en>${topbarEn}</span></span>
@@ -452,12 +457,20 @@
             body3En: 'Hunt can only be exchanged for profile customization in the shop (including images created and submitted by the community, always credited to their creators) and, in the future, for community clan-creation features — never for Marks, real or virtual currency, or any in-game benefit or advantage, skins included.',
         },
         {
-            img: 'screenshot-reporte-chat', titlePt: 'SISTEMA DE REPORTE', titleEn: 'REPORT SYSTEM',
+            titlePt: 'SISTEMA DE REPORTE', titleEn: 'REPORT SYSTEM',
             leadPt: 'Reporte com chat privado com os moderadores, trazendo mais informações do jogo ao chat por webhook!',
             leadEn: 'Report through a private chat with the moderators, bringing more in-game context to the chat via webhook!',
             subPt: 'INFORMAÇÕES DETALHADAS.', subEn: 'DETAILED INFORMATION.',
             bodyPt: 'Cria chat privado para resolução ou revisão de punições. Faz relatório da última morte do personagem indicado pelo jogador. Inclui informações como data, local e jogadores envolvidos.',
             bodyEn: "Creates a private chat for resolving or appealing punishments. Builds a report of the player's last death. Includes details like date, location, and everyone involved.",
+            mockup: mockupPanel({
+                topbarPt: 'REPORT CHAT', topbarEn: 'REPORT CHAT',
+                rows: [
+                    { icon: 'chat', labelPt: 'Nova denúncia aberta', labelEn: 'New report opened', subPt: 'thread privada com a staff', subEn: 'private thread with staff', pillPt: 'PRIVADO', pillEn: 'PRIVATE', pillClass: 'is-gold' },
+                    { icon: 'bolt', labelPt: 'Relatório da última morte', labelEn: 'Last-death report', subPt: 'data, local e envolvidos · webhook', subEn: 'date, location & everyone involved · webhook', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
+                    { icon: 'check', labelPt: 'Revisão de punição', labelEn: 'Punishment review', subPt: 'staff respondendo agora', subEn: 'staff replying now', pillPt: 'EM ANDAMENTO', pillEn: 'IN PROGRESS', pillClass: 'is-green' },
+                ],
+            }),
         },
         {
             img: 'screenshot-strike', titlePt: 'SISTEMA DE PUNIÇÃO', titleEn: 'PUNISHMENT SYSTEM',
@@ -474,10 +487,17 @@
             bodyEn: 'Punishments and points are easy to adjust, with a full record kept of everything.',
         },
         {
-            img: 'screenshot-historico', noHeading: true,
+            noHeading: true,
             subPt: 'HISTÓRICO', subEn: 'HISTORY',
             bodyPt: 'Todo o histórico do player fica registrado sem exceções, com acesso somente para staffs, com informações isoladas por servidor.',
             bodyEn: "A player's full history stays on record with no exceptions, accessible only to staff, isolated per server.",
+            mockup: mockupPanel({
+                topbarPt: 'HISTÓRICO', topbarEn: 'HISTORY',
+                rows: [
+                    { icon: 'shield', labelPt: '3 punições registradas', labelEn: '3 punishments on record', subPt: 'todas com data e motivo', subEn: 'all with date and reason', pillPt: 'REGISTRO', pillEn: 'RECORD', pillClass: 'is-gold' },
+                    { icon: 'lock', labelPt: 'Acesso restrito à staff', labelEn: 'Staff-only access', subPt: 'isolado por servidor', subEn: 'isolated per server', pillPt: 'PRIVADO', pillEn: 'PRIVATE', pillClass: 'is-green' },
+                ],
+            }),
         },
         {
             img: 'screenshot-evento', titlePt: 'AUXILIAR DE EVENTOS', titleEn: 'EVENT HELPER',
@@ -588,11 +608,25 @@
         </div>
     <% }); %>
 
-    <!-- Análise e Histórico de Atividade Staff — dois prints empilhados + texto -->
+    <!-- Análise e Histórico de Atividade Staff — dois mockups empilhados + texto
+         (pedido do dono, 2026-08-03: mesmo estilo .mockup-panel usado em
+         AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima) -->
     <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
         <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
-            <img src="/images/landing/screenshot-automod.webp" alt="" class="feature-card w-full">
-            <img src="/images/landing/screenshot-analise-staff.webp" alt="" class="feature-card w-full">
+            <%- mockupPanel({
+                topbarPt: 'REPUTAÇÃO', topbarEn: 'REPUTATION', stacked: true,
+                rows: [
+                    { icon: 'shield', labelPt: 'Cargo Exemplar atribuído', labelEn: 'Exemplary role assigned', subPt: 'reputação acima de 80', subEn: 'reputation above 80', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
+                    { icon: 'bolt', labelPt: 'Alerta de reputação crítica', labelEn: 'Critical reputation alert', subPt: 'jogador abaixo de 20 pontos', subEn: 'player below 20 points', pillPt: 'ALERTA', pillEn: 'ALERT', pillClass: 'is-red' },
+                ],
+            }) %>
+            <%- mockupPanel({
+                topbarPt: 'RANKING DE STAFF', topbarEn: 'STAFF RANKING', stacked: true,
+                rows: [
+                    { icon: 'chart', labelPt: 'Staff mais ativo da semana', labelEn: "This week's most active staff", subPt: '12 punições aplicadas', subEn: '12 punishments applied', pillPt: 'TOP 1', pillEn: 'TOP 1', pillClass: 'is-gold' },
+                    { icon: 'chat', labelPt: '8 denúncias atendidas', labelEn: '8 reports handled', subPt: 'tempo médio de resposta: 4min', subEn: 'average response time: 4min', pillPt: 'DESEMPENHO', pillEn: 'PERFORMANCE', pillClass: 'is-gold' },
+                ],
+            }) %>
         </div>
         <div class="w-full lg:w-1/2 flex flex-col gap-3">
             <h2 class="section-title text-shadow-figma"><span data-i18n-pt>ANÁLISE E HISTÓRICO DE ATIVIDADE STAFF</span><span data-i18n-en>STAFF ACTIVITY ANALYSIS & HISTORY</span></h2>
