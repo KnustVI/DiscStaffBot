@@ -95,19 +95,55 @@
         }
 
         .docs-shell { display: flex; align-items: flex-start; gap: 36px; max-width: 1280px; margin: 40px auto 0; padding: 0 16px 100px; }
-        .docs-toc { position: sticky; top: 24px; flex: none; width: 230px; display: flex; flex-direction: column; gap: 2px; max-height: calc(100vh - 48px); overflow-y: auto; }
+        /* top/max-height contam com --nav-height (a nav é fixed, ~60-90px
+           dependendo de quantas linhas ela quebra) — sem isso, o sticky
+           gruda a régua embaixo da nav fixa e fica parcialmente escondido
+           atrás dela ao rolar (pedido do dono: "deixe essa barra fixa pra
+           descer junto com a tela"). overflow-y:auto só mostra barra de
+           rolagem se o conteúdo realmente não couber (comportamento padrão
+           do navegador) — não força uma quando cabe na tela. */
+        .docs-toc {
+            position: sticky;
+            top: calc(var(--nav-height, 60px) + 16px);
+            flex: none; width: 230px;
+            display: flex; flex-direction: column; gap: 4px;
+            max-height: calc(100vh - var(--nav-height, 60px) - 32px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #803E30 transparent;
+        }
+        .docs-toc::-webkit-scrollbar { width: 6px; }
+        .docs-toc::-webkit-scrollbar-track { background: transparent; }
+        .docs-toc::-webkit-scrollbar-thumb { background: #803E30; border-radius: 10px; }
+        .docs-toc::-webkit-scrollbar-thumb:hover { background: #DCA15E; }
         .docs-toc a {
             font-family: 'Poppins', sans-serif; font-size: 13px; color: #F8DCC0; opacity: 0.6;
             text-decoration: none; padding: 6px 10px; border-radius: 8px;
             transition: opacity 0.15s ease, background 0.15s ease;
         }
         .docs-toc a:hover { opacity: 1; background: rgba(255,255,255,0.04); }
-        .docs-toc .toc-cat {
+        <%# Cada categoria da sidebar vira um <details> nativo — pedido do
+            dono: "cada categoria pode ser aberta mostrando a lista de
+            comandos". Sem JS: <details>/<summary> já dão o toggle sozinhos. %>
+        .toc-group { border-bottom: 1px solid rgba(62,61,56,0.5); }
+        .toc-group:last-child { border-bottom: none; }
+        .toc-group summary {
+            cursor: pointer; list-style: none;
+            display: flex; align-items: center; justify-content: space-between; gap: 6px;
             font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 10.5px;
-            text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.4;
-            margin: 16px 10px 2px;
+            text-transform: uppercase; letter-spacing: 0.6px; color: #F8DCC0; opacity: 0.55;
+            padding: 10px 10px;
+            transition: opacity 0.15s ease;
         }
-        .docs-toc .toc-cat:first-child { margin-top: 0; }
+        .toc-group summary:hover { opacity: 0.9; }
+        .toc-group summary::-webkit-details-marker { display: none; }
+        .toc-group summary::after {
+            content: '▸'; font-size: 9px; opacity: 0.6; flex: none;
+            transition: transform 0.15s ease;
+        }
+        .toc-group[open] > summary::after { transform: rotate(90deg); }
+        .toc-group[open] > summary { opacity: 0.9; }
+        .toc-links { display: flex; flex-direction: column; padding-bottom: 6px; }
 
         .docs-mobile-toc {
             background: #1A1A1A; border: 1px solid #3E3D38; border-radius: 14px;
@@ -155,6 +191,8 @@
         .badge.tier-rastreador { color: #DCA15E; background: rgba(220,161,94,0.12); border: 1px solid rgba(220,161,94,0.4); }
         .badge.tier-cacador { color: #FF4E3B; background: rgba(255,78,59,0.12); border: 1px solid rgba(255,78,59,0.4); }
         .badge.perm { color: #F8DCC0; background: rgba(255,255,255,0.05); border: 1px solid #3E3D38; }
+        .badge.status-essential { color: #FF4E3B; background: rgba(255,78,59,0.12); border: 1px solid rgba(255,78,59,0.4); }
+        .badge.status-optional { color: #F8DCC0; background: rgba(255,255,255,0.04); border: 1px solid #3E3D38; opacity: 0.75; }
         .cmd-desc { font-family: 'Poppins', sans-serif; font-size: 14px; opacity: 0.85; line-height: 1.55; }
         .cmd-desc code, .cmd-table code { background: rgba(255,255,255,0.07); padding: 1px 6px; border-radius: 5px; font-family: monospace; font-size: 0.9em; color: #DCA15E; }
         .cmd-note { font-family: 'Poppins', sans-serif; font-size: 12.5px; opacity: 0.6; font-style: italic; }
@@ -280,8 +318,12 @@ const toc = [
     <!-- TOC desktop, sticky -->
     <aside class="docs-toc hidden lg:flex">
         <% toc.forEach(group => { %>
-            <span class="toc-cat"><%= group.cat %></span>
-            <% group.items.forEach(item => { %><a href="#<%= item.id %>"><%= item.label %></a><% }); %>
+            <details class="toc-group" open>
+                <summary><%= group.cat %></summary>
+                <div class="toc-links">
+                    <% group.items.forEach(item => { %><a href="#<%= item.id %>"><%= item.label %></a><% }); %>
+                </div>
+            </details>
         <% }); %>
     </aside>
 
@@ -304,12 +346,17 @@ const toc = [
                 <p class="docs-cat-desc">O caminho recomendado pra configurar o bot num servidor novo, do zero até denúncias/eventos/moderação funcionando.</p>
             </div>
             <div class="docs-callout">
+                <div class="legend" style="margin-bottom: 2px;">
+                    <span class="legend-item"><span class="badge status-essential">ESSENCIAL</span> pro funcionamento básico</span>
+                    <span class="legend-item"><span class="badge status-optional">OPCIONAL</span> só se você precisar do recurso</span>
+                </div>
                 <ol>
                     <li><strong>Convide o bot</strong> com permissão de Administrador (necessário pra gerenciar cargos, canais e enviar mensagens nos formatos que o bot usa) — <a href="https://discord.com/oauth2/authorize?client_id=<%= bot.user.id %>&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener" style="color:#DCA15E;">clique aqui pra convidar</a>.</li>
-                    <li>Configure os cargos da equipe em <code>/config roles</code> — pelo menos o cargo de <strong>Moderador</strong> é obrigatório pra qualquer comando de moderação funcionar.</li>
-                    <li>Configure os canais de log em <code>/config logs</code> (Geral/AutoMod, Punições, ReportChat, Staff) — sem isso, os registros não vão pra lugar nenhum.</li>
-                    <li>Publique o painel de denúncias com <code>/reportchat</code> no canal onde os jogadores devem reportar.</li>
-                    <li>(Opcional, se você hospeda um servidor de <em>Path of Titans</em>) Conecte o servidor de jogo com <code>/potserver setup</code> pra habilitar RCON e webhooks — veja a seção <a href="#cmd-potserver" style="color:#DCA15E;">Integração PoT / RCON</a>.</li>
+                    <li><span class="badge status-essential">ESSENCIAL</span> Configure os cargos da equipe em <code>/config roles</code> — pelo menos o cargo de <strong>Moderador</strong> é obrigatório pra qualquer comando de moderação funcionar.</li>
+                    <li><span class="badge status-essential">ESSENCIAL</span> Configure os canais de log em <code>/config logs</code> (Geral/AutoMod, Punições, ReportChat, Staff) — sem isso, os registros não vão pra lugar nenhum.</li>
+                    <li><span class="badge status-optional">OPCIONAL</span> Publique o painel de denúncias com <code>/reportchat</code> no canal onde os jogadores devem reportar.</li>
+                    <li><span class="badge status-optional">OPCIONAL</span> Se você hospeda um servidor de <em>Path of Titans</em>, rode <code>/potserver setup</code> informando IP/senha/porta do RCON — conecta o servidor e já gera o token usado pelos webhooks também. Só faz sentido se você realmente hospeda um servidor; usar os comandos <code>/ingame-*</code> de controle remoto especificamente exige o plano <strong>Caçador</strong>.</li>
+                    <li><span class="badge status-essential">ESSENCIAL</span> Depois do setup, configure os canais em <code>/potserver logs</code> — é o que registra no Discord tudo que acontece no servidor de jogo (login, mortes, combate...). Funciona em <strong>qualquer plano, incluindo o Free</strong> — diferente dos comandos de RCON, não exige Caçador.</li>
                     <li>Todo membro pode rodar <code>/registrar</code> pra vincular a conta do Discord ao Alderon ID (Path of Titans) — é o que liga o perfil, o histórico e os comandos in-game a cada pessoa.</li>
                 </ol>
             </div>
@@ -481,7 +528,7 @@ const toc = [
                             { name: 'rcon_port', type: 'Número', req: true, desc: '' },
                             { name: 'nome', type: 'Texto', req: false, desc: 'Nome de exibição do servidor.' },
                         ] },
-                        { name: 'logs', desc: 'Abre o painel de configuração dos canais/webhooks de eventos do jogo (login, mortes, combate...). Exige ter rodado setup antes.' },
+                        { name: 'logs', desc: 'Abre o painel de configuração dos canais/webhooks de eventos do jogo (login, mortes, combate...). Exige ter rodado setup antes. Funciona em qualquer plano, incluindo o Free — só o relatório de combate detalhado exige Rastreador+.' },
                         { name: 'status', desc: 'Mostra IP/porta, quantos webhooks estão configurados, o token (mascarado), estatísticas de uso, e testa o RCON ao vivo.' },
                         { name: 'reset', desc: 'Apaga configurações, com confirmação por botão.', opts: [
                             { name: 'scope', type: 'Escolha', req: true, desc: 'server = só a config do servidor (mantém o token) · logs = só os webhooks · all = tudo, incluindo revogar o token.' },

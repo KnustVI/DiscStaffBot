@@ -108,6 +108,11 @@
             transition: background 0.15s ease, border-color 0.15s ease;
         }
         .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        <%# Visual de "página atual" (pedido do dono, mesmo estilo já usado
+            no botão DOCUMENTAÇÃO de documentacao.ejs quando você está
+            nela) — aplicado aqui no botão HOME, já que esta é a página
+            hero/home. Cada página com nav própria marca o SEU botão. %>
+        .nav-btn.is-active { background: #4B2427; border-color: #DCA15E; }
         .nav-btn:active {
             background: #4B2427;
             border-color: #803E30;
@@ -274,7 +279,7 @@
             <span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span>
         </a>
     <% } %>
-    <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <a href="/" class="nav-btn is-active"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
     <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
     <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
