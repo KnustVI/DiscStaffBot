@@ -161,6 +161,62 @@
             box-shadow: inset 0 4px 4px rgba(0,0,0,0.25), 12px 15px 11.5px rgba(0,0,0,0.36), 0 0 2.3px #DCA15E;
             border-radius: 10px;
         }
+        /* Painéis "mockup" — mesma moldura .feature-card das features com
+           print real, só que por dentro é uma miniatura estilizada da UI
+           construída em CSS/SVG (sem screenshot de verdade), usada pra
+           features que ainda não têm captura de tela (Dashboard Web,
+           Integração PoT/RCON, AutoModeração — pedido do dono: apresentar
+           TODAS as features, não só as que já tinham print pronto). Ver
+           função mockupPanel() mais abaixo, que monta o HTML de cada uma. */
+        .mockup-panel {
+            background: linear-gradient(165deg, #1F1D20 0%, #131313 100%);
+            border: 1px solid #3E3D38;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-sizing: border-box;
+        }
+        .mockup-topbar { display: flex; align-items: center; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid #3E3D38; }
+        .mockup-dot { width: 8px; height: 8px; border-radius: 50%; background: #3E3D38; flex: none; }
+        .mockup-dot.is-accent { background: #DCA15E; }
+        .mockup-topbar-label {
+            margin-left: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            opacity: 0.5;
+        }
+        .mockup-body { display: flex; gap: 14px; }
+        .mockup-rail { display: flex; flex-direction: column; gap: 8px; flex: none; }
+        .mockup-rail-icon {
+            width: 28px; height: 28px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            background: #2A2A2A; border: 1px solid #3E3D38; color: #F8DCC0; opacity: 0.55;
+        }
+        .mockup-rail-icon.is-active { background: #4B2427; border-color: #803E30; opacity: 1; }
+        .mockup-main { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .mockup-rings { display: flex; align-items: center; justify-content: space-evenly; padding: 4px 0 8px; }
+        .mockup-ring-wrap { position: relative; width: 56px; height: 56px; flex: none; display: flex; align-items: center; justify-content: center; }
+        .mockup-ring-value { position: absolute; font-family: 'Tilt Warp', sans-serif; font-size: 11px; text-align: center; line-height: 1.1; }
+        .mockup-row {
+            display: flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,0.03); border: 1px solid #3E3D38;
+            border-radius: 8px; padding: 8px 10px;
+        }
+        .mockup-row-icon { flex: none; color: #DCA15E; display: flex; align-items: center; justify-content: center; }
+        .mockup-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .mockup-row-label { font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600; color: #F8DCC0; }
+        .mockup-row-sub { font-family: 'Poppins', sans-serif; font-size: 10.5px; opacity: 0.55; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mockup-pill {
+            flex: none;
+            font-family: 'Poppins', sans-serif; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+            padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+        }
+        .mockup-pill.is-gold { background: rgba(220,161,94,0.15); color: #DCA15E; border: 1px solid rgba(220,161,94,0.4); }
+        .mockup-pill.is-red { background: rgba(255,78,59,0.15); color: #FF4E3B; border: 1px solid rgba(255,78,59,0.4); }
+        .mockup-pill.is-green { background: rgba(126,196,124,0.15); color: #7EC47C; border: 1px solid rgba(126,196,124,0.4); }
         .quote-card {
             background: #1A1A1A;
             border: 1px solid #3E3D38;
@@ -304,9 +360,79 @@
 <main class="relative w-full flex flex-col items-center" style="gap: 80px; padding: 20px 16px 90px;">
 
     <%
-    // Texto extraído do arquivo real de CSS do Figma (Hero css.txt) — não é
-    // mais aproximação por print. Cada seção: print à esquerda, texto à
-    // direita (empilha em telas pequenas).
+    // Ícones minúsculos (24x24, stroke) usados dentro dos mockupRow abaixo —
+    // mesmo espírito visual dos ícones da seção "Porque Usar" (stroke
+    // #F8DCC0/currentColor), só que num tamanho de lista, não de destaque.
+    const mockupIcons = {
+        shield: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V5l-8-3Z"/></svg>',
+        chat: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z"/></svg>',
+        gear: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
+        link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8"/></svg>',
+        bolt: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg>',
+        check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m20 6-11 11-5-5"/></svg>',
+        chart: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 15v3M12 10v8M17 6v12"/></svg>',
+    };
+
+    // Anel de progresso minúsculo (stroke-dasharray simples — versão
+    // enxuta do motivo real dos gráficos do dashboard, ver stat-donut.ejs;
+    // não reaproveita o path exato do Figma de lá porque hero.ejs é uma
+    // página autocontida, sem partials compartilhados com o dashboard).
+    function mockupRing(percent, hex, valueLabel) {
+        const r = 24, c = 2 * Math.PI * r;
+        const filled = (Math.max(0, Math.min(100, percent)) / 100) * c;
+        return `<div class="mockup-ring-wrap">
+            <svg width="56" height="56" viewBox="0 0 56 56">
+                <circle cx="28" cy="28" r="${r}" fill="none" stroke="#3E3D38" stroke-width="5" opacity="0.4"/>
+                <circle cx="28" cy="28" r="${r}" fill="none" stroke="${hex}" stroke-width="5" stroke-linecap="round"
+                    stroke-dasharray="${filled.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 28 28)"/>
+            </svg>
+            <span class="mockup-ring-value" style="color:${hex};">${valueLabel}</span>
+        </div>`;
+    }
+    // Uma "linha de lista" do mockup — ícone + label/sub bilíngues + pill de
+    // status colorida (mesmo padrão data-i18n-pt/en do resto da página,
+    // mesmo sendo conteúdo decorativo).
+    function mockupRow({ icon, labelPt, labelEn, subPt, subEn, pillPt, pillEn, pillClass }) {
+        return `<div class="mockup-row">
+            <span class="mockup-row-icon">${mockupIcons[icon] || mockupIcons.check}</span>
+            <span class="mockup-row-text">
+                <span class="mockup-row-label"><span data-i18n-pt>${labelPt}</span><span data-i18n-en>${labelEn}</span></span>
+                <span class="mockup-row-sub"><span data-i18n-pt>${subPt}</span><span data-i18n-en>${subEn}</span></span>
+            </span>
+            <span class="mockup-pill ${pillClass}"><span data-i18n-pt>${pillPt}</span><span data-i18n-en>${pillEn}</span></span>
+        </div>`;
+    }
+    // Painel completo (moldura .feature-card + .mockup-panel por dentro) —
+    // showRail liga a "barra lateral" de 4 ícones (só usada no mockup do
+    // Dashboard Web, pra lembrar o sidebar real); rings é opcional (só o
+    // Dashboard usa, pros 3 gráficos de progresso).
+    function mockupPanel({ topbarPt, topbarEn, showRail, rings, rows }) {
+        const railHtml = showRail ? `<div class="mockup-rail">
+            <div class="mockup-rail-icon is-active">${mockupIcons.chart}</div>
+            <div class="mockup-rail-icon">${mockupIcons.shield}</div>
+            <div class="mockup-rail-icon">${mockupIcons.chat}</div>
+            <div class="mockup-rail-icon">${mockupIcons.gear}</div>
+        </div>` : '';
+        const ringsHtml = (rings && rings.length)
+            ? `<div class="mockup-rings">${rings.map(r => mockupRing(r.percent, r.hex, r.value)).join('')}</div>`
+            : '';
+        const rowsHtml = rows.map(mockupRow).join('');
+        return `<div class="feature-card mockup-panel w-full lg:w-1/2" style="max-width: 420px;">
+            <div class="mockup-topbar">
+                <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot is-accent"></span>
+                <span class="mockup-topbar-label"><span data-i18n-pt>${topbarPt}</span><span data-i18n-en>${topbarEn}</span></span>
+            </div>
+            <div class="mockup-body">${railHtml}<div class="mockup-main">${ringsHtml}${rowsHtml}</div></div>
+        </div>`;
+    }
+
+    // Texto extraído do arquivo real de CSS do Figma (Hero css.txt) pras
+    // primeiras seções — não é mais aproximação por print. Cada seção:
+    // print (ou mockup, ver f.mockup no loop abaixo) à esquerda, texto à
+    // direita (empilha em telas pequenas). AutoModeração/Integração PoT/
+    // Dashboard Web (pedido do dono, 2026-08-03: "apresentar tudo que
+    // temos") usam f.mockup em vez de f.img — ainda sem print real, ver
+    // docblock da .mockup-panel no <style>.
     const features = [
         {
             img: 'screenshot-perfil', titlePt: 'PERFIL PRÉ-HISTÓRICO', titleEn: 'PREHISTORIC PROFILE',
@@ -361,12 +487,78 @@
             bodyPt: 'Cria eventos no canal desejado. Agenda o evento pelo Discord. Posta o evento e chama os players nos horários agendados. Cria comando de TP para o evento direto do Discord, bastando o jogador estar online.',
             bodyEn: 'Creates events in the desired channel. Schedules the event right on Discord. Posts the event and pings players at the scheduled time. Creates an in-Discord TP command for the event, as long as the player is online.',
         },
+        {
+            // Antes era só um bloco de texto sem imagem/mockup (única seção
+            // "nua" da página) — vira feature completa igual as outras,
+            // agora com mockup (sem print real ainda, ver docblock da
+            // .mockup-panel no <style>).
+            titlePt: 'AUTOMODERAÇÃO', titleEn: 'AUTO-MODERATION',
+            leadPt: 'Regras aplicadas sozinhas, sem a staff precisar estar de olho o tempo todo.',
+            leadEn: 'Rules enforced on their own, without staff needing to watch the clock.',
+            subPt: 'SEMPRE VIGIANDO', subEn: 'ALWAYS WATCHING',
+            bodyPt: 'Cargo temporário de strike aplicado e removido automaticamente. Cargos de reputação (Exemplar/Problemático) ajustados sozinhos conforme a pontuação do player, com recuperação diária de pontos. Filtro de palavras configurável, com ação automática no Discord ou direto no jogo via RCON.',
+            bodyEn: "Temporary strike role applied and removed automatically. Reputation roles (Exemplary/Problematic) adjusted on their own based on the player's score, with daily point recovery. Configurable word filter, with automatic action on Discord or straight in-game via RCON.",
+            mockup: mockupPanel({
+                topbarPt: 'AUTOMOD', topbarEn: 'AUTOMOD',
+                rows: [
+                    { icon: 'chat', labelPt: 'Palavra bloqueada', labelEn: 'Word blocked', subPt: 'filtro de chat · agora', subEn: 'chat filter · just now', pillPt: 'FILTRADO', pillEn: 'FILTERED', pillClass: 'is-red' },
+                    { icon: 'shield', labelPt: 'Cargo de Strike aplicado', labelEn: 'Strike role applied', subPt: 'expira automaticamente', subEn: 'expires automatically', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
+                    { icon: 'bolt', labelPt: 'Mute aplicado in-game', labelEn: 'In-game mute applied', subPt: 'via RCON · sem staff online', subEn: 'via RCON · no staff needed', pillPt: 'RCON', pillEn: 'RCON', pillClass: 'is-green' },
+                ],
+            }),
+        },
+        {
+            // Nova — hoje só aparecia como uma linha na tabela de Server
+            // Premium, sem uma seção narrativa própria como as outras.
+            titlePt: 'INTEGRAÇÃO PATH OF TITANS', titleEn: 'PATH OF TITANS INTEGRATION',
+            leadPt: 'Seu servidor de jogo e seu Discord conversando direto, sem gambiarra.',
+            leadEn: 'Your game server and your Discord talking directly, no workarounds needed.',
+            subPt: 'RCON E WEBHOOKS', subEn: 'RCON & WEBHOOKS',
+            bodyPt: 'Conecta direto no seu servidor via RCON para aplicar punições, comandos de buff e teleporte de evento sem precisar entrar no jogo. Recebe logs de login e combate por webhook, trazendo contexto real do jogo para os reports.',
+            bodyEn: 'Connects straight to your server via RCON to apply punishments, buff commands, and event teleports without ever opening the game. Receives login and combat logs via webhook, bringing real in-game context into reports.',
+            mockup: mockupPanel({
+                topbarPt: 'CONEXÃO RCON', topbarEn: 'RCON CONNECTION',
+                rows: [
+                    { icon: 'link', labelPt: 'Servidor conectado', labelEn: 'Server connected', subPt: 'RCON ativo', subEn: 'RCON active', pillPt: 'ONLINE', pillEn: 'ONLINE', pillClass: 'is-green' },
+                    { icon: 'bolt', labelPt: 'Comando de buff disparado', labelEn: 'Buff command triggered', subPt: 'aplicado direto no jogo', subEn: 'applied straight in-game', pillPt: 'RCON', pillEn: 'RCON', pillClass: 'is-gold' },
+                    { icon: 'chat', labelPt: 'Webhook de combate recebido', labelEn: 'Combat webhook received', subPt: 'relatório de dano gerado', subEn: 'damage report generated', pillPt: 'WEBHOOK', pillEn: 'WEBHOOK', pillClass: 'is-gold' },
+                ],
+            }),
+        },
+        {
+            // Nova — o Dashboard Web nunca teve NENHUMA seção própria na
+            // Hero, mesmo já sendo uma parte grande do produto hoje
+            // (Moderação/Reports/Eventos, tudo com dados em tempo real).
+            titlePt: 'DASHBOARD WEB', titleEn: 'WEB DASHBOARD',
+            leadPt: 'Um painel completo para sua staff administrar tudo fora do Discord, com dados em tempo real.',
+            leadEn: 'A full panel for your staff to manage everything outside Discord, with real-time data.',
+            subPt: 'GESTÃO CENTRALIZADA', subEn: 'CENTRALIZED MANAGEMENT',
+            bodyPt: 'Acesse pelo navegador com sua conta do Discord: acompanhe punições, denúncias e eventos, veja quem da staff está online ou em modo espectador, e receba alertas de reports pendentes — tudo atualizado sozinho, sem precisar dar F5. Busca e paginação na lista de denúncias, com o cargo de cada staff mostrado automaticamente.',
+            bodyEn: "Log in from your browser with your Discord account: track punishments, reports, and events, see which staff are online or in spectator mode, and get alerts for pending reports — everything updates on its own, no refresh needed. Search and pagination on the report list, with each staff member's role shown automatically.",
+            mockup: mockupPanel({
+                topbarPt: 'PAINEL WEB', topbarEn: 'WEB PANEL',
+                showRail: true,
+                rings: [
+                    { percent: 70, hex: '#DCA15E', value: '7/10' },
+                    { percent: 20, hex: '#FF4E3B', value: '2' },
+                    { percent: 85, hex: '#7EC47C', value: '85%' },
+                ],
+                rows: [
+                    { icon: 'chat', labelPt: 'Denúncia #R128', labelEn: 'Report #R128', subPt: 'aberta agora · aguardando staff', subEn: 'just opened · awaiting staff', pillPt: 'ABERTO', pillEn: 'OPEN', pillClass: 'is-red' },
+                    { icon: 'check', labelPt: 'Denúncia #R127', labelEn: 'Report #R127', subPt: 'fechada · staff validado por cargo', subEn: 'closed · staff validated by role', pillPt: 'FECHADO', pillEn: 'CLOSED', pillClass: 'is-green' },
+                ],
+            }),
+        },
     ];
     %>
 
     <% features.forEach((f, i) => { %>
         <div class="w-full flex flex-col <%= i % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse' %> items-center gap-10" style="max-width: 1100px;">
-            <img src="/images/landing/<%= f.img %>.webp" alt="" class="feature-card w-full lg:w-1/2" style="max-width: 420px; height: auto;">
+            <% if (f.mockup) { %>
+                <%- f.mockup %>
+            <% } else { %>
+                <img src="/images/landing/<%= f.img %>.webp" alt="" class="feature-card w-full lg:w-1/2" style="max-width: 420px; height: auto;">
+            <% } %>
             <div class="w-full lg:w-1/2 flex flex-col gap-3">
                 <% if (!f.noHeading) { %>
                     <h2 class="section-title text-shadow-figma"><span data-i18n-pt><%= f.titlePt %></span><span data-i18n-en><%= f.titleEn %></span></h2>
@@ -395,15 +587,6 @@
             </div>
         </div>
     <% }); %>
-
-    <!-- AutoModeração — bloco só de texto (assim como no design original) -->
-    <div class="w-full flex flex-col items-center text-center gap-3" style="max-width: 1100px;">
-        <h2 class="section-title text-shadow-figma"><span data-i18n-pt>AUTOMODERAÇÃO</span><span data-i18n-en>AUTO-MODERATION</span></h2>
-        <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; max-width: 800px;" class="text-shadow-figma">
-            <span data-i18n-pt>Cargo temporário de strike. Maneja automaticamente cargos de reputação de acordo com a pontuação do player. Aplica ações de punição como ban/kick e mute no Discord ou no jogo via RCON.</span>
-            <span data-i18n-en>Temporary strike role. Automatically manages reputation roles based on the player's score. Applies punishment actions like ban/kick and mute on Discord or in-game via RCON.</span>
-        </p>
-    </div>
 
     <!-- Análise e Histórico de Atividade Staff — dois prints empilhados + texto -->
     <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
