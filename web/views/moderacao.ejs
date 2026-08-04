@@ -52,7 +52,7 @@
                         <i data-lucide="shield-alert" class="outline-chip-icon"></i>
                         <div class="outline-chip-text">
                             <span class="outline-chip-headline"><%= r.report_id %></span>
-                            <span class="outline-chip-subtitle">Aguardando staff — aberto por <@<%= r.user_id %>> em <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
+                            <span class="outline-chip-subtitle">Aguardando staff — aberto por <%= r.discordUsername %> em <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                         </div>
                     </div>
                 <% }); %>

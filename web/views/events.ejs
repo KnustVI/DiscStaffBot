@@ -123,25 +123,9 @@
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Eventos</h3>
                     <p class="text-xs opacity-50 mb-3">Usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.</p>
                     <label class="text-xs opacity-60">Equipe de Eventos</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="shield"></i></div>
-                        <select name="event_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= eventRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
+                    <%- include('partials/role-picker', { id: 'event-role', name: 'event_role', roles, selectedIds: eventRoleIds, limit: eventRoleLimits.event, icon: 'shield' }) %>
                     <label class="text-xs opacity-60">Notificação de Eventos</label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="megaphone"></i></div>
-                        <select name="event_notify_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
-                            <% roles.forEach(r => { %>
-                                <option value="<%= r.id %>" <%= eventNotifyRoleIds.includes(r.id) ? 'selected' : '' %>><%= r.name %></option>
-                            <% }); %>
-                        </select>
-                    </div>
+                    <%- include('partials/role-picker', { id: 'event-notify-role', name: 'event_notify_role', roles, selectedIds: eventNotifyRoleIds, limit: eventRoleLimits.eventNotify, icon: 'megaphone' }) %>
                 </div>
             </section>
 
@@ -178,5 +162,6 @@
 
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script src="/js/ingame-pulse-poll.js"></script>
+    <script src="/js/role-picker.js"></script>
 </body>
 </html>

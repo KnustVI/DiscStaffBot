@@ -11,6 +11,7 @@ const imageManager = require('../../utils/imageManager');
 const PremiumSystem = require('../premium/premiumSystem');
 const { buildIdentityBlock } = require('../../utils/userIdentity');
 const PunishmentLevels = require('./punishmentLevels');
+const ErrorLogger = require('../core/errorLogger');
 
 // Convenção pra "alvo sem conta Discord conhecida" (ver /strike ingame e
 // /strike personalizado com só AGID informado, sem vínculo /registrar) —
@@ -919,7 +920,16 @@ const PunishmentSystem = {
                     await logChannel.send({ components, flags: [flags], files: filesPayload });
                     logSent = true;
                 }
-            } catch (err) {}
+            } catch (err) {
+                // Antes engolia o erro por completo (catch (err) {} vazio) —
+                // logSent ficava false mas ninguém, nem o staff nem o
+                // servidor de logs, sabia POR QUE (permissão faltando,
+                // canal apagado, payload rejeitado etc.). Loga via
+                // ErrorLogger (mesmo sink central de erro do resto do bot)
+                // sem propagar — falha aqui não pode derrubar o strike em
+                // si, que já foi aplicado com sucesso antes deste bloco.
+                ErrorLogger.error('punishment', '_executeStrike:logChannel.send', err, { guildId: guild.id, logChannelId });
+            }
         }
 
         const roleStatusMsg = roleResult.applied

@@ -738,23 +738,60 @@ function findEncounterLocation(encounter) {
  * TextDisplay só — é isso que evita "1 componente por item" (a raiz do bug
  * de combates grandes estourarem o limite de 40 componentes de um
  * Container, ver buildDamageReportPayload).
+ *
+ * CONFIRMADO ao vivo (produção): um ITEM sozinho maior que maxChars (ex:
+ * um segmento de dano com muitos tipos distintos golpeando o mesmo par de
+ * jogadores — cada tipo vira uma linha própria via typeLines, sem teto)
+ * ainda estourava o limite de ~4000 caracteres de um TextDisplay e
+ * derrubava a mensagem inteira com 400 BASE_TYPE_BAD_LENGTH — a versão
+ * antiga só fechava o bloco ANTES de um item grande, mas empurrava ele
+ * inteiro pro próximo bloco do mesmo jeito, sem quebrá-lo. Agora, um item
+ * maior que maxChars é quebrado nas próprias quebras de linha internas
+ * (cada linha vira um "item" independente); se mesmo uma linha só ainda
+ * assim passar do limite (praticamente nunca deve acontecer, dado o
+ * tamanho das linhas que este arquivo gera), corta bruto em pedaços de
+ * maxChars como último recurso — nunca devolve um bloco maior que
+ * maxChars, custe o que custar.
  */
 function chunkIntoBlocks(items, maxChars) {
     const SEP = '\n';
     const blocks = [];
     let current = [];
     let currentLen = 0;
-    for (const item of items) {
-        const addedLen = item.length + (current.length > 0 ? SEP.length : 0);
-        if (current.length > 0 && currentLen + addedLen > maxChars) {
+
+    const flush = () => {
+        if (current.length > 0) {
             blocks.push(current.join(SEP));
             current = [];
             currentLen = 0;
         }
-        current.push(item);
-        currentLen += item.length + (current.length > 1 ? SEP.length : 0);
+    };
+
+    const pushPiece = (piece) => {
+        const addedLen = piece.length + (current.length > 0 ? SEP.length : 0);
+        if (current.length > 0 && currentLen + addedLen > maxChars) flush();
+        current.push(piece);
+        currentLen += piece.length + (current.length > 1 ? SEP.length : 0);
+    };
+
+    for (const item of items) {
+        if (item.length <= maxChars) {
+            pushPiece(item);
+            continue;
+        }
+        flush();
+        for (const line of item.split(SEP)) {
+            if (line.length <= maxChars) {
+                pushPiece(line);
+                continue;
+            }
+            for (let i = 0; i < line.length; i += maxChars) {
+                pushPiece(line.slice(i, i + maxChars));
+            }
+        }
+        flush();
     }
-    if (current.length > 0) blocks.push(current.join(SEP));
+    flush();
     return blocks;
 }
 

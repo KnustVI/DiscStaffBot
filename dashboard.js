@@ -536,6 +536,25 @@ function loadDashboard(client) {
         return DASHBOARD_LOCKED_TO_OWNER && req.user.id !== DEVELOPER_ID;
     }
 
+    // Busca o GuildMember + checa Administrator, DISTINGUINDO falha da API
+    // (fetch() rejeitou — timeout, 5xx, rate limit) de "realmente não é
+    // admin" (fetch funcionou, member existe, só não tem a permissão). Toda
+    // rota de guild fazia guild.members.fetch(...).catch(() => null) e
+    // tratava os dois casos IDENTICAMENTE como "sem permissão" — um admin
+    // de verdade podia ser bounceado/bloqueado silenciosamente por um erro
+    // passageiro da API do Discord, sem nenhuma pista do motivo real (nem
+    // no log do servidor). Cada rota decide sozinha a resposta em cima de
+    // apiError (mensagem diferente de "acesso negado"), mas todas passam a
+    // logar o erro de verdade em vez de engolir com .catch(() => null).
+    async function resolveAdminMember(guild, userId) {
+        try {
+            const member = await guild.members.fetch(userId);
+            return { member, isAdmin: member.permissions.has('Administrator'), apiError: null };
+        } catch (apiError) {
+            return { member: null, isAdmin: false, apiError };
+        }
+    }
+
     // Middleware para injetar dados globais em todos os templates EJS
     app.use((req, res, next) => {
         res.locals.user = req.user || null;
@@ -629,7 +648,7 @@ function loadDashboard(client) {
             return { type, label, images };
         }));
 
-        res.render('dev-image-pool', { groups });
+        res.render('dev-image-pool', { groups, saved: req.query.saved });
     });
 
     app.post('/dev/image-pool/:type/:id/toggle', checkAuth, async (req, res) => {
@@ -654,15 +673,23 @@ function loadDashboard(client) {
             const { type } = req.params;
             if (!ProfileImagePool.VALID_TYPES.includes(type)) return res.status(400).send('Tipo de pool inválido.');
 
+            // Antes redirecionava pra /dev/image-pool sem feedback nenhum em
+            // qualquer caso de falha (nome vazio, sem arquivo, ou
+            // storeImageBuffer falhando ao repostar no canal de
+            // armazenamento) — parecia que o upload funcionou mesmo quando
+            // não funcionou. Agora usa o mesmo overlay ?saved=success/error
+            // já usado em Moderação/Eventos (ver partials/save-result-overlay.ejs).
             const label = (req.body.label || '').trim();
             const file = req.file;
+            let ok = false;
             if (label && file) {
                 const result = await storeImageBuffer(client, file.buffer, `${type} (pool) — "${label}" adicionado via dashboard por \`${req.user.username}\``);
                 if (result.ok) {
                     ProfileImagePool.addImage(type, label, result.messageId, req.user.id);
+                    ok = true;
                 }
             }
-            res.redirect('/dev/image-pool');
+            res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
         }
     );
 
@@ -697,8 +724,12 @@ function loadDashboard(client) {
 
         if (!guild) return res.redirect('/dashboard');
 
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.redirect('/dashboard');
 
         // Dados do DB para a Dashboard
         const repData = db.prepare("SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?").get(guildID, req.user.id);
@@ -718,8 +749,12 @@ function loadDashboard(client) {
         const guild = client.guilds.cache.get(guildID);
 
         if (!guild) return res.redirect('/dashboard');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.redirect('/dashboard');
 
         const settingsRows = db.prepare("SELECT key, value FROM settings WHERE guild_id = ?").all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
@@ -740,8 +775,12 @@ function loadDashboard(client) {
         const guild = client.guilds.cache.get(guildID);
 
         if (!guild) return res.status(404).send("Guild não encontrada.");
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has("Administrator")) return res.status(403).send("Acesso negado.");
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send("Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.");
+        }
+        if (!isAdmin) return res.status(403).send("Acesso negado.");
 
         const upsert = db.prepare(`
             INSERT INTO settings (guild_id, key, value) 
@@ -776,8 +815,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('');
+        }
+        if (!isAdmin) return res.status(403).send('');
 
         const pulse = await getServerPulse(guildID, guild);
         res.render('partials/ingame-pulse', {
@@ -796,8 +839,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('');
+        }
+        if (!isAdmin) return res.status(403).send('');
 
         const stats = getModerationStats(guildID, client.user.id);
         res.render('partials/moderation-stats', stats);
@@ -810,8 +857,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('');
+        }
+        if (!isAdmin) return res.status(403).send('');
 
         const state = parseReportsQueryState(req.query);
         const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, state);
@@ -824,14 +875,22 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.redirect('/dashboard');
 
         const pulse = await getServerPulse(guildID, guild);
 
+        // discordUsername resolvido aqui (mesma resolveUserDisplayName usada
+        // por getReportsData) — o card usava "<@user_id>", sintaxe de menção
+        // do PRÓPRIO Discord, que não resolve fora dele e aparecia como
+        // texto cru na tela (mesmo bug já corrigido na lista de Denúncias).
         const openReportsAlert = db.prepare(
             "SELECT report_id, user_id, created_at FROM reports WHERE guild_id = ? AND status = 'waiting' ORDER BY created_at DESC"
-        ).all(guildID);
+        ).all(guildID).map(r => ({ ...r, discordUsername: resolveUserDisplayName(client, r.user_id) }));
 
         const { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments } = getModerationStats(guildID, client.user.id);
 
@@ -907,8 +966,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('Guild não encontrada.');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
 
         // Só grava as chaves que vieram NESTE submit (checagem "in body") —
         // defensivo mesmo com 1 form só hoje, não custa nada manter.
@@ -923,12 +986,22 @@ function loadDashboard(client) {
             // toArray. Limite reaplicado aqui (defesa em profundidade: mesmo
             // limite do tier, ver PremiumSystem.getRoleLimit) — o picker já
             // trava no client, mas um POST forjado não passa por ele.
+            // staff_role/supervisor_role SEMPRE processados, sem checagem "in
+            // body" — o role-picker em modo chips (limit > 1) não renderiza
+            // NENHUM <input> quando o usuário remove todos os cargos antes de
+            // salvar, então 'staff_role' in body dava false e o save virava
+            // um no-op silencioso (config antiga continuava valendo mesmo com
+            // a tela mostrando "salvo"). O <form> desta página sempre inclui
+            // os dois role-picker por inteiro (nunca em aba separada/removido
+            // do DOM via JS, ver moderacao.ejs), então ausência do campo aqui
+            // só pode significar "0 cargos selecionados", nunca "campo fora
+            // deste submit" — toArray cobre esse caso devolvendo [].
             const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
-            if ('staff_role' in body) {
+            {
                 const limit = PremiumSystem.getRoleLimit(guildID, 'moderador');
                 ConfigSystem.setRoleIds(guildID, 'staff_role', toArray(body.staff_role).filter(Boolean).slice(0, limit));
             }
-            if ('supervisor_role' in body) {
+            {
                 const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
                 ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
             }
@@ -998,8 +1071,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.redirect('/dashboard');
 
         const pulse = await getServerPulse(guildID, guild);
         const reportsState = parseReportsQueryState(req.query);
@@ -1058,8 +1135,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('Guild não encontrada.');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
 
         const body = req.body;
         const bannerFile = req.file;
@@ -1110,8 +1191,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.redirect('/dashboard');
 
         const pulse = await getServerPulse(guildID, guild);
 
@@ -1133,6 +1218,13 @@ function loadDashboard(client) {
         const channels = [...guild.channels.cache.values()].filter(c => c.type === ChannelType.GuildText);
         const eventRoleIds = ConfigSystem.getRoleIds(guildID, 'event_role');
         const eventNotifyRoleIds = ConfigSystem.getRoleIds(guildID, 'event_notify_role');
+        // Mesmo limite por tier já usado no painel /config roles do Discord e
+        // em Moderação (ver configSystem.js ROLE_TABS.events.fields[*].
+        // roleLimitKey) — decide select simples vs chips em role-picker.ejs.
+        const eventRoleLimits = {
+            event: PremiumSystem.getRoleLimit(guildID, 'event'),
+            eventNotify: PremiumSystem.getRoleLimit(guildID, 'eventNotify'),
+        };
 
         res.render('events', {
             guild,
@@ -1149,6 +1241,7 @@ function loadDashboard(client) {
             channels,
             eventRoleIds,
             eventNotifyRoleIds,
+            eventRoleLimits,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
             saved: req.query.saved,
         });
@@ -1159,13 +1252,27 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('Guild não encontrada.');
-        const member = await guild.members.fetch(req.user.id).catch(() => null);
-        if (!member || !member.permissions.has('Administrator')) return res.status(403).send('Acesso negado.');
+        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
 
         try {
-            const { event_role, event_notify_role, event_announce_channel } = req.body;
-            ConfigSystem.setRoleIds(guildID, 'event_role', event_role ? [event_role] : []);
-            ConfigSystem.setRoleIds(guildID, 'event_notify_role', event_notify_role ? [event_notify_role] : []);
+            // event_role/event_notify_role agora aceitam mais de um cargo em
+            // planos Rastreador/Caçador (role-picker.ejs, mesmo padrão de
+            // staff_role/supervisor_role em Moderação) — antes vinha sempre
+            // como valor único ([event_role]), truncando silenciosamente pra
+            // 1 cargo mesmo quando o tier configurado pelo Discord (/config
+            // roles) permitia mais. Limite reaplicado aqui (defesa em
+            // profundidade, mesmo motivo do bloco de Moderação).
+            const { event_announce_channel } = req.body;
+            const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
+            const eventLimit = PremiumSystem.getRoleLimit(guildID, 'event');
+            const eventNotifyLimit = PremiumSystem.getRoleLimit(guildID, 'eventNotify');
+            ConfigSystem.setRoleIds(guildID, 'event_role', toArray(req.body.event_role).filter(Boolean).slice(0, eventLimit));
+            ConfigSystem.setRoleIds(guildID, 'event_notify_role', toArray(req.body.event_notify_role).filter(Boolean).slice(0, eventNotifyLimit));
             // Canal de anúncios é exclusivo do plano Caçador (configSystem.js:113-119).
             if (PremiumSystem.isGuildAtLeast(guildID, 'cacador')) {
                 ConfigSystem.setSetting(guildID, 'event_announce_channel', event_announce_channel || null);

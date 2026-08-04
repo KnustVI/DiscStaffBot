@@ -4,6 +4,7 @@ const ReportChatSystem = require('../systems/moderation/reportChatSystem');
 const ConfigSystem = require('../systems/core/configSystem');
 const sessionManager = require('../utils/sessionManager');
 const { AdvancedContainerBuilder, COLORS } = require('../utils/containerBuilder');
+const ErrorLogger = require('../systems/core/errorLogger');
 
 let EMOJIS = {};
 try {
@@ -485,7 +486,19 @@ module.exports = {
                     // o formato da mensagem original.
                     await interaction.followUp({ content: message, flags: 64 });
                 }
-            } catch (err) {}
+            } catch (err) {
+                // Antes engolia por completo (catch (err) {} vazio) — se até
+                // a resposta de recuperação falhasse (ex: interação expirou
+                // nesse meio-tempo, token inválido), o usuário ficava com a
+                // interação "pensando..." pra sempre E não sobrava rastro
+                // nenhum de qual foi o segundo erro (só o original, alguns
+                // logs acima). Loga via ErrorLogger sem propagar — é
+                // best-effort mesmo, não há mais nada a tentar aqui.
+                ErrorLogger.error('interaction_create', 'errorRecoveryReply', err, {
+                    interactionId: interaction.id,
+                    originalError: error?.message,
+                });
+            }
         }
     }
 };
