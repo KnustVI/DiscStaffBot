@@ -226,6 +226,17 @@ class DatabaseManager {
             // existentes não perdem nenhuma imagem que já estava visível.
             this.ensureColumn('profile_image_pool', 'is_public', 'INTEGER NOT NULL DEFAULT 1');
 
+            // Colunas nunca lidas/escritas em lugar nenhum do código
+            // (confirmado por auditoria) — schema.js já não as declara mais
+            // pra bancos novos; isso aqui remove de bancos já existentes.
+            // Idempotente (ver dropColumnIfExists): se a coluna já não
+            // existir, ignora.
+            this.dropColumnIfExists('users', 'is_bot');
+            this.dropColumnIfExists('guilds', 'settings');
+            this.dropColumnIfExists('activity_logs', 'ip_address');
+            this.dropColumnIfExists('temporary_roles', 'punishment_guild_id');
+            this.dropColumnIfExists('temporary_roles', 'punishment_number');
+
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —
             // ver PremiumSystem.GUILD_TIERS). Idempotente: depois da primeira
@@ -262,7 +273,22 @@ class DatabaseManager {
             // Coluna já existe (ou tabela ainda não existe) — ignorar.
         }
     }
-    
+
+    // Contrário de ensureColumn — remove uma coluna morta de uma tabela já
+    // existente (schema.js sozinho só afeta bancos NOVOS, CREATE TABLE IF
+    // NOT EXISTS não altera tabelas que já existem). Idempotente: se a
+    // coluna já não existir (ou a tabela ainda não existir), ignora.
+    // Requer SQLite ≥3.35 (ALTER TABLE ... DROP COLUMN) — a versão
+    // empacotada com better-sqlite3 já é bem mais nova que isso.
+    dropColumnIfExists(table, column) {
+        try {
+            this.db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+            console.log(`   🗑️ Coluna ${table}.${column} removida (não usada em nenhum lugar do código)`);
+        } catch (err) {
+            // Coluna já não existe (ou tabela ainda não existe) — ignorar.
+        }
+    }
+
     // Verificar se uma tabela existe
     tableExists(tableName) {
         const result = this.db.prepare(`
@@ -338,22 +364,22 @@ class DatabaseManager {
     }
     
     // Registrar atividade
-    logActivity(guildId, userId, action, targetId = null, details = null, ipAddress = null) {
+    logActivity(guildId, userId, action, targetId = null, details = null) {
         if (!this.tableExists('activity_logs')) {
             this.createAllTables();
         }
-        
+
         const uuid = this.generateUUID();
-        
+
         try {
             this.prepare(`
-                INSERT INTO activity_logs (uuid, guild_id, user_id, action, target_id, details, ip_address, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(uuid, guildId, userId, action, targetId, details ? JSON.stringify(details) : null, ipAddress, Date.now());
+                INSERT INTO activity_logs (uuid, guild_id, user_id, action, target_id, details, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).run(uuid, guildId, userId, action, targetId, details ? JSON.stringify(details) : null, Date.now());
         } catch (err) {
             console.error('❌ Erro ao registrar atividade:', err.message);
         }
-        
+
         return uuid;
     }
     
@@ -444,6 +470,6 @@ module.exports.ensureUser = (userId, username, discriminator, avatar) =>
     defaultInstance.ensureUser(userId, username, discriminator, avatar);
 module.exports.ensureGuild = (guildId, name, icon, ownerId) => 
     defaultInstance.ensureGuild(guildId, name, icon, ownerId);
-module.exports.logActivity = (guildId, userId, action, targetId, details, ip) => 
-    defaultInstance.logActivity(guildId, userId, action, targetId, details, ip);
+module.exports.logActivity = (guildId, userId, action, targetId, details) =>
+    defaultInstance.logActivity(guildId, userId, action, targetId, details);
 module.exports.getStats = () => defaultInstance.getStats();

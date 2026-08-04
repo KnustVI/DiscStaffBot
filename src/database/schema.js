@@ -10,8 +10,7 @@ const SCHEMA = {
             avatar TEXT,
             created_at INTEGER,
             first_seen INTEGER DEFAULT (strftime('%s', 'now')),
-            last_seen INTEGER DEFAULT (strftime('%s', 'now')),
-            is_bot INTEGER DEFAULT 0
+            last_seen INTEGER DEFAULT (strftime('%s', 'now'))
         )
     `,
 
@@ -22,8 +21,7 @@ const SCHEMA = {
             name TEXT,
             icon TEXT,
             owner_id TEXT,
-            joined_at INTEGER DEFAULT (strftime('%s', 'now')),
-            settings TEXT
+            joined_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
     `,
 
@@ -163,7 +161,6 @@ const SCHEMA = {
             action TEXT NOT NULL,
             target_id TEXT,
             details TEXT,
-            ip_address TEXT,
             created_at INTEGER NOT NULL
         )
     `,
@@ -175,8 +172,6 @@ const SCHEMA = {
             guild_id TEXT NOT NULL,
             user_id TEXT NOT NULL,
             role_id TEXT NOT NULL,
-            punishment_guild_id TEXT,
-            punishment_number INTEGER,
             expires_at INTEGER NOT NULL,
             created_at INTEGER DEFAULT (strftime('%s', 'now'))
         )
