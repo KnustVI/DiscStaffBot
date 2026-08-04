@@ -26,11 +26,11 @@
 </head>
 <body class="flex min-h-screen">
 
-    <aside class="shrink-0 h-screen sticky top-0 py-[30px] pl-[30px] hidden lg:block">
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
         <%- include('partials/sidebar-v2', { active: 'moderacao', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false }) %>
     </aside>
 
-    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px] overflow-y-auto">
 
         <%- include('partials/page-header', { guild, pageLabel: 'MODERAÇÃO', pageRoute, otherGuilds }) %>
 

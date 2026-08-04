@@ -320,8 +320,19 @@
     /* Sempre responsivo (padrão do site): telas estreitas começam
        colapsadas por padrão (só ícones), mesmo sem preferência salva —
        o JS abaixo ainda respeita uma preferência explícita do usuário se
-       existir, isso aqui é só o valor inicial em telas pequenas. */
-    @media (max-width: 640px) {
+       existir, isso aqui é só o valor inicial em telas pequenas.
+
+       Breakpoint 1023px (não 640px) — pedido do dono, 2026-08-04:
+       "sidebar não está sendo responsiva, sumindo em telas pequenas". A
+       causa raiz era o <aside> de moderacao.ejs/reports.ejs/events.ejs
+       vir com "hidden lg:block" (Tailwind), escondendo a sidebar INTEIRA
+       abaixo de 1024px — sem fallback nenhum, perdendo toda a navegação
+       em tablet/celular. Removido esse "hidden" (sidebar sempre visível
+       agora); este breakpoint sobe de 640 pra 1023px pra cobrir
+       exatamente a faixa que antes ficava sem nada — assim que o
+       <aside> deixa de estar sempre expandido em telas médias, ele já
+       nasce colapsado (só ícones) em vez de espremer o conteúdo. */
+    @media (max-width: 1023px) {
         .tp-sidebar:not([data-user-set]) { width: var(--tp-w-collapsed); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: 20px; gap: 30px; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: 60px; }
