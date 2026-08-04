@@ -231,13 +231,73 @@ function resolveStaffRoleLabel(client, guildId, userId) {
     return highestStaffRoleName(guildId, member) || 'Não é staff';
 }
 
+// Pedido do dono: "reports pode virar uma lista enorme no futuro" — cada
+// seção (abertos/fechados) pagina em REPORTS_PAGE_SIZE (10) e aceita busca
+// por report_id (ex: "R123"/"123", bate por substring no '#R'||report_number
+// gerado) ou pelo nome de usuário de quem ABRIU o report (via tabela
+// `users`, mantida atualizada pelo ensureUser em toda interação — quem abre
+// um report necessariamente já interagiu com o bot). Filtro/paginação
+// direto no SQL (LIMIT/OFFSET), não em JS, pra escalar mesmo com muitos
+// reports — nunca carrega a tabela inteira só pra filtrar.
+const REPORTS_PAGE_SIZE = 10;
+
+function queryReportsSection(guildId, statusSql, orderBySql, search, rawPage) {
+    let where = `guild_id = ? AND ${statusSql}`;
+    const params = [guildId];
+    if (search) {
+        where += ` AND (report_id LIKE ? OR user_id IN (SELECT user_id FROM users WHERE username LIKE ?))`;
+        const like = `%${search}%`;
+        params.push(like, like);
+    }
+    const total = db.prepare(`SELECT COUNT(*) c FROM reports WHERE ${where}`).get(...params).c;
+    const totalPages = Math.max(1, Math.ceil(total / REPORTS_PAGE_SIZE));
+    const page = Math.min(Math.max(1, rawPage), totalPages);
+    const offset = (page - 1) * REPORTS_PAGE_SIZE;
+    const rows = db.prepare(
+        `SELECT * FROM reports WHERE ${where} ORDER BY ${orderBySql} LIMIT ? OFFSET ?`
+    ).all(...params, REPORTS_PAGE_SIZE, offset);
+    return { rows, total, totalPages, page, search };
+}
+
+// Estado de paginação/busca lido da query string (?openPage=&openSearch=&
+// closedPage=&closedSearch=) — usado tanto por GET /reports/:guildID
+// quanto por GET /fragments/reports-list/:guildID, pra manter as 2 seções
+// independentes entre si e sobreviver ao poll em tempo real (ver
+// buildReportsQueryString abaixo).
+function parseReportsQueryState(query) {
+    const toPage = (v) => {
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) && n > 0 ? n : 1;
+    };
+    return {
+        openPage: toPage(query.openPage),
+        openSearch: (query.openSearch || '').toString().trim(),
+        closedPage: toPage(query.closedPage),
+        closedSearch: (query.closedSearch || '').toString().trim(),
+    };
+}
+
+// Monta a query string a partir do estado JÁ RESOLVIDO (página clampada,
+// busca já aplicada) — usado pra montar a URL do fragment de poll, que
+// precisa continuar buscando a MESMA página/busca a cada refresh de 15s
+// (ver reports.ejs data-poll-url), não resetar pro padrão a cada poll.
+function buildReportsQueryString({ openPage, openSearch, closedPage, closedSearch }) {
+    const params = new URLSearchParams();
+    if (openPage > 1) params.set('openPage', openPage);
+    if (openSearch) params.set('openSearch', openSearch);
+    if (closedPage > 1) params.set('closedPage', closedPage);
+    if (closedSearch) params.set('closedSearch', closedSearch);
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+}
+
 // getModerationStats acima: reaproveitado pelo carregamento normal de
 // /reports/:guildID e pelo fragment de poll (GET
 // /fragments/reports-list/:guildID). Precisa do client pra resolver nome
 // do Discord de quem abriu/fechou/apagou o tópico (ver
 // resolveUserDisplayName acima) — pedido do dono: a lista não mostrava
 // nem o nome do Discord nem o nome em jogo do jogador antes disso.
-function getReportsData(guildId, client) {
+function getReportsData(guildId, client, state) {
     const enrich = (row) => {
         const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(row.user_id);
         return {
@@ -254,14 +314,15 @@ function getReportsData(guildId, client) {
         };
     };
 
-    const openReports = db.prepare(
-        "SELECT * FROM reports WHERE guild_id = ? AND status NOT LIKE 'closed%' ORDER BY created_at DESC"
-    ).all(guildId).map(enrich);
-    const closedReports = db.prepare(
-        "SELECT * FROM reports WHERE guild_id = ? AND status LIKE 'closed%' ORDER BY closed_at DESC LIMIT 30"
-    ).all(guildId).map(enrich);
+    const open = queryReportsSection(guildId, "status NOT LIKE 'closed%'", 'created_at DESC', state.openSearch, state.openPage);
+    const closed = queryReportsSection(guildId, "status LIKE 'closed%'", 'closed_at DESC', state.closedSearch, state.closedPage);
 
-    return { openReports, closedReports };
+    return {
+        openReports: open.rows.map(enrich),
+        openPagination: { page: open.page, totalPages: open.totalPages, total: open.total, search: open.search },
+        closedReports: closed.rows.map(enrich),
+        closedPagination: { page: closed.page, totalPages: closed.totalPages, total: closed.total, search: closed.search },
+    };
 }
 
 // Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
@@ -752,8 +813,9 @@ function loadDashboard(client) {
         const member = await guild.members.fetch(req.user.id).catch(() => null);
         if (!member || !member.permissions.has('Administrator')) return res.status(403).send('');
 
-        const { openReports, closedReports } = getReportsData(guildID, client);
-        res.render('partials/reports-list', { guild, openReports, closedReports });
+        const state = parseReportsQueryState(req.query);
+        const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, state);
+        res.render('partials/reports-list', { guild, openReports, openPagination, closedReports, closedPagination });
     });
 
     // ==================== MODERAÇÃO ====================
@@ -940,7 +1002,17 @@ function loadDashboard(client) {
         if (!member || !member.permissions.has('Administrator')) return res.redirect('/dashboard');
 
         const pulse = await getServerPulse(guildID, guild);
-        const { openReports, closedReports } = getReportsData(guildID, client);
+        const reportsState = parseReportsQueryState(req.query);
+        const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, reportsState);
+        // URL do fragment de poll (ver reports.ejs data-poll-url) já com a
+        // página/busca atuais embutidas — sem isso, o refresh de 15s
+        // resetaria a seção pra página 1/sem busca a cada poll.
+        const reportsFragmentUrl = `/fragments/reports-list/${guildID}${buildReportsQueryString({
+            openPage: openPagination.page,
+            openSearch: openPagination.search,
+            closedPage: closedPagination.page,
+            closedSearch: closedPagination.search,
+        })}`;
 
         // Personalização do Report-Chat (bloco do /config personalizar do
         // Discord, ver configSystem.js refreshPersonalizarPanel) mora aqui
@@ -964,7 +1036,10 @@ function loadDashboard(client) {
             otherGuilds: getAdminGuildsWithBot(req),
             pulse,
             openReports,
+            openPagination,
             closedReports,
+            closedPagination,
+            reportsFragmentUrl,
             settings,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
             reportChatBannerKey,

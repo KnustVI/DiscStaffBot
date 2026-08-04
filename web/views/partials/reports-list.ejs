@@ -6,13 +6,17 @@
   dashboard.js), pedido do dono ("chats de reportes" também em tempo
   real).
 
-  Uso: include( partials/reports-list , { guild, openReports, closedReports } )
-    guild         — precisa de guild.id pro link "Investigar" (canal/thread)
-    openReports   — array já enriquecido (agid/playerName/discordUsername/
-                    discordRoleLabel/closedByName/closedByRoleLabel/
-                    threadDeletedByName/threadDeletedByRoleLabel/
-                    statusLabel), ver dashboard.js:getReportsData()
-    closedReports — idem, filtrado por status fechado
+  Uso: include( partials/reports-list , { guild, openReports, openPagination, closedReports, closedPagination } )
+    guild            — precisa de guild.id pro link "Investigar" (canal/
+                       thread) e pra montar as URLs de busca/paginação
+    openReports      — array já enriquecido (agid/playerName/discordUsername/
+                       discordRoleLabel/closedByName/closedByRoleLabel/
+                       threadDeletedByName/threadDeletedByRoleLabel/
+                       statusLabel) — já vem SÓ com a página atual (10 por
+                       vez), ver dashboard.js:getReportsData()
+    openPagination   — { page, totalPages, total, search }
+    closedReports    — idem openReports, filtrado por status fechado
+    closedPagination — idem openPagination
 
   discordUsername/playerName (pedido do dono: a lista não mostrava nem um
   nem outro — "<@user_id>" é sintaxe de menção do PRÓPRIO Discord, não
@@ -34,15 +38,52 @@
   mesmo quando foi o sistema que fechou sozinho (thread apagada com o
   report ainda aberto — closed_by fica null nesse caso).
 
-  As classes .report-card/.report-status/.report-card-meta ficam no
-  <style> de reports.ejs (a página que sempre inclui este parcial), não
-  duplicadas aqui.
+  Busca/paginação (pedido do dono: "reports pode virar uma lista enorme no
+  futuro") — reportsHref() abaixo monta a URL da PÁGINA CHEIA
+  (/reports/:guildID), não do fragment: os controles de busca/paginação
+  sempre navegam via GET normal (sem JS/fetch), mesmo padrão do resto do
+  dashboard. Os 2 blocos são independentes (buscar/paginar Abertos não mexe
+  em Fechados e vice-versa) — cada formulário carrega a página/busca ATUAL
+  do outro bloco em campos hidden pra não resetá-lo.
+
+  As classes .report-card/.report-status/.report-card-meta/.report-search-*/
+  .report-page-* ficam no <style> de reports.ejs (a página que sempre
+  inclui este parcial), não duplicadas aqui.
+%>
+<%
+function reportsHref(overrides) {
+    const state = Object.assign({
+        openPage: openPagination.page,
+        openSearch: openPagination.search,
+        closedPage: closedPagination.page,
+        closedSearch: closedPagination.search,
+    }, overrides);
+    const params = new URLSearchParams();
+    if (state.openPage > 1) params.set('openPage', state.openPage);
+    if (state.openSearch) params.set('openSearch', state.openSearch);
+    if (state.closedPage > 1) params.set('closedPage', state.closedPage);
+    if (state.closedSearch) params.set('closedSearch', state.closedSearch);
+    const qs = params.toString();
+    return '/reports/' + guild.id + (qs ? '?' + qs : '');
+}
 %>
 <!-- REPORTES ABERTOS -->
 <section class="titan-card-premium flex-col gap-4">
-    <h2 class="section-title text-lg">Reportes Abertos</h2>
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <h2 class="section-title text-lg">Reportes Abertos</h2>
+        <form method="GET" action="/reports/<%= guild.id %>" class="report-search-form">
+            <input type="hidden" name="openPage" value="1">
+            <input type="hidden" name="closedPage" value="<%= closedPagination.page %>">
+            <input type="hidden" name="closedSearch" value="<%= closedPagination.search %>">
+            <input type="text" name="openSearch" value="<%= openPagination.search %>" placeholder="Buscar por ID ou usuário..." class="report-search-input">
+            <button type="submit" class="report-search-btn"><i data-lucide="search" class="w-4 h-4"></i></button>
+            <% if (openPagination.search) { %>
+                <a href="<%= reportsHref({ openSearch: '', openPage: 1 }) %>" class="report-search-clear">Limpar</a>
+            <% } %>
+        </form>
+    </div>
     <% if (openReports.length === 0) { %>
-        <p class="text-sm opacity-40">Nenhum reporte aberto no momento.</p>
+        <p class="text-sm opacity-40"><%= openPagination.search ? `Nenhum reporte encontrado para "${openPagination.search}".` : 'Nenhum reporte aberto no momento.' %></p>
     <% } else { %>
         <div class="flex flex-col gap-3">
             <% openReports.forEach(r => { %>
@@ -68,15 +109,42 @@
                 </div>
             <% }); %>
         </div>
+        <% if (openPagination.totalPages > 1) { %>
+            <div class="report-pagination">
+                <% if (openPagination.page > 1) { %>
+                    <a href="<%= reportsHref({ openPage: openPagination.page - 1 }) %>" class="report-page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</a>
+                <% } else { %>
+                    <span class="report-page-btn disabled"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</span>
+                <% } %>
+                <span class="report-page-info">Página <%= openPagination.page %> de <%= openPagination.totalPages %> (<%= openPagination.total %> reportes)</span>
+                <% if (openPagination.page < openPagination.totalPages) { %>
+                    <a href="<%= reportsHref({ openPage: openPagination.page + 1 }) %>" class="report-page-btn">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></a>
+                <% } else { %>
+                    <span class="report-page-btn disabled">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                <% } %>
+            </div>
+        <% } %>
     <% } %>
 </section>
 
 <!-- REPORTES FECHADOS -->
 <section class="titan-card-premium flex-col gap-4">
-    <h2 class="section-title text-lg">Reportes Fechados</h2>
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <h2 class="section-title text-lg">Reportes Fechados</h2>
+        <form method="GET" action="/reports/<%= guild.id %>" class="report-search-form">
+            <input type="hidden" name="closedPage" value="1">
+            <input type="hidden" name="openPage" value="<%= openPagination.page %>">
+            <input type="hidden" name="openSearch" value="<%= openPagination.search %>">
+            <input type="text" name="closedSearch" value="<%= closedPagination.search %>" placeholder="Buscar por ID ou usuário..." class="report-search-input">
+            <button type="submit" class="report-search-btn"><i data-lucide="search" class="w-4 h-4"></i></button>
+            <% if (closedPagination.search) { %>
+                <a href="<%= reportsHref({ closedSearch: '', closedPage: 1 }) %>" class="report-search-clear">Limpar</a>
+            <% } %>
+        </form>
+    </div>
     <p class="text-xs opacity-40 -mt-2">O Titan's Pass não guarda a conversa dos reportes fora do Discord — mantenha os tópicos criados para histórico.</p>
     <% if (closedReports.length === 0) { %>
-        <p class="text-sm opacity-40">Nenhum reporte fechado ainda.</p>
+        <p class="text-sm opacity-40"><%= closedPagination.search ? `Nenhum reporte encontrado para "${closedPagination.search}".` : 'Nenhum reporte fechado ainda.' %></p>
     <% } else { %>
         <div class="flex flex-col gap-3">
             <% closedReports.forEach(r => { %>
@@ -106,5 +174,20 @@
                 </div>
             <% }); %>
         </div>
+        <% if (closedPagination.totalPages > 1) { %>
+            <div class="report-pagination">
+                <% if (closedPagination.page > 1) { %>
+                    <a href="<%= reportsHref({ closedPage: closedPagination.page - 1 }) %>" class="report-page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</a>
+                <% } else { %>
+                    <span class="report-page-btn disabled"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</span>
+                <% } %>
+                <span class="report-page-info">Página <%= closedPagination.page %> de <%= closedPagination.totalPages %> (<%= closedPagination.total %> reportes)</span>
+                <% if (closedPagination.page < closedPagination.totalPages) { %>
+                    <a href="<%= reportsHref({ closedPage: closedPagination.page + 1 }) %>" class="report-page-btn">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></a>
+                <% } else { %>
+                    <span class="report-page-btn disabled">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                <% } %>
+            </div>
+        <% } %>
     <% } %>
 </section>
