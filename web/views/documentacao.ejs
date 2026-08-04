@@ -139,6 +139,25 @@
             scrollbar-width: thin;
             scrollbar-color: #803E30 transparent;
         }
+        /* Pedido do dono, 2026-08-04: "barra de navegação da documentação
+           sofre do mesmo problema" (a sidebar do dashboard também sumia
+           em telas pequenas, ver sidebar-v2.ejs) — a causa aqui era
+           parecida: .docs-toc vinha com "hidden lg:flex" e existia um
+           SEGUNDO componente paralelo só pra mobile (.docs-mobile-toc,
+           removido), com menos recursos (sem colapso por categoria,
+           fonte menor) — duas implementações que já tinham começado a
+           divergir uma da outra. Agora é UMA SÓ: abaixo de 1024px ela
+           sai da coluna lateral (sticky não faz sentido em largura
+           total) e vira um bloco normal, sempre visível, no topo do
+           conteúdo — mesmo <details> por categoria de sempre, só que
+           num cartão full-width em vez de coluna fixa de 230px. */
+        @media (max-width: 1023px) {
+            .docs-shell { flex-direction: column; gap: 20px; }
+            .docs-toc {
+                position: static; width: 100%; max-height: none; overflow: visible;
+                background: #1A1A1A; border: 1px solid #3E3D38; border-radius: 14px; padding: 4px 14px;
+            }
+        }
         .docs-toc::-webkit-scrollbar { width: 6px; }
         .docs-toc::-webkit-scrollbar-track { background: transparent; }
         .docs-toc::-webkit-scrollbar-thumb { background: #803E30; border-radius: 10px; }
@@ -172,21 +191,6 @@
         .toc-group[open] > summary::after { transform: rotate(90deg); }
         .toc-group[open] > summary { opacity: 0.9; }
         .toc-links { display: flex; flex-direction: column; padding-bottom: 6px; }
-
-        .docs-mobile-toc {
-            background: #1A1A1A; border: 1px solid #3E3D38; border-radius: 14px;
-            padding: 4px 18px; margin-bottom: 8px;
-        }
-        .docs-mobile-toc summary {
-            cursor: pointer; list-style: none;
-            font-family: 'Tilt Warp', sans-serif; font-size: 15px; letter-spacing: 0.5px;
-            padding: 14px 0; color: #DCA15E; text-transform: uppercase;
-        }
-        .docs-mobile-toc summary::-webkit-details-marker { display: none; }
-        .docs-mobile-toc[open] summary { border-bottom: 1px solid #3E3D38; }
-        .docs-mobile-toc-list { display: flex; flex-direction: column; padding: 10px 0 14px; }
-        .docs-mobile-toc-list a { font-family:'Poppins',sans-serif; font-size:13px; color:#F8DCC0; opacity:0.75; text-decoration:none; padding:6px 4px; }
-        .docs-mobile-toc-list .toc-cat { font-family:'Poppins',sans-serif; font-weight:700; font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; opacity:0.4; margin: 10px 4px 2px; }
 
         .docs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 60px; }
         section[id] { scroll-margin-top: 24px; }
@@ -417,8 +421,11 @@ const toc = [
 </div>
 
 <div class="docs-shell">
-    <!-- TOC desktop, sticky, categorias fechadas por padrão -->
-    <aside class="docs-toc hidden lg:flex">
+    <!-- TOC — sempre visível (pedido do dono: não pode sumir em telas
+         pequenas), sticky em coluna lateral no desktop, vira bloco
+         full-width no topo do conteúdo abaixo de 1024px (ver .docs-toc
+         no <style>). Categorias fecham por padrão nos dois casos. -->
+    <aside class="docs-toc">
         <% toc.forEach(group => { %>
             <details class="toc-group">
                 <summary><span data-i18n-pt><%= group.catPt %></span><span data-i18n-en><%= group.catEn %></span></summary>
@@ -430,17 +437,6 @@ const toc = [
     </aside>
 
     <main class="docs-main">
-        <!-- TOC mobile, colapsável -->
-        <details class="docs-mobile-toc lg:hidden">
-            <summary><span data-i18n-pt>Índice</span><span data-i18n-en>Index</span></summary>
-            <div class="docs-mobile-toc-list">
-                <% toc.forEach(group => { %>
-                    <span class="toc-cat"><span data-i18n-pt><%= group.catPt %></span><span data-i18n-en><%= group.catEn %></span></span>
-                    <% group.items.forEach(item => { %><a href="#<%= item.id %>"><% if (item.labelPt) { %><span data-i18n-pt><%= item.labelPt %></span><span data-i18n-en><%= item.labelEn %></span><% } else { %><%= item.label %><% } %></a><% }); %>
-                <% }); %>
-            </div>
-        </details>
-
         <!-- ===================== COMECE AQUI ===================== -->
         <section id="comece-aqui">
             <div class="docs-cat-header">
