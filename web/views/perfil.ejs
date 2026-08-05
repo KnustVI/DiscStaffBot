@@ -102,6 +102,31 @@
         .perfil-soon-card i { width: 32px; height: 32px; color: #803E30; }
         .perfil-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
         .perfil-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
+
+        /* Abas Perfil/Personalização (pedido do dono, 2026-08-05) — só
+           existem quando a conta está vinculada (sem link não tem stats
+           nem o que personalizar, ver bloco !link mais abaixo). Mesmo
+           visual de "aba ativa" já padronizado no resto do site
+           (.tp-sidebar-btn.active/.nav-btn.is-active: fundo #4B2427,
+           borda #DCA15E). JS troca só a classe is-active/is-hidden, sem
+           navegação/reload — mesmo estilo de script pequeno e autocontido
+           já usado em sidebar-v2.ejs (toggle)/page-header.ejs (switcher). */
+        .pf-tab-nav { display: flex; gap: 12px; flex-wrap: wrap; }
+        .pf-tab-btn {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 10px 24px;
+            border-radius: 15px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .pf-tab-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .pf-tab-btn.is-active { background: #4B2427; border-color: #DCA15E; }
+        .pf-tab-panel.is-hidden { display: none; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -157,30 +182,48 @@
             <section class="titan-card-premium flex-col gap-3">
                 <h2 class="section-title text-lg">Path of Titans</h2>
                 <p class="text-sm opacity-60">Sua conta Discord ainda não está vinculada a um jogador de Path of Titans.</p>
-                <p class="text-xs opacity-40">Use <code>/registrar</code> no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</p>
+                <p class="text-[13px] opacity-40">Use <code>/registrar</code> no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</p>
             </section>
         <% } else { %>
-            <section class="titan-card-premium flex-col gap-5">
-                <h2 class="section-title text-lg">Path of Titans</h2>
-                <div class="flex flex-col gap-2">
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nome no jogo:</strong> <%= link.player_name || '—' %></span>
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Título:</strong> <%= link.profile_title || 'Em breve (missões)' %></span>
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Espécie mais jogada:</strong> <%= mostPlayedDinosaur || 'Ainda sem registro' %></span>
-                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nível:</strong> 1 <span class="opacity-50">(sistema de XP em breve)</span></span>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Honra:</strong></span>
-                        <span class="perfil-stars">
-                            <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
-                        </span>
-                    </div>
-                </div>
-            </section>
+            <div class="pf-tab-nav">
+                <button type="button" class="pf-tab-btn is-active" data-pf-tab="perfil">Perfil</button>
+                <button type="button" class="pf-tab-btn" data-pf-tab="personalizacao">Personalização</button>
+            </div>
 
-            <form action="/perfil/save" method="POST" enctype="multipart/form-data" class="contents">
+            <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
+                <section class="titan-card-premium flex-col gap-5">
+                    <h2 class="section-title text-lg">Path of Titans</h2>
+                    <div class="flex flex-col gap-2">
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nome no jogo:</strong> <%= link.player_name || '—' %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Título:</strong> <%= link.profile_title || 'Em breve (missões)' %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Espécie mais jogada:</strong> <%= mostPlayedDinosaur || 'Ainda sem registro' %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nível:</strong> 1 <span class="opacity-50">(sistema de XP em breve)</span></span>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Honra:</strong></span>
+                            <span class="perfil-stars">
+                                <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
+                            </span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <%#
+                Sem "contents" aqui de propósito (diferente do padrão usado
+                em moderacao.ejs/events.ejs) — este <form> É o próprio
+                painel da aba (.pf-tab-panel), então precisa continuar
+                sendo uma caixa de verdade pra JS conseguir escondê-lo com
+                display:none (classe is-hidden). display:contents +
+                is-hidden juntos na mesma classe conflitariam em
+                especificidade igual com a ordem de carregamento do
+                Tailwind (CDN, injeta depois deste <style>) — resultado
+                imprevisível, por isso evitado aqui.
+            %>
+            <form action="/perfil/save" method="POST" enctype="multipart/form-data" class="pf-tab-panel is-hidden flex flex-col gap-6" data-pf-panel="personalizacao">
                 <section class="titan-card-premium flex-col gap-6">
                     <h2 class="section-title text-lg">PERSONALIZAR PERFIL</h2>
-                    <p class="text-xs opacity-50">Ajuste como seu perfil aparece pros outros no <code>/perfil</code>.</p>
+                    <p class="text-[13px] opacity-50">Ajuste como seu perfil aparece pros outros no <code>/perfil</code> — título e emblema incluídos.</p>
 
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Emblema</h3>
@@ -331,5 +374,19 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script>
+        (function () {
+            var buttons = document.querySelectorAll('.pf-tab-btn');
+            var panels = document.querySelectorAll('.pf-tab-panel');
+            if (!buttons.length || !panels.length) return;
+            buttons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var target = btn.getAttribute('data-pf-tab');
+                    buttons.forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+                    panels.forEach(function (p) { p.classList.toggle('is-hidden', p.getAttribute('data-pf-panel') !== target); });
+                });
+            });
+        })();
+    </script>
 </body>
 </html>
