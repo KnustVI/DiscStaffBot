@@ -685,7 +685,7 @@ function loadDashboard(client) {
         // uma function declaration antes da definição textual funciona
         // normal em JS, hoisting).
         const generalNews = await GeneralNewsSystem.getGeneralNews();
-        const partnerNews = getPartnerNews(client);
+        const partnerNews = await getPartnerNews(client);
 
         res.render('hero', { isBrazil, isOwner, regionOverride, generalNews, partnerNews });
     });
@@ -868,10 +868,24 @@ function loadDashboard(client) {
     // pra quem administra o servidor divulgado. Lê
     // partner_news_title/text/updated_at (settings, editados pelo próprio
     // servidor em moderacao.ejs) via um self-join no key/value plano de
-    // `settings` — só entra no feed quem tem título preenchido E o bot
-    // ainda está no servidor (client.guilds.cache), mesmo critério de
-    // "possui o bot" já usado em getAdminGuildsWithBot.
-    function getPartnerNews(client) {
+    // `settings` — só entra no feed quem tem título preenchido, o bot
+    // ainda está no servidor (client.guilds.cache, mesmo critério de
+    // "possui o bot" já usado em getAdminGuildsWithBot) E o servidor
+    // continua Rastreador+ (pedido do dono, 2026-08-06: "divulgação de
+    // servidores parceiros são permitidos a partir da assinatura
+    // TRACKER" — se o servidor cair pro Free depois de já ter divulgado
+    // algo, some do feed sozinho, sem precisar apagar o texto salvo).
+    //
+    // Caçador ganha um bônus automático (pedido do dono, 2026-08-06:
+    // "para tier HUNTER, além dele poder divulgar, vamos adicionar
+    // automaticamente o último evento agendado do servidor") — busca os
+    // scheduled events nativos do Discord (mesma API de GET
+    // /events/:guildID) e anexa o PRÓXIMO a acontecer (Status.Scheduled,
+    // menor scheduledStartTimestamp) — "último agendado" aqui é lido como
+    // "o mais próximo agendado", já que mostrar um evento já ocorrido não
+    // ajudaria ninguém a decidir participar. Sem evento futuro nenhum,
+    // latestEvent fica null — card mostra só a divulgação normal.
+    async function getPartnerNews(client) {
         const rows = db.prepare(`
             SELECT t.guild_id, t.value AS title, x.value AS text, u.value AS updated_at
             FROM settings t
@@ -880,14 +894,37 @@ function loadDashboard(client) {
             WHERE t.key = 'partner_news_title' AND t.value IS NOT NULL AND TRIM(t.value) != ''
             ORDER BY CAST(u.value AS INTEGER) DESC
         `).all();
-        return rows
+
+        const eligible = rows
             .map((row) => {
                 const guild = client.guilds.cache.get(row.guild_id);
-                if (!guild) return null;
+                if (!guild || !PremiumSystem.isGuildAtLeast(guild.id, 'rastreador')) return null;
                 const iconUrl = guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null;
-                return { guildId: guild.id, guildName: guild.name, iconUrl, title: row.title, text: row.text || '' };
+                return { guild, guildId: guild.id, guildName: guild.name, iconUrl, title: row.title, text: row.text || '' };
             })
             .filter(Boolean);
+
+        return Promise.all(eligible.map(async (item) => {
+            if (!PremiumSystem.isGuildAtLeast(item.guildId, 'cacador')) {
+                const { guild, ...rest } = item;
+                return rest;
+            }
+            let latestEvent = null;
+            try {
+                const eventList = await item.guild.scheduledEvents.fetch();
+                const upcoming = [...eventList.values()]
+                    .filter((ev) => ev.status === GuildScheduledEventStatus.Scheduled && ev.scheduledStartTimestamp)
+                    .sort((a, b) => a.scheduledStartTimestamp - b.scheduledStartTimestamp);
+                if (upcoming.length > 0) {
+                    const ev = upcoming[0];
+                    latestEvent = { name: ev.name, scheduledStartAt: ev.scheduledStartTimestamp, url: `https://discord.com/events/${item.guildId}/${ev.id}` };
+                }
+            } catch (error) {
+                console.error(`❌ [Novidades] Erro ao buscar evento agendado de ${item.guildId}:`, error.message);
+            }
+            const { guild, ...rest } = item;
+            return { ...rest, latestEvent };
+        }));
     }
 
     app.get('/perfil', checkAuth, async (req, res) => {
@@ -1299,17 +1336,20 @@ function loadDashboard(client) {
             if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
 
-            // Divulgação do Servidor (pedido do dono, 2026-08-05) — mostrada
-            // no feed global "Novidades dos Servidores Parceiros" de
-            // QUALQUER usuário do dashboard (ver GET /perfil e
+            // Divulgação do Servidor (pedido do dono, 2026-08-05; tier-gated
+            // em 2026-08-06 — "permitido a partir da assinatura TRACKER")
+            // — mostrada no feed global "Novidades dos Servidores
+            // Parceiros" da home pra QUALQUER visitante (ver GET / e
             // getPartnerNews abaixo), não só de quem administra este
-            // servidor. partner_news_updated_at é gravado por CÓDIGO (não
-            // vem do form) só quando título/texto realmente mudam — usado
-            // pra ordenar o feed do mais recente pro mais antigo; sem isso
-            // 'settings.updated_at' não seria confiável aqui (ConfigSystem.
-            // setSetting só atualiza a coluna `value` no ON CONFLICT, não
-            // `updated_at`).
-            if ('partner_news_title' in body || 'partner_news_text' in body) {
+            // servidor. Checagem de tier aqui é defesa em profundidade
+            // (moderacao.ejs já esconde o form pra quem não é Rastreador+,
+            // isso aqui cobre um POST forjado). partner_news_updated_at é
+            // gravado por CÓDIGO (não vem do form) só quando título/texto
+            // realmente mudam — usado pra ordenar o feed do mais recente
+            // pro mais antigo; sem isso 'settings.updated_at' não seria
+            // confiável aqui (ConfigSystem.setSetting só atualiza a coluna
+            // `value` no ON CONFLICT, não `updated_at`).
+            if (('partner_news_title' in body || 'partner_news_text' in body) && PremiumSystem.isGuildAtLeast(guildID, 'rastreador')) {
                 const prevTitle = ConfigSystem.getSetting(guildID, 'partner_news_title') || '';
                 const prevText = ConfigSystem.getSetting(guildID, 'partner_news_text') || '';
                 const newTitle = (body.partner_news_title || '').trim();

@@ -390,31 +390,39 @@
         </form>
 
         <%#
-            DIVULGAÇÃO DO SERVIDOR (pedido do dono, 2026-08-05) — cada
-            servidor edita a PRÓPRIA divulgação, exibida no feed global
-            "Novidades dos Servidores Parceiros" da página /perfil de
-            QUALQUER usuário (não só quem administra este servidor — ver
-            dashboard.js getPartnerNews/perfil.ejs). Sem gate de tier de
-            propósito (não foi pedido) — qualquer servidor com o bot pode
-            se divulgar. Some do feed sozinho se o título ficar vazio
-            (mesma checagem em getPartnerNews).
+            DIVULGAÇÃO DO SERVIDOR (pedido do dono, 2026-08-05, tier-gated
+            em 2026-08-06: "divulgação de servidores parceiros são
+            permitidos a partir da assinatura TRACKER") — cada servidor
+            Rastreador+ edita a PRÓPRIA divulgação, exibida no feed global
+            "Novidades dos Servidores Parceiros" da home pra QUALQUER
+            visitante (não só quem administra este servidor — ver
+            dashboard.js getPartnerNews/hero.ejs). Some do feed sozinho se
+            o título ficar vazio OU se o servidor deixar de ser
+            Rastreador+ (mesma checagem em getPartnerNews).
         %>
         <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-lg">DIVULGAÇÃO DO SERVIDOR</h2>
-            <p class="text-[13px] opacity-50">Aparece pra qualquer usuário do Titan's Pass no feed "Novidades dos Servidores Parceiros" (página de perfil). Deixe o título vazio pra tirar seu servidor do feed.</p>
-            <div>
-                <label class="text-[13px] opacity-60">Título</label>
-                <div class="input-container-premium">
-                    <div class="icon-box"><i data-lucide="megaphone"></i></div>
-                    <input type="text" maxlength="80" class="input-premium-field" name="partner_news_title" placeholder="Ex: Evento de fim de ano no ar!" value="<%= settings.partner_news_title || '' %>">
+            <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
+                DIVULGAÇÃO DO SERVIDOR
+                <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
+            </h2>
+            <% if (!isRastreador) { %>
+                <p class="text-[13px] opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+            <% } else { %>
+                <p class="text-[13px] opacity-50">Aparece pra qualquer visitante da home no feed "Novidades dos Servidores Parceiros". Deixe o título vazio pra tirar seu servidor do feed.</p>
+                <div>
+                    <label class="text-[13px] opacity-60">Título</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="megaphone"></i></div>
+                        <input type="text" maxlength="80" class="input-premium-field" name="partner_news_title" placeholder="Ex: Evento de fim de ano no ar!" value="<%= settings.partner_news_title || '' %>">
+                    </div>
+                    <label class="text-[13px] opacity-60 block mt-4">Texto</label>
+                    <div class="input-container-premium has-textarea">
+                        <div class="icon-box"><i data-lucide="message-square"></i></div>
+                        <textarea class="input-premium-field" name="partner_news_text" maxlength="280" rows="3" placeholder="Conte em poucas linhas o que está rolando no seu servidor..."><%= settings.partner_news_text || '' %></textarea>
+                    </div>
                 </div>
-                <label class="text-[13px] opacity-60 block mt-4">Texto</label>
-                <div class="input-container-premium has-textarea">
-                    <div class="icon-box"><i data-lucide="message-square"></i></div>
-                    <textarea class="input-premium-field" name="partner_news_text" maxlength="280" rows="3" placeholder="Conte em poucas linhas o que está rolando no seu servidor..."><%= settings.partner_news_text || '' %></textarea>
-                </div>
-            </div>
-            <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+            <% } %>
         </form>
 
         <%#

@@ -354,6 +354,24 @@
         }
         .partner-news-title { font-family: 'Tilt Warp', cursive; font-size: 14px; color: #F8DCC0; margin: 0; }
         .partner-news-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.6; line-height: 1.5; margin: 0; }
+        /* Bônus Caçador — próximo evento agendado do servidor, anexado
+           automaticamente ao card (ver dashboard.js getPartnerNews). */
+        .partner-news-event {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(220, 161, 94, 0.12);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 11px;
+            color: #DCA15E;
+            text-decoration: none;
+            align-self: flex-start;
+        }
+        .partner-news-event:hover { background: rgba(220, 161, 94, 0.22); }
 
         /* margin-top (não padding!) = altura da nav (medida via JS, já que
            ela quebra linha de formas diferentes dependendo da largura da
@@ -465,21 +483,27 @@
         </div>
     </section>
 
+    <%# Separador padrão do site (pedido do dono, 2026-08-06) — mesmo divisor usado antes de "FEATURE SECTIONS"/"PORQUE USAR?" mais abaixo. %>
+    <div class="relative w-full flex justify-center" style="padding: 40px 16px 0;">
+        <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
+    </div>
+
     <%#
-        NOVIDADES (pedido do dono, 2026-08-06: "migrar essas apresentações
-        de novidades para a página home... logo antes da apresentação de
-        perfis"), logo abaixo do H1 principal. Dados de dashboard.js GET /
-        — generalNews (src/systems/news/generalNewsSystem.js, vídeos do
-        YouTube, Shorts já filtrados) e partnerNews (getPartnerNews, lido
-        de settings de cada servidor — ver moderacao.ejs "DIVULGAÇÃO DO
-        SERVIDOR"). Público, visível pra visitante deslogado também.
+        NOVIDADES OFICIAIS (pedido do dono, 2026-08-06: "migrar essas
+        apresentações de novidades para a página home... logo antes da
+        apresentação de perfis"), logo abaixo do H1 principal. Dados de
+        dashboard.js GET / — generalNews (src/systems/news/
+        generalNewsSystem.js, vídeos do YouTube, Shorts já filtrados) e
+        partnerNews (getPartnerNews, lido de settings de cada servidor —
+        ver moderacao.ejs "DIVULGAÇÃO DO SERVIDOR"). Público, visível pra
+        visitante deslogado também.
     %>
     <section class="relative w-full flex flex-col items-center px-4" style="padding: 50px 16px 0;">
         <div class="w-full flex flex-col items-center" style="max-width: 1100px;">
-            <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>NOVIDADES</span><span data-i18n-en>WHAT'S NEW</span></h2>
+            <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>NOVIDADES OFICIAIS</span><span data-i18n-en>OFFICIAL NEWS</span></h2>
             <p class="mb-6 text-center" style="font-family:'Poppins',sans-serif; font-weight:600; font-size: clamp(13px, 1.2vw, 16px); opacity: 0.85;">
-                <span data-i18n-pt>O que tá rolando de novo na comunidade de Path of Titans.</span>
-                <span data-i18n-en>What's going on in the Path of Titans community.</span>
+                <span data-i18n-pt>Diretamente do canal oficial do Path of Titans.</span>
+                <span data-i18n-en>Straight from the official Path of Titans channel.</span>
             </p>
             <% if (generalNews.length === 0) { %>
                 <div class="news-soon-card">
@@ -532,12 +556,34 @@
                             </div>
                             <p class="partner-news-title"><%= pn.title %></p>
                             <% if (pn.text) { %><p class="partner-news-text"><%= pn.text %></p><% } %>
+                            <%#
+                                Bônus Caçador (pedido do dono, 2026-08-06:
+                                "para tier HUNTER, além dele poder
+                                divulgar, vamos adicionar automaticamente o
+                                último evento agendado do servidor") — só
+                                existe quando o servidor tem um evento
+                                nativo do Discord futuro (ver dashboard.js
+                                getPartnerNews); Rastreador não tem
+                                latestEvent nunca (undefined), então este
+                                bloco já não aparece sozinho pra eles.
+                            %>
+                            <% if (pn.latestEvent) { %>
+                                <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-event">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DCA15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    <span><%= pn.latestEvent.name %></span>
+                                </a>
+                            <% } %>
                         </div>
                     <% }); %>
                 </div>
             <% } %>
         </div>
     </section>
+
+    <%# Separador padrão do site (pedido do dono, 2026-08-06). %>
+    <div class="relative w-full flex justify-center" style="padding: 40px 16px 0;">
+        <div style="width:100%; max-width:1100px; border-top:1px solid #3E3D38;"></div>
+    </div>
 
     <!-- ===================== PROPOSTA DE VALOR ===================== -->
     <section class="relative w-full flex flex-col items-center text-center px-4" style="padding: 60px 16px 0;">
