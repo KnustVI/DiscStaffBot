@@ -9,9 +9,15 @@
   nome do servidor (showGuildBadge) já que a lista pode misturar reports
   de vários servidores diferentes.
 
-  Mesma sidebar restrita de perfil.ejs (Premium/Ajuda/Suas Denúncias) e
-  sem partials/page-header (pedido do dono: não faz sentido repetir
-  "DASHBOARD"/ícone de usuário nessas páginas pessoais).
+  Mesma sidebar restrita de perfil.ejs (Premium/Ajuda/Suas Denúncias).
+
+  Head usa partials/page-header em modo sem servidor (pedido do dono,
+  2026-08-06: "HEAD não deveria estar dentro de um card, deve ficar como
+  aparece o HEAD EM DASHBOARD" — antes era um <section class="titan-card-
+  premium"> com H2/H3 próprios, visual bem diferente do head padrão) —
+  title:'SUAS DENÚNCIAS' no lugar do "DASHBOARD" fixo, subtitle e o
+  avatar do próprio usuário como iconUrl (mesma URL calculada na nav do
+  site, ver hero.ejs).
 
   Uso: res.render('perfil-denuncias', { ... }) — ver dashboard.js GET
   /perfil/denuncias pra lista completa de locals.
@@ -51,18 +57,12 @@
     <%# Sem overflow-y-auto — ver comentário completo em moderacao.ejs (evita cortar a sombra dos cards perto da sidebar). %>
     <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
-        <%#
-            Head padrão do dashboard (pedido do dono, 2026-08-06: "Head
-            'Suas Denúncias' deve ser padrão com subtítulo amarelo da
-            mesma forma visual que o dashboard") — mesmo H2 (head) + H3
-            .text-titan-gold (subtítulo amarelo padrão) usado nos cards de
-            moderacao.ejs, dentro de um .titan-card-premium igual lá.
+        <%
+            const pdIconUrl = user.avatar
+                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${user.id % 5}.png`;
         %>
-        <section class="titan-card-premium flex-col gap-2">
-            <h2 class="section-title text-lg">SUAS DENÚNCIAS</h2>
-            <h3 class="text-titan-gold text-sm uppercase tracking-widest">Reportes que você abriu</h3>
-            <p class="text-[13px] opacity-50">Em qualquer servidor onde o Titan's Pass esteja.</p>
-        </section>
+        <%- include('partials/page-header', { title: 'SUAS DENÚNCIAS', subtitle: 'Reportes que você abriu', iconUrl: pdIconUrl }) %>
 
         <% if (openReports.length === 0 && closedReports.length === 0 && !openPagination.search && !closedPagination.search) { %>
             <section class="titan-card-premium flex-col gap-3">

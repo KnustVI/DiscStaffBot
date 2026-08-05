@@ -159,9 +159,18 @@
         }
         .portal-col-head {
             font-family: 'Tilt Warp', cursive;
-            font-size: clamp(16px, 2vw, 19px);
+            font-size: clamp(20px, 2.4vw, 26px);
+            text-transform: uppercase;
             color: #F8DCC0;
         }
+        /* Imagem do card de perfil é o link pra "Toca" (/perfil, pedido do
+           dono, 2026-08-06) — mesmo tipo de affordance de hover já usado
+           nos ícones de servidor da coluna ao lado (leve scale + borda
+           acesa). */
+        .portal-profile-link { display: inline-block; transition: transform 0.15s ease; }
+        .portal-profile-link:hover { transform: scale(1.02); }
+        .portal-profile-link img { display: block; transition: box-shadow 0.15s ease; }
+        .portal-profile-link:hover img { box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6), 0 0 0 2px #DCA15E; }
         .dev-overlay { display: flex; align-items: center; justify-content: center; width: 100%; }
 
         /* Backdrop do aviso "dashboard em desenvolvimento" ao clicar num
@@ -261,47 +270,46 @@
             </div>
         <% } else { %>
             <%#
-                3 colunas + separador vertical padrão (pedido do dono,
+                Colunas + separador vertical padrão (pedido do dono,
                 2026-08-06). Empilha em telas estreitas (flex-col) com o
                 mesmo separador virando horizontal — ver regra
-                web_ui_always_responsive. Coluna 3 só existe pra quem
-                administra algum servidor com o bot (mesmo
-                getAdminGuildsWithBot de sempre) — sem isso, vira 2
-                colunas com 1 separador só.
+                web_ui_always_responsive. Preenche a tela (sem max-width),
+                margem lateral de 80px (clamp — encolhe em telas
+                estreitas), proporção parecida com as colunas de preço do
+                Player/Server Premium na home (ver hero.ejs #premium).
+                Coluna "Entrar na Toca" foi removida (pedido do dono,
+                2026-08-06: "não faz muito sentido ter o card de perfil e a
+                toca") — a própria imagem do card de perfil agora é o link
+                pra /perfil. Coluna "Dashboard do seu servidor" só existe
+                pra quem administra algum servidor com o bot (mesmo
+                getAdminGuildsWithBot de sempre) — sem isso, vira 1 coluna
+                só, sem separador.
             %>
-            <div class="w-full flex flex-col md:flex-row items-stretch justify-center px-4" style="gap: 28px; max-width: 960px;">
-                <div class="flex-1 flex flex-col items-center text-center gap-4" style="padding: 8px 16px; min-width: 0;">
+            <div class="w-full flex flex-col md:flex-row items-stretch justify-center" style="gap: 40px; padding: 0 clamp(16px, 6vw, 80px);">
+                <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
                     <h3 class="portal-col-head"><span data-i18n-pt>SEU PERFIL</span><span data-i18n-en>YOUR PROFILE</span></h3>
                     <% if (profileCard) { %>
-                        <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 280px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
+                        <a href="/perfil" class="portal-profile-link">
+                            <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 380px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
+                        </a>
                     <% } else { %>
-                        <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 260px;">
+                        <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 320px;">
                             <span data-i18n-pt>Sua conta Discord ainda não está vinculada a um jogador de Path of Titans. Use <code>/registrar</code> no Discord pra ver seu card aqui.</span>
                             <span data-i18n-en>Your Discord account isn't linked to a Path of Titans player yet. Use <code>/registrar</code> on Discord to see your card here.</span>
                         </p>
+                        <a href="/perfil" class="btn-primary" style="min-width:0; height:36px; font-size:14px; padding:5px 20px;">
+                            <span data-i18n-pt>IR PRO PERFIL</span><span data-i18n-en>GO TO PROFILE</span>
+                        </a>
                     <% } %>
-                </div>
-
-                <div class="w-full h-px md:w-px md:h-auto md:self-stretch" style="background: #3E3D38; flex-shrink: 0;"></div>
-
-                <div class="flex-1 flex flex-col items-center justify-center text-center gap-4" style="padding: 8px 16px; min-width: 0;">
-                    <h3 class="portal-col-head"><span data-i18n-pt>ENTRAR NA TOCA</span><span data-i18n-en>ENTER THE DEN</span></h3>
-                    <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 220px;">
-                        <span data-i18n-pt>Seu perfil completo: personalização, estatísticas, servidores que você já jogou e suas denúncias.</span>
-                        <span data-i18n-en>Your full profile: customization, stats, servers you've played on, and your reports.</span>
-                    </p>
-                    <a href="/perfil" class="btn-primary">
-                        <span data-i18n-pt>TOCA</span><span data-i18n-en>DEN</span>
-                    </a>
                 </div>
 
                 <% if (guilds.length > 0) { %>
                     <div class="w-full h-px md:w-px md:h-auto md:self-stretch" style="background: #3E3D38; flex-shrink: 0;"></div>
 
-                    <div class="flex-1 flex flex-col items-center text-center gap-4" style="padding: 8px 16px; min-width: 0;">
+                    <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
                         <h3 class="portal-col-head"><span data-i18n-pt>DASHBOARD DO SEU SERVIDOR</span><span data-i18n-en>YOUR SERVER DASHBOARD</span></h3>
                         <div class="grid"
-                             style="grid-template-columns: repeat(3, minmax(30px, 72px)); gap: clamp(8px, 1.6vw, 14px); width: 100%; max-width: 244px;">
+                             style="grid-template-columns: repeat(3, minmax(30px, 84px)); gap: clamp(8px, 1.6vw, 16px); width: 100%; max-width: 300px;">
                             <% guilds.forEach(guild => { %>
                                 <a href="/moderacao/<%= guild.id %>"
                                    class="bg-titan-dark flex items-center justify-center cursor-pointer transition-all duration-200 hover:border-titan-accent hover:scale-105"

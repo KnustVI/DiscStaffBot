@@ -259,13 +259,21 @@
 
         /* ===================== NOVIDADES (pedido do dono, 2026-08-06 —
            migrado da página /perfil pra home) ===================== */
-        /* auto-fit + justify-content:center (não auto-fill/1fr) — com poucos
-           cards a fileira fica centralizada em vez de grudada na esquerda
-           com um vão vazio à direita (pedido do dono, 2026-08-06). */
-        .news-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 260px)); justify-content: center; gap: 16px; width: 100%; }
+        /* Flex nowrap, não mais grid auto-fit (pedido do dono, 2026-08-06:
+           "mostre no máximo até 5 cards de vídeos em uma linha só") — o
+           EJS abaixo já corta generalNews em 5 itens, então nunca sobra
+           card pra empurrar uma 2ª linha; em telas estreitas os cards
+           encolhem até min-width e a fileira rola na horizontal em vez de
+           quebrar linha. justify-content:center mantém o comportamento de
+           antes com menos de 5 itens (centraliza em vez de grudar à
+           esquerda). */
+        .news-grid { display: flex; flex-wrap: nowrap; justify-content: center; gap: 16px; width: 100%; overflow-x: auto; padding-bottom: 4px; }
         .news-card {
             display: flex;
             flex-direction: column;
+            flex: 1 1 200px;
+            max-width: 260px;
+            min-width: 160px;
             text-decoration: none;
             background: #131314;
             border: 1px solid rgba(217, 163, 98, 0.35);
@@ -517,7 +525,7 @@
                 </div>
             <% } else { %>
                 <div class="news-grid">
-                    <% generalNews.forEach(item => { %>
+                    <% generalNews.slice(0, 5).forEach(item => { %>
                         <a href="<%= item.url %>" target="_blank" rel="noopener" class="news-card">
                             <div class="news-thumb" style="background-image:url('<%= item.thumbnailUrl %>')">
                                 <% if (item.durationLabel) { %><span class="news-duration"><%= item.durationLabel %></span><% } %>

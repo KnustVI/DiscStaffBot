@@ -27,8 +27,15 @@
   <pageLabel>" nesse caso) e `iconUrl` (substitui o ícone do servidor,
   ex: avatar do próprio usuário). Sem seletor de servidor nesse modo
   (não faz sentido sem um "servidor atual").
+
+  `title` (opcional, pedido do dono, 2026-08-06: reaproveitado pra dar o
+  MESMO visual — sem card, título dourado + subtítulo creme — pro head de
+  "Suas Denúncias") — substitui o "DASHBOARD" fixo quando a página não é
+  literalmente o dashboard de um servidor. Default 'DASHBOARD' preserva o
+  comportamento de sempre nas 3 páginas que já usam este parcial.
 %>
 <%
+    const phTitle = typeof title !== 'undefined' && title ? title : 'DASHBOARD';
     const phHasGuild = typeof guild !== 'undefined' && guild;
     // Mesmo padrão de fallback (sem ícone) já usado em index.ejs.
     const phIconUrl = typeof iconUrl !== 'undefined' && iconUrl
@@ -46,7 +53,7 @@
 %>
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-header-title">DASHBOARD</h1>
+        <h1 class="page-header-title"><%= phTitle %></h1>
         <p class="page-header-subtitle"><%= phSubtitle %></p>
     </div>
 
