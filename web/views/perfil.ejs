@@ -266,6 +266,34 @@
                             </span>
                         </div>
                     </div>
+
+                    <%#
+                        Servidores que já jogou (pedido do dono, 2026-08-05)
+                        — DIFERENTE da lista "administra" lá em cima (essa é
+                        de permissão/Discord; esta é histórico de jogo, ver
+                        dashboard.js getPlayedGuilds/pot_players). Não é
+                        link pra lugar nenhum (diferente do chip de
+                        "administra"): jogar num servidor não dá acesso
+                        nenhum ao dashboard dele, então o chip aqui é só
+                        informativo (<div>, não <a>).
+                    %>
+                    <% if (playedGuilds.length > 0) { %>
+                        <div>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Servidores que você já jogou</h3>
+                            <div class="perfil-guild-list">
+                                <% playedGuilds.forEach(pg => { %>
+                                    <div class="perfil-guild-chip" title="Última vez: <%= pg.lastSeen ? new Date(pg.lastSeen).toLocaleDateString('pt-BR') : '—' %>">
+                                        <% if (pg.iconUrl) { %>
+                                            <img src="<%= pg.iconUrl %>" alt="">
+                                        <% } else { %>
+                                            <img src="/images/guild-fallback-1.svg" alt="">
+                                        <% } %>
+                                        <span><%= pg.name %></span>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% } %>
                 </section>
             </div>
 

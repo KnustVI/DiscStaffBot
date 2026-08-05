@@ -820,6 +820,32 @@ function loadDashboard(client) {
         return '—';
     }
 
+    // "Servidores que você já jogou" (pedido do dono, 2026-08-05) —
+    // DIFERENTE da lista "servidores que você administra"
+    // (getAdminGuildsWithBot, exige permissão de Administrador no Discord
+    // E o bot estar lá agora): aqui é histórico de jogo, não permissão —
+    // qualquer servidor com integração Path of Titans onde este alderon_id
+    // já registrou atividade (pot_players, UNIQUE por guild_id+alderon_id,
+    // uma linha por servidor já jogado). Pode incluir servidor onde o
+    // usuário NÃO é admin (só jogou lá) e mesmo servidor que o bot já
+    // deixou (histórico continua valendo) — nesse caso cai no fallback
+    // salvo em `guilds` (nome/ícone do último ensureGuild, ver
+    // src/database/index.js) em vez do cache ao vivo do client.
+    function getPlayedGuilds(alderonId, client) {
+        if (!alderonId) return [];
+        const rows = db.prepare(
+            `SELECT guild_id, last_seen, total_playtime FROM pot_players WHERE alderon_id = ? ORDER BY last_seen DESC`
+        ).all(alderonId);
+        return rows.map((row) => {
+            const cachedGuild = client.guilds.cache.get(row.guild_id);
+            const dbGuild = cachedGuild ? null : db.prepare('SELECT name, icon FROM guilds WHERE guild_id = ?').get(row.guild_id);
+            const name = cachedGuild?.name || dbGuild?.name || 'Servidor desconhecido';
+            const iconHash = cachedGuild?.icon || dbGuild?.icon || null;
+            const iconUrl = iconHash ? `https://cdn.discordapp.com/icons/${row.guild_id}/${iconHash}.png` : null;
+            return { guildId: row.guild_id, name, iconUrl, lastSeen: row.last_seen, totalPlaytime: row.total_playtime };
+        });
+    }
+
     app.get('/perfil', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
@@ -833,6 +859,7 @@ function loadDashboard(client) {
         let honorStars = null;
         let mostPlayedDinosaur = null;
         let kdStats = null;
+        let playedGuilds = [];
         let badgeOptions = [];
         let avatarOptions = [];
         let backgroundOptions = [];
@@ -858,6 +885,7 @@ function loadDashboard(client) {
                 const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
                 kdStats = { kills: stats.kills, deaths: stats.deaths, kd: formatKD(stats.kills, stats.deaths) };
             }
+            playedGuilds = getPlayedGuilds(link.alderon_id, client);
             badgeOptions = ConfigSystem.getBadgeOptions();
             if (isCompyPlus && !isRaptor) {
                 avatarOptions = ConfigSystem.getAvatarOptions();
@@ -883,6 +911,7 @@ function loadDashboard(client) {
             honorStars,
             mostPlayedDinosaur,
             kdStats,
+            playedGuilds,
             badgeOptions,
             avatarOptions,
             backgroundOptions,
