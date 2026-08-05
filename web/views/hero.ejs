@@ -281,6 +281,19 @@
     <% } %>
     <a href="/" class="nav-btn is-active"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <a href="/dashboard" class="dashboard-link nav-btn" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>DASHBOARD</span><span data-i18n-en>DASHBOARD</span></a>
+    <%#
+        Botão Perfil (pedido do dono, 2026-08-05) — leva pra /perfil
+        (dashboard.js, página global de perfil do usuário logado, ver
+        web/views/perfil.ejs). Mesma classe "dashboard-link" + data-locked
+        do botão Dashboard acima: reaproveita o MESMO overlay/JS de
+        "painel travado" (ver script no fim do arquivo, seletor genérico
+        ".dashboard-link[data-locked]") em vez de duplicar a lógica —
+        /perfil respeita o mesmo isDashboardLocked de todo o resto do
+        dashboard. Deslogado: checkAuth de /perfil redireciona pra
+        /dashboard, que mostra a tela de login normal (mesmo fallback já
+        usado por qualquer outra rota autenticada do site).
+    %>
+    <a href="/perfil" class="dashboard-link nav-btn" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>PERFIL</span><span data-i18n-en>PROFILE</span></a>
     <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
     <a href="#" class="nav-btn disabled" aria-disabled="true" tabindex="-1"><span data-i18n-pt>UPDATES</span><span data-i18n-en>UPDATES</span></a>
     <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
