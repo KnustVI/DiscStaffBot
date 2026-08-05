@@ -22,10 +22,19 @@ const PLAYER_TIER_LABELS = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
 
 // Banners de topo por tier de Server Premium (representam o tier ATUAL do
 // servidor onde o /premium foi rodado) — assets banner_premium_server_*.
+//
+// Bug corrigido (pedido do dono, 2026-08-05: "/premium mostra banner free
+// pra outros tiers"): as chaves aqui ainda eram os nomes ANTIGOS de tier
+// ('pegada'/'fossil', pré-rename — ver migrateGuildPremiumTierNames em
+// src/database/index.js). getGuildTier() já devolve os nomes ATUAIS
+// ('rastreador'/'cacador') desde a migração, então pra QUALQUER servidor
+// não-Free a busca aqui sempre dava undefined e caía no fallback
+// "|| SERVER_TIER_BANNER_KEYS.free" — mostrando o banner de Free pra todo
+// mundo, mesmo em Rastreador/Caçador.
 const SERVER_TIER_BANNER_KEYS = {
     free: 'banner_premium_server_free',
-    pegada: 'banner_premium_server_rastreador',
-    fossil: 'banner_premium_server_cacador',
+    rastreador: 'banner_premium_server_rastreador',
+    cacador: 'banner_premium_server_cacador',
 };
 
 /**
