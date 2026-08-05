@@ -1,0 +1,75 @@
+<%#
+  web/views/perfil-denuncias.ejs
+  "Suas Denúncias" (pedido do dono, 2026-08-05) — página GLOBAL (sem
+  :guildID — mesmo espírito de perfil.ejs) que lista os reports que o
+  usuário logado ABRIU, em qualquer servidor, reaproveitando a MESMA
+  partial de lista usada em reports.ejs (partials/reports-list.ejs,
+  agora parametrizada por basePath em vez de fixa em /reports/<guild.id>
+  — ver dashboard.js getUserReportsData). Cada card mostra um selo com o
+  nome do servidor (showGuildBadge) já que a lista pode misturar reports
+  de vários servidores diferentes.
+
+  Mesma sidebar restrita de perfil.ejs (Premium/Ajuda/Suas Denúncias) e
+  sem partials/page-header (pedido do dono: não faz sentido repetir
+  "DASHBOARD"/ícone de usuário nessas páginas pessoais).
+
+  Uso: res.render('perfil-denuncias', { ... }) — ver dashboard.js GET
+  /perfil/denuncias pra lista completa de locals.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suas Denúncias | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
+        <%- include('partials/sidebar-v2', { active: 'minhas-denuncias', guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>
+    </aside>
+
+    <%# Sem overflow-y-auto — ver comentário completo em moderacao.ejs (evita cortar a sombra dos cards perto da sidebar). %>
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
+
+        <h1 class="section-title text-xl">Suas Denúncias</h1>
+        <p class="text-[13px] opacity-50 -mt-3">Reportes que você abriu, em qualquer servidor.</p>
+
+        <% if (openReports.length === 0 && closedReports.length === 0 && !openPagination.search && !closedPagination.search) { %>
+            <section class="titan-card-premium flex-col gap-3">
+                <p class="text-sm opacity-60">Você ainda não abriu nenhuma denúncia em nenhum servidor.</p>
+            </section>
+        <% } else { %>
+            <%- include('partials/reports-list', { basePath: '/perfil/denuncias', openReports, openPagination, closedReports, closedPagination, showGuildBadge: true }) %>
+        <% } %>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

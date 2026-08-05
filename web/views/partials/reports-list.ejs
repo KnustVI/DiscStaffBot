@@ -6,14 +6,27 @@
   dashboard.js), pedido do dono ("chats de reportes" também em tempo
   real).
 
-  Uso: include( partials/reports-list , { guild, openReports, openPagination, closedReports, closedPagination } )
-    guild            — precisa de guild.id pro link "Investigar" (canal/
-                       thread) e pra montar as URLs de busca/paginação
+  Uso: include( partials/reports-list , { basePath, openReports, openPagination, closedReports, closedPagination, showGuildBadge } )
+    basePath         — prefixo pra montar as URLs de busca/paginação (ex:
+                       '/reports/123456' na página de um servidor,
+                       '/perfil/denuncias' na página global "Suas
+                       Denúncias" — ver perfil-denuncias.ejs). O link
+                       "Investigar" (canal/thread) usa r.guild_id de CADA
+                       linha, não depende de basePath — funciona igual em
+                       contexto de 1 servidor só ou de vários misturados.
+    showGuildBadge   — OPCIONAL (padrão false). Mostra um selo com o nome
+                       do servidor em cada card — só faz sentido numa
+                       lista com reports de VÁRIOS servidores misturados
+                       (ver r.guildName, resolvido em
+                       dashboard.js:getUserReportsData). Nas páginas de um
+                       servidor só (reports.ejs) fica desligado — todo
+                       card já é obviamente do mesmo servidor.
     openReports      — array já enriquecido (agid/playerName/discordUsername/
                        discordRoleLabel/closedByName/closedByRoleLabel/
                        threadDeletedByName/threadDeletedByRoleLabel/
-                       statusLabel) — já vem SÓ com a página atual (10 por
-                       vez), ver dashboard.js:getReportsData()
+                       statusLabel/guild_id, +guildName se showGuildBadge)
+                       — já vem SÓ com a página atual (10 por vez), ver
+                       dashboard.js:getReportsData()/getUserReportsData()
     openPagination   — { page, totalPages, total, search }
     closedReports    — idem openReports, filtrado por status fechado
     closedPagination — idem openPagination
@@ -51,6 +64,7 @@
   inclui este parcial), não duplicadas aqui.
 %>
 <%
+const rlShowGuildBadge = typeof showGuildBadge !== 'undefined' && showGuildBadge;
 function reportsHref(overrides) {
     const state = Object.assign({
         openPage: openPagination.page,
@@ -64,14 +78,14 @@ function reportsHref(overrides) {
     if (state.closedPage > 1) params.set('closedPage', state.closedPage);
     if (state.closedSearch) params.set('closedSearch', state.closedSearch);
     const qs = params.toString();
-    return '/reports/' + guild.id + (qs ? '?' + qs : '');
+    return basePath + (qs ? '?' + qs : '');
 }
 %>
 <!-- REPORTES ABERTOS -->
 <section class="titan-card-premium flex-col gap-4">
     <div class="flex items-center justify-between flex-wrap gap-3">
         <h2 class="section-title text-lg">Reportes Abertos</h2>
-        <form method="GET" action="/reports/<%= guild.id %>" class="report-search-form">
+        <form method="GET" action="<%= basePath %>" class="report-search-form">
             <input type="hidden" name="openPage" value="1">
             <input type="hidden" name="closedPage" value="<%= closedPagination.page %>">
             <input type="hidden" name="closedSearch" value="<%= closedPagination.search %>">
@@ -92,6 +106,7 @@ function reportsHref(overrides) {
                         <i data-lucide="flag" class="w-4 h-4 text-titan-accent"></i>
                         <span class="font-semibold"><%= r.report_id %></span>
                         <span class="report-status"><%= r.statusLabel %></span>
+                        <% if (rlShowGuildBadge) { %><span class="report-guild-badge"><i data-lucide="server" class="w-3 h-3"></i> <%= r.guildName %></span><% } %>
                     </div>
                     <div class="report-card-meta">
                         <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %> (<%= r.discordRoleLabel %>)</span>
@@ -100,7 +115,7 @@ function reportsHref(overrides) {
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                     </div>
                     <% if (r.thread_id && !r.threadDeletedByName) { %>
-                        <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
+                        <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
                             <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
                         </a>
                     <% } else if (r.threadDeletedByName) { %>
@@ -131,7 +146,7 @@ function reportsHref(overrides) {
 <section class="titan-card-premium flex-col gap-4">
     <div class="flex items-center justify-between flex-wrap gap-3">
         <h2 class="section-title text-lg">Reportes Fechados</h2>
-        <form method="GET" action="/reports/<%= guild.id %>" class="report-search-form">
+        <form method="GET" action="<%= basePath %>" class="report-search-form">
             <input type="hidden" name="closedPage" value="1">
             <input type="hidden" name="openPage" value="<%= openPagination.page %>">
             <input type="hidden" name="openSearch" value="<%= openPagination.search %>">
@@ -153,6 +168,7 @@ function reportsHref(overrides) {
                         <i data-lucide="flag" class="w-4 h-4 text-titan-accent"></i>
                         <span class="font-semibold"><%= r.report_id %></span>
                         <span class="report-status"><%= r.statusLabel %></span>
+                        <% if (rlShowGuildBadge) { %><span class="report-guild-badge"><i data-lucide="server" class="w-3 h-3"></i> <%= r.guildName %></span><% } %>
                     </div>
                     <div class="report-card-meta">
                         <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %> (<%= r.discordRoleLabel %>)</span>
@@ -167,7 +183,7 @@ function reportsHref(overrides) {
                     <% if (r.threadDeletedByName) { %>
                         <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } else if (r.thread_id) { %>
-                        <a href="https://discord.com/channels/<%= guild.id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
+                        <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
                             <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
                         </a>
                     <% } %>

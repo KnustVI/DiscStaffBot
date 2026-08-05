@@ -23,86 +23,9 @@
             }
         }
     </script>
-    <style>
-        .report-card {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            background: var(--bg-card);
-            border: 1px solid rgba(248, 220, 192, 0.08);
-            border-radius: 14px;
-            padding: 16px 20px;
-        }
-        .report-status {
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            background: var(--surface);
-            border-radius: 20px;
-            padding: 3px 12px;
-            opacity: 0.85;
-        }
-        .report-card-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-            font-size: 0.75rem;
-            opacity: 0.55;
-        }
-        .report-card-meta span { display: inline-flex; align-items: center; gap: 5px; }
-
-        /* Barra de busca (por ID de report ou usuário que abriu) + paginação
-           das seções Abertos/Fechados (pedido do dono: "reports pode virar
-           uma lista enorme no futuro") — estilo próprio, compacto, em vez de
-           reaproveitar .input-container-premium/.icon-box (feito pra campos
-           grandes de formulário, pesado demais ao lado de um título de
-           seção). Ver web/views/partials/reports-list.ejs. */
-        .report-search-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .report-search-input {
-            background: #131314;
-            border: 1px solid rgba(217, 163, 98, 0.4);
-            border-radius: 8px;
-            padding: 6px 12px;
-            color: #F8DCC0;
-            font-family: 'Poppins', sans-serif;
-            font-size: 0.8rem;
-            width: 220px;
-            outline: none;
-        }
-        .report-search-input:focus { border-color: #D9A362; }
-        .report-search-btn {
-            background: #D9A362;
-            border: none;
-            border-radius: 8px;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #131314;
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-        .report-search-btn:hover { background: #F8DCC0; }
-        .report-search-clear { font-size: 0.75rem; opacity: 0.6; text-decoration: underline; white-space: nowrap; }
-        .report-search-clear:hover { opacity: 1; }
-        .report-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 4px; }
-        .report-page-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.75rem;
-            color: #F8DCC0;
-            opacity: 0.85;
-            padding: 6px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(217, 163, 98, 0.3);
-            transition: opacity 0.15s ease, background 0.15s ease;
-        }
-        .report-page-btn:hover { background: rgba(217, 163, 98, 0.12); opacity: 1; }
-        .report-page-btn.disabled { opacity: 0.3; pointer-events: none; }
-        .report-page-info { font-size: 0.7rem; opacity: 0.5; }
-    </style>
+    <%# .report-* (card/busca/paginação da lista de denúncias) mudou pro
+        style.css compartilhado (2026-08-05) — a partial reports-list.ejs
+        passou a ser reaproveitada também por perfil-denuncias.ejs. %>
 </head>
 <body class="flex min-h-screen">
 
@@ -136,7 +59,7 @@
             depende do <div> ter caixa própria.
         %>
         <div id="reportsListRoot" data-poll-url="<%= reportsFragmentUrl %>" class="contents">
-            <%- include('partials/reports-list', { guild, openReports, openPagination, closedReports, closedPagination }) %>
+            <%- include('partials/reports-list', { basePath: '/reports/' + guild.id, openReports, openPagination, closedReports, closedPagination }) %>
         </div>
 
         <%#

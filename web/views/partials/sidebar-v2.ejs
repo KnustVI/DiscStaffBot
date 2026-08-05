@@ -32,6 +32,10 @@
       user: req.user,           // objeto do passport-discord (id, avatar, nickname/global_name/username)
       role: Administrador ,     // texto livre mostrado no badge abaixo do nome
       nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
+      restricted: true,         // OPCIONAL (pedido do dono, 2026-08-05) — troca os 7 itens padrão
+                                 // por só Premium/Ajuda/Suas Denúncias. Usado em perfil.ejs: nem todo
+                                 // usuário logado é admin de servidor, então Moderação/Eventos/Denúncias
+                                 // (todos guild-scoped) não fazem sentido nessa página global.
     } )
 
   O export do Figma não trazia o TEXTO real de cada botão (só largura do
@@ -48,8 +52,17 @@
     // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
     // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
     const sbIsOwner = typeof isOwner !== 'undefined' && isOwner;
-    const NAV_ITEMS = [
-        { key: 'premium', label: 'Premium', icon: 'gem', href: '#', accent: true },
+    const sbRestricted = typeof restricted !== 'undefined' && restricted;
+    // Premium sempre leva pra home na âncora #premium (pedido do dono,
+    // 2026-08-05: "todo botão de premium leva a home na área de premium")
+    // — mesma âncora que a nav da própria hero.ejs usa (#premium), só que
+    // com "/" na frente pra funcionar vindo de qualquer outra página.
+    const NAV_ITEMS = sbRestricted ? [
+        { key: 'premium', label: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '/documentacao' },
+        { key: 'minhas-denuncias', label: 'Suas Denúncias', icon: 'message-square-warning', href: '/perfil/denuncias' },
+    ] : [
+        { key: 'premium', label: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         { key: 'moderacao', label: 'Moderação', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', label: 'Eventos', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', label: 'Denúncias', icon: 'message-square-warning', href: guildHref('reports') },
@@ -128,13 +141,22 @@
            duplicar cada tamanho entre [data-collapsed="true"] (toggle
            manual) e :not([data-user-set]) (colapso automático) — trocar
            um valor aqui já atualiza os dois lugares. */
-        --tp-w-expanded: clamp(260px, 26vw, 400px);
-        --tp-w-collapsed: 121px;
-        --tp-inner-pad-x: clamp(20px, 6vw, 50px);
-        --tp-collapsed-pad: 20px;
-        --tp-collapsed-btn: 60px;
-        --tp-collapsed-avatar: 80px;
-        --tp-collapsed-logo: 60px;
+        /* Escala de 0.9x em toda a sidebar (pedido do dono, 2026-08-05:
+           "a sidebar está competindo muito com o conteúdo à esquerda") —
+           reduz o tamanho padrão PROPORCIONALMENTE (largura, botões,
+           avatar, logo, textos) em vez de só encolher a fonte sozinha
+           (que deixaria o padding desproporcional). Alvo: o texto dos
+           botões (.tp-sidebar-label) cai de 20px pra 18px, batendo com o
+           tamanho das HEADS dos blocos de conteúdo (.section-title.text-lg
+           = 18px, usado em moderacao.ejs/reports.ejs/events.ejs/
+           perfil.ejs) — todo valor em px abaixo é o original × 0.9. */
+        --tp-w-expanded: clamp(235px, 23vw, 360px);
+        --tp-w-collapsed: 109px;
+        --tp-inner-pad-x: clamp(18px, 5vw, 45px);
+        --tp-collapsed-pad: 18px;
+        --tp-collapsed-btn: 54px;
+        --tp-collapsed-avatar: 72px;
+        --tp-collapsed-logo: 54px;
         box-sizing: border-box;
         font-family: 'Poppins', sans-serif;
         width: var(--tp-w-expanded);
@@ -185,8 +207,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
-        padding: 20px var(--tp-inner-pad-x);
+        gap: 9px;
+        padding: 18px var(--tp-inner-pad-x);
         min-height: 100%;
     }
 
@@ -198,21 +220,21 @@
         align-items: center;
         gap: 10px;
     }
-    .tp-sidebar-logo { display: flex; justify-content: center; padding: 10px 0; width: 100%; }
-    .tp-sidebar-logo img { width: 100%; max-width: 254px; height: auto; }
+    .tp-sidebar-logo { display: flex; justify-content: center; padding: 9px 0; width: 100%; }
+    .tp-sidebar-logo img { width: 100%; max-width: 229px; height: auto; }
 
     .tp-sidebar-toggle {
         box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 46px;
-        height: 46px;
+        width: 41px;
+        height: 41px;
         flex: none;
         background: #2A2A2A;
         border: 1px solid #803E30;
         box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
-        border-radius: 15px;
+        border-radius: 14px;
         color: #F8DCC0;
         cursor: pointer;
         transition: background 0.15s ease, border-color 0.15s ease;
@@ -223,7 +245,7 @@
         border-color: #803E30;
         box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
     }
-    .tp-sidebar-toggle svg { width: 25px; height: 25px; }
+    .tp-sidebar-toggle svg { width: 22px; height: 22px; }
     .tp-icon-collapsed { display: none; }
 
     /* ==================== NAVEGAÇÃO ==================== */
@@ -232,8 +254,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 15px;
-        padding: 30px 0;
+        gap: 13px;
+        padding: 27px 0;
     }
     .tp-sidebar-btn {
         box-sizing: border-box;
@@ -241,14 +263,14 @@
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 9px;
         width: 100%;
-        height: 40px;
-        padding: 5px 20px;
+        height: 36px;
+        padding: 5px 18px;
         background: #2A2A2A;
         border: 1px solid #803E30;
         box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
-        border-radius: 15px;
+        border-radius: 14px;
         text-decoration: none;
         cursor: pointer;
         transition: background 0.15s ease, border-color 0.15s ease;
@@ -265,14 +287,16 @@
         igual os botões da barra de navegação do topo da página hero"),
         em vez do border-color sozinho que só essa sidebar usava antes. %>
     .tp-sidebar-btn.active { background: #4B2427; border-color: #DCA15E; }
-    .tp-sidebar-btn svg { width: 20px; height: 21px; flex: none; color: #F8DCC0; }
+    .tp-sidebar-btn svg { width: 18px; height: 19px; flex: none; color: #F8DCC0; }
     .tp-sidebar-btn.accent svg,
     .tp-sidebar-btn.accent .tp-sidebar-label { color: #DCA15E; }
+    /* font-size 18px = mesmo tamanho de .section-title.text-lg (as HEADS
+       dos cards de conteúdo) — o alvo do pedido do dono. */
     .tp-sidebar-label {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
-        font-size: 20px;
-        line-height: 30px;
+        font-size: 18px;
+        line-height: 27px;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
@@ -309,8 +333,8 @@
     .tp-sidebar-avatar {
         box-sizing: border-box;
         flex: none;
-        width: 75px;
-        height: 75px;
+        width: 68px;
+        height: 68px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -321,7 +345,7 @@
         overflow: hidden;
     }
     .tp-sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .tp-sidebar-avatar svg { width: 53px; height: 53px; color: #803E30; }
+    .tp-sidebar-avatar svg { width: 48px; height: 48px; color: #803E30; }
     .tp-sidebar-profile-info {
         display: flex;
         flex-direction: column;
@@ -332,27 +356,27 @@
     }
     .tp-sidebar-nickname {
         font-family: 'Tilt Warp', sans-serif;
-        font-size: 20px;
-        line-height: 25px;
+        font-size: 18px;
+        line-height: 23px;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 180px;
+        max-width: 162px;
     }
     .tp-sidebar-role {
         box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 5px 20px;
+        padding: 5px 18px;
         background: #4B2427;
         border: 1px solid #803E30;
         border-radius: 50px;
         font-family: 'Poppins', sans-serif;
         font-weight: 300;
-        font-size: 14px;
-        line-height: 21px;
+        font-size: 13px;
+        line-height: 19px;
         color: #F8DCC0;
         white-space: nowrap;
     }
@@ -413,11 +437,11 @@
        regra nenhuma. */
     @media (max-width: 480px) {
         .tp-sidebar {
-            --tp-w-collapsed: 88px;
-            --tp-collapsed-pad: 12px;
-            --tp-collapsed-btn: 46px;
-            --tp-collapsed-avatar: 52px;
-            --tp-collapsed-logo: 40px;
+            --tp-w-collapsed: 79px;
+            --tp-collapsed-pad: 11px;
+            --tp-collapsed-btn: 41px;
+            --tp-collapsed-avatar: 47px;
+            --tp-collapsed-logo: 36px;
         }
     }
 
@@ -429,8 +453,9 @@
        --tp-w-expanded (fluido, clamp) cair numa faixa estreita demais
        pro texto do botão mais longo (ex: "Denúncias") continuar
        confortável, mesmo em janelas ≥1024px onde nenhum dos outros dois
-       gatilhos entra em ação. 300px dá folga pro texto NÃO virar
-       reticências antes de esconder o rótulo de vez.
+       gatilhos entra em ação. 270px (era 300px, escalado ×0.9 junto com
+       o resto da sidebar — ver --tp-w-expanded acima) dá folga pro texto
+       NÃO virar reticências antes de esconder o rótulo de vez.
 
        De propósito NÃO muda a largura da própria .tp-sidebar aqui (só
        padding interno + tamanho dos filhos) — um container não pode
@@ -439,7 +464,7 @@
        encolhe → a query já não bate mais → volta a crescer → bate de
        novo → ciclo). Trocar só os descendentes é seguro e continua
        resolvendo o problema real (texto cortado). */
-    @container tpsidebar (max-width: 300px) {
+    @container tpsidebar (max-width: 270px) {
         .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
         .tp-icon-expanded { display: none; }

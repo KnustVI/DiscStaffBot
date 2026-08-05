@@ -247,7 +247,14 @@
         .pricing-card ul { font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; margin:0; opacity:0.9; }
         .pricing-card ul li { display:flex; gap:8px; align-items:flex-start; }
         .pricing-card ul li::before { content: '✓'; color: #F8DCC0; flex: none; }
-        .pricing-card .cat-label { font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; opacity:0.7; margin-top:16px; margin-bottom:4px; }
+        <%# Cor amarela padrão do projeto (pedido do dono, 2026-08-05) —
+            mesmo #D9A362 (titan-gold) usado nos subtítulos em amarelo do
+            dashboard (text-titan-gold, ex: moderacao.ejs "Equipe de
+            Moderação") — antes esses títulos de área (MISSÕES/REPORTES/
+            MODERAÇÃO/EVENTOS/etc) herdavam a cor creme padrão do texto,
+            só com opacity:0.7 pra se destacar; agora usam a mesma cor de
+            categoria do resto do site. %>
+        .pricing-card .cat-label { font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; color:#D9A362; opacity:0.9; margin-top:16px; margin-bottom:4px; }
         .pricing-card .cat-label:first-of-type { margin-top:4px; }
 
         /* margin-top (não padding!) = altura da nav (medida via JS, já que

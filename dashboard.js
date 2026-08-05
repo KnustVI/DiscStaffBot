@@ -328,6 +328,65 @@ function getReportsData(guildId, client, state) {
     };
 }
 
+// "Suas Denúncias" (perfil-denuncias.ejs, pedido do dono 2026-08-05) —
+// mesma ideia de queryReportsSection/getReportsData acima, só que filtra
+// por QUEM ABRIU o report (user_id, indexado via idx_reports_user) em vez
+// de por servidor — global, sem guild_id nenhum no WHERE, então pode
+// devolver reports de vários servidores diferentes misturados na mesma
+// lista. Funções PRÓPRIAS (não reaproveita queryReportsSection/
+// getReportsData direto) porque cada linha aqui pode ser de um servidor
+// diferente — discordRoleLabel/closedByRoleLabel/threadDeletedByRoleLabel
+// precisam resolver o cargo de staff usando o guild_id DA PRÓPRIA LINHA
+// (row.guild_id), não um guildId único passado de fora como em
+// getReportsData. guildName (nome do servidor, pro selo por card — ver
+// showGuildBadge em partials/reports-list.ejs) só existe aqui.
+function queryUserReportsSection(userId, statusSql, orderBySql, search, rawPage) {
+    let where = `user_id = ? AND ${statusSql}`;
+    const params = [userId];
+    if (search) {
+        where += ` AND report_id LIKE ?`;
+        params.push(`%${search}%`);
+    }
+    const total = db.prepare(`SELECT COUNT(*) c FROM reports WHERE ${where}`).get(...params).c;
+    const totalPages = Math.max(1, Math.ceil(total / REPORTS_PAGE_SIZE));
+    const page = Math.min(Math.max(1, rawPage), totalPages);
+    const offset = (page - 1) * REPORTS_PAGE_SIZE;
+    const rows = db.prepare(
+        `SELECT * FROM reports WHERE ${where} ORDER BY ${orderBySql} LIMIT ? OFFSET ?`
+    ).all(...params, REPORTS_PAGE_SIZE, offset);
+    return { rows, total, totalPages, page, search };
+}
+
+function getUserReportsData(userId, client, state) {
+    const enrich = (row) => {
+        const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(row.user_id);
+        const guild = client.guilds.cache.get(row.guild_id);
+        return {
+            ...row,
+            agid: link?.alderon_id || null,
+            playerName: link?.player_name || null,
+            discordUsername: resolveUserDisplayName(client, row.user_id),
+            discordRoleLabel: resolveStaffRoleLabel(client, row.guild_id, row.user_id),
+            closedByName: row.closed_by ? resolveUserDisplayName(client, row.closed_by) : null,
+            closedByRoleLabel: row.closed_by ? resolveStaffRoleLabel(client, row.guild_id, row.closed_by) : null,
+            threadDeletedByName: row.thread_deleted_by ? resolveUserDisplayName(client, row.thread_deleted_by) : null,
+            threadDeletedByRoleLabel: row.thread_deleted_by ? resolveStaffRoleLabel(client, row.guild_id, row.thread_deleted_by) : null,
+            statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
+            guildName: guild?.name || 'Servidor desconhecido',
+        };
+    };
+
+    const open = queryUserReportsSection(userId, "status NOT LIKE 'closed%'", 'created_at DESC', state.openSearch, state.openPage);
+    const closed = queryUserReportsSection(userId, "status LIKE 'closed%'", 'closed_at DESC', state.closedSearch, state.closedPage);
+
+    return {
+        openReports: open.rows.map(enrich),
+        openPagination: { page: open.page, totalPages: open.totalPages, total: open.total, search: open.search },
+        closedReports: closed.rows.map(enrich),
+        closedPagination: { page: closed.page, totalPages: closed.totalPages, total: closed.total, search: closed.search },
+    };
+}
+
 // Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
 // — usado aqui pra liberar o preview de região (BR/internacional) da
 // landing page pro dono logado (GET /) e, agora, pra travar o dashboard
@@ -809,6 +868,28 @@ function loadDashboard(client) {
         });
     });
 
+    // "Suas Denúncias" (pedido do dono, 2026-08-05: item da sidebar
+    // restrita de /perfil) — global, sem :guildID, mostra só os reports
+    // que ESTE usuário abriu, em QUALQUER servidor, ver getUserReportsData
+    // acima. Só checkAuth (sem resolveAdminMember/isAdmin) — qualquer
+    // usuário logado vê os próprios reports, não precisa ser admin de
+    // servidor nenhum (mesmo espírito de /perfil).
+    app.get('/perfil/denuncias', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const state = parseReportsQueryState(req.query);
+        const { openReports, openPagination, closedReports, closedPagination } = getUserReportsData(req.user.id, client, state);
+        res.render('perfil-denuncias', {
+            nickname: req.user.global_name || req.user.username,
+            role: 'Membro',
+            isOwner: isOwnerSession(req),
+            otherGuilds: getAdminGuildsWithBot(req),
+            openReports,
+            openPagination,
+            closedReports,
+            closedPagination,
+        });
+    });
+
     app.post(
         '/perfil/save',
         checkAuth,
@@ -959,7 +1040,7 @@ function loadDashboard(client) {
 
         const state = parseReportsQueryState(req.query);
         const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, state);
-        res.render('partials/reports-list', { guild, openReports, openPagination, closedReports, closedPagination });
+        res.render('partials/reports-list', { basePath: '/reports/' + guildID, openReports, openPagination, closedReports, closedPagination });
     });
 
     // ==================== MODERAÇÃO ====================
