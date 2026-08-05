@@ -449,13 +449,68 @@ class PoTGatewayServer {
             // SECUNDÁRIO/fallback agora que o Action "Exited Spectator Mode"
             // (1c acima) é o sinal primário — cobre o caso do admin sair do
             // modo espectador sem esse Action disparar (ex: desconexão).
+            //
+            // "Saiu do modo espectador via respawn" no LOG (pedido do dono,
+            // 2026-08-06: "às vezes o log não responde se o player saiu do
+            // modo espectador, mas sempre avisa quando respawna com dino, o
+            // que também indica que saiu"): isCurrentlySpectating (mesma
+            // fonte de verdade do texto "Modo espectador: ✅/🚫" — deriva de
+            // pot_logs, vale pra QUALQUER jogador, não só staff registrado)
+            // NUNCA soube de PlayerRespawn até agora, porque esse evento não
+            // é persistido em pot_logs (altíssimo volume, ao contrário de
+            // AdminSpectate). Corrigido de forma alvejada: só quando o
+            // jogador estava REALMENTE sinalizado como espectador nesse
+            // exato momento, grava um registro sintético em pot_logs no
+            // mesmo formato de um AdminSpectate real (Action "Exited
+            // Spectator Mode") — assim isCurrentlySpectating passa a
+            // enxergar a saída daqui pra frente — e posta a MESMA mensagem
+            // de "saiu do modo espectador" no canal adm-commands (grupo
+            // 'admin', mesmo canal de AdminSpectate/AdminCommand), como se
+            // fosse a resposta que às vezes não chega do próprio
+            // AdminSpectate. Localização (POI/coords) do payload de
+            // PlayerRespawn é repassada pro registro sintético — a própria
+            // formatação de AdminSpectate já mostra "Local" quando presente
+            // (ver webhookPayloads.js).
             if (potEvent === 'PlayerRespawn') {
-                try {
-                    const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
-                    const alderonId = data.AlderonId || data.PlayerAlderonId;
-                    if (alderonId) await AnalyticsSystem.closeSpectatorSession(this.client, guildId, alderonId);
-                } catch (err) {
-                    console.warn('⚠️ [Gateway] Fechamento de sessão de espectador falhou:', err.message);
+                const alderonId = data.AlderonId || data.PlayerAlderonId;
+                if (alderonId) {
+                    try {
+                        const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
+                        await AnalyticsSystem.closeSpectatorSession(this.client, guildId, alderonId);
+                    } catch (err) {
+                        console.warn('⚠️ [Gateway] Fechamento de sessão de espectador falhou:', err.message);
+                    }
+
+                    try {
+                        if (WebhookPayloads.isCurrentlySpectating(guildId, alderonId, null) === true) {
+                            const syntheticData = {
+                                Action: 'Exited Spectator Mode',
+                                PlayerName: data.PlayerName,
+                                PlayerAlderonId: alderonId,
+                                Role: data.Role || null,
+                                POI: data.POI || data.POIName || data.LocationName || null,
+                                Location: data.Location || null,
+                            };
+                            db.prepare(`
+                                INSERT INTO pot_logs (guild_id, event_type, event_data, player_name, alderon_id, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            `).run(
+                                guildId, 'AdminSpectate', JSON.stringify(syntheticData),
+                                data.PlayerName || null, alderonId,
+                                Math.floor(Date.now() / 1000),
+                            );
+
+                            const adminWebhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, 'admin');
+                            if (adminWebhookUrl) {
+                                const guildForMessage = this.client.guilds.cache.get(guildId);
+                                const message = await WebhookPayloads.formatMessage('AdminSpectate', syntheticData, guildForMessage);
+                                const payload = WebhookPayloads.buildSimpleLogPayload(message);
+                                await this._deliverMessage(adminWebhookUrl, payload);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ [Gateway] Log de saída de espectador via respawn falhou:', err.message);
+                    }
                 }
             }
 

@@ -504,13 +504,24 @@ async function formatMessage(potEvent, data, guild) {
                 : spectating === false
                     ? `Modo espectador: ${e('shieldban', '🚫')}`
                     : 'Modo espectador: Não definido';
+            // Local (pedido do dono, 2026-08-06: "se houver localização desse
+            // jogador... informar também junto as mensagens de logs de
+            // espectador") — mesmo formato/campos de buildKillPanel acima
+            // (POI + coords, "Local: X - Y"). Payloads REAIS de AdminSpectate
+            // nunca confirmaram trazer local nenhum, mas o registro SINTÉTICO
+            // criado por PlayerRespawn (ver gatewayServer.js, "saiu do modo
+            // espectador via respawn") sempre traz — formatLocationString
+            // devolve null sem quebrar quando o campo não vier, então esta
+            // linha some sozinha nos AdminSpectate reais de sempre.
+            const localParts = [d.POI || d.POIName || d.LocationName, formatLocationString(d.Location)].filter(Boolean);
+            const locationLine = localParts.length > 0 ? `${e('mappin', '📍')} Local: ${localParts.join(' - ')}` : '';
             // Pedido do dono: mesmo aviso do /historico staff (analyticsSystem.js
             // SPECTATOR_DISCLAIMER) — o CRÉDITO de tempo/staff_analytics ainda
             // fica incompleto pra quem não está registrado/com o cargo certo,
             // então esses números não devem embasar julgamento de staff sozinhos.
             const disclaimer = `-# ${e('trianglealert', '⚠️')} Os totais de tempo em modo espectador (staff_analytics) podem estar incompletos para staffs não registrados via /registrar ou sem o cargo configurado — não devem ser considerados sozinhos para julgamento de staffs!`;
             const discordPart = await discordIdentitySuffix(guild, alderonId);
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}\n${disclaimer}`;
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}${locationLine ? `\n${locationLine}` : ''}\n${disclaimer}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
@@ -1020,4 +1031,9 @@ function buildDamageReportPayload(encounter, guild) {
     return payloads;
 }
 
-module.exports = { buildLoginEventPayload, formatMessage, buildSimpleLogPayload, buildDamageReportPayload, buildKillPanel, formatDamageType, dietEmoji };
+// isCurrentlySpectating exportado (pedido do dono, 2026-08-06) — gatewayServer.js
+// usa pra checar, ANTES de fechar a sessão de espectador num PlayerRespawn, se
+// esse jogador estava mesmo sinalizado como espectador — só assim decide se
+// vale gravar o registro sintético de saída + postar em adm-commands (ver
+// "saiu do modo espectador via respawn" lá).
+module.exports = { buildLoginEventPayload, formatMessage, buildSimpleLogPayload, buildDamageReportPayload, buildKillPanel, formatDamageType, dietEmoji, isCurrentlySpectating };
