@@ -410,6 +410,11 @@ textarea.input-premium-field {
     box-shadow: 0 0 0 2px rgba(220, 161, 94, 0.35);
 }
 .banner-picker-option input:focus-visible + .banner-picker-thumb { outline: 2px solid #DCA15E; outline-offset: 2px; }
+/* Variante quadrada — avatar/emblema de perfil (/perfil) não são banners
+   largos como Strike/Unstrike, ficam melhor 1:1. Plano de fundo continua
+   com a proporção larga padrão (mesma cara de banner). */
+.banner-picker-thumb.is-square { aspect-ratio: 1 / 1; }
+.banner-picker-option.is-narrow { width: 90px; }
 .banner-picker-label {
     font-family: 'Poppins', sans-serif;
     font-size: 11px;

@@ -242,6 +242,14 @@ const ConfigSystem = {
     getStrikeBannerOptions,
     getUnstrikeBannerOptions,
     getReportChatBannerOptions,
+    // Mesmo motivo acima — a página web /perfil (dashboard) reaproveita
+    // estas 3 como fonte única de verdade com o painel /perfil-edit do
+    // Discord (ver buildPerfilEditPanelPayload/buildPlayerPhotoPickerPayload
+    // acima) em vez de duplicar a lista de opções de avatar/plano de
+    // fundo/emblema lá.
+    getAvatarOptions,
+    getBackgroundOptions,
+    getBadgeOptions,
 
     getSetting(guildId, key) {
         try {

@@ -1,0 +1,335 @@
+<%#
+  web/views/perfil.ejs
+  Página GLOBAL (sem :guildID — identidade do jogador é global, ver
+  player_links) de perfil do usuário logado no dashboard. Espelha o
+  /perfil-edit do Discord (ConfigSystem.buildPerfilEditPanelPayload) pra
+  personalização e o /perfil (playerRegistrationSystem.sendProfile) pra
+  identidade/stats — um formulário só em vez do fluxo por botão+modal do
+  Discord. Aberta pelo botão-avatar da sidebar (pedido do dono,
+  2026-08-05).
+
+  Uso: res.render('perfil', { ... }) — ver dashboard.js GET /perfil pra
+  lista completa de locals.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Perfil | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos só desta página (mesmo padrão de dev-image-pool.ejs:
+           componente usado numa página só não precisa entrar no
+           style.css compartilhado). */
+        .perfil-hero {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .perfil-hero-avatar {
+            box-sizing: border-box;
+            flex: none;
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: #4B2427;
+            border: 4px solid #803E30;
+            box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
+            overflow: hidden;
+        }
+        .perfil-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .perfil-hero-name { font-family: 'Tilt Warp', cursive; font-size: clamp(20px, 3vw, 28px); color: #F8DCC0; }
+        .perfil-hero-id { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.5; }
+        .perfil-tier-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 16px;
+            border-radius: 147.5px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            border: 1px solid var(--pt-color, #F8DCC0);
+            color: var(--pt-color, #F8DCC0);
+        }
+        .perfil-guild-list { display: flex; flex-wrap: wrap; gap: 10px; }
+        .perfil-guild-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px 6px 6px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.25);
+            border-radius: 147.5px;
+            text-decoration: none;
+            transition: border-color 0.15s ease;
+        }
+        .perfil-guild-chip:hover { border-color: #DCA15E; }
+        .perfil-guild-chip img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+        .perfil-guild-chip span { font-family: 'Poppins', sans-serif; font-size: 13px; color: #F8DCC0; }
+        .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
+        .perfil-stars .is-filled { color: #DCA15E; }
+        .perfil-stat-line { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.7; }
+        .perfil-soon-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            padding: 10px 0;
+        }
+        .perfil-soon-card i { width: 32px; height: 32px; color: #803E30; }
+        .perfil-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
+        .perfil-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
+        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px] overflow-y-auto">
+
+        <%
+            const pfAvatarUrl = discordUser.avatar
+                ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${discordUser.id % 5}.png`;
+            const pfTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
+            const pfTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
+        %>
+        <%- include('partials/page-header', { subtitle: 'MEU PERFIL', iconUrl: pfAvatarUrl }) %>
+
+        <%- include('partials/save-result-overlay', { saved }) %>
+
+        <section class="titan-card-premium flex-col gap-5">
+            <div class="perfil-hero">
+                <div class="perfil-hero-avatar"><img src="<%= pfAvatarUrl %>" alt=""></div>
+                <div class="flex flex-col gap-2">
+                    <span class="perfil-hero-name"><%= discordUser.global_name || discordUser.username %></span>
+                    <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
+                    <span class="perfil-tier-pill" style="--pt-color: <%= pfTierColors[playerTier] %>">
+                        <i data-lucide="badge" class="w-4 h-4"></i> Player Premium: <%= pfTierLabels[playerTier] %>
+                        <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — expira em <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
+                        <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — vitalício<% } %>
+                    </span>
+                </div>
+            </div>
+
+            <% if (otherGuilds.length > 0) { %>
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Servidores que você administra</h3>
+                    <div class="perfil-guild-list">
+                        <% otherGuilds.forEach(g => { %>
+                            <% const gIconUrl = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : `/images/guild-fallback-${(g.id % 4) + 1}.svg`; %>
+                            <a href="/moderacao/<%= g.id %>" class="perfil-guild-chip">
+                                <img src="<%= gIconUrl %>" alt="">
+                                <span><%= g.name %></span>
+                            </a>
+                        <% }); %>
+                    </div>
+                </div>
+            <% } %>
+        </section>
+
+        <% if (!link) { %>
+            <section class="titan-card-premium flex-col gap-3">
+                <h2 class="section-title text-lg">Path of Titans</h2>
+                <p class="text-sm opacity-60">Sua conta Discord ainda não está vinculada a um jogador de Path of Titans.</p>
+                <p class="text-xs opacity-40">Use <code>/registrar</code> no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</p>
+            </section>
+        <% } else { %>
+            <section class="titan-card-premium flex-col gap-5">
+                <h2 class="section-title text-lg">Path of Titans</h2>
+                <div class="flex flex-col gap-2">
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nome no jogo:</strong> <%= link.player_name || '—' %></span>
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Título:</strong> <%= link.profile_title || 'Em breve (missões)' %></span>
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Espécie mais jogada:</strong> <%= mostPlayedDinosaur || 'Ainda sem registro' %></span>
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nível:</strong> 1 <span class="opacity-50">(sistema de XP em breve)</span></span>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Honra:</strong></span>
+                        <span class="perfil-stars">
+                            <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
+                        </span>
+                    </div>
+                </div>
+            </section>
+
+            <form action="/perfil/save" method="POST" enctype="multipart/form-data" class="contents">
+                <section class="titan-card-premium flex-col gap-6">
+                    <h2 class="section-title text-lg">PERSONALIZAR PERFIL</h2>
+                    <p class="text-xs opacity-50">Ajuste como seu perfil aparece pros outros no <code>/perfil</code>.</p>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Emblema</h3>
+                        <p class="text-xs opacity-40 mb-2">Disponível em qualquer plano.</p>
+                        <% if (badgeOptions.length === 0) { %>
+                            <p class="text-xs opacity-40">Nenhum emblema disponível no momento.</p>
+                        <% } else { %>
+                            <div class="banner-picker">
+                                <label class="banner-picker-option is-narrow">
+                                    <input type="radio" name="badge_key" value="" <%= !link.selected_badge_key ? 'checked' : '' %>>
+                                    <span class="banner-picker-thumb is-square"></span>
+                                    <span class="banner-picker-label">Nenhum</span>
+                                </label>
+                                <% badgeOptions.forEach(opt => { %>
+                                    <label class="banner-picker-option is-narrow">
+                                        <input type="radio" name="badge_key" value="<%= opt.value %>" <%= opt.value === link.selected_badge_key ? 'checked' : '' %>>
+                                        <span class="banner-picker-thumb is-square"></span>
+                                        <span class="banner-picker-label"><%= opt.label %></span>
+                                    </label>
+                                <% }); %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Foto de Perfil</h3>
+                        <% if (!isCompyPlus) { %>
+                            <p class="text-xs opacity-40">Recurso do Player Premium Compy ou superior — use <code>/premium</code> no Discord pra saber mais.</p>
+                        <% } else if (isRaptor) { %>
+                            <p class="text-xs opacity-40 mb-2">Envie sua própria imagem. Sem upload, usa o banner do seu próprio perfil do Discord (se você tiver um).</p>
+                            <% if (avatarPreviewUrl) { %>
+                                <div class="rounded-lg mb-2" style="width:96px; aspect-ratio:1/1; background-image:url('<%= avatarPreviewUrl %>'); background-size:cover; background-position:center;"></div>
+                            <% } %>
+                            <div class="input-container-premium">
+                                <div class="icon-box"><i data-lucide="upload"></i></div>
+                                <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
+                            </div>
+                        <% } else { %>
+                            <p class="text-xs opacity-40 mb-2">Escolha uma foto da galeria.</p>
+                            <% if (avatarOptions.length === 0) { %>
+                                <p class="text-xs opacity-40">Nenhuma foto disponível no momento.</p>
+                            <% } else { %>
+                                <div class="banner-picker">
+                                    <label class="banner-picker-option is-narrow">
+                                        <input type="radio" name="photo_key" value="" <%= !link.selected_photo_key ? 'checked' : '' %>>
+                                        <span class="banner-picker-thumb is-square"></span>
+                                        <span class="banner-picker-label">Padrão do tier</span>
+                                    </label>
+                                    <% avatarOptions.forEach(opt => { %>
+                                        <label class="banner-picker-option is-narrow">
+                                            <input type="radio" name="photo_key" value="<%= opt.value %>" <%= opt.value === link.selected_photo_key ? 'checked' : '' %>>
+                                            <span class="banner-picker-thumb is-square"></span>
+                                            <span class="banner-picker-label"><%= opt.label %></span>
+                                        </label>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                        <% } %>
+                    </div>
+
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Plano de Fundo</h3>
+                        <% if (!isCompyPlus) { %>
+                            <p class="text-xs opacity-40">Recurso do Player Premium Compy ou superior — use <code>/premium</code> no Discord pra saber mais.</p>
+                        <% } else { %>
+                            <% if (isRaptor) { %>
+                                <p class="text-xs opacity-40 mb-2">Envie sua própria imagem (ideal 1300x300).</p>
+                                <% if (backgroundPreviewUrl) { %>
+                                    <div class="rounded-lg mb-2" style="aspect-ratio: 1300/300; max-width:300px; background-image:url('<%= backgroundPreviewUrl %>'); background-size:cover; background-position:center;"></div>
+                                <% } %>
+                                <div class="input-container-premium">
+                                    <div class="icon-box"><i data-lucide="upload"></i></div>
+                                    <input type="file" name="background_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
+                                </div>
+                            <% } else { %>
+                                <p class="text-xs opacity-40 mb-2">Escolha um plano de fundo da galeria.</p>
+                                <% if (backgroundOptions.length === 0) { %>
+                                    <p class="text-xs opacity-40">Nenhum plano de fundo disponível no momento.</p>
+                                <% } else { %>
+                                    <div class="banner-picker">
+                                        <label class="banner-picker-option">
+                                            <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
+                                            <span class="banner-picker-thumb"></span>
+                                            <span class="banner-picker-label">Nenhum</span>
+                                        </label>
+                                        <% backgroundOptions.forEach(opt => { %>
+                                            <label class="banner-picker-option">
+                                                <input type="radio" name="background_key" value="<%= opt.value %>" <%= opt.value === link.selected_background_key ? 'checked' : '' %>>
+                                                <span class="banner-picker-thumb"></span>
+                                                <span class="banner-picker-label"><%= opt.label %></span>
+                                            </label>
+                                        <% }); %>
+                                    </div>
+                                <% } %>
+                            <% } %>
+                            <% const hasBackground = isRaptor ? !!link.background_message_id : !!link.selected_background_key; %>
+                            <% if (hasBackground) { %>
+                                <label class="text-xs opacity-60 flex items-center gap-2 mt-2">
+                                    <input type="checkbox" name="remove_background" value="on"> Remover plano de fundo atual
+                                </label>
+                            <% } %>
+                        <% } %>
+                    </div>
+
+                    <% if (isCompyPlus) { %>
+                        <div>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Combate</h3>
+                            <label class="text-xs opacity-60 flex items-center gap-2">
+                                <input type="checkbox" name="hide_kda" value="on" <%= link.hide_kda ? 'checked' : '' %>> Esconder Kills/Deaths/K-D no meu /perfil
+                            </label>
+                        </div>
+                    <% } %>
+
+                    <% if (isRaptor) { %>
+                        <div>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Título</h3>
+                            <div class="input-container-premium">
+                                <div class="icon-box"><i data-lucide="edit"></i></div>
+                                <input type="text" maxlength="100" class="input-premium-field" name="profile_title" placeholder="Em breve (missões)" value="<%= link.profile_title || '' %>">
+                            </div>
+                        </div>
+                    <% } %>
+
+                    <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                </section>
+            </form>
+        <% } %>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-[20px] lg:gap-[30px]">
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="coins"></i>
+                <span class="perfil-soon-title">Saldo de Hunt</span>
+                <span class="perfil-soon-text">Moeda interna do bot, trocável por personalização de perfil na loja — em breve.</span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="users"></i>
+                <span class="perfil-soon-title">Lista de Amigos</span>
+                <span class="perfil-soon-text">Em breve.</span>
+            </section>
+        </div>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

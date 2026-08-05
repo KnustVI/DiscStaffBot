@@ -14,6 +14,8 @@ const CustomBannerResolver = require('./src/utils/customBannerResolver');
 const { storeImageBuffer } = require('./src/utils/imageStorage');
 const ProfileImagePool = require('./src/systems/pot/profileImagePool');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
+const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
+const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
 
 const app = express();
 
@@ -713,6 +715,173 @@ function loadDashboard(client) {
         ProfileImagePool.removeImage(type, id);
         res.redirect('/dev/image-pool');
     });
+
+    // ==================== PERFIL (do usuário logado) ====================
+    // Página global (sem :guildID — identidade do jogador é global, ver
+    // player_links) pro avatar da sidebar levar a algum lugar (pedido do
+    // dono: "avatar vira um botão animado que leva pra página de perfil").
+    // Espelha o comando /perfil-edit do Discord (ConfigSystem.
+    // buildPerfilEditPanelPayload) e o /perfil (playerRegistrationSystem.
+    // sendProfile) — mesmas tabelas/regras de tier, um formulário só em
+    // vez do fluxo por botão+modal do Discord.
+
+    // Resolve a URL de PRÉVIA de uma foto/plano de fundo de perfil — mesma
+    // receita de resolveBannerUrl (customBannerResolver.js), mas pra
+    // player_links (banner_message_id/background_message_id, upload
+    // próprio do Raptor) em vez de settings de guild (upload de banner de
+    // servidor) — tabelas/chaves diferentes demais pra reaproveitar aquele
+    // helper sem forçar um encaixe. messageId tem prioridade (upload
+    // próprio, só existe no Raptor); sem ele, cai pro pool (poolKey, Compy).
+    async function resolvePlayerImageUrl(type, poolKey, messageId) {
+        if (messageId) {
+            const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
+            if (storageChannelId) {
+                try {
+                    const storageChannel = await client.channels.fetch(storageChannelId);
+                    const storedMessage = await storageChannel.messages.fetch(messageId);
+                    const url = storedMessage.attachments.first()?.url;
+                    if (url) return url;
+                } catch (err) {
+                    // segue pro fallback do pool
+                }
+            }
+        }
+        if (poolKey && ProfileImagePool.isPoolValue(poolKey)) {
+            return await ProfileImagePool.resolveImageUrl(client, type, ProfileImagePool.poolIdFromValue(poolKey));
+        }
+        return null;
+    }
+
+    app.get('/perfil', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+
+        const userId = req.user.id;
+        const link = PlayerRegistry.getPlayerByDiscordId(userId);
+        const playerTier = PremiumSystem.getPlayerTier(userId);
+        const premiumInfo = PremiumSystem.getPlayerPremiumInfo(userId);
+        const isCompyPlus = playerTier === 'compy' || playerTier === 'raptor';
+        const isRaptor = playerTier === 'raptor';
+
+        let honorStars = null;
+        let mostPlayedDinosaur = null;
+        let badgeOptions = [];
+        let avatarOptions = [];
+        let backgroundOptions = [];
+        let avatarPreviewUrl = null;
+        let backgroundPreviewUrl = null;
+
+        // Personalização exige vínculo (mesmo gate do /perfil-edit: sem
+        // player_links não tem onde gravar a escolha) — só calcula/busca
+        // tudo isso quando faz sentido mostrar o editor.
+        if (link) {
+            honorStars = PunishmentSystem.getGlobalHonorStars(userId);
+            mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
+            badgeOptions = ConfigSystem.getBadgeOptions();
+            if (isCompyPlus && !isRaptor) {
+                avatarOptions = ConfigSystem.getAvatarOptions();
+                backgroundOptions = ConfigSystem.getBackgroundOptions();
+            }
+            avatarPreviewUrl = await resolvePlayerImageUrl('avatar', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
+            backgroundPreviewUrl = await resolvePlayerImageUrl('background', link.selected_background_key, isRaptor ? link.background_message_id : null);
+        }
+
+        const otherGuilds = getAdminGuildsWithBot(req);
+
+        res.render('perfil', {
+            nickname: req.user.global_name || req.user.username,
+            role: 'Membro',
+            isOwner: isOwnerSession(req),
+            otherGuilds,
+            discordUser: req.user,
+            link,
+            playerTier,
+            premiumInfo,
+            isCompyPlus,
+            isRaptor,
+            honorStars,
+            mostPlayedDinosaur,
+            badgeOptions,
+            avatarOptions,
+            backgroundOptions,
+            avatarPreviewUrl,
+            backgroundPreviewUrl,
+            saved: req.query.saved,
+        });
+    });
+
+    app.post(
+        '/perfil/save',
+        checkAuth,
+        upload.fields([{ name: 'avatar_file', maxCount: 1 }, { name: 'background_file', maxCount: 1 }]),
+        async (req, res) => {
+            if (isDashboardLocked(req)) return res.redirect('/dashboard');
+
+            const userId = req.user.id;
+            const link = PlayerRegistry.getPlayerByDiscordId(userId);
+            if (!link) return res.redirect('/perfil?saved=error');
+
+            const playerTier = PremiumSystem.getPlayerTier(userId);
+            const isCompyPlus = playerTier === 'compy' || playerTier === 'raptor';
+            const isRaptor = playerTier === 'raptor';
+            const body = req.body;
+            const files = req.files || {};
+
+            try {
+                // Emblema — liberado em QUALQUER tier (mesma regra do
+                // /perfil-edit no Discord).
+                if ('badge_key' in body) {
+                    const key = body.badge_key || null;
+                    const valid = !key || ConfigSystem.getBadgeOptions().some(opt => opt.value === key);
+                    if (valid) PlayerRegistry.setSelectedBadgeKey(userId, key);
+                }
+
+                if (isCompyPlus) {
+                    PlayerRegistry.setHideKda(userId, body.hide_kda === 'on');
+
+                    if (isRaptor) {
+                        // Upload próprio tem prioridade sobre "remover" no mesmo
+                        // submit (mesma regra já usada pros banners de
+                        // Strike/Unstrike em /moderacao/:guildID/save).
+                        const avatarFile = files.avatar_file?.[0];
+                        const backgroundFile = files.background_file?.[0];
+                        if (avatarFile) {
+                            const result = await storeImageBuffer(client, avatarFile.buffer, `Foto de perfil de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
+                            if (result.ok) PlayerRegistry.setBannerMessageId(userId, result.messageId);
+                        }
+                        if (backgroundFile) {
+                            const result = await storeImageBuffer(client, backgroundFile.buffer, `Plano de fundo de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
+                            if (result.ok) PlayerRegistry.setBackgroundMessageId(userId, result.messageId);
+                        } else if (body.remove_background === 'on') {
+                            PlayerRegistry.setBackgroundMessageId(userId, null);
+                        }
+                        if ('profile_title' in body) {
+                            PlayerRegistry.setProfileTitle(userId, (body.profile_title || '').trim() || null);
+                        }
+                    } else {
+                        // Compy: escolhe da galeria do pool em vez de enviar
+                        // arquivo próprio (mesma restrição do /perfil-edit).
+                        if (body.remove_background === 'on') {
+                            PlayerRegistry.setSelectedBackgroundKey(userId, null);
+                        } else if ('background_key' in body) {
+                            const key = body.background_key || null;
+                            const valid = !key || ConfigSystem.getBackgroundOptions().some(opt => opt.value === key);
+                            if (valid) PlayerRegistry.setSelectedBackgroundKey(userId, key);
+                        }
+                        if ('photo_key' in body) {
+                            const key = body.photo_key || null;
+                            const valid = !key || ConfigSystem.getAvatarOptions().some(opt => opt.value === key);
+                            if (valid) PlayerRegistry.setSelectedPhotoKey(userId, key);
+                        }
+                    }
+                }
+
+                res.redirect('/perfil?saved=success');
+            } catch (error) {
+                console.error('❌ Erro ao salvar personalização de perfil:', error);
+                res.redirect('/perfil?saved=error');
+            }
+        }
+    );
 
     // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
     // Só mostra servidores onde o bot JÁ ESTÁ (pedido do dono) — antes

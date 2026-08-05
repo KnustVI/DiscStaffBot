@@ -20,23 +20,34 @@
   o dropdown exclui o atual e linka pra /<pageRoute>/<outroId>. Sem os
   dois, ou com só o servidor atual na lista, o ícone fica só decorativo
   (sem nada pra trocar).
+
+  Modo SEM servidor (ex: /perfil, página global — pedido do dono,
+  2026-08-05): omite `guild` e passa `subtitle` (texto completo depois de
+  "DASHBOARD", já pronto — este parcial não monta mais "<guild.name> |
+  <pageLabel>" nesse caso) e `iconUrl` (substitui o ícone do servidor,
+  ex: avatar do próprio usuário). Sem seletor de servidor nesse modo
+  (não faz sentido sem um "servidor atual").
 %>
 <%
+    const phHasGuild = typeof guild !== 'undefined' && guild;
     // Mesmo padrão de fallback (sem ícone) já usado em index.ejs.
-    const phIconUrl = guild.icon
-        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
-        : `/images/guild-fallback-${(guild.id % 4) + 1}.svg`;
+    const phIconUrl = typeof iconUrl !== 'undefined' && iconUrl
+        ? iconUrl
+        : (phHasGuild
+            ? (guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : `/images/guild-fallback-${(guild.id % 4) + 1}.svg`)
+            : '/images/guild-fallback-1.svg');
+    const phSubtitle = typeof subtitle !== 'undefined' ? subtitle : (phHasGuild ? `${guild.name} | ${pageLabel}` : '');
 
     const phRoute = typeof pageRoute !== 'undefined' ? pageRoute : null;
-    const phOtherGuilds = (typeof otherGuilds !== 'undefined' && Array.isArray(otherGuilds))
+    const phOtherGuilds = (phHasGuild && typeof otherGuilds !== 'undefined' && Array.isArray(otherGuilds))
         ? otherGuilds.filter(g => g.id !== guild.id)
         : [];
-    const phCanSwitch = phRoute && phOtherGuilds.length > 0;
+    const phCanSwitch = phHasGuild && phRoute && phOtherGuilds.length > 0;
 %>
 <header class="page-header">
     <div class="page-header-text">
         <h1 class="page-header-title">DASHBOARD</h1>
-        <p class="page-header-subtitle"><%= guild.name %> | <%= pageLabel %></p>
+        <p class="page-header-subtitle"><%= phSubtitle %></p>
     </div>
 
     <% if (phCanSwitch) { %>
