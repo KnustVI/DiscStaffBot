@@ -107,22 +107,22 @@
 
         <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
             <h2 class="section-title text-lg">CONFIGURAÇÕES DE CARGOS DE MODERAÇÃO</h2>
-            <p class="text-xs opacity-50">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
+            <p class="text-[13px] opacity-50">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
             <div class="flex flex-col gap-8">
 
                 <div>
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Supervisão</h3>
-                    <p class="text-xs opacity-40 mb-1">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
-                    <p class="text-xs opacity-40 mb-1">Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
-                    <p class="text-xs opacity-40 mb-2">Necessário para uso de alguns comandos de RCON.</p>
+                    <p class="text-[13px] opacity-40 mb-1">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
+                    <p class="text-[13px] opacity-40 mb-1">Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
+                    <p class="text-[13px] opacity-40 mb-2">Necessário para uso de alguns comandos de RCON.</p>
                     <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
                 </div>
 
                 <div>
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
-                    <p class="text-xs opacity-40 mb-1">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
-                    <p class="text-xs opacity-40 mb-1">Permite comandos básicos de RCON.</p>
-                    <p class="text-xs opacity-40 mb-2">Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
+                    <p class="text-[13px] opacity-40 mb-1">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
+                    <p class="text-[13px] opacity-40 mb-1">Permite comandos básicos de RCON.</p>
+                    <p class="text-[13px] opacity-40 mb-2">Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
                     <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
                 </div>
 
@@ -147,18 +147,18 @@
                 <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
             </h2>
             <% if (!isRastreador) { %>
-                <p class="text-xs opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+                <p class="text-[13px] opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
             <% } else { %>
                 <div>
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Níveis de Punição</h3>
-                    <p class="text-xs opacity-50 mb-1">Crie níveis customizados pro /strike. Botão <strong>Exigir/Dispensar Aprovação</strong> define, nível a nível, quais exigem aprovação do Supervisor.</p>
+                    <p class="text-[13px] opacity-50 mb-1">Crie níveis customizados pro /strike. Botão <strong>Exigir/Dispensar Aprovação</strong> define, nível a nível, quais exigem aprovação do Supervisor.</p>
                     <% if (!customApprovalEnabled) { %>
-                        <p class="text-xs opacity-40 mb-2">Sem o plano Caçador, a aprovação segue a regra automática padrão: severidade Grave/Severa ou duração maior que 72h/permanente exige aprovação do Supervisor.</p>
+                        <p class="text-[13px] opacity-40 mb-2">Sem o plano Caçador, a aprovação segue a regra automática padrão: severidade Grave/Severa ou duração maior que 72h/permanente exige aprovação do Supervisor.</p>
                     <% } %>
-                    <p class="text-xs opacity-60 mb-3">Níveis usados: <%= punishmentLevels.length %>/<%= levelLimit %></p>
+                    <p class="text-[13px] opacity-60 mb-3">Níveis usados: <%= punishmentLevels.length %>/<%= levelLimit %></p>
 
                     <% if (punishmentLevels.length === 0) { %>
-                        <p class="text-xs opacity-40 mb-3">Nenhum nível criado ainda. Use o botão <strong>Criar Nível</strong> abaixo.</p>
+                        <p class="text-[13px] opacity-40 mb-3">Nenhum nível criado ainda. Use o botão <strong>Criar Nível</strong> abaixo.</p>
                     <% } else { %>
                         <div class="level-list">
                             <% const severityColors = { Leve: '#8BE28B', Moderada: '#E2C168', Grave: '#E2924E', Severa: '#FF4E3B' }; %>
@@ -275,7 +275,7 @@
                             </form>
                         </details>
                     <% } else { %>
-                        <p class="text-xs opacity-40 mt-3">Limite de níveis do seu plano atingido (<%= punishmentLevels.length %>/<%= levelLimit %>). Use <code>/premium</code> pra ver planos com mais níveis.</p>
+                        <p class="text-[13px] opacity-40 mt-3">Limite de níveis do seu plano atingido (<%= punishmentLevels.length %>/<%= levelLimit %>). Use <code>/premium</code> pra ver planos com mais níveis.</p>
                     <% } %>
                 </div>
             <% } %>
@@ -299,8 +299,8 @@
 
                 <div>
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos</h3>
-                    <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
-                    <label class="text-xs opacity-60">Strike (Temporário)</label>
+                    <p class="text-[13px] opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
+                    <label class="text-[13px] opacity-60">Strike (Temporário)</label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="shield-alert"></i></div>
                         <select name="strike_role" class="input-premium-field">
@@ -310,7 +310,7 @@
                             <% }); %>
                         </select>
                     </div>
-                    <label class="text-xs opacity-60">Exemplar</label>
+                    <label class="text-[13px] opacity-60">Exemplar</label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
                         <select name="role_exemplar" class="input-premium-field">
@@ -320,7 +320,7 @@
                             <% }); %>
                         </select>
                     </div>
-                    <label class="text-xs opacity-60">Problemático</label>
+                    <label class="text-[13px] opacity-60">Problemático</label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
                         <select name="role_problematico" class="input-premium-field">
@@ -338,27 +338,27 @@
                         <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
                     </h3>
                     <% if (!isRastreador) { %>
-                        <p class="text-xs opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+                        <p class="text-[13px] opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
                     <% } else if (!automodEnabled) { %>
-                        <label class="text-xs opacity-60">Pontos recuperados por dia</label>
+                        <label class="text-[13px] opacity-60">Pontos recuperados por dia</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="trending-up"></i></div>
                             <input type="text" class="input-premium-field" value="1 (fixo neste plano)" disabled>
                         </div>
-                        <p class="text-xs opacity-40">Cargos automáticos configuráveis e recuperação diária ajustável são exclusivos do plano Caçador — use <code>/premium</code> pra ver o tier atual.</p>
+                        <p class="text-[13px] opacity-40">Cargos automáticos configuráveis e recuperação diária ajustável são exclusivos do plano Caçador — use <code>/premium</code> pra ver o tier atual.</p>
                     <% } else { %>
-                        <p class="text-xs opacity-50 mb-3">Quantos pontos de reputação cada membro recupera por dia (não recupera se punido nas últimas 24h), e os limites de pontos que atribuem/removem os cargos Exemplar/Problemático acima.</p>
-                        <label class="text-xs opacity-60">Pontos recuperados por dia (0-100)</label>
+                        <p class="text-[13px] opacity-50 mb-3">Quantos pontos de reputação cada membro recupera por dia (não recupera se punido nas últimas 24h), e os limites de pontos que atribuem/removem os cargos Exemplar/Problemático acima.</p>
+                        <label class="text-[13px] opacity-60">Pontos recuperados por dia (0-100)</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="trending-up"></i></div>
                             <input type="number" name="rep_recovery_amount" class="input-premium-field" min="0" max="100" placeholder="Ex: 1" value="<%= settings.rep_recovery_amount || 1 %>">
                         </div>
-                        <label class="text-xs opacity-60">Limite Exemplar (50-100)</label>
+                        <label class="text-[13px] opacity-60">Limite Exemplar (50-100)</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
                             <input type="number" name="limit_exemplar" class="input-premium-field" min="50" max="100" placeholder="Ex: 95" value="<%= settings.limit_exemplar || 95 %>">
                         </div>
-                        <label class="text-xs opacity-60">Limite Problemático (0-50)</label>
+                        <label class="text-[13px] opacity-60">Limite Problemático (0-50)</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
                             <input type="number" name="limit_problematico" class="input-premium-field" min="0" max="50" placeholder="Ex: 30" value="<%= settings.limit_problematico || 30 %>">
@@ -397,14 +397,14 @@
                     <%- include('partials/tier-badge') %>
                 </h2>
                 <% if (!isCacador) { %>
-                    <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <p class="text-[13px] opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
                 <% } else { %>
 
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Strike / Unstrike</h3>
-                        <p class="text-xs opacity-50 mb-3">Troque o banner mostrado no painel de aplicação (/strike) e de anulação (/unstrike) de punição.</p>
+                        <p class="text-[13px] opacity-50 mb-3">Troque o banner mostrado no painel de aplicação (/strike) e de anulação (/unstrike) de punição.</p>
 
-                        <label class="text-xs opacity-60">Banner Strike</label>
+                        <label class="text-[13px] opacity-60">Banner Strike</label>
                         <div class="banner-picker">
                             <% strikeBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -414,7 +414,7 @@
                                 </label>
                             <% }); %>
                         </div>
-                        <label class="text-xs opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <label class="text-[13px] opacity-60 block mt-4">Ou envie sua própria imagem</label>
                         <% if (strikeCustomBannerUrl) { %>
                             <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= strikeCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
                         <% } %>
@@ -422,9 +422,9 @@
                             <div class="icon-box"><i data-lucide="upload"></i></div>
                             <input type="file" name="strike_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                         </div>
-                        <p class="text-xs opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (strikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
+                        <p class="text-[13px] opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (strikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
 
-                        <label class="text-xs opacity-60 block mt-4">Banner Unstrike</label>
+                        <label class="text-[13px] opacity-60 block mt-4">Banner Unstrike</label>
                         <div class="banner-picker">
                             <% unstrikeBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -434,7 +434,7 @@
                                 </label>
                             <% }); %>
                         </div>
-                        <label class="text-xs opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <label class="text-[13px] opacity-60 block mt-4">Ou envie sua própria imagem</label>
                         <% if (unstrikeCustomBannerUrl) { %>
                             <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= unstrikeCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
                         <% } %>
@@ -442,19 +442,19 @@
                             <div class="icon-box"><i data-lucide="upload"></i></div>
                             <input type="file" name="unstrike_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                         </div>
-                        <p class="text-xs opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (unstrikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
+                        <p class="text-[13px] opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (unstrikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
                     </div>
 
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Aparência Geral</h3>
-                        <p class="text-xs opacity-50 mb-3">Cor de destaque e footer aplicados em /strike, /unstrike, report-chat, e nos logs de Punições/Reports/Geral.</p>
+                        <p class="text-[13px] opacity-50 mb-3">Cor de destaque e footer aplicados em /strike, /unstrike, report-chat, e nos logs de Punições/Reports/Geral.</p>
 
-                        <label class="text-xs opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
+                        <label class="text-[13px] opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="palette"></i></div>
                             <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
                         </div>
-                        <label class="text-xs opacity-60">Assinatura no rodapé dos painéis</label>
+                        <label class="text-[13px] opacity-60">Assinatura no rodapé dos painéis</label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="edit"></i></div>
                             <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">

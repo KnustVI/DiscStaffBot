@@ -296,8 +296,16 @@ label + .banner-picker { margin-top: 8px; }
    direto antes de um dropdown/caixa de texto/anexo de arquivo — pedido do
    dono, 2px em todas as páginas que usam esse padrão. */
 p + .input-container-premium,
-p + .banner-picker,
-p + .role-picker { margin-top: 2px; }
+p + .banner-picker { margin-top: 2px; }
+
+/* Cargos selecionados (role-picker) direto depois de um parágrafo de
+   descrição — separação MAIOR que os outros campos acima (pedido do
+   dono, 2026-08-05: "cargos selecionados... estão muito próximos da
+   descrição acima deles", em Equipe de Moderação/Supervisão de
+   moderacao.ejs — único lugar onde .role-picker vem logo depois de um
+   <p>; em events.ejs vem depois de <label>, cai direto no margin-top:8px
+   próprio de .role-picker, sem passar por esta regra). */
+p + .role-picker { margin-top: 16px; }
 
 /* A caixinha dourada do ícone */
 .icon-box {
