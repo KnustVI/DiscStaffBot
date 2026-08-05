@@ -256,6 +256,9 @@
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Título:</strong> <%= link.profile_title || 'Em breve (missões)' %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Espécie mais jogada:</strong> <%= mostPlayedDinosaur || 'Ainda sem registro' %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nível:</strong> 1 <span class="opacity-50">(sistema de XP em breve)</span></span>
+                        <% if (kdStats) { %>
+                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Kills:</strong> <%= kdStats.kills %> <strong class="text-titan-cream opacity-100 ml-2">Deaths:</strong> <%= kdStats.deaths %> <strong class="text-titan-cream opacity-100 ml-2">K/D:</strong> <%= kdStats.kd %> <span class="opacity-50">(soma de todos os servidores)</span></span>
+                        <% } %>
                         <div class="flex items-center gap-2 mt-1">
                             <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Honra:</strong></span>
                             <span class="perfil-stars">

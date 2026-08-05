@@ -811,6 +811,15 @@ function loadDashboard(client) {
         return null;
     }
 
+    // Mesma fórmula de formatKD (src/systems/pot/playerRegistrationSystem.js,
+    // usada pelo /perfil do Discord) — função local, não exportada de lá,
+    // reimplementada aqui em vez de exportar só pra isso (3 linhas).
+    function formatKD(kills, deaths) {
+        if (deaths > 0) return (kills / deaths).toFixed(2);
+        if (kills > 0) return kills.toFixed(2);
+        return '—';
+    }
+
     app.get('/perfil', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
@@ -823,6 +832,7 @@ function loadDashboard(client) {
 
         let honorStars = null;
         let mostPlayedDinosaur = null;
+        let kdStats = null;
         let badgeOptions = [];
         let avatarOptions = [];
         let backgroundOptions = [];
@@ -835,6 +845,19 @@ function loadDashboard(client) {
         if (link) {
             honorStars = PunishmentSystem.getGlobalHonorStars(userId);
             mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
+            // KDA (pedido do dono, 2026-08-05: "tá faltando KDA no perfil
+            // também") — GLOBAL (soma de todo servidor, ver
+            // getGlobalPlayerStats), diferente do /perfil no Discord (que
+            // mostra só do servidor onde o comando foi rodado, pedido do
+            // dono lá pra não confundir a comunidade PÚBLICA de um
+            // servidor específico). Essa distinção não se aplica aqui:
+            // /perfil no dashboard só o próprio usuário vê, sem plateia.
+            // Respeita hide_kda (Compy+, ver aba Personalização) igual o
+            // Discord faz.
+            if (!link.hide_kda) {
+                const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
+                kdStats = { kills: stats.kills, deaths: stats.deaths, kd: formatKD(stats.kills, stats.deaths) };
+            }
             badgeOptions = ConfigSystem.getBadgeOptions();
             if (isCompyPlus && !isRaptor) {
                 avatarOptions = ConfigSystem.getAvatarOptions();
@@ -859,6 +882,7 @@ function loadDashboard(client) {
             isRaptor,
             honorStars,
             mostPlayedDinosaur,
+            kdStats,
             badgeOptions,
             avatarOptions,
             backgroundOptions,
