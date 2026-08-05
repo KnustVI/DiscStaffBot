@@ -171,14 +171,19 @@
     <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
         <%
+            // Sem partials/page-header aqui (pedido do dono, 2026-08-05:
+            // "não precisa estar escrito DASHBOARD/MEU PERFIL, pode
+            // remover essa head, e não precisa do ícone do usuário no
+            // topo direito também") — o bloco logo abaixo (perfil-hero,
+            // avatar+nome+tier) já apresenta quem é o usuário, então o
+            // cabeçalho genérico + segundo avatar no canto ficava
+            // redundante só nesta página.
             const pfAvatarUrl = discordUser.avatar
                 ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
                 : `https://cdn.discordapp.com/embed/avatars/${discordUser.id % 5}.png`;
             const pfTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
             const pfTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
         %>
-        <%- include('partials/page-header', { subtitle: 'MEU PERFIL', iconUrl: pfAvatarUrl }) %>
-
         <%- include('partials/save-result-overlay', { saved }) %>
 
         <section class="titan-card-premium flex-col gap-5">
