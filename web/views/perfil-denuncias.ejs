@@ -51,8 +51,18 @@
     <%# Sem overflow-y-auto — ver comentário completo em moderacao.ejs (evita cortar a sombra dos cards perto da sidebar). %>
     <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
-        <h1 class="section-title text-xl">Suas Denúncias</h1>
-        <p class="text-[13px] opacity-50 -mt-3">Reportes que você abriu, em qualquer servidor.</p>
+        <%#
+            Head padrão do dashboard (pedido do dono, 2026-08-06: "Head
+            'Suas Denúncias' deve ser padrão com subtítulo amarelo da
+            mesma forma visual que o dashboard") — mesmo H2 (head) + H3
+            .text-titan-gold (subtítulo amarelo padrão) usado nos cards de
+            moderacao.ejs, dentro de um .titan-card-premium igual lá.
+        %>
+        <section class="titan-card-premium flex-col gap-2">
+            <h2 class="section-title text-lg">SUAS DENÚNCIAS</h2>
+            <h3 class="text-titan-gold text-sm uppercase tracking-widest">Reportes que você abriu</h3>
+            <p class="text-[13px] opacity-50">Em qualquer servidor onde o Titan's Pass esteja.</p>
+        </section>
 
         <% if (openReports.length === 0 && closedReports.length === 0 && !openPagination.search && !closedPagination.search) { %>
             <section class="titan-card-premium flex-col gap-3">

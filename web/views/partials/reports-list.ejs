@@ -106,7 +106,16 @@ function reportsHref(overrides) {
                         <i data-lucide="flag" class="w-4 h-4 text-titan-accent"></i>
                         <span class="font-semibold"><%= r.report_id %></span>
                         <span class="report-status"><%= r.statusLabel %></span>
-                        <% if (rlShowGuildBadge) { %><span class="report-guild-badge"><i data-lucide="server" class="w-3 h-3"></i> <%= r.guildName %></span><% } %>
+                        <% if (rlShowGuildBadge) { %>
+                            <span class="report-guild-badge">
+                                <% if (r.guildIconUrl) { %>
+                                    <img src="<%= r.guildIconUrl %>" alt="">
+                                <% } else { %>
+                                    <span class="report-guild-badge-fallback"><i data-lucide="server"></i></span>
+                                <% } %>
+                                <%= r.guildName %>
+                            </span>
+                        <% } %>
                     </div>
                     <div class="report-card-meta">
                         <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %> (<%= r.discordRoleLabel %>)</span>
@@ -168,7 +177,16 @@ function reportsHref(overrides) {
                         <i data-lucide="flag" class="w-4 h-4 text-titan-accent"></i>
                         <span class="font-semibold"><%= r.report_id %></span>
                         <span class="report-status"><%= r.statusLabel %></span>
-                        <% if (rlShowGuildBadge) { %><span class="report-guild-badge"><i data-lucide="server" class="w-3 h-3"></i> <%= r.guildName %></span><% } %>
+                        <% if (rlShowGuildBadge) { %>
+                            <span class="report-guild-badge">
+                                <% if (r.guildIconUrl) { %>
+                                    <img src="<%= r.guildIconUrl %>" alt="">
+                                <% } else { %>
+                                    <span class="report-guild-badge-fallback"><i data-lucide="server"></i></span>
+                                <% } %>
+                                <%= r.guildName %>
+                            </span>
+                        <% } %>
                     </div>
                     <div class="report-card-meta">
                         <span><i data-lucide="user" class="w-3.5 h-3.5"></i> <%= r.discordUsername %> (<%= r.discordRoleLabel %>)</span>

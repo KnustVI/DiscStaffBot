@@ -374,6 +374,12 @@ function getUserReportsData(userId, client, state) {
             threadDeletedByRoleLabel: row.thread_deleted_by ? resolveStaffRoleLabel(client, row.guild_id, row.thread_deleted_by) : null,
             statusLabel: REPORT_STATUS_LABELS[row.status] || row.status,
             guildName: guild?.name || 'Servidor desconhecido',
+            // Logo do servidor por linha (pedido do dono, 2026-08-06:
+            // "adicione apenas na lista a logo do servidor... com o nome
+            // do servidor") — mesmo padrão de URL de ícone usado em
+            // getPlayedGuilds/index.ejs; null quando o servidor não tem
+            // ícone (cai no fallback genérico do template).
+            guildIconUrl: guild?.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
         };
     };
 

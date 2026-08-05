@@ -876,17 +876,34 @@ summary.btn-chip::marker { content: ''; }
 }
 /* Selo de servidor por card — só aparece quando a lista mistura reports
    de vários servidores (showGuildBadge:true, ver reports-list.ejs). Nas
-   páginas de 1 servidor só (reports.ejs) fica sempre desligado. */
+   páginas de 1 servidor só (reports.ejs) fica sempre desligado. Logo +
+   nome (pedido do dono, 2026-08-06) — não só o nome sozinho. */
 .report-guild-badge {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     font-size: 0.65rem;
     color: #A89986;
     background: rgba(217, 163, 98, 0.1);
     border-radius: 20px;
-    padding: 3px 10px;
+    padding: 3px 10px 3px 3px;
 }
+.report-guild-badge img,
+.report-guild-badge .report-guild-badge-fallback {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: none;
+}
+.report-guild-badge .report-guild-badge-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #4B2427;
+    color: #DCA15E;
+}
+.report-guild-badge .report-guild-badge-fallback svg { width: 10px; height: 10px; }
 .report-card-meta {
     display: flex;
     flex-wrap: wrap;
