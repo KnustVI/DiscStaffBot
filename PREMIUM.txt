@@ -4792,3 +4792,48 @@ frente, nao so este relatorio):
   voltam sozinhos pro padrão do bot — mesmo critério já usado por toda a
   personalização (a checagem de tier acontece na LEITURA, não só na
   escrita).
+
+109) Log de modo espectador reage a PlayerRespawn + aviso do bug do jogo
+     (seção 87) removido
+------------------------------------------------------------------
+- Pedido do dono: "às vezes o log não responde se o player saiu do modo
+  espectador, mas sempre avisa quando respawna com dino, o que também
+  indica que saiu". O texto do log ("Modo espectador: ✅/🚫") deriva o
+  estado escaneando `pot_logs` por eventos `AdminSpectate` — nunca sabia
+  de `PlayerRespawn`, que também sinaliza saída (às vezes o "Exited
+  Spectator Mode" simplesmente não chega do jogo). Como `PlayerRespawn`
+  não é persistido em `pot_logs` (altíssimo volume, ao contrário de
+  `AdminSpectate`), a correção é alvejada: só quando o jogador estava
+  REALMENTE sinalizado como espectador, o `PlayerRespawn` grava um
+  registro sintético (`Action: 'Exited Spectator Mode'`) em `pot_logs` —
+  daí em diante `isCurrentlySpectating` já enxerga a saída — e posta a
+  mesma mensagem de "saiu do modo espectador" no canal adm-commands
+  (grupo `admin`), como se fosse a resposta que às vezes falta do
+  `AdminSpectate` de verdade. Localização (POI/coordenadas) do payload do
+  respawn é repassada pro registro sintético — a formatação do
+  `AdminSpectate` ganhou uma linha "Local" (mesmo padrão de
+  `buildKillPanel`) que só aparece quando o campo vier, então não afeta
+  os `AdminSpectate` reais de sempre (nunca confirmados trazendo local).
+  `isCurrentlySpectating` foi exportado de `webhookPayloads.js` pra
+  `gatewayServer.js` conseguir fazer essa checagem antes de decidir se
+  vale a pena gravar/postar.
+- Pedido do dono (mesma conversa): "remova todos os avisos sobre o
+  problema do modo espectador, o desenvolvedor do jogo alega ter
+  corrigido" — remove `SPECTATOR_DISCLAIMER` (`analyticsSystem.js`, ver
+  seção 87) e seus 4 usos (`generateDailySummaryContainer`,
+  `generateStaffHistoryContainer`, `generateStaffHistoryRankingContainer`,
+  `purgeStaffOnRoleLoss`). Esse aviso era especificamente sobre o BUG DO
+  JOGO em captar informação real de modo espectador — agora tido como
+  corrigido pelo desenvolvedor do PoT. O aviso DIFERENTE que já existia
+  em `webhookPayloads.js` (evento `AdminSpectate` — "totais podem estar
+  incompletos para staffs não registrados/sem cargo configurado") NÃO foi
+  tocado: é sobre uma limitação estrutural do PRÓPRIO bot (só credita
+  tempo pra staff registrado + com cargo, ver
+  `AnalyticsSystem.recordAdminSpectateEvent`), sem nenhuma relação com o
+  bug do jogo — continua verdadeiro independente da correção do PoT.
+- Verificado com testes funcionais diretos contra o banco (sem precisar
+  de um servidor Discord real): sequência histórico vazio → "Entered" →
+  checagem antes do respawn → registro sintético → estado final batendo
+  em cada passo; e os 3 containers de analytics (`generateDaily*`/
+  `generateStaffHistory*`) confirmados sem nenhum traço do aviso removido
+  quando há atividade registrada.
