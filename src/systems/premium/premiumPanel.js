@@ -1,7 +1,8 @@
 // src/systems/premium/premiumPanel.js
 /**
  * Painel público do /premium — "controle remoto" com 3 containers (main,
- * server, player), navegáveis pelos mesmos dois botões em qualquer um deles.
+ * server, player), navegáveis por uma única linha de botões (Assinar +
+ * Status/Server Premium/Player Premium) presente em qualquer um deles.
  * Roteado pelo InteractionHandler via prefixo `premium:` (customId
  * `premium:view:main|server|player`).
  */
@@ -86,27 +87,21 @@ function appendStatus(builder, guild, user) {
     return builder;
 }
 
-function appendAcquire(builder) {
-    builder.title(`${EMOJIS.wifi || '💬'} Como adquirir`, 2);
-    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} A concessão hoje é manual: clique em **Assinar** abaixo pra entrar no servidor de suporte e combinar o pagamento com a staff, ou use **/reportarbug** pra falar direto com o desenvolvedor.`);
-    return builder;
-}
+// Link fixo pra apresentação de Premium na home (pedido do dono,
+// 2026-08-06: "assinar leva para a nossa apresentação de premium na
+// pagina home") — antes ia direto pro servidor de suporte (pulando a
+// vitrine), agora mostra a tabela/pitch de preços primeiro; os botões
+// "Adquirir" de lá é que levam pro suporte de verdade (ver
+// web/views/hero.ejs, acquireSectionButton). Mesmo domínio do dashboard
+// web (dashboard.titansvisit.win — ver GET / em dashboard.js), âncora
+// #premium.
+const SITE_PREMIUM_URL = 'https://dashboard.titansvisit.win/#premium';
 
-// Link fixo pro servidor de suporte — mesmo link usado no botão "Adquirir"
-// da landing page (Brasil/Pix, ver web/views/hero.ejs). O painel do
-// Discord não faz detecção de região (ver PREMIUM.txt seção 101), então
-// esse botão é único pra qualquer um que rodar /premium, independente de
-// onde a pessoa está.
-const SUPPORT_SERVER_URL = 'https://discord.gg/fkD5FQktn6';
-
-function acquireRow() {
+// Botões numa linha só (pedido do dono, 2026-08-06) — Assinar (link) +
+// os 3 de navegação entre containers, até 5 cabem numa ActionRow.
+function actionRow(activeView = 'main') {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Assinar').setURL(SUPPORT_SERVER_URL).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.wifi || '🔗'),
-    );
-}
-
-function navRow(activeView = 'main') {
-    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Assinar').setURL(SITE_PREMIUM_URL).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.wifi || '🔗'),
         new ButtonBuilder().setCustomId('premium:view:main').setLabel('Status').setStyle(activeView === 'main' ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(EMOJIS.gauge || '📊'),
         new ButtonBuilder().setCustomId('premium:view:server').setLabel('Server Premium').setStyle(activeView === 'server' ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(EMOJIS.tv || '🖥️'),
         new ButtonBuilder().setCustomId('premium:view:player').setLabel('Player Premium').setStyle(activeView === 'player' ? ButtonStyle.Primary : ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
@@ -126,8 +121,6 @@ function buildMainContainer(guild, user) {
     extraFiles.push(...appendServerBanner(builder, guild));
 
     appendStatus(builder, guild, user);
-    builder.separator();
-    appendAcquire(builder);
 
     builder.separator();
     extraFiles.push(...appendFooterImage(builder, user));
@@ -156,7 +149,6 @@ function buildServerContainer(guild, user) {
 
     appendStatus(builder, guild, user);
     builder.separator();
-    appendAcquire(builder);
     builder.text(`${EMOJIS.trianglealert || '⚠️'} Necessário ser um Host de Path of Titans pra adquirir o Server Premium.`);
 
     builder.separator();
@@ -188,8 +180,6 @@ function buildPlayerContainer(guild, user) {
     }
 
     appendStatus(builder, guild, user);
-    builder.separator();
-    appendAcquire(builder);
 
     builder.separator();
     extraFiles.push(...appendFooterImage(builder, user));
@@ -205,7 +195,7 @@ function payloadFor(view, guild, user) {
         : buildMainContainer(guild, user);
 
     const { components, flags, files } = builder.build();
-    return { components: [...components, acquireRow(), navRow(resolvedView)], flags, files: [...(files || []), ...extraFiles] };
+    return { components: [...components, actionRow(resolvedView)], flags, files: [...(files || []), ...extraFiles] };
 }
 
 async function sendPanel(interaction, view = 'main') {
