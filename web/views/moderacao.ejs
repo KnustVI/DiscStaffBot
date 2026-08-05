@@ -390,6 +390,34 @@
         </form>
 
         <%#
+            DIVULGAÇÃO DO SERVIDOR (pedido do dono, 2026-08-05) — cada
+            servidor edita a PRÓPRIA divulgação, exibida no feed global
+            "Novidades dos Servidores Parceiros" da página /perfil de
+            QUALQUER usuário (não só quem administra este servidor — ver
+            dashboard.js getPartnerNews/perfil.ejs). Sem gate de tier de
+            propósito (não foi pedido) — qualquer servidor com o bot pode
+            se divulgar. Some do feed sozinho se o título ficar vazio
+            (mesma checagem em getPartnerNews).
+        %>
+        <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg">DIVULGAÇÃO DO SERVIDOR</h2>
+            <p class="text-[13px] opacity-50">Aparece pra qualquer usuário do Titan's Pass no feed "Novidades dos Servidores Parceiros" (página de perfil). Deixe o título vazio pra tirar seu servidor do feed.</p>
+            <div>
+                <label class="text-[13px] opacity-60">Título</label>
+                <div class="input-container-premium">
+                    <div class="icon-box"><i data-lucide="megaphone"></i></div>
+                    <input type="text" maxlength="80" class="input-premium-field" name="partner_news_title" placeholder="Ex: Evento de fim de ano no ar!" value="<%= settings.partner_news_title || '' %>">
+                </div>
+                <label class="text-[13px] opacity-60 block mt-4">Texto</label>
+                <div class="input-container-premium has-textarea">
+                    <div class="icon-box"><i data-lucide="message-square"></i></div>
+                    <textarea class="input-premium-field" name="partner_news_text" maxlength="280" rows="3" placeholder="Conte em poucas linhas o que está rolando no seu servidor..."><%= settings.partner_news_text || '' %></textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+        </form>
+
+        <%#
             Personalização espelha os blocos do /config personalizar do
             Discord relevantes PRA MODERAÇÃO (Strike/Unstrike,
             Aparência Geral — ver configSystem.js

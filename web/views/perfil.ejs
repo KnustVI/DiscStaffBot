@@ -135,6 +135,65 @@
         .perfil-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
         .perfil-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
 
+        /* NOVIDADES (Path of Titans, geral) — cards estilo vídeo (thumb +
+           título + data), pensado pra caber itens vindos do YouTube (ver
+           dashboard.js getPartnerNews/generalNews) sem mudar o layout
+           quando essa fonte existir de verdade. */
+        .perfil-news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+        .perfil-news-card { display: flex; flex-direction: column; gap: 8px; text-decoration: none; }
+        .perfil-news-thumb {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border-radius: 10px;
+            background-color: #131314;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            transition: border-color 0.15s ease;
+        }
+        .perfil-news-card:hover .perfil-news-thumb { border-color: #DCA15E; }
+        .perfil-news-title { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; color: #F8DCC0; }
+        .perfil-news-meta { font-family: 'Poppins', sans-serif; font-size: 11px; opacity: 0.5; }
+
+        /* NOVIDADES DOS SERVIDORES PARCEIROS — divulgação curta por
+           servidor (título+texto, ver moderacao.ejs "DIVULGAÇÃO DO
+           SERVIDOR"), sem imagem própria por enquanto (só o ícone do
+           servidor no cabeçalho do card). */
+        .perfil-partner-news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+        .perfil-partner-news-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            border-radius: 12px;
+        }
+        .perfil-partner-news-header { display: flex; align-items: center; gap: 8px; }
+        .perfil-partner-news-header img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
+        .perfil-partner-news-icon-fallback {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #4B2427;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: none;
+        }
+        .perfil-partner-news-icon-fallback i { width: 16px; height: 16px; color: #DCA15E; }
+        .perfil-partner-news-header span {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 12px;
+            opacity: 0.7;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .perfil-partner-news-title { font-family: 'Tilt Warp', cursive; font-size: 14px; color: #F8DCC0; margin: 0; }
+        .perfil-partner-news-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.6; line-height: 1.5; margin: 0; }
+
         /* Abas Perfil/Personalização (pedido do dono, 2026-08-05) — só
            existem quando a conta está vinculada (sem link não tem stats
            nem o que personalizar, ver bloco !link mais abaixo). Mesmo
@@ -195,6 +254,74 @@
         <h1 class="section-title text-2xl">Bem vindo de volta, <%= nickname %></h1>
 
         <%- include('partials/save-result-overlay', { saved }) %>
+
+        <%#
+            NOVIDADES (pedido do dono, 2026-08-05) — "antes dos blocos,
+            área de novidades gerais do Path of Titans e abaixo novidades
+            dos servidores parceiros". Novidades Gerais ainda sem fonte de
+            dados (owner escolheu YouTube, falta canal + YOUTUBE_API_KEY
+            em .env — ver dashboard.js GET /perfil) — mostra "em breve"
+            até isso existir. Formato de item já pronto pra receber
+            fontes: { source, title, url, thumbnailUrl, publishedAtLabel }.
+        %>
+        <section class="titan-card-premium flex-col gap-4">
+            <div>
+                <h2 class="section-title text-lg">NOVIDADES</h2>
+                <p class="text-[13px] opacity-50">O que tá rolando de novo na comunidade de Path of Titans.</p>
+            </div>
+            <% if (generalNews.length === 0) { %>
+                <div class="perfil-soon-card" style="padding:16px 0;">
+                    <i data-lucide="clapperboard"></i>
+                    <span class="perfil-soon-title">Em breve</span>
+                    <span class="perfil-soon-text">Últimas novidades oficiais de Path of Titans direto aqui — em breve.</span>
+                </div>
+            <% } else { %>
+                <div class="perfil-news-grid">
+                    <% generalNews.forEach(item => { %>
+                        <a href="<%= item.url %>" target="_blank" rel="noopener" class="perfil-news-card">
+                            <div class="perfil-news-thumb" style="background-image:url('<%= item.thumbnailUrl %>')"></div>
+                            <span class="perfil-news-title"><%= item.title %></span>
+                            <% if (item.publishedAtLabel) { %><span class="perfil-news-meta"><%= item.publishedAtLabel %></span><% } %>
+                        </a>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <%#
+            NOVIDADES DOS SERVIDORES PARCEIROS — cada servidor com o bot
+            edita a PRÓPRIA divulgação (título+texto) em
+            moderacao.ejs "DIVULGAÇÃO DO SERVIDOR" — mostrado aqui pra
+            QUALQUER usuário logado, não só quem administra aquele
+            servidor (ver dashboard.js getPartnerNews). Funcional (não é
+            placeholder), diferente do bloco de Novidades Gerais acima.
+        %>
+        <section class="titan-card-premium flex-col gap-4">
+            <div>
+                <h2 class="section-title text-lg">NOVIDADES DOS SERVIDORES PARCEIROS</h2>
+                <p class="text-[13px] opacity-50">O que os servidores que usam o Titan's Pass estão divulgando.</p>
+            </div>
+            <% if (partnerNews.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhum servidor divulgou novidades ainda.</p>
+            <% } else { %>
+                <div class="perfil-partner-news-grid">
+                    <% partnerNews.forEach(pn => { %>
+                        <div class="perfil-partner-news-card">
+                            <div class="perfil-partner-news-header">
+                                <% if (pn.iconUrl) { %>
+                                    <img src="<%= pn.iconUrl %>" alt="">
+                                <% } else { %>
+                                    <div class="perfil-partner-news-icon-fallback"><i data-lucide="server"></i></div>
+                                <% } %>
+                                <span><%= pn.guildName %></span>
+                            </div>
+                            <p class="perfil-partner-news-title"><%= pn.title %></p>
+                            <% if (pn.text) { %><p class="perfil-partner-news-text"><%= pn.text %></p><% } %>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
 
         <section class="titan-card-premium flex-col gap-5">
             <div class="perfil-hero">

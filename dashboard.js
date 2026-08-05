@@ -846,6 +846,33 @@ function loadDashboard(client) {
         });
     }
 
+    // "Novidades dos Servidores Parceiros" (pedido do dono, 2026-08-05) —
+    // feed GLOBAL na página /perfil, mostrado pra QUALQUER usuário
+    // logado, não só pra quem administra o servidor divulgado. Lê
+    // partner_news_title/text/updated_at (settings, editados pelo próprio
+    // servidor em moderacao.ejs) via um self-join no key/value plano de
+    // `settings` — só entra no feed quem tem título preenchido E o bot
+    // ainda está no servidor (client.guilds.cache), mesmo critério de
+    // "possui o bot" já usado em getAdminGuildsWithBot.
+    function getPartnerNews(client) {
+        const rows = db.prepare(`
+            SELECT t.guild_id, t.value AS title, x.value AS text, u.value AS updated_at
+            FROM settings t
+            LEFT JOIN settings x ON x.guild_id = t.guild_id AND x.key = 'partner_news_text'
+            LEFT JOIN settings u ON u.guild_id = t.guild_id AND u.key = 'partner_news_updated_at'
+            WHERE t.key = 'partner_news_title' AND t.value IS NOT NULL AND TRIM(t.value) != ''
+            ORDER BY CAST(u.value AS INTEGER) DESC
+        `).all();
+        return rows
+            .map((row) => {
+                const guild = client.guilds.cache.get(row.guild_id);
+                if (!guild) return null;
+                const iconUrl = guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null;
+                return { guildId: guild.id, guildName: guild.name, iconUrl, title: row.title, text: row.text || '' };
+            })
+            .filter(Boolean);
+    }
+
     app.get('/perfil', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
@@ -896,6 +923,17 @@ function loadDashboard(client) {
         }
 
         const otherGuilds = getAdminGuildsWithBot(req);
+        const partnerNews = getPartnerNews(client);
+        // "Novidades Gerais" (pedido do dono, 2026-08-05) — SEM fonte de
+        // dados ainda (owner decidiu puxar do YouTube depois, precisa de
+        // canal + YOUTUBE_API_KEY em .env, nenhum dos dois configurado
+        // ainda). Array vazio por enquanto — perfil.ejs já mostra um card
+        // "em breve" quando generalNews.length === 0. Formato pronto pra
+        // quando essa fonte existir: cada item { source: 'youtube', title,
+        // url, thumbnailUrl, publishedAtLabel } — pedido do dono era
+        // conseguir "adicionar mais fontes depois", daí o campo `source`
+        // já presente na forma esperada em vez de assumir só YouTube.
+        const generalNews = [];
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
@@ -911,6 +949,8 @@ function loadDashboard(client) {
             honorStars,
             mostPlayedDinosaur,
             kdStats,
+            partnerNews,
+            generalNews,
             playedGuilds,
             badgeOptions,
             avatarOptions,
@@ -1254,6 +1294,28 @@ function loadDashboard(client) {
             if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
             if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
+
+            // Divulgação do Servidor (pedido do dono, 2026-08-05) — mostrada
+            // no feed global "Novidades dos Servidores Parceiros" de
+            // QUALQUER usuário do dashboard (ver GET /perfil e
+            // getPartnerNews abaixo), não só de quem administra este
+            // servidor. partner_news_updated_at é gravado por CÓDIGO (não
+            // vem do form) só quando título/texto realmente mudam — usado
+            // pra ordenar o feed do mais recente pro mais antigo; sem isso
+            // 'settings.updated_at' não seria confiável aqui (ConfigSystem.
+            // setSetting só atualiza a coluna `value` no ON CONFLICT, não
+            // `updated_at`).
+            if ('partner_news_title' in body || 'partner_news_text' in body) {
+                const prevTitle = ConfigSystem.getSetting(guildID, 'partner_news_title') || '';
+                const prevText = ConfigSystem.getSetting(guildID, 'partner_news_text') || '';
+                const newTitle = (body.partner_news_title || '').trim();
+                const newText = (body.partner_news_text || '').trim();
+                if (newTitle !== prevTitle || newText !== prevText) {
+                    ConfigSystem.setSetting(guildID, 'partner_news_title', newTitle || null);
+                    ConfigSystem.setSetting(guildID, 'partner_news_text', newText || null);
+                    ConfigSystem.setSetting(guildID, 'partner_news_updated_at', String(Date.now()));
+                }
+            }
 
             // Recuperação diária de reputação + limites Exemplar/Problemático
             // — mesmas regras/faixas válidas do painel /config punishments
