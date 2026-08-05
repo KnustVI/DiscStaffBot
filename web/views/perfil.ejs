@@ -455,7 +455,7 @@
         <%#
             Saldo de Hunt saiu daqui e virou o selo no canto superior
             direito do primeiro bloco (pedido do dono, 2026-08-05) — as
-            outras 3 vitrines "em breve" continuam juntas aqui. Títulos
+            outras vitrines "em breve" continuam juntas aqui. Títulos
             não tem catálogo nenhum ainda (só o campo de texto livre do
             Raptor, ver aba Personalização) — placeholder igual aos
             outros. Badges TEM um pool de verdade (profile_image_pool
@@ -463,8 +463,22 @@
             "lista" própria de vitrine ainda não existe nesta página —
             mesmo tratamento "em breve" por enquanto, pra não duplicar o
             picker com um segundo componente parcialmente funcional.
+
+            Tempo de Jogo (pedido do dono, 2026-08-06: "prepare... mas
+            não comece a contar ainda") — reserva o espaço no perfil
+            igual aos outros 3, de propósito SEM mostrar nenhum número
+            ainda. O dado em si (por servidor) já existe e já é
+            calculado de verdade a partir de PlayerLogin/PlayerLogout
+            (pot_players.total_playtime, incrementado a cada logout com
+            sessão — ver potPlayerRegistry.js upsertPlayerFromEvent) e
+            já chega aqui pronto em playedGuilds[].totalPlaytime (ver
+            dashboard.js getPlayedGuilds) — só não é usado neste card de
+            propósito. Quando o dono pedir pra "ligar", é só trocar o
+            texto abaixo por algo como playedGuilds.reduce((sum, pg) =>
+            sum + (pg.totalPlaytime || 0), 0), formatado com o mesmo
+            formatPlaytime já usado no /perfil do Discord.
         %>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-[20px] lg:gap-[30px]">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[20px] lg:gap-[30px]">
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="users"></i>
                 <span class="perfil-soon-title">Lista de Amigos</span>
@@ -479,6 +493,11 @@
                 <i data-lucide="badge"></i>
                 <span class="perfil-soon-title">Lista de Badges</span>
                 <span class="perfil-soon-text">Vitrine dos emblemas disponíveis pra coletar — em breve.</span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="clock"></i>
+                <span class="perfil-soon-title">Tempo de Jogo</span>
+                <span class="perfil-soon-text">Tempo jogado por servidor — em breve.</span>
             </section>
         </div>
 
