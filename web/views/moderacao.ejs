@@ -82,100 +82,315 @@
         </div>
 
         <%#
-            CONFIGURAÇÕES — visual simples (mesmo padrão de events.ejs:
-            categorias como <div>+<h3>, botão Salvar único no final) —
-            pedido do dono, que preferiu esse estilo ao card-por-bloco que
-            eu tinha construído seguindo o CSS exato do Figma. Moderador/
-            Supervisor continuam usando partials/role-picker (chips +
-            botão de adicionar) — funcionalidade pedida à parte, não é só
-            visual, então não volta a ser select único nos tiers que
-            permitem mais de 1 cargo (Rastreador+/Caçador). No Free
-            (limite 1), o próprio role-picker já cai sozinho no visual
+            CONFIGURAÇÕES — 4 cards independentes (pedido do dono, item
+            "k" da sessão: separar Cargos de Moderação / Punições /
+            Reputação / Personalização, cada um com sua própria HEAD
+            "clara" no mesmo padrão do antigo título "NOME_DO_SERVIDOR |
+            Configurações" que existia aqui antes). Moderador/Supervisor continuam usando
+            partials/role-picker (chips + botão de adicionar) — no Free
+            (limite 1) o próprio role-picker já cai sozinho no visual
             simples (ver partials/role-picker.ejs).
 
-            Personalização virou um CARD PRÓPRIO no fim da página (pedido
-            do dono) em vez de mais um <div> dentro do card único de
-            Configurações — ainda é o MESMO <form>/POST/botão Salvar (só
-            um envio, sem duplicar rota no dashboard.js), só que o <form>
-            agora usa display:contents (classe "contents" do Tailwind)
-            pra não virar uma caixa própria no meio do layout: os dois
-            <section> ficam como filhos diretos do gap-[30px] do <main>,
-            exatamente como se não houvesse form nenhum ali no meio.
+            Cada card virou um <form> PRÓPRIO com seu próprio botão
+            "Salvar Alterações" (em vez do form único de antes) — o card
+            de Punições é uma lista de nível variável com 4 ações por
+            nível (criar/editar/deletar/alternar aprovação), então NUNCA
+            caberia num único "salvar tudo"; splitando os outros 3 cards
+            do mesmo jeito mantém a página inteira consistente (1 card =
+            1 unidade de salvamento) em vez de misturar os dois padrões.
+            Todos os forms de configuração (exceto Punições, que tem
+            rotas próprias) postam pro MESMO POST /moderacao/:guildID/save
+            de sempre — a rota já só grava as chaves presentes em cada
+            body ('campo' in body), então múltiplos forms independentes
+            batendo nela é só uma extensão natural desse comportamento.
         %>
+
+        <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg">CONFIGURAÇÕES DE CARGOS DE MODERAÇÃO</h2>
+            <p class="text-xs opacity-50">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
+            <div class="flex flex-col gap-8">
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Supervisão</h3>
+                    <p class="text-xs opacity-40 mb-1">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
+                    <p class="text-xs opacity-40 mb-1">Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
+                    <p class="text-xs opacity-40 mb-2">Necessário para uso de alguns comandos de RCON.</p>
+                    <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
+                </div>
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
+                    <p class="text-xs opacity-40 mb-1">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
+                    <p class="text-xs opacity-40 mb-1">Permite comandos básicos de RCON.</p>
+                    <p class="text-xs opacity-40 mb-2">Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
+                    <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
+                </div>
+
+            </div>
+            <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+        </form>
+
         <%#
+            CONFIGURAÇÕES DE PUNIÇÕES — porta o painel /config punishments
+            do Discord (aba "Níveis", ver configSystem.js
+            refreshPointsPanel/handleCreateLevelModal/etc) pro dashboard.
+            Sem modal do Discord aqui: Criar/Editar cada nível abre um
+            <details> com um formulário compacto (mesmo padrão sem-JS já
+            usado no TOC de documentacao.ejs) — cada nível é sua própria
+            entidade com rota própria em dashboard.js (POST
+            /moderacao/:guildID/levels/...), não faz parte deste form de
+            cargos nem do de reputação abaixo.
+        %>
+        <section class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
+                CONFIGURAÇÕES DE PUNIÇÕES
+                <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
+            </h2>
+            <% if (!isRastreador) { %>
+                <p class="text-xs opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+            <% } else { %>
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Níveis de Punição</h3>
+                    <p class="text-xs opacity-50 mb-1">Crie níveis customizados pro /strike. Botão <strong>Exigir/Dispensar Aprovação</strong> define, nível a nível, quais exigem aprovação do Supervisor.</p>
+                    <% if (!customApprovalEnabled) { %>
+                        <p class="text-xs opacity-40 mb-2">Sem o plano Caçador, a aprovação segue a regra automática padrão: severidade Grave/Severa ou duração maior que 72h/permanente exige aprovação do Supervisor.</p>
+                    <% } %>
+                    <p class="text-xs opacity-60 mb-3">Níveis usados: <%= punishmentLevels.length %>/<%= levelLimit %></p>
+
+                    <% if (punishmentLevels.length === 0) { %>
+                        <p class="text-xs opacity-40 mb-3">Nenhum nível criado ainda. Use o botão <strong>Criar Nível</strong> abaixo.</p>
+                    <% } else { %>
+                        <div class="level-list">
+                            <% const severityColors = { Leve: '#8BE28B', Moderada: '#E2C168', Grave: '#E2924E', Severa: '#FF4E3B' }; %>
+                            <% punishmentLevels.forEach(level => { %>
+                                <div class="level-card">
+                                    <div class="level-card-main">
+                                        <span class="level-severity-dot" style="background:<%= severityColors[level.severity] || '#A89986' %>"></span>
+                                        <div class="level-card-info">
+                                            <span class="level-card-name"><%= level.name %></span>
+                                            <span class="level-card-meta"><%= level.severity %> · -<%= level.points %> pts · <%= level.duration_str || 'Permanente' %> · <%= level.action || 'Nenhuma ação' %></span>
+                                        </div>
+                                    </div>
+                                    <div class="level-card-actions">
+                                        <% if (customApprovalEnabled) { %>
+                                            <span class="level-approval-badge <%= level.requires_supervisor_approval ? 'is-required' : 'is-not-required' %>">
+                                                <%= level.requires_supervisor_approval ? 'Exige aprovação' : 'Não exige aprovação' %>
+                                            </span>
+                                            <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/toggle-approval" method="POST">
+                                                <button type="submit" class="btn-chip <%= level.requires_supervisor_approval ? 'btn-chip-danger' : 'btn-chip-success' %>">
+                                                    <%= level.requires_supervisor_approval ? 'Dispensar Aprovação' : 'Exigir Aprovação' %>
+                                                </button>
+                                            </form>
+                                        <% } %>
+                                        <details class="level-form-details" style="width:auto;">
+                                            <summary class="btn-chip">Editar</summary>
+                                            <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/edit" method="POST" class="level-form-grid" style="min-width:280px;">
+                                                <div>
+                                                    <label>Nome</label>
+                                                    <div class="input-container-premium"><input type="text" name="name" class="input-premium-field" maxlength="60" value="<%= level.name %>" required></div>
+                                                </div>
+                                                <div>
+                                                    <label>Severidade</label>
+                                                    <div class="input-container-premium">
+                                                        <select name="severity" class="input-premium-field">
+                                                            <% ['Leve', 'Moderada', 'Grave', 'Severa'].forEach(s => { %>
+                                                                <option value="<%= s %>" <%= level.severity === s ? 'selected' : '' %>><%= s %></option>
+                                                            <% }); %>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label>Pontos perdidos (0-100)</label>
+                                                    <div class="input-container-premium"><input type="number" name="points" class="input-premium-field" min="0" max="100" value="<%= level.points %>" required></div>
+                                                </div>
+                                                <div>
+                                                    <label>Duração (ex: 10m, 1h, 3d — vazio = perm.)</label>
+                                                    <div class="input-container-premium"><input type="text" name="duration_str" class="input-premium-field" placeholder="Vazio = permanente" value="<%= level.duration_str || '' %>"></div>
+                                                </div>
+                                                <div>
+                                                    <label>Ação</label>
+                                                    <div class="input-container-premium">
+                                                        <select name="action" class="input-premium-field">
+                                                            <option value="">Nenhuma</option>
+                                                            <% ['SystemMessage', 'Kick', 'Ban', 'ServerMute'].forEach(a => { %>
+                                                                <option value="<%= a %>" <%= level.action === a ? 'selected' : '' %>><%= a %></option>
+                                                            <% }); %>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="level-form-actions" style="grid-column:1/-1;">
+                                                    <button type="submit" class="btn-chip btn-chip-success">Salvar Nível</button>
+                                                </div>
+                                            </form>
+                                        </details>
+                                        <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/delete" method="POST" onsubmit="return confirm('Deletar este nível de punição? Punições já aplicadas com ele não são afetadas.');">
+                                            <button type="submit" class="btn-chip btn-chip-danger">Deletar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+
+                    <% if (canCreateLevel) { %>
+                        <details class="level-form-details mt-3">
+                            <summary class="btn-chip btn-chip-success">+ Criar Nível</summary>
+                            <form action="/moderacao/<%= guild.id %>/levels/create" method="POST" class="level-form-grid">
+                                <div>
+                                    <label>Nome</label>
+                                    <div class="input-container-premium"><input type="text" name="name" class="input-premium-field" maxlength="60" placeholder="Ex: Spam no chat" required></div>
+                                </div>
+                                <div>
+                                    <label>Severidade</label>
+                                    <div class="input-container-premium">
+                                        <select name="severity" class="input-premium-field">
+                                            <% ['Leve', 'Moderada', 'Grave', 'Severa'].forEach(s => { %>
+                                                <option value="<%= s %>"><%= s %></option>
+                                            <% }); %>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label>Pontos perdidos (0-100)</label>
+                                    <div class="input-container-premium"><input type="number" name="points" class="input-premium-field" min="0" max="100" placeholder="Ex: 10" required></div>
+                                </div>
+                                <div>
+                                    <label>Duração (ex: 10m, 1h, 3d — vazio = perm.)</label>
+                                    <div class="input-container-premium"><input type="text" name="duration_str" class="input-premium-field" placeholder="Vazio = permanente"></div>
+                                </div>
+                                <div>
+                                    <label>Ação</label>
+                                    <div class="input-container-premium">
+                                        <select name="action" class="input-premium-field">
+                                            <option value="">Nenhuma</option>
+                                            <% ['SystemMessage', 'Kick', 'Ban', 'ServerMute'].forEach(a => { %>
+                                                <option value="<%= a %>"><%= a %></option>
+                                            <% }); %>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="level-form-actions" style="grid-column:1/-1;">
+                                    <button type="submit" class="btn-chip btn-chip-success">Criar Nível</button>
+                                </div>
+                            </form>
+                        </details>
+                    <% } else { %>
+                        <p class="text-xs opacity-40 mt-3">Limite de níveis do seu plano atingido (<%= punishmentLevels.length %>/<%= levelLimit %>). Use <code>/premium</code> pra ver planos com mais níveis.</p>
+                    <% } %>
+                </div>
+            <% } %>
+        </section>
+
+        <%#
+            CONFIGURAÇÕES DE REPUTAÇÃO — Cargos Automáticos (já existia,
+            só mudou de lugar/head) + Recuperação Diária de Pontos (NOVO,
+            porta a aba "reputation" do mesmo painel /config punishments —
+            ver configSystem.js refreshPointsPanel, processRecoveryModal,
+            processLimitesModal). Mesmas faixas válidas (recuperação 0-100,
+            Exemplar 50-100, Problemático 0-50 e sempre < Exemplar) e
+            exclusividade de plano do painel Discord (automodEnabled =
+            Caçador). Botão "Resetar Padrão" usa formaction/formmethod pra
+            apontar pra uma rota diferente da de "Salvar Alterações" sem
+            precisar de um <form> aninhado dentro deste.
+        %>
+        <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg">CONFIGURAÇÕES DE REPUTAÇÃO</h2>
+            <div class="flex flex-col gap-8">
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos</h3>
+                    <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
+                    <label class="text-xs opacity-60">Strike (Temporário)</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="shield-alert"></i></div>
+                        <select name="strike_role" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Exemplar</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
+                        <select name="role_exemplar" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <label class="text-xs opacity-60">Problemático</label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
+                        <select name="role_problematico" class="input-premium-field">
+                            <option value="">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3 flex items-center gap-3 flex-wrap">
+                        Recuperação Diária de Pontos
+                        <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
+                    </h3>
+                    <% if (!isRastreador) { %>
+                        <p class="text-xs opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+                    <% } else if (!automodEnabled) { %>
+                        <label class="text-xs opacity-60">Pontos recuperados por dia</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="trending-up"></i></div>
+                            <input type="text" class="input-premium-field" value="1 (fixo neste plano)" disabled>
+                        </div>
+                        <p class="text-xs opacity-40">Cargos automáticos configuráveis e recuperação diária ajustável são exclusivos do plano Caçador — use <code>/premium</code> pra ver o tier atual.</p>
+                    <% } else { %>
+                        <p class="text-xs opacity-50 mb-3">Quantos pontos de reputação cada membro recupera por dia (não recupera se punido nas últimas 24h), e os limites de pontos que atribuem/removem os cargos Exemplar/Problemático acima.</p>
+                        <label class="text-xs opacity-60">Pontos recuperados por dia (0-100)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="trending-up"></i></div>
+                            <input type="number" name="rep_recovery_amount" class="input-premium-field" min="0" max="100" placeholder="Ex: 1" value="<%= settings.rep_recovery_amount || 1 %>">
+                        </div>
+                        <label class="text-xs opacity-60">Limite Exemplar (50-100)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
+                            <input type="number" name="limit_exemplar" class="input-premium-field" min="50" max="100" placeholder="Ex: 95" value="<%= settings.limit_exemplar || 95 %>">
+                        </div>
+                        <label class="text-xs opacity-60">Limite Problemático (0-50)</label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
+                            <input type="number" name="limit_problematico" class="input-premium-field" min="0" max="50" placeholder="Ex: 30" value="<%= settings.limit_problematico || 30 %>">
+                        </div>
+                        <button type="submit" formaction="/moderacao/<%= guild.id %>/reputation/reset" class="btn-chip btn-chip-danger mt-2">Resetar Padrão</button>
+                    <% } %>
+                </div>
+
+            </div>
+            <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+        </form>
+
+        <%#
+            Personalização espelha os blocos do /config personalizar do
+            Discord relevantes PRA MODERAÇÃO (Strike/Unstrike,
+            Aparência Geral — ver configSystem.js
+            refreshPersonalizarPanel), mesmos rótulos/descrições/
+            placeholders dos dois lados. O bloco de Report-Chat mora em
+            reports.ejs (pedido do dono: personalização de report-chat
+            pertence à aba de Denúncias, não à de Moderação) — mesmo
+            comando do Discord, só a página web que separa por
+            contexto.
+
             enctype multipart/form-data (pedido do dono: upload de imagem
             própria pros banners de Strike/Unstrike, Caçador) — não quebra
             os campos de texto/rádio/select existentes, multer.fields()
             popula req.body pra eles normalmente (ver dashboard.js POST
-            /moderacao/:guildID/save).
+            /moderacao/:guildID/save). Form próprio (não mais compartilhado
+            com Cargos de Moderação) pra não obrigar toda página a virar
+            multipart à toa.
         %>
         <form action="/moderacao/<%= guild.id %>/save" method="POST" enctype="multipart/form-data" class="contents">
-            <section class="titan-card-premium flex-col gap-6">
-                <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
-                <div class="flex flex-col gap-8">
-
-                    <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
-                        <p class="text-xs opacity-50 mb-3">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
-
-                        <label class="text-xs opacity-60">Supervisor</label>
-                        <p class="text-xs opacity-40 mb-2">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente). Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
-                        <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
-
-                        <label class="text-xs opacity-60 block mt-4">Moderador (obrigatório)</label>
-                        <p class="text-xs opacity-40 mb-2">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat. Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
-                        <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
-                    </div>
-
-                    <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos — Reputação</h3>
-                        <p class="text-xs opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
-                        <label class="text-xs opacity-60">Strike (Temporário)</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="shield-alert"></i></div>
-                            <select name="strike_role" class="input-premium-field">
-                                <option value="">— selecione um cargo —</option>
-                                <% roles.forEach(r => { %>
-                                    <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
-                                <% }); %>
-                            </select>
-                        </div>
-                        <label class="text-xs opacity-60">Exemplar</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
-                            <select name="role_exemplar" class="input-premium-field">
-                                <option value="">— selecione um cargo —</option>
-                                <% roles.forEach(r => { %>
-                                    <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
-                                <% }); %>
-                            </select>
-                        </div>
-                        <label class="text-xs opacity-60">Problemático</label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
-                            <select name="role_problematico" class="input-premium-field">
-                                <option value="">— selecione um cargo —</option>
-                                <% roles.forEach(r => { %>
-                                    <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
-                                <% }); %>
-                            </select>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-            <%#
-                Personalização espelha os blocos do /config personalizar do
-                Discord relevantes PRA MODERAÇÃO (Strike/Unstrike,
-                Aparência Geral — ver configSystem.js
-                refreshPersonalizarPanel), mesmos rótulos/descrições/
-                placeholders dos dois lados. O bloco de Report-Chat mora em
-                reports.ejs (pedido do dono: personalização de report-chat
-                pertence à aba de Denúncias, não à de Moderação) — mesmo
-                comando do Discord, só a página web que separa por
-                contexto.
-            %>
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
                     Personalização

@@ -13,6 +13,7 @@ const PremiumSystem = require('./src/systems/premium/premiumSystem');
 const CustomBannerResolver = require('./src/utils/customBannerResolver');
 const { storeImageBuffer } = require('./src/utils/imageStorage');
 const ProfileImagePool = require('./src/systems/pot/profileImagePool');
+const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 
 const app = express();
 
@@ -848,6 +849,19 @@ function loadDashboard(client) {
             supervisor: PremiumSystem.getRoleLimit(guildID, 'supervisor'),
         };
 
+        // CONFIGURAÇÕES DE PUNIÇÕES/REPUTAÇÃO (moderacao.ejs) — porta o
+        // painel /config punishments do Discord (ver
+        // src/systems/moderation/punishmentLevels.js e configSystem.js
+        // refreshPointsPanel). guildLimits.customPunishmentApprovalEnabled/
+        // automodEnabled hoje coincidem exatamente com isGuildAtLeast(...,
+        // 'cacador'), mas lidos direto do PremiumSystem (fonte única de
+        // verdade, mesma usada pelo painel Discord) em vez de assumir isso.
+        const isRastreador = PremiumSystem.isGuildAtLeast(guildID, 'rastreador');
+        const guildLimits = PremiumSystem.getGuildLimits(guildID);
+        const punishmentLevels = PunishmentLevels.getLevels(guildID);
+        const levelLimit = PunishmentLevels.getLevelLimit(guildID);
+        const canCreateLevel = PunishmentLevels.canCreateLevel(guildID);
+
         res.render('moderacao', {
             guild,
             nickname: member.nickname || member.user.username,
@@ -870,6 +884,12 @@ function loadDashboard(client) {
             settings,
             roles,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
+            isRastreador,
+            punishmentLevels,
+            levelLimit,
+            canCreateLevel,
+            customApprovalEnabled: guildLimits.customPunishmentApprovalEnabled,
+            automodEnabled: guildLimits.automodEnabled,
             strikeBannerKey,
             unstrikeBannerKey,
             strikeBannerOptions,
@@ -931,6 +951,32 @@ function loadDashboard(client) {
             if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
             if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
+
+            // Recuperação diária de reputação + limites Exemplar/Problemático
+            // — mesmas regras/faixas válidas do painel /config punishments
+            // do Discord (ver configSystem.js processRecoveryModal/
+            // processLimitesModal), exclusivo do plano Caçador
+            // (automodEnabled). Entrada inválida é ignorada em silêncio, sem
+            // travar o resto do form — mesmo padrão já usado abaixo pros
+            // campos de Personalização (isValid checks).
+            if (PremiumSystem.getGuildLimits(guildID).automodEnabled) {
+                if ('rep_recovery_amount' in body) {
+                    const amount = parseInt(body.rep_recovery_amount, 10);
+                    if (!isNaN(amount) && amount >= 0 && amount <= 100) {
+                        ConfigSystem.setSetting(guildID, 'rep_recovery_amount', String(amount));
+                    }
+                }
+                if ('limit_exemplar' in body && 'limit_problematico' in body) {
+                    const exemplarLimit = parseInt(body.limit_exemplar, 10);
+                    const problematicoLimit = parseInt(body.limit_problematico, 10);
+                    const exemplarValid = !isNaN(exemplarLimit) && exemplarLimit >= 50 && exemplarLimit <= 100;
+                    const problematicoValid = !isNaN(problematicoLimit) && problematicoLimit >= 0 && problematicoLimit <= 50;
+                    if (exemplarValid && problematicoValid && problematicoLimit < exemplarLimit) {
+                        ConfigSystem.setSetting(guildID, 'limit_exemplar', String(exemplarLimit));
+                        ConfigSystem.setSetting(guildID, 'limit_problematico', String(problematicoLimit));
+                    }
+                }
+            }
             // Personalização de painéis é exclusiva do plano Caçador (mesma checagem
             // de getPanelPersonalization, configSystem.js:2308-2319) — ignora
             // silenciosamente em vez de travar o resto do formulário. Espelha
@@ -984,6 +1030,136 @@ function loadDashboard(client) {
             res.redirect(`/moderacao/${guildID}?saved=success`);
         } catch (error) {
             console.error('❌ Erro ao salvar configurações de moderação:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    // Botão "Resetar Padrão" do card CONFIGURAÇÕES DE REPUTAÇÃO — ação
+    // distinta de "Salvar Alterações" (reseta pros 3 valores padrão em vez
+    // de gravar o que estiver nos campos), por isso rota própria em vez de
+    // mais uma checagem dentro do POST /save de cima. O botão usa
+    // formaction/formmethod (ver moderacao.ejs) pra apontar pra cá sem
+    // precisar de um <form> aninhado dentro do form principal do card.
+    app.post('/moderacao/:guildID/reputation/reset', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
+        if (!PremiumSystem.getGuildLimits(guildID).automodEnabled) return res.status(403).send('Recurso exclusivo do plano Caçador.');
+        try {
+            ConfigSystem.setSetting(guildID, 'limit_exemplar', '95');
+            ConfigSystem.setSetting(guildID, 'limit_problematico', '30');
+            ConfigSystem.setSetting(guildID, 'rep_recovery_amount', '1');
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao resetar limites de reputação:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    // ==================== NÍVEIS DE PUNIÇÃO (CONFIGURAÇÕES DE PUNIÇÕES) ====================
+    // CRUD do card de Punições em moderacao.ejs, espelhando o painel
+    // /config punishments do Discord (ver configSystem.js
+    // handleCreateLevelModal/handleEditLevelModal/handleDeleteLevelButton/
+    // handleToggleLevelApproval) em cima do MESMO módulo puro
+    // (src/systems/moderation/punishmentLevels.js, sem dependência de
+    // discord.js) — fonte única de verdade de validação/limite de tier com
+    // o bot. Cada nível é uma entidade própria (criar/editar/deletar/
+    // alternar aprovação), por isso ganha rotas dedicadas em vez de entrar
+    // no POST /save de cima (que só grava pares chave/valor de `settings`).
+    async function resolveLevelsAdmin(req, res, guildID) {
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) { res.status(404).send('Guild não encontrada.'); return null; }
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+            return null;
+        }
+        if (!isAdmin) { res.status(403).send('Acesso negado.'); return null; }
+        if (!PremiumSystem.isGuildAtLeast(guildID, 'rastreador')) { res.status(403).send('Recurso exclusivo a partir do plano Rastreador.'); return null; }
+        return guild;
+    }
+
+    app.post('/moderacao/:guildID/levels/create', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = await resolveLevelsAdmin(req, res, guildID);
+        if (!guild) return;
+        try {
+            if (!PunishmentLevels.canCreateLevel(guildID)) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            const { valid, data } = PunishmentLevels.validateLevelInput({
+                name: req.body.name,
+                severity: req.body.severity,
+                points: req.body.points,
+                durationStr: req.body.duration_str,
+                action: req.body.action,
+            });
+            if (!valid) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            PunishmentLevels.createLevel(guildID, data, req.user.id);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao criar nível de punição:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    app.post('/moderacao/:guildID/levels/:levelId/edit', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, levelId } = req.params;
+        const guild = await resolveLevelsAdmin(req, res, guildID);
+        if (!guild) return;
+        try {
+            if (!PunishmentLevels.getLevel(guildID, levelId)) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            const { valid, data } = PunishmentLevels.validateLevelInput({
+                name: req.body.name,
+                severity: req.body.severity,
+                points: req.body.points,
+                durationStr: req.body.duration_str,
+                action: req.body.action,
+            });
+            if (!valid) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            PunishmentLevels.updateLevel(guildID, levelId, data, req.user.id);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao editar nível de punição:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    app.post('/moderacao/:guildID/levels/:levelId/delete', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, levelId } = req.params;
+        const guild = await resolveLevelsAdmin(req, res, guildID);
+        if (!guild) return;
+        try {
+            PunishmentLevels.deleteLevel(guildID, levelId);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao deletar nível de punição:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    app.post('/moderacao/:guildID/levels/:levelId/toggle-approval', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, levelId } = req.params;
+        const guild = await resolveLevelsAdmin(req, res, guildID);
+        if (!guild) return;
+        if (!PremiumSystem.getGuildLimits(guildID).customPunishmentApprovalEnabled) return res.status(403).send('Recurso exclusivo do plano Caçador.');
+        try {
+            const level = PunishmentLevels.getLevel(guildID, levelId);
+            if (!level) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            PunishmentLevels.setSupervisorApproval(guildID, levelId, !level.requires_supervisor_approval);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao alternar aprovação do nível:', error);
             res.redirect(`/moderacao/${guildID}?saved=error`);
         }
     });

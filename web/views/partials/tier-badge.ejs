@@ -1,14 +1,13 @@
 <%#
   web/views/partials/tier-badge.ejs
-  Selo "HUNTER" (Figma: "user.icon") — pedido do dono pra marcar
-  visualmente seções exclusivas do plano Caçador (nome em inglês do tier,
-  mesma convenção de hero.ejs:572 — Free/Tracker/Hunter). Estático, sem
-  parâmetro: só existe esse tier badge hoje (Caçador); se um dia precisar
-  marcar outro tier, adiciona um `tier` opcional aqui em vez de duplicar
-  o componente.
+  Selo "HUNTER"/"TRACKER" (Figma: "user.icon") — pedido do dono pra marcar
+  visualmente seções exclusivas de um plano pago (nome em inglês do tier,
+  mesma convenção de hero.ejs:797-800 — Free/Tracker/Hunter).
 
-  Uso: include( partials/tier-badge )
+  Uso: include( partials/tier-badge ) — Caçador ("HUNTER") por padrão, ou
+       include( partials/tier-badge, { tier: 'rastreador' } ) — "TRACKER".
 %>
-<span class="tier-badge">
-    <span class="tier-badge-text">HUNTER</span>
+<% const _tbTier = typeof tier !== 'undefined' && tier === 'rastreador' ? 'rastreador' : 'cacador'; %>
+<span class="tier-badge <%= _tbTier === 'rastreador' ? 'is-rastreador' : '' %>">
+    <span class="tier-badge-text"><%= _tbTier === 'rastreador' ? 'TRACKER' : 'HUNTER' %></span>
 </span>
