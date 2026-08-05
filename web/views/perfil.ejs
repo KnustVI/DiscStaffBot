@@ -225,7 +225,10 @@
 
         <% if (!link) { %>
             <section class="titan-card-premium flex-col gap-3">
-                <h2 class="section-title text-lg">Path of Titans</h2>
+                <h2 class="section-title text-lg flex items-center gap-3">
+                    <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
+                    Path of Titans
+                </h2>
                 <p class="text-sm opacity-60">Sua conta Discord ainda não está vinculada a um jogador de Path of Titans.</p>
                 <p class="text-[13px] opacity-40">Use <code>/registrar</code> no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</p>
             </section>
@@ -237,7 +240,10 @@
 
             <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
                 <section class="titan-card-premium flex-col gap-5">
-                    <h2 class="section-title text-lg">Path of Titans</h2>
+                    <h2 class="section-title text-lg flex items-center gap-3">
+                        <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
+                        Path of Titans
+                    </h2>
                     <div class="flex flex-col gap-2">
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nome no jogo:</strong> <%= link.player_name || '—' %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
