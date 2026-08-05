@@ -154,7 +154,8 @@
 </head>
 <body class="flex min-h-screen">
 
-    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px] overflow-y-auto">
+    <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards). Página sem sidebar, mas o mesmo overflow-y aqui cortava a sombra contra a própria borda esquerda do <main>. %>
+    <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px]">
 
         <%- include('partials/save-result-overlay', { saved }) %>
 

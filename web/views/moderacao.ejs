@@ -30,7 +30,25 @@
         <%- include('partials/sidebar-v2', { active: 'moderacao', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false }) %>
     </aside>
 
-    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px] overflow-y-auto">
+    <%#
+        Sem overflow-y-auto aqui (pedido do dono, 2026-08-05: "sombra dos
+        cards quebra numa margem invisível perto da sidebar") — overflow-y
+        != visible força o navegador a tratar overflow-x como um contexto
+        de recorte também (regra da spec CSS, não bug), e a sombra
+        compartilhada dos cards (.titan-card-premium, box-shadow com
+        offset -15px + blur 50px) vaza ~65px pra esquerda — mais do que o
+        padding deste <main> (15-30px), cortando a sombra numa linha reta
+        bem onde o <main> termina, perto do gap da sidebar.
+        Tirando o overflow daqui, quem rola a página passa a ser o <body>
+        (via <body class="flex min-h-screen">, altura mínima só — cresce
+        com o conteúdo e o navegador rola a página inteira sozinho, sem
+        precisar de overflow explícito). O <aside> da sidebar é sticky
+        top-0 dentro desse scroll da página — ANTES disso ele não tinha
+        efeito nenhum de verdade (a página nunca precisava rolar, só o
+        <main> rolava por dentro); agora o sticky passa a funcionar como
+        deveria, mantendo a sidebar visível enquanto o resto rola.
+    %>
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
         <%- include('partials/page-header', { guild, pageLabel: 'MODERAÇÃO', pageRoute, otherGuilds }) %>
 

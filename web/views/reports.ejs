@@ -110,7 +110,8 @@
         <%- include('partials/sidebar-v2', { active: 'denuncias', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false }) %>
     </aside>
 
-    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px] overflow-y-auto">
+    <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards perto da sidebar). %>
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
         <%- include('partials/page-header', { guild, pageLabel: 'REPORTES', pageRoute, otherGuilds }) %>
 
