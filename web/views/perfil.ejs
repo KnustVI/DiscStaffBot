@@ -184,6 +184,16 @@
             const pfTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
             const pfTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
         %>
+        <%#
+            Cabeçalho novo (pedido do dono, 2026-08-05: "lembra a head que
+            eu pedi pra remover? coloque novo só texto") — SÓ texto desta
+            vez, sem repetir o componente antigo (título "DASHBOARD" +
+            ícone de usuário no canto, ver page-header.ejs) que já tinha
+            sido removido daqui por ser redundante com o perfil-hero logo
+            abaixo.
+        %>
+        <h1 class="section-title text-2xl">Bem vindo de volta, <%= nickname %></h1>
+
         <%- include('partials/save-result-overlay', { saved }) %>
 
         <section class="titan-card-premium flex-col gap-5">
