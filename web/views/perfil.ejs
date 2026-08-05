@@ -40,9 +40,16 @@
         /* Estilos só desta página (mesmo padrão de dev-image-pool.ejs:
            componente usado numa página só não precisa entrar no
            style.css compartilhado). */
+        /* align-items:flex-start (não mais center) — pedido do dono,
+           2026-08-05: o selo de Hunt (canto superior direito) precisa
+           alinhar com o TOPO do bloco de avatar/nome, não com o centro
+           dele. O grupo avatar+nome continua centralizado ENTRE SI (ver
+           .flex.items-center por cima dos dois no HTML), só a linha
+           externa (esse grupo vs. o selo de Hunt) é que virou flex-start. */
         .perfil-hero {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            justify-content: space-between;
             gap: 20px;
             flex-wrap: wrap;
         }
@@ -58,8 +65,16 @@
             overflow: hidden;
         }
         .perfil-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .perfil-hero-name { font-family: 'Tilt Warp', cursive; font-size: clamp(20px, 3vw, 28px); color: #F8DCC0; }
-        .perfil-hero-id { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.5; }
+        /* line-height apertado nas 2 linhas de texto (pedido do dono:
+           "espaçamentos não parecem muito proporcionais") — sem isso, a
+           métrica de fonte do Tilt Warp/Poppins soma uma folga invisível
+           por cima do gap-3 do flex, fazendo o espaço nome->ID parecer
+           diferente do espaço ID->selo de tier (que não sofre isso, é uma
+           cápsula com padding próprio). Com os 3 no mesmo line-height
+           "apertado" + mesmo gap-3 do container pai, a distância visual
+           entre os 3 fica igual de verdade, não só no código. */
+        .perfil-hero-name { font-family: 'Tilt Warp', cursive; font-size: clamp(20px, 3vw, 28px); line-height: 1.2; color: #F8DCC0; }
+        .perfil-hero-id { font-family: 'Poppins', sans-serif; font-size: 13px; line-height: 1.2; opacity: 0.5; }
         .perfil-tier-pill {
             display: inline-flex;
             align-items: center;
@@ -69,9 +84,26 @@
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
             font-size: 13px;
+            line-height: 1.2;
             border: 1px solid var(--pt-color, #F8DCC0);
             color: var(--pt-color, #F8DCC0);
         }
+        .perfil-hunt-pill {
+            box-sizing: border-box;
+            flex: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 147.5px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #DCA15E;
+        }
+        .perfil-hunt-pill i { width: 16px; height: 16px; flex: none; }
         .perfil-guild-list { display: flex; flex-wrap: wrap; gap: 10px; }
         .perfil-guild-chip {
             display: flex;
@@ -150,15 +182,28 @@
 
         <section class="titan-card-premium flex-col gap-5">
             <div class="perfil-hero">
-                <div class="perfil-hero-avatar"><img src="<%= pfAvatarUrl %>" alt=""></div>
-                <div class="flex flex-col gap-2">
-                    <span class="perfil-hero-name"><%= discordUser.global_name || discordUser.username %></span>
-                    <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
-                    <span class="perfil-tier-pill" style="--pt-color: <%= pfTierColors[playerTier] %>">
-                        <i data-lucide="badge" class="w-4 h-4"></i> Player Premium: <%= pfTierLabels[playerTier] %>
-                        <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — expira em <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
-                        <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — vitalício<% } %>
-                    </span>
+                <div class="flex items-center gap-5">
+                    <div class="perfil-hero-avatar"><img src="<%= pfAvatarUrl %>" alt=""></div>
+                    <div class="flex flex-col gap-3 items-start">
+                        <span class="perfil-hero-name"><%= discordUser.global_name || discordUser.username %></span>
+                        <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
+                        <span class="perfil-tier-pill" style="--pt-color: <%= pfTierColors[playerTier] %>">
+                            <i data-lucide="badge" class="w-4 h-4"></i> Player Premium: <%= pfTierLabels[playerTier] %>
+                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — expira em <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
+                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — vitalício<% } %>
+                        </span>
+                    </div>
+                </div>
+                <%#
+                    Saldo de Hunt (pedido do dono, 2026-08-05: "pode ficar
+                    no primeiro bloco de perfil no canto direito superior
+                    do mesmo") — sistema ainda não implementado (ver
+                    PREMIUM.txt, "MOEDA HUNT"), por isso só o selo "Em
+                    breve" por enquanto, sem valor nenhum pra mostrar.
+                %>
+                <div class="perfil-hunt-pill">
+                    <i data-lucide="coins"></i>
+                    <span>Hunt: <strong>Em breve</strong></span>
                 </div>
             </div>
 
@@ -352,16 +397,33 @@
             </form>
         <% } %>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-[20px] lg:gap-[30px]">
-            <section class="titan-card-premium perfil-soon-card">
-                <i data-lucide="coins"></i>
-                <span class="perfil-soon-title">Saldo de Hunt</span>
-                <span class="perfil-soon-text">Moeda interna do bot, trocável por personalização de perfil na loja — em breve.</span>
-            </section>
+        <%#
+            Saldo de Hunt saiu daqui e virou o selo no canto superior
+            direito do primeiro bloco (pedido do dono, 2026-08-05) — as
+            outras 3 vitrines "em breve" continuam juntas aqui. Títulos
+            não tem catálogo nenhum ainda (só o campo de texto livre do
+            Raptor, ver aba Personalização) — placeholder igual aos
+            outros. Badges TEM um pool de verdade (profile_image_pool
+            tipo 'badge', mesmo picker da aba Personalização), mas uma
+            "lista" própria de vitrine ainda não existe nesta página —
+            mesmo tratamento "em breve" por enquanto, pra não duplicar o
+            picker com um segundo componente parcialmente funcional.
+        %>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-[20px] lg:gap-[30px]">
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="users"></i>
                 <span class="perfil-soon-title">Lista de Amigos</span>
                 <span class="perfil-soon-text">Em breve.</span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="scroll-text"></i>
+                <span class="perfil-soon-title">Lista de Títulos</span>
+                <span class="perfil-soon-text">Catálogo de títulos pra desbloquear (sistema de missões) — em breve.</span>
+            </section>
+            <section class="titan-card-premium perfil-soon-card">
+                <i data-lucide="badge"></i>
+                <span class="perfil-soon-title">Lista de Badges</span>
+                <span class="perfil-soon-text">Vitrine dos emblemas disponíveis pra coletar — em breve.</span>
             </section>
         </div>
 
