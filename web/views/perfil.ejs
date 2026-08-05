@@ -136,23 +136,31 @@
         .perfil-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
 
         /* NOVIDADES (Path of Titans, geral) — cards estilo vídeo (thumb +
-           título + data), pensado pra caber itens vindos do YouTube (ver
-           dashboard.js getPartnerNews/generalNews) sem mudar o layout
-           quando essa fonte existir de verdade. */
+           título + visualizações/data), pensado pra caber itens vindos do
+           YouTube (ver dashboard.js getPartnerNews/generalNews). Card
+           inteiro numa moldura só (pedido do dono, 2026-08-05: "deixar no
+           formato da imagem que te enviei") — thumb + texto dentro do
+           MESMO contorno dourado, não só a thumb sozinha. */
         .perfil-news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-        .perfil-news-card { display: flex; flex-direction: column; gap: 8px; text-decoration: none; }
+        .perfil-news-card {
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.15s ease;
+        }
+        .perfil-news-card:hover { border-color: #DCA15E; }
         .perfil-news-thumb {
             position: relative;
             width: 100%;
             aspect-ratio: 16 / 9;
-            border-radius: 10px;
-            background-color: #131314;
+            background-color: #1F1D20;
             background-size: cover;
             background-position: center;
-            border: 1px solid rgba(217, 163, 98, 0.2);
-            transition: border-color 0.15s ease;
         }
-        .perfil-news-card:hover .perfil-news-thumb { border-color: #DCA15E; }
         /* Selo de duração no canto (ex: "7:36") — mesmo lugar/estilo do
            selo nativo do YouTube, só aparece pra vídeo comum (Shorts já
            são filtrados antes de chegar aqui, ver generalNewsSystem.js). */
@@ -168,7 +176,17 @@
             font-size: 11px;
             color: #F8DCC0;
         }
-        .perfil-news-title { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; color: #F8DCC0; }
+        .perfil-news-body { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; }
+        .perfil-news-title {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #F8DCC0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         .perfil-news-meta { font-family: 'Poppins', sans-serif; font-size: 11px; opacity: 0.5; }
 
         /* NOVIDADES DOS SERVIDORES PARCEIROS — divulgação curta por
@@ -274,11 +292,13 @@
         <%#
             NOVIDADES (pedido do dono, 2026-08-05) — "antes dos blocos,
             área de novidades gerais do Path of Titans e abaixo novidades
-            dos servidores parceiros". Novidades Gerais ainda sem fonte de
-            dados (owner escolheu YouTube, falta canal + YOUTUBE_API_KEY
-            em .env — ver dashboard.js GET /perfil) — mostra "em breve"
-            até isso existir. Formato de item já pronto pra receber
-            fontes: { source, title, url, thumbnailUrl, publishedAtLabel }.
+            dos servidores parceiros". Alimentado por
+            src/systems/news/generalNewsSystem.js (vídeos do YouTube,
+            Shorts já filtrados) — mostra "em breve" sozinho se
+            YOUTUBE_API_KEY/YOUTUBE_CHANNEL_ID não estiverem no .env.
+            Formato de item: { source, title, url, thumbnailUrl,
+            durationLabel, viewCountLabel, publishedAtLabel } — `source`
+            deixa espaço pra outras fontes além do YouTube no futuro.
         %>
         <section class="titan-card-premium flex-col gap-4">
             <div>
@@ -298,8 +318,14 @@
                             <div class="perfil-news-thumb" style="background-image:url('<%= item.thumbnailUrl %>')">
                                 <% if (item.durationLabel) { %><span class="perfil-news-duration"><%= item.durationLabel %></span><% } %>
                             </div>
-                            <span class="perfil-news-title"><%= item.title %></span>
-                            <% if (item.publishedAtLabel) { %><span class="perfil-news-meta"><%= item.publishedAtLabel %></span><% } %>
+                            <div class="perfil-news-body">
+                                <span class="perfil-news-title"><%= item.title %></span>
+                                <span class="perfil-news-meta">
+                                    <% if (item.viewCountLabel) { %><%= item.viewCountLabel %> visualizações<% } %>
+                                    <% if (item.viewCountLabel && item.publishedAtLabel) { %> • <% } %>
+                                    <% if (item.publishedAtLabel) { %><%= item.publishedAtLabel %><% } %>
+                                </span>
+                            </div>
                         </a>
                     <% }); %>
                 </div>

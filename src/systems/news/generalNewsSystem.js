@@ -54,18 +54,23 @@ async function resolveUploadsPlaylistId(channelRef, apiKey) {
 }
 
 // videos.list (1 unidade de cota, não importa quantos IDs — até 50 por
-// chamada) — só usado pra saber a duração de cada vídeo, pra filtrar
-// Shorts (ver SHORTS_MAX_SECONDS acima). playlistItems.list não devolve
-// duração nenhuma, só dá pra saber via videos.list mesmo.
-async function fetchVideoDurations(videoIds, apiKey) {
+// chamada) — duração de cada vídeo (pra filtrar Shorts, ver
+// SHORTS_MAX_SECONDS acima) E contagem de visualizações (pedido do dono,
+// 2026-08-05: formato igual ao mockup, "45 mil visualizações") — as duas
+// vêm dessa MESMA chamada (part=contentDetails,statistics), sem gastar
+// cota extra. playlistItems.list não devolve nenhuma das duas.
+async function fetchVideoDetails(videoIds, apiKey) {
     if (videoIds.length === 0) return new Map();
-    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds.map(encodeURIComponent).join(',')}&key=${apiKey}`;
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${videoIds.map(encodeURIComponent).join(',')}&key=${apiKey}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`videos.list falhou (${res.status}): ${await res.text()}`);
     const data = await res.json();
     const map = new Map();
     for (const item of (data.items || [])) {
-        map.set(item.id, parseISODurationSeconds(item.contentDetails?.duration));
+        map.set(item.id, {
+            durationSeconds: parseISODurationSeconds(item.contentDetails?.duration),
+            viewCount: parseInt(item.statistics?.viewCount, 10) || 0,
+        });
     }
     return map;
 }
@@ -92,6 +97,21 @@ function formatDurationLabel(totalSeconds) {
     return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+// "45 mil" / "1,2 mi" — mesma abreviação usada pelo YouTube em PT-BR
+// (pedido do dono, 2026-08-05, formato do mockup: "45 mil visualizações").
+function formatViewCount(count) {
+    const n = Number(count) || 0;
+    if (n >= 1000000) {
+        const v = n / 1000000;
+        return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1).replace('.', ',')} mi`;
+    }
+    if (n >= 1000) {
+        const v = n / 1000;
+        return `${Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1).replace('.', ',')} mil`;
+    }
+    return String(n);
+}
+
 // playlistItems.list (1 unidade de cota) — pega um lote maior de vídeos
 // recentes (PLAYLIST_FETCH_SIZE), busca a duração de todos numa chamada só
 // de videos.list, descarta os Shorts (≤60s) e devolve só os MAX_RESULTS
@@ -113,10 +133,10 @@ async function fetchLatestVideos(playlistId, apiKey) {
         .filter(Boolean);
     if (candidates.length === 0) return [];
 
-    const durations = await fetchVideoDurations(candidates.map((c) => c.videoId), apiKey);
+    const details = await fetchVideoDetails(candidates.map((c) => c.videoId), apiKey);
 
     return candidates
-        .map((c) => ({ ...c, durationSeconds: durations.get(c.videoId) ?? 0 }))
+        .map((c) => ({ ...c, ...(details.get(c.videoId) || { durationSeconds: 0, viewCount: 0 }) }))
         .filter((c) => c.durationSeconds > SHORTS_MAX_SECONDS)
         .slice(0, MAX_RESULTS)
         .map((c) => ({
@@ -126,6 +146,7 @@ async function fetchLatestVideos(playlistId, apiKey) {
             thumbnailUrl: c.thumbnailUrl,
             publishedAtLabel: formatRelativeDate(c.publishedAt),
             durationLabel: formatDurationLabel(c.durationSeconds),
+            viewCountLabel: formatViewCount(c.viewCount),
         }));
 }
 
@@ -143,7 +164,7 @@ function formatRelativeDate(isoString) {
 }
 
 /**
- * @returns {Promise<Array<{source: string, title: string, url: string, thumbnailUrl: string, publishedAtLabel: string, durationLabel: string}>>}
+ * @returns {Promise<Array<{source: string, title: string, url: string, thumbnailUrl: string, publishedAtLabel: string, durationLabel: string, viewCountLabel: string}>>}
  */
 async function getGeneralNews() {
     const apiKey = process.env.YOUTUBE_API_KEY;
