@@ -153,10 +153,15 @@
         border: 1px solid rgba(0, 0, 0, 0.4);
         /* O inset 0.5px 0.5px acima (o mesmo dos outros cards) é sutil
            demais nesse card bem mais alto/largo — sozinho ficava
-           imperceptível (pedido do dono: "faltou a linha clara esquerda").
-           border-left próprio garante essa linha visível de verdade, sem
-           mudar as outras 3 bordas (continuam iguais aos outros cards). */
-        border-left: 1.5px solid rgba(248, 220, 192, 0.3);
+           imperceptível. Um border próprio garante essa linha visível de
+           verdade, sem mudar as outras 3 bordas (continuam iguais aos
+           outros cards).
+           Corrigido de border-left pra border-right (pedido do dono,
+           2026-08-05): o destaque claro do card de gráficos
+           (partials/graph-card.ejs, box-shadow "0.5px -0.5px 0.5px
+           #F8DCC0", offset x POSITIVO) cai no lado DIREITO, não esquerdo
+           — a primeira tentativa aqui tinha ficado no lado errado. */
+        border-right: 1.5px solid rgba(248, 220, 192, 0.3);
         border-radius: 20px;
         overflow-y: auto;
         transition: width 0.2s ease;
