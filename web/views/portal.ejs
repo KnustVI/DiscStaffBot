@@ -1,0 +1,382 @@
+<%#
+  web/views/portal.ejs
+  "Portal" (pedido do dono, 2026-08-06) — nova entrada única pra quem está
+  logado, no lugar dos antigos botões separados DASHBOARD/PERFIL na nav.
+  Renomeado de index.ejs (era a página em /dashboard, "Seleção de
+  Servidores") — mesma rota GET /dashboard em dashboard.js, só o
+  res.render/conteúdo mudou. 3 colunas com separador vertical padrão:
+  card de perfil (mesma imagem PNG que o /perfil do Discord gera, ver
+  renderProfileCard), atalho pra /perfil completo ("Toca"), e escolha de
+  servidor (só pra quem administra algum, mesmo getAdminGuildsWithBot de
+  sempre). /perfil continua existindo do jeito que está, com a mesma
+  sidebar restrita — só deixou de ter link direto na nav do site.
+
+  Uso: res.render('portal', { guilds, locked, profileCard }) — ver
+  dashboard.js GET /dashboard.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal | <%= bot.user.username %></title>
+
+    <!-- Fontes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN (mesmo padrão do resto do dashboard) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-dark': '#1F1D20',
+                        'titan-cream': '#F8DCC0',
+                        'titan-accent': '#803E30',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; }
+        [data-i18n-en] { display: none; }
+        html[data-lang="en"] [data-i18n-pt] { display: none; }
+        html[data-lang="en"] [data-i18n-en] { display: initial; }
+
+        .guild-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+
+        /* Componente .btn-primary (Figma node 250-59) - mesma definicao de web/public/css/style.css,
+           duplicada aqui pq esta pagina usa um <style> proprio em vez do stylesheet compartilhado. */
+        .btn-primary {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            min-width: 232px;
+            height: 39px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 20px;
+            line-height: 30px;
+            color: #F8DCC0;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .btn-primary-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: currentColor;
+            flex: none;
+        }
+        .btn-primary:hover {
+            background: #803E30;
+            border-color: #F8DCC0;
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5),
+                        10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .btn-primary:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5),
+                        inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
+
+        /* Barra de navegação padrão do site (mesma de hero.ejs — pedido do
+           dono, 2026-08-06: "devemos ter ainda a mesma barra de navegação
+           no top de home"). Fixa, então o conteúdo abaixo compensa com
+           --nav-height (ver .portal-hero-padding e o script no fim). */
+        .nav-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 20px;
+            gap: 10px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 300;
+            font-size: 14px;
+            color: #F8DCC0;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .nav-btn.is-active { background: #4B2427; border-color: #DCA15E; }
+        .nav-btn:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
+        .lang-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 14px;
+            height: 30px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .lang-btn:hover { background: #803E30; border-color: #F8DCC0; }
+        .lang-btn:active {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
+        .portal-hero-padding { margin-top: calc(var(--nav-height, 84px) + 16px); }
+
+        .section-title {
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: clamp(22px, 3vw, 32px);
+            text-transform: uppercase;
+            color: #F8DCC0;
+        }
+        .portal-col-head {
+            font-family: 'Tilt Warp', cursive;
+            font-size: clamp(16px, 2vw, 19px);
+            color: #F8DCC0;
+        }
+        .dev-overlay { display: flex; align-items: center; justify-content: center; width: 100%; }
+
+        /* Backdrop do aviso "dashboard em desenvolvimento" ao clicar num
+           .dashboard-link[data-locked] (mesmo padrão de hero.ejs) — aqui é
+           só o clique dentro da própria nav; server-side (locked=true) já
+           mostra o cartão direto no lugar do corpo normal, ver mais abaixo. */
+        .dev-overlay-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(10, 9, 10, 0.85);
+            backdrop-filter: blur(4px);
+        }
+        .dev-overlay-backdrop[hidden] { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- ===================== NAV (fixa, padrão do site) ===================== -->
+<nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+    <%# Mesmo slot dinâmico Entrar/Portal de hero.ejs, ver comentário completo lá. %>
+    <% if (user) { %>
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %> style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+            <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
+            <%= (user.nickname || user.global_name || user.username) %>
+        </a>
+    <% } %>
+    <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <% if (user) { %>
+        <a href="/dashboard" class="dashboard-link nav-btn is-active" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
+    <% } else { %>
+        <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
+    <% } %>
+    <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
+    <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
+    <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
+</nav>
+<script>
+    (function () {
+        function syncNavHeight() {
+            var nav = document.querySelector('nav');
+            if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
+        }
+        syncNavHeight();
+        window.addEventListener('resize', syncNavHeight);
+        window.addEventListener('load', syncNavHeight);
+        if (window.document.fonts && window.document.fonts.ready) {
+            window.document.fonts.ready.then(syncNavHeight);
+        }
+    })();
+</script>
+
+<div class="min-h-screen w-full flex flex-col items-stretch p-4 sm:p-6 md:p-8 portal-hero-padding"
+     style="background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);">
+
+    <div class="flex-1 flex flex-col items-center justify-center w-full" style="gap: clamp(28px, 5vw, 56px); padding: clamp(16px, 3vw, 32px) 0;">
+
+        <!-- Seção Superior: Logo e Boas-vindas -->
+        <div class="flex flex-col items-center w-full" style="gap: clamp(20px, 3vw, 32px);">
+            <div class="flex items-center justify-center" style="width: clamp(170px, 25vw, 300px);">
+                <img src="/images/landing/titans-pass-logo.webp"
+                     alt="Titan's Pass Logo" class="w-full h-auto object-contain" style="max-height: clamp(130px, 18vw, 210px);">
+            </div>
+
+            <div class="text-center px-4">
+                <p class="section-title leading-tight mb-1" style="font-size: clamp(16px, 2.2vw, 26px);">
+                    <span data-i18n-pt>BEM VINDO AO PORTAL DE TITAN'S PASS</span>
+                    <span data-i18n-en>WELCOME TO THE TITAN'S PASS PORTAL</span>
+                </p>
+                <p class="text-titan-cream" style="font-family: 'Poppins', sans-serif; font-size: clamp(12px, 1.3vw, 16px);">
+                    <% if (typeof locked !== 'undefined' && locked) { %>
+                        <span data-i18n-pt>Voltamos em breve</span><span data-i18n-en>We'll be back soon</span>
+                    <% } else if (user) { %>
+                        <span data-i18n-pt>O que quer fazer hoje?</span><span data-i18n-en>What do you want to do today?</span>
+                    <% } else { %>
+                        <span data-i18n-pt>Entre para gerenciar seus servidores</span><span data-i18n-en>Log in to manage your servers</span>
+                    <% } %>
+                </p>
+            </div>
+        </div>
+
+        <% if (typeof locked !== 'undefined' && locked) { %>
+            <div class="dev-overlay">
+                <%- include('partials/dev-overlay-card') %>
+            </div>
+        <% } else if (!user) { %>
+            <div class="flex flex-col items-center gap-6">
+                <a href="/login" class="btn-primary">
+                    <span class="btn-primary-icon"></span>
+                    <span data-i18n-pt>ENTRAR COM DISCORD</span><span data-i18n-en>LOG IN WITH DISCORD</span>
+                </a>
+            </div>
+        <% } else { %>
+            <%#
+                3 colunas + separador vertical padrão (pedido do dono,
+                2026-08-06). Empilha em telas estreitas (flex-col) com o
+                mesmo separador virando horizontal — ver regra
+                web_ui_always_responsive. Coluna 3 só existe pra quem
+                administra algum servidor com o bot (mesmo
+                getAdminGuildsWithBot de sempre) — sem isso, vira 2
+                colunas com 1 separador só.
+            %>
+            <div class="w-full flex flex-col md:flex-row items-stretch justify-center px-4" style="gap: 28px; max-width: 960px;">
+                <div class="flex-1 flex flex-col items-center text-center gap-4" style="padding: 8px 16px; min-width: 0;">
+                    <h3 class="portal-col-head"><span data-i18n-pt>SEU PERFIL</span><span data-i18n-en>YOUR PROFILE</span></h3>
+                    <% if (profileCard) { %>
+                        <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 280px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
+                    <% } else { %>
+                        <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 260px;">
+                            <span data-i18n-pt>Sua conta Discord ainda não está vinculada a um jogador de Path of Titans. Use <code>/registrar</code> no Discord pra ver seu card aqui.</span>
+                            <span data-i18n-en>Your Discord account isn't linked to a Path of Titans player yet. Use <code>/registrar</code> on Discord to see your card here.</span>
+                        </p>
+                    <% } %>
+                </div>
+
+                <div class="w-full h-px md:w-px md:h-auto md:self-stretch" style="background: #3E3D38; flex-shrink: 0;"></div>
+
+                <div class="flex-1 flex flex-col items-center justify-center text-center gap-4" style="padding: 8px 16px; min-width: 0;">
+                    <h3 class="portal-col-head"><span data-i18n-pt>ENTRAR NA TOCA</span><span data-i18n-en>ENTER THE DEN</span></h3>
+                    <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 220px;">
+                        <span data-i18n-pt>Seu perfil completo: personalização, estatísticas, servidores que você já jogou e suas denúncias.</span>
+                        <span data-i18n-en>Your full profile: customization, stats, servers you've played on, and your reports.</span>
+                    </p>
+                    <a href="/perfil" class="btn-primary">
+                        <span data-i18n-pt>TOCA</span><span data-i18n-en>DEN</span>
+                    </a>
+                </div>
+
+                <% if (guilds.length > 0) { %>
+                    <div class="w-full h-px md:w-px md:h-auto md:self-stretch" style="background: #3E3D38; flex-shrink: 0;"></div>
+
+                    <div class="flex-1 flex flex-col items-center text-center gap-4" style="padding: 8px 16px; min-width: 0;">
+                        <h3 class="portal-col-head"><span data-i18n-pt>DASHBOARD DO SEU SERVIDOR</span><span data-i18n-en>YOUR SERVER DASHBOARD</span></h3>
+                        <div class="grid"
+                             style="grid-template-columns: repeat(3, minmax(30px, 72px)); gap: clamp(8px, 1.6vw, 14px); width: 100%; max-width: 244px;">
+                            <% guilds.forEach(guild => { %>
+                                <a href="/moderacao/<%= guild.id %>"
+                                   class="bg-titan-dark flex items-center justify-center cursor-pointer transition-all duration-200 hover:border-titan-accent hover:scale-105"
+                                   style="aspect-ratio: 1 / 1; border-radius: 18.75%; border: 2px solid #3E3D38; box-shadow: 0 12px 18px 6px rgba(1, 2, 10, 0.38); overflow: hidden;">
+                                    <% if (guild.icon) { %>
+                                        <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" class="guild-icon-img">
+                                    <% } else { %>
+                                        <img src="/images/guild-fallback-<%= (guild.id % 4) + 1 %>.svg" class="guild-icon-img">
+                                    <% } %>
+                                </a>
+                            <% }); %>
+                        </div>
+                    </div>
+                <% } %>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center py-2 flex flex-col items-center gap-1">
+        <a href="/termos" class="text-titan-cream opacity-60 hover:opacity-100 underline" style="font-family: 'Poppins', sans-serif; font-size: 14px;">
+            <span data-i18n-pt>Termos de Serviço</span><span data-i18n-en>Terms of Service</span>
+        </a>
+        <% if (user) { %>
+            <a href="/logout" class="text-titan-cream opacity-60 hover:opacity-100 underline" style="font-family: 'Poppins', sans-serif; font-size: 14px;">
+                <span data-i18n-pt>Sair</span><span data-i18n-en>Log out</span>
+            </a>
+        <% } %>
+        <span class="text-titan-cream opacity-60" style="font-family: 'Poppins', sans-serif; font-size: 16px;">
+            BY: KNUST SEIER VI
+        </span>
+    </div>
+</div>
+
+<%# Overlay do botão Portal travado, mesmo padrão de hero.ejs (ver DASHBOARD_LOCKED_TO_OWNER em dashboard.js). %>
+<div class="dev-overlay-backdrop" id="devOverlay" hidden>
+    <%- include('partials/dev-overlay-card') %>
+</div>
+
+<script>
+    (function () {
+        var overlay = document.getElementById('devOverlay');
+        if (!overlay) return;
+
+        function openOverlay() { overlay.hidden = false; }
+        function closeOverlay() { overlay.hidden = true; }
+
+        document.querySelectorAll('.dashboard-link[data-locked]').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                openOverlay();
+            });
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeOverlay();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeOverlay();
+        });
+    })();
+
+    (function () {
+        const stored = localStorage.getItem('titanspass_lang') || 'pt';
+        document.documentElement.setAttribute('data-lang', stored);
+        document.getElementById('langBtnLabel').textContent = stored === 'pt' ? 'EN' : 'PT';
+    })();
+
+    function toggleLang() {
+        const current = document.documentElement.getAttribute('data-lang') || 'pt';
+        const next = current === 'pt' ? 'en' : 'pt';
+        document.documentElement.setAttribute('data-lang', next);
+        localStorage.setItem('titanspass_lang', next);
+        document.getElementById('langBtnLabel').textContent = next === 'pt' ? 'EN' : 'PT';
+    }
+</script>
+
+</body>
+</html>

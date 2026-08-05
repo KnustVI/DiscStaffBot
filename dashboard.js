@@ -17,6 +17,8 @@ const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
+const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSystem');
+const { renderProfileCard } = require('./src/utils/profileCardRenderer');
 
 const app = express();
 
@@ -1098,18 +1100,67 @@ function loadDashboard(client) {
         }
     );
 
-    // Dashboard: Seleção de Servidores (era a raiz "/" antes da landing page)
+    // Portal (pedido do dono, 2026-08-06) — era "Seleção de Servidores"
+    // (index.ejs, renomeado pra portal.ejs), agora a entrada única de
+    // quem está logado: card de perfil + atalho pra /perfil ("Toca") +,
+    // só pra quem administra algum servidor com o bot, a escolha de
+    // servidor (mesmo getAdminGuildsWithBot de sempre).
+    //
     // Só mostra servidores onde o bot JÁ ESTÁ (pedido do dono) — antes
     // listava todo servidor que o usuário administra no Discord, mesmo sem
     // o bot lá (o ícone levava pra /moderacao/:guildID, que redireciona de
-    // volta pro dashboard nesse caso já que client.guilds.cache não acha a
+    // volta pro portal nesse caso já que client.guilds.cache não acha a
     // guild — clicável, mas sem nenhum efeito visível, confuso).
-    app.get('/dashboard', (req, res) => {
+    app.get('/dashboard', async (req, res) => {
         // Não logado ainda vê a tela de login normal (pode ser o próprio
         // dono provando quem é) — só quem JÁ ESTÁ logado como outra conta
-        // vê o aviso de "em desenvolvimento" no lugar da lista de servidores.
+        // vê o aviso de "em desenvolvimento" no lugar do resto do Portal.
         const locked = DASHBOARD_LOCKED_TO_OWNER && req.user && req.user.id !== DEVELOPER_ID;
-        res.render('index', { guilds: locked ? [] : getAdminGuildsWithBot(req), locked });
+        if (!req.user || locked) {
+            return res.render('portal', { guilds: [], locked, profileCard: null });
+        }
+
+        const guilds = getAdminGuildsWithBot(req);
+
+        // Card de perfil — a MESMA imagem PNG que o /perfil gera no
+        // Discord (ver playerRegistrationSystem.sendProfile), reaproveitando
+        // renderProfileCard direto em vez de duplicar a lógica de
+        // moldura/foto/estrelas. _resolveCardPhotoBuffer/_resolveBackgroundBuffer
+        // são métodos de instância "privados" (convenção `_`, não enforced
+        // pelo JS) que só usam interaction.client e targetUser.fetch() — um
+        // objeto { client } no lugar da interaction de verdade funciona.
+        // Sem vínculo (ou falha no render), profileCard fica null e
+        // portal.ejs mostra a mensagem de "use /registrar" no lugar.
+        let profileCard = null;
+        const player = PlayerRegistry.getPlayerByDiscordId(req.user.id);
+        if (player) {
+            try {
+                const targetUser = await client.users.fetch(req.user.id);
+                const playerTier = PremiumSystem.getPlayerTier(req.user.id);
+                const system = new PlayerRegistrationSystem(client);
+                const [photoBuffer, backgroundBuffer] = await Promise.all([
+                    system._resolveCardPhotoBuffer({ client }, targetUser, player, playerTier),
+                    system._resolveBackgroundBuffer({ client }, player, playerTier),
+                ]);
+                const cardBuffer = await renderProfileCard({
+                    tier: playerTier,
+                    photoBuffer,
+                    backgroundBuffer,
+                    nickname: player.player_name || targetUser.username,
+                    alderonId: player.alderon_id,
+                    discordUsername: targetUser.username,
+                    titleLabel: player.profile_title || 'Em breve (missões)',
+                    levelLabel: 'Nível 1',
+                    speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
+                    honorStars: PunishmentSystem.getGlobalHonorStars(req.user.id),
+                });
+                profileCard = `data:image/png;base64,${cardBuffer.toString('base64')}`;
+            } catch (error) {
+                console.error('❌ [Portal] Erro ao gerar card de perfil:', error);
+            }
+        }
+
+        res.render('portal', { guilds, locked: false, profileCard });
     });
 
     // ==================== FRAGMENTOS (atualização em tempo real) ====================
