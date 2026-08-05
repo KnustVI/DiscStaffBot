@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - No test suite is configured (`npm test` is a placeholder that exits with an error).
 - No lint/build step; plain Node CommonJS, run directly.
 
-Required `.env` values (read via `dotenv`): `TOKEN` (bot token, required to boot), `CLIENT_ID` (used by `deploy.js`), `DASHBOARD_CLIENT_ID` / `DASHBOARD_CLIENT_SECRET` / `DASHBOARD_CALLBACK_URL` / `SESSION_SECRET` / `DASHBOARD_PORT` (web dashboard OAuth2), `DEPLOY_COMMANDS=true` (if set, `events/ready.js` also registers commands globally on boot), `POT_GATEWAY_URL` (Path of Titans integration), `DEV_TOKEN` / `DEV_CLIENT_ID` / `DEV_GUILD_ID` (optional — second, private Discord Application for developer-only commands; the bot boots fine without them, see "Developer-only bot" below).
+Required `.env` values (read via `dotenv`): `TOKEN` (bot token, required to boot), `CLIENT_ID` (used by `deploy.js`), `DASHBOARD_CLIENT_ID` / `DASHBOARD_CLIENT_SECRET` / `DASHBOARD_CALLBACK_URL` / `SESSION_SECRET` / `DASHBOARD_PORT` (web dashboard OAuth2), `DEPLOY_COMMANDS=true` (if set, `events/ready.js` also registers commands globally on boot), `POT_GATEWAY_URL` (Path of Titans integration), `DEV_TOKEN` / `DEV_CLIENT_ID` / `DEV_GUILD_ID` (optional — second, private Discord Application for developer-only commands; the bot boots fine without them, see "Developer-only bot" below), `YOUTUBE_API_KEY` / `YOUTUBE_CHANNEL_ID` (optional — powers the "Novidades" video feed on the web dashboard's `/perfil` page, see `src/systems/news/generalNewsSystem.js`; without them that section just shows "em breve").
 
 ## Architecture
 

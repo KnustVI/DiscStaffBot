@@ -16,6 +16,7 @@ const ProfileImagePool = require('./src/systems/pot/profileImagePool');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
+const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
 
 const app = express();
 
@@ -924,16 +925,13 @@ function loadDashboard(client) {
 
         const otherGuilds = getAdminGuildsWithBot(req);
         const partnerNews = getPartnerNews(client);
-        // "Novidades Gerais" (pedido do dono, 2026-08-05) — SEM fonte de
-        // dados ainda (owner decidiu puxar do YouTube depois, precisa de
-        // canal + YOUTUBE_API_KEY em .env, nenhum dos dois configurado
-        // ainda). Array vazio por enquanto — perfil.ejs já mostra um card
-        // "em breve" quando generalNews.length === 0. Formato pronto pra
-        // quando essa fonte existir: cada item { source: 'youtube', title,
-        // url, thumbnailUrl, publishedAtLabel } — pedido do dono era
-        // conseguir "adicionar mais fontes depois", daí o campo `source`
-        // já presente na forma esperada em vez de assumir só YouTube.
-        const generalNews = [];
+        // "Novidades Gerais" (pedido do dono, 2026-08-05) — vídeos mais
+        // recentes do canal oficial de Path of Titans no YouTube (ver
+        // src/systems/news/generalNewsSystem.js — cache em memória,
+        // devolve [] sozinho se YOUTUBE_API_KEY/YOUTUBE_CHANNEL_ID não
+        // estiverem no .env, sem quebrar a página). perfil.ejs mostra "em
+        // breve" quando o array vem vazio.
+        const generalNews = await GeneralNewsSystem.getGeneralNews();
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
