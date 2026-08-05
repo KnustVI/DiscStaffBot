@@ -259,7 +259,10 @@
 
         /* ===================== NOVIDADES (pedido do dono, 2026-08-06 —
            migrado da página /perfil pra home) ===================== */
-        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; width: 100%; }
+        /* auto-fit + justify-content:center (não auto-fill/1fr) — com poucos
+           cards a fileira fica centralizada em vez de grudada na esquerda
+           com um vão vazio à direita (pedido do dono, 2026-08-06). */
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 260px)); justify-content: center; gap: 16px; width: 100%; }
         .news-card {
             display: flex;
             flex-direction: column;
@@ -319,7 +322,9 @@
         /* Novidades dos Servidores Parceiros — divulgação curta por
            servidor (título+texto, editado em moderacao.ejs "DIVULGAÇÃO DO
            SERVIDOR"), sem imagem própria (só o ícone do servidor). */
-        .partner-news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; width: 100%; }
+        /* auto-fit + justify-content:center — mesmo motivo do .news-grid
+           acima (pedido do dono, 2026-08-06). */
+        .partner-news-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 280px)); justify-content: center; gap: 16px; width: 100%; }
         .partner-news-card {
             display: flex;
             flex-direction: column;
