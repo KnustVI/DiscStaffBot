@@ -665,14 +665,23 @@ function loadDashboard(client) {
     // "escolher" a região só editando a URL.
     const isOwnerSession = (req) => req.user && req.user.id === DEVELOPER_ID;
 
-    app.get('/', (req, res) => {
+    app.get('/', async (req, res) => {
         const country = req.headers['cf-ipcountry'] || 'BR';
         const detectedIsBrazil = country.toUpperCase() === 'BR';
         const isOwner = isOwnerSession(req);
         const regionOverride = isOwner && ['intl', 'br'].includes(req.query.preview_region) ? req.query.preview_region : null;
         const isBrazil = regionOverride ? regionOverride === 'br' : detectedIsBrazil;
 
-        res.render('hero', { isBrazil, isOwner, regionOverride });
+        // Novidades (pedido do dono, 2026-08-06: "migrar pra página home") —
+        // migrado de GET /perfil pra cá; público, sem checkAuth, já que a
+        // home é vista por visitante deslogado também (ver
+        // getPartnerNews/GeneralNewsSystem, definidos mais abaixo — chamar
+        // uma function declaration antes da definição textual funciona
+        // normal em JS, hoisting).
+        const generalNews = await GeneralNewsSystem.getGeneralNews();
+        const partnerNews = getPartnerNews(client);
+
+        res.render('hero', { isBrazil, isOwner, regionOverride, generalNews, partnerNews });
     });
 
     // Termos de Serviço e Política de Privacidade — parseados direto de
@@ -847,9 +856,10 @@ function loadDashboard(client) {
         });
     }
 
-    // "Novidades dos Servidores Parceiros" (pedido do dono, 2026-08-05) —
-    // feed GLOBAL na página /perfil, mostrado pra QUALQUER usuário
-    // logado, não só pra quem administra o servidor divulgado. Lê
+    // "Novidades dos Servidores Parceiros" (pedido do dono, 2026-08-05,
+    // migrado pra home em 2026-08-06) — feed GLOBAL na página inicial
+    // (GET /), mostrado pra QUALQUER visitante, logado ou não, não só
+    // pra quem administra o servidor divulgado. Lê
     // partner_news_title/text/updated_at (settings, editados pelo próprio
     // servidor em moderacao.ejs) via um self-join no key/value plano de
     // `settings` — só entra no feed quem tem título preenchido E o bot
@@ -924,14 +934,6 @@ function loadDashboard(client) {
         }
 
         const otherGuilds = getAdminGuildsWithBot(req);
-        const partnerNews = getPartnerNews(client);
-        // "Novidades Gerais" (pedido do dono, 2026-08-05) — vídeos mais
-        // recentes do canal oficial de Path of Titans no YouTube (ver
-        // src/systems/news/generalNewsSystem.js — cache em memória,
-        // devolve [] sozinho se YOUTUBE_API_KEY/YOUTUBE_CHANNEL_ID não
-        // estiverem no .env, sem quebrar a página). perfil.ejs mostra "em
-        // breve" quando o array vem vazio.
-        const generalNews = await GeneralNewsSystem.getGeneralNews();
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
@@ -947,8 +949,6 @@ function loadDashboard(client) {
             honorStars,
             mostPlayedDinosaur,
             kdStats,
-            partnerNews,
-            generalNews,
             playedGuilds,
             badgeOptions,
             avatarOptions,

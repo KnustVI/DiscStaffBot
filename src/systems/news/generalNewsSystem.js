@@ -1,13 +1,14 @@
 // src/systems/news/generalNewsSystem.js
 /**
- * "Novidades" gerais de Path of Titans na página web /perfil (pedido do
- * dono, 2026-08-05) — busca os vídeos mais recentes do canal oficial no
- * YouTube. Fonte única por enquanto, mas o formato de item devolvido
- * (`source: 'youtube'`) já deixa espaço pra outras fontes no futuro sem
- * precisar mudar quem consome (ver dashboard.js GET /perfil, perfil.ejs).
+ * "Novidades" gerais de Path of Titans na página inicial (home, pedido do
+ * dono 2026-08-05, migrado de /perfil pra home em 2026-08-06) — busca os
+ * vídeos mais recentes do canal oficial no YouTube. Fonte única por
+ * enquanto, mas o formato de item devolvido (`source: 'youtube'`) já
+ * deixa espaço pra outras fontes no futuro sem precisar mudar quem
+ * consome (ver dashboard.js GET /, hero.ejs).
  *
  * Precisa de duas variáveis de ambiente (opcionais — sem elas, devolve
- * lista vazia e perfil.ejs mostra "em breve", sem quebrar nada):
+ * lista vazia e hero.ejs mostra "em breve", sem quebrar nada):
  *   YOUTUBE_API_KEY     — chave da YouTube Data API v3 (Google Cloud Console)
  *   YOUTUBE_CHANNEL_ID  — ID do canal (começa com "UC...") OU handle (@algo)
  *

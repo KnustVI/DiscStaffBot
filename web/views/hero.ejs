@@ -257,6 +257,104 @@
         .pricing-card .cat-label { font-family:'Poppins',sans-serif; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:0.5px; color:#D9A362; opacity:0.9; margin-top:16px; margin-bottom:4px; }
         .pricing-card .cat-label:first-of-type { margin-top:4px; }
 
+        /* ===================== NOVIDADES (pedido do dono, 2026-08-06 —
+           migrado da página /perfil pra home) ===================== */
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; width: 100%; }
+        .news-card {
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.15s ease;
+        }
+        .news-card:hover { border-color: #DCA15E; }
+        .news-thumb {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: #1F1D20;
+            background-size: cover;
+            background-position: center;
+        }
+        .news-duration {
+            position: absolute;
+            right: 6px;
+            bottom: 6px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 11px;
+            color: #F8DCC0;
+        }
+        .news-body { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px 14px; text-align: left; }
+        .news-title {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #F8DCC0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .news-meta { font-family: 'Poppins', sans-serif; font-size: 11px; opacity: 0.5; }
+        .news-soon-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            padding: 20px 0;
+        }
+        .news-soon-card i { width: 32px; height: 32px; color: #803E30; }
+        .news-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
+        .news-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
+
+        /* Novidades dos Servidores Parceiros — divulgação curta por
+           servidor (título+texto, editado em moderacao.ejs "DIVULGAÇÃO DO
+           SERVIDOR"), sem imagem própria (só o ícone do servidor). */
+        .partner-news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; width: 100%; }
+        .partner-news-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            border-radius: 12px;
+            text-align: left;
+        }
+        .partner-news-header { display: flex; align-items: center; gap: 8px; }
+        .partner-news-header img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
+        .partner-news-icon-fallback {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #4B2427;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: none;
+        }
+        .partner-news-icon-fallback i { width: 16px; height: 16px; color: #DCA15E; }
+        .partner-news-header span {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 12px;
+            opacity: 0.7;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .partner-news-title { font-family: 'Tilt Warp', cursive; font-size: 14px; color: #F8DCC0; margin: 0; }
+        .partner-news-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.6; line-height: 1.5; margin: 0; }
+
         /* margin-top (não padding!) = altura da nav (medida via JS, já que
            ela quebra linha de formas diferentes dependendo da largura da
            tela) + uma folga — precisa ser margin pra empurrar a PRÓPRIA
@@ -361,9 +459,93 @@
     <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
             <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass" style="width: clamp(220px, 30vw, 380px);">
             <h1 class="section-title text-shadow-figma" style="max-width: 700px;">
-                <span data-i18n-pt>O BOT PREFERIDO DA SUA STAFF!</span>
-                <span data-i18n-en>THE BOT YOUR STAFF WILL LOVE!</span>
+                <span data-i18n-pt>Uma passagem dos titans da comunidade para a comunidade.</span>
+                <span data-i18n-en>A journey of the titans, made by the community, for the community.</span>
             </h1>
+        </div>
+    </section>
+
+    <%#
+        NOVIDADES (pedido do dono, 2026-08-06: "migrar essas apresentações
+        de novidades para a página home... logo antes da apresentação de
+        perfis"), logo abaixo do H1 principal. Dados de dashboard.js GET /
+        — generalNews (src/systems/news/generalNewsSystem.js, vídeos do
+        YouTube, Shorts já filtrados) e partnerNews (getPartnerNews, lido
+        de settings de cada servidor — ver moderacao.ejs "DIVULGAÇÃO DO
+        SERVIDOR"). Público, visível pra visitante deslogado também.
+    %>
+    <section class="relative w-full flex flex-col items-center px-4" style="padding: 50px 16px 0;">
+        <div class="w-full flex flex-col items-center" style="max-width: 1100px;">
+            <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>NOVIDADES</span><span data-i18n-en>WHAT'S NEW</span></h2>
+            <p class="mb-6 text-center" style="font-family:'Poppins',sans-serif; font-weight:600; font-size: clamp(13px, 1.2vw, 16px); opacity: 0.85;">
+                <span data-i18n-pt>O que tá rolando de novo na comunidade de Path of Titans.</span>
+                <span data-i18n-en>What's going on in the Path of Titans community.</span>
+            </p>
+            <% if (generalNews.length === 0) { %>
+                <div class="news-soon-card">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#803E30" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                    <span class="news-soon-title"><span data-i18n-pt>Em breve</span><span data-i18n-en>Coming soon</span></span>
+                    <span class="news-soon-text"><span data-i18n-pt>Últimas novidades oficiais de Path of Titans direto aqui — em breve.</span><span data-i18n-en>Official Path of Titans updates, right here — coming soon.</span></span>
+                </div>
+            <% } else { %>
+                <div class="news-grid">
+                    <% generalNews.forEach(item => { %>
+                        <a href="<%= item.url %>" target="_blank" rel="noopener" class="news-card">
+                            <div class="news-thumb" style="background-image:url('<%= item.thumbnailUrl %>')">
+                                <% if (item.durationLabel) { %><span class="news-duration"><%= item.durationLabel %></span><% } %>
+                            </div>
+                            <div class="news-body">
+                                <span class="news-title"><%= item.title %></span>
+                                <span class="news-meta">
+                                    <% if (item.viewCountLabel) { %><%= item.viewCountLabel %> visualizações<% } %>
+                                    <% if (item.viewCountLabel && item.publishedAtLabel) { %> • <% } %>
+                                    <% if (item.publishedAtLabel) { %><%= item.publishedAtLabel %><% } %>
+                                </span>
+                            </div>
+                        </a>
+                    <% }); %>
+                </div>
+            <% } %>
+        </div>
+    </section>
+
+    <section class="relative w-full flex flex-col items-center px-4" style="padding: 50px 16px 0;">
+        <div class="w-full flex flex-col items-center" style="max-width: 1100px;">
+            <h2 class="section-title text-shadow-figma mb-2 text-center"><span data-i18n-pt>NOVIDADES DOS SERVIDORES PARCEIROS</span><span data-i18n-en>PARTNER SERVER UPDATES</span></h2>
+            <p class="mb-6 text-center" style="font-family:'Poppins',sans-serif; font-weight:600; font-size: clamp(13px, 1.2vw, 16px); opacity: 0.85;">
+                <span data-i18n-pt>O que os servidores que usam o Titan's Pass estão divulgando.</span>
+                <span data-i18n-en>What servers using Titan's Pass are sharing.</span>
+            </p>
+            <% if (partnerNews.length === 0) { %>
+                <p class="text-sm" style="font-family:'Poppins',sans-serif; opacity: 0.5;"><span data-i18n-pt>Nenhum servidor divulgou novidades ainda.</span><span data-i18n-en>No server has shared any news yet.</span></p>
+            <% } else { %>
+                <div class="partner-news-grid">
+                    <% partnerNews.forEach(pn => { %>
+                        <div class="partner-news-card">
+                            <div class="partner-news-header">
+                                <% if (pn.iconUrl) { %>
+                                    <img src="<%= pn.iconUrl %>" alt="">
+                                <% } else { %>
+                                    <div class="partner-news-icon-fallback"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DCA15E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+                                <% } %>
+                                <span><%= pn.guildName %></span>
+                            </div>
+                            <p class="partner-news-title"><%= pn.title %></p>
+                            <% if (pn.text) { %><p class="partner-news-text"><%= pn.text %></p><% } %>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </div>
+    </section>
+
+    <!-- ===================== PROPOSTA DE VALOR ===================== -->
+    <section class="relative w-full flex flex-col items-center text-center px-4" style="padding: 60px 16px 0;">
+    <div class="relative z-10 flex flex-col items-center" style="gap: 24px;">
+            <h2 class="section-title text-shadow-figma" style="max-width: 700px;">
+                <span data-i18n-pt>UM APLICATIVO PARA FACILITAR A SUA SOBREVIVÊNCIA</span>
+                <span data-i18n-en>AN APP TO MAKE YOUR SURVIVAL EASIER</span>
+            </h2>
             <p style="font-family:'Poppins',sans-serif; font-weight:600; font-size: clamp(14px, 1.4vw, 20px); max-width: 680px; opacity: 0.95;" class="text-shadow-figma">
                 <span data-i18n-pt>Focando nas melhores ferramentas que sua staff pode precisar para moderar, fazer eventos, e ainda te ajuda a acompanhar com uma análise completa sobre o atendimento da equipe e a margem de punições e quebras no seu servidor.</span>
                 <span data-i18n-en>Focused on the best tools your staff could need to moderate, run events, and help you keep a complete overview of your team's performance and of punishments and rule-breaks on your server.</span>
