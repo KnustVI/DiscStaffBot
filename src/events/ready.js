@@ -3,7 +3,6 @@ const InteractionHandler = require('../systems/core/handlers');
 const { ActivityType } = require('discord.js');
 const { startInactiveReportsJob } = require('../systems/monitoring/inactiveReportsJob');
 const { startEventSchedulerWorker } = require('../systems/monitoring/eventScheduler');
-const { startDailyAnalyticsJob } = require('../systems/monitoring/dailyAnalyticsJob');
 const autoModeration = require('../systems/moderation/autoModeration');
 const ErrorLogger = require('../systems/core/errorLogger');
 const { sendSystemLog } = require('../systems/core/systemLog');
@@ -31,7 +30,10 @@ module.exports = {
         
         startInactiveReportsJob(client);
         startEventSchedulerWorker(client);
-        startDailyAnalyticsJob(client);
+        // Análise diária de staff unificada com a Manutenção Diária (pedido
+        // do dono, 2026-08-06) — não roda mais num cron próprio (00:05),
+        // agora é parte do relatório único enviado pelo cron das 12:00 em
+        // autoModeration.js (ver AnalyticsSystem.generateUnifiedDailyReportContainer).
 
         // Bot de developer (Application separada, privada) — ver
         // src/systems/core/devBot.js. Opcional (só liga com DEV_TOKEN no

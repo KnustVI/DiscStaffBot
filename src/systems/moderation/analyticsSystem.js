@@ -344,33 +344,6 @@ class AnalyticsSystem {
         };
     }
     
-    static async getStaffRanking(guildId, metric = 'punishments_applied', period = 'week', limit = 10) {
-        const validMetrics = [
-            'punishments_applied', 'reports_claimed', 'reports_closed',
-            'reports_joined', 'report_messages_count', 'events_created', 'spectator_seconds',
-        ];
-        if (!validMetrics.includes(metric)) {
-            throw new Error(`Métrica inválida: ${metric}`);
-        }
-        
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - (period === 'week' ? 7 : 30));
-        const startDateStr = this.getLocalDate(startDate);
-        
-        const ranking = db.prepare(`
-            SELECT 
-                user_id,
-                SUM(${metric}) as total
-            FROM staff_analytics
-            WHERE guild_id = ? AND date >= ?
-            GROUP BY user_id
-            ORDER BY total DESC
-            LIMIT ?
-        `).all(guildId, startDateStr, limit);
-        
-        return ranking;
-    }
-    
     static async generateStaffReportContainer(guildId, userId, guildName, period = 'week') {
         const report = await this.getStaffReport(guildId, userId, period);
         
@@ -393,33 +366,6 @@ class AnalyticsSystem {
         return builder;
     }
     
-    static async generateRankingContainer(guildId, guildName, metric = 'punishments_applied', period = 'week', limit = 10) {
-        const ranking = await this.getStaffRanking(guildId, metric, period, limit);
-        
-        const metricLabels = {
-            punishments_applied: `${EMOJIS.gavel || '⚠️'} Punições`,
-            reports_claimed: `${EMOJIS.ticket || '🎫'} Reports Assumidos`,
-            reports_closed: `${EMOJIS.circlecheck || '✅'} Reports Fechados`
-        };
-        
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        builder.title(`${EMOJIS.trophy || '🏆'} Ranking de Staff`, 1);
-        builder.separator();
-        builder.text(`**Período:** ${period === 'week' ? '7 dias' : '30 dias'}`);
-        builder.text(`**Métrica:** ${metricLabels[metric] || metric}`);
-        builder.separator();
-        
-        for (let index = 0; index < ranking.length; index++) {
-            const item = ranking[index];
-            const medal = index === 0 ? (EMOJIS.medalha1 || '🥇') : (index === 1 ? (EMOJIS.medalha2 || '🥈') : (index === 2 ? (EMOJIS.medalha3 || '🥉') : `${index + 1}º`));
-            builder.text(`**${medal}** <@${item.user_id}>: \`${item.total}\``);
-        }
-        
-        builder.footer(guildName, `Top ${limit} staff • ${new Date().toLocaleDateString('pt-BR')}`);
-
-        return builder;
-    }
-
     // ==================== ANÁLISE DIÁRIA + HISTÓRICO (novas métricas) ====================
 
     // Soma as métricas novas por staff — `date` filtra um único dia (análise
@@ -458,10 +404,6 @@ class AnalyticsSystem {
             ...row,
             avgResponseSeconds: row.responseCount > 0 ? Math.round(row.responseSecondsSum / row.responseCount) : null,
         }));
-    }
-
-    static getGuildDailySummary(guildId, date) {
-        return this._aggregateStaffTotals(guildId, { date });
     }
 
     static getAllStaffHistoryTotals(guildId) {
@@ -527,99 +469,174 @@ class AnalyticsSystem {
         return Number.isInteger(n) ? String(n) : n.toFixed(1);
     }
 
-    // Média POR STAFF ATIVO de cada parâmetro (não soma do dia inteiro) — é
-    // essa a "visão geral" que substitui o bloco por staff no resumo diário
-    // (ver generateDailySummaryContainer). avgResponseSeconds é ponderado de
-    // verdade (soma de todos os tempos / soma de todas as respostas), não
-    // média das médias de cada staff — evita puxar o número pra um staff que
-    // respondeu só 1 report uma vez.
-    static _averageStaffTotals(rows) {
-        const n = rows.length;
-        const sum = (key) => rows.reduce((acc, row) => acc + (row[key] || 0), 0);
-        const totalResponseSeconds = sum('responseSecondsSum');
-        const totalResponseCount = sum('responseCount');
+    // ==================== RELATÓRIO DIÁRIO UNIFICADO ("RAMHPY") ====================
+    // Pedido do dono, 2026-08-06: "temos a manutenção diária rodando e uma
+    // análise staff, vamos unificar as duas, e manter o relatório diário" —
+    // substitui as DUAS mensagens separadas de antes (Manutenção Diária, via
+    // autoModeration.js sendLogReports, e Análise Diária de Staff, via
+    // dailyAnalyticsJob.js/generateDailySummaryContainer, removido) por uma
+    // só, enviada pelo mesmo cron das 12:00 (autoModeration.js), no canal
+    // geral (log_channel). generateUnifiedDailyReportContainer monta o
+    // container inteiro a partir só de `guild` + `maintenanceData` (os
+    // números que SÓ existem porque a manutenção acabou de rodar —
+    // recuperação/cargos — o resto é recalculado aqui na hora).
 
-        return {
-            staffCount: n,
-            punishmentsApplied: sum('punishmentsApplied') / n,
-            reportsJoined: sum('reportsJoined') / n,
-            reportsClosed: sum('reportsClosed') / n,
-            reportMessages: sum('reportMessages') / n,
-            avgResponseSeconds: totalResponseCount > 0 ? Math.round(totalResponseSeconds / totalResponseCount) : null,
-            eventsCreated: sum('eventsCreated') / n,
-            nametagSpectating: sum('nametagSpectating') / n,
-            nametagNotSpectating: sum('nametagNotSpectating') / n,
-            spectatorSeconds: sum('spectatorSeconds') / n,
-        };
-    }
+    // "Jogador mais mutado pelo TITAN" (últimos 7 dias, pedido do dono) —
+    // ranking por punições aplicadas automaticamente pelo FILTRO DE CHAT DO
+    // PRÓPRIO BOT (ChatFilterSystem.applyFilterPunishment, reason sempre
+    // começa com "Palavra filtrada detectada no chat em jogo:"). SEM relação
+    // com o filtro NATIVO do jogo (evento PlayerProfanity) — esse continua
+    // 100% desativado (DISABLED_EVENTS em gatewayServer.js), não gera
+    // punição nenhuma hoje. user_id pode ser um Discord ID de verdade
+    // (jogador vinculado) ou "agid:<AlderonId>" (PunishmentSystem.
+    // _unregisteredTargetId, alvo sem vínculo) — resolvido pro formato
+    // "Nome | AGID" nos dois casos, usando pot_players (nome no jogo, ver
+    // getPlayerNameByAlderonId), não o apelido do Discord.
+    static _getMostMutedPlayer(guildId, sinceTimestamp) {
+        const row = db.prepare(`
+            SELECT user_id, COUNT(*) as count FROM punishments
+            WHERE guild_id = ? AND reason LIKE 'Palavra filtrada detectada no chat em jogo:%' AND created_at >= ?
+            GROUP BY user_id ORDER BY count DESC LIMIT 1
+        `).get(guildId, sinceTimestamp);
+        if (!row) return null;
 
-    static _formatAverageBlock(avg) {
-        const avgResp = avg.avgResponseSeconds !== null ? this.formatDuration(avg.avgResponseSeconds) : 'Sem dados';
-        const staffLabel = avg.staffCount === 1 ? '1 staff ativo' : `${avg.staffCount} staffs ativos`;
-        return [
-            `**Média geral do dia** (${staffLabel})`,
-            `${EMOJIS.gavel || '⚠️'} Punições aplicadas: \`${this._formatAvgNumber(avg.punishmentsApplied)}\``,
-            `${EMOJIS.ticket || '🎫'} Reports entrados: \`${this._formatAvgNumber(avg.reportsJoined)}\` • Fechados: \`${this._formatAvgNumber(avg.reportsClosed)}\``,
-            `${EMOJIS.messagesquare || '💬'} Mensagens em reports: \`${this._formatAvgNumber(avg.reportMessages)}\` • Tempo médio de resposta: \`${avgResp}\``,
-            `${EMOJIS.calendardays || '📅'} Eventos criados: \`${this._formatAvgNumber(avg.eventsCreated)}\``,
-            `${EMOJIS.shield || '🛡️'} Nametags com espectador: \`${this._formatAvgNumber(avg.nametagSpectating)}\` • sem espectador: \`${this._formatAvgNumber(avg.nametagNotSpectating)}\``,
-            `${EMOJIS.shieldcheck || '👁️'} Tempo em modo espectador: \`${this.formatDuration(avg.spectatorSeconds)}\``,
-        ].join('\n');
-    }
+        const PunishmentSystem = require('./punishmentSystem');
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
 
-    // "Destaques do dia" — pedido do dono: em vez de listar CADA staff (não
-    // cabe no painel com muita gente ativa), avisa só quem se destacou de
-    // verdade nos 3 parâmetros que ele pediu. "Se destacou" = tem o maior
-    // valor do dia E esse valor é MAIOR que a média do grupo (se todo mundo
-    // empatou, ou só 1 staff esteve ativo, ninguém "se destaca" de ninguém —
-    // nenhuma linha aparece pra esse parâmetro). Empate no topo mostra todos
-    // os empatados, não escolhe um arbitrariamente.
-    static _findDailyStandouts(rows, avg) {
-        const metrics = [
-            { key: 'reportMessages', label: 'Mensagens em reports', emoji: EMOJIS.messagesquare || '💬', format: (v) => `${v}` },
-            { key: 'eventsCreated', label: 'Eventos criados', emoji: EMOJIS.calendardays || '📅', format: (v) => `${v}` },
-            { key: 'spectatorSeconds', label: 'Tempo em modo espectador', emoji: EMOJIS.shieldcheck || '👁️', format: (v) => this.formatDuration(v) },
-        ];
-
-        const lines = [];
-        for (const metric of metrics) {
-            const max = Math.max(...rows.map((row) => row[metric.key] || 0));
-            if (max <= 0 || max <= avg[metric.key]) continue;
-
-            const leaders = rows.filter((row) => (row[metric.key] || 0) === max);
-            const names = leaders.map((row) => `<@${row.user_id}>`).join(', ');
-            lines.push(`${metric.emoji} **${metric.label}:** ${names} — \`${metric.format(max)}\``);
+        let alderonId = null;
+        let name = null;
+        if (PunishmentSystem._isUnregisteredTargetId(row.user_id)) {
+            alderonId = row.user_id.slice('agid:'.length);
+            name = PlayerRegistry.getPlayerNameByAlderonId(guildId, alderonId);
+        } else {
+            const link = PlayerRegistry.getPlayerByDiscordId(row.user_id);
+            alderonId = link?.alderon_id || null;
+            name = (alderonId ? PlayerRegistry.getPlayerNameByAlderonId(guildId, alderonId) : null) || link?.player_name || null;
         }
-        return lines;
+
+        const label = alderonId ? `${name || 'Desconhecido'} | ${alderonId}` : (name || `<@${row.user_id}>`);
+        return { label, count: row.count };
     }
 
-    // Painel enviado diariamente pro log_channel configurado (config-log) —
-    // só guilds tier Caçador recebem, ver dailyAnalyticsJob.js. Mostra a
-    // MÉDIA geral do dia (não o bloco de cada staff, que não cabia no painel
-    // em servidores com muita staff ativa) + destaques de quem se sobressaiu
-    // nos 3 parâmetros pedidos pelo dono.
-    static generateDailySummaryContainer(guild, date) {
-        const rows = this.getGuildDailySummary(guild.id, date);
+    // Staff com o maior valor de UM metric específico (das linhas já
+    // agregadas por _aggregateStaffTotals) — usado pelas 4 categorias de
+    // "ANÁLISE STAFF" do relatório unificado. Ignora staff com valor 0
+    // (ninguém "é o melhor" numa categoria onde ninguém fez nada) e não
+    // desempata (primeiro encontrado no maior valor fica, ordem irrelevante
+    // pro caso de uso: só 1 nome cabe na linha do relatório).
+    static _topStaffByMetric(rows, metricKey) {
+        let top = null;
+        for (const row of rows) {
+            const value = row[metricKey] || 0;
+            if (value > 0 && (!top || value > top.value)) top = { userId: row.user_id, value, row };
+        }
+        return top;
+    }
+
+    // "Staffs mais inativos" (pedido do dono) — todo membro com QUALQUER um
+    // dos 3 cargos de staff (Moderador/Supervisor/Equipe de Eventos) que não
+    // teve NENHUMA atividade (soma de punições+reports+mensagens+eventos+
+    // espectador = 0) no período. guild.members.fetch() garante o cache
+    // completo antes de checar cargos — sem isso, guild.members.cache só
+    // teria os membros que o bot já "viu" via algum evento, podendo faltar
+    // gente com cargo de staff que simplesmente não apareceu em nada ainda
+    // (justamente quem mais precisa aparecer nessa lista).
+    static async _findInactiveStaff(guild, sinceDate) {
+        const ConfigSystem = require('../core/configSystem');
+        await guild.members.fetch().catch(() => {});
+
+        const activeRows = this._aggregateStaffTotals(guild.id, { sinceDate });
+        const activeIds = new Set(
+            activeRows
+                .filter((row) => (row.punishmentsApplied + row.reportsJoined + row.reportMessages + row.eventsCreated + row.spectatorSeconds) > 0)
+                .map((row) => row.user_id)
+        );
+
+        return guild.members.cache
+            .filter((member) => ConfigSystem.memberHasAnyStaffRole(guild.id, member) && !activeIds.has(member.id))
+            .map((member) => member.id);
+    }
+
+    static async generateUnifiedDailyReportContainer(guild, maintenanceData) {
+        const ConfigSystem = require('../core/configSystem');
+        const PremiumSystem = require('../premium/premiumSystem');
+        const automodEnabled = PremiumSystem.getGuildLimits(guild.id).automodEnabled;
+        const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const sevenDaysAgoStr = this.getLocalDate(sevenDaysAgoDate);
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        builder.title(`${EMOJIS.medal || '📊'} Análise Diária de Staff`, 1);
-        builder.text(`**Data:** ${date}`);
+        builder.title(`${EMOJIS.circlecheck || '✅'} RELATÓRIO DO RAMHPY`, 1);
         builder.separator();
 
-        if (rows.length === 0) {
-            builder.text('Nenhuma atividade de staff registrada hoje.');
-        } else {
-            const avg = this._averageStaffTotals(rows);
-            builder.text(this._formatAverageBlock(avg));
+        // ── Reputação Diária ────────────────────────────────────────────────
+        builder.title('Reputação Diária', 2);
+        builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+${maintenanceData.recoveryAmount}pt**.`);
 
-            const standoutLines = this._findDailyStandouts(rows, avg);
-            if (standoutLines.length > 0) {
-                builder.separator();
-                builder.text([`**${EMOJIS.crown || '👑'} Destaques do dia**`, ...standoutLines].join('\n'));
+        if (automodEnabled) {
+            builder.text(`${EMOJIS.trophy || '🎭'} **Alterações de Cargos:** \`${maintenanceData.added}\` Atribuídos / \`${maintenanceData.removed}\` Removidos`);
+            builder.text(`${EMOJIS.medal || '📊'} **Detalhes:** ${EMOJIS.sparkles || '🎖️'} Exemplares: +${maintenanceData.exemplarAdded || 0} | ${EMOJIS.trianglealert || '⚠️'} Problemáticos: +${maintenanceData.problematicAdded || 0}`);
+
+            const mostMuted = this._getMostMutedPlayer(guild.id, sevenDaysAgoDate.getTime());
+            if (mostMuted) {
+                builder.text(`${EMOJIS.trianglealert || '⚠️'} **Jogador mais mutado pelo TITAN (7d):** ${mostMuted.label} — \`${mostMuted.count}\``);
+            }
+
+            const limitProb = parseInt(ConfigSystem.getSetting(guild.id, 'limit_problematico')) || 30;
+            const problematicCount = db.prepare(`
+                SELECT COUNT(*) as count FROM reputation WHERE guild_id = ? AND points <= ?
+            `).get(guild.id, limitProb)?.count || 0;
+
+            if (problematicCount > 0) {
+                builder.text(`${EMOJIS.trianglealert || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
+            } else {
+                builder.text(`${EMOJIS.circlecheck || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
             }
         }
 
-        builder.footer(guild.name, 'Análise diária de staff');
+        // ── Análise Staff (só existe pra quem tem Caçador — sem isso não há
+        // staff_analytics sendo gravado, ver _isAnalyticsAllowed) ───────────
+        if (automodEnabled) {
+            builder.separator();
+            builder.title('Análise Staff (últimos 7 dias)', 2);
+
+            const rows = this._aggregateStaffTotals(guild.id, { sinceDate: sevenDaysAgoStr });
+
+            const topPunish = this._topStaffByMetric(rows, 'punishmentsApplied');
+            builder.text([
+                `${EMOJIS.gavel || '🔨'} **Staff que aplicou mais punições**`,
+                topPunish ? `Punições aplicadas: \`${topPunish.value}\` — <@${topPunish.userId}>` : `${EMOJIS.messagesquare || 'ℹ️'} Sem punições registradas nos últimos 7 dias.`,
+            ].join('\n'));
+
+            const topReports = this._topStaffByMetric(rows, 'reportMessages');
+            const topReportsAvg = topReports?.row.avgResponseSeconds != null ? this.formatDuration(topReports.row.avgResponseSeconds) : 'Sem dados';
+            builder.text([
+                `${EMOJIS.messagesquare || '💬'} **Staff que mais respondeu reports**`,
+                topReports ? `Mensagens em reports: \`${topReports.value}\` • Tempo médio de resposta: \`${topReportsAvg}\` — <@${topReports.userId}>` : `${EMOJIS.messagesquare || 'ℹ️'} Sem mensagens em reports nos últimos 7 dias.`,
+            ].join('\n'));
+
+            const topEvents = this._topStaffByMetric(rows, 'eventsCreated');
+            builder.text([
+                `${EMOJIS.calendardays || '📅'} **Staff que mais agendou eventos**`,
+                topEvents ? `Eventos criados: \`${topEvents.value}\` — <@${topEvents.userId}>` : `${EMOJIS.messagesquare || 'ℹ️'} Nenhum evento criado nos últimos 7 dias.`,
+            ].join('\n'));
+
+            const topSpectator = this._topStaffByMetric(rows, 'spectatorSeconds');
+            builder.text([
+                `${EMOJIS.shieldcheck || '👁️'} **Staff que mais ficou no modo espectador nos últimos 7 dias**`,
+                topSpectator ? `Tempo em modo espectador: \`${this.formatDuration(topSpectator.value)}\` — <@${topSpectator.userId}>` : `${EMOJIS.messagesquare || 'ℹ️'} Sem tempo em modo espectador registrado nos últimos 7 dias.`,
+            ].join('\n'));
+
+            builder.separator();
+            builder.title(`${EMOJIS.trianglealert || '⚠️'} Staffs mais inativos`, 2);
+            const inactiveIds = await this._findInactiveStaff(guild, sevenDaysAgoStr);
+            if (inactiveIds.length > 0) {
+                builder.text(inactiveIds.map((id) => `<@${id}>`).join('\n'));
+            } else {
+                builder.text(`${EMOJIS.circlecheck || '✅'} Toda a equipe de staff teve alguma atividade nos últimos 7 dias.`);
+            }
+        }
+
+        builder.footer(guild.name, 'Relatório diário');
         return builder;
     }
 

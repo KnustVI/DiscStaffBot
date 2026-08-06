@@ -4837,3 +4837,80 @@ frente, nao so este relatorio):
   em cada passo; e os 3 containers de analytics (`generateDaily*`/
   `generateStaffHistory*`) confirmados sem nenhum traço do aviso removido
   quando há atividade registrada.
+
+110) Manutenção Diária + Análise Diária de Staff unificadas num relatório
+     só ("RELATÓRIO DO RAMHPY")
+------------------------------------------------------------------
+- Pedido do dono: "temos a manutenção diária rodando e uma análise staff,
+  vamos unificar as duas, e manter o relatório diário" — antes eram DUAS
+  mensagens separadas: "Manutenção Diária Concluída" (autoModeration.js,
+  cron das 12:00, canal geral `log_channel`) e "Análise Diária de Staff"
+  (dailyAnalyticsJob.js, cron próprio das 00:05, canal `log_staff`).
+  Formato exato pedido pelo dono, com cabeçalho "RELATÓRIO DO RAMHPY".
+- `dailyAnalyticsJob.js` **deletado** (junto com seu `require`/chamada em
+  `ready.js`) — o cron das 00:05 não existe mais, tudo passa a sair só no
+  das 12:00. `generateDailySummaryContainer` e seus 3 helpers privados
+  (`_averageStaffTotals`/`_formatAverageBlock`/`_findDailyStandouts`),
+  `getGuildDailySummary`, e `getStaffRanking`/`generateRankingContainer`
+  (órfãos depois que `autoModeration.js` parou de chamar `getStaffRanking`
+  pro antigo "Top 5 staff") removidos de `analyticsSystem.js` — nenhum
+  tinha outro chamador (confirmado por busca antes de apagar).
+  `generateStaffReportContainer`/`getStaffReport` JÁ estavam sem nenhum
+  chamador antes desta mudança (código morto pré-existente, não causado
+  por esta revisão) — deixados como estão, fora do escopo.
+- Novo `AnalyticsSystem.generateUnifiedDailyReportContainer(guild,
+  maintenanceData)` monta o container inteiro: `maintenanceData` só
+  carrega o que SÓ existe porque a manutenção acabou de rodar
+  (`recoveryAmount`/`added`/`removed`/`exemplarAdded`/`problematicAdded`)
+  — o resto (status de reputação, análise de staff, staffs inativos) é
+  recalculado na hora a partir do banco. Seção "Análise Staff" e "Staffs
+  mais inativos" só aparecem pra tier Caçador (`automodEnabled`, mesmo
+  gate de sempre) — Rastreador só vê a linha de Recuperação, igual já
+  era antes.
+- **"Jogador mais mutado pelo TITAN"** (novo, dentro de Reputação Diária,
+  janela de 7 dias — confirmado com o dono): ranking por punições
+  aplicadas automaticamente pelo FILTRO DE CHAT DO PRÓPRIO BOT
+  (`ChatFilterSystem.applyFilterPunishment`, `reason` sempre começa com
+  "Palavra filtrada detectada no chat em jogo:") — SEM relação com o
+  filtro NATIVO do jogo (`PlayerProfanity`, ver abaixo). Resolve o
+  `user_id` da punição (Discord ID real OU `agid:<AlderonId>` sintético,
+  ver `PunishmentSystem._unregisteredTargetId`) pro formato "Nome | AGID"
+  usando `pot_players` (nome no jogo), nos dois casos. Linha só aparece
+  quando existe pelo menos 1 punição do filtro no período.
+- **"ANÁLISE STAFF (últimos 7 dias)"** trocou o ranking Top-5-por-punições
+  (via `getStaffRanking`, removido) por 4 categorias fixas, uma linha
+  cada, staff que mais se destacou em: punições aplicadas, mensagens em
+  reports (+ tempo médio de resposta DESSE staff), eventos criados, tempo
+  em modo espectador — todas calculadas de uma vez só por
+  `_aggregateStaffTotals` (já existente) + novo helper
+  `_topStaffByMetric(rows, metricKey)`. Categoria sem nenhuma atividade
+  no período mostra um texto "Sem X nos últimos 7 dias" em vez de
+  esconder a linha (consistente com o resto do relatório).
+- **"Staffs mais inativos"** (novo, confirmado com o dono: zero atividade
+  em 7 dias, não um limite configurável): todo membro com qualquer um dos
+  3 cargos de staff (Moderador/Supervisor/Equipe de Eventos) SEM nenhuma
+  atividade somada (punições+reports+mensagens+eventos+espectador = 0) no
+  período — novo `_findInactiveStaff(guild, sinceDate)`, `async` porque
+  precisa de `guild.members.fetch()` antes de checar cargos (sem isso o
+  cache podia não ter membro nenhum que o bot "não viu" ainda em nenhum
+  evento — justamente quem mais precisava aparecer aqui). Lista vazia
+  (todo mundo ativo, ou nenhum staff configurado) mostra confirmação
+  positiva em vez de seção vazia.
+- **Mute nativo do jogo (`PlayerProfanity`) — investigado, NÃO reativado**
+  (pedido do dono: "verifique se ele já mostra isso como um strike no
+  fluxo comum também"): confirmado que está 100% desativado hoje
+  (`DISABLED_EVENTS` em `gatewayServer.js`, primeira linha de
+  `_routeToDiscord` — `if (DISABLED_EVENTS.has(potEvent)) return;`), sem
+  nenhuma persistência/mensagem/punição. Continua assim de propósito —
+  dono confirmou "só documentar por agora" nesta conversa, o motivo
+  original do desligamento (falsos positivos do filtro nativo do jogo)
+  segue valendo. Fica registrado pra quando isso for retomado.
+- Verificado com testes funcionais diretos contra o banco (sem servidor
+  Discord real): cenário completo (tier Caçador, staff ativo vs. zerado
+  vs. sem linha nenhuma, punição de filtro de chat, membro sem cargo)
+  confirmando as 4 categorias de staff, a lista de inativos (só quem
+  devia entrar, ninguém a mais/a menos), o jogador mais mutado resolvido
+  corretamente, e o alerta de problemáticos; cenário Rastreador
+  confirmando que Análise Staff/Staffs Inativos/Jogador Mais Mutado
+  somem inteiros; cenário Caçador vazio confirmando os 4 textos de
+  "sem dados" e a confirmação "equipe toda ativa".

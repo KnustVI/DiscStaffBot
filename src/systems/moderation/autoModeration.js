@@ -375,20 +375,18 @@ class AutoModerationSystem {
     }
 
     /**
-     * Envia o relatório diário consolidado.
-     *
-     * ✅ UNIFICADO: o relatório agora vai para o canal "Geral" (chave
-     * 'log_channel'), via ConfigSystem.getUnifiedGeneralLogChannel().
-     * Antes ia para 'log_automod', que deixou de ser configurável
-     * separadamente no painel /config logs (mantido só como fallback legado
-     * para guilds que já tinham configurado antes da unificação).
-     *
-     * ✅ EXPANDIDO: além do resumo de recuperação/cargos que já existia,
-     * o relatório agora também inclui:
-     *  - Status atual do servidor (total de exemplares e alerta de
-     *    problemáticos no momento, não só os que mudaram hoje)
-     *  - Top 5 staffs por punições aplicadas nos últimos 7 dias
-     *    (via AnalyticsSystem.getStaffRanking)
+     * Envia o relatório diário consolidado — "RELATÓRIO DO RAMHPY" (pedido
+     * do dono, 2026-08-06: "temos a manutenção diária rodando e uma análise
+     * staff, vamos unificar as duas, e manter o relatório diário"). Vai pro
+     * canal "Geral" (chave 'log_channel'), via
+     * ConfigSystem.getUnifiedGeneralLogChannel() — mesmo destino de sempre
+     * da Manutenção Diária. A Análise Diária de Staff, que antes era uma
+     * mensagem separada (dailyAnalyticsJob.js, removido) pro canal de log de
+     * staff, agora é montada JUNTO nesse mesmo container — ver
+     * AnalyticsSystem.generateUnifiedDailyReportContainer, que já cuida de
+     * recalcular tudo (status atual, top staff por categoria, staffs
+     * inativos) a partir só de `guild` + os números que só existem porque a
+     * manutenção acabou de rodar (recuperação/cargos, passados abaixo).
      */
     async sendLogReports(stats) {
         const ConfigSystem = require('../core/configSystem');
@@ -402,68 +400,18 @@ class AutoModerationSystem {
                 const channel = await this.client.channels.fetch(logChanId).catch(() => null);
                 if (!channel) continue;
 
-                // Cargos automáticos (Exemplar/Problemático) são exclusivos
-                // do Caçador — Rastreador só recebe a recuperação de pontos,
-                // sem essas seções (não fazem sentido pra esse tier).
-                const automodEnabled = PremiumSystem.getGuildLimits(gId).automodEnabled;
-
-                // ── Ranking de staff (top 5 por punições aplicadas, 7 dias) ──────
-                let rankingLines = [];
-                try {
-                    const ranking = await AnalyticsSystem.getStaffRanking(gId, 'punishments_applied', 'week', 5);
-                    rankingLines = ranking
-                        .filter(r => r.total > 0)
-                        .map((r, i) => {
-                            const medal = i === 0 ? (EMOJIS.medalha1 || '🥇') : (i === 1 ? (EMOJIS.medalha2 || '🥈') : (i === 2 ? (EMOJIS.medalha3 || '🥉') : `${i + 1}º`));
-                            return `${medal} <@${r.user_id}>: \`${r.total}\` punições (7d)`;
-                        });
-                } catch (err) {
-                    console.error('❌ [AutoMod] Erro ao buscar ranking de staff:', err);
-                }
+                const guild = this.client.guilds.cache.get(gId);
+                if (!guild) continue;
 
                 const recoveryAmount = data.recoveryAmount ?? (parseInt(ConfigSystem.getSetting(gId, 'rep_recovery_amount')) || 1);
 
-                const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-                builder.title(`${EMOJIS.circlecheck || '✅'} Manutenção Diária Concluída`, 1);
-                builder.separator();
-                builder.text(`${EMOJIS.trendingup || '📈'} **Recuperação:** Usuários sem infrações recentes receberam **+${recoveryAmount}pt**.`);
-                if (automodEnabled) {
-                    builder.text(`${EMOJIS.trophy || '🎭'} **Alterações de Cargos:** \`${data.added}\` Atribuídos / \`${data.removed}\` Removidos`);
-                    builder.text(`${EMOJIS.medal || '📊'} **Detalhes:** ${EMOJIS.sparkles || '🎖️'} Exemplares: +${data.exemplarAdded || 0} | ${EMOJIS.trianglealert || '⚠️'} Problemáticos: +${data.problematicAdded || 0}`);
-                }
-                builder.separator();
-
-                if (automodEnabled) {
-                    // ── Status atual do servidor (contagem total, não só do dia) ──
-                    const limitProb = parseInt(ConfigSystem.getSetting(gId, 'limit_problematico')) || 30;
-                    const problematicCount = db.prepare(`
-                        SELECT COUNT(*) as count FROM reputation
-                        WHERE guild_id = ? AND points <= ?
-                    `).get(gId, limitProb)?.count || 0;
-
-                    const limitEx = parseInt(ConfigSystem.getSetting(gId, 'limit_exemplar')) || 95;
-                    const exemplarCount = db.prepare(`
-                        SELECT COUNT(*) as count FROM reputation
-                        WHERE guild_id = ? AND points >= ?
-                    `).get(gId, limitEx)?.count || 0;
-
-                    builder.title(`${EMOJIS.trianglealert || '⚠️'} Status Atual do Servidor`, 2);
-                    builder.text(`${EMOJIS.sparkles || '🎖️'} **Exemplares atualmente:** \`${exemplarCount}\``);
-                    if (problematicCount > 0) {
-                        builder.text(`${EMOJIS.trianglealert || '⚠️'} **Alerta — Jogadores Problemáticos:** \`${problematicCount}\` usuário(s) com reputação ≤ ${limitProb} pontos.`);
-                    } else {
-                        builder.text(`${EMOJIS.circlecheck || '✅'} **Problemáticos:** Nenhum usuário em estado crítico no momento.`);
-                    }
-                    builder.separator();
-                }
-
-                builder.title(`${EMOJIS.trophy || '🏆'} Top Staff (últimos 7 dias)`, 2);
-                if (rankingLines.length > 0) {
-                    builder.text(rankingLines.join('\n'));
-                } else {
-                    builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Sem punições registradas nos últimos 7 dias.`);
-                }
-                builder.footer(data.guildName);
+                const builder = await AnalyticsSystem.generateUnifiedDailyReportContainer(guild, {
+                    recoveryAmount,
+                    added: data.added,
+                    removed: data.removed,
+                    exemplarAdded: data.exemplarAdded,
+                    problematicAdded: data.problematicAdded,
+                });
 
                 const { components, flags } = builder.build();
                 await channel.send({ components, flags: [flags] });
