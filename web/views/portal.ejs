@@ -215,6 +215,34 @@
             text-transform: uppercase;
             color: #F8DCC0;
         }
+        /* Separador entre o card de perfil e a coluna Dashboard (pedido do
+           dono, 2026-08-06: "aumente a distância em 2x... adicione um
+           pequeno separador padrão vertical entre eles") — mesma cor/
+           espessura (#3E3D38, 1px) dos separadores horizontais padrão do
+           site (ver hero.ejs), só girado 90°. Não precisou mexer no gap
+           do container pra dobrar a distância: virando um 3º item do
+           flex, o MESMO gap:50px passa a valer duas vezes (col->separador,
+           separador->col) — 50+linha+50 já é o dobro dos 50px de antes.
+           align-self:stretch faz a linha acompanhar a altura da fileira
+           inteira (que no md+ já vem sincronizada por JS, ver
+           syncPortalCardHeight). Horizontal no mobile (empilhado) — uma
+           linha vertical entre dois blocos empilhados não faria sentido
+           visual nenhum. */
+        .portal-col-separator {
+            flex: none;
+            align-self: stretch;
+            width: 100%;
+            max-width: 280px;
+            border-top: 1px solid #3E3D38;
+        }
+        @media (min-width: 768px) {
+            .portal-col-separator {
+                width: 1px;
+                max-width: none;
+                border-top: none;
+                border-left: 1px solid #3E3D38;
+            }
+        }
         /* Card de perfil (Figma "Group 14", pedido do dono 2026-08-06) — o
            card inteiro é o link pra "Toca" (/perfil), mesmo tipo de
            affordance de hover já usado nos ícones de servidor da coluna
@@ -515,6 +543,10 @@
                         </a>
                     <% } %>
                 </div>
+
+                <% if (profile && guilds.length > 0) { %>
+                    <div class="portal-col-separator" aria-hidden="true"></div>
+                <% } %>
 
                 <% if (guilds.length > 0) { %>
                     <%
