@@ -132,29 +132,47 @@
             cursor: not-allowed;
             pointer-events: none;
         }
-        .lang-btn {
-            box-sizing: border-box;
+        /* Botão de idioma redesenhado (pedido do dono, 2026-08-06): duas
+           bandeiras circulares sobrepostas (🇧🇷/🇺🇸) no lugar do texto
+           "PT"/"EN" — a bandeira do idioma ATIVO fica na frente (z-index
+           maior, mais à esquerda), a do outro idioma fica atrás, espiada
+           à direita (mesma lógica de "Property 1=Portugues/English" do
+           Figma). Mesma família de sombra "USER/SERVER Icon" já usada nos
+           avatares/ícones redondos do site, só escalada pro tamanho do
+           botão. */
+        .lang-toggle {
+            position: relative;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            padding: 5px 14px;
+            width: 44px;
             height: 30px;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            flex: none;
+        }
+        .lang-toggle-flag {
+            position: absolute;
+            top: 1px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
             background: #2A2A2A;
             border: 1px solid #803E30;
-            border-radius: 15px;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
+            box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 13px;
-            color: #F8DCC0;
-            cursor: pointer;
-            transition: background 0.15s ease, border-color 0.15s ease;
+            line-height: 1;
+            transition: left 0.2s ease, border-color 0.15s ease;
         }
-        .lang-btn:hover { background: #803E30; border-color: #F8DCC0; }
-        .lang-btn:active {
-            background: #4B2427;
-            border-color: #803E30;
-            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
-        }
+        .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
+        .lang-toggle-flag-pt { left: 0; z-index: 2; }
+        .lang-toggle-flag-en { left: 15px; z-index: 1; }
+        html[data-lang="en"] .lang-toggle-flag-pt { left: 15px; z-index: 1; }
+        html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
 
         .section-title {
             font-family: 'Tilt Warp', sans-serif;
@@ -398,7 +416,6 @@
            reduz quantas linhas ela quebra num celular. */
         @media (max-width: 640px) {
             .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
-            .lang-btn { padding: 4px 10px; height: 26px; font-size: 12px; }
         }
     </style>
 </head>
@@ -433,7 +450,10 @@
     <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
     <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
     <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
-    <button type="button" class="lang-btn" onclick="toggleLang()"><span id="langBtnLabel">EN</span></button>
+    <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
+        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true">🇧🇷</span>
+        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true">🇺🇸</span>
+    </button>
 </nav>
 <script>
     // A nav quebra em números de linha diferentes dependendo da largura da
@@ -1211,15 +1231,23 @@
     (function () {
         const stored = localStorage.getItem('titanspass_lang') || 'pt';
         document.documentElement.setAttribute('data-lang', stored);
-        document.getElementById('langBtnLabel').textContent = stored === 'pt' ? 'EN' : 'PT';
+        updateLangToggleLabel(stored);
     })();
+
+    // aria-label dinâmico do botão de bandeiras (pedido do dono,
+    // 2026-08-06: substituiu o texto visível "PT"/"EN" — o rótulo agora
+    // só existe pra leitor de tela, o visual é 100% as duas bandeiras).
+    function updateLangToggleLabel(current) {
+        const btn = document.getElementById('langToggleBtn');
+        if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
+    }
 
     function toggleLang() {
         const current = document.documentElement.getAttribute('data-lang') || 'pt';
         const next = current === 'pt' ? 'en' : 'pt';
         document.documentElement.setAttribute('data-lang', next);
         localStorage.setItem('titanspass_lang', next);
-        document.getElementById('langBtnLabel').textContent = next === 'pt' ? 'EN' : 'PT';
+        updateLangToggleLabel(next);
     }
 </script>
 
