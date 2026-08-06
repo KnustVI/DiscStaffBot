@@ -27,7 +27,7 @@
 <body class="flex min-h-screen">
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
-        <%- include('partials/sidebar-v2', { active: 'moderacao', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false }) %>
+        <%- include('partials/sidebar-v2', { active: 'moderacao', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false, showAvatarHint: typeof showAvatarHint !== 'undefined' ? showAvatarHint : false }) %>
     </aside>
 
     <%#

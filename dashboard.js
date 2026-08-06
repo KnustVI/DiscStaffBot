@@ -1241,6 +1241,12 @@ function loadDashboard(client) {
         }
         if (!isAdmin) return res.redirect('/dashboard');
 
+        // Animação de indicação no avatar da sidebar (pedido do dono,
+        // 2026-08-06: só nos 3 primeiros acessos ao dashboard, mostrando que
+        // dá pra clicar ali pra ir pro perfil) — ver
+        // db.incrementDashboardAvatarHintViews e partials/sidebar-v2.ejs.
+        const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
+
         const pulse = await getServerPulse(guildID, guild);
 
         // discordUsername resolvido aqui (mesma resolveUserDisplayName usada
@@ -1304,6 +1310,7 @@ function loadDashboard(client) {
             isOwner: isOwnerSession(req),
             pageRoute: 'moderacao',
             otherGuilds: getAdminGuildsWithBot(req),
+            showAvatarHint,
             pulse,
             staffRoleIds,
             supervisorRoleIds,
@@ -1637,6 +1644,10 @@ function loadDashboard(client) {
         }
         if (!isAdmin) return res.redirect('/dashboard');
 
+        // Animação de indicação no avatar da sidebar — ver mesmo comentário
+        // completo em GET /moderacao/:guildID.
+        const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
+
         const pulse = await getServerPulse(guildID, guild);
         const reportsState = parseReportsQueryState(req.query);
         const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, reportsState);
@@ -1670,6 +1681,7 @@ function loadDashboard(client) {
             isOwner: isOwnerSession(req),
             pageRoute: 'reports',
             otherGuilds: getAdminGuildsWithBot(req),
+            showAvatarHint,
             pulse,
             openReports,
             openPagination,
@@ -1757,6 +1769,10 @@ function loadDashboard(client) {
         }
         if (!isAdmin) return res.redirect('/dashboard');
 
+        // Animação de indicação no avatar da sidebar — ver mesmo comentário
+        // completo em GET /moderacao/:guildID.
+        const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
+
         const pulse = await getServerPulse(guildID, guild);
 
         // Eventos são nativos do Discord (guild.scheduledEvents), não uma tabela
@@ -1792,6 +1808,7 @@ function loadDashboard(client) {
             isOwner: isOwnerSession(req),
             pageRoute: 'events',
             otherGuilds: getAdminGuildsWithBot(req),
+            showAvatarHint,
             pulse,
             happeningNow,
             scheduledEvents,

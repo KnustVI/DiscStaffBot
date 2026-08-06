@@ -82,6 +82,14 @@
     const sbAvatarUrl = (sbUser && sbUser.avatar)
         ? `https://cdn.discordapp.com/avatars/${sbUser.id}/${sbUser.avatar}.png`
         : null;
+    // Animação de indicação no avatar (pedido do dono, 2026-08-06: só nos 3
+    // primeiros acessos ao dashboard, mostrando que dá pra clicar ali pra
+    // ir pro perfil) — contador incrementado em GET /moderacao|reports|
+    // events/:guildID (ver dashboard.js), não em toda página que usa esta
+    // sidebar de propósito (não faz sentido "indicar" o botão enquanto já
+    // se está EM /perfil, ver perfil.ejs/perfil-denuncias.ejs, que não
+    // passam esse parâmetro — cai no default false abaixo).
+    const sbShowAvatarHint = typeof showAvatarHint !== 'undefined' && showAvatarHint;
 %>
 <aside class="tp-sidebar" id="tpSidebar" data-collapsed="false">
     <div class="tp-sidebar-inner">
@@ -107,7 +115,7 @@
         </nav>
 
         <div class="tp-sidebar-profile">
-            <a href="/perfil" class="tp-sidebar-avatar-btn" title="Ver meu perfil" aria-label="Ver meu perfil">
+            <a href="/perfil" class="tp-sidebar-avatar-btn<%= sbShowAvatarHint ? ' tp-avatar-hint' : '' %>" title="Ver meu perfil" aria-label="Ver meu perfil">
                 <div class="tp-sidebar-avatar">
                     <% if (sbAvatarUrl) { %>
                         <img src="<%= sbAvatarUrl %>" alt="">
@@ -329,6 +337,21 @@
     .tp-sidebar-avatar-btn:hover,
     .tp-sidebar-avatar-btn:focus-visible {
         transform: translateY(-8px);
+    }
+    /* Indicação de "clique aqui" (pedido do dono, 2026-08-06) — anel
+       pulsando na cor de destaque do site (#DCA15E), só nos 3 primeiros
+       acessos (classe .tp-avatar-hint só existe no HTML enquanto
+       showAvatarHint vier true — ver dashboard.js/sidebar-v2.ejs). Some
+       sozinha a partir do 4º acesso, sem precisar de JS/timer nenhum:
+       cada carregamento de página já decide de novo se a classe entra ou
+       não. Desliga em prefers-reduced-motion (acessibilidade). */
+    .tp-sidebar-avatar-btn.tp-avatar-hint { animation: tp-avatar-hint-pulse 1.8s ease-out infinite; }
+    @keyframes tp-avatar-hint-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(220, 161, 94, 0.55); }
+        50% { box-shadow: 0 0 0 10px rgba(220, 161, 94, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .tp-sidebar-avatar-btn.tp-avatar-hint { animation: none; box-shadow: 0 0 0 3px rgba(220, 161, 94, 0.55); }
     }
     .tp-sidebar-avatar {
         box-sizing: border-box;

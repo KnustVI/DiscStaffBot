@@ -226,6 +226,14 @@ class DatabaseManager {
             // existentes não perdem nenhuma imagem que já estava visível.
             this.ensureColumn('profile_image_pool', 'is_public', 'INTEGER NOT NULL DEFAULT 1');
 
+            // Conta quantas vezes o usuário já viu o avatar da sidebar do
+            // dashboard web (pedido do dono, 2026-08-06: animação de
+            // indicação no avatar só nos 3 primeiros acessos, mostrando que
+            // dá pra clicar ali pra ir pro perfil) — ver
+            // incrementDashboardAvatarHintViews abaixo e
+            // web/views/partials/sidebar-v2.ejs.
+            this.ensureColumn('users', 'dashboard_avatar_hint_views', 'INTEGER NOT NULL DEFAULT 0');
+
             // Colunas nunca lidas/escritas em lugar nenhum do código
             // (confirmado por auditoria) — schema.js já não as declara mais
             // pra bancos novos; isso aqui remove de bancos já existentes.
@@ -333,10 +341,22 @@ class DatabaseManager {
         } else {
             this.prepare(`UPDATE users SET last_seen = ? WHERE user_id = ?`).run(Date.now(), userId);
         }
-        
+
         return true;
     }
-    
+
+    // Incrementa e devolve o novo total de vezes que o usuário viu o avatar
+    // da sidebar do dashboard web — usado só pra decidir se ainda mostra a
+    // animação de indicação (pedido do dono: só nos 3 primeiros acessos, ver
+    // web/views/partials/sidebar-v2.ejs). ensureUser garante a linha antes
+    // do UPDATE (usuário 100% web, que nunca rodou um comando no Discord,
+    // pode chegar aqui sem ter passado por ensureUser antes).
+    incrementDashboardAvatarHintViews(userId) {
+        this.ensureUser(userId);
+        this.prepare(`UPDATE users SET dashboard_avatar_hint_views = dashboard_avatar_hint_views + 1 WHERE user_id = ?`).run(userId);
+        return this.prepare('SELECT dashboard_avatar_hint_views FROM users WHERE user_id = ?').get(userId)?.dashboard_avatar_hint_views || 0;
+    }
+
     // Garantir que um servidor existe
     ensureGuild(guildId, name = null, icon = null, ownerId = null) {
         if (!this.tableExists('guilds')) {
@@ -466,8 +486,10 @@ module.exports.default = defaultInstance;
 module.exports.DatabaseManager = DatabaseManager;
 module.exports.getInstance = getInstance;
 module.exports.generateUUID = () => defaultInstance.generateUUID();
-module.exports.ensureUser = (userId, username, discriminator, avatar) => 
+module.exports.ensureUser = (userId, username, discriminator, avatar) =>
     defaultInstance.ensureUser(userId, username, discriminator, avatar);
+module.exports.incrementDashboardAvatarHintViews = (userId) =>
+    defaultInstance.incrementDashboardAvatarHintViews(userId);
 module.exports.ensureGuild = (guildId, name, icon, ownerId) => 
     defaultInstance.ensureGuild(guildId, name, icon, ownerId);
 module.exports.logActivity = (guildId, userId, action, targetId, details) =>
