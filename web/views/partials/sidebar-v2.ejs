@@ -57,28 +57,40 @@
     // 2026-08-05: "todo botão de premium leva a home na área de premium")
     // — mesma âncora que a nav da própria hero.ejs usa (#premium), só que
     // com "/" na frente pra funcionar vindo de qualquer outra página.
+    // labelPt/labelEn (pedido do dono, 2026-08-06: tradução completa do
+    // dashboard) — renderizados como o mesmo par data-i18n-pt/en padrão
+    // do site (ver visão geral abaixo, no <a> de cada item).
     const NAV_ITEMS = sbRestricted ? [
-        { key: 'premium', label: 'Premium', icon: 'gem', href: '/#premium', accent: true },
-        { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '/documentacao' },
-        { key: 'minhas-denuncias', label: 'Suas Denúncias', icon: 'message-square-warning', href: '/perfil/denuncias' },
+        { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
+        { key: 'minhas-denuncias', labelPt: 'Suas Denúncias', labelEn: 'Your Reports', icon: 'message-square-warning', href: '/perfil/denuncias' },
     ] : [
-        { key: 'premium', label: 'Premium', icon: 'gem', href: '/#premium', accent: true },
-        { key: 'moderacao', label: 'Moderação', icon: 'shield-user', href: guildHref('moderacao') },
-        { key: 'eventos', label: 'Eventos', icon: 'star', href: guildHref('events') },
-        { key: 'denuncias', label: 'Denúncias', icon: 'message-square-warning', href: guildHref('reports') },
-        { key: 'ajuda', label: 'Ajuda', icon: 'message-circle-question-mark', href: '/documentacao' },
+        { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        { key: 'moderacao', labelPt: 'Moderação', labelEn: 'Moderation', icon: 'shield-user', href: guildHref('moderacao') },
+        { key: 'eventos', labelPt: 'Eventos', labelEn: 'Events', icon: 'star', href: guildHref('events') },
+        { key: 'denuncias', labelPt: 'Denúncias', labelEn: 'Reports', icon: 'message-square-warning', href: guildHref('reports') },
+        { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
         // Só o dono do bot vê esse item (pedido do dono: controle de
         // visibilidade do pool de imagens, ver dashboard.js /dev/image-pool)
         // — página global, sem :guildID, por isso não usa guildHref.
-        ...(sbIsOwner ? [{ key: 'image-pool', label: 'Pool de Imagens', icon: 'images', href: '/dev/image-pool' }] : []),
-        { key: 'sair', label: 'Sair', icon: 'log-out', href: '/logout' },
+        ...(sbIsOwner ? [{ key: 'image-pool', labelPt: 'Pool de Imagens', labelEn: 'Image Pool', icon: 'images', href: '/dev/image-pool' }] : []),
+        { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ];
     const activeKey = typeof active !== 'undefined' ? active : null;
     const sbUser = typeof user !== 'undefined' ? user : null;
-    const sbRole = typeof role !== 'undefined' ? role : 'Membro';
-    const sbNickname = (typeof nickname !== 'undefined' && nickname)
+    const sbRolePt = typeof role !== 'undefined' ? role : 'Membro';
+    // "Membro" (fallback) é o único valor de cargo com tradução conhecida —
+    // qualquer outro (cargo real vindo de fora, ex: "Administrador") fica
+    // igual nos dois idiomas, não tem como traduzir texto configurado pelo
+    // próprio dono do servidor.
+    const sbRoleEn = sbRolePt === 'Membro' ? 'Member' : sbRolePt;
+    const sbNicknameReal = (typeof nickname !== 'undefined' && nickname)
         || (sbUser && (sbUser.nickname || sbUser.global_name || sbUser.username))
-        || 'Convidado';
+        || null;
+    // Só o fallback "Convidado"/"Guest" precisa dos dois idiomas — um
+    // apelido de verdade (Discord) não se traduz.
+    const sbNicknamePt = sbNicknameReal || 'Convidado';
+    const sbNicknameEn = sbNicknameReal || 'Guest';
     const sbAvatarUrl = (sbUser && sbUser.avatar)
         ? `https://cdn.discordapp.com/avatars/${sbUser.id}/${sbUser.avatar}.png`
         : null;
@@ -101,15 +113,29 @@
                 <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
                 <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
             </button>
+            <%#
+                Botão de idioma (pedido do dono, 2026-08-06) — mesmo
+                redesign de bandeiras sobrepostas já usado no site (ver
+                hero.ejs .lang-toggle/.lang-toggle-flag), agora também no
+                dashboard. html[data-lang] e a persistência em
+                localStorage.titanspass_lang são as MESMAS do site — troca
+                o idioma aqui e ele já vem trocado se a pessoa visitar a
+                home depois (e vice-versa). Cabe tanto expandida quanto
+                colapsada por já estar dentro de .tp-sidebar-top (column).
+            %>
+            <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
+                <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true">🇧🇷</span>
+                <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true">🇺🇸</span>
+            </button>
         </div>
 
         <nav class="tp-sidebar-nav">
             <% NAV_ITEMS.forEach(item => { %>
                 <a href="<%= item.href %>"
                    class="tp-sidebar-btn<%= item.key === activeKey ? ' active' : '' %><%= item.accent ? ' accent' : '' %>"
-                   title="<%= item.label %>">
+                   title="<%= item.labelPt %>">
                     <i data-lucide="<%= item.icon %>"></i>
-                    <span class="tp-sidebar-label"><%= item.label %></span>
+                    <span class="tp-sidebar-label"><span data-i18n-pt><%= item.labelPt %></span><span data-i18n-en><%= item.labelEn %></span></span>
                 </a>
             <% }); %>
         </nav>
@@ -125,8 +151,8 @@
                 </div>
             </a>
             <div class="tp-sidebar-profile-info">
-                <span class="tp-sidebar-nickname"><%= sbNickname %></span>
-                <span class="tp-sidebar-role"><%= sbRole %></span>
+                <span class="tp-sidebar-nickname"><span data-i18n-pt><%= sbNicknamePt %></span><span data-i18n-en><%= sbNicknameEn %></span></span>
+                <span class="tp-sidebar-role"><span data-i18n-pt><%= sbRolePt %></span><span data-i18n-en><%= sbRoleEn %></span></span>
             </div>
         </div>
     </div>
@@ -255,6 +281,44 @@
     }
     .tp-sidebar-toggle svg { width: 22px; height: 22px; }
     .tp-icon-collapsed { display: none; }
+
+    /* Botão de idioma (pedido do dono, 2026-08-06) — mesmo CSS do
+       redesign do site (ver hero.ejs), duplicado aqui de propósito
+       (mesmo padrão já usado no resto deste arquivo: página/parcial
+       autocontido, sem depender de um <style> compartilhado externo). */
+    .lang-toggle {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        width: 44px;
+        height: 30px;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        flex: none;
+    }
+    .lang-toggle-flag {
+        position: absolute;
+        top: 1px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        line-height: 1;
+        transition: left 0.2s ease, border-color 0.15s ease;
+    }
+    .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
+    .lang-toggle-flag-pt { left: 0; z-index: 2; }
+    .lang-toggle-flag-en { left: 15px; z-index: 1; }
+    html[data-lang="en"] .lang-toggle-flag-pt { left: 15px; z-index: 1; }
+    html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
 
     /* ==================== NAVEGAÇÃO ==================== */
     .tp-sidebar-nav {
@@ -535,4 +599,28 @@
 
         if (window.lucide) window.lucide.createIcons();
     })();
+
+    // Botão de idioma (pedido do dono, 2026-08-06) — mesmo mecanismo do
+    // site (hero.ejs etc.): html[data-lang] controla quais data-i18n-pt/en
+    // aparecem (regra CSS em web/public/css/style.css), persistido em
+    // localStorage.titanspass_lang — MESMA chave do site, preferência
+    // única entre as duas partes do site.
+    (function () {
+        var stored = localStorage.getItem('titanspass_lang') || 'pt';
+        document.documentElement.setAttribute('data-lang', stored);
+        updateLangToggleLabel(stored);
+    })();
+
+    function updateLangToggleLabel(current) {
+        var btn = document.getElementById('langToggleBtn');
+        if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
+    }
+
+    function toggleLang() {
+        var current = document.documentElement.getAttribute('data-lang') || 'pt';
+        var next = current === 'pt' ? 'en' : 'pt';
+        document.documentElement.setAttribute('data-lang', next);
+        localStorage.setItem('titanspass_lang', next);
+        updateLangToggleLabel(next);
+    }
 </script>

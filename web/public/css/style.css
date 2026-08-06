@@ -1,3 +1,13 @@
+/* Tradução PT/EN (pedido do dono, 2026-08-06) — mesmas 3 regras já
+   usadas no site (hero.ejs/documentacao.ejs/termos.ejs/portal.ejs),
+   centralizadas aqui pra valer em TODO o dashboard de uma vez (esse
+   arquivo é compartilhado por moderacao/reports/events/perfil/
+   perfil-denuncias.ejs) — o botão que troca html[data-lang] mora em
+   partials/sidebar-v2.ejs, incluído por essas mesmas páginas. */
+[data-i18n-en] { display: none; }
+html[data-lang="en"] [data-i18n-pt] { display: none; }
+html[data-lang="en"] [data-i18n-en] { display: initial; }
+
 /* Isso garante que o fundo escuro cubra a tela toda, sem falhas */
 html, body {
     background-color: #1F1D20 !important; /* Usei a cor titan-bg do seu config */
