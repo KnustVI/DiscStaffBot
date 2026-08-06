@@ -133,8 +133,10 @@
             pointer-events: none;
         }
         /* Botão de idioma redesenhado (pedido do dono, 2026-08-06): duas
-           bandeiras circulares sobrepostas (🇧🇷/🇺🇸) no lugar do texto
-           "PT"/"EN" — a bandeira do idioma ATIVO fica na frente (z-index
+           bandeiras circulares sobrepostas (imagens em /images/flag-br.webp
+           e /images/flag-us.webp, trocado de emoji Unicode pra imagem de
+           verdade a pedido do dono) no lugar do texto "PT"/"EN" — a
+           bandeira do idioma ATIVO fica na frente (z-index
            maior, mais à esquerda), a do outro idioma fica atrás, espiada
            à direita (mesma lógica de "Property 1=Portugues/English" do
            Figma). Mesma família de sombra "USER/SERVER Icon" já usada nos
@@ -144,8 +146,8 @@
             position: relative;
             display: inline-flex;
             align-items: center;
-            width: 44px;
-            height: 30px;
+            width: 52px;
+            height: 36px;
             background: none;
             border: none;
             padding: 0;
@@ -154,24 +156,21 @@
         }
         .lang-toggle-flag {
             position: absolute;
-            top: 1px;
-            width: 26px;
-            height: 26px;
+            top: 2px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            overflow: hidden;
             background: #2A2A2A;
             border: 1px solid #803E30;
             box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            line-height: 1;
             transition: left 0.2s ease, border-color 0.15s ease;
         }
+        .lang-toggle-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
         .lang-toggle-flag-pt { left: 0; z-index: 2; }
-        .lang-toggle-flag-en { left: 15px; z-index: 1; }
-        html[data-lang="en"] .lang-toggle-flag-pt { left: 15px; z-index: 1; }
+        .lang-toggle-flag-en { left: 18px; z-index: 1; }
+        html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
         html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
 
         .section-title {
@@ -451,8 +450,8 @@
     <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
     <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
     <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
-        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true">🇧🇷</span>
-        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true">🇺🇸</span>
+        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
+        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
     </button>
 </nav>
 <script>

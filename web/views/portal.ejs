@@ -44,7 +44,7 @@
     </script>
 
     <style>
-        html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; }
+        html, body { margin: 0; padding: 0; overflow-x: hidden; max-width: 100%; background: #111111; }
         [data-i18n-en] { display: none; }
         html[data-lang="en"] [data-i18n-pt] { display: none; }
         html[data-lang="en"] [data-i18n-en] { display: initial; }
@@ -132,8 +132,8 @@
             position: relative;
             display: inline-flex;
             align-items: center;
-            width: 44px;
-            height: 30px;
+            width: 52px;
+            height: 36px;
             background: none;
             border: none;
             padding: 0;
@@ -142,24 +142,21 @@
         }
         .lang-toggle-flag {
             position: absolute;
-            top: 1px;
-            width: 26px;
-            height: 26px;
+            top: 2px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            overflow: hidden;
             background: #2A2A2A;
             border: 1px solid #803E30;
             box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            line-height: 1;
             transition: left 0.2s ease, border-color 0.15s ease;
         }
+        .lang-toggle-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
         .lang-toggle-flag-pt { left: 0; z-index: 2; }
-        .lang-toggle-flag-en { left: 15px; z-index: 1; }
-        html[data-lang="en"] .lang-toggle-flag-pt { left: 15px; z-index: 1; }
+        .lang-toggle-flag-en { left: 18px; z-index: 1; }
+        html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
         html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
         .portal-hero-padding { margin-top: calc(var(--nav-height, 84px) + 16px); }
 
@@ -224,8 +221,8 @@
     <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
     <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
     <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
-        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true">🇧🇷</span>
-        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true">🇺🇸</span>
+        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
+        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
     </button>
 </nav>
 <script>
