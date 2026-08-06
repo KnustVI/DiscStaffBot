@@ -4947,3 +4947,24 @@ frente, nao so este relatorio):
 - Falta rodar `node deploy.js` (ou reiniciar o bot com
   `DEPLOY_COMMANDS=true`) pra registrar o comando novo no Discord — não
   aparece pra ninguém até isso acontecer.
+
+112) Removido o aviso restante de "totais de modo espectador podem estar
+     incompletos" do log de AdminSpectate
+------------------------------------------------------------------
+- Pedido do dono: "Mensagens de logs ainda possuem a mensagem de aviso de
+  modo espectador... Remova todas as mensagens sobre isso no bot
+  inteiro." Esse era o aviso DIFERENTE mencionado na seção 109 como "NÃO
+  tocado" (sobre o CRÉDITO em `staff_analytics` ficar incompleto pra
+  staff não registrado/sem cargo, distinto do `SPECTATOR_DISCLAIMER` do
+  bug do jogo já removido na seção 109) — agora removido também, a
+  pedido explícito do dono, mesmo permanecendo tecnicamente verdadeiro.
+- `webhookPayloads.js`: removida a linha `disclaimer` (e seu comentário
+  explicativo) do formatter `AdminSpectate`, que aparecia no fim de todo
+  log de log de modo espectador no canal `admin`/`adm-commands`. Pesquisa
+  de código confirmou que essa era a única cópia restante da mensagem em
+  todo o bot (a duplicata "saiu do modo espectador via respawn" em
+  `gatewayServer.js`, seção 109, reusa o mesmo formatter `AdminSpectate`
+  — nada a remover ali separadamente).
+- Verificado com `node --check` no arquivo alterado e busca de código
+  confirmando zero ocorrências restantes do texto do aviso fora do
+  changelog (histórico, não reescrito).

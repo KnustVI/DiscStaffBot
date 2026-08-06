@@ -515,16 +515,8 @@ async function formatMessage(potEvent, data, guild) {
             // linha some sozinha nos AdminSpectate reais de sempre.
             const localParts = [d.POI || d.POIName || d.LocationName, formatLocationString(d.Location)].filter(Boolean);
             const locationLine = localParts.length > 0 ? `${e('mappin', '📍')} Local: ${localParts.join(' - ')}` : '';
-            // Aviso próprio (distinto do antigo SPECTATOR_DISCLAIMER de
-            // analyticsSystem.js, removido em 2026-08-06 — o dono confirmou
-            // que o desenvolvedor do jogo alega ter corrigido o problema de
-            // captar informação real do modo espectador) — este aqui continua
-            // valendo: o CRÉDITO de tempo/staff_analytics fica incompleto pra
-            // quem não está registrado/com o cargo certo, algo que não tem
-            // relação nenhuma com o bug do jogo em si.
-            const disclaimer = `-# ${e('trianglealert', '⚠️')} Os totais de tempo em modo espectador (staff_analytics) podem estar incompletos para staffs não registrados via /registrar ou sem o cargo configurado — não devem ser considerados sozinhos para julgamento de staffs!`;
             const discordPart = await discordIdentitySuffix(guild, alderonId);
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}${locationLine ? `\n${locationLine}` : ''}\n${disclaimer}`;
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}${locationLine ? `\n${locationLine}` : ''}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
