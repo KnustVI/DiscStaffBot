@@ -394,7 +394,7 @@ const toc = [
         { id: 'cmd-repset', label: '/repset' }, { id: 'cmd-historico', label: '/historico' },
     ] },
     { catPt: 'Denúncias & Eventos', catEn: 'Reports & Events', items: [
-        { id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' },
+        { id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' }, { id: 'cmd-eventos', label: '/eventos' },
     ] },
     { catPt: 'Configuração (Admin)', catEn: 'Configuration (Admin)', items: [
         { id: 'cmd-config', label: '/config' }, { id: 'cmd-potserver', label: '/potserver' }, { id: 'cmd-ping', label: '/ping' },
@@ -492,9 +492,9 @@ const toc = [
                 <div class="docs-callout">
                     <p style="font-family:'Poppins',sans-serif; font-size:14px; margin:0; opacity:0.9;"><%- t('Como acessar:', 'How to access it:') %></p>
                     <ul>
-                        <li><%- t('Clique em <strong>ENTRAR</strong> no topo de qualquer página do site e faça login com sua conta do Discord.', 'Click <strong>ENTRAR</strong> (login) at the top of any page on the site and sign in with your Discord account.') %></li>
-                        <li><%- t('Só quem tem permissão de <strong>Administrador</strong> no servidor consegue abrir o painel dele — sem essa permissão, o servidor nem aparece na lista.', 'Only someone with <strong>Administrator</strong> permission on the server can open its panel — without it, the server doesn\'t even show up in the list.') %></li>
-                        <li><%- t('Depois de logado, escolha qual servidor gerenciar na tela de seleção — o mesmo login funciona pra qualquer servidor onde você seja admin e o bot esteja presente.', "After logging in, choose which server to manage on the selection screen — the same login works for any server where you're an admin and the bot is present.") %></li>
+                        <li><%- t('Clique em <strong>ENTRAR</strong> no topo de qualquer página do site e faça login com sua conta do Discord — o botão vira <strong>PORTAL</strong> depois que você loga.', 'Click <strong>ENTRAR</strong> (login) at the top of any page on the site and sign in with your Discord account — the button becomes <strong>PORTAL</strong> once you\'re logged in.') %></li>
+                        <li><%- t('O Portal mostra seu card de perfil (clique nele pra abrir seu perfil completo) e, só pra quem tem permissão de <strong>Administrador</strong> em algum servidor com o bot, a escolha de qual servidor gerenciar — sem essa permissão em nenhum servidor, essa parte não aparece.', 'The Portal shows your profile card (click it to open your full profile) and, only for those with <strong>Administrator</strong> permission on some server running the bot, the choice of which server to manage — without that permission anywhere, this part doesn\'t show up.') %></li>
+                        <li><%- t('O mesmo login funciona pra qualquer servidor onde você seja admin e o bot esteja presente.', "The same login works for any server where you're an admin and the bot is present.") %></li>
                         <li><%- t('As páginas de Moderação, Denúncias e Eventos se atualizam sozinhas a cada ~15 segundos, sem precisar dar F5.', 'The Moderation, Reports, and Events pages update on their own every ~15 seconds, no need to refresh.') %></li>
                     </ul>
                 </div>
@@ -674,6 +674,11 @@ const toc = [
                         { name: 'local_canal', type: 'Canal (voz/palco)', req: false, descPt: 'Use este OU local_descricao — um dos dois é obrigatório fora do plano Free.', descEn: 'Use this OR local_descricao — one of the two is required outside the Free plan.' },
                         { name: 'local_descricao', type: 'Texto (máx. 100)', req: false, descPt: 'Local em texto livre.', descEn: 'Free-text location.' },
                     ],
+                }) %>
+                <%- cmdCard({
+                    id: 'eventos', name: 'eventos', permPt: 'Todos', permEn: 'Everyone',
+                    descPt: 'Lista os eventos do servidor: os que estão acontecendo agora e os agendados pra os próximos 7 dias, com horário, local, número de interessados e link — funciona pra qualquer Evento Agendado nativo do Discord, criado com /evento ou direto pela interface do Discord.',
+                    descEn: "Lists the server's events: the ones happening right now and the ones scheduled for the next 7 days, with time, location, interested count, and link — works for any native Discord Scheduled Event, whether created with /evento or directly through Discord's own interface.",
                 }) %>
             </div>
         </section>
