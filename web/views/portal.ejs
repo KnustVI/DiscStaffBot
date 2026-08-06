@@ -270,27 +270,29 @@
             </div>
         <% } else { %>
             <%#
-                Colunas + separador vertical padrão (pedido do dono,
-                2026-08-06). Empilha em telas estreitas (flex-col) com o
-                mesmo separador virando horizontal — ver regra
-                web_ui_always_responsive. Preenche a tela (sem max-width),
-                margem lateral de 80px (clamp — encolhe em telas
-                estreitas), proporção parecida com as colunas de preço do
-                Player/Server Premium na home (ver hero.ejs #premium).
-                Coluna "Entrar na Toca" foi removida (pedido do dono,
-                2026-08-06: "não faz muito sentido ter o card de perfil e a
-                toca") — a própria imagem do card de perfil agora é o link
-                pra /perfil. Coluna "Dashboard do seu servidor" só existe
-                pra quem administra algum servidor com o bot (mesmo
-                getAdminGuildsWithBot de sempre) — sem isso, vira 1 coluna
-                só, sem separador.
+                Colunas (pedido do dono, 2026-08-06). Empilha em telas
+                estreitas (flex-col) — ver regra web_ui_always_responsive.
+                Preenche a tela (sem max-width), margem lateral de 80px
+                (clamp — encolhe em telas estreitas), proporção parecida com
+                as colunas de preço do Player/Server Premium na home (ver
+                hero.ejs #premium). Coluna "Entrar na Toca" foi removida
+                (pedido do dono, 2026-08-06: "não faz muito sentido ter o
+                card de perfil e a toca") — a própria imagem do card de
+                perfil é o link pra /perfil. Card de perfil aumentado, sem
+                head nem separador (pedido do dono, 2026-08-06: "aumente
+                mais o card do perfil, pode remover o head dele, pode
+                remover também o separador e mantenha o seletor do
+                dashboard como está") — o gap do container já dá respiro
+                suficiente entre as colunas sem precisar de uma linha
+                divisória. Coluna "Dashboard do seu servidor" INTOCADA, só
+                existe pra quem administra algum servidor com o bot (mesmo
+                getAdminGuildsWithBot de sempre).
             %>
             <div class="w-full flex flex-col md:flex-row items-stretch justify-center" style="gap: 40px; padding: 0 clamp(16px, 6vw, 80px);">
                 <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
-                    <h3 class="portal-col-head"><span data-i18n-pt>SEU PERFIL</span><span data-i18n-en>YOUR PROFILE</span></h3>
                     <% if (profileCard) { %>
                         <a href="/perfil" class="portal-profile-link">
-                            <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 380px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
+                            <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 520px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
                         </a>
                     <% } else { %>
                         <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 320px;">
@@ -304,8 +306,6 @@
                 </div>
 
                 <% if (guilds.length > 0) { %>
-                    <div class="w-full h-px md:w-px md:h-auto md:self-stretch" style="background: #3E3D38; flex-shrink: 0;"></div>
-
                     <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
                         <h3 class="portal-col-head"><span data-i18n-pt>DASHBOARD DO SEU SERVIDOR</span><span data-i18n-en>YOUR SERVER DASHBOARD</span></h3>
                         <div class="grid"
