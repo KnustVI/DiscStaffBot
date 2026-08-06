@@ -223,18 +223,38 @@
            ocupa o lugar. Pra trocar depois: troca só a propriedade
            `background` de .portal-profile-bg por
            `background: url('/images/portal-profile-bg.webp') center/cover;`.
-           border-radius aproximado (14px, igual ao resto dos cards do
-           site) — o Figma não exportou raio/corte de canto pra este
-           bloco especificamente; se o dono quiser o canto cortado que
-           aparece no mock, precisa do valor exato (clip-path) ou de um
-           novo export. */
-        .portal-profile-bg {
+
+           Canto inferior-esquerdo cortado em diagonal (pedido do dono,
+           2026-08-06, comparando com a imagem de referência do Figma — o
+           corte não veio nos valores exatos do CSS exportado, só dava pra
+           ver no mock, então a proporção do corte foi estimada visualmente
+           a partir da referência, não é pixel-perfect). clip-path só
+           recorta os OUTROS 3 cantos exatamente no canto da caixa (0 0 /
+           100% 0 / 100% 100%), então quem arredonda eles continua sendo o
+           border-radius normal — só o 4º ponto (esquerda) e o que vem
+           antes dele (base) é que cortam a diagonal de verdade. .-frame é
+           só a "moldura" dourada (mesma técnica de padding+background pra
+           simular border em cima de um clip-path não-retangular — um
+           border CSS comum não acompanha a borda diagonal, fica reto por
+           baixo do recorte). */
+        .portal-profile-bg-frame {
             position: relative;
             width: 100%;
             aspect-ratio: 445 / 284;
+            padding: 1.5px;
             border-radius: 14px;
+            background: #DCA15E;
+            box-shadow: 12px 15px 11.5px rgba(0, 0, 0, 0.36);
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 58% 100%, 0 58%);
+        }
+        .portal-profile-bg {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 13px;
             background: linear-gradient(135deg, #1F1D20 0%, #2A2A2A 35%, #4B2427 65%, #803E30 100%);
-            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            box-shadow: inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 58% 100%, 0 58%);
         }
         .portal-profile-stars {
             position: absolute;
@@ -286,6 +306,21 @@
             filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.5)) drop-shadow(-5px -5px 10px rgba(0, 0, 0, 0.7));
         }
         .portal-profile-icon { width: clamp(20px, 3vw, 32px); height: clamp(20px, 3vw, 32px); flex: none; object-fit: contain; }
+        /* Selo azul do Discord (pedido do dono, comparando com a imagem de
+           referência) — o ícone genérico provisório (sem o DiscordLOGO.png
+           real do dono ainda) fica dentro de um círculo #5865F2 (cor
+           oficial "blurple"), igual ao selo vermelho do pot-logo.webp ao
+           lado dele já tem de fábrica. */
+        .portal-profile-icon-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #5865F2;
+            padding: 18%;
+            box-sizing: border-box;
+        }
+        .portal-profile-icon-badge svg { width: 100%; height: 100%; }
 
         .dev-overlay { display: flex; align-items: center; justify-content: center; width: 100%; }
 
@@ -409,9 +444,11 @@
                     <% if (profile) { %>
                         <a href="/perfil" class="portal-profile-link">
                             <div class="portal-profile-card">
-                                <div class="portal-profile-bg">
-                                    <div class="portal-profile-stars">
-                                        <% for (let i = 1; i <= 5; i++) { %><span class="portal-profile-star<%= i <= profile.honorStars ? ' is-filled' : '' %>">★</span><% } %>
+                                <div class="portal-profile-bg-frame">
+                                    <div class="portal-profile-bg">
+                                        <div class="portal-profile-stars">
+                                            <% for (let i = 1; i <= 5; i++) { %><span class="portal-profile-star<%= i <= profile.honorStars ? ' is-filled' : '' %>">★</span><% } %>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="portal-profile-text">
@@ -421,7 +458,9 @@
                                         <%= profile.alderonId %>
                                     </span>
                                     <span class="portal-profile-row">
-                                        <svg class="portal-profile-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 15.885 3c-.211.375-.444.879-.608 1.276a18.27 18.27 0 0 0-5.487 0A12.6 12.6 0 0 0 9.182 3a19.74 19.74 0 0 0-4.435 1.372C1.42 8.945.663 13.41.995 17.813a19.9 19.9 0 0 0 5.993 3.03c.483-.66.913-1.36 1.284-2.098a12.9 12.9 0 0 1-2.023-.975c.17-.124.336-.253.497-.386 3.902 1.803 8.13 1.803 11.986 0 .163.133.329.262.497.386-.646.386-1.323.71-2.025.976.372.737.8 1.437 1.284 2.098a19.86 19.86 0 0 0 6-3.031c.39-5.104-.664-9.53-2.79-13.444ZM8.02 15.116c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c.002 1.332-.944 2.42-2.136 2.42Zm7.96 0c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c0 1.332-.944 2.42-2.136 2.42Z"/></svg>
+                                        <span class="portal-profile-icon portal-profile-icon-badge">
+                                            <svg viewBox="0 0 24 24" fill="#F8DCC0" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 15.885 3c-.211.375-.444.879-.608 1.276a18.27 18.27 0 0 0-5.487 0A12.6 12.6 0 0 0 9.182 3a19.74 19.74 0 0 0-4.435 1.372C1.42 8.945.663 13.41.995 17.813a19.9 19.9 0 0 0 5.993 3.03c.483-.66.913-1.36 1.284-2.098a12.9 12.9 0 0 1-2.023-.975c.17-.124.336-.253.497-.386 3.902 1.803 8.13 1.803 11.986 0 .163.133.329.262.497.386-.646.386-1.323.71-2.025.976.372.737.8 1.437 1.284 2.098a19.86 19.86 0 0 0 6-3.031c.39-5.104-.664-9.53-2.79-13.444ZM8.02 15.116c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c.002 1.332-.944 2.42-2.136 2.42Zm7.96 0c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c0 1.332-.944 2.42-2.136 2.42Z"/></svg>
+                                        </span>
                                         <%= profile.discordUsername %>
                                     </span>
                                 </div>
@@ -475,7 +514,7 @@
                         }
                     %>
                     <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
-                        <h3 class="portal-col-head"><span data-i18n-pt>DASHBOARD DO SEU SERVIDOR</span><span data-i18n-en>YOUR SERVER DASHBOARD</span></h3>
+                        <h3 class="portal-col-head">DASHBOARD</h3>
                         <div class="grid"
                              style="grid-template-columns: repeat(3, minmax(60px, 100px)); gap: clamp(12px, 2.5vw, 25px); width: 100%; max-width: 375px;">
                             <% guilds.forEach(guild => { %>
