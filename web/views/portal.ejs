@@ -10,20 +10,22 @@
   existindo do jeito que está, com a mesma sidebar restrita — só deixou
   de ter link direto na nav do site.
 
-  Card de perfil redesenhado (Figma "Group 14", pedido do dono
-  2026-08-06) — trocou de imagem PNG gerada por canvas (renderProfileCard)
-  pra HTML/CSS ao vivo (textura de fundo fixa + nome/Alderon ID/Discord
-  username como texto de verdade), ver dashboard.js GET /dashboard pra
-  como `profile` é montado.
+  Card de perfil — a MESMA imagem PNG que o /perfil gera no Discord
+  (renderProfileCard, ver playerRegistrationSystem.sendProfile),
+  reaproveitada direto aqui. Chegou a virar um card HTML/CSS ao vivo
+  (Figma "Group 14", pedido do dono 2026-08-06) mas voltou pra imagem
+  oficial (pedido do dono, 2026-08-06: "vai voltar a ser a imagem
+  oficial que geramos pelo Discord, remova o que fizemos em HTML sobre
+  ela") — sem vínculo (ou falha no render), profileCard fica null e a
+  página mostra a mensagem de "use /registrar" no lugar.
 
   Grade de servidores sempre com no mínimo 6 ícones (pedido do dono,
   2026-08-06) — preenchida com ícones de dinossauro decorativos quando o
   usuário administra menos de 6 servidores reais (ver partials/
   dino-icon.ejs).
 
-  Uso: res.render('portal', { guilds, locked, profile }) — profile é
-  { nickname, alderonId, discordUsername, honorStars } ou null (sem
-  vínculo/não logado) — ver dashboard.js GET /dashboard.
+  Uso: res.render('portal', { guilds, locked, profileCard }) — ver
+  dashboard.js GET /dashboard.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -224,10 +226,11 @@
            flex, o MESMO gap:50px passa a valer duas vezes (col->separador,
            separador->col) — 50+linha+50 já é o dobro dos 50px de antes.
            align-self:stretch faz a linha acompanhar a altura da fileira
-           inteira (que no md+ já vem sincronizada por JS, ver
-           syncPortalCardHeight). Horizontal no mobile (empilhado) — uma
-           linha vertical entre dois blocos empilhados não faria sentido
-           visual nenhum. */
+           inteira (governada por items-center no container pai — as duas
+           colunas não são mais forçadas à mesma altura, ver comentário
+           da imagem de perfil mais abaixo). Horizontal no mobile
+           (empilhado) — uma linha vertical entre dois blocos empilhados
+           não faria sentido visual nenhum. */
         .portal-col-separator {
             flex: none;
             align-self: stretch;
@@ -243,139 +246,14 @@
                 border-left: 1px solid #3E3D38;
             }
         }
-        /* Card de perfil (Figma "Group 14", pedido do dono 2026-08-06) — o
-           card inteiro é o link pra "Toca" (/perfil), mesmo tipo de
-           affordance de hover já usado nos ícones de servidor da coluna
-           ao lado (leve scale + borda acesa). */
-        .portal-profile-link { display: inline-block; width: 100%; max-width: 520px; transition: transform 0.15s ease; }
-        .portal-profile-link:hover { transform: scale(1.015); }
-        /* height:100% aqui só importa a partir do md (768px) — é quando
-           syncPortalCardHeight() (fim do arquivo) passa a cravar um
-           height explícito em px no .portal-profile-link pai (ver
-           comentário completo mais acima, "Card de perfil"). No mobile
-           (empilhado) ninguém seta esse height, então 100% não tem
-           efeito e a coluna volta à altura natural. */
-        .portal-profile-card { display: flex; flex-direction: column; width: 100%; height: 100%; }
-
-        /* Bloco de textura (Figma: "Profile avatar", 445x284, background:
-           url(fundo_site_variante_3.png)) — o dono ainda vai mandar o
-           arquivo real dessa textura (mesmo fluxo de quando mandou as
-           bandeiras); enquanto isso, um gradiente na mesma paleta do site
-           ocupa o lugar. Pra trocar depois: troca só a propriedade
-           `background` de .portal-profile-bg por
-           `background: url('/images/portal-profile-bg.webp') center/cover;`.
-
-           Canto inferior-esquerdo cortado em diagonal (pedido do dono,
-           2026-08-06, comparando com a imagem de referência do Figma — o
-           corte não veio nos valores exatos do CSS exportado, só dava pra
-           ver no mock, então a proporção do corte foi estimada visualmente
-           a partir da referência, não é pixel-perfect). clip-path só
-           recorta os OUTROS 3 cantos exatamente no canto da caixa (0 0 /
-           100% 0 / 100% 100%), então quem arredonda eles continua sendo o
-           border-radius normal — só o 4º ponto (esquerda) e o que vem
-           antes dele (base) é que cortam a diagonal de verdade. .-frame é
-           só a "moldura" dourada (mesma técnica de padding+background pra
-           simular border em cima de um clip-path não-retangular — um
-           border CSS comum não acompanha a borda diagonal, fica reto por
-           baixo do recorte).
-
-           aspect-ratio trocado por flex:1 (pedido do dono, 2026-08-06:
-           altura do card precisa bater com título+grade da coluna
-           Dashboard, não com a proporção original do Figma) — o bloco de
-           textura absorve/cede o que sobra de altura depois do
-           .portal-profile-text (que mantém tamanho natural, sem flex),
-           então a altura TOTAL do card = exatamente o height que
-           syncPortalCardHeight() crava no .portal-profile-link (função
-           no bloco de script no fim do arquivo). min-height evita o
-           bloco colapsar demais num Dashboard muito baixo (ex: 1
-           servidor só, sem quebra de linha no título). */
-        .portal-profile-bg-frame {
-            position: relative;
-            width: 100%;
-            flex: 1 1 auto;
-            min-height: 160px;
-            padding: 1.5px;
-            border-radius: 14px;
-            background: #DCA15E;
-            box-shadow: 12px 15px 11.5px rgba(0, 0, 0, 0.36);
-            clip-path: polygon(0 0, 100% 0, 100% 100%, 58% 100%, 0 58%);
-        }
-        .portal-profile-bg {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            border-radius: 13px;
-            background: linear-gradient(135deg, #1F1D20 0%, #2A2A2A 35%, #4B2427 65%, #803E30 100%);
-            box-shadow: inset 0px 4px 4px rgba(0, 0, 0, 0.25);
-            clip-path: polygon(0 0, 100% 0, 100% 100%, 58% 100%, 0 58%);
-        }
-        .portal-profile-stars {
-            position: absolute;
-            left: 7%;
-            bottom: 5%;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        /* Estrela usa o mesmo glifo "★" já usado em perfil.ejs (Honra) —
-           o CSS do Figma só descreve o PREENCHIMENTO (gradiente dourado/
-           creme) de um badge, não o formato de estrela em si (isso vem de
-           uma máscara vetorial que "copiar CSS" não exporta, só SVG/path
-           — se o dono tiver o SVG da estrela, dá pra trocar por um ícone
-           exato igual foi feito com os dinossauros). */
-        .portal-profile-star {
-            font-size: clamp(18px, 2.6vw, 30px);
-            line-height: 1;
-            color: rgba(248, 220, 192, 0.25);
-        }
-        .portal-profile-star.is-filled {
-            color: #DCA15E;
-            text-shadow: 0 0 8px rgba(255, 226, 129, 0.5);
-        }
-
-        .portal-profile-text {
-            display: flex;
-            flex: none;
-            flex-direction: column;
-            align-items: flex-start;
-            text-align: left;
-            gap: 6px;
-            padding: 14px 4px 0;
-        }
-        .portal-profile-name {
-            font-family: 'Tilt Warp', cursive;
-            font-size: clamp(26px, 5vw, 48px);
-            line-height: 1.25;
-            color: #F8DCC0;
-            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
-        }
-        .portal-profile-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: clamp(14px, 2vw, 20px);
-            color: #F8DCC0;
-            filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.5)) drop-shadow(-5px -5px 10px rgba(0, 0, 0, 0.7));
-        }
-        .portal-profile-icon { width: clamp(20px, 3vw, 32px); height: clamp(20px, 3vw, 32px); flex: none; object-fit: contain; }
-        /* Selo azul do Discord (pedido do dono, comparando com a imagem de
-           referência) — o ícone genérico provisório (sem o DiscordLOGO.png
-           real do dono ainda) fica dentro de um círculo #5865F2 (cor
-           oficial "blurple"), igual ao selo vermelho do pot-logo.webp ao
-           lado dele já tem de fábrica. */
-        .portal-profile-icon-badge {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            background: #5865F2;
-            padding: 18%;
-            box-sizing: border-box;
-        }
-        .portal-profile-icon-badge svg { width: 100%; height: 100%; }
-
+        /* Imagem do card de perfil é o link pra "Toca" (/perfil, pedido do
+           dono, 2026-08-06) — mesmo tipo de affordance de hover já usado
+           nos ícones de servidor da coluna ao lado (leve scale + borda
+           acesa). */
+        .portal-profile-link { display: inline-block; transition: transform 0.15s ease; }
+        .portal-profile-link:hover { transform: scale(1.02); }
+        .portal-profile-link img { display: block; transition: box-shadow 0.15s ease; }
+        .portal-profile-link:hover img { box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6), 0 0 0 2px #DCA15E; }
         .dev-overlay { display: flex; align-items: center; justify-content: center; width: 100%; }
 
         /* Backdrop do aviso "dashboard em desenvolvimento" ao clicar num
@@ -493,45 +371,20 @@
                 getAdminGuildsWithBot de sempre) — grade sempre com no
                 mínimo 6 ícones, ver portalFillerVariants mais abaixo.
 
-                Card de perfil (pedido do dono: "aumente ela mais um
-                pouco... ela tem que ter a mesma altura dos ícones + nome
-                dashboard") — a largura só aumentou (452px -> 520px), a
-                ALTURA é sincronizada por JS com a altura de verdade da
-                coluna Dashboard (título + grade), já que isso depende de
-                fonte carregada/breakpoint e não dá pra cravar em CSS
-                puro (mesmo motivo/padrão de --nav-height mais acima:
-                syncPortalCardHeight() no fim do arquivo). Só sincroniza
-                a partir do breakpoint md (768px, onde as colunas ficam
-                lado a lado) — empilhado no mobile, a altura do card
-                volta a ser natural (senão ficaria espremido pela altura,
-                normalmente bem menor, da coluna Dashboard).
+                Card de perfil voltou a ser a imagem PNG oficial (pedido
+                do dono, 2026-08-06: "vai voltar a ser a imagem oficial
+                que geramos pelo Discord, remova o que fizemos em HTML
+                sobre ela") — sem sincronia de altura com a coluna
+                Dashboard (isso era específico do card HTML/CSS que saiu;
+                forçar uma imagem de proporção fixa a bater altura com
+                outra coluna espremeria ou vazaria largura à toa). Volta
+                ao tamanho de sempre (width:100%, max-width:520px).
             %>
             <div class="w-full flex flex-col md:flex-row justify-center items-center" style="gap: 50px; padding: 0 16px;">
                 <div class="flex flex-col items-center text-center gap-5" style="min-width: 0;">
-                    <% if (profile) { %>
-                        <a href="/perfil" class="portal-profile-link" id="portalProfileCard">
-                            <div class="portal-profile-card">
-                                <div class="portal-profile-bg-frame">
-                                    <div class="portal-profile-bg">
-                                        <div class="portal-profile-stars">
-                                            <% for (let i = 1; i <= 5; i++) { %><span class="portal-profile-star<%= i <= profile.honorStars ? ' is-filled' : '' %>">★</span><% } %>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="portal-profile-text">
-                                    <span class="portal-profile-name"><%= profile.nickname %></span>
-                                    <span class="portal-profile-row">
-                                        <img src="/images/pot-logo.webp" alt="" class="portal-profile-icon">
-                                        <%= profile.alderonId %>
-                                    </span>
-                                    <span class="portal-profile-row">
-                                        <span class="portal-profile-icon portal-profile-icon-badge">
-                                            <svg viewBox="0 0 24 24" fill="#F8DCC0" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 15.885 3c-.211.375-.444.879-.608 1.276a18.27 18.27 0 0 0-5.487 0A12.6 12.6 0 0 0 9.182 3a19.74 19.74 0 0 0-4.435 1.372C1.42 8.945.663 13.41.995 17.813a19.9 19.9 0 0 0 5.993 3.03c.483-.66.913-1.36 1.284-2.098a12.9 12.9 0 0 1-2.023-.975c.17-.124.336-.253.497-.386 3.902 1.803 8.13 1.803 11.986 0 .163.133.329.262.497.386-.646.386-1.323.71-2.025.976.372.737.8 1.437 1.284 2.098a19.86 19.86 0 0 0 6-3.031c.39-5.104-.664-9.53-2.79-13.444ZM8.02 15.116c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c.002 1.332-.944 2.42-2.136 2.42Zm7.96 0c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c0 1.332-.944 2.42-2.136 2.42Z"/></svg>
-                                        </span>
-                                        <%= profile.discordUsername %>
-                                    </span>
-                                </div>
-                            </div>
+                    <% if (profileCard) { %>
+                        <a href="/perfil" class="portal-profile-link">
+                            <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 520px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
                         </a>
                     <% } else { %>
                         <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 320px;">
@@ -544,7 +397,7 @@
                     <% } %>
                 </div>
 
-                <% if (profile && guilds.length > 0) { %>
+                <% if (profileCard && guilds.length > 0) { %>
                     <div class="portal-col-separator" aria-hidden="true"></div>
                 <% } %>
 
@@ -589,7 +442,7 @@
                             portalFillerVariants.push(portalDinoDeck[i % PORTAL_DINO_VARIANTS.length]);
                         }
                     %>
-                    <div class="flex flex-col items-center justify-center text-center gap-5" id="portalDashboardCol" style="min-width: 0;">
+                    <div class="flex flex-col items-center justify-center text-center gap-5" style="min-width: 0;">
                         <h3 class="portal-col-head">DASHBOARD</h3>
                         <div class="grid"
                              style="grid-template-columns: repeat(3, minmax(60px, 100px)); gap: clamp(12px, 2.5vw, 25px); width: 100%; max-width: 375px;">
@@ -655,37 +508,6 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeOverlay();
         });
-    })();
-
-    <%#
-        Altura do card de perfil = altura de verdade da coluna Dashboard
-        (pedido do dono, 2026-08-06: "ela tem que ter a mesma altura dos
-        ícones + nome dashboard") — mesmo padrão/gatilhos de syncNavHeight
-        mais acima (load/resize/fonts.ready), já que a altura da coluna
-        Dashboard depende de quantas linhas o título "DASHBOARD" quebra e
-        de qual fonte já carregou, não dá pra cravar em CSS puro. Só
-        sincroniza a partir do breakpoint md (768px, Tailwind) — abaixo
-        disso as colunas empilham (flex-col) e forçar a altura do card
-        pela altura, normalmente bem menor, da coluna Dashboard deixaria
-        o card espremido à toa.
-    %>
-    (function () {
-        function syncPortalCardHeight() {
-            var card = document.getElementById('portalProfileCard');
-            var dash = document.getElementById('portalDashboardCol');
-            if (!card || !dash) return;
-            if (window.matchMedia('(min-width: 768px)').matches) {
-                card.style.height = dash.offsetHeight + 'px';
-            } else {
-                card.style.height = '';
-            }
-        }
-        syncPortalCardHeight();
-        window.addEventListener('resize', syncPortalCardHeight);
-        window.addEventListener('load', syncPortalCardHeight);
-        if (window.document.fonts && window.document.fonts.ready) {
-            window.document.fonts.ready.then(syncPortalCardHeight);
-        }
     })();
 
     (function () {
