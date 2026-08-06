@@ -60,8 +60,8 @@
                 <div class="outline-chip is-lg">
                     <i data-lucide="shield-check" class="outline-chip-icon"></i>
                     <div class="outline-chip-text">
-                        <span class="outline-chip-headline">Nenhum Alerta</span>
-                        <span class="outline-chip-subtitle">Nada novo por aqui.....</span>
+                        <span class="outline-chip-headline"><span data-i18n-pt>Nenhum Alerta</span><span data-i18n-en>No Alerts</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt>Nada novo por aqui.....</span><span data-i18n-en>Nothing new around here.....</span></span>
                     </div>
                 </div>
             <% } else { %>
@@ -70,7 +70,7 @@
                         <i data-lucide="shield-alert" class="outline-chip-icon"></i>
                         <div class="outline-chip-text">
                             <span class="outline-chip-headline"><%= r.report_id %></span>
-                            <span class="outline-chip-subtitle">Aguardando staff — aberto por <%= r.discordUsername %> em <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
+                            <span class="outline-chip-subtitle"><span data-i18n-pt>Aguardando staff — aberto por</span><span data-i18n-en>Awaiting staff — opened by</span> <%= r.discordUsername %> <span data-i18n-pt>em</span><span data-i18n-en>on</span> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                         </div>
                     </div>
                 <% }); %>
@@ -124,28 +124,28 @@
         %>
 
         <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-lg">CONFIGURAÇÕES DE CARGOS DE MODERAÇÃO</h2>
-            <p class="text-[13px] opacity-50">Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use <code>/premium</code> pra aumentar).</p>
+            <h2 class="section-title text-lg"><span data-i18n-pt>CONFIGURAÇÕES DE CARGOS DE MODERAÇÃO</span><span data-i18n-en>MODERATION ROLE SETTINGS</span></h2>
+            <p class="text-[13px] opacity-50"><span data-i18n-pt>Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use</span><span data-i18n-en>Roles that grant access to moderation-related commands. The number of roles allowed per field varies by plan (use</span> <code>/premium</code> <span data-i18n-pt>pra aumentar).</span><span data-i18n-en>to increase it).</span></p>
             <div class="flex flex-col gap-8">
 
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Supervisão</h3>
-                    <p class="text-[13px] opacity-40 mb-1">Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</p>
-                    <p class="text-[13px] opacity-40 mb-1">Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</p>
-                    <p class="text-[13px] opacity-40 mb-2">Necessário para uso de alguns comandos de RCON.</p>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Equipe de Supervisão</span><span data-i18n-en>Supervisor Team</span></h3>
+                    <p class="text-[13px] opacity-40 mb-1"><span data-i18n-pt>Tem autoridade para aprovar ou aplicar diretamente punições severas (níveis de severidade Grave ou Severa, ou qualquer punição com duração maior que 72h/permanente).</span><span data-i18n-en>Has authority to approve or directly apply severe punishments (Grave or Severa severity levels, or any punishment lasting longer than 72h/permanent).</span></p>
+                    <p class="text-[13px] opacity-40 mb-1"><span data-i18n-pt>Quando um Staff comum aplica uma punição nessas condições, o pedido é enviado para este cargo aprovar no canal de log de punições antes de ser executado.</span><span data-i18n-en>When a regular Staff member applies a punishment under these conditions, the request is sent to this role for approval in the punishment log channel before it's executed.</span></p>
+                    <p class="text-[13px] opacity-40 mb-2"><span data-i18n-pt>Necessário para uso de alguns comandos de RCON.</span><span data-i18n-en>Required to use some RCON commands.</span></p>
                     <%- include('partials/role-picker', { id: 'supervisor-role', name: 'supervisor_role', roles, selectedIds: supervisorRoleIds, limit: roleLimits.supervisor, icon: 'shield-ban' }) %>
                 </div>
 
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Equipe de Moderação</h3>
-                    <p class="text-[13px] opacity-40 mb-1">Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</p>
-                    <p class="text-[13px] opacity-40 mb-1">Permite comandos básicos de RCON.</p>
-                    <p class="text-[13px] opacity-40 mb-2">Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</p>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Equipe de Moderação</span><span data-i18n-en>Moderation Team</span></h3>
+                    <p class="text-[13px] opacity-40 mb-1"><span data-i18n-pt>Permite usar os comandos de moderação (/strike, /unstrike, /historico) e atender reports no ReportChat.</span><span data-i18n-en>Allows using moderation commands (/strike, /unstrike, /historico) and handling reports in ReportChat.</span></p>
+                    <p class="text-[13px] opacity-40 mb-1"><span data-i18n-pt>Permite comandos básicos de RCON.</span><span data-i18n-en>Allows basic RCON commands.</span></p>
+                    <p class="text-[13px] opacity-40 mb-2"><span data-i18n-pt>Sem pelo menos um cargo configurado aqui, a staff não consegue usar o sistema.</span><span data-i18n-en>Without at least one role configured here, staff can't use the system.</span></p>
                     <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
                 </div>
 
             </div>
-            <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+            <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
         </form>
 
         <%#
@@ -161,22 +161,22 @@
         %>
         <section class="titan-card-premium flex-col gap-6">
             <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
-                CONFIGURAÇÕES DE PUNIÇÕES
+                <span data-i18n-pt>CONFIGURAÇÕES DE PUNIÇÕES</span><span data-i18n-en>PUNISHMENT SETTINGS</span>
                 <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
             </h2>
             <% if (!isRastreador) { %>
-                <p class="text-[13px] opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+                <p class="text-[13px] opacity-50"><span data-i18n-pt>Exclusivo a partir do plano Rastreador — use</span><span data-i18n-en>Exclusive from the Rastreador plan onward — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
             <% } else { %>
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Níveis de Punição</h3>
-                    <p class="text-[13px] opacity-50 mb-1">Crie níveis customizados pro /strike. Botão <strong>Exigir/Dispensar Aprovação</strong> define, nível a nível, quais exigem aprovação do Supervisor.</p>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Níveis de Punição</span><span data-i18n-en>Punishment Levels</span></h3>
+                    <p class="text-[13px] opacity-50 mb-1"><span data-i18n-pt>Crie níveis customizados pro /strike. Botão</span><span data-i18n-en>Create custom levels for /strike. The</span> <strong><span data-i18n-pt>Exigir/Dispensar Aprovação</span><span data-i18n-en>Require/Waive Approval</span></strong> <span data-i18n-pt>define, nível a nível, quais exigem aprovação do Supervisor.</span><span data-i18n-en>button sets, level by level, which ones require Supervisor approval.</span></p>
                     <% if (!customApprovalEnabled) { %>
-                        <p class="text-[13px] opacity-40 mb-2">Sem o plano Caçador, a aprovação segue a regra automática padrão: severidade Grave/Severa ou duração maior que 72h/permanente exige aprovação do Supervisor.</p>
+                        <p class="text-[13px] opacity-40 mb-2"><span data-i18n-pt>Sem o plano Caçador, a aprovação segue a regra automática padrão: severidade Grave/Severa ou duração maior que 72h/permanente exige aprovação do Supervisor.</span><span data-i18n-en>Without the Caçador plan, approval follows the default automatic rule: Grave/Severa severity or duration longer than 72h/permanent requires Supervisor approval.</span></p>
                     <% } %>
-                    <p class="text-[13px] opacity-60 mb-3">Níveis usados: <%= punishmentLevels.length %>/<%= levelLimit %></p>
+                    <p class="text-[13px] opacity-60 mb-3"><span data-i18n-pt>Níveis usados:</span><span data-i18n-en>Levels used:</span> <%= punishmentLevels.length %>/<%= levelLimit %></p>
 
                     <% if (punishmentLevels.length === 0) { %>
-                        <p class="text-[13px] opacity-40 mb-3">Nenhum nível criado ainda. Use o botão <strong>Criar Nível</strong> abaixo.</p>
+                        <p class="text-[13px] opacity-40 mb-3"><span data-i18n-pt>Nenhum nível criado ainda. Use o botão</span><span data-i18n-en>No level created yet. Use the</span> <strong><span data-i18n-pt>Criar Nível</span><span data-i18n-en>Create Level</span></strong> <span data-i18n-pt>abaixo.</span><span data-i18n-en>button below.</span></p>
                     <% } else { %>
                         <div class="level-list">
                             <% const severityColors = { Leve: '#8BE28B', Moderada: '#E2C168', Grave: '#E2924E', Severa: '#FF4E3B' }; %>
@@ -186,29 +186,32 @@
                                         <span class="level-severity-dot" style="background:<%= severityColors[level.severity] || '#A89986' %>"></span>
                                         <div class="level-card-info">
                                             <span class="level-card-name"><%= level.name %></span>
-                                            <span class="level-card-meta"><%= level.severity %> · -<%= level.points %> pts · <%= level.duration_str || 'Permanente' %> · <%= level.action || 'Nenhuma ação' %></span>
+                                            <span class="level-card-meta">
+                                                <span data-i18n-pt><%= level.severity %> · -<%= level.points %> pts · <%= level.duration_str || 'Permanente' %> · <%= level.action || 'Nenhuma ação' %></span>
+                                                <span data-i18n-en><%= level.severity %> · -<%= level.points %> pts · <%= level.duration_str || 'Permanent' %> · <%= level.action || 'No action' %></span>
+                                            </span>
                                         </div>
                                     </div>
                                     <div class="level-card-actions">
                                         <% if (customApprovalEnabled) { %>
                                             <span class="level-approval-badge <%= level.requires_supervisor_approval ? 'is-required' : 'is-not-required' %>">
-                                                <%= level.requires_supervisor_approval ? 'Exige aprovação' : 'Não exige aprovação' %>
+                                                <% if (level.requires_supervisor_approval) { %><span data-i18n-pt>Exige aprovação</span><span data-i18n-en>Approval required</span><% } else { %><span data-i18n-pt>Não exige aprovação</span><span data-i18n-en>Approval not required</span><% } %>
                                             </span>
                                             <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/toggle-approval" method="POST">
                                                 <button type="submit" class="btn-chip <%= level.requires_supervisor_approval ? 'btn-chip-danger' : 'btn-chip-success' %>">
-                                                    <%= level.requires_supervisor_approval ? 'Dispensar Aprovação' : 'Exigir Aprovação' %>
+                                                    <% if (level.requires_supervisor_approval) { %><span data-i18n-pt>Dispensar Aprovação</span><span data-i18n-en>Waive Approval</span><% } else { %><span data-i18n-pt>Exigir Aprovação</span><span data-i18n-en>Require Approval</span><% } %>
                                                 </button>
                                             </form>
                                         <% } %>
                                         <details class="level-form-details" style="width:auto;">
-                                            <summary class="btn-chip">Editar</summary>
+                                            <summary class="btn-chip"><span data-i18n-pt>Editar</span><span data-i18n-en>Edit</span></summary>
                                             <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/edit" method="POST" class="level-form-grid" style="min-width:280px;">
                                                 <div>
-                                                    <label>Nome</label>
+                                                    <label><span data-i18n-pt>Nome</span><span data-i18n-en>Name</span></label>
                                                     <div class="input-container-premium"><input type="text" name="name" class="input-premium-field" maxlength="60" value="<%= level.name %>" required></div>
                                                 </div>
                                                 <div>
-                                                    <label>Severidade</label>
+                                                    <label><span data-i18n-pt>Severidade</span><span data-i18n-en>Severity</span></label>
                                                     <div class="input-container-premium">
                                                         <select name="severity" class="input-premium-field">
                                                             <% ['Leve', 'Moderada', 'Grave', 'Severa'].forEach(s => { %>
@@ -218,15 +221,15 @@
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <label>Pontos perdidos (0-100)</label>
+                                                    <label><span data-i18n-pt>Pontos perdidos (0-100)</span><span data-i18n-en>Points lost (0-100)</span></label>
                                                     <div class="input-container-premium"><input type="number" name="points" class="input-premium-field" min="0" max="100" value="<%= level.points %>" required></div>
                                                 </div>
                                                 <div>
-                                                    <label>Duração (ex: 10m, 1h, 3d — vazio = perm.)</label>
+                                                    <label><span data-i18n-pt>Duração (ex: 10m, 1h, 3d — vazio = perm.)</span><span data-i18n-en>Duration (e.g. 10m, 1h, 3d — empty = perm.)</span></label>
                                                     <div class="input-container-premium"><input type="text" name="duration_str" class="input-premium-field" placeholder="Vazio = permanente" value="<%= level.duration_str || '' %>"></div>
                                                 </div>
                                                 <div>
-                                                    <label>Ação</label>
+                                                    <label><span data-i18n-pt>Ação</span><span data-i18n-en>Action</span></label>
                                                     <div class="input-container-premium">
                                                         <select name="action" class="input-premium-field">
                                                             <option value="">Nenhuma</option>
@@ -237,12 +240,12 @@
                                                     </div>
                                                 </div>
                                                 <div class="level-form-actions" style="grid-column:1/-1;">
-                                                    <button type="submit" class="btn-chip btn-chip-success">Salvar Nível</button>
+                                                    <button type="submit" class="btn-chip btn-chip-success"><span data-i18n-pt>Salvar Nível</span><span data-i18n-en>Save Level</span></button>
                                                 </div>
                                             </form>
                                         </details>
-                                        <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/delete" method="POST" onsubmit="return confirm('Deletar este nível de punição? Punições já aplicadas com ele não são afetadas.');">
-                                            <button type="submit" class="btn-chip btn-chip-danger">Deletar</button>
+                                        <form action="/moderacao/<%= guild.id %>/levels/<%= level.id %>/delete" method="POST" onsubmit="return confirmDeleteLevel();">
+                                            <button type="submit" class="btn-chip btn-chip-danger"><span data-i18n-pt>Deletar</span><span data-i18n-en>Delete</span></button>
                                         </form>
                                     </div>
                                 </div>
@@ -252,14 +255,14 @@
 
                     <% if (canCreateLevel) { %>
                         <details class="level-form-details mt-3">
-                            <summary class="btn-chip btn-chip-success">+ Criar Nível</summary>
+                            <summary class="btn-chip btn-chip-success">+ <span data-i18n-pt>Criar Nível</span><span data-i18n-en>Create Level</span></summary>
                             <form action="/moderacao/<%= guild.id %>/levels/create" method="POST" class="level-form-grid">
                                 <div>
-                                    <label>Nome</label>
+                                    <label><span data-i18n-pt>Nome</span><span data-i18n-en>Name</span></label>
                                     <div class="input-container-premium"><input type="text" name="name" class="input-premium-field" maxlength="60" placeholder="Ex: Spam no chat" required></div>
                                 </div>
                                 <div>
-                                    <label>Severidade</label>
+                                    <label><span data-i18n-pt>Severidade</span><span data-i18n-en>Severity</span></label>
                                     <div class="input-container-premium">
                                         <select name="severity" class="input-premium-field">
                                             <% ['Leve', 'Moderada', 'Grave', 'Severa'].forEach(s => { %>
@@ -269,15 +272,15 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <label>Pontos perdidos (0-100)</label>
+                                    <label><span data-i18n-pt>Pontos perdidos (0-100)</span><span data-i18n-en>Points lost (0-100)</span></label>
                                     <div class="input-container-premium"><input type="number" name="points" class="input-premium-field" min="0" max="100" placeholder="Ex: 10" required></div>
                                 </div>
                                 <div>
-                                    <label>Duração (ex: 10m, 1h, 3d — vazio = perm.)</label>
+                                    <label><span data-i18n-pt>Duração (ex: 10m, 1h, 3d — vazio = perm.)</span><span data-i18n-en>Duration (e.g. 10m, 1h, 3d — empty = perm.)</span></label>
                                     <div class="input-container-premium"><input type="text" name="duration_str" class="input-premium-field" placeholder="Vazio = permanente"></div>
                                 </div>
                                 <div>
-                                    <label>Ação</label>
+                                    <label><span data-i18n-pt>Ação</span><span data-i18n-en>Action</span></label>
                                     <div class="input-container-premium">
                                         <select name="action" class="input-premium-field">
                                             <option value="">Nenhuma</option>
@@ -288,12 +291,12 @@
                                     </div>
                                 </div>
                                 <div class="level-form-actions" style="grid-column:1/-1;">
-                                    <button type="submit" class="btn-chip btn-chip-success">Criar Nível</button>
+                                    <button type="submit" class="btn-chip btn-chip-success"><span data-i18n-pt>Criar Nível</span><span data-i18n-en>Create Level</span></button>
                                 </div>
                             </form>
                         </details>
                     <% } else { %>
-                        <p class="text-[13px] opacity-40 mt-3">Limite de níveis do seu plano atingido (<%= punishmentLevels.length %>/<%= levelLimit %>). Use <code>/premium</code> pra ver planos com mais níveis.</p>
+                        <p class="text-[13px] opacity-40 mt-3"><span data-i18n-pt>Limite de níveis do seu plano atingido</span><span data-i18n-en>Your plan's level limit has been reached</span> (<%= punishmentLevels.length %>/<%= levelLimit %>). <span data-i18n-pt>Use</span><span data-i18n-en>Use</span> <code>/premium</code> <span data-i18n-pt>pra ver planos com mais níveis.</span><span data-i18n-en>to see plans with more levels.</span></p>
                     <% } %>
                 </div>
             <% } %>
@@ -312,13 +315,13 @@
             precisar de um <form> aninhado dentro deste.
         %>
         <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
-            <h2 class="section-title text-lg">CONFIGURAÇÕES DE REPUTAÇÃO</h2>
+            <h2 class="section-title text-lg"><span data-i18n-pt>CONFIGURAÇÕES DE REPUTAÇÃO</span><span data-i18n-en>REPUTATION SETTINGS</span></h2>
             <div class="flex flex-col gap-8">
 
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos Automáticos</h3>
-                    <p class="text-[13px] opacity-50 mb-3">Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</p>
-                    <label class="text-[13px] opacity-60">Strike (Temporário)</label>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Cargos Automáticos</span><span data-i18n-en>Automatic Roles</span></h3>
+                    <p class="text-[13px] opacity-50 mb-3"><span data-i18n-pt>Atribuídos e removidos automaticamente pelo sistema de reputação, não é necessário atribuí-los manualmente.</span><span data-i18n-en>Assigned and removed automatically by the reputation system — no need to assign them manually.</span></p>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Strike (Temporário)</span><span data-i18n-en>Strike (Temporary)</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="shield-alert"></i></div>
                         <select name="strike_role" class="input-premium-field">
@@ -328,7 +331,7 @@
                             <% }); %>
                         </select>
                     </div>
-                    <label class="text-[13px] opacity-60">Exemplar</label>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Exemplar</span><span data-i18n-en>Exemplary</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
                         <select name="role_exemplar" class="input-premium-field">
@@ -338,7 +341,7 @@
                             <% }); %>
                         </select>
                     </div>
-                    <label class="text-[13px] opacity-60">Problemático</label>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Problemático</span><span data-i18n-en>Problematic</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
                         <select name="role_problematico" class="input-premium-field">
@@ -352,41 +355,41 @@
 
                 <div>
                     <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3 flex items-center gap-3 flex-wrap">
-                        Recuperação Diária de Pontos
+                        <span data-i18n-pt>Recuperação Diária de Pontos</span><span data-i18n-en>Daily Point Recovery</span>
                         <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
                     </h3>
                     <% if (!isRastreador) { %>
-                        <p class="text-[13px] opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+                        <p class="text-[13px] opacity-50"><span data-i18n-pt>Exclusivo a partir do plano Rastreador — use</span><span data-i18n-en>Exclusive from the Rastreador plan onward — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
                     <% } else if (!automodEnabled) { %>
-                        <label class="text-[13px] opacity-60">Pontos recuperados por dia</label>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Pontos recuperados por dia</span><span data-i18n-en>Points recovered per day</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="trending-up"></i></div>
                             <input type="text" class="input-premium-field" value="1 (fixo neste plano)" disabled>
                         </div>
-                        <p class="text-[13px] opacity-40">Cargos automáticos configuráveis e recuperação diária ajustável são exclusivos do plano Caçador — use <code>/premium</code> pra ver o tier atual.</p>
+                        <p class="text-[13px] opacity-40"><span data-i18n-pt>Cargos automáticos configuráveis e recuperação diária ajustável são exclusivos do plano Caçador — use</span><span data-i18n-en>Configurable automatic roles and adjustable daily recovery are exclusive to the Caçador plan — use</span> <code>/premium</code> <span data-i18n-pt>pra ver o tier atual.</span><span data-i18n-en>to see your current tier.</span></p>
                     <% } else { %>
-                        <p class="text-[13px] opacity-50 mb-3">Quantos pontos de reputação cada membro recupera por dia (não recupera se punido nas últimas 24h), e os limites de pontos que atribuem/removem os cargos Exemplar/Problemático acima.</p>
-                        <label class="text-[13px] opacity-60">Pontos recuperados por dia (0-100)</label>
+                        <p class="text-[13px] opacity-50 mb-3"><span data-i18n-pt>Quantos pontos de reputação cada membro recupera por dia (não recupera se punido nas últimas 24h), e os limites de pontos que atribuem/removem os cargos Exemplar/Problemático acima.</span><span data-i18n-en>How many reputation points each member recovers per day (no recovery if punished in the last 24h), and the point thresholds that assign/remove the Exemplary/Problematic roles above.</span></p>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Pontos recuperados por dia (0-100)</span><span data-i18n-en>Points recovered per day (0-100)</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="trending-up"></i></div>
                             <input type="number" name="rep_recovery_amount" class="input-premium-field" min="0" max="100" placeholder="Ex: 1" value="<%= settings.rep_recovery_amount || 1 %>">
                         </div>
-                        <label class="text-[13px] opacity-60">Limite Exemplar (50-100)</label>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Limite Exemplar (50-100)</span><span data-i18n-en>Exemplary Threshold (50-100)</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
                             <input type="number" name="limit_exemplar" class="input-premium-field" min="50" max="100" placeholder="Ex: 95" value="<%= settings.limit_exemplar || 95 %>">
                         </div>
-                        <label class="text-[13px] opacity-60">Limite Problemático (0-50)</label>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Limite Problemático (0-50)</span><span data-i18n-en>Problematic Threshold (0-50)</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
                             <input type="number" name="limit_problematico" class="input-premium-field" min="0" max="50" placeholder="Ex: 30" value="<%= settings.limit_problematico || 30 %>">
                         </div>
-                        <button type="submit" formaction="/moderacao/<%= guild.id %>/reputation/reset" class="btn-chip btn-chip-danger mt-2">Resetar Padrão</button>
+                        <button type="submit" formaction="/moderacao/<%= guild.id %>/reputation/reset" class="btn-chip btn-chip-danger mt-2"><span data-i18n-pt>Resetar Padrão</span><span data-i18n-en>Reset to Default</span></button>
                     <% } %>
                 </div>
 
             </div>
-            <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+            <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
         </form>
 
         <%#
@@ -402,26 +405,26 @@
         %>
         <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
             <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
-                DIVULGAÇÃO DO SERVIDOR
+                <span data-i18n-pt>DIVULGAÇÃO DO SERVIDOR</span><span data-i18n-en>SERVER PROMOTION</span>
                 <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
             </h2>
             <% if (!isRastreador) { %>
-                <p class="text-[13px] opacity-50">Exclusivo a partir do plano Rastreador — use <code>/premium</code> pra saber mais.</p>
+                <p class="text-[13px] opacity-50"><span data-i18n-pt>Exclusivo a partir do plano Rastreador — use</span><span data-i18n-en>Exclusive from the Rastreador plan onward — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
             <% } else { %>
-                <p class="text-[13px] opacity-50">Aparece pra qualquer visitante da home no feed "Novidades dos Servidores Parceiros". Deixe o título vazio pra tirar seu servidor do feed.</p>
+                <p class="text-[13px] opacity-50"><span data-i18n-pt>Aparece pra qualquer visitante da home no feed "Novidades dos Servidores Parceiros". Deixe o título vazio pra tirar seu servidor do feed.</span><span data-i18n-en>Shown to any home page visitor in the "Partner Server News" feed. Leave the title empty to remove your server from the feed.</span></p>
                 <div>
-                    <label class="text-[13px] opacity-60">Título</label>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Título</span><span data-i18n-en>Title</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="megaphone"></i></div>
                         <input type="text" maxlength="80" class="input-premium-field" name="partner_news_title" placeholder="Ex: Evento de fim de ano no ar!" value="<%= settings.partner_news_title || '' %>">
                     </div>
-                    <label class="text-[13px] opacity-60 block mt-4">Texto</label>
+                    <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Texto</span><span data-i18n-en>Text</span></label>
                     <div class="input-container-premium has-textarea">
                         <div class="icon-box"><i data-lucide="message-square"></i></div>
                         <textarea class="input-premium-field" name="partner_news_text" maxlength="280" rows="3" placeholder="Conte em poucas linhas o que está rolando no seu servidor..."><%= settings.partner_news_text || '' %></textarea>
                     </div>
                 </div>
-                <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
             <% } %>
         </form>
 
@@ -447,18 +450,18 @@
         <form action="/moderacao/<%= guild.id %>/save" method="POST" enctype="multipart/form-data" class="contents">
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
-                    Personalização
+                    <span data-i18n-pt>Personalização</span><span data-i18n-en>Customization</span>
                     <%- include('partials/tier-badge') %>
                 </h2>
                 <% if (!isCacador) { %>
-                    <p class="text-[13px] opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <p class="text-[13px] opacity-50"><span data-i18n-pt>Exclusivo do plano Caçador — use</span><span data-i18n-en>Exclusive to the Caçador plan — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
                 <% } else { %>
 
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Strike / Unstrike</h3>
-                        <p class="text-[13px] opacity-50 mb-3">Troque o banner mostrado no painel de aplicação (/strike) e de anulação (/unstrike) de punição.</p>
+                        <p class="text-[13px] opacity-50 mb-3"><span data-i18n-pt>Troque o banner mostrado no painel de aplicação (/strike) e de anulação (/unstrike) de punição.</span><span data-i18n-en>Change the banner shown in the punishment application (/strike) and revocation (/unstrike) panel.</span></p>
 
-                        <label class="text-[13px] opacity-60">Banner Strike</label>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Banner Strike</span><span data-i18n-en>Strike Banner</span></label>
                         <div class="banner-picker">
                             <% strikeBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -468,7 +471,7 @@
                                 </label>
                             <% }); %>
                         </div>
-                        <label class="text-[13px] opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Ou envie sua própria imagem</span><span data-i18n-en>Or upload your own image</span></label>
                         <% if (strikeCustomBannerUrl) { %>
                             <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= strikeCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
                         <% } %>
@@ -476,9 +479,9 @@
                             <div class="icon-box"><i data-lucide="upload"></i></div>
                             <input type="file" name="strike_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                         </div>
-                        <p class="text-[13px] opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (strikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
+                        <p class="text-[13px] opacity-40"><span data-i18n-pt>Enviar um arquivo aqui substitui a opção escolhida na galeria acima.</span><span data-i18n-en>Uploading a file here overrides the option chosen in the gallery above.</span><% if (strikeCustomBannerUrl) { %> <span data-i18n-pt>Imagem própria configurada atualmente (prévia acima).</span><span data-i18n-en>Custom image currently set (preview above).</span><% } %></p>
 
-                        <label class="text-[13px] opacity-60 block mt-4">Banner Unstrike</label>
+                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Banner Unstrike</span><span data-i18n-en>Unstrike Banner</span></label>
                         <div class="banner-picker">
                             <% unstrikeBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -488,7 +491,7 @@
                                 </label>
                             <% }); %>
                         </div>
-                        <label class="text-[13px] opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Ou envie sua própria imagem</span><span data-i18n-en>Or upload your own image</span></label>
                         <% if (unstrikeCustomBannerUrl) { %>
                             <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= unstrikeCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
                         <% } %>
@@ -496,19 +499,19 @@
                             <div class="icon-box"><i data-lucide="upload"></i></div>
                             <input type="file" name="unstrike_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                         </div>
-                        <p class="text-[13px] opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (unstrikeCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
+                        <p class="text-[13px] opacity-40"><span data-i18n-pt>Enviar um arquivo aqui substitui a opção escolhida na galeria acima.</span><span data-i18n-en>Uploading a file here overrides the option chosen in the gallery above.</span><% if (unstrikeCustomBannerUrl) { %> <span data-i18n-pt>Imagem própria configurada atualmente (prévia acima).</span><span data-i18n-en>Custom image currently set (preview above).</span><% } %></p>
                     </div>
 
                     <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Aparência Geral</h3>
-                        <p class="text-[13px] opacity-50 mb-3">Cor de destaque e footer aplicados em /strike, /unstrike, report-chat, e nos logs de Punições/Reports/Geral.</p>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Aparência Geral</span><span data-i18n-en>General Appearance</span></h3>
+                        <p class="text-[13px] opacity-50 mb-3"><span data-i18n-pt>Cor de destaque e footer aplicados em /strike, /unstrike, report-chat, e nos logs de Punições/Reports/Geral.</span><span data-i18n-en>Accent color and footer applied in /strike, /unstrike, report-chat, and in the Punishments/Reports/General logs.</span></p>
 
-                        <label class="text-[13px] opacity-60">Cor de destaque dos painéis (hex, sem #)</label>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Cor de destaque dos painéis (hex, sem #)</span><span data-i18n-en>Panel accent color (hex, no #)</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="palette"></i></div>
                             <input type="text" maxlength="6" class="input-premium-field" name="panel_accent_color" placeholder="DCA15E" value="<%= settings.panel_accent_color || '' %>">
                         </div>
-                        <label class="text-[13px] opacity-60">Assinatura no rodapé dos painéis</label>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Assinatura no rodapé dos painéis</span><span data-i18n-en>Panel footer signature</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="edit"></i></div>
                             <input type="text" maxlength="100" class="input-premium-field" name="panel_footer_text" placeholder="BY: KNUST SEIER VI" value="<%= settings.panel_footer_text || '' %>">
@@ -517,7 +520,7 @@
 
                 <% } %>
 
-                <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
             </section>
         </form>
 
@@ -532,5 +535,17 @@
     <script src="/js/ingame-pulse-poll.js"></script>
     <script src="/js/poll-fragment.js"></script>
     <script src="/js/role-picker.js"></script>
+    <%# confirm() nativo não suporta data-i18n (é texto de JS, não HTML) —
+        checa data-lang no <html> (mesma fonte que o toggle de bandeiras em
+        sidebar-v2.ejs já mantém sincronizada) na hora do clique. %>
+    <script>
+        function confirmDeleteLevel() {
+            var lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            var msg = lang === 'en'
+                ? 'Delete this punishment level? Punishments already applied with it are not affected.'
+                : 'Deletar este nível de punição? Punições já aplicadas com ele não são afetadas.';
+            return confirm(msg);
+        }
+    </script>
 </body>
 </html>
