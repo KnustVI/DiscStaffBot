@@ -73,11 +73,11 @@
         <form action="/reports/<%= guild.id %>/save" method="POST" enctype="multipart/form-data" class="contents">
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
-                    Personalização
+                    <span data-i18n-pt>Personalização</span><span data-i18n-en>Customization</span>
                     <%- include('partials/tier-badge') %>
                 </h2>
                 <% if (!isCacador) { %>
-                    <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <p class="text-xs opacity-50"><span data-i18n-pt>Exclusivo do plano Caçador — use</span><span data-i18n-en>Exclusive to the Caçador plan — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
                 <% } else { %>
                     <%#
                         Tudo dentro de UM <div> só (pedido do dono: mesma
@@ -96,9 +96,9 @@
                         que tem 2 blocos com h3 próprio cada.
                     %>
                     <div>
-                        <p class="text-xs opacity-50 mb-3">Troque o banner, a mensagem de abertura do painel (o mesmo que /reportchat posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão). O banner escolhido abaixo também aparece na thread.</p>
+                        <p class="text-xs opacity-50 mb-3"><span data-i18n-pt>Troque o banner, a mensagem de abertura do painel (o mesmo que /reportchat posta no canal) e a mensagem de boas-vindas da thread (a 1ª mensagem que a pessoa vê ao abrir um reporte ou revisão). O banner escolhido abaixo também aparece na thread.</span><span data-i18n-en>Change the banner, the panel opening message (the same one /reportchat posts in the channel) and the thread welcome message (the 1st message someone sees when opening a report or a punishment review). The banner chosen below also appears in the thread.</span></p>
 
-                        <label class="text-xs opacity-60">Banner do Report-Chat</label>
+                        <label class="text-xs opacity-60"><span data-i18n-pt>Banner do Report-Chat</span><span data-i18n-en>Report-Chat Banner</span></label>
                         <div class="banner-picker">
                             <% reportChatBannerOptions.forEach(opt => { %>
                                 <label class="banner-picker-option">
@@ -108,7 +108,7 @@
                                 </label>
                             <% }); %>
                         </div>
-                        <label class="text-xs opacity-60 block mt-4">Ou envie sua própria imagem</label>
+                        <label class="text-xs opacity-60 block mt-4"><span data-i18n-pt>Ou envie sua própria imagem</span><span data-i18n-en>Or upload your own image</span></label>
                         <% if (reportChatCustomBannerUrl) { %>
                             <div class="rounded-lg mb-2" style="aspect-ratio: 600/138; max-width:300px; background-image:url('<%= reportChatCustomBannerUrl %>'); background-size:cover; background-position:center;"></div>
                         <% } %>
@@ -116,22 +116,22 @@
                             <div class="icon-box"><i data-lucide="upload"></i></div>
                             <input type="file" name="report_chat_banner_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                         </div>
-                        <p class="text-xs opacity-40">Enviar um arquivo aqui substitui a opção escolhida na galeria acima.<% if (reportChatCustomBannerUrl) { %> Imagem própria configurada atualmente (prévia acima).<% } %></p>
+                        <p class="text-xs opacity-40"><span data-i18n-pt>Enviar um arquivo aqui substitui a opção escolhida na galeria acima.</span><span data-i18n-en>Uploading a file here overrides the option chosen in the gallery above.</span><% if (reportChatCustomBannerUrl) { %> <span data-i18n-pt>Imagem própria configurada atualmente (prévia acima).</span><span data-i18n-en>Custom image currently set (preview above).</span><% } %></p>
 
-                        <label class="text-xs opacity-60 block mt-4">Mensagem do painel (vazio = padrão do bot)</label>
+                        <label class="text-xs opacity-60 block mt-4"><span data-i18n-pt>Mensagem do painel (vazio = padrão do bot)</span><span data-i18n-en>Panel message (empty = bot default)</span></label>
                         <div class="input-container-premium has-textarea">
                             <div class="icon-box"><i data-lucide="message-square"></i></div>
                             <textarea class="input-premium-field" name="report_chat_message" maxlength="1000" rows="4" placeholder="Explique como abrir um reporte ou revisar uma punição neste servidor..."><%= settings.report_chat_message || '' %></textarea>
                         </div>
 
-                        <label class="text-xs opacity-60 block mt-4">Boas-vindas na thread (vazio = padrão do bot)</label>
+                        <label class="text-xs opacity-60 block mt-4"><span data-i18n-pt>Boas-vindas na thread (vazio = padrão do bot)</span><span data-i18n-en>Thread welcome message (empty = bot default)</span></label>
                         <div class="input-container-premium has-textarea">
                             <div class="icon-box"><i data-lucide="message-square"></i></div>
                             <textarea class="input-premium-field" name="report_chat_welcome_message" maxlength="1000" rows="4" placeholder="Mensagem mostrada assim que a thread é aberta — vale pra reporte e pra revisão de punição..."><%= settings.report_chat_welcome_message || '' %></textarea>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                    <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
                 <% } %>
             </section>
         </form>

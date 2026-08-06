@@ -84,7 +84,7 @@ function reportsHref(overrides) {
 <!-- REPORTES ABERTOS -->
 <section class="titan-card-premium flex-col gap-4">
     <div class="flex items-center justify-between flex-wrap gap-3">
-        <h2 class="section-title text-lg">Reportes Abertos</h2>
+        <h2 class="section-title text-lg"><span data-i18n-pt>Reportes Abertos</span><span data-i18n-en>Open Reports</span></h2>
         <form method="GET" action="<%= basePath %>" class="report-search-form">
             <input type="hidden" name="openPage" value="1">
             <input type="hidden" name="closedPage" value="<%= closedPagination.page %>">
@@ -92,12 +92,18 @@ function reportsHref(overrides) {
             <input type="text" name="openSearch" value="<%= openPagination.search %>" placeholder="Buscar por ID ou usuário..." class="report-search-input">
             <button type="submit" class="report-search-btn"><i data-lucide="search" class="w-4 h-4"></i></button>
             <% if (openPagination.search) { %>
-                <a href="<%= reportsHref({ openSearch: '', openPage: 1 }) %>" class="report-search-clear">Limpar</a>
+                <a href="<%= reportsHref({ openSearch: '', openPage: 1 }) %>" class="report-search-clear"><span data-i18n-pt>Limpar</span><span data-i18n-en>Clear</span></a>
             <% } %>
         </form>
     </div>
     <% if (openReports.length === 0) { %>
-        <p class="text-sm opacity-40"><%= openPagination.search ? `Nenhum reporte encontrado para "${openPagination.search}".` : 'Nenhum reporte aberto no momento.' %></p>
+        <p class="text-sm opacity-40">
+            <% if (openPagination.search) { %>
+                <span data-i18n-pt>Nenhum reporte encontrado para "<%= openPagination.search %>".</span><span data-i18n-en>No report found for "<%= openPagination.search %>".</span>
+            <% } else { %>
+                <span data-i18n-pt>Nenhum reporte aberto no momento.</span><span data-i18n-en>No open reports right now.</span>
+            <% } %>
+        </p>
     <% } else { %>
         <div class="flex flex-col gap-3">
             <% openReports.forEach(r => { %>
@@ -125,10 +131,10 @@ function reportsHref(overrides) {
                     </div>
                     <% if (r.thread_id && !r.threadDeletedByName) { %>
                         <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
-                            <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
+                            <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
                         </a>
                     <% } else if (r.threadDeletedByName) { %>
-                        <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
+                        <p class="text-xs" style="color:#FF4E3B;"><span data-i18n-pt>Tópico apagado por:</span><span data-i18n-en>Topic deleted by:</span> <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } %>
                 </div>
             <% }); %>
@@ -136,15 +142,15 @@ function reportsHref(overrides) {
         <% if (openPagination.totalPages > 1) { %>
             <div class="report-pagination">
                 <% if (openPagination.page > 1) { %>
-                    <a href="<%= reportsHref({ openPage: openPagination.page - 1 }) %>" class="report-page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</a>
+                    <a href="<%= reportsHref({ openPage: openPagination.page - 1 }) %>" class="report-page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i> <span data-i18n-pt>Anterior</span><span data-i18n-en>Previous</span></a>
                 <% } else { %>
-                    <span class="report-page-btn disabled"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</span>
+                    <span class="report-page-btn disabled"><i data-lucide="chevron-left" class="w-4 h-4"></i> <span data-i18n-pt>Anterior</span><span data-i18n-en>Previous</span></span>
                 <% } %>
-                <span class="report-page-info">Página <%= openPagination.page %> de <%= openPagination.totalPages %> (<%= openPagination.total %> reportes)</span>
+                <span class="report-page-info"><span data-i18n-pt>Página</span><span data-i18n-en>Page</span> <%= openPagination.page %> <span data-i18n-pt>de</span><span data-i18n-en>of</span> <%= openPagination.totalPages %> (<%= openPagination.total %> <span data-i18n-pt>reportes</span><span data-i18n-en>reports</span>)</span>
                 <% if (openPagination.page < openPagination.totalPages) { %>
-                    <a href="<%= reportsHref({ openPage: openPagination.page + 1 }) %>" class="report-page-btn">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></a>
+                    <a href="<%= reportsHref({ openPage: openPagination.page + 1 }) %>" class="report-page-btn"><span data-i18n-pt>Próxima</span><span data-i18n-en>Next</span> <i data-lucide="chevron-right" class="w-4 h-4"></i></a>
                 <% } else { %>
-                    <span class="report-page-btn disabled">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                    <span class="report-page-btn disabled"><span data-i18n-pt>Próxima</span><span data-i18n-en>Next</span> <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
                 <% } %>
             </div>
         <% } %>
@@ -154,7 +160,7 @@ function reportsHref(overrides) {
 <!-- REPORTES FECHADOS -->
 <section class="titan-card-premium flex-col gap-4">
     <div class="flex items-center justify-between flex-wrap gap-3">
-        <h2 class="section-title text-lg">Reportes Fechados</h2>
+        <h2 class="section-title text-lg"><span data-i18n-pt>Reportes Fechados</span><span data-i18n-en>Closed Reports</span></h2>
         <form method="GET" action="<%= basePath %>" class="report-search-form">
             <input type="hidden" name="closedPage" value="1">
             <input type="hidden" name="openPage" value="<%= openPagination.page %>">
@@ -162,13 +168,19 @@ function reportsHref(overrides) {
             <input type="text" name="closedSearch" value="<%= closedPagination.search %>" placeholder="Buscar por ID ou usuário..." class="report-search-input">
             <button type="submit" class="report-search-btn"><i data-lucide="search" class="w-4 h-4"></i></button>
             <% if (closedPagination.search) { %>
-                <a href="<%= reportsHref({ closedSearch: '', closedPage: 1 }) %>" class="report-search-clear">Limpar</a>
+                <a href="<%= reportsHref({ closedSearch: '', closedPage: 1 }) %>" class="report-search-clear"><span data-i18n-pt>Limpar</span><span data-i18n-en>Clear</span></a>
             <% } %>
         </form>
     </div>
-    <p class="text-xs opacity-40 -mt-2">O Titan's Pass não guarda a conversa dos reportes fora do Discord — mantenha os tópicos criados para histórico.</p>
+    <p class="text-xs opacity-40 -mt-2"><span data-i18n-pt>O Titan's Pass não guarda a conversa dos reportes fora do Discord — mantenha os tópicos criados para histórico.</span><span data-i18n-en>Titan's Pass doesn't store report conversations outside Discord — keep the created topics for history.</span></p>
     <% if (closedReports.length === 0) { %>
-        <p class="text-sm opacity-40"><%= closedPagination.search ? `Nenhum reporte encontrado para "${closedPagination.search}".` : 'Nenhum reporte fechado ainda.' %></p>
+        <p class="text-sm opacity-40">
+            <% if (closedPagination.search) { %>
+                <span data-i18n-pt>Nenhum reporte encontrado para "<%= closedPagination.search %>".</span><span data-i18n-en>No report found for "<%= closedPagination.search %>".</span>
+            <% } else { %>
+                <span data-i18n-pt>Nenhum reporte fechado ainda.</span><span data-i18n-en>No closed reports yet.</span>
+            <% } %>
+        </p>
     <% } else { %>
         <div class="flex flex-col gap-3">
             <% closedReports.forEach(r => { %>
@@ -194,15 +206,15 @@ function reportsHref(overrides) {
                         <% } else if (r.agid) { %><span><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> AGID <%= r.agid %></span><% } %>
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                     </div>
-                    <% if (r.punishment) { %><p class="text-xs opacity-60">Punição aplicada: <%= r.punishment %></p><% } %>
-                    <% if (r.closed_reason) { %><p class="text-xs opacity-60">Motivo de fechamento: <%= r.closed_reason %></p><% } %>
-                    <p class="text-xs opacity-60">Fechado por: <%= r.closedByName || 'Automático (sistema)' %><% if (r.closedByRoleLabel) { %> (<%= r.closedByRoleLabel %>)<% } %></p>
-                    <% if (r.rating) { %><p class="text-xs opacity-60">Avaliação: <%= r.rating %>/5<% if (r.rating_comment) { %> — "<%= r.rating_comment %>"<% } %></p><% } %>
+                    <% if (r.punishment) { %><p class="text-xs opacity-60"><span data-i18n-pt>Punição aplicada:</span><span data-i18n-en>Punishment applied:</span> <%= r.punishment %></p><% } %>
+                    <% if (r.closed_reason) { %><p class="text-xs opacity-60"><span data-i18n-pt>Motivo de fechamento:</span><span data-i18n-en>Closing reason:</span> <%= r.closed_reason %></p><% } %>
+                    <p class="text-xs opacity-60"><span data-i18n-pt>Fechado por:</span><span data-i18n-en>Closed by:</span> <% if (r.closedByName) { %><%= r.closedByName %><% } else { %><span data-i18n-pt>Automático (sistema)</span><span data-i18n-en>Automatic (system)</span><% } %><% if (r.closedByRoleLabel) { %> (<%= r.closedByRoleLabel %>)<% } %></p>
+                    <% if (r.rating) { %><p class="text-xs opacity-60"><span data-i18n-pt>Avaliação:</span><span data-i18n-en>Rating:</span> <%= r.rating %>/5<% if (r.rating_comment) { %> — "<%= r.rating_comment %>"<% } %></p><% } %>
                     <% if (r.threadDeletedByName) { %>
-                        <p class="text-xs" style="color:#FF4E3B;">Tópico apagado por: <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
+                        <p class="text-xs" style="color:#FF4E3B;"><span data-i18n-pt>Tópico apagado por:</span><span data-i18n-en>Topic deleted by:</span> <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } else if (r.thread_id) { %>
                         <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
-                            <i data-lucide="telescope" class="w-4 h-4"></i> Investigar
+                            <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
                         </a>
                     <% } %>
                 </div>
@@ -211,15 +223,15 @@ function reportsHref(overrides) {
         <% if (closedPagination.totalPages > 1) { %>
             <div class="report-pagination">
                 <% if (closedPagination.page > 1) { %>
-                    <a href="<%= reportsHref({ closedPage: closedPagination.page - 1 }) %>" class="report-page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</a>
+                    <a href="<%= reportsHref({ closedPage: closedPagination.page - 1 }) %>" class="report-page-btn"><i data-lucide="chevron-left" class="w-4 h-4"></i> <span data-i18n-pt>Anterior</span><span data-i18n-en>Previous</span></a>
                 <% } else { %>
-                    <span class="report-page-btn disabled"><i data-lucide="chevron-left" class="w-4 h-4"></i> Anterior</span>
+                    <span class="report-page-btn disabled"><i data-lucide="chevron-left" class="w-4 h-4"></i> <span data-i18n-pt>Anterior</span><span data-i18n-en>Previous</span></span>
                 <% } %>
-                <span class="report-page-info">Página <%= closedPagination.page %> de <%= closedPagination.totalPages %> (<%= closedPagination.total %> reportes)</span>
+                <span class="report-page-info"><span data-i18n-pt>Página</span><span data-i18n-en>Page</span> <%= closedPagination.page %> <span data-i18n-pt>de</span><span data-i18n-en>of</span> <%= closedPagination.totalPages %> (<%= closedPagination.total %> <span data-i18n-pt>reportes</span><span data-i18n-en>reports</span>)</span>
                 <% if (closedPagination.page < closedPagination.totalPages) { %>
-                    <a href="<%= reportsHref({ closedPage: closedPagination.page + 1 }) %>" class="report-page-btn">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></a>
+                    <a href="<%= reportsHref({ closedPage: closedPagination.page + 1 }) %>" class="report-page-btn"><span data-i18n-pt>Próxima</span><span data-i18n-en>Next</span> <i data-lucide="chevron-right" class="w-4 h-4"></i></a>
                 <% } else { %>
-                    <span class="report-page-btn disabled">Próxima <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                    <span class="report-page-btn disabled"><span data-i18n-pt>Próxima</span><span data-i18n-en>Next</span> <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
                 <% } %>
             </div>
         <% } %>
