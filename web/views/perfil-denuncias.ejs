@@ -66,7 +66,7 @@
 
         <% if (openReports.length === 0 && closedReports.length === 0 && !openPagination.search && !closedPagination.search) { %>
             <section class="titan-card-premium flex-col gap-3">
-                <p class="text-sm opacity-60">Você ainda não abriu nenhuma denúncia em nenhum servidor.</p>
+                <p class="text-sm opacity-60"><span data-i18n-pt>Você ainda não abriu nenhuma denúncia em nenhum servidor.</span><span data-i18n-en>You haven't opened any report on any server yet.</span></p>
             </section>
         <% } else { %>
             <%- include('partials/reports-list', { basePath: '/perfil/denuncias', openReports, openPagination, closedReports, closedPagination, showGuildBadge: true }) %>

@@ -43,7 +43,14 @@
 
         function refreshCounterAndRow() {
             var count = selectedIds().length;
-            counterEl.textContent = count + '/' + limit + ' cargos';
+            // Tradução (2026-08-06): contador é reescrito por inteiro aqui,
+            // não dá pra usar os pares <span data-i18n-pt>/data-i18n-en> do
+            // resto do dashboard (não existe HTML pra alternar, só texto) —
+            // lê html[data-lang] direto, mesma fonte que o toggle de
+            // bandeiras em sidebar-v2.ejs já mantém sincronizada.
+            var lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            var unit = lang === 'en' ? 'roles' : 'cargos';
+            counterEl.textContent = count + '/' + limit + ' ' + unit;
             rowEl.style.display = count >= limit ? 'none' : '';
         }
 

@@ -27,13 +27,17 @@
             <div class="dev-overlay-icon">
                 <i data-lucide="<%= srIsOk ? 'check-circle' : 'circle-alert' %>"></i>
             </div>
-            <h2 class="dev-overlay-title"><%= srIsOk ? 'Configurações salvas' : 'Falha ao salvar' %></h2>
+            <h2 class="dev-overlay-title">
+                <% if (srIsOk) { %><span data-i18n-pt>Configurações salvas</span><span data-i18n-en>Settings saved</span><% } else { %><span data-i18n-pt>Falha ao salvar</span><span data-i18n-en>Failed to save</span><% } %>
+            </h2>
             <p class="dev-overlay-text">
-                <%= srIsOk
-                    ? 'Suas alterações foram aplicadas com sucesso.'
-                    : 'Alguma coisa deu errado e as alterações não foram salvas. Tente novamente — se persistir, avise o suporte.' %>
+                <% if (srIsOk) { %>
+                    <span data-i18n-pt>Suas alterações foram aplicadas com sucesso.</span><span data-i18n-en>Your changes were applied successfully.</span>
+                <% } else { %>
+                    <span data-i18n-pt>Alguma coisa deu errado e as alterações não foram salvas. Tente novamente — se persistir, avise o suporte.</span><span data-i18n-en>Something went wrong and the changes weren't saved. Try again — if it keeps happening, contact support.</span>
+                <% } %>
             </p>
-            <button type="button" class="btn-primary" id="saveResultClose" style="min-width:0; padding:10px 32px;">FECHAR</button>
+            <button type="button" class="btn-primary" id="saveResultClose" style="min-width:0; padding:10px 32px;"><span data-i18n-pt>FECHAR</span><span data-i18n-en>CLOSE</span></button>
         </div>
     </div>
     <script>
