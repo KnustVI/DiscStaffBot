@@ -69,18 +69,18 @@
         <section class="titan-card-premium flex-col gap-4">
             <h2 class="section-title text-lg flex items-center gap-2">
                 <% if (happeningNow.length > 0) { %><span class="event-live-dot"></span><% } %>
-                Acontecendo Agora
+                <span data-i18n-pt>Acontecendo Agora</span><span data-i18n-en>Happening Now</span>
             </h2>
             <% if (happeningNow.length === 0) { %>
-                <p class="text-sm opacity-40">Nenhum evento acontecendo agora.</p>
+                <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum evento acontecendo agora.</span><span data-i18n-en>No event happening right now.</span></p>
             <% } else { %>
                 <div class="flex flex-col gap-3">
                     <% happeningNow.forEach(ev => { %>
                         <div class="event-card">
                             <span class="font-semibold"><%= ev.name %></span>
                             <div class="event-card-meta">
-                                <% if (ev.scheduledEndTimestamp) { %><span><i data-lucide="clock" class="w-3.5 h-3.5"></i> Termina <%= new Date(ev.scheduledEndTimestamp).toLocaleString('pt-BR') %></span><% } %>
-                                <% if (typeof ev.userCount === 'number') { %><span><i data-lucide="users" class="w-3.5 h-3.5"></i> <%= ev.userCount %> inscrito(s)</span><% } %>
+                                <% if (ev.scheduledEndTimestamp) { %><span><i data-lucide="clock" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Termina</span><span data-i18n-en>Ends</span> <%= new Date(ev.scheduledEndTimestamp).toLocaleString('pt-BR') %></span><% } %>
+                                <% if (typeof ev.userCount === 'number') { %><span><i data-lucide="users" class="w-3.5 h-3.5"></i> <%= ev.userCount %> <span data-i18n-pt>inscrito(s)</span><span data-i18n-en>signed up</span></span><% } %>
                             </div>
                         </div>
                     <% }); %>
@@ -90,9 +90,9 @@
 
         <!-- EVENTOS AGENDADOS -->
         <section class="titan-card-premium flex-col gap-4">
-            <h2 class="section-title text-lg">Eventos Agendados</h2>
+            <h2 class="section-title text-lg"><span data-i18n-pt>Eventos Agendados</span><span data-i18n-en>Scheduled Events</span></h2>
             <% if (scheduledEvents.length === 0) { %>
-                <p class="text-sm opacity-40">Nenhum evento agendado.</p>
+                <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum evento agendado.</span><span data-i18n-en>No events scheduled.</span></p>
             <% } else { %>
                 <div class="flex flex-col gap-3">
                     <% scheduledEvents.forEach(ev => { %>
@@ -100,7 +100,7 @@
                             <span class="font-semibold"><%= ev.name %></span>
                             <div class="event-card-meta">
                                 <% if (ev.scheduledStartTimestamp) { %><span><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i> <%= new Date(ev.scheduledStartTimestamp).toLocaleString('pt-BR') %></span><% } %>
-                                <% if (typeof ev.userCount === 'number') { %><span><i data-lucide="users" class="w-3.5 h-3.5"></i> <%= ev.userCount %> inscrito(s)</span><% } %>
+                                <% if (typeof ev.userCount === 'number') { %><span><i data-lucide="users" class="w-3.5 h-3.5"></i> <%= ev.userCount %> <span data-i18n-pt>inscrito(s)</span><span data-i18n-en>signed up</span></span><% } %>
                             </div>
                         </div>
                     <% }); %>
@@ -119,26 +119,26 @@
         %>
         <form action="/events/<%= guild.id %>/save" method="POST" class="contents">
             <section class="titan-card-premium flex-col gap-6">
-                <h2 class="section-title text-lg"><%= guild.name %> | Configurações</h2>
+                <h2 class="section-title text-lg"><%= guild.name %> | <span data-i18n-pt>Configurações</span><span data-i18n-en>Settings</span></h2>
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Cargos de Eventos</h3>
-                    <p class="text-xs opacity-50 mb-3">Usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.</p>
-                    <label class="text-xs opacity-60">Equipe de Eventos</label>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Cargos de Eventos</span><span data-i18n-en>Event Roles</span></h3>
+                    <p class="text-xs opacity-50 mb-3"><span data-i18n-pt>Usados pelo comando /evento: quem pode criar eventos, e quem é avisado quando um novo evento é publicado.</span><span data-i18n-en>Used by the /evento command: who can create events, and who gets notified when a new event is published.</span></p>
+                    <label class="text-xs opacity-60"><span data-i18n-pt>Equipe de Eventos</span><span data-i18n-en>Event Team</span></label>
                     <%- include('partials/role-picker', { id: 'event-role', name: 'event_role', roles, selectedIds: eventRoleIds, limit: eventRoleLimits.event, icon: 'shield' }) %>
-                    <label class="text-xs opacity-60">Notificação de Eventos</label>
+                    <label class="text-xs opacity-60"><span data-i18n-pt>Notificação de Eventos</span><span data-i18n-en>Event Notification</span></label>
                     <%- include('partials/role-picker', { id: 'event-notify-role', name: 'event_notify_role', roles, selectedIds: eventNotifyRoleIds, limit: eventRoleLimits.eventNotify, icon: 'megaphone' }) %>
                 </div>
             </section>
 
             <section class="titan-card-premium flex-col gap-6">
                 <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
-                    Canal de Anúncios
+                    <span data-i18n-pt>Canal de Anúncios</span><span data-i18n-en>Announcement Channel</span>
                     <%- include('partials/tier-badge') %>
                 </h2>
                 <% if (!isCacador) { %>
-                    <p class="text-xs opacity-50">Exclusivo do plano Caçador — use <code>/premium</code> pra saber mais.</p>
+                    <p class="text-xs opacity-50"><span data-i18n-pt>Exclusivo do plano Caçador — use</span><span data-i18n-en>Exclusive to the Caçador plan — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
                 <% } else { %>
-                    <p class="text-xs opacity-50 mb-3">Canal onde o bot anuncia automaticamente a criação, o início e o encerramento de cada evento.</p>
+                    <p class="text-xs opacity-50 mb-3"><span data-i18n-pt>Canal onde o bot anuncia automaticamente a criação, o início e o encerramento de cada evento.</span><span data-i18n-en>Channel where the bot automatically announces each event's creation, start, and end.</span></p>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="megaphone"></i></div>
                         <select name="event_announce_channel" class="input-premium-field">
@@ -150,7 +150,7 @@
                     </div>
                 <% } %>
 
-                <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
             </section>
         </form>
 
