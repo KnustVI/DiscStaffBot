@@ -62,27 +62,34 @@
 
         .guild-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
-        /* Tile da grade "DASHBOARD DO SEU SERVIDOR" (Figma Frame 11934,
-           pedido do dono 2026-08-06) — servidor real usa a moldura CSS
-           (border/box-shadow/border-radius, mesma família "USER/SERVER
-           Icon" já usada no resto do site); tile de preenchimento
-           (.is-filler, ver partials/dino-icon.ejs) NÃO leva moldura CSS
-           própria — o SVG do dinossauro já desenha a dele (borda colorida
-           + sombra + recorte), duplicar aqui deixaria dobrado. */
+        /* Tile da grade "DASHBOARD" (Figma Frame 11934, pedido do dono
+           2026-08-06) — servidor real E preenchimento (.is-filler, ver
+           partials/dino-icon.ejs) usam a MESMA moldura CSS (border/
+           box-shadow/border-radius, família "USER/SERVER Icon" já usada
+           no resto do site). Bug encontrado pelo dono, 2026-08-06 ("ainda
+           está péssimo essa construção"): antes cada dino trazia a
+           própria moldura dentro do <svg> (herdada do export do Figma),
+           escalada junto com um monte de espaço morto ao redor só pra
+           sombra sangrar — ficava bem menor que o ícone de servidor real
+           (que preenche o tile inteiro) e desalinhado. Unificar a moldura
+           aqui fora (dino-icon.ejs manda só a arte, recortada pro
+           conteúdo de verdade) resolve os dois: tamanho igual E cor de
+           borda certa (só a cor muda por tile — real usa #3E3D38 fixo
+           daqui, dino recebe a cor certa via style inline, ver
+           PORTAL_DINO_BORDER_COLORS mais abaixo). */
         .portal-server-tile {
             display: flex;
             align-items: center;
             justify-content: center;
             aspect-ratio: 1 / 1;
             cursor: pointer;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-        .portal-server-tile:not(.is-filler) {
+            box-sizing: border-box;
             border-radius: 15px;
             border: 2px solid #3E3D38;
             background: #2A2A2A;
             box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
             overflow: hidden;
+            transition: transform 0.2s ease, border-color 0.2s ease;
         }
         .portal-server-tile:not(.is-filler):hover { border-color: #803E30; transform: scale(1.05); }
         .portal-server-tile.is-filler { pointer-events: none; }
@@ -492,6 +499,11 @@
                         // <style>) — servidor real usa border #3E3D38 e link
                         // pra /moderacao/:guildID, igual já era antes.
                         const PORTAL_DINO_VARIANTS = ['trike', 'rex', 'bronto', 'stego'];
+                        // Cor de borda por variante (Figma Frame 11934: Trike/
+                        // Bronto=#803E30, Rex/Stego=#4B2427) — agora aplicada
+                        // pelo .portal-server-tile de fora (ver comentário no
+                        // <style>), não mais desenhada dentro do <svg>.
+                        const PORTAL_DINO_BORDER_COLORS = { trike: '#803E30', rex: '#4B2427', bronto: '#803E30', stego: '#4B2427' };
                         const PORTAL_MIN_TILES = 6;
                         const portalFillerCount = Math.max(0, PORTAL_MIN_TILES - guilds.length);
                         function portalShuffledDinoDeck() {
@@ -527,7 +539,7 @@
                                 </a>
                             <% }); %>
                             <% portalFillerVariants.forEach((variant, i) => { %>
-                                <div class="portal-server-tile is-filler" aria-hidden="true">
+                                <div class="portal-server-tile is-filler" style="border-color: <%= PORTAL_DINO_BORDER_COLORS[variant] %>;" aria-hidden="true">
                                     <%- include('partials/dino-icon', { variant, instanceId: 'portalfill' + i }) %>
                                 </div>
                             <% }); %>
