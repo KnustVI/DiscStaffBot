@@ -40,15 +40,32 @@
         /* Estilos só desta página (mesmo padrão de dev-image-pool.ejs:
            componente usado numa página só não precisa entrar no
            style.css compartilhado). */
-        /* Camada de fundo personalizado — ver doc-comment completo junto
-           da div.perfil-page-bg no body mais abaixo. */
-        .perfil-page-bg {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
+        /* Fundo personalizado direto no <body> (pedido do dono, 2026-08-06:
+           "a imagem de plano de fundo de perfil deve cobrir a página
+           inteira abaixo dos cards" — a tentativa anterior usava uma
+           <div> própria position:fixed + z-index:-1 como camada
+           separada, mas não apareceu de verdade pro dono; setar direto
+           no <body> é mais robusto porque o fundo do <body>/<html> é
+           SEMPRE a camada mais baixa da página por definição da spec de
+           CSS — não depende de nenhuma regra de empilhamento (z-index)
+           entre <body> e os elementos normais dela por cima
+           (aside/main), então não tem como um deles "tampar" sem querer.
+           !important necessário pra vencer o `background-color: ...
+           !important` do style.css compartilhado (garante fundo escuro
+           padrão em todo o dashboard) — um !important só perde pra outro
+           !important de MAIOR especificidade, e um estilo inline
+           sempre tem mais especificidade que qualquer seletor de classe.
+           background-attachment:fixed (não computa contra a altura TOTAL
+           da página, que pode ser bem mais alta que a tela — computaria
+           contra isso e o cover ficaria bem mais "zoomado"/cortado do
+           que devia) — degrada bem no Safari iOS: na pior das hipóteses
+           vira scroll normal ali, não quebra nem some. */
+        body.perfil-has-bg {
+            background-image: url('<%= backgroundPreviewUrl %>') !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
         }
         /* align-items:flex-start (não mais center) — pedido do dono,
            2026-08-05: o selo de Hunt (canto superior direito) precisa
@@ -179,46 +196,22 @@
         .pf-tab-panel.is-hidden { display: none; }
     </style>
 </head>
-<body class="flex min-h-screen">
-
-    <%#
-        Fundo personalizado atrás dos cards, cobrindo a PÁGINA INTEIRA
-        (pedido do dono, 2026-08-06: "podemos colocar de fundo por trás
-        dos cards a imagem de fundo que ele tem personalizado no perfil?"
-        + "o fundo da página de perfil pode ocupar a página inteira?") —
-        MESMO backgroundPreviewUrl já calculado em dashboard.js pra aba
-        Personalização (linked Compy+ com um plano de fundo escolhido/
-        enviado); null pra quem não tem Compy+ ou não personalizou nada,
-        aí esta div nem renderiza e a página continua igual a antes
-        (fundo escuro padrão do <body>, ver style.css).
-
-        Camada própria position:fixed (não background no <body> nem no
-        <main>) — o <body> tem um `background-color: ... !important` no
-        style.css compartilhado (garante fundo escuro em toda página do
-        dashboard) que bloquearia qualquer coisa setada ali; um background
-        só no <main> cobriria apenas a área ao lado da sidebar, não a
-        página inteira. fixed+inset:0 cobre o viewport INTEIRO (atrás da
-        sidebar inclusive — ela é opaca, continua por cima normalmente) e
-        continua cobrindo mesmo se a página rolar (o <body> é quem rola
-        aqui, não o <main>, ver comentário de sempre "Sem overflow-y-auto"
-        abaixo). z-index:-1 garante que fique ATRÁS de tudo sem precisar
-        dar z-index em cada elemento normal da página (eles já pintam por
-        cima de um irmão com z-index negativo, é assim que a pilha de
-        empilhamento funciona).
-
-        Sem overlay escuro por cima da imagem: os cards (.titan-card-premium)
-        já são OPACOS (gradiente sólido, sem transparência), então o texto
-        dentro deles nunca fica sobre a imagem — ela só aparece nos vãos
-        entre os cards (gap-[20px]/[30px]) e na margem ao redor do H1
-        "Bem vindo de volta", que ganhou um text-shadow defensivo lá embaixo
-        pra continuar legível em qualquer imagem.
-    %>
-    <% if (backgroundPreviewUrl) { %>
-        <div class="perfil-page-bg" style="background-image: url('<%= backgroundPreviewUrl %>');" aria-hidden="true"></div>
-    <% } %>
+<%#
+    Fundo personalizado atrás dos cards, cobrindo a PÁGINA INTEIRA (pedido
+    do dono, 2026-08-06: "podemos colocar de fundo por trás dos cards a
+    imagem de fundo que ele tem personalizado no perfil?" + "a imagem de
+    plano de fundo de perfil deve cobrir a página inteira abaixo dos
+    cards") — MESMO backgroundPreviewUrl já calculado em dashboard.js pra
+    aba Personalização; null pra quem não tem Compy+ ou não personalizou
+    nada, aí a classe abaixo nem entra e a página continua igual a antes.
+    Classe .perfil-has-bg (ver <style> no <head>) em vez de checar
+    backgroundPreviewUrl de novo lá dentro — mantém a lógica condicional
+    só aqui.
+%>
+<body class="flex min-h-screen<%= backgroundPreviewUrl ? ' perfil-has-bg' : '' %>">
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
-        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true, defaultCollapsed: true }) %>
+        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>
     </aside>
 
     <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards perto da sidebar). %>

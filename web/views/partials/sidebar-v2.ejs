@@ -33,19 +33,9 @@
       role: Administrador ,     // texto livre mostrado no badge abaixo do nome
       nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
       restricted: true,         // OPCIONAL (pedido do dono, 2026-08-05) — troca os 7 itens padrão
-                                 // por só Premium/Ajuda/Suas Denúncias. Usado em perfil.ejs: nem todo
-                                 // usuário logado é admin de servidor, então Moderação/Eventos/Denúncias
-                                 // (todos guild-scoped) não fazem sentido nessa página global.
-      defaultCollapsed: true,   // OPCIONAL (pedido do dono, 2026-08-06) — "sidebar da página de
-                                 // perfil sempre fechada, mas com o botão de expandir" — ignora
-                                 // (nesta carga de página) a preferência salva em
-                                 // localStorage.tpSidebarCollapsed e sempre nasce colapsada; o botão
-                                 // de recolher/expandir continua funcionando normalmente pro resto
-                                 // da visita, só não GRAVA a escolha de volta no localStorage
-                                 // compartilhado (senão expandir aqui uma vez colapsaria a sidebar
-                                 // pra sempre nas outras páginas, ou vice-versa). Usado só em
-                                 // perfil.ejs — as outras páginas continuam com o comportamento de
-                                 // sempre (lembra a última escolha do usuário via localStorage).
+                                 // por só Premium/Ajuda/Suas Denúncias/Sair. Usado em perfil.ejs: nem
+                                 // todo usuário logado é admin de servidor, então Moderação/Eventos/
+                                 // Denúncias (todos guild-scoped) não fazem sentido nessa página global.
     } )
 
   O export do Figma não trazia o TEXTO real de cada botão (só largura do
@@ -58,7 +48,6 @@
 <%
     const sbGuild = typeof guild !== 'undefined' ? guild : null;
     const guildHref = (path) => sbGuild ? `/${path}/${sbGuild.id}` : '#';
-    const sbDefaultCollapsed = typeof defaultCollapsed !== 'undefined' && defaultCollapsed;
     // Configurações e Reputação removidos por hora (pedido do dono,
     // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
     // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
@@ -75,6 +64,9 @@
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
         { key: 'minhas-denuncias', labelPt: 'Suas Denúncias', labelEn: 'Your Reports', icon: 'message-square-warning', href: '/perfil/denuncias' },
+        // Faltava (pedido do dono, 2026-08-06) — a variante restrita nunca
+        // teve como sair sem editar a URL na mão.
+        { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ] : [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         { key: 'moderacao', labelPt: 'Moderação', labelEn: 'Moderation', icon: 'shield-user', href: guildHref('moderacao') },
@@ -114,19 +106,12 @@
     // passam esse parâmetro — cai no default false abaixo).
     const sbShowAvatarHint = typeof showAvatarHint !== 'undefined' && showAvatarHint;
 %>
-<aside class="tp-sidebar" id="tpSidebar" data-collapsed="<%= sbDefaultCollapsed ? 'true' : 'false' %>" <%- sbDefaultCollapsed ? 'data-force-default="true"' : '' %>>
+<aside class="tp-sidebar" id="tpSidebar" data-collapsed="false">
     <div class="tp-sidebar-inner">
         <div class="tp-sidebar-top">
             <div class="tp-sidebar-logo">
                 <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass">
             </div>
-            <button type="button" class="tp-sidebar-toggle" id="tpSidebarToggle" aria-label="Recolher/expandir menu" aria-expanded="true">
-                <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
-                <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
-            </button>
-        </div>
-
-        <nav class="tp-sidebar-nav">
             <%#
                 Botão de idioma (pedido do dono, 2026-08-06) — mesmo
                 redesign de bandeiras sobrepostas já usado no site (ver
@@ -134,18 +119,25 @@
                 dashboard. html[data-lang] e a persistência em
                 localStorage.titanspass_lang são as MESMAS do site — troca
                 o idioma aqui e ele já vem trocado se a pessoa visitar a
-                home depois (e vice-versa). Movido pro TOPO da lista de
-                navegação (pedido do dono, 2026-08-06: "de todas as
-                sidebars, coloque o botão de troca de idioma no topo da
-                lista de botões") — antes ficava em .tp-sidebar-top junto
-                do logo/toggle de recolher; continua funcionando igual
-                colapsada (o CSS dele não depende de estar dentro de
-                .tp-sidebar-top, só do próprio .lang-toggle).
+                home depois (e vice-versa). ACIMA do botão de recolher/
+                expandir (pedido do dono, 2026-08-06: "botão de idioma
+                deve ficar acima do botão de estender e recolher sidebar"
+                — havia sido movido pra dentro de .tp-sidebar-nav antes,
+                desfeito). Tamanho igual expandida/colapsada — sem
+                scale() (pedido do dono: "não deveria ter alterado o
+                tamanho do botão de idioma").
             %>
             <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
                 <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
                 <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
             </button>
+            <button type="button" class="tp-sidebar-toggle" id="tpSidebarToggle" aria-label="Recolher/expandir menu" aria-expanded="true">
+                <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
+                <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
+            </button>
+        </div>
+
+        <nav class="tp-sidebar-nav">
             <% NAV_ITEMS.forEach(item => { %>
                 <a href="<%= item.href %>"
                    class="tp-sidebar-btn<%= item.key === activeKey ? ' active' : '' %><%= item.accent ? ' accent' : '' %>"
@@ -273,6 +265,13 @@
     .tp-sidebar-logo { display: flex; justify-content: center; padding: 9px 0; width: 100%; }
     .tp-sidebar-logo img { width: 100%; max-width: 229px; height: auto; }
 
+    /* Tamanho fixo (pedido do dono, 2026-08-06: "botão de recolher e
+       estender sidebar deve sempre ter o mesmo tamanho em ambas
+       visualizações") — de propósito SEM um --tp-collapsed-btn override
+       pra este botão nos 3 gatilhos de colapso (data-collapsed="true",
+       :not([data-user-set]) responsivo, @container tpsidebar), ao
+       contrário de .tp-sidebar-btn/.tp-sidebar-avatar/etc., que continuam
+       encolhendo normalmente. */
     .tp-sidebar-toggle {
         box-sizing: border-box;
         display: flex;
@@ -332,12 +331,6 @@
     .lang-toggle-flag-en { left: 18px; z-index: 1; }
     html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
     html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
-    /* Colapsada, o botão de idioma agora sentado no topo da lista de
-       navegação (ver mudança acima) ficaria maior que os ícones-só
-       quadrados abaixo dele (--tp-collapsed-btn) — scale encolhe as duas
-       bandeiras JUNTAS (incl. posição relativa entre elas) sem precisar
-       recalcular cada left/width à mão. */
-    .tp-sidebar[data-collapsed="true"] .lang-toggle { transform: scale(0.75); }
 
     /* ==================== NAVEGAÇÃO ==================== */
     .tp-sidebar-nav {
@@ -496,7 +489,6 @@
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
     .tp-sidebar[data-collapsed="true"] .tp-icon-expanded { display: none; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-collapsed { display: block; }
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-toggle { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-nav { gap: 10px; padding: 0; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-label { display: none; }
@@ -525,14 +517,12 @@
         .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
         .tp-sidebar:not([data-user-set]) .tp-icon-expanded { display: none; }
         .tp-sidebar:not([data-user-set]) .tp-icon-collapsed { display: block; }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-toggle { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-nav { gap: 10px; padding: 0; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-label { display: none; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-profile { flex-direction: column; gap: 10px; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-profile-info { display: none; }
-        .tp-sidebar:not([data-user-set]) .lang-toggle { transform: scale(0.75); }
     }
 
     /* Mais um degrau, só pra celular pequeno (pedido do dono: "mais
@@ -576,14 +566,12 @@
         .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
         .tp-icon-expanded { display: none; }
         .tp-icon-collapsed { display: block; }
-        .tp-sidebar-toggle { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); }
         .tp-sidebar-nav { gap: 10px; padding: 0; }
         .tp-sidebar-btn { width: var(--tp-collapsed-btn); height: var(--tp-collapsed-btn); padding: 10px; gap: 0; }
         .tp-sidebar-label { display: none; }
         .tp-sidebar-profile { flex-direction: column; gap: 10px; }
         .tp-sidebar-avatar { width: var(--tp-collapsed-avatar); height: var(--tp-collapsed-avatar); }
         .tp-sidebar-profile-info { display: none; }
-        .lang-toggle { transform: scale(0.75); }
     }
 </style>
 
@@ -596,15 +584,6 @@
         var toggle = document.getElementById('tpSidebarToggle');
         if (!sidebar || !toggle) return;
 
-        // Sempre-colapsada nesta página (pedido do dono, 2026-08-06 — ver
-        // parâmetro defaultCollapsed no topo do arquivo) — ignora a
-        // preferência salva do localStorage NO CARREGAMENTO (já nasce
-        // colapsada, ver data-collapsed="true" no <aside> acima) e não
-        // GRAVA de volta nele quando o usuário clica no toggle, pra essa
-        // página não "vazar" a escolha pras outras nem herdar a escolha
-        // delas — cada carregamento de /perfil volta a nascer fechada.
-        var forceDefault = sidebar.hasAttribute('data-force-default');
-
         function applyState(collapsed) {
             sidebar.setAttribute('data-collapsed', collapsed ? 'true' : 'false');
             toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
@@ -614,7 +593,7 @@
         // prioridade sobre o padrão responsivo por tamanho de tela —
         // [data-user-set] desliga a media query em CSS assim que existe
         // uma escolha explícita, pra não brigar uma com a outra.
-        var stored = forceDefault ? null : localStorage.getItem('tpSidebarCollapsed');
+        var stored = localStorage.getItem('tpSidebarCollapsed');
         if (stored !== null) {
             sidebar.setAttribute('data-user-set', '');
             applyState(stored === 'true');
@@ -624,7 +603,7 @@
             var next = sidebar.getAttribute('data-collapsed') !== 'true';
             sidebar.setAttribute('data-user-set', '');
             applyState(next);
-            if (!forceDefault) localStorage.setItem('tpSidebarCollapsed', String(next));
+            localStorage.setItem('tpSidebarCollapsed', String(next));
         });
 
         if (window.lucide) window.lucide.createIcons();
