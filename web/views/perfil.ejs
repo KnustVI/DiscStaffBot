@@ -168,7 +168,27 @@
     </aside>
 
     <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards perto da sidebar). %>
-    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
+    <%#
+        Fundo personalizado atrás dos cards (pedido do dono, 2026-08-06:
+        "podemos colocar de fundo por trás dos cards a imagem de fundo
+        que ele tem personalizado no perfil?") — MESMO backgroundPreviewUrl
+        já calculado em dashboard.js pra aba Personalização (linked Compy+
+        com um plano de fundo escolhido/enviado); null pra quem não tem
+        Compy+ ou não personalizou nada, aí o <main> fica sem o style
+        abaixo e a página continua igual a antes (fundo escuro padrão do
+        <body>, ver style.css). Vai no <main>, não no <body> — o <body>
+        tem um `background-color: ... !important` no style.css
+        compartilhado (garante fundo escuro em toda página do dashboard),
+        que bloquearia qualquer coisa que a gente tentasse setar ali.
+        Sem overlay escuro por cima da imagem: os cards (.titan-card-premium)
+        já são OPACOS (gradiente sólido, sem transparência), então o texto
+        dentro deles nunca fica sobre a imagem — ela só aparece nos vãos
+        entre os cards (gap-[20px]/[30px]) e na margem ao redor do H1
+        "Bem vindo de volta", que já tem texto claro (#F8DCC0) sobre fundo
+        sempre escuro nessa família de imagens.
+    %>
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]"
+          <% if (backgroundPreviewUrl) { %>style="background: url('<%= backgroundPreviewUrl %>') center/cover no-repeat;"<% } %>>
 
         <%
             // Sem partials/page-header aqui (pedido do dono, 2026-08-05:
@@ -192,7 +212,8 @@
             sido removido daqui por ser redundante com o perfil-hero logo
             abaixo.
         %>
-        <h1 class="section-title text-2xl"><span data-i18n-pt>Bem vindo de volta,</span><span data-i18n-en>Welcome back,</span> <%= nickname %></h1>
+        <%# text-shadow (só aqui, não no resto de .section-title) — este H1 é o único texto da página que pode ficar direto sobre o plano de fundo personalizado (ver style condicional no <main> acima), sem um .titan-card-premium opaco por baixo. %>
+        <h1 class="section-title text-2xl" style="text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6), -2px -2px 6px rgba(0, 0, 0, 0.5);"><span data-i18n-pt>Bem vindo de volta,</span><span data-i18n-en>Welcome back,</span> <%= nickname %></h1>
 
         <%- include('partials/save-result-overlay', { saved }) %>
 
