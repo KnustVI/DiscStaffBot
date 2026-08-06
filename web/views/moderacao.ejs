@@ -24,7 +24,7 @@
         }
     </script>
 </head>
-<body class="flex min-h-screen">
+<body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
         <%- include('partials/sidebar-v2', { active: 'moderacao', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false, showAvatarHint: typeof showAvatarHint !== 'undefined' ? showAvatarHint : false }) %>
@@ -53,6 +53,8 @@
         <%- include('partials/page-header', { guild, pageLabel: 'MODERAÇÃO', pageLabelEn: 'MODERATION', pageRoute, otherGuilds }) %>
 
         <%- include('partials/save-result-overlay', { saved }) %>
+
+        <%- include('partials/view-only-banner', { isAdmin, role }) %>
 
         <!-- ALERTA (mesmo visual outline-chip da lista de staff, pedido do dono) -->
         <section class="flex flex-col gap-3">
@@ -534,6 +536,7 @@
     <script src="/js/ingame-pulse-poll.js"></script>
     <script src="/js/poll-fragment.js"></script>
     <script src="/js/role-picker.js"></script>
+    <script src="/js/dashboard-view-only-lock.js"></script>
     <%# confirm() nativo não suporta data-i18n (é texto de JS, não HTML) —
         checa data-lang no <html> (mesma fonte que o toggle de bandeiras em
         sidebar-v2.ejs já mantém sincronizada) na hora do clique. %>

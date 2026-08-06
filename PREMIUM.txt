@@ -5055,3 +5055,76 @@ frente, nao so este relatorio):
 - Falta rodar `node deploy.js` (ou reiniciar o bot com
   `DEPLOY_COMMANDS=true`) pra registrar o comando novo no Discord — não
   aparece pra ninguém até isso acontecer.
+
+114) Cargos de equipe (Moderador/Supervisor/Equipe de Eventos) ganham
+     acesso de VISUALIZAÇÃO ao dashboard web — só Administrator edita
+------------------------------------------------------------------
+- Pedido do dono: "Hoje só o cargo administrador tem acesso ao
+  dashboard?... vamos modificar. ele pode acessar e editar
+  configurações. Mas cargos adicionados em permissões de equipes podem
+  visualizar todo o dashboard. Quem entrar sem administrador, na barra de
+  perfil em sidebar, colocar o nome do maior cargo dele no discord." Até
+  aqui, `dashboard.js` `resolveAdminMember` só checava `Administrator` —
+  qualquer staff sem essa permissão do Discord (Moderador/Supervisor/
+  Equipe de Eventos configurados em `/config roles`) era barrado das
+  páginas de Moderação/Reports/Eventos, mesmo tendo acesso normal a esses
+  comandos dentro do próprio Discord.
+- `resolveAdminMember` ganhou `isStaff` (`isAdmin ||
+  ConfigSystem.memberHasAnyStaffRole(guild.id, member)`) — reaproveita os
+  MESMOS 3 cargos (`STAFF_ROLE_KEYS`: staff_role/supervisor_role/
+  event_role) já usados em toda checagem de "é staff" do bot (purge de
+  analytics, resolução de "maior cargo" nos logs, etc.). `event_notify_role`
+  fica de fora de propósito (é só um cargo de avisos, mesmo critério já
+  documentado em `STAFF_ROLE_KEYS`).
+- Rotas de VISUALIZAÇÃO (GET `/moderacao/:guildID`, `/reports/:guildID`,
+  `/events/:guildID` e os 2 fragments de poll em tempo real) passaram a
+  checar `isStaff` em vez de `isAdmin`. Todas as rotas de EDIÇÃO (POST
+  `/save` de cada página, criação/edição/exclusão de níveis de punição,
+  reset de reputação) continuam exigindo `isAdmin` — nenhuma mudança
+  nelas, é aí que a separação "visualiza vs. edita" realmente acontece.
+- `getAdminGuildsWithBot` (lista de servidores do seletor no
+  page-header.ejs e da grade do Portal) precisou virar `async`: o
+  bitfield de `permissions` que o OAuth2 do Discord devolve em
+  `req.user.guilds` só tem PERMISSÕES gerais, não diz nada sobre CARGO
+  nenhum — descobrir se o usuário tem um dos 3 cargos de equipe exige
+  buscar o `GuildMember` de verdade. Custo controlado: só busca pros
+  servidores onde o bot roda (`client.guilds.cache`) E que o próprio
+  Discord já confirma que o usuário está (`req.user.guilds`), nunca todo
+  servidor do Discord do usuário. As 6 chamadas existentes ganharam
+  `await`.
+- "Nome do maior cargo dele no Discord" pra quem não é Administrador:
+  reaproveita `highestStaffRoleName(guildId, member)` (já existia, mesma
+  função usada em `getServerPulse`/rótulos de reports) — pega, entre os
+  mesmos 3 cargos de equipe, o de MAIOR posição no servidor. Administrator
+  continua vendo sempre "Administrador" fixo na sidebar, sem mudança.
+- `partials/view-only-banner.ejs` (novo) — aviso "Modo visualização" no
+  topo das 3 páginas, só pra quem não é Administrator, dizendo qual cargo
+  está sendo usado pra acessar. `public/js/dashboard-view-only-lock.js`
+  (novo, compartilhado pelas 3 páginas) desabilita de verdade (`disabled
+  = true`, não só CSS) todo campo dentro de `form[method="POST"]` quando
+  `<body data-view-only="true">` — alvo é especificamente `method="POST"`
+  porque é a convenção de sempre destas páginas pra "isto grava algo"
+  (busca/paginação usam `method="GET"`, ver `partials/reports-list.ejs`),
+  então a busca de reports continua funcionando normalmente pra quem só
+  visualiza. O bloqueio de VERDADE continua sendo no servidor (rotas POST
+  seguem exigindo `isAdmin`) — o JS/CSS é só a pista visual pra ninguém
+  preencher um formulário achando que vai conseguir salvar.
+- Bug pego durante a implementação: o atributo `data-view-only="true"` no
+  `<body>` foi escrito primeiro com `<%= %>` (saída com escape de HTML do
+  EJS) em vez de `<%- %>` (saída crua) — as aspas duplas viravam
+  `&#34;`, quebrando o atributo (`data-view-only=&#34;true&#34;` em vez
+  de `data-view-only="true"`), então o CSS/JS do modo visualização nunca
+  disparava apesar do banner aparecer certinho. Pego pelo próprio teste
+  de `ejs.renderFile()` (checagem teria passado sem procurar a string
+  exata `data-view-only="true"` no HTML gerado) e corrigido nos 3
+  arquivos antes de commitar.
+- Verificado com `node --check` em `dashboard.js` e `ejs.renderFile()`
+  nas 3 páginas (moderacao/reports/events) em 2 cenários cada
+  (Administrador: sem banner, sem atributo; Staff/Moderador: com banner,
+  com atributo, nome do cargo aparecendo certo) — mais um teste direto de
+  `ConfigSystem.memberHasAnyStaffRole` com membros fake confirmando que
+  staff_role/supervisor_role/event_role concedem acesso e
+  event_notify_role sozinho NÃO concede (comportamento esperado). Sem
+  servidor Discord real aqui, então o fluxo completo (login de um staff
+  de verdade, cargo resolvido ao vivo) precisa de teste manual em
+  produção antes de confiar 100%.

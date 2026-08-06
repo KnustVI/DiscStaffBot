@@ -562,17 +562,37 @@ function loadDashboard(client) {
         res.redirect('/dashboard');
     }
 
-    // Servidores que o usuário administra E onde o bot já está — mesmo
-    // filtro usado em /dashboard (ver rota abaixo), reaproveitado pelo
-    // seletor de servidor no ícone do page-header (troca de servidor sem
-    // precisar voltar pro /dashboard) nas páginas de Moderação/Reports/
-    // Eventos.
-    function getAdminGuildsWithBot(req) {
+    // Servidores que o usuário pode ACESSAR (Administrador OU algum cargo de
+    // equipe configurado, ver ConfigSystem.memberHasAnyStaffRole/isStaff em
+    // resolveAdminMember) E onde o bot já está — mesmo filtro usado em
+    // /dashboard (ver rota abaixo), reaproveitado pelo seletor de servidor
+    // no ícone do page-header (troca de servidor sem precisar voltar pro
+    // /dashboard) nas páginas de Moderação/Reports/Eventos.
+    //
+    // Precisou virar async (pedido do dono, 2026-08-06): o bitfield de
+    // `permissions` que o OAuth2 do Discord devolve em req.user.guilds só
+    // tem PERMISSÕES gerais do usuário, não diz nada sobre CARGO nenhum —
+    // pra saber se ele tem um dos 3 cargos de equipe configurados
+    // (staff_role/supervisor_role/event_role) é preciso buscar o
+    // GuildMember de verdade. Custo fica baixo na prática: só busca pros
+    // poucos servidores onde o bot roda (client.guilds.cache) E que o
+    // próprio Discord já confirma que o usuário está (req.user.guilds),
+    // nunca todo servidor do Discord do usuário.
+    async function getAdminGuildsWithBot(req) {
         if (!req.user || !req.user.guilds) return [];
-        return req.user.guilds.filter(g =>
-            (parseInt(g.permissions) & 0x8) === 0x8 && // Permissão de ADMINISTRADOR
-            client.guilds.cache.has(g.id) // bot precisa estar no servidor
-        );
+        const userGuildIds = new Set(req.user.guilds.map(g => g.id));
+        const candidates = [...client.guilds.cache.values()].filter(g => userGuildIds.has(g.id));
+
+        const resolved = await Promise.all(candidates.map(async (guild) => {
+            try {
+                const member = await guild.members.fetch(req.user.id);
+                const hasAccess = member.permissions.has('Administrator') || ConfigSystem.memberHasAnyStaffRole(guild.id, member);
+                return hasAccess ? { id: guild.id, name: guild.name, icon: guild.icon } : null;
+            } catch (err) {
+                return null;
+            }
+        }));
+        return resolved.filter(Boolean);
     }
 
     // Ver DASHBOARD_LOCKED_TO_OWNER no topo do arquivo — chamado logo após
@@ -595,12 +615,23 @@ function loadDashboard(client) {
     // no log do servidor). Cada rota decide sozinha a resposta em cima de
     // apiError (mensagem diferente de "acesso negado"), mas todas passam a
     // logar o erro de verdade em vez de engolir com .catch(() => null).
+    //
+    // isStaff (pedido do dono, 2026-08-06: "cargos adicionados em permissões
+    // de equipes podem visualizar todo o dashboard") — Moderador/Supervisor/
+    // Equipe de Eventos (ConfigSystem.STAFF_ROLE_KEYS, os mesmos 3 cargos já
+    // usados em toda checagem de "é staff" do bot, ver highestStaffRoleName
+    // acima) ganham acesso de VISUALIZAÇÃO ao dashboard deste servidor.
+    // Administrator continua sendo quem EDITA — rotas de GET/fragments
+    // passam a checar isStaff, rotas de POST (salvar configuração) seguem
+    // checando isAdmin, sem nenhuma mudança nelas.
     async function resolveAdminMember(guild, userId) {
         try {
             const member = await guild.members.fetch(userId);
-            return { member, isAdmin: member.permissions.has('Administrator'), apiError: null };
+            const isAdmin = member.permissions.has('Administrator');
+            const isStaff = isAdmin || ConfigSystem.memberHasAnyStaffRole(guild.id, member);
+            return { member, isAdmin, isStaff, apiError: null };
         } catch (apiError) {
-            return { member: null, isAdmin: false, apiError };
+            return { member: null, isAdmin: false, isStaff: false, apiError };
         }
     }
 
@@ -1030,7 +1061,7 @@ function loadDashboard(client) {
             backgroundPreviewUrl = await resolvePlayerImageUrl('background', link.selected_background_key, isRaptor ? link.background_message_id : null);
         }
 
-        const otherGuilds = getAdminGuildsWithBot(req);
+        const otherGuilds = await getAdminGuildsWithBot(req);
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
@@ -1070,7 +1101,7 @@ function loadDashboard(client) {
             nickname: req.user.global_name || req.user.username,
             role: 'Membro',
             isOwner: isOwnerSession(req),
-            otherGuilds: getAdminGuildsWithBot(req),
+            otherGuilds: await getAdminGuildsWithBot(req),
             openReports,
             openPagination,
             closedReports,
@@ -1172,7 +1203,7 @@ function loadDashboard(client) {
             return res.render('portal', { guilds: [], locked, profileCard: null });
         }
 
-        const guilds = getAdminGuildsWithBot(req);
+        const guilds = await getAdminGuildsWithBot(req);
 
         // Card de perfil — a MESMA imagem PNG que o /perfil gera no
         // Discord (ver playerRegistrationSystem.sendProfile), reaproveitando
@@ -1229,12 +1260,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('');
-        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        const { isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
         if (apiError) {
             console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
             return res.status(503).send('');
         }
-        if (!isAdmin) return res.status(403).send('');
+        if (!isStaff) return res.status(403).send('');
 
         const pulse = await getServerPulse(guildID, guild);
         res.render('partials/ingame-pulse', {
@@ -1250,12 +1281,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.status(404).send('');
-        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        const { isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
         if (apiError) {
             console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
             return res.status(503).send('');
         }
-        if (!isAdmin) return res.status(403).send('');
+        if (!isStaff) return res.status(403).send('');
 
         const state = parseReportsQueryState(req.query);
         const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, state);
@@ -1268,12 +1299,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        const { member, isAdmin, isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
         if (apiError) {
             console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
             return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
         }
-        if (!isAdmin) return res.redirect('/dashboard');
+        if (!isStaff) return res.redirect('/dashboard');
 
         // Animação de indicação no avatar da sidebar (pedido do dono,
         // 2026-08-06: só nos 3 primeiros acessos ao dashboard, mostrando que
@@ -1343,13 +1374,25 @@ function loadDashboard(client) {
             ? partnerNews.updatedAt + 7 * 24 * 60 * 60 * 1000
             : null;
 
+        // Pedido do dono, 2026-08-06: "quem entrar sem administrador, na
+        // barra de perfil em sidebar, colocar o nome do maior cargo dele no
+        // discord" — Administrador continua fixo em "Administrador"; quem
+        // entrou só por ter um cargo de equipe (isStaff, ver
+        // resolveAdminMember) vê o nome do próprio cargo mais alto entre os
+        // 3 configurados (highestStaffRoleName, mesma fonte de verdade já
+        // usada em getServerPulse/reports). isAdmin também vai pro template
+        // pra travar visualmente os formulários de edição (ver
+        // partials/view-only-banner e public/js/dashboard-view-only-lock.js).
+        const role = isAdmin ? 'Administrador' : (highestStaffRoleName(guildID, member) || 'Staff');
+
         res.render('moderacao', {
             guild,
             nickname: member.nickname || member.user.username,
-            role: 'Administrador',
+            role,
+            isAdmin,
             isOwner: isOwnerSession(req),
             pageRoute: 'moderacao',
-            otherGuilds: getAdminGuildsWithBot(req),
+            otherGuilds: await getAdminGuildsWithBot(req),
             showAvatarHint,
             pulse,
             staffRoleIds,
@@ -1655,12 +1698,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        const { member, isAdmin, isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
         if (apiError) {
             console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
             return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
         }
-        if (!isAdmin) return res.redirect('/dashboard');
+        if (!isStaff) return res.redirect('/dashboard');
 
         // Animação de indicação no avatar da sidebar — ver mesmo comentário
         // completo em GET /moderacao/:guildID.
@@ -1692,13 +1735,18 @@ function loadDashboard(client) {
         // escolher da galeria) — null se não houver upload ativo.
         const reportChatCustomBannerUrl = await CustomBannerResolver.resolveBannerUrl(client, guildID, 'reportchat');
 
+        // "Maior cargo dele no Discord" pra quem não é Administrador — ver
+        // comentário completo em GET /moderacao/:guildID.
+        const role = isAdmin ? 'Administrador' : (highestStaffRoleName(guildID, member) || 'Staff');
+
         res.render('reports', {
             guild,
             nickname: member.nickname || member.user.username,
-            role: 'Administrador',
+            role,
+            isAdmin,
             isOwner: isOwnerSession(req),
             pageRoute: 'reports',
-            otherGuilds: getAdminGuildsWithBot(req),
+            otherGuilds: await getAdminGuildsWithBot(req),
             showAvatarHint,
             pulse,
             openReports,
@@ -1780,12 +1828,12 @@ function loadDashboard(client) {
         const { guildID } = req.params;
         const guild = client.guilds.cache.get(guildID);
         if (!guild) return res.redirect('/dashboard');
-        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        const { member, isAdmin, isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
         if (apiError) {
             console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
             return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
         }
-        if (!isAdmin) return res.redirect('/dashboard');
+        if (!isStaff) return res.redirect('/dashboard');
 
         // Animação de indicação no avatar da sidebar — ver mesmo comentário
         // completo em GET /moderacao/:guildID.
@@ -1819,13 +1867,18 @@ function loadDashboard(client) {
             eventNotify: PremiumSystem.getRoleLimit(guildID, 'eventNotify'),
         };
 
+        // "Maior cargo dele no Discord" pra quem não é Administrador — ver
+        // comentário completo em GET /moderacao/:guildID.
+        const role = isAdmin ? 'Administrador' : (highestStaffRoleName(guildID, member) || 'Staff');
+
         res.render('events', {
             guild,
             nickname: member.nickname || member.user.username,
-            role: 'Administrador',
+            role,
+            isAdmin,
             isOwner: isOwnerSession(req),
             pageRoute: 'events',
-            otherGuilds: getAdminGuildsWithBot(req),
+            otherGuilds: await getAdminGuildsWithBot(req),
             showAvatarHint,
             pulse,
             happeningNow,

@@ -871,6 +871,15 @@ summary.btn-chip::marker { content: ''; }
 
 .outline-chip.is-lg .outline-chip-subtitle { font-size: clamp(12px, 1.4vw, 15px); opacity: 1; }
 
+/* Modo visualização (pedido do dono, 2026-08-06: cargo de equipe sem
+   Administrator só visualiza, não edita) — atenuação visual dos
+   formulários de EDIÇÃO enquanto public/js/dashboard-view-only-lock.js
+   marca os campos como disabled de verdade. form[method="POST"] é a
+   convenção de sempre pra "isto grava algo" nestas páginas (busca/
+   paginação usam method="GET", ver partials/reports-list.ejs), então
+   nunca esmaece uma busca por engano. */
+body[data-view-only="true"] form[method="POST"] { opacity: 0.6; }
+
 /* ===================== LISTA DE DENÚNCIAS (partials/reports-list.ejs) =====================
    Movida de reports.ejs pro style.css compartilhado (2026-08-05) — a
    partial passou a ser reaproveitada por uma segunda página

@@ -48,7 +48,7 @@
         }
     </style>
 </head>
-<body class="flex min-h-screen">
+<body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
         <%- include('partials/sidebar-v2', { active: 'eventos', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false, showAvatarHint: typeof showAvatarHint !== 'undefined' ? showAvatarHint : false }) %>
@@ -60,6 +60,8 @@
         <%- include('partials/page-header', { guild, pageLabel: 'EVENTOS', pageLabelEn: 'EVENTS', pageRoute, otherGuilds }) %>
 
         <%- include('partials/save-result-overlay', { saved }) %>
+
+        <%- include('partials/view-only-banner', { isAdmin, role }) %>
 
         <div id="ingamePulseRoot" data-guild-id="<%= guild.id %>" data-show-roster="true">
             <%- include('partials/ingame-pulse', { pulse }) %>
@@ -164,5 +166,6 @@
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script src="/js/ingame-pulse-poll.js"></script>
     <script src="/js/role-picker.js"></script>
+    <script src="/js/dashboard-view-only-lock.js"></script>
 </body>
 </html>

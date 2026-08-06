@@ -1,0 +1,31 @@
+<%#
+  web/views/partials/view-only-banner.ejs
+  Aviso de "modo visualização" (pedido do dono, 2026-08-06: "cargos
+  adicionados em permissões de equipes podem visualizar todo o
+  dashboard... [mas] ele pode acessar e editar configurações" só se refere
+  ao Administrador) — aparece pra quem entrou no dashboard SEM ser
+  Administrator, só por ter um dos 3 cargos de equipe configurados
+  (Moderador/Supervisor/Equipe de Eventos, ver ConfigSystem.
+  memberHasAnyStaffRole/isStaff em dashboard.js resolveAdminMember).
+  Mesmo visual outline-chip já usado nos alertas de moderacao.ejs — cor
+  neutra (sem is-bad), não é um erro, é só contexto.
+
+  Os formulários de edição da página continuam VISÍVEIS mas travados (ver
+  public/js/dashboard-view-only-lock.js, que desabilita todo
+  form[method="POST"] quando <body data-view-only="true">) — o bloqueio de
+  verdade é no servidor (rotas POST continuam exigindo isAdmin), isto aqui
+  é só a pista visual pra quem está vendo não tentar salvar achando que
+  vai funcionar.
+
+  Uso: include( partials/view-only-banner , { isAdmin, role } ) — role é
+  o mesmo nome de cargo já passado pra partials/sidebar-v2.
+%>
+<% if (typeof isAdmin !== 'undefined' && !isAdmin) { %>
+    <div class="outline-chip">
+        <i data-lucide="eye" class="outline-chip-icon"></i>
+        <div class="outline-chip-text">
+            <span class="outline-chip-headline"><span data-i18n-pt>Modo visualização</span><span data-i18n-en>View-only mode</span></span>
+            <span class="outline-chip-subtitle"><span data-i18n-pt>Você está vendo como</span><span data-i18n-en>You're viewing as</span> <%= role %> <span data-i18n-pt>— apenas Administradores podem editar configurações aqui.</span><span data-i18n-en>— only Administrators can edit settings here.</span></span>
+        </div>
+    </div>
+<% } %>
