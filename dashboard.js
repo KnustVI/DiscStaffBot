@@ -17,8 +17,6 @@ const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
-const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSystem');
-const { renderProfileCard } = require('./src/utils/profileCardRenderer');
 
 const app = express();
 
@@ -1117,50 +1115,38 @@ function loadDashboard(client) {
         // vê o aviso de "em desenvolvimento" no lugar do resto do Portal.
         const locked = DASHBOARD_LOCKED_TO_OWNER && req.user && req.user.id !== DEVELOPER_ID;
         if (!req.user || locked) {
-            return res.render('portal', { guilds: [], locked, profileCard: null });
+            return res.render('portal', { guilds: [], locked, profile: null });
         }
 
         const guilds = getAdminGuildsWithBot(req);
 
-        // Card de perfil — a MESMA imagem PNG que o /perfil gera no
-        // Discord (ver playerRegistrationSystem.sendProfile), reaproveitando
-        // renderProfileCard direto em vez de duplicar a lógica de
-        // moldura/foto/estrelas. _resolveCardPhotoBuffer/_resolveBackgroundBuffer
-        // são métodos de instância "privados" (convenção `_`, não enforced
-        // pelo JS) que só usam interaction.client e targetUser.fetch() — um
-        // objeto { client } no lugar da interaction de verdade funciona.
-        // Sem vínculo (ou falha no render), profileCard fica null e
-        // portal.ejs mostra a mensagem de "use /registrar" no lugar.
-        let profileCard = null;
+        // Card de perfil (pedido do dono, 2026-08-06: redesenho "Group 14"
+        // do Figma) — trocou de imagem PNG gerada por canvas
+        // (renderProfileCard, ver git blame) pra um card HTML/CSS de
+        // verdade com textura de fundo fixa do site + texto ao vivo, então
+        // só precisa dos dados crus (nada de photoBuffer/backgroundBuffer/
+        // canvas — mais barato que o card antigo). O PNG de renderProfileCard
+        // continua existindo pro /perfil do Discord (ver
+        // playerRegistrationSystem.sendProfile), só não é mais usado aqui.
+        // Sem vínculo, profile fica null e portal.ejs mostra a mensagem de
+        // "use /registrar" no lugar.
+        let profile = null;
         const player = PlayerRegistry.getPlayerByDiscordId(req.user.id);
         if (player) {
             try {
                 const targetUser = await client.users.fetch(req.user.id);
-                const playerTier = PremiumSystem.getPlayerTier(req.user.id);
-                const system = new PlayerRegistrationSystem(client);
-                const [photoBuffer, backgroundBuffer] = await Promise.all([
-                    system._resolveCardPhotoBuffer({ client }, targetUser, player, playerTier),
-                    system._resolveBackgroundBuffer({ client }, player, playerTier),
-                ]);
-                const cardBuffer = await renderProfileCard({
-                    tier: playerTier,
-                    photoBuffer,
-                    backgroundBuffer,
+                profile = {
                     nickname: player.player_name || targetUser.username,
                     alderonId: player.alderon_id,
                     discordUsername: targetUser.username,
-                    titleLabel: player.profile_title || 'Em breve (missões)',
-                    levelLabel: 'Nível 1',
-                    speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
                     honorStars: PunishmentSystem.getGlobalHonorStars(req.user.id),
-                });
-                profileCard = `data:image/png;base64,${cardBuffer.toString('base64')}`;
+                };
             } catch (error) {
-                console.error('❌ [Portal] Erro ao gerar card de perfil:', error);
+                console.error('❌ [Portal] Erro ao buscar dados do card de perfil:', error);
             }
         }
 
-        res.render('portal', { guilds, locked: false, profileCard });
+        res.render('portal', { guilds, locked: false, profile });
     });
 
     // ==================== FRAGMENTOS (atualização em tempo real) ====================

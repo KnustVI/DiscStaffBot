@@ -4,15 +4,26 @@
   logado, no lugar dos antigos botões separados DASHBOARD/PERFIL na nav.
   Renomeado de index.ejs (era a página em /dashboard, "Seleção de
   Servidores") — mesma rota GET /dashboard em dashboard.js, só o
-  res.render/conteúdo mudou. 3 colunas com separador vertical padrão:
-  card de perfil (mesma imagem PNG que o /perfil do Discord gera, ver
-  renderProfileCard), atalho pra /perfil completo ("Toca"), e escolha de
-  servidor (só pra quem administra algum, mesmo getAdminGuildsWithBot de
-  sempre). /perfil continua existindo do jeito que está, com a mesma
-  sidebar restrita — só deixou de ter link direto na nav do site.
+  res.render/conteúdo mudou. 2 colunas: card de perfil (atalho pra
+  /perfil completo, "Toca") e escolha de servidor (só pra quem administra
+  algum, mesmo getAdminGuildsWithBot de sempre). /perfil continua
+  existindo do jeito que está, com a mesma sidebar restrita — só deixou
+  de ter link direto na nav do site.
 
-  Uso: res.render('portal', { guilds, locked, profileCard }) — ver
-  dashboard.js GET /dashboard.
+  Card de perfil redesenhado (Figma "Group 14", pedido do dono
+  2026-08-06) — trocou de imagem PNG gerada por canvas (renderProfileCard)
+  pra HTML/CSS ao vivo (textura de fundo fixa + nome/Alderon ID/Discord
+  username como texto de verdade), ver dashboard.js GET /dashboard pra
+  como `profile` é montado.
+
+  Grade de servidores sempre com no mínimo 6 ícones (pedido do dono,
+  2026-08-06) — preenchida com ícones de dinossauro decorativos quando o
+  usuário administra menos de 6 servidores reais (ver partials/
+  dino-icon.ejs).
+
+  Uso: res.render('portal', { guilds, locked, profile }) — profile é
+  { nickname, alderonId, discordUsername, honorStars } ou null (sem
+  vínculo/não logado) — ver dashboard.js GET /dashboard.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -50,6 +61,31 @@
         html[data-lang="en"] [data-i18n-en] { display: initial; }
 
         .guild-icon-img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+
+        /* Tile da grade "DASHBOARD DO SEU SERVIDOR" (Figma Frame 11934,
+           pedido do dono 2026-08-06) — servidor real usa a moldura CSS
+           (border/box-shadow/border-radius, mesma família "USER/SERVER
+           Icon" já usada no resto do site); tile de preenchimento
+           (.is-filler, ver partials/dino-icon.ejs) NÃO leva moldura CSS
+           própria — o SVG do dinossauro já desenha a dele (borda colorida
+           + sombra + recorte), duplicar aqui deixaria dobrado. */
+        .portal-server-tile {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .portal-server-tile:not(.is-filler) {
+            border-radius: 15px;
+            border: 2px solid #3E3D38;
+            background: #2A2A2A;
+            box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
+            overflow: hidden;
+        }
+        .portal-server-tile:not(.is-filler):hover { border-color: #803E30; transform: scale(1.05); }
+        .portal-server-tile.is-filler { pointer-events: none; }
 
         /* Componente .btn-primary (Figma node 250-59) - mesma definicao de web/public/css/style.css,
            duplicada aqui pq esta pagina usa um <style> proprio em vez do stylesheet compartilhado. */
@@ -172,14 +208,85 @@
             text-transform: uppercase;
             color: #F8DCC0;
         }
-        /* Imagem do card de perfil é o link pra "Toca" (/perfil, pedido do
-           dono, 2026-08-06) — mesmo tipo de affordance de hover já usado
-           nos ícones de servidor da coluna ao lado (leve scale + borda
-           acesa). */
-        .portal-profile-link { display: inline-block; transition: transform 0.15s ease; }
-        .portal-profile-link:hover { transform: scale(1.02); }
-        .portal-profile-link img { display: block; transition: box-shadow 0.15s ease; }
-        .portal-profile-link:hover img { box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6), 0 0 0 2px #DCA15E; }
+        /* Card de perfil (Figma "Group 14", pedido do dono 2026-08-06) — o
+           card inteiro é o link pra "Toca" (/perfil), mesmo tipo de
+           affordance de hover já usado nos ícones de servidor da coluna
+           ao lado (leve scale + borda acesa). */
+        .portal-profile-link { display: inline-block; width: 100%; max-width: 452px; transition: transform 0.15s ease; }
+        .portal-profile-link:hover { transform: scale(1.015); }
+        .portal-profile-card { display: flex; flex-direction: column; width: 100%; }
+
+        /* Bloco de textura (Figma: "Profile avatar", 445x284, background:
+           url(fundo_site_variante_3.png)) — o dono ainda vai mandar o
+           arquivo real dessa textura (mesmo fluxo de quando mandou as
+           bandeiras); enquanto isso, um gradiente na mesma paleta do site
+           ocupa o lugar. Pra trocar depois: troca só a propriedade
+           `background` de .portal-profile-bg por
+           `background: url('/images/portal-profile-bg.webp') center/cover;`.
+           border-radius aproximado (14px, igual ao resto dos cards do
+           site) — o Figma não exportou raio/corte de canto pra este
+           bloco especificamente; se o dono quiser o canto cortado que
+           aparece no mock, precisa do valor exato (clip-path) ou de um
+           novo export. */
+        .portal-profile-bg {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 445 / 284;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #1F1D20 0%, #2A2A2A 35%, #4B2427 65%, #803E30 100%);
+            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+        }
+        .portal-profile-stars {
+            position: absolute;
+            left: 7%;
+            bottom: 5%;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        /* Estrela usa o mesmo glifo "★" já usado em perfil.ejs (Honra) —
+           o CSS do Figma só descreve o PREENCHIMENTO (gradiente dourado/
+           creme) de um badge, não o formato de estrela em si (isso vem de
+           uma máscara vetorial que "copiar CSS" não exporta, só SVG/path
+           — se o dono tiver o SVG da estrela, dá pra trocar por um ícone
+           exato igual foi feito com os dinossauros). */
+        .portal-profile-star {
+            font-size: clamp(18px, 2.6vw, 30px);
+            line-height: 1;
+            color: rgba(248, 220, 192, 0.25);
+        }
+        .portal-profile-star.is-filled {
+            color: #DCA15E;
+            text-shadow: 0 0 8px rgba(255, 226, 129, 0.5);
+        }
+
+        .portal-profile-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            gap: 6px;
+            padding: 14px 4px 0;
+        }
+        .portal-profile-name {
+            font-family: 'Tilt Warp', cursive;
+            font-size: clamp(26px, 5vw, 48px);
+            line-height: 1.25;
+            color: #F8DCC0;
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        }
+        .portal-profile-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: clamp(14px, 2vw, 20px);
+            color: #F8DCC0;
+            filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.5)) drop-shadow(-5px -5px 10px rgba(0, 0, 0, 0.7));
+        }
+        .portal-profile-icon { width: clamp(20px, 3vw, 32px); height: clamp(20px, 3vw, 32px); flex: none; object-fit: contain; }
+
         .dev-overlay { display: flex; align-items: center; justify-content: center; width: 100%; }
 
         /* Backdrop do aviso "dashboard em desenvolvimento" ao clicar num
@@ -289,22 +396,36 @@
                 as colunas de preço do Player/Server Premium na home (ver
                 hero.ejs #premium). Coluna "Entrar na Toca" foi removida
                 (pedido do dono, 2026-08-06: "não faz muito sentido ter o
-                card de perfil e a toca") — a própria imagem do card de
-                perfil é o link pra /perfil. Card de perfil aumentado, sem
-                head nem separador (pedido do dono, 2026-08-06: "aumente
-                mais o card do perfil, pode remover o head dele, pode
-                remover também o separador e mantenha o seletor do
-                dashboard como está") — o gap do container já dá respiro
-                suficiente entre as colunas sem precisar de uma linha
-                divisória. Coluna "Dashboard do seu servidor" INTOCADA, só
-                existe pra quem administra algum servidor com o bot (mesmo
-                getAdminGuildsWithBot de sempre).
+                card de perfil e a toca") — o próprio card de perfil é o
+                link pra /perfil, sem head nem separador entre as colunas
+                (o gap do container já dá respiro suficiente). Coluna
+                "Dashboard do seu servidor" só existe pra quem administra
+                algum servidor com o bot (mesmo getAdminGuildsWithBot de
+                sempre) — grade sempre com no mínimo 6 ícones, ver
+                portalFillerVariants mais abaixo.
             %>
             <div class="w-full flex flex-col md:flex-row items-stretch justify-center" style="gap: 40px; padding: 0 clamp(16px, 6vw, 80px);">
                 <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
-                    <% if (profileCard) { %>
+                    <% if (profile) { %>
                         <a href="/perfil" class="portal-profile-link">
-                            <img src="<%= profileCard %>" alt="" style="width: 100%; max-width: 520px; border-radius: 14px; box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6);">
+                            <div class="portal-profile-card">
+                                <div class="portal-profile-bg">
+                                    <div class="portal-profile-stars">
+                                        <% for (let i = 1; i <= 5; i++) { %><span class="portal-profile-star<%= i <= profile.honorStars ? ' is-filled' : '' %>">★</span><% } %>
+                                    </div>
+                                </div>
+                                <div class="portal-profile-text">
+                                    <span class="portal-profile-name"><%= profile.nickname %></span>
+                                    <span class="portal-profile-row">
+                                        <img src="/images/pot-logo.webp" alt="" class="portal-profile-icon">
+                                        <%= profile.alderonId %>
+                                    </span>
+                                    <span class="portal-profile-row">
+                                        <svg class="portal-profile-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 15.885 3c-.211.375-.444.879-.608 1.276a18.27 18.27 0 0 0-5.487 0A12.6 12.6 0 0 0 9.182 3a19.74 19.74 0 0 0-4.435 1.372C1.42 8.945.663 13.41.995 17.813a19.9 19.9 0 0 0 5.993 3.03c.483-.66.913-1.36 1.284-2.098a12.9 12.9 0 0 1-2.023-.975c.17-.124.336-.253.497-.386 3.902 1.803 8.13 1.803 11.986 0 .163.133.329.262.497.386-.646.386-1.323.71-2.025.976.372.737.8 1.437 1.284 2.098a19.86 19.86 0 0 0 6-3.031c.39-5.104-.664-9.53-2.79-13.444ZM8.02 15.116c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c.002 1.332-.944 2.42-2.136 2.42Zm7.96 0c-1.172 0-2.136-1.087-2.136-2.419 0-1.333.944-2.42 2.136-2.42s2.157 1.087 2.136 2.42c0 1.332-.944 2.42-2.136 2.42Z"/></svg>
+                                        <%= profile.discordUsername %>
+                                    </span>
+                                </div>
+                            </div>
                         </a>
                     <% } else { %>
                         <p style="font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.6; max-width: 320px;">
@@ -318,20 +439,58 @@
                 </div>
 
                 <% if (guilds.length > 0) { %>
+                    <%
+                        // Grade sempre com no mínimo 6 ícones (pedido do dono,
+                        // 2026-08-06: "manter sempre no mínimo 6 ícones... usar
+                        // os ícones de dinossauro aleatoriamente pra preencher,
+                        // assim visualmente criamos uma harmonia mesmo que o
+                        // usuário só tenha um servidor pra administrar") —
+                        // completa com dinossauros (ver partials/dino-icon.ejs,
+                        // sorteados entre as 4 variantes exportadas do Figma)
+                        // só decorativos, sem link (não existe servidor real
+                        // por trás deles). Layout/tamanho/sombra do tile vêm do
+                        // Frame 11934 do Figma (ver .portal-server-tile no
+                        // <style>) — servidor real usa border #3E3D38 e link
+                        // pra /moderacao/:guildID, igual já era antes.
+                        const PORTAL_DINO_VARIANTS = ['trike', 'rex', 'bronto', 'stego'];
+                        const PORTAL_MIN_TILES = 6;
+                        const portalFillerCount = Math.max(0, PORTAL_MIN_TILES - guilds.length);
+                        function portalShuffledDinoDeck() {
+                            const deck = PORTAL_DINO_VARIANTS.slice();
+                            for (let i = deck.length - 1; i > 0; i--) {
+                                const j = Math.floor(Math.random() * (i + 1));
+                                [deck[i], deck[j]] = [deck[j], deck[i]];
+                            }
+                            return deck;
+                        }
+                        // Reembaralha a cada volta completa pelas 4 variantes —
+                        // só importa quando portalFillerCount > 4 (usuário com
+                        // 0-1 servidor real), pra não repetir a mesma logo em
+                        // seguida ao "dar a volta" no baralho.
+                        const portalFillerVariants = [];
+                        let portalDinoDeck = [];
+                        for (let i = 0; i < portalFillerCount; i++) {
+                            if (i % PORTAL_DINO_VARIANTS.length === 0) portalDinoDeck = portalShuffledDinoDeck();
+                            portalFillerVariants.push(portalDinoDeck[i % PORTAL_DINO_VARIANTS.length]);
+                        }
+                    %>
                     <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
                         <h3 class="portal-col-head"><span data-i18n-pt>DASHBOARD DO SEU SERVIDOR</span><span data-i18n-en>YOUR SERVER DASHBOARD</span></h3>
                         <div class="grid"
-                             style="grid-template-columns: repeat(3, minmax(30px, 84px)); gap: clamp(8px, 1.6vw, 16px); width: 100%; max-width: 300px;">
+                             style="grid-template-columns: repeat(3, minmax(60px, 100px)); gap: clamp(12px, 2.5vw, 25px); width: 100%; max-width: 375px;">
                             <% guilds.forEach(guild => { %>
-                                <a href="/moderacao/<%= guild.id %>"
-                                   class="bg-titan-dark flex items-center justify-center cursor-pointer transition-all duration-200 hover:border-titan-accent hover:scale-105"
-                                   style="aspect-ratio: 1 / 1; border-radius: 18.75%; border: 2px solid #3E3D38; box-shadow: 0 12px 18px 6px rgba(1, 2, 10, 0.38); overflow: hidden;">
+                                <a href="/moderacao/<%= guild.id %>" class="portal-server-tile">
                                     <% if (guild.icon) { %>
                                         <img src="https://cdn.discordapp.com/icons/<%= guild.id %>/<%= guild.icon %>.png" class="guild-icon-img">
                                     <% } else { %>
                                         <img src="/images/guild-fallback-<%= (guild.id % 4) + 1 %>.svg" class="guild-icon-img">
                                     <% } %>
                                 </a>
+                            <% }); %>
+                            <% portalFillerVariants.forEach((variant, i) => { %>
+                                <div class="portal-server-tile is-filler" aria-hidden="true">
+                                    <%- include('partials/dino-icon', { variant, instanceId: 'portalfill' + i }) %>
+                                </div>
                             <% }); %>
                         </div>
                     </div>
