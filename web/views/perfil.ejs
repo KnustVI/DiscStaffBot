@@ -192,7 +192,7 @@
             sido removido daqui por ser redundante com o perfil-hero logo
             abaixo.
         %>
-        <h1 class="section-title text-2xl">Bem vindo de volta, <%= nickname %></h1>
+        <h1 class="section-title text-2xl"><span data-i18n-pt>Bem vindo de volta,</span><span data-i18n-en>Welcome back,</span> <%= nickname %></h1>
 
         <%- include('partials/save-result-overlay', { saved }) %>
 
@@ -206,9 +206,9 @@
                         <span class="perfil-hero-name"><%= discordUser.global_name || discordUser.username %></span>
                         <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
                         <span class="perfil-tier-pill" style="--pt-color: <%= pfTierColors[playerTier] %>">
-                            <i data-lucide="badge" class="w-4 h-4"></i> Player Premium: <%= pfTierLabels[playerTier] %>
-                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — expira em <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
-                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — vitalício<% } %>
+                            <i data-lucide="badge" class="w-4 h-4"></i> <span data-i18n-pt>Player Premium:</span><span data-i18n-en>Player Premium:</span> <%= pfTierLabels[playerTier] %>
+                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <span data-i18n-pt>expira em</span><span data-i18n-en>expires on</span> <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
+                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %>
                         </span>
                     </div>
                 </div>
@@ -221,13 +221,13 @@
                 %>
                 <div class="perfil-hunt-pill">
                     <i data-lucide="coins"></i>
-                    <span>Hunt: <strong>Em breve</strong></span>
+                    <span>Hunt: <strong><span data-i18n-pt>Em breve</span><span data-i18n-en>Coming soon</span></strong></span>
                 </div>
             </div>
 
             <% if (otherGuilds.length > 0) { %>
                 <div>
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Servidores que você administra</h3>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Servidores que você administra</span><span data-i18n-en>Servers you manage</span></h3>
                     <div class="perfil-guild-list">
                         <% otherGuilds.forEach(g => { %>
                             <% const gIconUrl = g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : `/images/guild-fallback-${(g.id % 4) + 1}.svg`; %>
@@ -247,13 +247,13 @@
                     <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
                     Path of Titans
                 </h2>
-                <p class="text-sm opacity-60">Sua conta Discord ainda não está vinculada a um jogador de Path of Titans.</p>
-                <p class="text-[13px] opacity-40">Use <code>/registrar</code> no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</p>
+                <p class="text-sm opacity-60"><span data-i18n-pt>Sua conta Discord ainda não está vinculada a um jogador de Path of Titans.</span><span data-i18n-en>Your Discord account isn't linked to a Path of Titans player yet.</span></p>
+                <p class="text-[13px] opacity-40"><span data-i18n-pt>Use</span><span data-i18n-en>Use</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra vincular sua conta — depois disso seu perfil, emblema e personalização ficam disponíveis aqui.</span><span data-i18n-en>on Discord to link your account — after that your profile, badge and customization become available here.</span></p>
             </section>
         <% } else { %>
             <div class="pf-tab-nav">
-                <button type="button" class="pf-tab-btn is-active" data-pf-tab="perfil">Perfil</button>
-                <button type="button" class="pf-tab-btn" data-pf-tab="personalizacao">Personalização</button>
+                <button type="button" class="pf-tab-btn is-active" data-pf-tab="perfil"><span data-i18n-pt>Perfil</span><span data-i18n-en>Profile</span></button>
+                <button type="button" class="pf-tab-btn" data-pf-tab="personalizacao"><span data-i18n-pt>Personalização</span><span data-i18n-en>Customization</span></button>
             </div>
 
             <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
@@ -263,16 +263,16 @@
                         Path of Titans
                     </h2>
                     <div class="flex flex-col gap-2">
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nome no jogo:</strong> <%= link.player_name || '—' %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nome no jogo:</span><span data-i18n-en>In-game name:</span></strong> <%= link.player_name || '—' %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Título:</strong> <%= link.profile_title || 'Em breve (missões)' %></span>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Espécie mais jogada:</strong> <%= mostPlayedDinosaur || 'Ainda sem registro' %></span>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Nível:</strong> 1 <span class="opacity-50">(sistema de XP em breve)</span></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Título:</span><span data-i18n-en>Title:</span></strong> <% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Espécie mais jogada:</span><span data-i18n-en>Most played species:</span></strong> <% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nível:</span><span data-i18n-en>Level:</span></strong> 1 <span class="opacity-50">(<span data-i18n-pt>sistema de XP em breve</span><span data-i18n-en>XP system coming soon</span>)</span></span>
                         <% if (kdStats) { %>
-                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Kills:</strong> <%= kdStats.kills %> <strong class="text-titan-cream opacity-100 ml-2">Deaths:</strong> <%= kdStats.deaths %> <strong class="text-titan-cream opacity-100 ml-2">K/D:</strong> <%= kdStats.kd %> <span class="opacity-50">(soma de todos os servidores)</span></span>
+                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Kills:</strong> <%= kdStats.kills %> <strong class="text-titan-cream opacity-100 ml-2">Deaths:</strong> <%= kdStats.deaths %> <strong class="text-titan-cream opacity-100 ml-2">K/D:</strong> <%= kdStats.kd %> <span class="opacity-50">(<span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum of all servers</span>)</span></span>
                         <% } %>
                         <div class="flex items-center gap-2 mt-1">
-                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Honra:</strong></span>
+                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Honra:</span><span data-i18n-en>Honor:</span></strong></span>
                             <span class="perfil-stars">
                                 <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
                             </span>
@@ -291,7 +291,7 @@
                     %>
                     <% if (playedGuilds.length > 0) { %>
                         <div>
-                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Servidores que você já jogou</h3>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Servidores que você já jogou</span><span data-i18n-en>Servers you've played on</span></h3>
                             <div class="perfil-guild-list">
                                 <% playedGuilds.forEach(pg => { %>
                                     <div class="perfil-guild-chip" title="Última vez: <%= pg.lastSeen ? new Date(pg.lastSeen).toLocaleDateString('pt-BR') : '—' %>">
@@ -322,20 +322,20 @@
             %>
             <form action="/perfil/save" method="POST" enctype="multipart/form-data" class="pf-tab-panel is-hidden flex flex-col gap-6" data-pf-panel="personalizacao">
                 <section class="titan-card-premium flex-col gap-6">
-                    <h2 class="section-title text-lg">PERSONALIZAR PERFIL</h2>
-                    <p class="text-[13px] opacity-50">Ajuste como seu perfil aparece pros outros no <code>/perfil</code> — título e emblema incluídos.</p>
+                    <h2 class="section-title text-lg"><span data-i18n-pt>PERSONALIZAR PERFIL</span><span data-i18n-en>CUSTOMIZE PROFILE</span></h2>
+                    <p class="text-[13px] opacity-50"><span data-i18n-pt>Ajuste como seu perfil aparece pros outros no</span><span data-i18n-en>Adjust how your profile appears to others in</span> <code>/perfil</code> <span data-i18n-pt>— título e emblema incluídos.</span><span data-i18n-en>— title and badge included.</span></p>
 
                     <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Emblema</h3>
-                        <p class="text-xs opacity-40 mb-2">Disponível em qualquer plano.</p>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Emblema</span><span data-i18n-en>Badge</span></h3>
+                        <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Disponível em qualquer plano.</span><span data-i18n-en>Available on any plan.</span></p>
                         <% if (badgeOptions.length === 0) { %>
-                            <p class="text-xs opacity-40">Nenhum emblema disponível no momento.</p>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum emblema disponível no momento.</span><span data-i18n-en>No badge available right now.</span></p>
                         <% } else { %>
                             <div class="banner-picker">
                                 <label class="banner-picker-option is-narrow">
                                     <input type="radio" name="badge_key" value="" <%= !link.selected_badge_key ? 'checked' : '' %>>
                                     <span class="banner-picker-thumb is-square"></span>
-                                    <span class="banner-picker-label">Nenhum</span>
+                                    <span class="banner-picker-label"><span data-i18n-pt>Nenhum</span><span data-i18n-en>None</span></span>
                                 </label>
                                 <% badgeOptions.forEach(opt => { %>
                                     <label class="banner-picker-option is-narrow">
@@ -349,11 +349,11 @@
                     </div>
 
                     <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Foto de Perfil</h3>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Foto de Perfil</span><span data-i18n-en>Profile Picture</span></h3>
                         <% if (!isCompyPlus) { %>
-                            <p class="text-xs opacity-40">Recurso do Player Premium Compy ou superior — use <code>/premium</code> no Discord pra saber mais.</p>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais.</span><span data-i18n-en>on Discord to learn more.</span></p>
                         <% } else if (isRaptor) { %>
-                            <p class="text-xs opacity-40 mb-2">Envie sua própria imagem. Sem upload, usa o banner do seu próprio perfil do Discord (se você tiver um).</p>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem. Sem upload, usa o banner do seu próprio perfil do Discord (se você tiver um).</span><span data-i18n-en>Upload your own image. Without an upload, it uses your own Discord profile banner (if you have one).</span></p>
                             <% if (avatarPreviewUrl) { %>
                                 <div class="rounded-lg mb-2" style="width:96px; aspect-ratio:1/1; background-image:url('<%= avatarPreviewUrl %>'); background-size:cover; background-position:center;"></div>
                             <% } %>
@@ -362,15 +362,15 @@
                                 <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                             </div>
                         <% } else { %>
-                            <p class="text-xs opacity-40 mb-2">Escolha uma foto da galeria.</p>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha uma foto da galeria.</span><span data-i18n-en>Choose a photo from the gallery.</span></p>
                             <% if (avatarOptions.length === 0) { %>
-                                <p class="text-xs opacity-40">Nenhuma foto disponível no momento.</p>
+                                <p class="text-xs opacity-40"><span data-i18n-pt>Nenhuma foto disponível no momento.</span><span data-i18n-en>No photo available right now.</span></p>
                             <% } else { %>
                                 <div class="banner-picker">
                                     <label class="banner-picker-option is-narrow">
                                         <input type="radio" name="photo_key" value="" <%= !link.selected_photo_key ? 'checked' : '' %>>
                                         <span class="banner-picker-thumb is-square"></span>
-                                        <span class="banner-picker-label">Padrão do tier</span>
+                                        <span class="banner-picker-label"><span data-i18n-pt>Padrão do tier</span><span data-i18n-en>Tier default</span></span>
                                     </label>
                                     <% avatarOptions.forEach(opt => { %>
                                         <label class="banner-picker-option is-narrow">
@@ -385,12 +385,12 @@
                     </div>
 
                     <div>
-                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Plano de Fundo</h3>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Plano de Fundo</span><span data-i18n-en>Background</span></h3>
                         <% if (!isCompyPlus) { %>
-                            <p class="text-xs opacity-40">Recurso do Player Premium Compy ou superior — use <code>/premium</code> no Discord pra saber mais.</p>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais.</span><span data-i18n-en>on Discord to learn more.</span></p>
                         <% } else { %>
                             <% if (isRaptor) { %>
-                                <p class="text-xs opacity-40 mb-2">Envie sua própria imagem (ideal 1300x300).</p>
+                                <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem (ideal 1300x300).</span><span data-i18n-en>Upload your own image (ideal 1300x300).</span></p>
                                 <% if (backgroundPreviewUrl) { %>
                                     <div class="rounded-lg mb-2" style="aspect-ratio: 1300/300; max-width:300px; background-image:url('<%= backgroundPreviewUrl %>'); background-size:cover; background-position:center;"></div>
                                 <% } %>
@@ -399,15 +399,15 @@
                                     <input type="file" name="background_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                                 </div>
                             <% } else { %>
-                                <p class="text-xs opacity-40 mb-2">Escolha um plano de fundo da galeria.</p>
+                                <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha um plano de fundo da galeria.</span><span data-i18n-en>Choose a background from the gallery.</span></p>
                                 <% if (backgroundOptions.length === 0) { %>
-                                    <p class="text-xs opacity-40">Nenhum plano de fundo disponível no momento.</p>
+                                    <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum plano de fundo disponível no momento.</span><span data-i18n-en>No background available right now.</span></p>
                                 <% } else { %>
                                     <div class="banner-picker">
                                         <label class="banner-picker-option">
                                             <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
                                             <span class="banner-picker-thumb"></span>
-                                            <span class="banner-picker-label">Nenhum</span>
+                                            <span class="banner-picker-label"><span data-i18n-pt>Nenhum</span><span data-i18n-en>None</span></span>
                                         </label>
                                         <% backgroundOptions.forEach(opt => { %>
                                             <label class="banner-picker-option">
@@ -422,7 +422,7 @@
                             <% const hasBackground = isRaptor ? !!link.background_message_id : !!link.selected_background_key; %>
                             <% if (hasBackground) { %>
                                 <label class="text-xs opacity-60 flex items-center gap-2 mt-2">
-                                    <input type="checkbox" name="remove_background" value="on"> Remover plano de fundo atual
+                                    <input type="checkbox" name="remove_background" value="on"> <span data-i18n-pt>Remover plano de fundo atual</span><span data-i18n-en>Remove current background</span>
                                 </label>
                             <% } %>
                         <% } %>
@@ -430,16 +430,16 @@
 
                     <% if (isCompyPlus) { %>
                         <div>
-                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Combate</h3>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Combate</span><span data-i18n-en>Combat</span></h3>
                             <label class="text-xs opacity-60 flex items-center gap-2">
-                                <input type="checkbox" name="hide_kda" value="on" <%= link.hide_kda ? 'checked' : '' %>> Esconder Kills/Deaths/K-D no meu /perfil
+                                <input type="checkbox" name="hide_kda" value="on" <%= link.hide_kda ? 'checked' : '' %>> <span data-i18n-pt>Esconder Kills/Deaths/K-D no meu /perfil</span><span data-i18n-en>Hide Kills/Deaths/K-D on my /perfil</span>
                             </label>
                         </div>
                     <% } %>
 
                     <% if (isRaptor) { %>
                         <div>
-                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3">Título</h3>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Título</span><span data-i18n-en>Title</span></h3>
                             <div class="input-container-premium">
                                 <div class="icon-box"><i data-lucide="edit"></i></div>
                                 <input type="text" maxlength="100" class="input-premium-field" name="profile_title" placeholder="Em breve (missões)" value="<%= link.profile_title || '' %>">
@@ -447,7 +447,7 @@
                         </div>
                     <% } %>
 
-                    <button type="submit" class="btn-salvar-final self-start mt-2">Salvar Alterações</button>
+                    <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
                 </section>
             </form>
         <% } %>
@@ -481,23 +481,23 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[20px] lg:gap-[30px]">
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="users"></i>
-                <span class="perfil-soon-title">Lista de Amigos</span>
-                <span class="perfil-soon-text">Em breve.</span>
+                <span class="perfil-soon-title"><span data-i18n-pt>Lista de Amigos</span><span data-i18n-en>Friends List</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Em breve.</span><span data-i18n-en>Coming soon.</span></span>
             </section>
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="scroll-text"></i>
-                <span class="perfil-soon-title">Lista de Títulos</span>
-                <span class="perfil-soon-text">Catálogo de títulos pra desbloquear (sistema de missões) — em breve.</span>
+                <span class="perfil-soon-title"><span data-i18n-pt>Lista de Títulos</span><span data-i18n-en>Titles List</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Catálogo de títulos pra desbloquear (sistema de missões) — em breve.</span><span data-i18n-en>Catalog of unlockable titles (quest system) — coming soon.</span></span>
             </section>
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="badge"></i>
-                <span class="perfil-soon-title">Lista de Badges</span>
-                <span class="perfil-soon-text">Vitrine dos emblemas disponíveis pra coletar — em breve.</span>
+                <span class="perfil-soon-title"><span data-i18n-pt>Lista de Badges</span><span data-i18n-en>Badges List</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Vitrine dos emblemas disponíveis pra coletar — em breve.</span><span data-i18n-en>Showcase of collectible badges — coming soon.</span></span>
             </section>
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="clock"></i>
-                <span class="perfil-soon-title">Tempo de Jogo</span>
-                <span class="perfil-soon-text">Tempo jogado por servidor — em breve.</span>
+                <span class="perfil-soon-title"><span data-i18n-pt>Tempo de Jogo</span><span data-i18n-en>Playtime</span></span>
+                <span class="perfil-soon-text"><span data-i18n-pt>Tempo jogado por servidor — em breve.</span><span data-i18n-en>Time played per server — coming soon.</span></span>
             </section>
         </div>
 
