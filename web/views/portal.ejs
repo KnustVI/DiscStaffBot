@@ -219,9 +219,15 @@
            card inteiro é o link pra "Toca" (/perfil), mesmo tipo de
            affordance de hover já usado nos ícones de servidor da coluna
            ao lado (leve scale + borda acesa). */
-        .portal-profile-link { display: inline-block; width: 100%; max-width: 452px; transition: transform 0.15s ease; }
+        .portal-profile-link { display: inline-block; width: 100%; max-width: 520px; transition: transform 0.15s ease; }
         .portal-profile-link:hover { transform: scale(1.015); }
-        .portal-profile-card { display: flex; flex-direction: column; width: 100%; }
+        /* height:100% aqui só importa a partir do md (768px) — é quando
+           syncPortalCardHeight() (fim do arquivo) passa a cravar um
+           height explícito em px no .portal-profile-link pai (ver
+           comentário completo mais acima, "Card de perfil"). No mobile
+           (empilhado) ninguém seta esse height, então 100% não tem
+           efeito e a coluna volta à altura natural. */
+        .portal-profile-card { display: flex; flex-direction: column; width: 100%; height: 100%; }
 
         /* Bloco de textura (Figma: "Profile avatar", 445x284, background:
            url(fundo_site_variante_3.png)) — o dono ainda vai mandar o
@@ -243,11 +249,23 @@
            só a "moldura" dourada (mesma técnica de padding+background pra
            simular border em cima de um clip-path não-retangular — um
            border CSS comum não acompanha a borda diagonal, fica reto por
-           baixo do recorte). */
+           baixo do recorte).
+
+           aspect-ratio trocado por flex:1 (pedido do dono, 2026-08-06:
+           altura do card precisa bater com título+grade da coluna
+           Dashboard, não com a proporção original do Figma) — o bloco de
+           textura absorve/cede o que sobra de altura depois do
+           .portal-profile-text (que mantém tamanho natural, sem flex),
+           então a altura TOTAL do card = exatamente o height que
+           syncPortalCardHeight() crava no .portal-profile-link (função
+           no bloco de script no fim do arquivo). min-height evita o
+           bloco colapsar demais num Dashboard muito baixo (ex: 1
+           servidor só, sem quebra de linha no título). */
         .portal-profile-bg-frame {
             position: relative;
             width: 100%;
-            aspect-ratio: 445 / 284;
+            flex: 1 1 auto;
+            min-height: 160px;
             padding: 1.5px;
             border-radius: 14px;
             background: #DCA15E;
@@ -289,6 +307,7 @@
 
         .portal-profile-text {
             display: flex;
+            flex: none;
             flex-direction: column;
             align-items: flex-start;
             text-align: left;
@@ -431,25 +450,38 @@
             </div>
         <% } else { %>
             <%#
-                Colunas (pedido do dono, 2026-08-06). Empilha em telas
-                estreitas (flex-col) — ver regra web_ui_always_responsive.
-                Preenche a tela (sem max-width), margem lateral de 80px
-                (clamp — encolhe em telas estreitas), proporção parecida com
-                as colunas de preço do Player/Server Premium na home (ver
-                hero.ejs #premium). Coluna "Entrar na Toca" foi removida
-                (pedido do dono, 2026-08-06: "não faz muito sentido ter o
+                Colunas (pedido do dono, 2026-08-06, ajustado 2026-08-06:
+                "alinhe os dois ao centro da página com uma margem de
+                50px entre os dois") — grupo compacto centralizado na
+                página (sem flex-1 nas colunas, senão cada uma cresce pra
+                preencher o espaço disponível e o gap visual fica maior
+                que os 50px pedidos), não mais esticado de ponta a ponta.
+                Empilha em telas estreitas (flex-col) — ver regra
+                web_ui_always_responsive. Coluna "Entrar na Toca" foi
+                removida (pedido do dono: "não faz muito sentido ter o
                 card de perfil e a toca") — o próprio card de perfil é o
-                link pra /perfil, sem head nem separador entre as colunas
-                (o gap do container já dá respiro suficiente). Coluna
-                "Dashboard do seu servidor" só existe pra quem administra
-                algum servidor com o bot (mesmo getAdminGuildsWithBot de
-                sempre) — grade sempre com no mínimo 6 ícones, ver
-                portalFillerVariants mais abaixo.
+                link pra /perfil. Coluna "Dashboard" só existe pra quem
+                administra algum servidor com o bot (mesmo
+                getAdminGuildsWithBot de sempre) — grade sempre com no
+                mínimo 6 ícones, ver portalFillerVariants mais abaixo.
+
+                Card de perfil (pedido do dono: "aumente ela mais um
+                pouco... ela tem que ter a mesma altura dos ícones + nome
+                dashboard") — a largura só aumentou (452px -> 520px), a
+                ALTURA é sincronizada por JS com a altura de verdade da
+                coluna Dashboard (título + grade), já que isso depende de
+                fonte carregada/breakpoint e não dá pra cravar em CSS
+                puro (mesmo motivo/padrão de --nav-height mais acima:
+                syncPortalCardHeight() no fim do arquivo). Só sincroniza
+                a partir do breakpoint md (768px, onde as colunas ficam
+                lado a lado) — empilhado no mobile, a altura do card
+                volta a ser natural (senão ficaria espremido pela altura,
+                normalmente bem menor, da coluna Dashboard).
             %>
-            <div class="w-full flex flex-col md:flex-row items-stretch justify-center" style="gap: 40px; padding: 0 clamp(16px, 6vw, 80px);">
-                <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
+            <div class="w-full flex flex-col md:flex-row justify-center items-center" style="gap: 50px; padding: 0 16px;">
+                <div class="flex flex-col items-center text-center gap-5" style="min-width: 0;">
                     <% if (profile) { %>
-                        <a href="/perfil" class="portal-profile-link">
+                        <a href="/perfil" class="portal-profile-link" id="portalProfileCard">
                             <div class="portal-profile-card">
                                 <div class="portal-profile-bg-frame">
                                     <div class="portal-profile-bg">
@@ -525,7 +557,7 @@
                             portalFillerVariants.push(portalDinoDeck[i % PORTAL_DINO_VARIANTS.length]);
                         }
                     %>
-                    <div class="flex-1 flex flex-col items-center text-center gap-5" style="padding: 8px 24px; min-width: 0;">
+                    <div class="flex flex-col items-center justify-center text-center gap-5" id="portalDashboardCol" style="min-width: 0;">
                         <h3 class="portal-col-head">DASHBOARD</h3>
                         <div class="grid"
                              style="grid-template-columns: repeat(3, minmax(60px, 100px)); gap: clamp(12px, 2.5vw, 25px); width: 100%; max-width: 375px;">
@@ -591,6 +623,37 @@
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeOverlay();
         });
+    })();
+
+    <%#
+        Altura do card de perfil = altura de verdade da coluna Dashboard
+        (pedido do dono, 2026-08-06: "ela tem que ter a mesma altura dos
+        ícones + nome dashboard") — mesmo padrão/gatilhos de syncNavHeight
+        mais acima (load/resize/fonts.ready), já que a altura da coluna
+        Dashboard depende de quantas linhas o título "DASHBOARD" quebra e
+        de qual fonte já carregou, não dá pra cravar em CSS puro. Só
+        sincroniza a partir do breakpoint md (768px, Tailwind) — abaixo
+        disso as colunas empilham (flex-col) e forçar a altura do card
+        pela altura, normalmente bem menor, da coluna Dashboard deixaria
+        o card espremido à toa.
+    %>
+    (function () {
+        function syncPortalCardHeight() {
+            var card = document.getElementById('portalProfileCard');
+            var dash = document.getElementById('portalDashboardCol');
+            if (!card || !dash) return;
+            if (window.matchMedia('(min-width: 768px)').matches) {
+                card.style.height = dash.offsetHeight + 'px';
+            } else {
+                card.style.height = '';
+            }
+        }
+        syncPortalCardHeight();
+        window.addEventListener('resize', syncPortalCardHeight);
+        window.addEventListener('load', syncPortalCardHeight);
+        if (window.document.fonts && window.document.fonts.ready) {
+            window.document.fonts.ready.then(syncPortalCardHeight);
+        }
     })();
 
     (function () {
