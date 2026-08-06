@@ -846,50 +846,68 @@ function loadDashboard(client) {
     // migrado pra home em 2026-08-06) — feed GLOBAL na página inicial
     // (GET /), mostrado pra QUALQUER visitante, logado ou não, não só
     // pra quem administra o servidor divulgado. Lê
-    // partner_news_title/text/updated_at (settings, editados pelo próprio
-    // servidor em moderacao.ejs) via um self-join no key/value plano de
-    // `settings` — só entra no feed quem tem título preenchido, o bot
-    // ainda está no servidor (client.guilds.cache, mesmo critério de
-    // "possui o bot" já usado em getAdminGuildsWithBot) E o servidor
-    // continua Rastreador+ (pedido do dono, 2026-08-06: "divulgação de
-    // servidores parceiros são permitidos a partir da assinatura
-    // TRACKER" — se o servidor cair pro Free depois de já ter divulgado
-    // algo, some do feed sozinho, sem precisar apagar o texto salvo).
+    // partner_news_title/text/updated_at/image_message_id/event_id
+    // (settings) via um self-join no key/value plano de `settings` — só
+    // entra no feed quem tem título preenchido, o bot ainda está no
+    // servidor (client.guilds.cache, mesmo critério de "possui o bot" já
+    // usado em getAdminGuildsWithBot) E o servidor continua Rastreador+
+    // (pedido do dono, 2026-08-06: "divulgação de servidores parceiros são
+    // permitidos a partir da assinatura TRACKER" — se o servidor cair pro
+    // Free depois de já ter divulgado algo, some do feed sozinho, sem
+    // precisar apagar o texto salvo). A partir de 2026-08-06 (seção 113 do
+    // PREMIUM.txt), quem PUBLICA é sempre o comando /divulgar (imagem
+    // obrigatória, 1x por semana) — moderacao.ejs virou só uma prévia
+    // somente-leitura da divulgação atual.
     //
-    // Caçador ganha um bônus automático (pedido do dono, 2026-08-06:
-    // "para tier HUNTER, além dele poder divulgar, vamos adicionar
-    // automaticamente o último evento agendado do servidor") — busca os
-    // scheduled events nativos do Discord (mesma API de GET
-    // /events/:guildID) e anexa o PRÓXIMO a acontecer (Status.Scheduled,
+    // image_message_id: guardado por /divulgar como mensagem no canal fixo
+    // BANNER_STORAGE_CHANNEL_ID (mesma receita de custom
+    // BannerResolver.resolveBannerUrl/profileImagePool.resolveImageUrl) —
+    // nunca guarda a URL do attachment em si (expira em ~24h), refaz o
+    // fetch a cada carregamento da home. Divulgações antigas, feitas antes
+    // do /divulgar existir (só título/texto, pelo dashboard web), não têm
+    // esse campo — imageUrl fica null e o card renderiza sem imagem.
+    //
+    // event_id: evento agendado ESCOLHIDO manualmente via /divulgar
+    // (qualquer Rastreador+, opção "evento" do comando) — tem prioridade
+    // sobre o bônus automático abaixo. Sem escolha manual (ou se o evento
+    // escolhido já não existe/não está mais agendado), Caçador ainda ganha
+    // o bônus automático de sempre (pedido do dono, 2026-08-06: "para tier
+    // HUNTER, além dele poder divulgar, vamos adicionar automaticamente o
+    // último evento agendado do servidor") — busca os scheduled events
+    // nativos do Discord e anexa o PRÓXIMO a acontecer (Status.Scheduled,
     // menor scheduledStartTimestamp) — "último agendado" aqui é lido como
     // "o mais próximo agendado", já que mostrar um evento já ocorrido não
-    // ajudaria ninguém a decidir participar. Sem evento futuro nenhum,
-    // latestEvent fica null — card mostra só a divulgação normal.
-    async function getPartnerNews(client) {
-        const rows = db.prepare(`
-            SELECT t.guild_id, t.value AS title, x.value AS text, u.value AS updated_at
-            FROM settings t
-            LEFT JOIN settings x ON x.guild_id = t.guild_id AND x.key = 'partner_news_text'
-            LEFT JOIN settings u ON u.guild_id = t.guild_id AND u.key = 'partner_news_updated_at'
-            WHERE t.key = 'partner_news_title' AND t.value IS NOT NULL AND TRIM(t.value) != ''
-            ORDER BY CAST(u.value AS INTEGER) DESC
-        `).all();
-
-        const eligible = rows
-            .map((row) => {
-                const guild = client.guilds.cache.get(row.guild_id);
-                if (!guild || !PremiumSystem.isGuildAtLeast(guild.id, 'rastreador')) return null;
-                const iconUrl = guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null;
-                return { guild, guildId: guild.id, guildName: guild.name, iconUrl, title: row.title, text: row.text || '' };
-            })
-            .filter(Boolean);
-
-        return Promise.all(eligible.map(async (item) => {
-            if (!PremiumSystem.isGuildAtLeast(item.guildId, 'cacador')) {
-                const { guild, ...rest } = item;
-                return rest;
+    // ajudaria ninguém a decidir participar. Sem evento nenhum dos dois
+    // jeitos, latestEvent fica null — card mostra só a divulgação normal.
+    // Núcleo de resolução compartilhado por getPartnerNews (feed da home,
+    // todos os servidores parceiros) e getOwnPartnerNews (prévia de UM
+    // servidor só, moderacao.ejs) — evita duplicar o fetch de
+    // imagem/evento nos dois lugares. `item` precisa de
+    // {guild, guildId, imageMessageId, eventId}.
+    async function resolvePartnerNewsMedia(client, item) {
+        let imageUrl = null;
+        if (item.imageMessageId && process.env.BANNER_STORAGE_CHANNEL_ID) {
+            try {
+                const storageChannel = await client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
+                const storedMessage = await storageChannel.messages.fetch(item.imageMessageId);
+                imageUrl = storedMessage.attachments.first()?.url || null;
+            } catch (error) {
+                imageUrl = null;
             }
-            let latestEvent = null;
+        }
+
+        let latestEvent = null;
+        if (item.eventId) {
+            try {
+                const ev = await item.guild.scheduledEvents.fetch(item.eventId);
+                if (ev && ev.status === GuildScheduledEventStatus.Scheduled && ev.scheduledStartTimestamp) {
+                    latestEvent = { name: ev.name, scheduledStartAt: ev.scheduledStartTimestamp, url: `https://discord.com/events/${item.guildId}/${ev.id}` };
+                }
+            } catch (error) {
+                latestEvent = null;
+            }
+        }
+        if (!latestEvent && PremiumSystem.isGuildAtLeast(item.guildId, 'cacador')) {
             try {
                 const eventList = await item.guild.scheduledEvents.fetch();
                 const upcoming = [...eventList.values()]
@@ -902,9 +920,65 @@ function loadDashboard(client) {
             } catch (error) {
                 console.error(`❌ [Novidades] Erro ao buscar evento agendado de ${item.guildId}:`, error.message);
             }
-            const { guild, ...rest } = item;
-            return { ...rest, latestEvent };
+        }
+
+        return { imageUrl, latestEvent };
+    }
+
+    async function getPartnerNews(client) {
+        const rows = db.prepare(`
+            SELECT t.guild_id, t.value AS title, x.value AS text, u.value AS updated_at,
+                   img.value AS image_message_id, ev.value AS event_id
+            FROM settings t
+            LEFT JOIN settings x ON x.guild_id = t.guild_id AND x.key = 'partner_news_text'
+            LEFT JOIN settings u ON u.guild_id = t.guild_id AND u.key = 'partner_news_updated_at'
+            LEFT JOIN settings img ON img.guild_id = t.guild_id AND img.key = 'partner_news_image_message_id'
+            LEFT JOIN settings ev ON ev.guild_id = t.guild_id AND ev.key = 'partner_news_event_id'
+            WHERE t.key = 'partner_news_title' AND t.value IS NOT NULL AND TRIM(t.value) != ''
+            ORDER BY CAST(u.value AS INTEGER) DESC
+        `).all();
+
+        const eligible = rows
+            .map((row) => {
+                const guild = client.guilds.cache.get(row.guild_id);
+                if (!guild || !PremiumSystem.isGuildAtLeast(guild.id, 'rastreador')) return null;
+                const iconUrl = guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null;
+                return {
+                    guild, guildId: guild.id, guildName: guild.name, iconUrl,
+                    title: row.title, text: row.text || '',
+                    imageMessageId: row.image_message_id || null,
+                    eventId: row.event_id || null,
+                };
+            })
+            .filter(Boolean);
+
+        return Promise.all(eligible.map(async (item) => {
+            const { imageUrl, latestEvent } = await resolvePartnerNewsMedia(client, item);
+            const { guild, imageMessageId, eventId, ...rest } = item;
+            return { ...rest, imageUrl, latestEvent };
         }));
+    }
+
+    // Prévia SOMENTE-LEITURA da divulgação atual de 1 servidor (pedido do
+    // dono, 2026-08-06: publicar/atualizar virou exclusivo do /divulgar —
+    // ver seção 113 do PREMIUM.txt), usada por moderacao.ejs "DIVULGAÇÃO
+    // DO SERVIDOR". Mesma resolução de imagem/evento de getPartnerNews
+    // (resolvePartnerNewsMedia), só que pra 1 guild_id só, sem rodar a
+    // query + fetch de evento pra TODO servidor parceiro à toa. null
+    // quando o servidor nunca publicou nada (partner_news_title vazio).
+    async function getOwnPartnerNews(client, guildId) {
+        const guild = client.guilds.cache.get(guildId);
+        const title = ConfigSystem.getSetting(guildId, 'partner_news_title');
+        if (!guild || !title || !title.trim()) return null;
+
+        const text = ConfigSystem.getSetting(guildId, 'partner_news_text') || '';
+        const updatedAtRaw = ConfigSystem.getSetting(guildId, 'partner_news_updated_at');
+        const updatedAt = updatedAtRaw ? parseInt(updatedAtRaw, 10) : null;
+        const imageMessageId = ConfigSystem.getSetting(guildId, 'partner_news_image_message_id');
+        const eventId = ConfigSystem.getSetting(guildId, 'partner_news_event_id');
+
+        const { imageUrl, latestEvent } = await resolvePartnerNewsMedia(client, { guild, guildId, imageMessageId, eventId });
+        return { title, text, imageUrl, latestEvent, updatedAt };
     }
 
     app.get('/perfil', checkAuth, async (req, res) => {
@@ -1261,6 +1335,14 @@ function loadDashboard(client) {
         const levelLimit = PunishmentLevels.getLevelLimit(guildID);
         const canCreateLevel = PunishmentLevels.canCreateLevel(guildID);
 
+        // Prévia da Divulgação do Servidor (ver getOwnPartnerNews acima) +
+        // próxima data em que /divulgar libera de novo (1 publicação por
+        // semana) — null quando nunca publicou nada ainda.
+        const partnerNews = await getOwnPartnerNews(client, guildID);
+        const partnerNewsNextEligibleAt = partnerNews?.updatedAt
+            ? partnerNews.updatedAt + 7 * 24 * 60 * 60 * 1000
+            : null;
+
         res.render('moderacao', {
             guild,
             nickname: member.nickname || member.user.username,
@@ -1289,6 +1371,8 @@ function loadDashboard(client) {
             unstrikeBannerOptions,
             strikeCustomBannerUrl,
             unstrikeCustomBannerUrl,
+            partnerNews,
+            partnerNewsNextEligibleAt,
             saved: req.query.saved,
         });
     });
@@ -1346,29 +1430,12 @@ function loadDashboard(client) {
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
 
             // Divulgação do Servidor (pedido do dono, 2026-08-05; tier-gated
-            // em 2026-08-06 — "permitido a partir da assinatura TRACKER")
-            // — mostrada no feed global "Novidades dos Servidores
-            // Parceiros" da home pra QUALQUER visitante (ver GET / e
-            // getPartnerNews abaixo), não só de quem administra este
-            // servidor. Checagem de tier aqui é defesa em profundidade
-            // (moderacao.ejs já esconde o form pra quem não é Rastreador+,
-            // isso aqui cobre um POST forjado). partner_news_updated_at é
-            // gravado por CÓDIGO (não vem do form) só quando título/texto
-            // realmente mudam — usado pra ordenar o feed do mais recente
-            // pro mais antigo; sem isso 'settings.updated_at' não seria
-            // confiável aqui (ConfigSystem.setSetting só atualiza a coluna
-            // `value` no ON CONFLICT, não `updated_at`).
-            if (('partner_news_title' in body || 'partner_news_text' in body) && PremiumSystem.isGuildAtLeast(guildID, 'rastreador')) {
-                const prevTitle = ConfigSystem.getSetting(guildID, 'partner_news_title') || '';
-                const prevText = ConfigSystem.getSetting(guildID, 'partner_news_text') || '';
-                const newTitle = (body.partner_news_title || '').trim();
-                const newText = (body.partner_news_text || '').trim();
-                if (newTitle !== prevTitle || newText !== prevText) {
-                    ConfigSystem.setSetting(guildID, 'partner_news_title', newTitle || null);
-                    ConfigSystem.setSetting(guildID, 'partner_news_text', newText || null);
-                    ConfigSystem.setSetting(guildID, 'partner_news_updated_at', String(Date.now()));
-                }
-            }
+            // em 2026-08-06) NÃO é mais editada por aqui — a partir de
+            // 2026-08-06 (seção 113 do PREMIUM.txt) publicar/atualizar é
+            // exclusivo do comando /divulgar (garante imagem obrigatória e
+            // o limite de 1 publicação por semana, nenhum dos dois
+            // reimplementado neste form). moderacao.ejs só lê o estado
+            // atual pra mostrar uma prévia (ver partnerNews abaixo).
 
             // Recuperação diária de reputação + limites Exemplar/Problemático
             // — mesmas regras/faixas válidas do painel /config punishments

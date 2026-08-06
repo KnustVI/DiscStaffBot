@@ -377,15 +377,22 @@
         <%#
             DIVULGAÇÃO DO SERVIDOR (pedido do dono, 2026-08-05, tier-gated
             em 2026-08-06: "divulgação de servidores parceiros são
-            permitidos a partir da assinatura TRACKER") — cada servidor
-            Rastreador+ edita a PRÓPRIA divulgação, exibida no feed global
-            "Novidades dos Servidores Parceiros" da home pra QUALQUER
-            visitante (não só quem administra este servidor — ver
+            permitidos a partir da assinatura TRACKER") — exibida no feed
+            global "Novidades dos Servidores Parceiros" da home pra
+            QUALQUER visitante (não só quem administra este servidor — ver
             dashboard.js getPartnerNews/hero.ejs). Some do feed sozinho se
-            o título ficar vazio OU se o servidor deixar de ser
-            Rastreador+ (mesma checagem em getPartnerNews).
+            o servidor deixar de ser Rastreador+ (mesma checagem em
+            getPartnerNews).
+
+            SOMENTE LEITURA a partir de 2026-08-06 (pedido do dono: comando
+            /divulgar — ver PREMIUM.txt seção 113) — publicar/trocar virou
+            exclusivo do Discord, único jeito de garantir imagem
+            obrigatória + limite de 1 publicação por semana sem
+            reimplementar as duas regras aqui também. Este card só mostra
+            o que está publicado agora (partnerNews/partnerNewsNextEligibleAt,
+            ver dashboard.js getOwnPartnerNews).
         %>
-        <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+        <section class="titan-card-premium flex-col gap-6">
             <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
                 <span data-i18n-pt>DIVULGAÇÃO DO SERVIDOR</span><span data-i18n-en>SERVER PROMOTION</span>
                 <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'rastreador' }) %><% } %>
@@ -393,22 +400,32 @@
             <% if (!isRastreador) { %>
                 <p class="text-[13px] opacity-50"><span data-i18n-pt>Exclusivo a partir do plano Rastreador — use</span><span data-i18n-en>Exclusive from the Rastreador plan onward — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
             <% } else { %>
-                <p class="text-[13px] opacity-50"><span data-i18n-pt>Aparece pra qualquer visitante da home no feed "Novidades dos Servidores Parceiros". Deixe o título vazio pra tirar seu servidor do feed.</span><span data-i18n-en>Shown to any home page visitor in the "Partner Server News" feed. Leave the title empty to remove your server from the feed.</span></p>
-                <div>
-                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Título</span><span data-i18n-en>Title</span></label>
-                    <div class="input-container-premium">
-                        <div class="icon-box"><i data-lucide="megaphone"></i></div>
-                        <input type="text" maxlength="80" class="input-premium-field" name="partner_news_title" placeholder="Ex: Evento de fim de ano no ar!" value="<%= settings.partner_news_title || '' %>">
+                <p class="text-[13px] opacity-50"><span data-i18n-pt>Aparece pra qualquer visitante da home no feed "Novidades dos Servidores Parceiros". Publique ou troque usando</span><span data-i18n-en>Shown to any home page visitor in the "Partner Server News" feed. Publish or change it using</span> <code>/divulgar</code> <span data-i18n-pt>no Discord — imagem de ilustração sempre obrigatória, no máximo 1 publicação por semana.</span><span data-i18n-en>on Discord — an illustration image is always required, and only one publish per week.</span></p>
+                <% if (partnerNews) { %>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <% if (partnerNews.imageUrl) { %>
+                            <div class="rounded-lg" style="width:160px; height:100px; flex:none; background-image:url('<%= partnerNews.imageUrl %>'); background-size:cover; background-position:center;"></div>
+                        <% } %>
+                        <div class="flex flex-col gap-1 min-w-0">
+                            <p class="text-titan-cream font-semibold"><%= partnerNews.title %></p>
+                            <% if (partnerNews.text) { %><p class="text-[13px] opacity-60"><%= partnerNews.text %></p><% } %>
+                            <% if (partnerNews.latestEvent) { %>
+                                <p class="text-[12px] opacity-50"><span data-i18n-pt>Evento em destaque:</span><span data-i18n-en>Featured event:</span> <%= partnerNews.latestEvent.name %></p>
+                            <% } %>
+                        </div>
                     </div>
-                    <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Texto</span><span data-i18n-en>Text</span></label>
-                    <div class="input-container-premium has-textarea">
-                        <div class="icon-box"><i data-lucide="message-square"></i></div>
-                        <textarea class="input-premium-field" name="partner_news_text" maxlength="280" rows="3" placeholder="Conte em poucas linhas o que está rolando no seu servidor..."><%= settings.partner_news_text || '' %></textarea>
-                    </div>
-                </div>
-                <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
+                    <p class="text-[12px] opacity-40">
+                        <% if (partnerNewsNextEligibleAt && partnerNewsNextEligibleAt > Date.now()) { %>
+                            <span data-i18n-pt>Próxima publicação liberada em</span><span data-i18n-en>Next publish unlocks on</span> <%= new Date(partnerNewsNextEligibleAt).toLocaleString('pt-BR') %>.
+                        <% } else { %>
+                            <span data-i18n-pt>Já pode publicar uma nova divulgação a qualquer momento com</span><span data-i18n-en>You can publish a new update at any time with</span> <code>/divulgar</code>.
+                        <% } %>
+                    </p>
+                <% } else { %>
+                    <p class="text-[13px] opacity-40"><span data-i18n-pt>Nenhuma divulgação publicada ainda.</span><span data-i18n-en>No update published yet.</span></p>
+                <% } %>
             <% } %>
-        </form>
+        </section>
 
         <%#
             Personalização espelha os blocos do /config personalizar do

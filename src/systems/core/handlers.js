@@ -121,7 +121,7 @@ class InteractionHandler {
             // continua privado, só que agora precisa estar aqui de verdade
             // (não estava antes, então a tela de escolha de foto do Compy
             // corria o risco de aparecer pro canal inteiro).
-            'reportchat', 'reportarbug', 'evento', 'registrar', 'perfil-edit',
+            'reportchat', 'reportarbug', 'evento', 'divulgar', 'registrar', 'perfil-edit',
             'ingame-stats', 'ingame-marks', 'ingame-admin', 'ingame-list', 'ingame-map', 'ingame-event', 'ingame-message', 'ingame-comandos', 'ingame-buff',
         ];
         const isEphemeral = ephemeralCommands.includes(interaction.commandName);

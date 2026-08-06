@@ -345,8 +345,12 @@
         .news-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
 
         /* Novidades dos Servidores Parceiros — divulgação curta por
-           servidor (título+texto, editado em moderacao.ejs "DIVULGAÇÃO DO
-           SERVIDOR"), sem imagem própria (só o ícone do servidor). */
+           servidor (título+texto+imagem, publicada via /divulgar no
+           Discord, ver PREMIUM.txt seção 113). Imagem é obrigatória em
+           TODA divulgação nova, mas divulgações antigas (feitas antes do
+           /divulgar existir, só pelo dashboard web) podem não ter uma —
+           pn.imageUrl fica null e o card renderiza sem a faixa de imagem,
+           sem quebrar layout nenhum (ver dashboard.js getPartnerNews). */
         /* auto-fit + justify-content:center — mesmo motivo do .news-grid
            acima (pedido do dono, 2026-08-06). */
         .partner-news-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 280px)); justify-content: center; gap: 16px; width: 100%; }
@@ -359,6 +363,15 @@
             border: 1px solid rgba(217, 163, 98, 0.2);
             border-radius: 12px;
             text-align: left;
+            overflow: hidden;
+        }
+        .partner-news-image {
+            width: calc(100% + 32px);
+            margin: -16px -16px 0;
+            aspect-ratio: 280 / 140;
+            background-size: cover;
+            background-position: center;
+            flex: none;
         }
         .partner-news-header { display: flex; align-items: center; gap: 8px; }
         .partner-news-header img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex: none; }
@@ -577,6 +590,9 @@
                 <div class="partner-news-grid">
                     <% partnerNews.forEach(pn => { %>
                         <div class="partner-news-card">
+                            <% if (pn.imageUrl) { %>
+                                <div class="partner-news-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
+                            <% } %>
                             <div class="partner-news-header">
                                 <% if (pn.iconUrl) { %>
                                     <img src="<%= pn.iconUrl %>" alt="">

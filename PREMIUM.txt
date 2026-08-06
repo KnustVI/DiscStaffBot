@@ -263,6 +263,14 @@ RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$14/mes (fora do Brasil, via Ko-
   2 botoes, nao os dois). Exige o jogador registrado (/registrar) E online
   no jogo no momento do clique - mesma checagem ja usada na verificacao de
   /registrar.
+- Divulgação: comando /divulgar publica a divulgação do servidor no feed
+  "Novidades dos Servidores Parceiros" da home do site (JÁ IMPLEMENTADO -
+  ver seção 113), visível pra qualquer visitante, logado ou não. Título
+  (80 caracteres) + texto (280 caracteres) + IMAGEM DE ILUSTRAÇÃO (sempre
+  obrigatória) + opção de vincular um evento agendado do próprio servidor
+  (autocomplete). Limite de 1 publicação por semana (7 dias desde a
+  última). Publicar pelo comando substituiu a antiga edição livre pelo
+  dashboard web (moderacao.ejs virou só uma prévia somente-leitura).
 - /config punishments liberado aqui, mas SO pra criar/editar os ate 4
   niveis de punicao customizados - nada alem disso. Limites de cargo
   automatico e a EDICAO da quantidade recuperada por dia NAO aparecem
@@ -316,6 +324,11 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   propria postagem do evento, nao so no canal dedicado. Marcar jogadores
   em anuncios e postagem em redes sociais continuam nao implementados
   ("vindo em breve").
+- Divulgação: além de tudo do Rastreador acima, ganha um BÔNUS automático
+  (JÁ IMPLEMENTADO - ver seção 113) - sem vincular um evento manualmente
+  no /divulgar, o card no feed da home mostra sozinho o PRÓXIMO evento
+  agendado do servidor (o mais próximo no tempo), sem precisar configurar
+  nada a mais.
 - Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
   PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
   pra /ingame-* na secao 66) - 7 comandos por categoria (/ingame-stats,
@@ -4968,3 +4981,77 @@ frente, nao so este relatorio):
 - Verificado com `node --check` no arquivo alterado e busca de código
   confirmando zero ocorrências restantes do texto do aviso fora do
   changelog (histórico, não reescrito).
+
+113) Novo comando /divulgar — publicação da Divulgação do Servidor com
+     imagem obrigatória, evento vinculado e limite semanal
+------------------------------------------------------------------
+- Pedido do dono: "Adicione um comando de publicação desse feed, adicione
+  também que só pode postar um feed por semana. Adicione uma opção de
+  postar um evento que está agendado também, e sempre peça uma imagem
+  para ilustração." — a Divulgação do Servidor (seções 1/2, categoria
+  Eventos, Rastreador+) até aqui só dava pra editar por um form de
+  título/texto no dashboard web (moderacao.ejs), sem imagem, sem limite
+  de frequência.
+- `src/commands/events/divulgar.js` (novo, mesma categoria de /evento e
+  /eventos): opções `titulo` (80 caracteres), `texto` (280 caracteres),
+  `imagem` (attachment, SEMPRE obrigatória) e `evento` (string opcional,
+  autocomplete listando os eventos agendados FUTUROS do próprio
+  servidor). Gate de tier (Rastreador+) igual ao form antigo, mensagem
+  padrão via `PremiumSystem.getGuildDenialMessage`. `PermissionFlagsBits.
+  Administrator` como permissão padrão, mesmo critério já usado por
+  `resolveAdminMember` no dashboard web.
+- Limite de 1 publicação por semana: reaproveita a MESMA
+  `partner_news_updated_at` que o dashboard web já mantinha só pra
+  ordenar o feed (ver seção "O que já funciona hoje" / getPartnerNews) —
+  bloqueia com `<t:X:R>`/`<t:X:F>` mostrando quando a próxima janela
+  libera. Como moderacao.ejs virou só leitura (ver abaixo), não existe
+  outro caminho que resete esse timestamp escondido — o limite não tem
+  como ser burlado por fora do comando.
+- Imagem: reaproveita `src/utils/imageStorage.js` (uploadAndStoreImage —
+  mesmo helper já usado por /perfil-edit e pelo pool de imagens do dono),
+  reenviada pro canal fixo `BANNER_STORAGE_CHANNEL_ID` e guardada como
+  `partner_news_image_message_id` (só o ID da mensagem, nunca a URL do
+  attachment em si, que expira em ~24h). Aceita PNG/JPEG/WEBP (mesma
+  validação do helper); erro genérico se `BANNER_STORAGE_CHANNEL_ID` não
+  estiver configurado no `.env`.
+- Evento vinculado (`partner_news_event_id`): opcional, disponível pra
+  QUALQUER Rastreador+ (não só Caçador) — autocomplete busca
+  `guild.scheduledEvents.fetch()`, filtra só `Status.Scheduled` futuros e
+  por nome digitado, até 25 resultados. Na execução, revalida que o
+  evento escolhido ainda existe e continua agendado (evita guardar um ID
+  morto). Tem PRIORIDADE sobre o bônus automático do Caçador (seção 86 /
+  86-bis) — sem escolha manual, ou se o evento escolhido não existir mais
+  no momento em que o feed carrega, Caçador continua ganhando o bônus
+  automático de sempre (próximo evento agendado, sem precisar configurar
+  nada).
+- `dashboard.js` `getPartnerNews()`: query ganhou 2 LEFT JOINs novos
+  (`image_message_id`/`event_id`); lógica de resolução de imagem/evento
+  extraída pra `resolvePartnerNewsMedia()` (compartilhada com a nova
+  `getOwnPartnerNews()` abaixo, evita duplicar o fetch de attachment/
+  evento nos dois lugares). Divulgações antigas (feitas só pelo form
+  antigo, sem imagem/evento) continuam aparecendo no feed normalmente —
+  `imageUrl`/`latestEvent` ficam null, card renderiza sem a faixa de
+  imagem.
+- `moderacao.ejs` "DIVULGAÇÃO DO SERVIDOR" virou um card SOMENTE LEITURA
+  (pedido implícito: publicar por 2 caminhos com regras diferentes —
+  form sem limite/imagem vs. comando com as duas — deixaria o limite
+  semanal fácil de burlar pelo dashboard web) — mostra prévia (imagem,
+  título, texto, evento em destaque se houver) + quando a próxima
+  publicação libera, ou o estado vazio "Nenhuma divulgação publicada
+  ainda", sempre apontando pro `/divulgar` no Discord. `POST
+  /moderacao/:guildID/save` não grava mais `partner_news_title`/`text`
+  (bloco removido); nova rota não existe — a escrita é exclusiva do
+  comando.
+- `hero.ejs`: cards de "Novidades dos Servidores Parceiros" ganharam uma
+  faixa de imagem no topo (`pn.imageUrl`, aspect-ratio 280/140,
+  `overflow:hidden` no card pra recortar nos cantos arredondados) —
+  condicional, some sozinha em divulgações sem imagem.
+- Verificado com `node --check` nos arquivos `.js` alterados/criados e
+  `ejs.renderFile()` nos 2 templates alterados (moderacao.ejs com/sem
+  `partnerNews`, com/sem `imageUrl`/`latestEvent`; hero.ejs com/sem
+  imagem no card) — sem servidor Discord real disponível aqui, então o
+  fluxo completo do comando (upload real, autocomplete ao vivo) precisa
+  de teste manual em produção antes de confiar 100%.
+- Falta rodar `node deploy.js` (ou reiniciar o bot com
+  `DEPLOY_COMMANDS=true`) pra registrar o comando novo no Discord — não
+  aparece pra ninguém até isso acontecer.
