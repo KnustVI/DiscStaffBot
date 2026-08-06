@@ -42,23 +42,31 @@
     const ipShowRoster = typeof showRoster === 'undefined' || showRoster;
     const IP_MAX_PLAYERS = 120; // capacidade máxima de um servidor de Path of Titans
 
+    // Título bilíngue (pedido do dono, 2026-08-06: "título de gráficos no
+    // card ingame" sem tradução) — stat-donut.ejs/ingame-donut-cluster.ejs
+    // agora renderizam title SEM escape, então essa string já pronta com
+    // os dois <span> é o que efetivamente vira o HTML do rótulo.
+    function i18nTitle(pt, en) {
+        return `<span data-i18n-pt>${pt}</span><span data-i18n-en>${en}</span>`;
+    }
+
     // Ordem fixa (posição no canvas do Figma, não muda): [pequeno-esquerda,
     // pequeno-meio, grande-direita] — ver ingame-donut-cluster.ejs.
     const ipDonuts = [
         {
-            title: 'Jogando',
+            title: i18nTitle('Jogando', 'Playing'),
             value: `${pulse.staffPlaying}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffPlaying / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
         },
         {
-            title: 'Em modo espectador',
+            title: i18nTitle('Em modo espectador', 'Spectating'),
             value: `${pulse.staffSpectating}/${pulse.staffTotal}`,
             percent: pulse.staffTotal > 0 ? (pulse.staffSpectating / pulse.staffTotal) * 100 : 0,
             accent: 'gold',
         },
         {
-            title: 'Jogadores Online',
+            title: i18nTitle('Jogadores Online', 'Players Online'),
             value: `${pulse.playersOnline}/${IP_MAX_PLAYERS}`,
             percent: (pulse.playersOnline / IP_MAX_PLAYERS) * 100,
             accent: 'red',
@@ -70,8 +78,18 @@
     <% if (ipShowRoster) { %>
         <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
         <% if (pulse.roster.length === 0) { %>
-            <p class="text-sm opacity-40 text-center ingame-staff-grid-spacing">Nenhum cargo de staff configurado ainda.</p>
+            <p class="text-sm opacity-40 text-center ingame-staff-grid-spacing"><span data-i18n-pt>Nenhum cargo de staff configurado ainda.</span><span data-i18n-en>No staff role configured yet.</span></p>
         <% } else { %>
+            <%#
+                staff.statusLabel (dashboard.js:getServerPulse) vem pronto
+                em português ("Online"/"Offline"/"Espectador") — em vez de
+                mexer no backend só pra isso, deriva o texto bilíngue AQUI
+                a partir dos MESMOS booleans que o backend já manda
+                (staff.online/staff.moderating), replicando a mesma regra
+                (ver comentário de getServerPulse: moderating=true ainda
+                conta como online, só é uma sub-condição). "Online"/
+                "Offline" já são a mesma palavra nos dois idiomas.
+            %>
             <div class="ingame-staff-grid ingame-staff-grid-spacing">
                 <% online.forEach(staff => { %>
                     <div class="staff-chip">
@@ -79,7 +97,7 @@
                         <div class="staff-chip-col">
                             <span class="staff-chip-name"><%= staff.name %></span>
                             <span class="staff-chip-role"><%= staff.cargo %></span>
-                            <span class="staff-chip-status"><%= staff.statusLabel %></span>
+                            <span class="staff-chip-status"><% if (staff.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else { %>Online<% } %></span>
                         </div>
                     </div>
                 <% }); %>
@@ -89,7 +107,7 @@
                         <div class="staff-chip-col">
                             <span class="staff-chip-name"><%= staff.name %></span>
                             <span class="staff-chip-role"><%= staff.cargo %></span>
-                            <span class="staff-chip-status"><%= staff.statusLabel %></span>
+                            <span class="staff-chip-status">Offline</span>
                         </div>
                     </div>
                 <% }); %>

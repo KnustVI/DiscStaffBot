@@ -30,6 +30,13 @@
       accent: gold ,              // gold (padrão, #DCA15E) ou red (#803E30)
       size: big ,                 // opcional — 'big' pro donut maior/destaque (~1.26x), omitir pro tamanho normal
     } )
+
+  title é renderizado SEM escape (pedido do dono, 2026-08-06: "título de
+  gráfico no card ingame" sem tradução) — quem chama passa a string já
+  pronta com os pares <span data-i18n-pt>/<span data-i18n-en> (ver helper
+  local i18nTitle() em ingame-pulse.ejs/moderation-stats.ejs), não texto
+  cru. Se algum dia title vier de dado do usuário, escape manualmente
+  antes de passar pra cá.
 %>
 <%
     const dId = (typeof id !== 'undefined' && id) ? String(id).replace(/[^a-zA-Z0-9_-]/g, '') : String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -89,7 +96,7 @@
             <% } %>
         </svg>
         <div class="stat-donut-label">
-            <span class="stat-donut-title"><%= dTitle %></span>
+            <span class="stat-donut-title"><%- dTitle %></span>
             <span class="stat-donut-value"><%= dValue %></span>
         </div>
     </div>

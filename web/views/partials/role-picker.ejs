@@ -43,7 +43,7 @@
     <div class="input-container-premium">
         <div class="icon-box"><i data-lucide="<%= rpIcon %>"></i></div>
         <select name="<%= name %>" class="input-premium-field">
-            <option value="">— selecione um cargo —</option>
+            <option value="" data-i18n-opt-pt="— selecione um cargo —" data-i18n-opt-en="— select a role —">— selecione um cargo —</option>
             <% roles.forEach(r => { %>
                 <option value="<%= r.id %>" <%= (rpSelected[0] && rpSelected[0].id === r.id) ? 'selected' : '' %>><%= r.name %></option>
             <% }); %>
@@ -75,7 +75,7 @@
             <div class="input-container-premium">
                 <div class="icon-box"><i data-lucide="<%= rpIcon %>"></i></div>
                 <select class="input-premium-field" data-select>
-                    <option value="">— selecione um cargo —</option>
+                    <option value="" data-i18n-opt-pt="— selecione um cargo —" data-i18n-opt-en="— select a role —">— selecione um cargo —</option>
                     <% rpAvailable.forEach(r => { %>
                         <option value="<%= r.id %>"><%= r.name %></option>
                     <% }); %>

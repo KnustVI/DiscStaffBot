@@ -325,7 +325,7 @@
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="shield-alert"></i></div>
                         <select name="strike_role" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
+                            <option value="" data-i18n-opt-pt="— selecione um cargo —" data-i18n-opt-en="— select a role —">— selecione um cargo —</option>
                             <% roles.forEach(r => { %>
                                 <option value="<%= r.id %>" <%= settings.strike_role === r.id ? 'selected' : '' %>><%= r.name %></option>
                             <% }); %>
@@ -335,7 +335,7 @@
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="thumbs-up"></i></div>
                         <select name="role_exemplar" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
+                            <option value="" data-i18n-opt-pt="— selecione um cargo —" data-i18n-opt-en="— select a role —">— selecione um cargo —</option>
                             <% roles.forEach(r => { %>
                                 <option value="<%= r.id %>" <%= settings.role_exemplar === r.id ? 'selected' : '' %>><%= r.name %></option>
                             <% }); %>
@@ -345,7 +345,7 @@
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="thumbs-down"></i></div>
                         <select name="role_problematico" class="input-premium-field">
-                            <option value="">— selecione um cargo —</option>
+                            <option value="" data-i18n-opt-pt="— selecione um cargo —" data-i18n-opt-en="— select a role —">— selecione um cargo —</option>
                             <% roles.forEach(r => { %>
                                 <option value="<%= r.id %>" <%= settings.role_problematico === r.id ? 'selected' : '' %>><%= r.name %></option>
                             <% }); %>

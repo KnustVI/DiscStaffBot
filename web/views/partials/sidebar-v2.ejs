@@ -606,11 +606,32 @@
         var stored = localStorage.getItem('titanspass_lang') || 'pt';
         document.documentElement.setAttribute('data-lang', stored);
         updateLangToggleLabel(stored);
+        syncI18nAttrs(stored);
     })();
 
     function updateLangToggleLabel(current) {
         var btn = document.getElementById('langToggleBtn');
         if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
+    }
+
+    // placeholder/<option> não aceitam os pares data-i18n-pt/data-i18n-en
+    // de sempre em forma de <span> filho (não são elementos com filhos de
+    // verdade — o navegador só lê o texto puro), então esses dois atributos carregam
+    // as duas versões e a gente troca o que está ativo na mão (pedido do
+    // dono, 2026-08-06: buscas/selects/textareas do dashboard ficaram de
+    // fora da primeira leva de tradução). Chamado no load (acima) e em
+    // toggleLang() (abaixo); poll-fragment.js também chama de novo depois
+    // de recarregar um fragmento (#reportsListRoot etc.), já que o HTML
+    // que volta do servidor é sempre em português "puro".
+    function syncI18nAttrs(lang) {
+        document.querySelectorAll('[data-i18n-ph-pt]').forEach(function (el) {
+            var text = lang === 'en' ? el.getAttribute('data-i18n-ph-en') : el.getAttribute('data-i18n-ph-pt');
+            if (text !== null) el.setAttribute('placeholder', text);
+        });
+        document.querySelectorAll('option[data-i18n-opt-pt]').forEach(function (el) {
+            var text = lang === 'en' ? el.getAttribute('data-i18n-opt-en') : el.getAttribute('data-i18n-opt-pt');
+            if (text !== null) el.textContent = text;
+        });
     }
 
     function toggleLang() {
@@ -619,5 +640,6 @@
         document.documentElement.setAttribute('data-lang', next);
         localStorage.setItem('titanspass_lang', next);
         updateLangToggleLabel(next);
+        syncI18nAttrs(next);
     }
 </script>

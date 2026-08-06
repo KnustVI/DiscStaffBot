@@ -89,7 +89,7 @@ function reportsHref(overrides) {
             <input type="hidden" name="openPage" value="1">
             <input type="hidden" name="closedPage" value="<%= closedPagination.page %>">
             <input type="hidden" name="closedSearch" value="<%= closedPagination.search %>">
-            <input type="text" name="openSearch" value="<%= openPagination.search %>" placeholder="Buscar por ID ou usuário..." class="report-search-input">
+            <input type="text" name="openSearch" value="<%= openPagination.search %>" placeholder="Buscar por ID ou usuário..." data-i18n-ph-pt="Buscar por ID ou usuário..." data-i18n-ph-en="Search by ID or username..." class="report-search-input">
             <button type="submit" class="report-search-btn"><i data-lucide="search" class="w-4 h-4"></i></button>
             <% if (openPagination.search) { %>
                 <a href="<%= reportsHref({ openSearch: '', openPage: 1 }) %>" class="report-search-clear"><span data-i18n-pt>Limpar</span><span data-i18n-en>Clear</span></a>
@@ -165,7 +165,7 @@ function reportsHref(overrides) {
             <input type="hidden" name="closedPage" value="1">
             <input type="hidden" name="openPage" value="<%= openPagination.page %>">
             <input type="hidden" name="openSearch" value="<%= openPagination.search %>">
-            <input type="text" name="closedSearch" value="<%= closedPagination.search %>" placeholder="Buscar por ID ou usuário..." class="report-search-input">
+            <input type="text" name="closedSearch" value="<%= closedPagination.search %>" placeholder="Buscar por ID ou usuário..." data-i18n-ph-pt="Buscar por ID ou usuário..." data-i18n-ph-en="Search by ID or username..." class="report-search-input">
             <button type="submit" class="report-search-btn"><i data-lucide="search" class="w-4 h-4"></i></button>
             <% if (closedPagination.search) { %>
                 <a href="<%= reportsHref({ closedSearch: '', closedPage: 1 }) %>" class="report-search-clear"><span data-i18n-pt>Limpar</span><span data-i18n-en>Clear</span></a>

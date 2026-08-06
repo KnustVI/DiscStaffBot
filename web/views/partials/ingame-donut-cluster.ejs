@@ -28,6 +28,10 @@
   accent }, na ordem [pequeno-esquerda, pequeno-meio, grande-direita] (a
   posição de cada um no canvas é fixa). clusterId é opcional (default
   'ingame') — só importa se dois clusters aparecerem na mesma página.
+
+  title é renderizado SEM escape (pedido do dono, 2026-08-06) — passe a
+  string já pronta com os pares <span data-i18n-pt>/<span data-i18n-en>
+  (ver helper local i18nTitle() em ingame-pulse.ejs), não texto cru.
 %>
 <%
     const RINGS = [
@@ -96,7 +100,7 @@
                 <% } %>
             </svg>
             <div class="idc-label" style="left: <%= labelLeftPct.toFixed(2) %>%; top: <%= labelTopPct.toFixed(2) %>%; width: <%= labelWidthPct.toFixed(2) %>%;">
-                <span class="idc-title"><%= donuts[i].title %></span>
+                <span class="idc-title"><%- donuts[i].title %></span>
                 <span class="idc-value"><%= donuts[i].value %></span>
             </div>
         </div>

@@ -17,6 +17,13 @@
                     if (!html) return;
                     root.innerHTML = html;
                     if (window.lucide) window.lucide.createIcons();
+                    // Fragmento vem sempre em português puro do servidor —
+                    // re-sincroniza placeholder/<option> com o idioma atual
+                    // (ver sidebar-v2.ejs syncI18nAttrs, sempre incluída
+                    // nas páginas que usam este poller).
+                    if (typeof syncI18nAttrs === 'function') {
+                        syncI18nAttrs(document.documentElement.getAttribute('data-lang') || 'pt');
+                    }
                 })
                 .catch(function () {});
         }

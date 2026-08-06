@@ -515,9 +515,20 @@ summary.btn-chip::marker { content: ''; }
 .btn-chip-danger:hover { background: rgba(255, 78, 59, 0.12); }
 
 /* Formulário compacto de Criar/Editar nível — abre dentro de um <details>
-   (fecha por padrão), grid responsivo pros 5 campos do nível. */
-.level-form-details { width: 100%; margin-top: 4px; }
-.level-form-details > summary { margin-bottom: 10px; }
+   (fecha por padrão), grid responsivo pros 5 campos do nível. Margens só
+   com [open] (bug encontrado pelo dono, 2026-08-06: "Editar" aparecia mais
+   acima que Deletar/badge de aprovação na mesma linha) — antes eram
+   incondicionais, então mesmo FECHADO (estado padrão dentro de
+   .level-card-actions) o <details> ficava margin-top:4px + margin-bottom:
+   10px mais alto que os irmãos flex (badge/botões, sem margem nenhuma);
+   como um flex item é seu próprio contexto de formatação de bloco, essa
+   margem não colapsa com nada e passa a contar na altura do próprio item,
+   descentralizando o align-items:center da linha. Só quando o details
+   ABRE (editando/criando) essas margens fazem sentido, pra separar o
+   summary do formulário logo abaixo. */
+.level-form-details { width: 100%; }
+.level-form-details[open] { margin-top: 4px; }
+.level-form-details[open] > summary { margin-bottom: 10px; }
 .level-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));

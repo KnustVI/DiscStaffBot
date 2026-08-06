@@ -29,7 +29,12 @@
             selectEl.innerHTML = '';
             var placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = '— selecione um cargo —';
+            // Tradução (2026-08-06): mesma lógica do contador em
+            // refreshCounterAndRow — <option> criada do zero aqui, não dá
+            // pra reaproveitar o data-i18n-opt-pt/en de role-picker.ejs
+            // (esse é só pro <option> ORIGINAL, renderizado pelo servidor).
+            var lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            placeholder.textContent = lang === 'en' ? '— select a role —' : '— selecione um cargo —';
             selectEl.appendChild(placeholder);
             roles.forEach(function (r) {
                 if (chosen.indexOf(r.id) !== -1) return;

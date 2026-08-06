@@ -142,7 +142,7 @@
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="megaphone"></i></div>
                         <select name="event_announce_channel" class="input-premium-field">
-                            <option value="">— selecione um canal —</option>
+                            <option value="" data-i18n-opt-pt="— selecione um canal —" data-i18n-opt-en="— select a channel —">— selecione um canal —</option>
                             <% channels.forEach(c => { %>
                                 <option value="<%= c.id %>" <%= settings.event_announce_channel === c.id ? 'selected' : '' %>>#<%= c.name %></option>
                             <% }); %>
