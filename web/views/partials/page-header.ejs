@@ -28,14 +28,24 @@
   ex: avatar do próprio usuário). Sem seletor de servidor nesse modo
   (não faz sentido sem um "servidor atual").
 
-  `title` (opcional, pedido do dono, 2026-08-06: reaproveitado pra dar o
-  MESMO visual — sem card, título dourado + subtítulo creme — pro head de
-  "Suas Denúncias") — substitui o "DASHBOARD" fixo quando a página não é
-  literalmente o dashboard de um servidor. Default 'DASHBOARD' preserva o
-  comportamento de sempre nas 3 páginas que já usam este parcial.
+  `title`/`titleEn` (opcional, pedido do dono, 2026-08-06: reaproveitado
+  pra dar o MESMO visual — sem card, título dourado + subtítulo creme —
+  pro head de "Suas Denúncias") — substitui o "DASHBOARD" fixo quando a
+  página não é literalmente o dashboard de um servidor. Default
+  'DASHBOARD' (igual nos dois idiomas) preserva o comportamento de sempre
+  nas 3 páginas que já usam este parcial em modo servidor.
+
+  Tradução completa (pedido do dono, 2026-08-06): `pageLabel` ganhou um
+  companheiro `pageLabelEn` (texto depois do "|" no modo com servidor —
+  ex: MODERAÇÃO/MODERATION); `subtitle` (modo sem servidor) ganhou
+  `subtitleEn`. Sem o *En correspondente, cai no valor em português (evita
+  quebrar chamadas antigas que ainda não foram atualizadas).
 %>
 <%
     const phTitle = typeof title !== 'undefined' && title ? title : 'DASHBOARD';
+    // Sem titleEn explícito, cai no valor em português (já é 'DASHBOARD'
+    // nos dois idiomas no caso padrão, já que phTitle resolve isso acima).
+    const phTitleEn = typeof titleEn !== 'undefined' && titleEn ? titleEn : phTitle;
     const phHasGuild = typeof guild !== 'undefined' && guild;
     // Mesmo padrão de fallback (sem ícone) já usado em index.ejs.
     const phIconUrl = typeof iconUrl !== 'undefined' && iconUrl
@@ -43,7 +53,12 @@
         : (phHasGuild
             ? (guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : `/images/guild-fallback-${(guild.id % 4) + 1}.svg`)
             : '/images/guild-fallback-1.svg');
-    const phSubtitle = typeof subtitle !== 'undefined' ? subtitle : (phHasGuild ? `${guild.name} | ${pageLabel}` : '');
+    // pageLabel/pageLabelEn só existem no modo COM servidor — nunca
+    // referenciados fora do ramo phHasGuild (senão quebra o modo sem
+    // servidor, onde essas duas variáveis nem são passadas pelo caller).
+    const phSubtitlePt = typeof subtitle !== 'undefined' ? subtitle : (phHasGuild ? pageLabel : '');
+    const phSubtitleEn = typeof subtitleEn !== 'undefined' ? subtitleEn
+        : (phHasGuild ? (typeof pageLabelEn !== 'undefined' ? pageLabelEn : pageLabel) : phSubtitlePt);
 
     const phRoute = typeof pageRoute !== 'undefined' ? pageRoute : null;
     const phOtherGuilds = (phHasGuild && typeof otherGuilds !== 'undefined' && Array.isArray(otherGuilds))
@@ -53,8 +68,10 @@
 %>
 <header class="page-header">
     <div class="page-header-text">
-        <h1 class="page-header-title"><%= phTitle %></h1>
-        <p class="page-header-subtitle"><%= phSubtitle %></p>
+        <h1 class="page-header-title"><span data-i18n-pt><%= phTitle %></span><span data-i18n-en><%= phTitleEn %></span></h1>
+        <p class="page-header-subtitle">
+            <% if (phHasGuild) { %><%= guild.name %> | <% } %><span data-i18n-pt><%= phSubtitlePt %></span><span data-i18n-en><%= phSubtitleEn %></span>
+        </p>
     </div>
 
     <% if (phCanSwitch) { %>
@@ -64,7 +81,7 @@
                 <span class="page-header-icon-badge"><i data-lucide="chevron-down"></i></span>
             </button>
             <div class="page-header-switcher-menu" id="phSwitcherMenu" role="menu">
-                <span class="page-header-switcher-label">Trocar de servidor</span>
+                <span class="page-header-switcher-label"><span data-i18n-pt>Trocar de servidor</span><span data-i18n-en>Switch server</span></span>
                 <% phOtherGuilds.forEach(g => { %>
                     <%
                         const gIconUrl = g.icon
@@ -78,7 +95,7 @@
                 <% }); %>
                 <a href="/dashboard" class="page-header-switcher-item page-header-switcher-all" role="menuitem">
                     <i data-lucide="layout-grid"></i>
-                    <span>Ver todos os servidores</span>
+                    <span><span data-i18n-pt>Ver todos os servidores</span><span data-i18n-en>View all servers</span></span>
                 </a>
             </div>
         </div>
