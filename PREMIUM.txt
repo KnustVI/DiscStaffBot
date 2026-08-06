@@ -4914,3 +4914,36 @@ frente, nao so este relatorio):
   confirmando que Análise Staff/Staffs Inativos/Jogador Mais Mutado
   somem inteiros; cenário Caçador vazio confirmando os 4 textos de
   "sem dados" e a confirmação "equipe toda ativa".
+
+111) Novo comando /eventos — lista os eventos agendados dos próximos 7 dias
+------------------------------------------------------------------
+- Pedido do dono: "faça um comando para eventos... onde ele vai mostrar
+  os eventos agendados dos próximos 7 dias". `src/commands/events/
+  eventos.js` (companheiro do `/evento`, que CRIA — este só lê). Sem
+  opções, sem permissão especial (aberto a qualquer membro, mesmo
+  critério de `/perfil`/`/premium` — não fica na lista `ephemeralCommands`
+  de `handlers.js`, resposta visível pro canal todo).
+- Fonte de dados é sempre `guild.scheduledEvents` nativo do Discord (não
+  uma tabela própria) — mesmo padrão já usado em `dashboard.js` GET
+  `/events/:guildID` (fetch + fetch individual com `withUserCount:true`
+  pra trazer "interessados"). Pega QUALQUER evento agendado, criado pelo
+  `/evento` do bot ou manualmente pela própria interface do Discord.
+- Duas seções: "Acontecendo agora" (status Active, sem limite de janela —
+  se já começou, mostra, mesmo que tenha sido há dias) e "Agendados"
+  (status Scheduled com início dentro dos próximos 7 dias — os que
+  passam disso ficam de fora). Cada bloco de evento mostra nome,
+  horário (`<t:X:F>` + relativo pros agendados), local (canal de voz/
+  palco mencionado OU texto livre de local externo — mesmos dois
+  formatos que `/evento` aceita), contagem de interessados, e o link do
+  evento. Sem nenhum evento nos dois grupos, mostra uma mensagem única
+  de "nada por enquanto" em vez de duas seções vazias.
+- Verificado com teste funcional direto (mock de `guild.scheduledEvents`,
+  sem servidor Discord real): evento ativo aparece em "Acontecendo
+  agora", evento em 3 dias aparece em "Agendados" com local externo
+  correto, evento em 10 dias fica de fora (fora da janela de 7 dias),
+  evento já completado fica de fora, contagem de interessados e local
+  por canal (`<#id>`) corretos, e o estado vazio (nenhum evento) mostra
+  a mensagem certa.
+- Falta rodar `node deploy.js` (ou reiniciar o bot com
+  `DEPLOY_COMMANDS=true`) pra registrar o comando novo no Discord — não
+  aparece pra ninguém até isso acontecer.
