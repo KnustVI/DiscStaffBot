@@ -129,7 +129,15 @@
             justify-content: center;
             gap: 8px;
             text-align: center;
-            padding: 10px 0;
+            /* padding-left/right (bug encontrado pelo dono, 2026-08-06:
+               "texto sem margem lateral, muito próximo da borda") — este
+               seletor tem a MESMA especificidade de .titan-card-premium
+               (ambos uma classe só, no mesmo elemento) e vem depois no
+               HTML (style.css compartilhado é carregado antes do <style>
+               desta página), então o padding:40px do card base perdia
+               por inteiro pra este padding:10px 0 (0 nas laterais) —
+               não só o vertical, o shorthand substitui os 4 lados juntos. */
+            padding: 10px 24px;
         }
         .perfil-soon-card i { width: 32px; height: 32px; color: #803E30; }
         .perfil-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
