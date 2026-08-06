@@ -143,7 +143,12 @@
         /* Barra de navegação padrão do site (mesma de hero.ejs — pedido do
            dono, 2026-08-06: "devemos ter ainda a mesma barra de navegação
            no top de home"). Fixa, então o conteúdo abaixo compensa com
-           --nav-height (ver .portal-hero-padding e o script no fim). */
+           --nav-height via padding-top INLINE no <div> do gradiente
+           (ver mais abaixo) — não um padding-top em classe própria,
+           porque colidiria em especificidade com o padding do próprio
+           Tailwind (p-4/sm:p-6/md:p-8) que já está no mesmo elemento;
+           inline sempre ganha, sem depender da ordem de injeção do
+           script do Tailwind. */
         .nav-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -203,7 +208,6 @@
         .lang-toggle-flag-en { left: 18px; z-index: 1; }
         html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
         html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
-        .portal-hero-padding { margin-top: calc(var(--nav-height, 84px) + 16px); }
 
         .section-title {
             font-family: 'Tilt Warp', sans-serif;
@@ -314,8 +318,8 @@
     })();
 </script>
 
-<div class="min-h-screen w-full flex flex-col items-stretch p-4 sm:p-6 md:p-8 portal-hero-padding"
-     style="background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);">
+<div class="min-h-screen w-full flex flex-col items-stretch p-4 sm:p-6 md:p-8"
+     style="background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%); padding-top: calc(var(--nav-height, 84px) + 16px);">
 
     <div class="flex-1 flex flex-col items-center justify-center w-full" style="gap: clamp(28px, 5vw, 56px); padding: clamp(16px, 3vw, 32px) 0;">
 
