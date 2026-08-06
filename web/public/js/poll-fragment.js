@@ -1,8 +1,7 @@
 // Poller genérico: qualquer elemento com [data-poll-url] busca o fragmento
 // renderizado no servidor a cada 15s e substitui seu próprio innerHTML.
-// Usado por #moderationStatsRoot e #reportsListRoot (ver dashboard.js e
-// moderacao.ejs/reports.ejs). Mesma cadência do padrão já usado em
-// ingame-pulse-poll.js.
+// Usado por #reportsListRoot (ver dashboard.js e reports.ejs). Mesma
+// cadência do padrão já usado em ingame-pulse-poll.js.
 (function () {
     var POLL_MS = 15000;
 

@@ -184,28 +184,6 @@ async function resolveBannerOptionsWithUrls(client, options) {
     })));
 }
 
-// Estatísticas de Punições/Automoderação (moderacao.ejs) — função própria
-// pra poder ser chamada tanto no carregamento normal de
-// /moderacao/:guildID quanto no fragment de poll em tempo real (GET
-// /fragments/moderation-stats/:guildID, pedido do dono: "gráficos"
-// também em tempo real, mesmo padrão já usado em getServerPulse acima),
-// sem duplicar as queries nos dois lugares.
-function getModerationStats(guildId, botUserId) {
-    const punByStatus = db.prepare('SELECT status, COUNT(*) c FROM punishments WHERE guild_id = ? GROUP BY status').all(guildId);
-    const punActive = punByStatus.find(r => r.status === 'active')?.c || 0;
-    const punTotal = punByStatus.reduce((sum, r) => sum + r.c, 0);
-    const punRevoked = punTotal - punActive;
-    const punHighSeverity = db.prepare(
-        "SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND level_severity IN ('Grave', 'Severa')"
-    ).get(guildId).c;
-
-    const filterWordCount = db.prepare('SELECT COUNT(*) c FROM pot_chat_filters WHERE guild_id = ?').get(guildId).c;
-    const autoPunishments = db.prepare('SELECT COUNT(*) c FROM punishments WHERE guild_id = ? AND moderator_id = ?').get(guildId, botUserId).c;
-    const filterLevelCount = db.prepare('SELECT COUNT(DISTINCT level_id) c FROM pot_chat_filters WHERE guild_id = ?').get(guildId).c;
-
-    return { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments };
-}
-
 // Reports abertos/fechados (reports.ejs) — mesmo motivo de
 // Nome de exibição de um usuário do Discord a partir só do ID — tenta o
 // cache do client PRIMEIRO (rápido, sem chamada de API, e mais atualizado
@@ -297,7 +275,7 @@ function buildReportsQueryString({ openPage, openSearch, closedPage, closedSearc
     return qs ? `?${qs}` : '';
 }
 
-// getModerationStats acima: reaproveitado pelo carregamento normal de
+// getReportsData abaixo: reaproveitada pelo carregamento normal de
 // /reports/:guildID e pelo fragment de poll (GET
 // /fragments/reports-list/:guildID). Precisa do client pra resolver nome
 // do Discord de quem abriu/fechou/apagou o tópico (ver
@@ -1191,27 +1169,6 @@ function loadDashboard(client) {
         });
     });
 
-    // Punições/Automoderação (moderacao.ejs) em tempo real — pedido do
-    // dono ("gráficos" também em tempo real, mesmo padrão do fragment de
-    // IN GAME acima). Só consultas ao banco (getModerationStats), sem
-    // fetch de membros — não precisa do cache/TTL usado em
-    // getCachedMembers/getServerPulse.
-    app.get('/fragments/moderation-stats/:guildID', checkAuth, async (req, res) => {
-        if (isDashboardLocked(req)) return res.status(403).send('');
-        const { guildID } = req.params;
-        const guild = client.guilds.cache.get(guildID);
-        if (!guild) return res.status(404).send('');
-        const { member, isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
-        if (apiError) {
-            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
-            return res.status(503).send('');
-        }
-        if (!isAdmin) return res.status(403).send('');
-
-        const stats = getModerationStats(guildID, client.user.id);
-        res.render('partials/moderation-stats', stats);
-    });
-
     // Lista de reports (reports.ejs) em tempo real — pedido do dono
     // ("chats de reportes" também em tempo real).
     app.get('/fragments/reports-list/:guildID', checkAuth, async (req, res) => {
@@ -1259,8 +1216,6 @@ function loadDashboard(client) {
         const openReportsAlert = db.prepare(
             "SELECT report_id, user_id, created_at FROM reports WHERE guild_id = ? AND status = 'waiting' ORDER BY created_at DESC"
         ).all(guildID).map(r => ({ ...r, discordUsername: resolveUserDisplayName(client, r.user_id) }));
-
-        const { punActive, punTotal, punRevoked, punHighSeverity, filterWordCount, filterLevelCount, autoPunishments } = getModerationStats(guildID, client.user.id);
 
         const settingsRows = db.prepare('SELECT key, value FROM settings WHERE guild_id = ?').all(guildID);
         const settings = Object.fromEntries(settingsRows.map(s => [s.key, s.value]));
@@ -1319,13 +1274,6 @@ function loadDashboard(client) {
             supervisorRoleIds,
             roleLimits,
             openReportsAlert,
-            punActive,
-            punTotal,
-            punRevoked,
-            punHighSeverity,
-            filterWordCount,
-            autoPunishments,
-            filterLevelCount,
             settings,
             roles,
             isCacador: PremiumSystem.isGuildAtLeast(guildID, 'cacador'),
