@@ -5881,3 +5881,46 @@ frente, nao so este relatorio):
   `level-form-hint` aparece uma vez por formulário (Criar + 1 por
   nível existente no Editar), e que a ordem de severidade renderizada
   no HTML bate com a esperada.
+
+126) Documentação (site): tags de tier RASTREADOR/CAÇADOR e as menções a
+     eles no texto em inglês passam a virar TRACKER/HUNTER + descrição
+     de permissão de /strike, /unstrike, /repset atualizada
+------------------------------------------------------------------
+- Pedido do dono: "Na documentação tags de rastreador e caçador não são
+  traduzidas para ingles, e devem ser." + follow-up na mesma mensagem:
+  "Atualiza a documentação sobre as permissões também."
+- `web/views/documentacao.ejs` já tinha toggle PT/EN completo (mesmo
+  padrão `t(pt, en)` do resto do site), mas os badges de tier
+  (`tierBadge()`, usados em CADA card de comando com `tier: 'rastreador'
+  |'cacador'`) tinham `nameEn` igual a `namePt` — "RASTREADOR+"/
+  "CAÇADOR" apareciam sem tradução mesmo com a página em inglês. Igual
+  ao caso já resolvido em `hero.ejs` (ver PREMIUM.txt seção 102:
+  RASTREADOR->TRACKER, CAÇADOR->HUNTER — regra explícita "aplica em
+  QUALQUER lugar que renderiza o nome do tier em inglês"), só que essa
+  página tinha ficado de fora até agora.
+- `tierBadge()` corrigida: `rastreador: [...'RASTREADOR+', 'TRACKER+'...]`,
+  `cacador: [...'CAÇADOR', 'HUNTER'...]`. Além do badge em si, mais 10
+  ocorrências onde o NOME do tier aparecia hardcoded dentro do texto EM
+  INGLÊS de uma descrição/nota/legenda (ex: "requires the Rastreador or
+  Caçador plan", "on Rastreador+", "requires Caçador") foram corrigidas
+  pra "Tracker"/"Hunter" — a versão em português dessas mesmas frases
+  NÃO foi tocada (continua "Rastreador"/"Caçador", correto). Lugares
+  afetados: legenda de badges, callout de primeiros passos (2 itens),
+  `/strike` (descrição + opção `nivel`), `/evento`, `/potserver logs`
+  (relatório de combate) e intro da seção RCON, `/botstatus`.
+- Permissões: `permPt`/`permEn` de `/strike`, `/unstrike` e `/repset`
+  diziam só "Moderador + hierarquia" — desatualizado desde a seção 124
+  (Supervisor conta como Moderador + fallback de Administrador, ver
+  `ConfigSystem.memberHasModOrSupervisorRole` e a checagem em
+  `strike/index.js`/`unstrike.js`/`rep-set.js`). Atualizado pra
+  "Moderador ou Supervisor (ou Administrador) + hierarquia" (EN:
+  "Moderator or Supervisor (or Administrator) + hierarchy") nos 3.
+  `/historico` não precisou de ajuste — o subcomando `staff` já
+  documentava "Requires the Staff role" (checagem inalterada,
+  `memberHasAnyStaffRole`); o ajuste da seção 124 em `historico.js`/
+  `feedback.js` foi só contagem de analytics, não um gate de acesso.
+- Verificado com um `ejs.renderFile()` de `documentacao.ejs` (não
+  commitado) confirmando: badges mostram TRACKER+/HUNTER, as 10
+  frases em inglês corrigidas aparecem no HTML, os textos de permissão
+  novos aparecem nos 2 idiomas, e o português continua intacto
+  (RASTREADOR+/CAÇADOR ainda presentes no HTML pro toggle PT).

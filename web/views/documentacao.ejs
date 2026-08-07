@@ -331,10 +331,16 @@ function typeLabel(pt) { return t(pt, TYPE_EN[pt] || pt); }
 
 function permBadge(pt, en) { return `<span class="badge perm">${t(pt, en)}</span>`; }
 function tierBadge(tier) {
+    // Nomes traduzidos pro inglês (Rastreador -> Tracker, Caçador -> Hunter),
+    // mesmo padrão já usado em hero.ejs — ver PREMIUM.txt seção 102: "Aplica
+    // em QUALQUER lugar que renderiza o nome do tier em inglês". Esta página
+    // (documentacao.ejs) tinha ficado de fora até agora (pedido do dono,
+    // 2026-08-07: "tags de rastreador e caçador não são traduzidas... e
+    // devem ser").
     const map = {
         free: ['FREE', 'FREE', 'tier-free'],
-        rastreador: ['RASTREADOR+', 'RASTREADOR+', 'tier-rastreador'],
-        cacador: ['CAÇADOR', 'CAÇADOR', 'tier-cacador'],
+        rastreador: ['RASTREADOR+', 'TRACKER+', 'tier-rastreador'],
+        cacador: ['CAÇADOR', 'HUNTER', 'tier-cacador'],
     };
     const [pt, en, cls] = map[tier] || map.free;
     return `<span class="badge ${cls}">${t(pt, en)}</span>`;
@@ -484,10 +490,10 @@ const toc = [
                     <li><%- t('<strong>Convide o bot</strong> com permissão de Administrador (necessário pra gerenciar cargos, canais e enviar mensagens nos formatos que o bot usa) — <a href="https://discord.com/oauth2/authorize?client_id=' + bot.user.id + '&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener" style="color:#DCA15E;">clique aqui pra convidar</a>.', '<strong>Invite the bot</strong> with Administrator permission (needed to manage roles, channels, and send messages in the formats the bot uses) — <a href="https://discord.com/oauth2/authorize?client_id=' + bot.user.id + '&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener" style="color:#DCA15E;">click here to invite it</a>.') %></li>
                     <li><span class="badge status-essential"><%- essential %></span> <%- t('Configure os cargos da equipe em <code>/config roles</code> — pelo menos o cargo de <strong>Moderador</strong> é obrigatório pra qualquer comando de moderação funcionar.', "Set up your team's roles in <code>/config roles</code> — at minimum, the <strong>Moderator</strong> role is required for any moderation command to work.") %></li>
                     <li><span class="badge status-essential"><%- essential %></span> <%- t('Configure os canais de log em <code>/config logs</code> (Geral/AutoMod, Punições, ReportChat, Staff) — sem isso, os registros não vão pra lugar nenhum.', "Set up the log channels in <code>/config logs</code> (General/AutoMod, Punishments, ReportChat, Staff) — without this, records don't go anywhere.") %></li>
-                    <li><span class="badge status-essential"><%- essential %></span> <%- t('Depois do setup, configure os canais em <code>/potserver logs</code> — é o que registra no Discord tudo que acontece no servidor de jogo (login, mortes, combate...). Funciona em <strong>qualquer plano, incluindo o Free</strong> — diferente dos comandos de RCON, não exige Caçador.', 'After setup, configure the channels in <code>/potserver logs</code> — this records everything happening on the game server (logins, deaths, combat...) in Discord. Works on <strong>any plan, including Free</strong> — unlike RCON commands, it does not require Caçador.') %></li>
+                    <li><span class="badge status-essential"><%- essential %></span> <%- t('Depois do setup, configure os canais em <code>/potserver logs</code> — é o que registra no Discord tudo que acontece no servidor de jogo (login, mortes, combate...). Funciona em <strong>qualquer plano, incluindo o Free</strong> — diferente dos comandos de RCON, não exige Caçador.', 'After setup, configure the channels in <code>/potserver logs</code> — this records everything happening on the game server (logins, deaths, combat...) in Discord. Works on <strong>any plan, including Free</strong> — unlike RCON commands, it does not require Hunter.') %></li>
                     <li><%- t('Todo membro pode rodar <code>/registrar</code> pra vincular a conta do Discord ao Alderon ID (Path of Titans) — é o que liga o perfil, o histórico e os comandos in-game a cada pessoa.', "Any member can run <code>/registrar</code> to link their Discord account to their Alderon ID (Path of Titans) — this is what connects the profile, history, and in-game commands to each person.") %></li>
                     <li><span class="badge status-optional"><%- optional %></span> <%- t('Publique o painel de denúncias com <code>/reportchat</code> no canal onde os jogadores devem reportar.', "Publish the report panel with <code>/reportchat</code> in the channel where players should submit reports.") %></li>
-                    <li><span class="badge status-optional"><%- optional %></span> <%- t('Se você hospeda um servidor de <em>Path of Titans</em>, rode <code>/potserver setup</code> informando IP/senha/porta do RCON — conecta o servidor e já gera o token usado pelos webhooks também. Só faz sentido se você realmente hospeda um servidor; usar os comandos <code>/ingame-*</code> de controle remoto especificamente exige o plano <strong>Caçador</strong>.', 'If you host a <em>Path of Titans</em> server, run <code>/potserver setup</code> with your RCON IP/password/port — this connects the server and also generates the token used by webhooks. Only relevant if you actually host a server; using the <code>/ingame-*</code> remote-control commands specifically requires the <strong>Caçador</strong> plan.') %></li>
+                    <li><span class="badge status-optional"><%- optional %></span> <%- t('Se você hospeda um servidor de <em>Path of Titans</em>, rode <code>/potserver setup</code> informando IP/senha/porta do RCON — conecta o servidor e já gera o token usado pelos webhooks também. Só faz sentido se você realmente hospeda um servidor; usar os comandos <code>/ingame-*</code> de controle remoto especificamente exige o plano <strong>Caçador</strong>.', 'If you host a <em>Path of Titans</em> server, run <code>/potserver setup</code> with your RCON IP/password/port — this connects the server and also generates the token used by webhooks. Only relevant if you actually host a server; using the <code>/ingame-*</code> remote-control commands specifically requires the <strong>Hunter</strong> plan.') %></li>
                 </ol>
             </div>
         </section>
@@ -501,8 +507,8 @@ const toc = [
             <div class="legend">
                 <span class="legend-item"><span class="badge perm"><%- t('Permissão', 'Permission') %></span> <%- t('— quem pode rodar o comando (Discord ou cargo configurado em <code>/config roles</code>)', '— who can run the command (Discord permission or a role configured in <code>/config roles</code>)') %></span>
                 <span class="legend-item"><span class="badge tier-free">FREE</span> <%- t('— disponível em qualquer plano', '— available on any plan') %></span>
-                <span class="legend-item"><span class="badge tier-rastreador">RASTREADOR+</span> <%- t('— exige plano Rastreador ou Caçador', '— requires the Rastreador or Caçador plan') %></span>
-                <span class="legend-item"><span class="badge tier-cacador">CAÇADOR</span> <%- t('— exclusivo do plano Caçador', '— exclusive to the Caçador plan') %></span>
+                <span class="legend-item"><span class="badge tier-rastreador"><%- t('RASTREADOR+', 'TRACKER+') %></span> <%- t('— exige plano Rastreador ou Caçador', '— requires the Tracker or Hunter plan') %></span>
+                <span class="legend-item"><span class="badge tier-cacador"><%- t('CAÇADOR', 'HUNTER') %></span> <%- t('— exclusivo do plano Caçador', '— exclusive to the Hunter plan') %></span>
                 <span class="legend-item"><%- t('🔒 — exige também o cargo de Supervisor, além de Staff', '🔒 — also requires the Supervisor role, in addition to Staff') %></span>
             </div>
         </section>
@@ -621,23 +627,23 @@ const toc = [
             </div>
             <div class="docs-cat-body">
                 <%- cmdCard({
-                    id: 'strike', name: 'strike', permPt: 'Moderador + hierarquia', permEn: 'Moderator + hierarchy',
+                    id: 'strike', name: 'strike', permPt: 'Moderador ou Supervisor (ou Administrador) + hierarquia', permEn: 'Moderator or Supervisor (or Administrator) + hierarchy',
                     descPt: 'Aplica uma punição. No plano <strong>Free</strong>, vira um registro simples (sem nível, sem ação automática — só usuário, motivo e uma duração opcional). No <strong>Rastreador+</strong>, um nível fica sempre obrigatório (autocomplete dos níveis configurados em <code>/config punishments</code>) — duração, pontos perdidos e qualquer ação automática vêm sempre do nível escolhido, nunca do campo duração. Sempre mostra uma prévia de confirmação antes de aplicar de verdade (expira em 2 minutos).',
-                    descEn: "Applies a punishment. On the <strong>Free</strong> plan, it becomes a simple record (no level, no automatic action — just user, reason, and an optional duration). On <strong>Rastreador+</strong>, a level is always required (autocomplete from the levels configured in <code>/config punishments</code>) — duration, points lost, and any automatic action always come from the chosen level, never from the duration field. Always shows a confirmation preview before actually applying it (expires in 2 minutes).",
+                    descEn: "Applies a punishment. On the <strong>Free</strong> plan, it becomes a simple record (no level, no automatic action — just user, reason, and an optional duration). On <strong>Tracker+</strong>, a level is always required (autocomplete from the levels configured in <code>/config punishments</code>) — duration, points lost, and any automatic action always come from the chosen level, never from the duration field. Always shows a confirmation preview before actually applying it (expires in 2 minutes).",
                     notePt: 'Aceita usuário e/ou Alderon ID — só AGID sem vínculo Discord registra um "alvo sintético" (punição só em jogo). Não é possível punir alguém com cargo igual ou superior ao seu.',
                     noteEn: 'Accepts a Discord user and/or Alderon ID — an AGID alone with no Discord link registers a "synthetic target" (in-game-only punishment). You cannot punish someone with a role equal to or higher than yours.',
                     opts: [
                         { name: 'motivo', type: 'Texto', req: true, descPt: 'Motivo da punição.', descEn: 'Reason for the punishment.' },
                         { name: 'usuario', type: 'Usuário', req: false, descPt: 'Use este e/ou agid.', descEn: 'Use this and/or agid.' },
                         { name: 'agid', type: 'Texto', req: false, descPt: 'Alderon ID do jogador.', descEn: "The player's Alderon ID." },
-                        { name: 'nivel', type: 'Texto (autocomplete)', req: false, descPt: 'Obrigatório a partir do Rastreador. Vem de /config punishments.', descEn: 'Required from Rastreador onward. Comes from /config punishments.' },
+                        { name: 'nivel', type: 'Texto (autocomplete)', req: false, descPt: 'Obrigatório a partir do Rastreador. Vem de /config punishments.', descEn: 'Required from Tracker onward. Comes from /config punishments.' },
                         { name: 'duracao', type: 'Texto', req: false, descPt: 'Só tem efeito no plano Free.', descEn: 'Only has an effect on the Free plan.' },
                         { name: 'discord_act', type: 'Escolha', req: false, descPt: 'Nenhuma / Mute / Expulsar / Banir.', descEn: 'None / Mute / Kick / Ban.' },
                         { name: 'report', type: 'Texto', req: false, descPt: 'ID de uma denúncia existente (ex: #R5) pra vincular a punição a ela.', descEn: 'ID of an existing report (e.g. #R5) to link the punishment to it.' },
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'unstrike', name: 'unstrike', permPt: 'Moderador + hierarquia', permEn: 'Moderator + hierarchy',
+                    id: 'unstrike', name: 'unstrike', permPt: 'Moderador ou Supervisor (ou Administrador) + hierarquia', permEn: 'Moderator or Supervisor (or Administrator) + hierarchy',
                     descPt: 'Anula um strike ativo (pelo número mostrado como "Strike #N", não o ID interno do banco) e devolve os pontos de reputação perdidos, após confirmação por botão (expira em 2 minutos).',
                     descEn: 'Reverses an active strike (by the number shown as "Strike #N", not the internal database ID) and returns the reputation points lost, after button confirmation (expires in 2 minutes).',
                     opts: [
@@ -646,7 +652,7 @@ const toc = [
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'repset', name: 'repset', permPt: 'Moderador + hierarquia', permEn: 'Moderator + hierarchy', tier: 'rastreador',
+                    id: 'repset', name: 'repset', permPt: 'Moderador ou Supervisor (ou Administrador) + hierarquia', permEn: 'Moderator or Supervisor (or Administrator) + hierarchy', tier: 'rastreador',
                     descPt: 'Ajusta manualmente a reputação de um usuário para um valor absoluto (0-100). Envia uma DM ao jogador avisando e registra no canal de log de Punições.',
                     descEn: "Manually sets a user's reputation to an absolute value (0-100). Sends the player a DM notifying them and logs it in the Punishments log channel.",
                     opts: [
@@ -687,7 +693,7 @@ const toc = [
                 <%- cmdCard({
                     id: 'evento', name: 'evento', permPt: 'Gerenciar Eventos + cargo Equipe de Eventos', permEn: 'Manage Events + Event Team role',
                     descPt: 'Cria e publica um evento da comunidade: baixa a imagem enviada e publica um post no fórum escolhido, com título, descrição, imagem e data. A partir do plano Rastreador, também cria um Evento Agendado nativo do Discord e marca o cargo de notificação; no plano Caçador, ganha também botão de teleporte automático e anúncio num canal dedicado.',
-                    descEn: "Creates and publishes a community event: downloads the uploaded image and posts it to the chosen forum, with title, description, image, and date. From the Rastreador plan onward, it also creates a native Discord Scheduled Event and pings the notification role; on Caçador, it also gets an automatic teleport button and an announcement in a dedicated channel.",
+                    descEn: "Creates and publishes a community event: downloads the uploaded image and posts it to the chosen forum, with title, description, image, and date. From the Tracker plan onward, it also creates a native Discord Scheduled Event and pings the notification role; on Hunter, it also gets an automatic teleport button and an announcement in a dedicated channel.",
                     notePt: 'No plano Free, publica só o post no fórum — sem evento agendado nem marcação de cargo. É preciso ter o cargo "Equipe de Eventos" configurado em /config roles.',
                     noteEn: 'On the Free plan, it only publishes the forum post — no scheduled event or role ping. You need the "Event Team" role configured in /config roles.',
                     opts: [
@@ -743,7 +749,7 @@ const toc = [
                             { name: 'rcon_port', type: 'Número', req: true, descPt: '', descEn: '' },
                             { name: 'nome', type: 'Texto', req: false, descPt: 'Nome de exibição do servidor.', descEn: "The server's display name." },
                         ] },
-                        { name: 'logs', descPt: 'Abre o painel de configuração dos canais/webhooks de eventos do jogo (login, mortes, combate...). Exige ter rodado setup antes. Funciona em qualquer plano, incluindo o Free — só o relatório de combate detalhado exige Rastreador+.', descEn: 'Opens the panel to configure channels/webhooks for game events (logins, deaths, combat...). Requires having run setup first. Works on any plan, including Free — only the detailed combat report requires Rastreador+.' },
+                        { name: 'logs', descPt: 'Abre o painel de configuração dos canais/webhooks de eventos do jogo (login, mortes, combate...). Exige ter rodado setup antes. Funciona em qualquer plano, incluindo o Free — só o relatório de combate detalhado exige Rastreador+.', descEn: 'Opens the panel to configure channels/webhooks for game events (logins, deaths, combat...). Requires having run setup first. Works on any plan, including Free — only the detailed combat report requires Tracker+.' },
                         { name: 'status', descPt: 'Mostra IP/porta, quantos webhooks estão configurados, o token (mascarado), estatísticas de uso, e testa o RCON ao vivo.', descEn: 'Shows the IP/port, how many webhooks are configured, the token (masked), usage stats, and live-tests RCON.' },
                         { name: 'reset', descPt: 'Apaga configurações, com confirmação por botão.', descEn: 'Deletes configuration, with button confirmation.', opts: [
                             { name: 'scope', type: 'Escolha', req: true, descPt: 'server = só a config do servidor (mantém o token) · logs = só os webhooks · all = tudo, incluindo revogar o token.', descEn: 'server = just the server config (keeps the token) · logs = just the webhooks · all = everything, including revoking the token.' },
@@ -763,7 +769,7 @@ const toc = [
             <div class="docs-cat-header">
                 <h2 class="section-title docs-cat-title"><span data-i18n-pt>Integração Path of Titans / RCON</span><span data-i18n-en>Path of Titans Integration / RCON</span></h2>
                 <p class="docs-cat-desc">
-                    <%- t('Depois de conectar seu servidor com <code>/potserver setup</code> (exige RCON habilitado no seu servidor de PoT), o plano <strong>Caçador</strong> libera ~57 comandos de RCON direto do Discord, agrupados em 7 comandos por categoria — sem precisar abrir o console do jogo. Todos exigem ter um cargo de Staff configurado em <code>/config roles</code>; os marcados com 🔒 exigem também o cargo de Supervisor. Toda ação fica registrada no canal de log configurado.', 'After connecting your server with <code>/potserver setup</code> (requires RCON enabled on your PoT server), the <strong>Caçador</strong> plan unlocks ~57 RCON commands directly from Discord, grouped into 7 commands by category — no need to open the game console. All of them require a Staff role configured in <code>/config roles</code>; the ones marked 🔒 also require the Supervisor role. Every action gets logged to the configured log channel.') %>
+                    <%- t('Depois de conectar seu servidor com <code>/potserver setup</code> (exige RCON habilitado no seu servidor de PoT), o plano <strong>Caçador</strong> libera ~57 comandos de RCON direto do Discord, agrupados em 7 comandos por categoria — sem precisar abrir o console do jogo. Todos exigem ter um cargo de Staff configurado em <code>/config roles</code>; os marcados com 🔒 exigem também o cargo de Supervisor. Toda ação fica registrada no canal de log configurado.', 'After connecting your server with <code>/potserver setup</code> (requires RCON enabled on your PoT server), the <strong>Hunter</strong> plan unlocks ~57 RCON commands directly from Discord, grouped into 7 commands by category — no need to open the game console. All of them require a Staff role configured in <code>/config roles</code>; the ones marked 🔒 also require the Supervisor role. Every action gets logged to the configured log channel.') %>
                 </p>
             </div>
             <div class="docs-cat-body">
@@ -892,7 +898,7 @@ const toc = [
                 <%- cmdCard({
                     id: 'botstatus', name: 'botstatus', permPt: 'Administrador', permEn: 'Administrator',
                     descPt: 'Painel de saúde do bot: uptime e ping sempre visíveis; a partir do plano Caçador, também mostra estatísticas do servidor (punições, reputação média, status do AutoMod).',
-                    descEn: "The bot's health panel: uptime and ping always visible; from the Caçador plan onward, it also shows server stats (punishments, average reputation, AutoMod status).",
+                    descEn: "The bot's health panel: uptime and ping always visible; from the Hunter plan onward, it also shows server stats (punishments, average reputation, AutoMod status).",
                 }) %>
                 <%- cmdCard({
                     id: 'feedback', name: 'feedback', permPt: 'Todos', permEn: 'Everyone',
