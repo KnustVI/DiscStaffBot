@@ -36,17 +36,19 @@
                                  // por só Premium/Ajuda/Suas Denúncias/Sair. Usado em perfil.ejs: nem
                                  // todo usuário logado é admin de servidor, então Moderação/Eventos/
                                  // Denúncias (todos guild-scoped) não fazem sentido nessa página global.
-      defaultCollapsed: true,   // OPCIONAL (pedido do dono, 2026-08-06 — reintroduzido depois de já
-                                 // ter sido revertido uma vez, mesmo pedido de novo) — "sidebar da
-                                 // página de perfil sempre fechada, mas com o botão de expandir" —
-                                 // ignora (nesta carga de página) a preferência salva em
-                                 // localStorage.tpSidebarCollapsed e sempre nasce colapsada; o botão
-                                 // de recolher/expandir continua funcionando normalmente pro resto
-                                 // da visita, só não GRAVA a escolha de volta no localStorage
-                                 // compartilhado (senão expandir aqui uma vez colapsaria a sidebar
-                                 // pra sempre nas outras páginas, ou vice-versa). Usado só em
-                                 // perfil.ejs — as outras páginas continuam com o comportamento de
-                                 // sempre (lembra a última escolha do usuário via localStorage).
+      defaultCollapsed: false,  // OPCIONAL — quando PASSADO (true OU false, não só omitido), a
+                                 // sidebar SEMPRE nasce nesse estado nesta página, ignorando a
+                                 // preferência salva em localStorage.tpSidebarCollapsed no
+                                 // carregamento; o botão de recolher/expandir continua funcionando
+                                 // normalmente pro resto da visita, só não GRAVA a escolha de volta
+                                 // no localStorage compartilhado (senão mexer aqui uma vez
+                                 // colapsaria/expandiria a sidebar pra sempre nas outras páginas, ou
+                                 // vice-versa). Usado só em perfil.ejs. Histórico (pedido do dono):
+                                 // começou como :true (sempre fechada, 2026-08-06, depois de já ter
+                                 // sido revertido uma vez), virou :false (sempre ABERTA, 2026-08-07 —
+                                 // "sidebar de perfil tem de ficar com padrão aberto e não fechado").
+                                 // Páginas que OMITEM o parâmetro continuam com o comportamento de
+                                 // sempre (lembram a última escolha do usuário via localStorage).
     } )
 
   O export do Figma não trazia o TEXTO real de cada botão (só largura do
@@ -59,7 +61,20 @@
 <%
     const sbGuild = typeof guild !== 'undefined' ? guild : null;
     const guildHref = (path) => sbGuild ? `/${path}/${sbGuild.id}` : '#';
-    const sbDefaultCollapsed = typeof defaultCollapsed !== 'undefined' && defaultCollapsed;
+    // sbForceDefault distingue "parâmetro OMITIDO" (comportamento normal,
+    // segue localStorage) de "parâmetro PASSADO como false" (força ABERTA)
+    // — só checar `&& defaultCollapsed` (como antes) tratava os dois casos
+    // como idênticos, então não dava pra forçar um estado ABERTO, só
+    // fechado. Ver defaultCollapsed no docblock de uso lá em cima.
+    //
+    // sbDefaultCollapsed PRECISA continuar atrás do `sbForceDefault &&`
+    // (curto-circuito) — uma referência direta a `defaultCollapsed` sem
+    // isso (ex: `defaultCollapsed === true` sozinho) lança ReferenceError
+    // de verdade em qualquer página que omite o parâmetro, porque só
+    // `typeof` tem a garantia da linguagem de não estourar em identifier
+    // não declarado; comparação direta não tem essa proteção.
+    const sbForceDefault = typeof defaultCollapsed !== 'undefined';
+    const sbDefaultCollapsed = sbForceDefault && defaultCollapsed === true;
     // Configurações e Reputação removidos por hora (pedido do dono,
     // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
     // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
@@ -122,7 +137,7 @@
     // passam esse parâmetro — cai no default false abaixo).
     const sbShowAvatarHint = typeof showAvatarHint !== 'undefined' && showAvatarHint;
 %>
-<aside class="tp-sidebar" id="tpSidebar" data-collapsed="<%= sbDefaultCollapsed ? 'true' : 'false' %>"<%- sbDefaultCollapsed ? ' data-force-default="true"' : '' %>>
+<aside class="tp-sidebar" id="tpSidebar" data-collapsed="<%= sbDefaultCollapsed ? 'true' : 'false' %>"<%- sbForceDefault ? ' data-force-default="true"' : '' %>>
     <div class="tp-sidebar-inner">
         <div class="tp-sidebar-top">
             <div class="tp-sidebar-logo">
@@ -600,13 +615,13 @@
         var toggle = document.getElementById('tpSidebarToggle');
         if (!sidebar || !toggle) return;
 
-        // Sempre-colapsada nesta página (pedido do dono, 2026-08-06 — ver
-        // parâmetro defaultCollapsed no topo do arquivo) — ignora a
-        // preferência salva do localStorage NO CARREGAMENTO (já nasce
-        // colapsada, ver data-collapsed="true" no <aside> acima) e não
-        // GRAVA de volta nele quando o usuário clica no toggle, pra essa
-        // página não "vazar" a escolha pras outras nem herdar a escolha
-        // delas — cada carregamento de /perfil volta a nascer fechada.
+        // Estado FORÇADO nesta página (ver parâmetro defaultCollapsed no
+        // topo do arquivo) — ignora a preferência salva do localStorage NO
+        // CARREGAMENTO (já nasce no estado escolhido por data-collapsed no
+        // <aside> acima) e não GRAVA de volta nele quando o usuário clica
+        // no toggle, pra essa página não "vazar" a escolha pras outras nem
+        // herdar a escolha delas — cada carregamento desta página volta a
+        // nascer no mesmo estado, aberta ou fechada conforme data-collapsed.
         var forceDefault = sidebar.hasAttribute('data-force-default');
 
         function applyState(collapsed) {

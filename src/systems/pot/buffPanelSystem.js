@@ -70,12 +70,31 @@ function _renderList(cb, guildId) {
     if (buffs.length === 0) {
         cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum buff criado ainda. Use o botão **Criar Buff** abaixo.`);
     } else {
-        for (const buff of buffs) {
+        // Mesmo teto de segurança contra COMPONENT_MAX_TOTAL_COMPONENTS_
+        // EXCEEDED já corrigido em configSystem.js refreshPointsPanel (ver
+        // PREMIUM.txt pra o caso real que motivou aquela correção) — este
+        // painel não tem NENHUM limite de quantos buffs um guild pode criar
+        // (diferente de níveis de punição, que têm um teto por tier), então
+        // era só questão de tempo até alguém criar buffs o bastante pra
+        // quebrar aqui também. Cada buff custa 3 componentes (Section+
+        // texto+botão); o resto do painel (cabeçalho/separador/rodapé/botão
+        // Criar Buff) usa uns 7 — 8 buffs visíveis fica com boa margem.
+        const BUFF_LIST_SAFE_LIMIT = 8;
+        const visibleBuffs = buffs.slice(0, BUFF_LIST_SAFE_LIMIT);
+        const hiddenBuffs = buffs.slice(BUFF_LIST_SAFE_LIMIT);
+
+        for (const buff of visibleBuffs) {
             const stats = BuffSystem.getBuffStats(buff.id);
             cb.section(
                 `**${buff.name}**\n${EMOJIS.gauge || '📊'} ${stats.length} atributo(s) configurado(s)`,
                 AdvancedContainerBuilder.secondaryButton(`config-buffs:view:${buff.id}`, 'Ver/Editar'),
             );
+        }
+
+        if (hiddenBuffs.length > 0) {
+            cb.separator();
+            const hiddenNames = hiddenBuffs.map(b => `**${b.name}**`).join(', ');
+            cb.text(`${EMOJIS.messagesquare || 'ℹ️'} +${hiddenBuffs.length} buff(s) não exibido(s) aqui por limite técnico do Discord (${hiddenNames}). Apague ou renomeie algum dos exibidos acima pra liberar espaço na lista.`);
         }
     }
 }
@@ -97,11 +116,25 @@ function _renderEdit(cb, guildId, buffId) {
     if (stats.length === 0) {
         cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum atributo adicionado ainda. Use o botão **Adicionar Atributo** abaixo.`);
     } else {
-        for (const stat of stats) {
+        // Mesmo teto de segurança de _renderList acima — um buff pode ter
+        // até 17 atributos (ver BuffStatCatalog.KNOWN_STATS), e a 3
+        // componentes cada, 17 sozinho já passa dos 40 (sem nem contar o
+        // resto do painel). 8 atributos visíveis fica com boa margem.
+        const STAT_LIST_SAFE_LIMIT = 8;
+        const visibleStats = stats.slice(0, STAT_LIST_SAFE_LIMIT);
+        const hiddenStats = stats.slice(STAT_LIST_SAFE_LIMIT);
+
+        for (const stat of visibleStats) {
             cb.section(
                 `**${stat.attribute}**: \`${stat.value}\``,
                 AdvancedContainerBuilder.dangerButton(`config-buffs:remove-stat:${buffId}:${stat.attribute}`, 'Remover'),
             );
+        }
+
+        if (hiddenStats.length > 0) {
+            cb.separator();
+            const hiddenNames = hiddenStats.map(s => `**${s.attribute}**`).join(', ');
+            cb.text(`${EMOJIS.messagesquare || 'ℹ️'} +${hiddenStats.length} atributo(s) não exibido(s) aqui por limite técnico do Discord (${hiddenNames}). Remova algum dos exibidos acima pra liberar espaço na lista.`);
         }
     }
 

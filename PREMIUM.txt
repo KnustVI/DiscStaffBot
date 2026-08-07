@@ -6252,3 +6252,121 @@ frente, nao so este relatorio):
   mesmos 2 casos agora redirecionam 302 pra `?saved=error`, e um
   arquivo válido continua passando normal pro handler da rota) — 6
   asserções, todas passaram. `node --check` em `dashboard.js`.
+
+132) 3 correções: perda de cargos de Moderação ao salvar outro card,
+     painel /config punishments quebrando com muitos níveis (e o mesmo
+     bug em /config buffs), sidebar de /perfil volta a nascer aberta
+------------------------------------------------------------------
+- Pedido do dono: "Achei outro possível problema, na atualização da
+  lista de cargos ele parece ter deletado uma configuração dos cargos
+  de moderação. [...] Sidebar de perfil tem de ficar agora com padrão
+  aberto e não fechado." + mensagem seguinte, urgente: "Comando de
+  configurar punishments também deu erro, acho que foi porque
+  configurei no site." (com o log de erro 50035
+  COMPONENT_MAX_TOTAL_COMPONENTS_EXCEEDED do Discord anexado).
+
+  BUG 1 — perda de staff_role/supervisor_role ao salvar OUTRO card:
+- Causa raiz confirmada: `moderacao.ejs` tem 3 `<form>` INDEPENDENTES
+  postando pra MESMA rota (`POST /moderacao/:guildID/save`) — Cargos de
+  Moderação, Reputação, e Personalização (upload de banner) — desde que
+  a página foi dividida em cards separados (ver seção anterior sobre
+  "cada card virou um form próprio"). Só o form de Cargos de Moderação
+  tem os `<input>` de `staff_role`/`supervisor_role` (via role-picker).
+  Só que `dashboard.js` gravava esses 2 campos INCONDICIONALMENTE, sem
+  checagem "in body" — decisão tomada ANTES da divisão em cards, pra
+  resolver um bug diferente (role-picker em modo chips não renderiza
+  NENHUM `<input>` quando todos os cargos são removidos, então salvar
+  "0 cargos" virava sempre um no-op). As 2 correções, cada uma certa no
+  seu contexto original, ficaram incompatíveis depois que a página
+  virou 3 forms: salvar Reputação OU Personalização mandava um body
+  SEM staff_role/supervisor_role, e a escrita incondicional apagava os
+  dois pra lista vazia a cada save de QUALQUER outro card.
+- Corrigido com um marcador oculto (`<input type="hidden"
+  name="roles_form_submitted" value="1">`) só no form de Cargos de
+  Moderação — presente mesmo quando todos os chips são removidos
+  (resolve o bug ORIGINAL: 0 cargos ainda salva), ausente nos outros 2
+  forms (resolve o bug NOVO: eles não tocam mais em staff_role/
+  supervisor_role). `dashboard.js` só grava os 2 campos quando
+  `'roles_form_submitted' in body`.
+- Verificado com um teste isolado (não commitado) simulando os 3 bodies
+  reais: form de Cargos com cargos selecionados (grava certo), form de
+  Cargos com todos os chips removidos (ainda grava, agora como lista
+  vazia — comportamento intencional), form de Reputação e form de
+  Personalização (nenhum dos dois toca mais em staff_role/
+  supervisor_role) — 7 asserções, todas passaram.
+
+  BUG 2 — /config punishments (e /config buffs) quebrando com muitos
+  itens:
+- Causa raiz: Componentes V2 do Discord têm um teto RÍGIDO de 40
+  componentes por mensagem, contando TUDO recursivamente (Container/
+  Section/TextDisplay/ActionRow/Button/Separator/Thumbnail). O painel
+  `/config punishments` (aba Níveis, `configSystem.js
+  refreshPointsPanel`) renderiza CADA nível como ~6 componentes no
+  Caçador (Section+texto+botão Editar, mais uma linha própria com
+  Aprovação+Deletar) — o resto do painel (cabeçalho/separadores/
+  rodapé/botões de baixo) já usa uns 13 sozinho. Com o limite
+  ANUNCIADO do Caçador (10 níveis, ver premiumSystem.js), isso soma
+  ~73 componentes — quase o DOBRO do teto. Esse SEMPRE foi um bug
+  latente (dava pra reproduzir criando os níveis um a um pelo Discord
+  também, sem precisar do site), só que o site (seção 125 em diante)
+  tornou trivial passar de ~4 níveis rapidamente, sem nenhum aviso —
+  exatamente o que o dono fez ("acho que foi porque configurei no
+  site").
+- Corrigido travando a exibição INTERATIVA em
+  `SAFE_LEVEL_DISPLAY_LIMIT` (3 níveis no Caçador — testado de verdade,
+  não só estimado: 10 níveis reais renderizados = 33 componentes, bem
+  dentro do teto; 5 no Rastreador, que não tem o botão extra de
+  Aprovação e cujo limite real do tier já é 4, então na prática nunca
+  corta nada lá — sem essa distinção por tier, uma correção "de um
+  limite só" cortaria até quem nunca teve o bug). Os níveis que sobram
+  viram UMA linha de texto só (1 componente pro grupo inteiro, não 6
+  por nível) citando os nomes e apontando pro site, que já lista/edita/
+  deleta a lista COMPLETA sem esse teto (HTML não tem limite de
+  componente).
+- Mesmo bug encontrado (proativamente, o dono não tinha reportado esse
+  ainda) em `/config buffs` (`buffPanelSystem.js`) — DOIS lugares:
+  lista de buffs de um guild (SEM nenhum limite de criação, diferente
+  de níveis de punição — um guild pode criar buffs à vontade) e lista
+  de atributos DENTRO de um buff (até 17 possíveis, ver
+  `BuffStatCatalog.KNOWN_STATS` — 17 atributos sozinho já eram ~51
+  componentes, estourando o teto sem nem contar o resto do painel).
+  Mesma correção aplicada nos 2 lugares (limite de 8 itens visíveis,
+  resto vira uma linha de texto) — testado com 20 buffs reais (34
+  componentes) e 1 buff com os 17 atributos reais (37 componentes), os
+  dois dentro do teto de 40.
+- NÃO alterado: o limite REAL de níveis/buffs que um servidor pode ter
+  (continua 10 pro Caçador, sem teto pra buffs) — só quantos aparecem
+  como componentes INTERATIVOS no painel do Discord de uma vez. A lista
+  completa continua acessível (níveis: pelo site; buffs: apagando
+  algum dos exibidos pra "abrir espaço" e ver os próximos, já que não
+  existe um painel web de buffs ainda).
+
+  BUG 3 (não é bug, é reversão de pedido anterior) — sidebar de
+  /perfil volta a nascer ABERTA:
+- `partials/sidebar-v2.ejs` tinha um mecanismo (`defaultCollapsed`) que
+  força a sidebar a SEMPRE nascer no mesmo estado numa página
+  específica, ignorando `localStorage.tpSidebarCollapsed` — usado só em
+  `perfil.ejs`, valia `true` (sempre fechada) desde um pedido anterior
+  do dono. Virou `false` (sempre ABERTA) — mesmo mecanismo, só o valor
+  forçado mudou.
+- Bug PRÓPRIO pego durante essa mudança (antes de commitar, via teste
+  de verdade): a variável interna só usava `typeof defaultCollapsed
+  !== 'undefined' && defaultCollapsed` — com esse curto-circuito, um
+  `defaultCollapsed: false` explícito e "parâmetro nunca passado"
+  davam o MESMO resultado (`false`), então não tinha como distinguir
+  "força aberta" de "comportamento normal (seguir localStorage)". Pior:
+  ao tentar separar isso em 2 variáveis (`sbForceDefault` via `typeof`,
+  `sbDefaultCollapsed` via comparação direta `defaultCollapsed ===
+  true`), a comparação DIRETA sem a proteção do `typeof` lançava
+  `ReferenceError: defaultCollapsed is not defined` em QUALQUER outra
+  página do dashboard (todas omitem esse parâmetro) — teria quebrado a
+  sidebar inteira do site se tivesse ido pro commit assim. Pego pelo
+  próprio teste de renderização antes de commitar, corrigido com
+  `sbDefaultCollapsed = sbForceDefault && defaultCollapsed === true`
+  (curto-circuito de novo, dessa vez nos 2 níveis).
+- Verificado com `ejs.renderFile()`: `perfil.ejs` mostrando
+  `data-collapsed="false"` + `data-force-default="true"` (nasce aberta,
+  força esse estado); e `sidebar-v2.ejs` renderizado sozinho SEM
+  `defaultCollapsed` confirmando que páginas normais continuam sem
+  `data-force-default` e com o comportamento de sempre (nenhuma
+  regressão nas outras ~10 páginas que usam esse parcial).

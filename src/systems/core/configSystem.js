@@ -1123,7 +1123,41 @@ const ConfigSystem = {
             if (levels.length === 0) {
                 cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum nível criado ainda. Use o botão **Criar Nível** abaixo.`);
             } else {
-                for (const level of levels) {
+                // Teto de segurança contra COMPONENT_MAX_TOTAL_COMPONENTS_
+                // EXCEEDED (erro 50035 real, reportado pelo dono 2026-08-07
+                // depois de criar vários níveis pelo site: "acho que foi
+                // porque configurei no site"). Componentes V2 do Discord têm
+                // um teto RÍGIDO de 40 por mensagem, contando tudo (Container/
+                // Section/TextDisplay/ActionRow/Button/Separator/Thumbnail),
+                // recursivo. Cada nível aqui custa uns 6 componentes no
+                // Caçador (Section+texto+botão Editar + linha com Aprovação+
+                // Deletar) — o resto do painel (cabeçalho/separadores/rodapé/
+                // botões de baixo) já usa ~13 sozinho, então 10 níveis (limite
+                // anunciado do Caçador, ver premiumSystem.js) somam ~73
+                // componentes, quase o DOBRO do teto — o painel simplesmente
+                // não conseguia atualizar depois de passar de ~4 níveis. Isso
+                // sempre foi um bug latente (nem precisava do site — dava pra
+                // reproduzir criando os níveis um a um pelo Discord também),
+                // só que o site tornou muito mais fácil/rápido passar desse
+                // limite sem perceber. Corrigido travando a exibição
+                // INTERATIVA em SAFE_LEVEL_DISPLAY_LIMIT — o resto vira só uma
+                // linha de texto (1 componente pro grupo inteiro, não 6 por
+                // nível), com um empurrão pro site, que já lista/edita/deleta
+                // a lista COMPLETA sem esse teto (HTML não tem limite de
+                // componente, ver moderacao.ejs). Valor DEPENDE do tier: sem
+                // aprovação (Rastreador, 5 componentes/nível, limite real do
+                // tier já é 4) cabe sem cortar nada de verdade; com aprovação
+                // (Caçador, 6 componentes/nível, limite real do tier é 10)
+                // precisa cortar bem mais cedo. Medido de verdade (não só
+                // estimado) com um teste isolado criando 10 níveis reais:
+                // limite 3 no Caçador = 33 componentes totais (margem de 7);
+                // limite 4 chegava a 39 (margem de só 1, arriscado demais pra
+                // manter — qualquer acréscimo futuro ao painel estouraria).
+                const SAFE_LEVEL_DISPLAY_LIMIT = customApprovalEnabled ? 3 : 5;
+                const visibleLevels = levels.slice(0, SAFE_LEVEL_DISPLAY_LIMIT);
+                const hiddenLevels = levels.slice(SAFE_LEVEL_DISPLAY_LIMIT);
+
+                for (const level of visibleLevels) {
                     const icon = PunishmentLevels.SEVERITY_ICONS[level.severity] || '❓';
                     const durationLabel = level.duration_str ? level.duration_str : 'Permanente';
                     const actionLabel = level.action || 'Nenhuma';
@@ -1155,6 +1189,12 @@ const ConfigSystem = {
                     }
                     levelButtons.push(AdvancedContainerBuilder.dangerButton(`config-punishments:level:delete:${level.id}`, 'Deletar Nível'));
                     cb.buttons(...levelButtons);
+                }
+
+                if (hiddenLevels.length > 0) {
+                    cb.separator();
+                    const hiddenNames = hiddenLevels.map(l => `**${l.name}**`).join(', ');
+                    cb.text(`${EMOJIS.messagesquare || 'ℹ️'} +${hiddenLevels.length} nível(is) não exibido(s) aqui por limite técnico do Discord (${hiddenNames}). Gerencie a lista completa pelo site do dashboard.`);
                 }
             }
         }

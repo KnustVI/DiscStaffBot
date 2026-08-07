@@ -1722,24 +1722,37 @@ function loadDashboard(client) {
             // toArray. Limite reaplicado aqui (defesa em profundidade: mesmo
             // limite do tier, ver PremiumSystem.getRoleLimit) — o picker já
             // trava no client, mas um POST forjado não passa por ele.
-            // staff_role/supervisor_role SEMPRE processados, sem checagem "in
-            // body" — o role-picker em modo chips (limit > 1) não renderiza
-            // NENHUM <input> quando o usuário remove todos os cargos antes de
-            // salvar, então 'staff_role' in body dava false e o save virava
-            // um no-op silencioso (config antiga continuava valendo mesmo com
-            // a tela mostrando "salvo"). O <form> desta página sempre inclui
-            // os dois role-picker por inteiro (nunca em aba separada/removido
-            // do DOM via JS, ver moderacao.ejs), então ausência do campo aqui
-            // só pode significar "0 cargos selecionados", nunca "campo fora
-            // deste submit" — toArray cobre esse caso devolvendo [].
+            //
+            // BUG REAL corrigido aqui (dono, 2026-08-07: "na atualização da
+            // lista de cargos ele parece ter deletado uma configuração dos
+            // cargos de moderação"): staff_role/supervisor_role eram
+            // gravados INCONDICIONALMENTE, sem checagem "in body" — decisão
+            // tomada quando esta página tinha um <form> ÚNICO pra tudo (o
+            // role-picker em modo chips não renderiza NENHUM <input> quando
+            // o usuário remove todos os cargos, então 'staff_role' in body
+            // dava false igual num submit de verdade quanto numa ausência
+            // de campo; gravar incondicional resolvia isso). Só que a
+            // página DEPOIS foi dividida em cards/<form> INDEPENDENTES (ver
+            // moderacao.ejs — Cargos de Moderação / Reputação /
+            // Personalização, cada um seu próprio POST pra esta MESMA
+            // rota), e só o form de Cargos de Moderação tem os role-picker
+            // — salvar o form de Reputação OU Personalização mandava um
+            // body SEM staff_role/supervisor_role, e a escrita incondicional
+            // apagava os dois pra lista vazia a cada save de qualquer OUTRO
+            // card. Corrigido com um marcador oculto só nesse form
+            // ('roles_form_submitted', ver moderacao.ejs) — presente mesmo
+            // quando todos os chips são removidos (resolve o caso original),
+            // ausente nos outros 2 forms (resolve o bug novo).
             const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
-            {
-                const limit = PremiumSystem.getRoleLimit(guildID, 'moderador');
-                ConfigSystem.setRoleIds(guildID, 'staff_role', toArray(body.staff_role).filter(Boolean).slice(0, limit));
-            }
-            {
-                const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
-                ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
+            if ('roles_form_submitted' in body) {
+                {
+                    const limit = PremiumSystem.getRoleLimit(guildID, 'moderador');
+                    ConfigSystem.setRoleIds(guildID, 'staff_role', toArray(body.staff_role).filter(Boolean).slice(0, limit));
+                }
+                {
+                    const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
+                    ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
+                }
             }
             if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
             if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);

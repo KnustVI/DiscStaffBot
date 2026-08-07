@@ -108,6 +108,20 @@
         %>
 
         <form action="/moderacao/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+            <%#
+                roles_form_submitted (pedido do dono, 2026-08-07: "na
+                atualização da lista de cargos ele parece ter deletado uma
+                configuração dos cargos de moderação") — marcador que
+                distingue ESTE form específico dos outros 2 que também
+                postam pra /moderacao/:guildID/save (Reputação/
+                Personalização, mais abaixo nesta página). Sem ele, salvar
+                QUALQUER um dos outros 2 cards apagava staff_role/
+                supervisor_role pra lista vazia (ver dashboard.js pro
+                porquê completo). Precisa continuar presente MESMO quando
+                todos os chips de cargo são removidos (por isso é um input
+                fixo, não depende de quantos cargos o role-picker rendeja).
+            %>
+            <input type="hidden" name="roles_form_submitted" value="1">
             <h2 class="section-title text-lg"><span data-i18n-pt>CONFIGURAÇÕES DE CARGOS DE MODERAÇÃO</span><span data-i18n-en>MODERATION ROLE SETTINGS</span></h2>
             <p class="text-[13px] opacity-50"><span data-i18n-pt>Cargos que permitem uso dos comandos relacionados a moderação. O número de cargos permitido por campo varia com o plano (use</span><span data-i18n-en>Roles that grant access to moderation-related commands. The number of roles allowed per field varies by plan (use</span> <code>/premium</code> <span data-i18n-pt>pra aumentar).</span><span data-i18n-en>to increase it).</span></p>
             <div class="flex flex-col gap-8">
