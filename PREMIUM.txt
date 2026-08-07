@@ -201,6 +201,10 @@ FREE
   permitidos - ver secao 14).
 - Eventos: /evento cria eventos em foruns, com suporte a imagem de capa -
   sem evento agendado do Discord, sem marcar cargo de notificacao.
+- Cargos de equipe: 1 cargo do Discord por categoria em /config roles
+  (Moderador/Supervisor/Equipe de Eventos/Notificação de Eventos) - painel
+  vira select simples em vez de chips+botão de adicionar quando o limite
+  é 1 (ver web/views/partials/role-picker.ejs).
 - Integracao Path of Titans: logs de jogo (recebidos normalmente via
   webhook, sem bloqueio de tier).
 - Toda punicao com duracao MAIOR que 72h ou permanente exige aprovacao do
@@ -263,6 +267,10 @@ RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$14/mes (fora do Brasil, via Ko-
   2 botoes, nao os dois). Exige o jogador registrado (/registrar) E online
   no jogo no momento do clique - mesma checagem ja usada na verificacao de
   /registrar.
+- Cargos de equipe: até 3 cargos em Moderador e em Equipe de Eventos, 1
+  em Supervisor e em Notificação de Eventos (ver GUILD_LIMITS.roleLimits,
+  premiumSystem.js) - painel de /config roles vira chips+botão de
+  adicionar nas categorias com mais de 1 permitido.
 - Divulgação: comando /divulgar publica a divulgação do servidor no feed
   "Novidades dos Servidores Parceiros" da home do site (JÁ IMPLEMENTADO -
   ver seção 113), visível pra qualquer visitante, logado ou não. Título
@@ -329,6 +337,9 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   no /divulgar, o card no feed da home mostra sozinho o PRÓXIMO evento
   agendado do servidor (o mais próximo no tempo), sem precisar configurar
   nada a mais.
+- Cargos de equipe: até 10 cargos em QUALQUER categoria (Moderador/
+  Supervisor/Equipe de Eventos/Notificação de Eventos) - dobro do
+  Rastreador (era 5, aumentado pra 10 - ver seção 115).
 - Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
   PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
   pra /ingame-* na secao 66) - 7 comandos por categoria (/ingame-stats,
@@ -5128,3 +5139,33 @@ frente, nao so este relatorio):
   servidor Discord real aqui, então o fluxo completo (login de um staff
   de verdade, cargo resolvido ao vivo) precisa de teste manual em
   produção antes de confiar 100%.
+
+115) Limite de cargos por categoria em /config roles (Caçador): 5 → 10
+------------------------------------------------------------------
+- Pedido do dono: "Na adição de cargos para tier caçador mude o limite
+  de 5 para 10. Atualize na documentação também."
+- `premiumSystem.js` `GUILD_LIMITS.cacador.roleLimits` mudou de
+  `{ moderador: 5, supervisor: 5, event: 5, eventNotify: 5 }` pra
+  `{ moderador: 10, supervisor: 10, event: 10, eventNotify: 10 }` — as 4
+  categorias de /config roles (Moderador/Supervisor/Equipe de Eventos/
+  Notificação de Eventos) ficam uniformes, mesmo padrão de antes (só o
+  valor mudou). `PremiumSystem.getRoleLimit()` é a ÚNICA fonte de
+  verdade lida por `web/views/partials/role-picker.ejs` (dashboard web)
+  e pelo painel `/config roles` do Discord (`configSystem.js`
+  `ROLE_TABS[*].fields[*].roleLimitKey`) — nenhum texto fixo em nenhum
+  dos dois lugares hardcoda o número 5, então a mudança já vale nos dois
+  sem precisar tocar em UI nenhuma (confirmado por busca de código antes
+  de implementar).
+- Free (1) e Rastreador (moderador/event: 3, supervisor/eventNotify: 1)
+  NÃO foram tocados — pedido era só sobre o tier Caçador.
+- Documentação: até esta seção, o limite de cargos por categoria NUNCA
+  tinha sido descrito nas seções 1/2 (só o valor de `maxPunishmentLevels`
+  tinha bullet próprio) — adicionado um bullet "Cargos de equipe:" nas 3
+  seções de SERVER PREMIUM (Free/Rastreador/Caçador) com os valores
+  atuais de cada tier, não só o que mudou agora.
+- Verificado com `node --check` em `premiumSystem.js` e uma checagem
+  direta de `PremiumSystem.getRoleLimit()` pra um servidor Free
+  (confirma o `?? 1` de fallback continua batendo); busca de código
+  confirmando zero lugares com o número 5 hardcoded fora do changelog
+  histórico. Sem servidor Discord real aqui pra confirmar visualmente o
+  painel liberando o 10º cargo em produção.

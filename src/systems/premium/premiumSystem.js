@@ -80,7 +80,7 @@ const GUILD_LIMITS = {
         eventTier: 'full',
         maxPunishmentLevels: 10,
         damageReportEnabled: true,
-        roleLimits: { moderador: 5, supervisor: 5, event: 5, eventNotify: 5 },
+        roleLimits: { moderador: 10, supervisor: 10, event: 10, eventNotify: 10 },
         genericRconEnabled: true,
         customPunishmentApprovalEnabled: true,
     },
