@@ -1,4 +1,4 @@
-// /home/ubuntu/DiscStaffBot/src/commands/utility/reportarbug.js
+// src/commands/utility/feedback.js
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
@@ -8,7 +8,7 @@ const SEU_CANAL_DE_REPORTS_ID = '1485403522395672717';
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('reportarbug')
+        .setName('feedback')
         .setDescription('Envia uma sugestão ou reporta um bug diretamente para o desenvolvedor.')
         .addStringOption(opt => 
             opt.setName('tipo')
@@ -58,7 +58,7 @@ module.exports = {
             
             if (!devChannel) {
                 db.logActivity(guildId, user.id, 'feedback_channel_error', null, {
-                    command: 'reportarbug', tipo,
+                    command: 'feedback', tipo,
                     error: 'Canal de suporte não encontrado',
                     channelId: SEU_CANAL_DE_REPORTS_ID
                 });
@@ -92,13 +92,13 @@ module.exports = {
             } catch (err) {
                 console.error('❌ Erro ao enviar feedback:', err);
                 db.logActivity(guildId, user.id, 'feedback_send_error', null, {
-                    command: 'reportarbug', tipo, feedbackUuid, error: err.message
+                    command: 'feedback', tipo, feedbackUuid, error: err.message
                 });
                 return await ResponseManager.error(interaction, 'Ocorreu um erro ao enviar seu feedback.');
             }
             
             db.logActivity(guildId, user.id, 'feedback', null, {
-                command: 'reportarbug', tipo, feedbackUuid,
+                command: 'feedback', tipo, feedbackUuid,
                 messageId: sentMessage.id, channelId: devChannel.id,
                 messagePreview: mensagem.slice(0, 200), responseTime: Date.now() - startTime
             });
@@ -135,13 +135,13 @@ module.exports = {
             console.log(`📊 [FEEDBACK] ${user.tag} enviou ${tipo} em ${guild.name} | ${Date.now() - startTime}ms`);
             
         } catch (error) {
-            console.error('❌ Erro no reportarbug:', error);
+            console.error('❌ Erro no feedback:', error);
             
             const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
             
             db.logActivity(guildId, user.id, 'error', null, {
-                command: 'reportarbug', tipo, error: error.message
+                command: 'feedback', tipo, error: error.message
             });
             
             const errorBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR });

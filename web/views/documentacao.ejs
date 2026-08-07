@@ -427,7 +427,7 @@ const toc = [
         { id: 'cmd-ingame-stats', label: '/ingame-stats' },
     ] },
     { catPt: 'Ajuda & Suporte', catEn: 'Help & Support', items: [
-        { id: 'cmd-ajuda', label: '/ajuda' }, { id: 'cmd-botstatus', label: '/botstatus' }, { id: 'cmd-reportarbug', label: '/reportarbug' },
+        { id: 'cmd-ajuda', label: '/ajuda' }, { id: 'cmd-botstatus', label: '/botstatus' }, { id: 'cmd-feedback', label: '/feedback' },
     ] },
 ];
 %>
@@ -895,7 +895,7 @@ const toc = [
                     descEn: "The bot's health panel: uptime and ping always visible; from the Caçador plan onward, it also shows server stats (punishments, average reputation, AutoMod status).",
                 }) %>
                 <%- cmdCard({
-                    id: 'reportarbug', name: 'reportarbug', permPt: 'Todos', permEn: 'Everyone',
+                    id: 'feedback', name: 'feedback', permPt: 'Todos', permEn: 'Everyone',
                     descPt: 'Envia uma sugestão ou relato de bug direto pro desenvolvedor do bot.',
                     descEn: "Sends a suggestion or bug report straight to the bot's developer.",
                     opts: [

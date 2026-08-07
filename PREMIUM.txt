@@ -585,7 +585,7 @@ criado um script auxiliar (ex: concessao em massa/emergencial).
 6) AQUISICAO (PAGAMENTO)
 ------------------------------------------------
 Hoje e 100% manual: o jogador/admin fala com o desenvolvedor do bot (via
-/reportarbug, opcao Sugestao, ou contato direto), combina o pagamento (Pix,
+/feedback, opcao Sugestao, ou contato direto), combina o pagamento (Pix,
 por enquanto) e o dev concede o tier via /premium-admin.
 
 Assim que terminarmos de separar todo o uso/comandos por tier (este
@@ -5478,3 +5478,42 @@ frente, nao so este relatorio):
 - Verificado com `node --check` nos 3 arquivos alterados
   (`playerRegistrationSystem.js`, `webhookPayloads.js`,
   `rconCommandCatalog.js`).
+
+120) Comando /reportarbug renomeado para /feedback
+------------------------------------------------------------------
+- Pedido do dono: "Altere o nome do comando reportar bug para feedback."
+  Mesmo comando, mesmo comportamento — só o nome muda (`/reportarbug` →
+  `/feedback`), já que internamente o sistema sempre se chamou "feedback"
+  por baixo dos panos (tabela `feedbacks`, `activity_logs.action =
+  'feedback'`, variável `feedbackUuid`) — o nome do slash command era o
+  único lugar que ainda dizia "reportarbug".
+- `src/commands/utility/reportarbug.js` renomeado (via `git mv`) pra
+  `src/commands/utility/feedback.js` — mesma convenção de sempre
+  (arquivo = nome do comando, ver `/divulgar`/`/perfil-edit`), embora o
+  loader de comandos (`index.js`) não dependa do nome do arquivo, só de
+  `data`/`execute` exportados. `.setName('reportarbug')` →
+  `.setName('feedback')`; os 4 `command: 'reportarbug'` gravados em
+  `db.logActivity` (metadados de auditoria) e a mensagem de erro no
+  console também atualizados pra `'feedback'` — evita logs futuros
+  mencionando um comando que não existe mais.
+- Referências atualizadas em `src/systems/core/handlers.js`
+  (`ephemeralCommands`), `src/commands/ajuda/ajuda.js` (heading do FAQ),
+  `web/views/documentacao.ejs` (nav + `cmdCard` da página `/documentacao`)
+  e `TERMOS_DE_SERVICO.txt`/`TERMOS_DE_SERVICO_EN.txt` (Seção 12,
+  Contato e Suporte — documento legal real, servido em `/termos`; bump
+  de versão 1.2 → 1.3, com entrada nova em HISTÓRICO DE VERSÕES/VERSION
+  HISTORY, contagem de tags/separadores conferida idêntica entre PT/EN
+  antes de considerar seguro).
+- NÃO tocado de propósito: a menção a `reportarbug.js` na seção 58 (lista
+  de arquivos migrados numa revisão passada) é um registro histórico do
+  nome do arquivo NAQUELE momento — reescrever isso quebraria a
+  precisão histórica do changelog, não é um lugar que precisa refletir o
+  estado atual.
+- Falta rodar `node deploy.js` (ou reiniciar o bot com
+  `DEPLOY_COMMANDS=true`) pra publicar o comando renomeado no Discord —
+  até lá, `/reportarbug` continua sendo o nome registrado de verdade nos
+  servidores (o Discord não renomeia sozinho, é preciso reenviar a
+  definição do comando).
+- Verificado com `node --check` no arquivo renomeado e em
+  `handlers.js`/`ajuda.js`; busca de código confirmando zero ocorrências
+  restantes de "reportarbug" fora da seção histórica 58 e desta entrada.

@@ -184,7 +184,7 @@ function buildPageHelp(guildName, emojis) {
 
     builder.section(
         [
-            `## ${emojis.compass || '💡'} /reportarbug`,
+            `## ${emojis.compass || '💡'} /feedback`,
             'Encontrou um bug ou tem uma sugestão? Envia direto pro desenvolvedor — escolha **Reportar Bug/Erro** ou **Sugerir Melhoria** e descreva com o máximo de detalhes possível.',
         ].join('\n'),
         AdvancedContainerBuilder.thumbnail(FALLBACK_ICON)
