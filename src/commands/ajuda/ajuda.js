@@ -54,8 +54,10 @@ function buildPageWelcome(displayName, guildName, emojis, isAdmin) {
     builder.separator();
     builder.title(`${emojis.idcard || '🆔'} Registro (/registrar e /perfil)`, 2);
     builder.block([
-        '• **/registrar** vincula seu Discord ao seu Alderon ID (Path of Titans).',
-        '• **Esse vínculo é global** — faça uma vez só e ele vale em qualquer servidor que tiver o bot, não precisa repetir em cada comunidade.',
+        '• **Já conectou sua conta do Discord na Alderon Games?** Então você nem precisa fazer nada aqui — basta entrar em QUALQUER servidor com este bot integrado que seu vínculo é criado automaticamente assim que você jogar, sem precisar rodar comando nenhum.',
+        '• Pra conectar (se ainda não fez): acesse https://alderongames.com/me/settings, faça login com sua conta Alderon e conecte seu Discord por lá.',
+        '• **Prefere vincular na mão?** Use **/registrar** — mas ele exige um código de verificação enviado DENTRO DO JOGO, então você precisa estar online no servidor na hora de confirmar.',
+        '• **Esse vínculo é global** — vale em qualquer servidor que tiver o bot, não precisa repetir em cada comunidade, seja qual for o método usado.',
         '• **/perfil** mostra seu cartão de jogador (ou o de outra pessoa).',
     ]);
 
