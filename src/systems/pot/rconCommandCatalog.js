@@ -209,18 +209,17 @@ const MARKS_COMMANDS = [
             { name: 'missao', type: 'string', required: true, description: 'Nome exato da missão (ex: "Collect Mushrooms")' },
         ],
         // Sintaxe passada pelo dono (2026-08-06, item "Missão de Marks" da
-        // Loja de Jogo — ver PREMIUM.txt seção 116): "/GiveQuest [user/AGID]
-        // [questname]", ex: "/givequest mike Collect Mushrooms". O exemplo
-        // "mike" é o MESMO nome genérico usado na doc de systemmessage/
-        // whisper acima — indício de que vem da mesma fonte
-        // (hosting.pathoftitans.wiki). Por precaução usa `r.targetName`
-        // (nome em jogo), não `r.target` (Alderon ID) — mesma lição já
-        // aprendida com systemmessage/whisper: a notação genérica
-        // "[user/AGID]" da doc não bateu com a realidade nos dois casos já
-        // testados, só o NOME funcionou. AINDA NÃO TESTADO contra servidor
-        // real (nem por RCON de admin manual, nem pela futura Loja de Jogo)
-        // — confirmar antes de confiar 100%.
-        buildCommand: (r) => `GiveQuest ${r.targetName} ${r.missao}`,
+        // Loja de Jogo — ver PREMIUM.txt seção 118): "/GiveQuest [user/AGID]
+        // [questname]", ex: "/givequest mike Collect Mushrooms". DIFERENTE
+        // de whisper/systemmessage (que precisam do nome em jogo, não AGID —
+        // ver r.targetName acima): o dono confirmou explicitamente que
+        // GiveQuest aceita AGID de verdade, e pediu PRIORIDADE pro AGID
+        // sobre o nome em jogo aqui, porque o nome pode mudar com o tempo
+        // (AGID é o identificador estável) — por isso usa `r.target`
+        // (Alderon ID), não `r.targetName`. AINDA NÃO TESTADO contra
+        // servidor real (nem por RCON de admin manual, nem pela futura Loja
+        // de Jogo) — confirmar antes de confiar 100%.
+        buildCommand: (r) => `GiveQuest ${r.target} ${r.missao}`,
     },
 ];
 

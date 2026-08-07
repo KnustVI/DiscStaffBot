@@ -673,12 +673,14 @@ function buildKillPanel(data, guild, receivedAt) {
 // do bot, ver também formatGrowth em playerRegistrationSystem.js — duplicado
 // aqui de propósito pra manter webhookPayloads.js autocontido, mesmo padrão
 // já usado nesse arquivo): 0 = Filhote, 0.25 = Juvenil, 0.50 = Adolescente,
-// 0.80 = Sub-Adulto, 1 = Adulto. Growth NUNCA aparece em porcentagem em
+// 0.75 = Sub-Adulto (corrigido de 0.80, pedido do dono 2026-08-06 — mesmo
+// valor agora usado pelo item "Growth: Subadulto" da Loja de Jogo, ver
+// web/views/loja.ejs), 1 = Adulto. Growth NUNCA aparece em porcentagem em
 // nenhum log do bot — sempre o nome do estágio (pedido explícito do dono).
 function formatGrowthStage(growth) {
     if (growth === null || growth === undefined) return null;
     if (growth >= 1) return 'Adulto';
-    if (growth >= 0.80) return 'Sub-Adulto';
+    if (growth >= 0.75) return 'Sub-Adulto';
     if (growth >= 0.50) return 'Adolescente';
     if (growth >= 0.25) return 'Juvenil';
     return 'Filhote';

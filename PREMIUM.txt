@@ -5438,3 +5438,43 @@ frente, nao so este relatorio):
   destacados, parágrafos separados certos), e versão/data lidos como
   "1.2"/"06.08.2026" nos dois. Verificação forte, mas indireta — não é a
   função de verdade rodando dentro do dashboard, é uma cópia fiel dela.
+
+119) Correção do limiar de Sub-Adulto (0.80 → 0.75) + GiveQuest usa AGID
+     (não o nome em jogo) + correção de uma alegação errada da seção 118
+------------------------------------------------------------------
+- Pedido do dono: "Atualize os valores de growth que te passei.
+  formatGrowth()" +, em seguida: "O comando de missão aceita AGID, de
+  prioridade para uso do agid pois o jogador pode mudar o nome em jogo
+  em algum momento."
+- GROWTH: `formatGrowth()` (`playerRegistrationSystem.js`) e sua
+  duplicata proposital `formatGrowthStage()` (`webhookPayloads.js`)
+  tinham o limiar de Sub-Adulto em 0.80 desde a seção 26 (revisão
+  antiga) — corrigido pra 0.75, batendo com os 5 valores agora oficiais
+  (0 Filhote/0.25 Juvenil/0.50 Adolescente/0.75 Sub-Adulto/1 Adulto, os
+  MESMOS usados pelos itens "Growth: <estágio>" da Loja de Jogo em
+  `loja.ejs`) — antes desta correção, um dinossauro no valor exato de
+  0.75 (comprado como "Subadulto" na loja) seria classificado como
+  "Adolescente" pela exibição do `/perfil`/logs de combate, já que
+  0.75 < 0.80. Agora os dois lados batem exatamente.
+- CORREÇÃO DE UMA ALEGAÇÃO ERRADA DA SEÇÃO 118: aquela seção afirmou que
+  a exibição do `/perfil` ainda usava só 3 pontos (0.1/0.5/1.0, da seção
+  11, uma revisão bem mais antiga) e por isso "não bateria" com os
+  novos valores da loja — isso estava ERRADO. O código já tinha 5
+  pontos com 0.80 (seção 26), não 3 - a análise da seção 118 foi feita
+  em cima de um trecho antigo da conversa, sem reconferir o código
+  atual antes de escrever. O gap real era só um valor (0.80 vs 0.75),
+  não uma divergência estrutural de 3-pontos-vs-5-pontos. Registrado
+  aqui pra manter o changelog honesto, não silenciosamente corrigido na
+  seção 118.
+- GIVEQUEST: `rconCommandCatalog.js` — `buildCommand` trocado de
+  `r.targetName` (nome em jogo) pra `r.target` (Alderon ID), a pedido
+  explícito do dono: diferente de whisper/systemmessage (que
+  precisam do nome, confirmado em teste real — ver seção 83), GiveQuest
+  aceita AGID de verdade, e o dono pediu prioridade pro AGID justamente
+  porque o nome em jogo pode mudar com o tempo (AGID é o identificador
+  estável, nunca muda). Comentário da entrada atualizado pra não sugerir
+  mais a mesma cautela de whisper/systemmessage (que não se aplica
+  aqui). Ainda NÃO TESTADO contra servidor real.
+- Verificado com `node --check` nos 3 arquivos alterados
+  (`playerRegistrationSystem.js`, `webhookPayloads.js`,
+  `rconCommandCatalog.js`).

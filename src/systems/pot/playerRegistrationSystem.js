@@ -81,14 +81,18 @@ function formatPlaytime(totalSeconds) {
     return `${hours}h ${minutes}m`;
 }
 
-// Estágios de crescimento confirmados pelo dono (referência oficial para
-// TODOS os comandos/logs do bot): 0 = Filhote, 0.25 = Juvenil,
-// 0.50 = Adolescente, 0.80 = Sub-Adulto, 1 = Adulto. Valores contínuos entre
-// esses pontos usam o limiar mais próximo abaixo.
+// Estágios oficiais (pedido do dono, 2026-08-06 — corrige o limiar de
+// Sub-Adulto usado desde a seção 26 do PREMIUM.txt, 0.80): 0 = Filhote,
+// 0.25 = Juvenil, 0.50 = Adolescente, 0.75 = Sub-Adulto, 1 = Adulto —
+// mesmos 5 pontos agora usados como VALOR de cada item "Growth: <estágio>"
+// da Loja de Jogo (ver web/views/loja.ejs), então a exibição do /perfil e
+// o que a loja vai efetivamente aplicar batem entre si. Duplicada em
+// webhookPayloads.js (formatGrowthStage) — mesmo padrão de duplicação
+// proposital já usado ali, manter as duas em sincronia.
 function formatGrowth(growth) {
     if (growth === null || growth === undefined) return '—';
     if (growth >= 1) return 'Adulto';
-    if (growth >= 0.80) return 'Sub-Adulto';
+    if (growth >= 0.75) return 'Sub-Adulto';
     if (growth >= 0.50) return 'Adolescente';
     if (growth >= 0.25) return 'Juvenil';
     return 'Filhote';
