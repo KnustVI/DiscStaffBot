@@ -72,13 +72,31 @@ function _renderList(cb, guildId) {
     if (filters.length === 0) {
         cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhuma palavra filtrada ainda. Use o botão **Adicionar Palavra** abaixo.`);
     } else {
-        for (const filter of filters) {
+        // Mesmo teto de segurança contra COMPONENT_MAX_TOTAL_COMPONENTS_
+        // EXCEEDED já corrigido em configSystem.js refreshPointsPanel e
+        // buffPanelSystem.js (ver PREMIUM.txt) — este painel também não
+        // tem NENHUM limite de quantas palavras um guild pode filtrar
+        // (ver chatFilterSystem.js addFilter). Cada palavra custa 3
+        // componentes (Section+texto+botão Remover); o resto do painel
+        // (cabeçalho/separador/rodapé/botão Adicionar Palavra) usa uns 7
+        // — 8 palavras visíveis fica com boa margem.
+        const FILTER_LIST_SAFE_LIMIT = 8;
+        const visibleFilters = filters.slice(0, FILTER_LIST_SAFE_LIMIT);
+        const hiddenFilters = filters.slice(FILTER_LIST_SAFE_LIMIT);
+
+        for (const filter of visibleFilters) {
             const level = PunishmentLevels.getLevel(guildId, filter.level_id);
             const levelLabel = level ? `${level.name} (${level.severity})` : `${EMOJIS.trianglealert || '⚠️'} nível #${filter.level_id} não existe mais`;
             cb.section(
                 `**"${filter.word}"**\n${EMOJIS.gavel || '⚖️'} ${levelLabel}`,
                 AdvancedContainerBuilder.dangerButton(`config-filtro:remove:${filter.id}`, 'Remover'),
             );
+        }
+
+        if (hiddenFilters.length > 0) {
+            cb.separator();
+            const hiddenWords = hiddenFilters.map(f => `**"${f.word}"**`).join(', ');
+            cb.text(`${EMOJIS.messagesquare || 'ℹ️'} +${hiddenFilters.length} palavra(s) não exibida(s) aqui por limite técnico do Discord (${hiddenWords}). Remova alguma das exibidas acima pra liberar espaço na lista.`);
         }
     }
 }

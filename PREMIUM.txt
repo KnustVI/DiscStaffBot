@@ -6413,3 +6413,54 @@ frente, nao so este relatorio):
   resumo do `<summary>` batendo com a contagem real de online) e das
   páginas INTEIRAS `moderacao.ejs`/`events.ejs` confirmando a
   integração ponta a ponta. `node --check` em `ingame-pulse-poll.js`.
+
+134) Varredura por mais bugs de interação site↔Discord — achado e
+     corrigido mais 1: /config filtro tinha o MESMO risco de crash de
+     componentes já corrigido em Punições/Buffs (seção 132)
+------------------------------------------------------------------
+- Pedido do dono: "Procure mais algum bug de interação entre o site e
+  o discord sobre as informações salvas."
+- Varredura sistemática, 2 frentes:
+    1. Todo `POST /.../save` do dashboard com MAIS de um `<form>`
+       postando pra mesma rota (a causa raiz do bug da seção 132,
+       "cargos de Moderação apagados ao salvar Reputação/
+       Personalização") — conferido `/perfil/save`, `/reports/
+       :guildID/save` e `/events/:guildID/save`: todos têm só 1 `<form>`
+       cada (moderacao.ejs era o ÚNICO com o padrão de "vários cards
+       viraram vários forms independentes"), então nenhum dos 3 tem
+       esse risco. `/events/:guildID/save` grava `event_role`/
+       `event_notify_role` incondicionalmente (igual o de Moderação
+       corrigido) — CORRETO nesse caso específico, já que só existe 1
+       form nessa página pra confundir com outro.
+    2. Todo painel do Discord (Components V2) que percorre uma lista de
+       tamanho VARIÁVEL/sem teto renderizando componentes por item (a
+       causa raiz do crash de Punições/Buffs) — varrido o `src/`
+       inteiro por esse padrão. Achado mais 1: `/config filtro`
+       (`chatFilterPanelSystem.js`, lista de palavras filtradas do chat
+       em jogo) — `chatFilterSystem.js addFilter` não tem NENHUM
+       limite de quantas palavras um guild pode cadastrar, e cada
+       palavra custava 3 componentes; ~11+ palavras já estourava os 40.
+       Esse painel não tem equivalente no site (só existe via
+       `/config filtro` no Discord), então tecnicamente não é um bug de
+       *interação* site↔Discord como os outros — mas é a MESMA causa
+       raiz e a MESMA gravidade (crash real, não hipotético), corrigido
+       de qualquer forma com a mesma receita já validada (limite de 8
+       palavras visíveis, resto vira uma linha de texto).
+    Outro painel com o mesmo padrão de loop (`potWebhookSystem.js`,
+    gerenciador de webhooks) já usa paginação de verdade (`slice`/
+    `totalPages`/`ITEMS_PER_PAGE`) — confirmado seguro, não precisou de
+    correção.
+- Também conferido (sem achar problema): `dev-image-pool.ejs`
+  (upload/toggle/delete pelo site) e `/perfil-pool` (bot de developer)
+  usam as MESMAS funções de `profileImagePool.js` — não são duas
+  implementações paralelas que pudessem divergir, então não têm esse
+  risco por construção; e os painéis de report
+  (`reportChatSystem.js`) juntam a lista de staffs numa única string
+  de texto em vez de 1 componente por staff, então também não têm esse
+  risco.
+- Verificado com um teste isolado (não commitado) criando 25 palavras
+  filtradas reais no banco (bem além do que já quebrava antes) e
+  contando os componentes reais do payload retornado por
+  `refreshFilterPanel` — 34 componentes, dentro do teto de 40, com o
+  aviso de "+17 não exibidas" presente. `node --check` em
+  `chatFilterPanelSystem.js`.
