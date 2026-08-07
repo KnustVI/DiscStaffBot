@@ -423,9 +423,7 @@
 
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Foto de Perfil</span><span data-i18n-en>Profile Picture</span></h3>
-                        <% if (!isCompyPlus) { %>
-                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais.</span><span data-i18n-en>on Discord to learn more.</span></p>
-                        <% } else if (isRaptor) { %>
+                        <% if (isRaptor) { %>
                             <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem. Sem upload, usa o banner do seu próprio perfil do Discord (se você tiver um).</span><span data-i18n-en>Upload your own image. Without an upload, it uses your own Discord profile banner (if you have one).</span></p>
                             <% if (avatarPreviewUrl) { %>
                                 <div class="rounded-lg mb-2" style="width:96px; aspect-ratio:1/1; background-image:url('<%= avatarPreviewUrl %>'); background-size:cover; background-position:center;"></div>
@@ -434,8 +432,9 @@
                                 <div class="icon-box"><i data-lucide="upload"></i></div>
                                 <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                             </div>
-                        <% } else { %>
-                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha uma foto da galeria.</span><span data-i18n-en>Choose a photo from the gallery.</span></p>
+                        <% } else if (isCompyPlus || avatarOptions.length > 0) { %>
+                            <%# Free chega aqui só com avatarOptions.length > 0 — restrito ao que comprou na Loja (pedido do dono, 2026-08-07), ver dashboard.js GET /perfil. %>
+                            <p class="text-xs opacity-40 mb-2"><% if (isCompyPlus) { %><span data-i18n-pt>Escolha uma foto da galeria.</span><span data-i18n-en>Choose a photo from the gallery.</span><% } else { %><span data-i18n-pt>Escolha uma das fotos que você comprou na Loja.</span><span data-i18n-en>Choose one of the photos you bought in the Shop.</span><% } %></p>
                             <% if (avatarOptions.length === 0) { %>
                                 <p class="text-xs opacity-40"><span data-i18n-pt>Nenhuma foto disponível no momento.</span><span data-i18n-en>No photo available right now.</span></p>
                             <% } else { %>
@@ -454,44 +453,48 @@
                                     <% }); %>
                                 </div>
                             <% } %>
+                        <% } else { %>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais, ou compre uma foto específica na</span><span data-i18n-en>on Discord to learn more, or buy a specific photo in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>com Caçadas.</span><span data-i18n-en>with Hunt.</span></p>
                         <% } %>
                     </div>
 
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Plano de Fundo</span><span data-i18n-en>Background</span></h3>
-                        <% if (!isCompyPlus) { %>
-                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais.</span><span data-i18n-en>on Discord to learn more.</span></p>
-                        <% } else { %>
-                            <% if (isRaptor) { %>
-                                <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem (ideal 1300x300).</span><span data-i18n-en>Upload your own image (ideal 1300x300).</span></p>
-                                <% if (backgroundPreviewUrl) { %>
-                                    <div class="rounded-lg mb-2" style="aspect-ratio: 1300/300; max-width:300px; background-image:url('<%= backgroundPreviewUrl %>'); background-size:cover; background-position:center;"></div>
-                                <% } %>
-                                <div class="input-container-premium">
-                                    <div class="icon-box"><i data-lucide="upload"></i></div>
-                                    <input type="file" name="background_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
-                                </div>
-                            <% } else { %>
-                                <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha um plano de fundo da galeria.</span><span data-i18n-en>Choose a background from the gallery.</span></p>
-                                <% if (backgroundOptions.length === 0) { %>
-                                    <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum plano de fundo disponível no momento.</span><span data-i18n-en>No background available right now.</span></p>
-                                <% } else { %>
-                                    <div class="banner-picker">
-                                        <label class="banner-picker-option">
-                                            <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
-                                            <span class="banner-picker-thumb"></span>
-                                            <span class="banner-picker-label"><span data-i18n-pt>Nenhum</span><span data-i18n-en>None</span></span>
-                                        </label>
-                                        <% backgroundOptions.forEach(opt => { %>
-                                            <label class="banner-picker-option">
-                                                <input type="radio" name="background_key" value="<%= opt.value %>" <%= opt.value === link.selected_background_key ? 'checked' : '' %>>
-                                                <span class="banner-picker-thumb"></span>
-                                                <span class="banner-picker-label"><%= opt.label %></span>
-                                            </label>
-                                        <% }); %>
-                                    </div>
-                                <% } %>
+                        <% if (isRaptor) { %>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem (ideal 1300x300).</span><span data-i18n-en>Upload your own image (ideal 1300x300).</span></p>
+                            <% if (backgroundPreviewUrl) { %>
+                                <div class="rounded-lg mb-2" style="aspect-ratio: 1300/300; max-width:300px; background-image:url('<%= backgroundPreviewUrl %>'); background-size:cover; background-position:center;"></div>
                             <% } %>
+                            <div class="input-container-premium">
+                                <div class="icon-box"><i data-lucide="upload"></i></div>
+                                <input type="file" name="background_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
+                            </div>
+                        <% } else if (isCompyPlus || backgroundOptions.length > 0) { %>
+                            <%# Free chega aqui só com backgroundOptions.length > 0 — restrito ao que comprou na Loja (pedido do dono, 2026-08-07), ver dashboard.js GET /perfil. %>
+                            <p class="text-xs opacity-40 mb-2"><% if (isCompyPlus) { %><span data-i18n-pt>Escolha um plano de fundo da galeria.</span><span data-i18n-en>Choose a background from the gallery.</span><% } else { %><span data-i18n-pt>Escolha um dos planos de fundo que você comprou na Loja.</span><span data-i18n-en>Choose one of the backgrounds you bought in the Shop.</span><% } %></p>
+                            <% if (backgroundOptions.length === 0) { %>
+                                <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum plano de fundo disponível no momento.</span><span data-i18n-en>No background available right now.</span></p>
+                            <% } else { %>
+                                <div class="banner-picker">
+                                    <label class="banner-picker-option">
+                                        <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
+                                        <span class="banner-picker-thumb"></span>
+                                        <span class="banner-picker-label"><span data-i18n-pt>Nenhum</span><span data-i18n-en>None</span></span>
+                                    </label>
+                                    <% backgroundOptions.forEach(opt => { %>
+                                        <label class="banner-picker-option">
+                                            <input type="radio" name="background_key" value="<%= opt.value %>" <%= opt.value === link.selected_background_key ? 'checked' : '' %>>
+                                            <span class="banner-picker-thumb"></span>
+                                            <span class="banner-picker-label"><%= opt.label %></span>
+                                        </label>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                        <% } else { %>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais, ou compre um plano de fundo específico na</span><span data-i18n-en>on Discord to learn more, or buy a specific background in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>com Caçadas.</span><span data-i18n-en>with Hunt.</span></p>
+                        <% } %>
+                        <%# Checkbox de remoção — Raptor (upload) OU galeria (Compy+/Free comprado), nunca no ramo sem acesso acima. isCompyPlus já cobre isRaptor. %>
+                        <% if (isCompyPlus || backgroundOptions.length > 0) { %>
                             <% const hasBackground = isRaptor ? !!link.background_message_id : !!link.selected_background_key; %>
                             <% if (hasBackground) { %>
                                 <label class="text-xs opacity-60 flex items-center gap-2 mt-2">

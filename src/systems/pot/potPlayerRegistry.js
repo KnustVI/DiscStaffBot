@@ -600,9 +600,9 @@ function getPlayerByDiscordId(discordId) {
     if (!discordId) return null;
     try {
         return db.prepare(`
-            SELECT alderon_id, player_name, banner_message_id, selected_photo_key,
+            SELECT user_id, alderon_id, player_name, banner_message_id, selected_photo_key,
                    profile_title, selected_badge_key, background_message_id,
-                   selected_background_key, hide_kda
+                   selected_background_key, hide_kda, registered_at
             FROM player_links WHERE user_id = ?
         `).get(discordId) || null;
     } catch (error) {
@@ -849,6 +849,28 @@ function addHunt(discordId, amount) {
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao creditar Caçadas:', error);
+        return false;
+    }
+}
+
+/**
+ * Debita Caçadas do jogador SE ele tiver saldo suficiente — mesmo padrão
+ * atômico de spendBones, ver docblock lá. Usado pela Loja de
+ * Personalização (compra de imagem, ver imageShopSystem.js).
+ * @param {string} discordId
+ * @param {number} amount - inteiro positivo
+ * @returns {boolean} true se debitou de verdade, false se saldo insuficiente/sem vínculo
+ */
+function spendHunt(discordId, amount) {
+    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET hunt_balance = hunt_balance - ?, updated_at = ?
+            WHERE user_id = ? AND hunt_balance >= ?
+        `).run(amount, Math.floor(Date.now() / 1000), discordId, amount);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao debitar Caçadas:', error);
         return false;
     }
 }
@@ -1123,6 +1145,7 @@ module.exports = {
     // e /loja.
     getHuntBalance,
     addHunt,
+    spendHunt,
     getXp,
     addXp,
     // Verificação em jogo (RCON) — ativa, ver /registrar.

@@ -76,6 +76,7 @@ class DatabaseManager {
                 'pot_tokens',
                 'player_links',
                 'profile_image_pool',
+                'image_inventory',
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',
@@ -246,6 +247,18 @@ class DatabaseManager {
             // ver src/systems/pot/profileImagePool.js. Default 1: bancos já
             // existentes não perdem nenhuma imagem que já estava visível.
             this.ensureColumn('profile_image_pool', 'is_public', 'INTEGER NOT NULL DEFAULT 1');
+            // Loja de Personalização (pedido do dono, 2026-08-07: "a loja
+            // vai ser permitida a qualquer jogador, para comprar e
+            // adicionar ao seu inventario imagens... quero que adicione
+            // uma configuração para permitir que eu gerencie as imagens
+            // como itens da loja, e quem pode usar ou só comprar") — por
+            // item do pool: shop_price (Caçadas, NULL = item não está à
+            // venda, continua só no menu grátis de sempre pro tier que já
+            // tinha acesso) e shop_min_tier (tier mínimo pra USAR o item
+            // depois de comprado — quem não atinge ainda fica só com ele
+            // no inventário). Ver src/systems/pot/imageShopSystem.js.
+            this.ensureColumn('profile_image_pool', 'shop_price', 'INTEGER');
+            this.ensureColumn('profile_image_pool', 'shop_min_tier', 'TEXT');
 
             // Conta quantas vezes o usuário já viu o avatar da sidebar do
             // dashboard web (pedido do dono, 2026-08-06: animação de

@@ -13,6 +13,7 @@ const PremiumSystem = require('./src/systems/premium/premiumSystem');
 const CustomBannerResolver = require('./src/utils/customBannerResolver');
 const { storeImageBuffer } = require('./src/utils/imageStorage');
 const ProfileImagePool = require('./src/systems/pot/profileImagePool');
+const ImageShopSystem = require('./src/systems/pot/imageShopSystem');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
 const CurrencySystem = require('./src/systems/pot/currencySystem');
@@ -939,6 +940,23 @@ function loadDashboard(client) {
         res.redirect('/dev/image-pool');
     });
 
+    // Precifica um item do pool pra Loja de Caçadas (pedido do dono,
+    // 2026-08-07: "a loja vai ser permitida a qualquer jogador... marcar
+    // qualquer item do pool como comprável direto pelo dashboard, sem
+    // precisar ir no Discord"). Mandar preco 0/vazio remove da loja (o
+    // item continua no pool, só deixa de ser comprável) — ver
+    // ImageShopSystem.setShopConfig.
+    app.post('/dev/image-pool/:type/:id/preco', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const { type } = req.params;
+        const id = Number(req.params.id);
+        const ok = ImageShopSystem.setShopConfig(type, id, {
+            price: Number(req.body.preco),
+            minTier: req.body.tier_minimo,
+        });
+        res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+    });
+
     // Upload direto pelo dashboard (pedido do dono: não precisar ir no
     // Discord toda vez) — mesma receita de storeImageBuffer já usada pro
     // upload próprio de banner (POST /moderacao/:guildID/save), só que
@@ -1262,6 +1280,15 @@ function loadDashboard(client) {
             if (isCompyPlus && !isRaptor) {
                 avatarOptions = ConfigSystem.getAvatarOptions();
                 backgroundOptions = ConfigSystem.getBackgroundOptions();
+            } else if (!isCompyPlus) {
+                // Free tier pode ter comprado uma foto/plano de fundo
+                // ESPECÍFICO na Loja (pedido do dono, 2026-08-07: "a loja
+                // vai ser permitida a qualquer jogador, para comprar e
+                // adicionar ao seu inventario imagens de personalização")
+                // — mesma fonte usada pelo /perfil-edit do Discord, ver
+                // ConfigSystem.getOwnedUsableOptions/imageShopSystem.js.
+                avatarOptions = ConfigSystem.getOwnedUsableOptions(userId, 'avatar');
+                backgroundOptions = ConfigSystem.getOwnedUsableOptions(userId, 'background');
             }
             avatarPreviewUrl = await resolvePlayerImageUrl('avatar', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
             backgroundPreviewUrl = await resolvePlayerImageUrl('background', link.selected_background_key, isRaptor ? link.background_message_id : null);
@@ -1366,6 +1393,7 @@ function loadDashboard(client) {
             return Promise.all(rows.map(async (row) => ({
                 ...row,
                 url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
+                owned: ImageShopSystem.ownsImage(req.user.id, type, row.id),
             })));
         };
         const [avatars, backgrounds, badges] = await Promise.all([
@@ -1398,6 +1426,7 @@ function loadDashboard(client) {
             convertError: req.query.erro || null,
             convertAmount: req.query.valor || null,
             convertRconResponse: req.query.resposta || null,
+            purchaseResult: req.query.comprado || null,
         });
     });
 
@@ -1426,6 +1455,24 @@ function loadDashboard(client) {
         const result = await CurrencySystem.convertMarksToBones(client, req.user.id, guildId, amount);
         if (result.ok) {
             return res.redirect(`/loja?convertido=marks-ossos&valor=${result.bonesCredited}&resposta=${encodeURIComponent(result.rconResponse || '')}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+    });
+
+    // Compra de item da Loja de Personalização (POST, redireciona de volta
+    // pra /loja com o resultado na query string — MESMO padrão de feedback
+    // do conversor logo acima: ?erro= em caso de falha, reaproveitando o
+    // banner de erro já existente no template sem precisar de um segundo.
+    // Sucesso usa ?comprado=<label> em vez de ?convertido= (ação diferente,
+    // merece o próprio parâmetro/banner) — ver loja.ejs pro texto exibido.
+    app.post('/loja/comprar', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { poolType, poolId } = req.body;
+        const id = Number(poolId);
+        const result = ImageShopSystem.purchaseImage(req.user.id, poolType, id);
+        if (result.ok) {
+            const row = ProfileImagePool.getByTypeAndId(poolType, id);
+            return res.redirect(`/loja?comprado=${encodeURIComponent(row ? row.label : '')}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });
@@ -1493,6 +1540,27 @@ function loadDashboard(client) {
                             const valid = !key || ConfigSystem.getAvatarOptions().some(opt => opt.value === key);
                             if (valid) PlayerRegistry.setSelectedPhotoKey(userId, key);
                         }
+                    }
+                } else {
+                    // Free: só pode escolher entre foto/plano de fundo que
+                    // comprou na Loja e já pode usar (pedido do dono,
+                    // 2026-08-07: "a loja vai ser permitida a qualquer
+                    // jogador, para comprar e adicionar ao seu inventario
+                    // imagens de personalização") — mesma fonte usada pelo
+                    // /perfil-edit do Discord, ver imageShopSystem.js.
+                    const ownedPhotoOptions = ConfigSystem.getOwnedUsableOptions(userId, 'avatar');
+                    const ownedBackgroundOptions = ConfigSystem.getOwnedUsableOptions(userId, 'background');
+                    if (body.remove_background === 'on') {
+                        PlayerRegistry.setSelectedBackgroundKey(userId, null);
+                    } else if ('background_key' in body) {
+                        const key = body.background_key || null;
+                        const valid = !key || ownedBackgroundOptions.some(opt => opt.value === key);
+                        if (valid) PlayerRegistry.setSelectedBackgroundKey(userId, key);
+                    }
+                    if ('photo_key' in body) {
+                        const key = body.photo_key || null;
+                        const valid = !key || ownedPhotoOptions.some(opt => opt.value === key);
+                        if (valid) PlayerRegistry.setSelectedPhotoKey(userId, key);
                     }
                 }
 

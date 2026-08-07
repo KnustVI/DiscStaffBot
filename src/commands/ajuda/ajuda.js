@@ -185,6 +185,9 @@ function buildPageHelp(guildName, emojis) {
     pageHeader(builder, 'AJUDA & SUPORTE', 'Dúvidas comuns e como falar com o desenvolvedor:');
 
     const faq = [
+        ['Como eu me registro no bot? Pra que serve?', 'Se você já conectou seu Discord na Alderon Games (alderongames.com/me/settings), nem precisa fazer nada — o vínculo é criado sozinho ao entrar em qualquer servidor com o bot. Senão, use **/registrar** (pede um código de verificação em jogo, então precisa estar online na hora). Registrar libera seu **/perfil** (cartão de jogador, reputação, punições) e o farm de moedas (Caçadas/Ossos/XP) por hora jogada.'],
+        ['Como eu personalizo meu perfil?', 'Use **/perfil-edit** no Discord, ou a aba "Personalização" em /perfil no site. Emblema é livre em qualquer plano; foto e plano de fundo por menu a partir do plano Compy (upload próprio no Raptor); título de texto livre é exclusivo Raptor.'],
+        ['Como eu uso a loja?', 'A Loja (`/loja` no site) já mostra seu saldo de Caçadas/Ossos/XP de verdade e converte Ossos↔Marks. Comprar itens de personalização com Caçadas está sendo lançado aos poucos — fique de olho na página.'],
         ['Como eu denuncio outro jogador?', 'Procure o painel de reports fixado no servidor e clique em "Reportar Jogador". Preencha o formulário com regra quebrada, data, local e descrição.'],
         ['Recebi um strike que acho injusto, o que eu faço?', 'No mesmo painel de reports, use o botão "Revisar Punição" e informe o número do strike. A staff vai analisar numa thread privada com você.'],
         ['Minha reputação caiu, por quê?', 'Toda punição (strike) reduz reputação. Use "Revisar Punição" se achar que foi um engano.'],

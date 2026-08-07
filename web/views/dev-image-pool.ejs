@@ -7,10 +7,14 @@
   imagem nova, ativa/desativa visibilidade sem remover, ou apaga de
   verdade. Mesmas ações do /perfil-pool no Discord (add/remover), só que
   pelo dashboard, mais o toggle de público/privado que só existe aqui.
+  Também precifica item pra Loja de Caçadas (shop_price/shop_min_tier,
+  ver src/systems/pot/imageShopSystem.js) — POST /dev/image-pool/:type/:id/preco.
 
   Uso: res.render('dev-image-pool', { groups })
     groups — array [{ type, label, images: [{ id, label, url, is_public,
-             created_at }] }], ver dashboard.js GET /dev/image-pool.
+             created_at, shop_price, shop_min_tier }] }] (shop_price/
+             shop_min_tier vêm de graça no spread `...row` do SELECT *,
+             ver dashboard.js GET /dev/image-pool).
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -150,9 +154,59 @@
             transition: background 0.15s ease;
         }
         .pool-upload-submit:hover { background: #F8DCC0; }
+
+        /* Form compacto de preço da Loja, dentro de cada card — mesma
+           paleta dos botões de toggle/excluir, só que agrupado numa
+           cápsula própria pra não confundir com as outras ações. */
+        .pool-price-form {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px;
+            margin-top: 4px;
+            background: rgba(217, 163, 98, 0.06);
+            border: 1px dashed rgba(217, 163, 98, 0.25);
+            border-radius: 8px;
+        }
+        .pool-price-current { font-size: 0.65rem; opacity: 0.6; }
+        .pool-price-row { display: flex; gap: 6px; }
+        .pool-price-row input[type="number"],
+        .pool-price-row select {
+            flex: 1;
+            min-width: 0;
+            background: #1F1D20;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            padding: 4px 6px;
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.7rem;
+        }
+        .pool-price-submit {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.7rem;
+            width: 100%;
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: none;
+            background: #803E30;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .pool-price-submit:hover { background: #9A4C3B; }
     </style>
 </head>
 <body class="flex min-h-screen">
+
+    <%
+        // Tiers da Loja de Caçadas (ImageShopSystem.VALID_SHOP_TIERS) — mesmo
+        // trio/nomes já usados em perfil.ejs (pfTierLabels), repetido aqui
+        // pra não precisar passar o módulo inteiro como local.
+        const SHOP_TIERS = ['free', 'compy', 'raptor'];
+        const TIER_LABELS = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
+    %>
 
     <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards). Página sem sidebar, mas o mesmo overflow-y aqui cortava a sombra contra a própria borda esquerda do <main>. %>
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px]">
@@ -202,6 +256,39 @@
                                 <% } %>
                                 <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                                 <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
+                                <%
+                                    // Preço só faz sentido pra tipos com um caminho de USO ligado à
+                                    // compra (avatar/background — ver imageShopSystem.js#canUseImage
+                                    // e ConfigSystem.getOwnedUsableOptions, únicos consumidos pela
+                                    // seleção de /perfil-edit e /perfil web). Emblema já é livre em
+                                    // QUALQUER tier de propósito, então "comprar" um seria inútil;
+                                    // banner é escolha de SERVIDOR (Caçador), não do jogador; título
+                                    // ainda não tem NENHUM jeito do jogador escolher um da pool (só
+                                    // texto livre Raptor) — precificar esses 3 venderia algo que
+                                    // ninguém consegue usar depois. Escondido aqui de propósito.
+                                %>
+                                <% if (group.type === 'avatar' || group.type === 'background') { %>
+                                    <div class="pool-price-form">
+                                        <span class="pool-price-current">
+                                            <% if (img.shop_price) { %>
+                                                Preço atual: <%= img.shop_price %> Caçadas (mín. <%= TIER_LABELS[img.shop_min_tier] || img.shop_min_tier %>)
+                                            <% } else { %>
+                                                Não está à venda
+                                            <% } %>
+                                        </span>
+                                        <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/preco" method="POST">
+                                            <div class="pool-price-row">
+                                                <input type="number" name="preco" min="0" step="1" placeholder="Preço" value="<%= img.shop_price || '' %>">
+                                                <select name="tier_minimo">
+                                                    <% SHOP_TIERS.forEach(tier => { %>
+                                                        <option value="<%= tier %>" <%= (img.shop_min_tier || 'free') === tier ? 'selected' : '' %>><%= TIER_LABELS[tier] %></option>
+                                                    <% }); %>
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="pool-price-submit">Salvar preço</button>
+                                        </form>
+                                    </div>
+                                <% } %>
                                 <div class="pool-item-actions">
                                     <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/toggle" method="POST">
                                         <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>

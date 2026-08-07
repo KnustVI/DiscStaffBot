@@ -30,6 +30,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ProfileImagePool = require('../../systems/pot/profileImagePool');
+const ImageShopSystem = require('../../systems/pot/imageShopSystem');
 const { uploadAndStoreImage } = require('../../utils/imageStorage');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
@@ -43,6 +44,18 @@ const TYPE_CHOICES = [
     { name: 'Título de Perfil (texto)', value: 'titulo' },
 ];
 const TYPE_LABELS = { avatar: 'Avatar', background: 'Plano de fundo', badge: 'Emblema', banner: 'Banner (Personalização)', titulo: 'Título de Perfil' };
+
+const TIER_LABELS = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
+const TIER_CHOICES = ImageShopSystem.VALID_SHOP_TIERS.map(t => ({ name: TIER_LABELS[t] || t, value: t }));
+
+// Preço só faz sentido pra tipos com um caminho de USO ligado à compra
+// (avatar/background — únicos consumidos por ConfigSystem.getOwnedUsableOptions
+// na seleção de /perfil-edit e /perfil web, ver imageShopSystem.js). Emblema
+// já é livre em QUALQUER tier de propósito (comprar um seria inútil);
+// banner é escolha de SERVIDOR (Caçador), não do jogador; título ainda não
+// tem NENHUM jeito do jogador escolher um da pool (só texto livre Raptor) —
+// precificar esses 3 venderia algo que ninguém consegue usar depois.
+const PRICEABLE_TYPE_CHOICES = TYPE_CHOICES.filter(c => c.value === 'avatar' || c.value === 'background');
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -67,7 +80,14 @@ module.exports = {
         .addSubcommand(sub => sub
             .setName('listar')
             .setDescription('Lista as imagens de um dos pools')
-            .addStringOption(opt => opt.setName('tipo').setDescription('Qual pool').setRequired(true).addChoices(...TYPE_CHOICES))),
+            .addStringOption(opt => opt.setName('tipo').setDescription('Qual pool').setRequired(true).addChoices(...TYPE_CHOICES)))
+        .addSubcommand(sub => sub
+            .setName('preco')
+            .setDescription('Define (ou remove) o preço de venda de um item na Loja de Personalização (Caçadas)')
+            .addStringOption(opt => opt.setName('tipo').setDescription('Qual pool (só avatar/plano de fundo têm compra usável hoje)').setRequired(true).addChoices(...PRICEABLE_TYPE_CHOICES))
+            .addIntegerOption(opt => opt.setName('id').setDescription('ID da imagem (ver /perfil-pool listar)').setRequired(true))
+            .addIntegerOption(opt => opt.setName('preco').setDescription('Preço em Caçadas — use 0 para remover o item da loja').setRequired(true))
+            .addStringOption(opt => opt.setName('tier_minimo').setDescription('Tier mínimo pra USAR depois de comprado (padrão: Free)').setRequired(false).addChoices(...TIER_CHOICES))),
 
     // client aqui é sempre o bot PRINCIPAL — ver src/systems/core/devBot.js.
     async execute(interaction, client) {
@@ -159,13 +179,50 @@ module.exports = {
                         `${EMOJIS.messagesquare || 'ℹ️'} Jogadores que tinham essa imagem escolhida voltam a usar o padrão do tier no próximo \`/perfil\`.`,
                     ].join('\n'));
             }
+        } else if (sub === 'preco') {
+            const id = interaction.options.getInteger('id');
+            const preco = interaction.options.getInteger('preco');
+            const tierMinimo = interaction.options.getString('tier_minimo');
+
+            const item = ProfileImagePool.getByTypeAndId(tipo, id);
+            if (!item) {
+                builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                    .text(`${EMOJIS.circlealert || '❌'} Nenhuma imagem de tipo **${tipoLabel}** com ID \`${id}\` encontrada.`);
+            } else {
+                ImageShopSystem.setShopConfig(tipo, id, { price: preco, minTier: tierMinimo });
+                db.logActivity(null, user.id, 'perfil_pool_preco', null, { tipo, id, preco, tierMinimo });
+
+                if (!preco || preco <= 0) {
+                    builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
+                        .text([
+                            `# PREÇO ATUALIZADO — ${tipoLabel.toUpperCase()}`,
+                            `**ID:** \`${item.id}\` — **Nome:** ${item.label}`,
+                            `${EMOJIS.circlealert || '❌'} Item removido da loja — continua no pool, mas não pode mais ser comprado com Caçadas.`,
+                        ].join('\n'));
+                } else {
+                    const tierLabel = TIER_LABELS[ImageShopSystem.VALID_SHOP_TIERS.includes(tierMinimo) ? tierMinimo : 'free'];
+                    builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
+                        .text([
+                            `# PREÇO ATUALIZADO — ${tipoLabel.toUpperCase()}`,
+                            `**ID:** \`${item.id}\` — **Nome:** ${item.label}`,
+                            `${EMOJIS.coins || '💰'} **Preço:** ${preco} Caçadas`,
+                            `**Tier mínimo pra usar:** ${tierLabel}`,
+                            'Já disponível na Loja de Personalização pra qualquer jogador comprar.',
+                        ].join('\n'));
+                }
+            }
         } else {
             const rows = ProfileImagePool.listImages(tipo);
             if (rows.length === 0) {
                 builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT })
                     .text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhuma imagem de tipo **${tipoLabel}** cadastrada no pool ainda.`);
             } else {
-                const lines = rows.map(r => `\`${r.id}\` — ${r.label} (adicionado <t:${Math.floor(r.created_at / 1000)}:R>)`);
+                const lines = rows.map(r => {
+                    const priceNote = r.shop_price
+                        ? ` — ${EMOJIS.coins || '💰'} ${r.shop_price} Caçadas (mín. ${TIER_LABELS[r.shop_min_tier] || 'Free'})`
+                        : '';
+                    return `\`${r.id}\` — ${r.label} (adicionado <t:${Math.floor(r.created_at / 1000)}:R>)${priceNote}`;
+                });
                 builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT })
                     .text([`# POOL DE ${tipoLabel.toUpperCase()} (${rows.length})`, ...lines].join('\n'));
             }

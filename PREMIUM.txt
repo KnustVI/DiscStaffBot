@@ -247,22 +247,22 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   descrição de como cada moeda funciona; o que continua só prévia é
   GASTAR essas moedas (compras em si, incluindo o catálogo de bônus).
 
-PENDENTE (pedido do dono, 2026-08-07, ainda NÃO implementado - anotado a
-pedido explícito do dono, "essa tarefa é grande, apenas anote ela como
-pendente"): a Loja de Personalização vai abrir pra QUALQUER jogador
-comprar imagens (avatar/plano de fundo/badge) com Caçadas e guardar no
-INVENTÁRIO próprio - Compy já poderia usar as imagens já cadastradas no
-pool (como já combinado antes), mas o fluxo de COMPRA/inventário em si
-ainda não existe. Precisa de: (1) uma configuração nova no pool de
-imagens (`/perfil-pool`/`dev-image-pool.ejs`) pro dono gerenciar cada
-imagem como "item de loja" - preço em Caçadas, e uma regra por imagem de
-quem PODE USAR ela (ex: só Compy+) vs quem só pode COMPRAR pro
-inventário mas não necessariamente usar ainda (ou algum outro corte -
-detalhar melhor quando for implementar); (2) uma tabela nova de
-inventário por jogador (o que cada um comprou); (3) o fluxo de compra em
-si na `/loja` (hoje só prévia visual, sem botão de comprar funcional).
-Sem escopo técnico definido ainda - só a intenção registrada aqui pra não
-perder o pedido.
+A LOJA DE PERSONALIZAÇÃO já é FUNCIONAL DE VERDADE desde 2026-08-07 (ver
+seção 138) - pedido do dono, implementado logo depois de ter sido
+anotado como pendente aqui mesmo: QUALQUER jogador (qualquer tier) pode
+comprar um item do pool com Caçadas e ele entra no INVENTÁRIO pessoal.
+Compy+ continua com acesso LIVRE a todo o pool de avatar/plano de fundo
+(como já era, sem precisar comprar nada) - a loja é um caminho
+ADICIONAL, não uma restrição nova. Por item, o dono define (via
+`/perfil-pool preco` no Discord ou `/dev/image-pool` no site): preço em
+Caçadas e o tier mínimo pra USAR o item depois de comprado
+(shop_min_tier) - COMPRAR nunca depende de tier, só de ter Caçadas
+suficientes; quem compra um item acima do próprio tier fica com ele no
+inventário até (se) fizer upgrade. Preço só existe pra avatar/plano de
+fundo (únicos com um caminho de seleção ligado à compra) - emblema
+(já livre em qualquer tier), banner (escolha de SERVIDOR, não de
+jogador) e título (ainda sem pool de seleção pro jogador) ficam de fora
+do formulário de preço de propósito, pra não vender algo sem uso depois.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -6744,3 +6744,132 @@ frente, nao so este relatorio):
   (mocks, não commitado) cobrindo saldo de moeda, pills de cargo de
   staff, data de registro presente/ausente, e grupo `titulo` no pool
   (form de texto em vez de upload, card sem thumbnail).
+
+------------------------------------------------------------------
+138) /ajuda ganha 3 perguntas frequentes novas (registro, personalização,
+     loja) + Loja de Personalização vira FUNCIONAL DE VERDADE: qualquer
+     jogador compra itens do pool com Caçadas e guarda no inventário
+------------------------------------------------------------------
+- Pedido do dono (2026-08-07): "Em ajuda em dúvidas frequentes adicione
+  metodos de: Como se registrar no bot e para que ele serve / Como
+  personalizo o perfil / Como uso a loja (em breve). E faça a task da
+  loja que te pedi para anotar pendencia e gerenciarmos a loja tambem
+  por pool imagens." — a "task da loja" é exatamente a seção PENDENTE
+  anotada na seção 1 deste arquivo pela revisão anterior (137).
+- FAQ NOVA (`src/commands/ajuda/ajuda.js`, `buildPageHelp`): 3 perguntas
+  adicionadas no TOPO da lista (antes de "Como eu denuncio outro
+  jogador?"): registro (explica o vínculo automático via Alderon Games +
+  `/registrar` manual, mesma explicação já reforçada na seção 137),
+  personalização (`/perfil-edit`/aba Personalização, resumo de quem tem
+  acesso a quê por tier), e loja (deixa claro que farm/conversor já são
+  reais e que comprar itens "está sendo lançado aos poucos" — escrito
+  ANTES de saber se a implementação da loja terminaria na mesma sessão,
+  por isso a redação não promete uma data).
+- LOJA DE PERSONALIZAÇÃO FUNCIONAL — arquitetura em 3 camadas:
+    1. **Schema** (`src/database/schema.js` + `ensureColumn` em
+       `src/database/index.js`, sem quebrar bancos existentes):
+       `profile_image_pool` ganha `shop_price INTEGER` (NULL = não está
+       à venda) e `shop_min_tier TEXT` (tier mínimo pra USAR depois de
+       comprado — NULL quando shop_price também é NULL). Tabela nova
+       `image_inventory` (`user_id`, `pool_type`, `pool_id`,
+       `purchased_at`, UNIQUE nos 3 primeiros pra nunca duplicar uma
+       compra) registra o inventário por jogador. `potPlayerRegistry.js`
+       ganha `spendHunt(discordId, amount)` (débito atômico condicional
+       `WHERE hunt_balance >= ?`, mesmo padrão de `spendBones`).
+    2. **Motor** (`src/systems/pot/imageShopSystem.js`, novo arquivo):
+       `setShopConfig(type, id, {price, minTier})` (admin definir/tirar
+       preço — preço 0/null tira o item da loja sem apagar do pool),
+       `getShopItems(type, {userId})` (itens à venda + `owned` por
+       usuário, pra `/loja`), `getInventory`/`ownsImage` (consulta),
+       `canUseImage(userId, type, id)` (comprado E tier atual alcança
+       `shop_min_tier` — SEMPRE lê o tier direto do banco via
+       PremiumSystem, nunca aceita tier por parâmetro, pra nenhum
+       chamador conseguir passar um valor desatualizado por engano;
+       NUNCA retorna true pra item sem preço — o acesso "de graça" por
+       tier ao pool inteiro, que já existia antes desta revisão, é
+       decidido FORA deste arquivo, no call site, de propósito, pra não
+       misturar as duas regras), `purchaseImage(userId, type, id)`
+       (debita Caçadas ANTES de gravar o inventário — se a gravação
+       falhar depois, devolve a Caçada na hora, mesmo cuidado já usado
+       no conversor Ossos↔Marks).
+    3. **Integração na seleção** (a parte mais sensível — onde um jogador
+       Free realmente consegue EQUIPAR o que comprou, em vez de só
+       acumular no inventário sem uso):
+       - `configSystem.js`: nova `_ownedUsableOptions(userId, poolType)`
+         (exportada como `getOwnedUsableOptions`, DRY entre Discord e
+         site) filtra o inventário do jogador pelo que `canUseImage`
+         libera. `buildPlayerPhotoPickerPayload`/
+         `buildPlayerBackgroundPickerPayload` ganham um 2º parâmetro
+         opcional (`ownedOnlyUserId`) que troca "pool inteiro" (Compy+,
+         como já era) por "só o que comprou" (Free com compra).
+         `handlePlayerPhotoSelect`/`handlePlayerBackgroundSelect`
+         deixam de rejeitar Free na entrada — validam contra o conjunto
+         certo (pool inteiro OU inventário, conforme o tier).
+         `buildPerfilEditPanelPayload` só mostra os botões "Foto de
+         Perfil"/"Plano de Fundo" pra Free quando ele tem ao menos 1
+         item comprado usável (Compy+ continua vendo sempre, como já
+         era). `handleRemoveBackground` (botão "Remover Plano de
+         Fundo") relaxado do mesmo jeito. Raptor NUNCA passa por nenhuma
+         dessas regras novas — upload próprio continua exatamente igual.
+       - `playerRegistrationSystem.js` (`_resolveCardPhotoBuffer`/
+         `_resolveBackgroundBuffer`, quem desenha o card de `/perfil` DE
+         VERDADE): mesma lógica — Compy sempre pôde usar `selected_
+         photo_key`/`selected_background_key`; Free só se `canUseImage`
+         confirmar que aquele item específico foi comprado e libera pro
+         tier dele. Sem essa mudança, um Free-tier teria conseguido
+         SELECIONAR um item comprado mas o card continuaria mostrando o
+         padrão do tier — comprar teria sido inútil.
+       - `dashboard.js` GET/POST `/perfil`: mesma dobra pro site — Free
+         agora recebe `avatarOptions`/`backgroundOptions` vindos de
+         `getOwnedUsableOptions` (antes ficava sempre `[]`), e o POST
+         `/perfil/save` valida a escolha do Free contra esse mesmo
+         conjunto em vez de rejeitar de cara.
+       - `perfil.ejs`: as 2 seções (Foto de Perfil/Plano de Fundo)
+         ganham um 3º ramo (Raptor upload / Compy+ OU Free-com-compra
+         galeria / sem acesso) — corrigido um bug introduzido no meio do
+         trabalho onde o checkbox "Remover plano de fundo atual" tinha
+         ficado só dentro do ramo de galeria, quebrando ele pro Raptor
+         (upload) — resolvido antes de fechar a tarefa.
+- ADMIN: preço por item, 2 lugares —
+    - Discord: `/perfil-pool preco tipo id preco tier_minimo` (novo
+      subcommand) — `tipo` só aceita `avatar`/`background` (as únicas
+      escolhas com um caminho de uso real ligado à compra — precificar
+      emblema/banner/título venderia algo sem onde usar depois, ver
+      raciocínio completo no comentário do arquivo). `preco 0` tira da
+      loja. `/perfil-pool listar` ganha uma nota `💰 X Caçadas (mín.
+      Tier)` nos itens precificados, de brinde.
+    - Site: `POST /dev/image-pool/:type/:id/preco` + formulário compacto
+      dentro de cada card de avatar/plano de fundo em
+      `/dev/image-pool` (preço + `<select>` de tier mínimo) — MESMA
+      restrição de tipos que o Discord (emblema/banner/título não
+      mostram o formulário, corrigido depois do primeiro rascunho do
+      template ter deixado aparecer em todo tipo).
+- JOGADOR: `/loja`, seção "LOJA DE PERSONALIZAÇÃO" — item com preço
+  definido troca o selo "Em breve"/"Preço a definir" por preço real +
+  botão "Comprar" (`POST /loja/comprar`, desabilitado com aviso de
+  "Saldo insuficiente" quando falta Caçada) ou selo "No inventário" se
+  já comprado; nota de tier mínimo aparece quando `shop_min_tier` não é
+  Free. Item sem preço continua EXATAMENTE como antes (intocado). Banner
+  de erro do conversor de moedas virou compartilhado com o de compra
+  (ambos redirecionam com `?erro=`, mesmo texto genérico "Não foi
+  possível concluir" no topo da página) pra não duplicar UI de erro.
+- Verificação: `node --check` em todos os `.js` tocados. Backend
+  (`imageShopSystem.js`) testado com scripts isolados (não commitados)
+  contra o banco real cobrindo: preço/limpeza de preço, compra com saldo
+  insuficiente (bloqueada, saldo intocado), compra com saldo suficiente
+  (debitada, inventário gravado), compra duplicada (bloqueada, saldo
+  intocado), `canUseImage` nos 2 sentidos (tier abaixo do mínimo =
+  false, tier suficiente = true, item sem preço = sempre false, não
+  comprado = false). Um teste ponta a ponta separado replicou o pipeline
+  INTEIRO com dados reais: preço definido → compra → item aparece em
+  `getOwnedUsableOptions` → seleção validada → `canUseImage` confirma
+  que o card renderizaria a imagem comprada. Templates (`loja.ejs`/
+  `perfil.ejs`/`dev-image-pool.ejs`) testados com `ejs.renderFile()`
+  cobrindo item sem preço (inalterado)/comprável e acessível/comprável e
+  caro demais/já comprado, e as 4 combinações de tier×compra no
+  `/perfil-edit` do site. Achado e corrigido durante a verificação: bug
+  PRÉ-EXISTENTE (não desta revisão) em `getPlayerByDiscordId` — a
+  função nunca selecionava `user_id` nem `registered_at` da linha
+  encontrada (só campos escolhidos a dedo), quebrando silenciosamente a
+  data de registro no `/perfil` (seção 137, Discord E site) desde que
+  foi implementada — corrigido junto (2 colunas a mais no SELECT).

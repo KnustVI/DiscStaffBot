@@ -8,13 +8,13 @@
 
   MISTA a partir de 2026-08-07 (pedido do dono: "adicione um sistema de
   conversor de moedas de ossos para marks... a loja do jogo pode liberar
-  para uso"): a Loja de Personalização (Caçadas) e o catálogo da Loja de
-  Jogo (Growth/Skipshed/Missão de Marks) continuam só PRÉVIA VISUAL —
-  mesmo tratamento "em breve" já usado nos outros cards do /perfil
-  (Lista de Amigos/Títulos/Badges/Tempo de Jogo). O CONVERSOR
-  Ossos<->Marks, porém, é FUNCIONAL DE VERDADE: saldo real
-  (player_links.bones_balance) + RCON de verdade contra o servidor de
-  jogo escolhido — ver src/systems/pot/currencySystem.js.
+  para uso"): o catálogo da Loja de Jogo (Growth/Skipshed/Missão de
+  Marks) continua só PRÉVIA VISUAL — mesmo tratamento "em breve" já
+  usado nos outros cards do /perfil (Lista de Amigos/Títulos/Badges/
+  Tempo de Jogo). O CONVERSOR Ossos<->Marks, porém, é FUNCIONAL DE
+  VERDADE: saldo real (player_links.bones_balance) + RCON de verdade
+  contra o servidor de jogo escolhido — ver
+  src/systems/pot/currencySystem.js.
 
   Ainda 2026-08-07 (pedido do dono: "Libere o farm dos itens por hora
   jogada agora"): o farm de Caçadas/Ossos/XP por hora jogada também
@@ -23,15 +23,30 @@
   potPlayerRegistry.js#_creditPlaytimeCurrency, chamada de dentro de
   upsertPlayerFromEvent). Os 3 cards de moeda abaixo agora mostram o
   saldo/XP REAL do jogador, não só a descrição de como a moeda funciona.
-  O que continua só prévia é gastar essas moedas na loja em si (compras).
+
+  A LOJA DE PERSONALIZAÇÃO também virou FUNCIONAL DE VERDADE (mesmo dia,
+  pedido do dono: "a loja vai ser permitida a qualquer jogador, para
+  comprar e adicionar ao seu inventario imagens de personalização") —
+  ver src/systems/pot/imageShopSystem.js. Item do pool com shop_price
+  definido pelo dono (via ferramenta interna, fora deste template) vira
+  comprável com Caçadas por QUALQUER tier de jogador; shop_min_tier
+  controla só quem pode EQUIPAR o item depois de comprado, não quem pode
+  comprá-lo. Item sem shop_price continua exatamente como antes (selo
+  "Em breve"). O que continua só prévia é a Loja de Jogo (bônus dentro
+  do Path of Titans).
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
     avatars, backgrounds, badges, isLinked, bonesBalance, huntBalance,
     xpBalance, marksPerBone, playedGuilds, convertResult, convertError,
-    convertAmount, convertRconResponse }) — as 3 listas de imagens são o
-    mesmo pool dinâmico do /perfil-edit (só as PÚBLICAS), reaproveitado
-    aqui como inventário de EXEMPLO da Loja de Personalização em vez de
-    itens inventados — ver dashboard.js GET /loja.
+    convertAmount, convertRconResponse, purchaseResult }) — as 3 listas
+    de imagens são o mesmo pool dinâmico do /perfil-edit (só as
+    PÚBLICAS), cada uma já vindo com shop_price/shop_min_tier/owned
+    (ver dashboard.js GET /loja e ImageShopSystem.ownsImage).
+    purchaseResult é o label do item comprado com sucesso na última
+    ação (?comprado=), preenchido pelo redirect de POST /loja/comprar;
+    erros de compra reaproveitam o MESMO convertError/?erro= do
+    conversor de moedas (banner único no topo da página, ver comentário
+    mais abaixo).
 
   Regras confirmadas pelo dono 2026-08-07 (ver PREMIUM.txt seção 123):
   jogador precisa estar ONLINE no servidor de jogo pras 2 direções
@@ -154,6 +169,28 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         }
 
+        /* Item à venda de verdade (shop_price definido) — nota de tier
+           mínimo pra USAR depois de comprado, badge de "já no
+           inventário" e o próprio botão de compra (.btn-chip já existe,
+           só o wrapper <form> e o aviso de saldo insuficiente são
+           novos). */
+        .loja-item-tier-note { font-family: 'Poppins', sans-serif; font-size: 0.62rem; opacity: 0.5; line-height: 1.3; }
+        .loja-item-owned-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.7rem;
+            color: #A5FFA1;
+        }
+        .loja-item-owned-badge i { width: 13px; height: 13px; }
+        .loja-item-buy-form { margin: 0; }
+        .loja-item-buy-form .btn-chip { width: 100%; justify-content: center; padding: 6px 10px; }
+        .loja-item-buy-form .btn-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+        .loja-item-buy-form .btn-chip i { width: 13px; height: 13px; }
+        .loja-item-insufficient { font-family: 'Poppins', sans-serif; font-size: 0.62rem; color: #FF4E3B; }
+
         /* Formulários do Conversor de Moedas — mesma cápsula
            .input-container-premium/.input-premium-field do resto do
            dashboard, só o layout em coluna é próprio desta seção. */
@@ -177,15 +214,33 @@
     <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
         <h1 class="section-title text-2xl"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></h1>
-        <p class="text-sm opacity-50 -mt-2"><span data-i18n-pt>Uma prévia do que está por vir — nada aqui pode ser comprado ainda.</span><span data-i18n-en>A preview of what's coming — nothing here can be purchased yet.</span></p>
+        <p class="text-sm opacity-50 -mt-2"><span data-i18n-pt>A Loja de Personalização já permite comprar itens com Caçadas. O resto abaixo (Loja de Jogo) ainda é só uma prévia.</span><span data-i18n-en>The Customization Shop already lets you buy items with Hunt. Everything else below (Game Shop) is still just a preview.</span></p>
 
         <div class="outline-chip">
             <i data-lucide="construction" class="outline-chip-icon"></i>
             <div class="outline-chip-text">
-                <span class="outline-chip-headline"><span data-i18n-pt>Loja em construção</span><span data-i18n-en>Shop under construction</span></span>
-                <span class="outline-chip-subtitle"><span data-i18n-pt>Esta página mostra como a loja vai funcionar. O farm de Caçadas/Ossos/XP por hora jogada já é real, mas as compras ainda não existem.</span><span data-i18n-en>This page shows how the shop will work. Earning Hunt/Bones/XP per hour played is already live, but purchases don't exist yet.</span></span>
+                <span class="outline-chip-headline"><span data-i18n-pt>Loja de Jogo em construção</span><span data-i18n-en>Game Shop under construction</span></span>
+                <span class="outline-chip-subtitle"><span data-i18n-pt>O farm de Caçadas/Ossos/XP por hora jogada e as compras na Loja de Personalização já são reais. A Loja de Jogo (bônus dentro do Path of Titans) ainda não existe.</span><span data-i18n-en>Earning Hunt/Bones/XP per hour played and purchases in the Customization Shop are already live. The Game Shop (in-game bonuses) doesn't exist yet.</span></span>
             </div>
         </div>
+
+        <%# Banner de erro COMPARTILHADO entre o conversor de moedas e a
+            compra de itens de personalização (ambos redirecionam pra
+            /loja?erro=<mensagem>, mesmo padrão de feedback) — posicionado
+            aqui no topo, fora das 2 seções, porque a ação que disparou o
+            erro pode ter vindo de qualquer uma das duas mais abaixo.
+            Cabeçalho genérico de propósito (não "Não foi possível
+            converter"): a mensagem de verdade, específica da ação, já vem
+            pronta do back-end em convertError/result.error. %>
+        <% if (convertError) { %>
+            <div class="outline-chip is-bad">
+                <i data-lucide="circle-alert" class="outline-chip-icon"></i>
+                <div class="outline-chip-text">
+                    <span class="outline-chip-headline"><span data-i18n-pt>Não foi possível concluir</span><span data-i18n-en>Couldn't complete</span></span>
+                    <span class="outline-chip-subtitle"><%= convertError %></span>
+                </div>
+            </div>
+        <% } %>
 
         <%#
             3 cards explicando as moedas (pedido do dono, ver PREMIUM.txt
@@ -243,12 +298,32 @@
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Caçadas. Só imagens de perfil — nada que mude qualquer coisa dentro do jogo.</span><span data-i18n-en>Paid with Hunt. Only profile images — nothing that changes anything in-game.</span></p>
             </div>
 
+            <%# Banner de sucesso de compra — mesmo estilo visual do
+                convertResult do conversor (outline-chip + circle-check),
+                texto próprio (nome do item comprado em vez de valor
+                convertido). Fica aqui dentro da própria seção, perto de
+                onde a compra acontece. %>
+            <% if (purchaseResult) { %>
+                <div class="outline-chip">
+                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Item comprado</span><span data-i18n-en>Item purchased</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= purchaseResult %> adicionado ao seu inventário.</span><span data-i18n-en><%= purchaseResult %> added to your inventory.</span></span>
+                    </div>
+                </div>
+            <% } %>
+
             <%
                 const lojaPersonalizacaoGroups = [
                     { key: 'avatar', labelPt: 'Avatares', labelEn: 'Avatars', items: avatars },
                     { key: 'background', labelPt: 'Planos de Fundo', labelEn: 'Backgrounds', items: backgrounds },
                     { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges },
                 ];
+                // Label de exibição do tier mínimo pra USAR o item depois
+                // de comprado — mesma convenção de nomes já usada em
+                // perfil.ejs/staff-perfil.ejs (pfTierLabels/spTierLabels).
+                // 'free' nunca aparece (item usável na hora, sem aviso).
+                const lojaShopTierLabels = { compy: 'Compy', raptor: 'Raptor' };
             %>
             <% lojaPersonalizacaoGroups.forEach(group => { %>
                 <div class="flex flex-col gap-3">
@@ -259,10 +334,36 @@
                         <div class="loja-grid">
                             <% group.items.forEach(img => { %>
                                 <div class="loja-item">
-                                    <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
+                                    <% if (!img.shop_price) { %>
+                                        <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
+                                    <% } %>
                                     <div class="loja-item-thumb" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"></div>
                                     <span class="loja-item-label"><%= img.label %></span>
-                                    <span class="loja-item-price is-hunt"><i data-lucide="gem"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+                                    <% if (!img.shop_price) { %>
+                                        <span class="loja-item-price is-hunt"><i data-lucide="gem"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+                                    <% } else { %>
+                                        <span class="loja-item-price is-hunt"><i data-lucide="gem"></i> <%= img.shop_price %></span>
+                                        <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
+                                            <span class="loja-item-tier-note">
+                                                <span data-i18n-pt>Requer plano <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ pra usar depois de comprado</span>
+                                                <span data-i18n-en>Requires <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ to use once purchased</span>
+                                            </span>
+                                        <% } %>
+                                        <% if (img.owned) { %>
+                                            <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>No inventário</span><span data-i18n-en>In inventory</span></span>
+                                        <% } else { %>
+                                            <form method="POST" action="/loja/comprar" class="loja-item-buy-form">
+                                                <input type="hidden" name="poolType" value="<%= img.type %>">
+                                                <input type="hidden" name="poolId" value="<%= img.id %>">
+                                                <button type="submit" class="btn-chip btn-chip-success"<%= huntBalance < img.shop_price ? ' disabled' : '' %>>
+                                                    <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                </button>
+                                            </form>
+                                            <% if (huntBalance < img.shop_price) { %>
+                                                <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                                            <% } %>
+                                        <% } %>
+                                    <% } %>
                                 </div>
                             <% }); %>
                         </div>
@@ -375,15 +476,9 @@
                     </div>
                 </div>
             <% } %>
-            <% if (convertError) { %>
-                <div class="outline-chip is-bad">
-                    <i data-lucide="circle-alert" class="outline-chip-icon"></i>
-                    <div class="outline-chip-text">
-                        <span class="outline-chip-headline"><span data-i18n-pt>Não foi possível converter</span><span data-i18n-en>Couldn't convert</span></span>
-                        <span class="outline-chip-subtitle"><%= convertError %></span>
-                    </div>
-                </div>
-            <% } %>
+            <%# Banner de erro deste fluxo já aparece no topo da página
+                (compartilhado com a compra de personalização — ver
+                comentário lá em cima), não duplicado aqui. %>
 
             <% if (!isLinked) { %>
                 <p class="text-sm opacity-50"><span data-i18n-pt>Vincule sua conta com</span><span data-i18n-en>Link your account with</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra poder converter.</span><span data-i18n-en>on Discord to be able to convert.</span></p>

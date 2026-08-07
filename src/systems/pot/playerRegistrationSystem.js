@@ -249,22 +249,29 @@ class PlayerRegistrationSystem {
             }
         }
 
-        if (playerTier === 'compy' && player?.selected_photo_key) {
-            if (ProfileImagePool.isPoolValue(player.selected_photo_key)) {
+        // Compy sempre teve acesso livre ao pool inteiro; Free só pode usar
+        // um item ESPECÍFICO que comprou na Loja e que o tier dele já
+        // libera (ver imageShopSystem.js#canUseImage) — pedido do dono,
+        // 2026-08-07: "a loja vai ser permitida a qualquer jogador, para
+        // comprar e adicionar ao seu inventario imagens de personalização".
+        if (player?.selected_photo_key && ProfileImagePool.isPoolValue(player.selected_photo_key)) {
+            const poolId = ProfileImagePool.poolIdFromValue(player.selected_photo_key);
+            const allowed = playerTier === 'compy'
+                || (playerTier === 'free' && require('./imageShopSystem').canUseImage(player.user_id, 'avatar', poolId));
+            if (allowed) {
                 try {
-                    const poolId = ProfileImagePool.poolIdFromValue(player.selected_photo_key);
                     const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'avatar', poolId);
                     if (buffer) return buffer;
                 } catch (err) {
                     // segue pro fallback padrão do tier
                 }
-            } else if (imageManager.hasImage(player.selected_photo_key)) {
-                try {
-                    const localPath = imageManager.getPath(player.selected_photo_key);
-                    if (localPath) return fs.readFileSync(localPath);
-                } catch (err) {
-                    // segue pro fallback padrão do tier
-                }
+            }
+        } else if (playerTier === 'compy' && player?.selected_photo_key && imageManager.hasImage(player.selected_photo_key)) {
+            try {
+                const localPath = imageManager.getPath(player.selected_photo_key);
+                if (localPath) return fs.readFileSync(localPath);
+            } catch (err) {
+                // segue pro fallback padrão do tier
             }
         }
 
@@ -299,18 +306,23 @@ class PlayerRegistrationSystem {
             }
         }
 
-        if (playerTier === 'compy' && player?.selected_background_key) {
-            if (ProfileImagePool.isPoolValue(player.selected_background_key)) {
-                const poolId = ProfileImagePool.poolIdFromValue(player.selected_background_key);
+        // Mesmo raciocínio de _resolveCardPhotoBuffer acima: Compy tem
+        // acesso livre ao pool inteiro; Free só usa um item comprado na
+        // Loja e já liberado pro tier dele (ver imageShopSystem.js#canUseImage).
+        if (player?.selected_background_key && ProfileImagePool.isPoolValue(player.selected_background_key)) {
+            const poolId = ProfileImagePool.poolIdFromValue(player.selected_background_key);
+            const allowed = playerTier === 'compy'
+                || (playerTier === 'free' && require('./imageShopSystem').canUseImage(player.user_id, 'background', poolId));
+            if (allowed) {
                 const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'background', poolId);
                 if (buffer) return buffer;
-            } else if (imageManager.hasImage(player.selected_background_key)) {
-                try {
-                    const localPath = imageManager.getPath(player.selected_background_key);
-                    if (localPath) return fs.readFileSync(localPath);
-                } catch (err) {
-                    // segue sem plano de fundo
-                }
+            }
+        } else if (playerTier === 'compy' && player?.selected_background_key && imageManager.hasImage(player.selected_background_key)) {
+            try {
+                const localPath = imageManager.getPath(player.selected_background_key);
+                if (localPath) return fs.readFileSync(localPath);
+            } catch (err) {
+                // segue sem plano de fundo
             }
         }
 

@@ -357,6 +357,23 @@ const SCHEMA = {
         )
     `,
 
+    // Inventário de imagens da pool compradas na Loja (pedido do dono,
+    // 2026-08-07: "a loja vai ser permitida a qualquer jogador, para
+    // comprar e adicionar ao seu inventario imagens de personalização") —
+    // registra QUAL item de profile_image_pool cada jogador comprou com
+    // Caçadas, independente do tier dele. Ver src/systems/pot/
+    // imageShopSystem.js. UNIQUE evita comprar o mesmo item duas vezes.
+    image_inventory: `
+        CREATE TABLE IF NOT EXISTS image_inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            pool_type TEXT NOT NULL,
+            pool_id INTEGER NOT NULL,
+            purchased_at INTEGER NOT NULL,
+            UNIQUE(user_id, pool_type, pool_id)
+        )
+    `,
+
     // ==================== PREMIUM ====================
     player_premium: `
         CREATE TABLE IF NOT EXISTS player_premium (
@@ -598,6 +615,9 @@ const INDEXES = [
 
     // Pool de imagens de perfil
     `CREATE INDEX IF NOT EXISTS idx_profile_image_pool_type ON profile_image_pool(type)`,
+
+    // Inventário de imagens compradas na Loja
+    `CREATE INDEX IF NOT EXISTS idx_image_inventory_user ON image_inventory(user_id)`,
 
     // Premium
     `CREATE INDEX IF NOT EXISTS idx_player_premium_tier ON player_premium(tier)`,
