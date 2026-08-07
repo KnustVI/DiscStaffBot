@@ -43,6 +43,34 @@ do jogo como recompensa de evento/doacao e proibe vender vantagem em jogo
 ou taxa de ganho de moeda virtual em troca de dinheiro real). Sistema de
 Hunt/loja ainda NAO implementado - "vindo em breve" em todo tier.
 
+MOEDA OSSO/BONE (ver secao 116 - pedido do dono, 2026-08-06): SEGUNDA
+moeda interna, diferente da Hunt em proposito - Bones sao a moeda da
+LOJA DE JOGO (bonus aplicados dentro do Path of Titans em si via RCON,
+ver catalogo abaixo), Hunt continua sendo so a moeda de personalizacao de
+perfil. As duas nao se misturam livremente: Bones PODEM ser convertidos
+em Hunt (limite de 100 Bones por semana), mas o caminho INVERSO nao
+existe - Hunt nunca vira Bones, e Hunt nunca compra nenhum item da loja
+de jogo (so Bones compram). Fonte de Bones e restrita de proposito: SO
+missoes que QUALQUER jogador (premium ou nao) pode completar rendem
+Bones - missoes exclusivas de tier premium (ex: Missoes Titan do Raptor)
+so podem render Hunt, nunca Bones. ATENCAO - CONFORMIDADE (mesmo
+raciocinio do Server Hosting Agreement ja citado acima pra Hunt, secao
+2.b: proibe vender vantagem em jogo ou taxa de ganho de moeda virtual em
+troca de dinheiro real): como Bones COMPRAM vantagem real dentro do jogo
+(diferente da Hunt), servidores NAO PODEM conceder Bones pra jogadores
+que pagam qualquer valor em dinheiro real - pedido explicito do dono
+("para não infligir os termos do jogo"). Isso e uma regra de PRODUTO
+ainda sem mecanismo de ENFORCEMENT tecnico desenhado (como o bot vai
+saber/impedir um servidor de conceder Bones a um assinante pago de algo
+externo e algo a resolver antes da implementacao de verdade - ver secao
+116). Sistema de Bones/loja de jogo ainda NAO implementado - "vindo em
+breve", mesmo estagio que a Hunt.
+
+NIVEL/XP (ver secao 116): separado das duas moedas acima - 1 hora de
+jogo = 1 XP. O badge "Nivel" do card de /perfil (hoje fixo em "Nivel 1",
+ver Seção "O que ja funciona hoje") vai passar a refletir isso quando
+implementado. Ainda NAO implementado - "vindo em breve".
+
 FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar) - PUBLICO desde a
   revisao mais recente (JA IMPLEMENTADO): /perfil deixou de ser ephemeral,
@@ -63,8 +91,9 @@ FREE
   cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
-- Ganha Hunt jogando (por hora de jogo) em qualquer servidor integrado ao
-  bot - ver moeda Hunt no topo desta secao. (ainda nao implementado -
+- Ganha Hunt E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
+  Hunt + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
+  moeda Hunt/Osso/Nivel no topo desta secao. (ainda nao implementado -
   "vindo em breve")
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
@@ -177,6 +206,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   FUNDACAO (o sistema de tier), ainda NAO tem loja implementada de fato -
   a foto por menu do Compy (acima) e um recurso PROPRIO, nao depende da
   loja.
+- Serão DUAS lojas separadas (pedido do dono, 2026-08-06, ver seção 116):
+  Loja de Personalização (moeda Hunt, só imagens de perfil - avatar/
+  plano de fundo/badge, mesmo pool dinâmico já usado no /perfil-edit) e
+  Loja de Jogo (moeda Bones, bônus DENTRO do Path of Titans via RCON -
+  ver catálogo completo e ressalva de conformidade na seção 116). Uma
+  prévia visual das duas (`/loja`, sem nenhuma compra de verdade ainda)
+  JÁ IMPLEMENTADA - ver seção 116.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -5199,3 +5235,102 @@ frente, nao so este relatorio):
   outro ponto de exibição fora deste (o card web da seção 11 já estava
   travado desde antes). Sem servidor Discord real aqui pra confirmar
   visualmente a mensagem no `/perfil`.
+
+116) Moeda OSSO/BONE + XP/Nível desenhados + prévia visual da Loja
+     (`/loja`) + botão na sidebar do /perfil — SÓ DESIGN/PRÉVIA, nada
+     implementado de verdade ainda
+------------------------------------------------------------------
+- Pedido do dono (citado por completo, é a especificação de verdade):
+  "E com esse contador de horas vamos contabilizar duas coisas. Além da
+  moeda Hunt vamos ter também outra moeda, o Osso/Bone. 1 Hora de jogo =
+  1 xp para subir de nível. 1 Hora de jogo = 1 Hunt (A moeda de
+  personalização) + 5 Ossos (Moeda de jogo). [...] Regras da loja:
+  Teremos duas lojas, a de personalização de perfil e a loja de jogo.
+  Bones podem ser convertidos em Hunt (com um limite de 100 por semana).
+  Bones não podem ser concedidos por servidores para jogadores que pagam
+  algum valor de moeda real para não infligir os termos do jogo. Hunt
+  não podem ser convertidos em Bones. Hunt não pode comprar nenhum item
+  da loja de jogo. Só Bones podem ser usados na loja de jogo. Bones só
+  podem ser recompensas de missões que qualquer jogador pode completar
+  (missões exclusivas para jogadores premium só podem ser recompensadas
+  com Hunt). A loja de personalização só vai conter imagens para o
+  perfil. A loja de jogo deve conter bonificações em jogo [via RCON]:
+  Growth Juvenil/Adolescente/Subadulto/Adulto, Skipshed, Receber missão
+  de marks, Converter Bones em Marks (1 Bones = 10 Marks)."
+- MOEDA HUNT (Seção 1) ganhou um segundo parágrafo "MOEDA OSSO/BONE"
+  logo abaixo, no MESMO nível de detalhe/cuidado do parágrafo da Hunt
+  (ver seção 107) — Bones são a moeda da Loja de Jogo, Hunt continua só
+  personalização; conversão é MÃO ÚNICA (Bones→Hunt, nunca o inverso,
+  limite 100/semana); Hunt nunca compra item da loja de jogo; Bones só
+  vêm de missão universal (não-exclusiva de tier). Um terceiro parágrafo
+  "NÍVEL/XP" documenta a taxa 1h = 1 XP, ligando ao badge "Nível" do
+  card de `/perfil` (hoje fixo em "Nível 1", ver Seção "O que já
+  funciona hoje" — este é o sistema que esse placeholder está esperando).
+- ⚠️ CONFORMIDADE — SEM RESOLVER AINDA, sinalizado explicitamente no
+  parágrafo da Bones (Seção 1): o próprio dono já trouxe a preocupação
+  ("para não infligir os termos do jogo") de que servidores não podem
+  conceder Bones pra jogador que paga dinheiro real por algo, já que
+  Bones (diferente de Hunt) COMPRAM vantagem real dentro do jogo (growth,
+  skipshed, marks) — mesma cláusula do Server Hosting Agreement da
+  Alderon Games já citada pra Hunt (proíbe vender vantagem em jogo ou
+  taxa de ganho de moeda virtual em troca de dinheiro real). Isso é uma
+  regra de PRODUTO sem mecanismo de ENFORCEMENT técnico desenhado ainda —
+  como o bot vai saber/impedir um servidor de dar Bones pra um assinante
+  pago de algo externo ao bot é uma pergunta em aberto, não resolvida
+  nesta revisão.
+- ⚠️ TERMOS_DE_SERVICO.txt/TERMOS_DE_SERVICO_EN.txt (documento legal de
+  verdade, servido ao vivo em `/termos`) NÃO FORAM TOCADOS nesta revisão
+  de propósito — a Seção 5 atual faz uma promessa ABSOLUTA e hoje
+  tecnicamente FALSA à luz deste novo plano: "a loja do Bot oferece, e
+  PRETENDE CONTINUAR OFERECENDO, APENAS itens de customização de perfil
+  [...] SEM QUALQUER efeito, vantagem ou desbloqueio dentro do jogo Path
+  of Titans". A Loja de Jogo (Bones) contradiz isso diretamente — ela
+  EXISTE justamente pra dar bônus DENTRO do jogo. Atualizar um documento
+  legal já publicado pra usuários reais, mudando uma garantia absoluta já
+  dada, é uma decisão que exige direção explícita do dono sobre a
+  redação (não decidida por conta própria aqui) — reportado de volta a
+  ele fora deste arquivo, não silenciosamente resolvido.
+- `dashboard.js` `GET /loja` (novo, global como `/perfil`, `checkAuth`
+  só — qualquer jogador logado acessa, moeda é dele, não do servidor):
+  monta os 3 grupos de imagens PÚBLICAS do pool dinâmico já existente
+  (avatar/plano de fundo/emblema, mesmo `ProfileImagePool` já usado por
+  `/perfil-edit`) como inventário de EXEMPLO da Loja de Personalização —
+  reaproveita dados reais em vez de inventar itens fake. Nenhuma coluna
+  nova de saldo (hunt/bones/xp) foi criada em `player_links` nem em
+  nenhuma tabela — a prévia não precisa disso pra só EXIBIR o catálogo.
+- `web/views/loja.ejs` (novo): 3 cards explicando Hunt/Ossos/Nível
+  (mesmo texto da Seção 1, versão curta pro jogador) + 2 seções de
+  catálogo — Loja de Personalização (grade das imagens reais do pool,
+  cada card com um selo diagonal "Em breve" em vez de preço real — preço
+  em Hunt fica "a definir", nenhum valor foi dado pelo dono) e Loja de
+  Jogo (7 cards estáticos: os 4 estágios de Growth, Skipshed, Missão de
+  Marks, Converter em Marks — este último É o único com número real,
+  "1 Osso = 10 Marks", os demais também "a definir"). Bilíngue PT/EN
+  (`data-i18n-pt`/`data-i18n-en`, mesmo padrão do resto do dashboard).
+  Estilo próprio (`.loja-item`/`.loja-currency-card`) inspirado no grid
+  de cards de `dev-image-pool.ejs` (pedido do dono: "parecida com o que
+  combinamos que fez com o image-pool"), mas SEM nenhuma das ações de
+  CRUD daquela página (upload/toggle/excluir) — aqui é só vitrine,
+  página de jogador, não ferramenta de dono.
+- `partials/sidebar-v2.ejs`: novo item `loja` (ícone `store`) no array
+  RESTRITO de `NAV_ITEMS` (o mesmo usado por `perfil.ejs`/
+  `perfil-denuncias.ejs`) — pedido do dono foi especificamente "dentro
+  da sidebar de PERFIL", por isso só entra nesse array, não no array
+  completo (guild-scoped) usado por Moderação/Eventos/Denúncias.
+  Posicionado logo depois de Premium, antes de Ajuda.
+- Nenhuma lógica de economia de verdade foi implementada nesta revisão:
+  sem colunas de saldo, sem cálculo de XP, sem RCON disparado, sem
+  conversão Bones→Hunt funcional, sem limite semanal aplicado, sem
+  ligação com o sistema de missões (que também não existe ainda). Growth
+  Juvenil/Adolescente/Subadulto/Adulto precisam de um mapeamento de
+  VALOR (0.0-1.0) antes de virar realidade — só 3 pontos são confirmados
+  hoje (0.1/0.5/1.0, ver seção do card de perfil), não 4; "Receber missão
+  de marks" não tem nenhum comando RCON catalogado ainda em
+  `rconCommandCatalog.js` (`skipshed` já existe, `listquests` lista
+  missões mas não concede uma) — ambos precisam de pesquisa antes da
+  implementação real.
+- Verificado com `node --check` em `dashboard.js` e `ejs.renderFile()`
+  em `loja.ejs` (pool vazio e com imagens) e `sidebar-v2.ejs` (confirma
+  que o item Loja aparece na sidebar restrita e NÃO aparece na sidebar
+  completa/guild-scoped). Sem servidor Discord real aqui pra confirmar
+  visualmente a página em produção.

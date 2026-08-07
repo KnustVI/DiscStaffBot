@@ -62,6 +62,10 @@
     // do site (ver visão geral abaixo, no <a> de cada item).
     const NAV_ITEMS = sbRestricted ? [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        // Prévia da loja (pedido do dono, 2026-08-06) — ver web/views/loja.ejs
+        // e PREMIUM.txt seção 116. Global como Premium/Ajuda (moeda é do
+        // jogador, não do servidor), por isso mora aqui e não na nav completa.
+        { key: 'loja', labelPt: 'Loja', labelEn: 'Shop', icon: 'store', href: '/loja' },
         { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
         { key: 'minhas-denuncias', labelPt: 'Suas Denúncias', labelEn: 'Your Reports', icon: 'message-square-warning', href: '/perfil/denuncias' },
         // Faltava (pedido do dono, 2026-08-06) — a variante restrita nunca

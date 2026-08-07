@@ -1109,6 +1109,48 @@ function loadDashboard(client) {
         });
     });
 
+    // "Loja" (pedido do dono, 2026-08-06: "Monte um site com uma prévia da
+    // loja parecida com o que combinamos que fez com o image-pool") —
+    // PRÉVIA VISUAL das duas lojas planejadas (Personalização/Hunt e
+    // Jogo/Bones, ver PREMIUM.txt seção 116), global como /perfil (moeda é
+    // do JOGADOR, não do servidor). Nenhuma compra de verdade acontece
+    // aqui: sem colunas de saldo (hunt/bones ainda não existem em
+    // player_links), sem RCON disparado, sem missão nenhuma — é só o
+    // catálogo mostrado com o mesmo tratamento "em breve" já usado em
+    // outros cards do /perfil (Lista de Amigos/Títulos/Badges/Tempo de
+    // Jogo). Reaproveita o pool dinâmico de imagens (avatar/plano de
+    // fundo/emblema) já existente como inventário de EXEMPLO da Loja de
+    // Personalização, em vez de inventar itens fake — mesma fonte de
+    // dados de GET /perfil, só limitada às imagens PÚBLICAS (publicOnly),
+    // mesmo critério de visibilidade que qualquer jogador já vê nos
+    // menus de /perfil-edit.
+    app.get('/loja', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+
+        const resolvePublicGroup = async (type) => {
+            const rows = ProfileImagePool.listImages(type, { publicOnly: true });
+            return Promise.all(rows.map(async (row) => ({
+                ...row,
+                url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
+            })));
+        };
+        const [avatars, backgrounds, badges] = await Promise.all([
+            resolvePublicGroup('avatar'),
+            resolvePublicGroup('background'),
+            resolvePublicGroup('badge'),
+        ]);
+
+        res.render('loja', {
+            nickname: req.user.global_name || req.user.username,
+            role: 'Membro',
+            isOwner: isOwnerSession(req),
+            otherGuilds: await getAdminGuildsWithBot(req),
+            avatars,
+            backgrounds,
+            badges,
+        });
+    });
+
     app.post(
         '/perfil/save',
         checkAuth,
