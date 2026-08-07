@@ -47,7 +47,7 @@ const STATUS_LABEL = {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('staffonline')
-        .setDescription('Mostra quais staffs (Moderador/Supervisor) estão online AGORA no jogo (Path of Titans), e há quanto tempo.')
+        .setDescription('Mostra quais staffs (Moderador/Supervisor) estão online AGORA no jogo, e há quanto tempo.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers), // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
 
     async execute(interaction, client) {

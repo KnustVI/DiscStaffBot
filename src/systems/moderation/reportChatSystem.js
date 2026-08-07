@@ -437,6 +437,16 @@ class ReportChatSystem {
         });
 
         try {
+            // `reports` tem FOREIGN KEY em guild_id/user_id (ver schema.js) —
+            // sem isso, quem abre um report como a PRIMEIRA interação dele
+            // com o bot (usuário nunca visto em `users`, ou servidor cujo
+            // `guilds` ainda não foi criado) derrubava o INSERT abaixo com
+            // SQLITE_CONSTRAINT_FOREIGNKEY. Mesmo padrão já usado em
+            // historico.js antes de qualquer INSERT/SELECT que dependa
+            // dessas linhas existirem.
+            db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
+            db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
+
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (!logChannelId) {
                 await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Canal de logs não configurado!`, flags: [MessageFlags.Ephemeral] });
@@ -603,6 +613,14 @@ class ReportChatSystem {
         });
 
         try {
+            // Mesmo motivo do openReport() acima — `reports` tem FOREIGN
+            // KEY em guild_id/user_id, sem isso o INSERT quebrava quando
+            // quem pedia a revisão nunca tinha interagido com o bot antes
+            // (bem provável aqui: alguém que acabou de levar um strike e
+            // clica direto em "Revisar Punição").
+            db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
+            db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
+
             const strikeNumber = parseInt(String(strikeNumberRaw).replace(/[^\d]/g, ''));
             if (isNaN(strikeNumber)) {
                 await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Número de strike inválido.`, flags: [MessageFlags.Ephemeral] });

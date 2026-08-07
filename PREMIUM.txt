@@ -6926,3 +6926,70 @@ frente, nao so este relatorio):
   em `handleUnstrikeConfirmation`/`generateUnstrikeUnifiedContainer`
   (essa função recebe `interaction` de verdade como parâmetro, sem o
   mesmo risco).
+
+------------------------------------------------------------------
+140) Mais 3 correções de produção reportadas pelo dono: /staffonline não
+     carregava, relatório de combate estourava limite de TEXTO do
+     Discord (diferente do de componentes, já corrigido antes), e abrir
+     um report/revisão pela primeira vez quebrava com erro de banco
+------------------------------------------------------------------
+- Pedido do dono (2026-08-07): reportou os 3 erros de uma vez, direto do
+  log de produção (pm2).
+- /STAFFONLINE NÃO CARREGAVA (`❌ Erro ao carregar comando
+  moderation/staffonline.js: Invalid string length`) — o comando inteiro
+  ficava indisponível desde a reescrita da seção 137 (checar presença NO
+  JOGO em vez do Discord). Causa: `node --check` (só sintaxe) não pega
+  esse tipo de erro — é uma validação de RUNTIME do próprio discord.js
+  (`@sapphire/shapeshift`), que rejeita a description de um slash
+  command com mais de 100 caracteres. A description nova (mais longa que
+  a antiga, pra explicar a mudança pra presença em jogo) tinha 106
+  caracteres. Reduzida pra 89, mesma informação, sem o trecho "(Path of
+  Titans)" (redundante — o resto do texto já deixa claro que é presença
+  no jogo). Verificado com um `require()` direto do arquivo (reproduz
+  exatamente o crash do loader) — falhava antes, carrega limpo depois.
+  Feita uma varredura nos 47 comandos do bot inteiro (mesmo `require()`
+  de cada um, replicando o loader de `index.js`) confirmando que
+  nenhum outro comando tem o mesmo problema.
+- RELATÓRIO DE COMBATE ESTOURAVA LIMITE DE TEXTO
+  (`COMPONENT_DISPLAYABLE_TEXT_SIZE_EXCEEDED` — webhook 400) — erro
+  DIFERENTE do `COMPONENT_MAX_TOTAL_COMPONENTS_EXCEEDED` já corrigido
+  antes (contagem de componentes, ver histórico de commits
+  `b98670c`/`36ce5aa`): esse é sobre o TOTAL de caracteres de texto
+  somado de TODOS os componentes de uma MESMA mensagem, que também tem
+  teto próprio no Discord — título + aviso fixo + só o PRIMEIRO bloco de
+  itens (que sozinho já cabia dentro do limite de ~4000 caracteres POR
+  COMPONENTE) já estourava esse total, mesmo com poucos componentes no
+  total. `src/integrations/pathoftitans/webhookPayloads.js`
+  (`buildDamageReportPayload`): rede de segurança nova, `textLength`
+  somado por MENSAGEM (não por componente), força uma mensagem nova
+  quando o PRÓXIMO texto ultrapassaria `MAX_TEXT_PER_PART` (3500,
+  conservador) — cobre título/aviso/rodapé, não só os blocos de itens.
+  `MAX_CHARS_PER_BLOCK` (tamanho de cada bloco dentro de uma lista de
+  itens) reduzido de 3800 pra 1500, deixando espaço de sobra pro
+  título/aviso/outros blocos conviverem na mesma mensagem sem estourar o
+  novo teto total. Verificado com um encontro sintético grande (25
+  participantes, 160 eventos de dano) gerando 5 mensagens — cada uma
+  medida de verdade (texto somado + contagem de componentes) confirma
+  ambos os limites do Discord respeitados em toda mensagem gerada.
+- REPORT/REVISÃO QUEBRAVA NA PRIMEIRA INTERAÇÃO DE UM USUÁRIO
+  (`SqliteError: FOREIGN KEY constraint failed`,
+  `reportChatSystem.js:498`) — a tabela `reports` tem FOREIGN KEY em
+  `guild_id` (→ `guilds`) e `user_id` (→ `users`); `openReport` e
+  `openPunishmentReview` nunca chamavam `db.ensureUser`/`db.ensureGuild`
+  antes do INSERT, então quebrava sempre que quem abria o report/revisão
+  fosse a PRIMEIRA interação dele com o bot (usuário nunca visto em
+  `users`) ou o servidor ainda não tivesse linha em `guilds` — bem
+  provável em `openPunishmentReview` especificamente, já que "Revisar
+  Punição" costuma ser literalmente a primeira coisa que alguém faz
+  logo depois de levar um strike. Corrigido nos 2 fluxos, mesmo padrão
+  já usado em `historico.js` (`db.ensureUser(user.id, ...)` +
+  `db.ensureGuild(guild.id, ...)` logo no início do `try`, antes de
+  qualquer leitura/escrita que dependa dessas linhas existirem).
+  `report_messages` (mensagens dentro do chat do report) não tem o mesmo
+  risco — sua FK é só em `(guild_id, report_number) → reports`, não em
+  `user_id` direto pra `users`. Confirmada varredura no resto do
+  arquivo/repositório: só existiam esses 2 `INSERT INTO reports` no
+  código inteiro, os 2 já corrigidos. Verificado reproduzindo o erro
+  exato contra o banco real (insert sem ensureUser/ensureGuild = mesmo
+  `SQLITE_CONSTRAINT_FOREIGNKEY` do log de produção) e depois confirmando
+  que o mesmo insert com ensureUser/ensureGuild antes já funciona.

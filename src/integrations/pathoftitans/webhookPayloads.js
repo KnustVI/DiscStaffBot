@@ -911,29 +911,44 @@ function buildDamageReportPayload(encounter, guild) {
         return `${formatDamageType(type)} | ${count}x | ${sum} | ${timesText}`;
     });
 
-    // ── Duas redes de segurança independentes, pra nunca estourar nenhum
+    // ── TRÊS redes de segurança independentes, pra nunca estourar nenhum
     // limite do Discord:
     // 1) Cada TextDisplay tem limite de ~4000 caracteres de conteúdo —
-    //    MAX_CHARS_PER_BLOCK junta o MÁXIMO de itens (participantes,
-    //    segmentos de dano) num componente só antes de abrir outro, em vez
-    //    de 1 componente por item (era isso que estourava o limite de
-    //    componentes do Container antes — ver 2).
-    // 2) Um Container só aceita até 40 componentes filhos no total —
+    //    MAX_CHARS_PER_BLOCK junta vários itens (participantes, segmentos
+    //    de dano) num componente só antes de abrir outro, em vez de 1
+    //    componente por item (era isso que estourava o limite de
+    //    componentes do Container antes — ver 3).
+    // 2) O TOTAL de texto somado de TODOS os componentes de uma MESMA
+    //    mensagem também tem teto (erro real visto em produção:
+    //    COMPONENT_DISPLAYABLE_TEXT_SIZE_EXCEEDED, DIFERENTE do de
+    //    contagem de componentes — título + aviso + só o PRIMEIRO bloco
+    //    de itens já estourava isso, mesmo com poucos componentes no
+    //    total e cada bloco individualmente abaixo do limite por
+    //    componente). MAX_TEXT_PER_PART soma o texto de TODA MENSAGEM
+    //    (title/disclaimer/todo addText, não só os blocos de addItemList)
+    //    e força uma mensagem nova quando o PRÓXIMO texto ultrapassaria
+    //    o teto — precisa ser bem mais conservador que o limite por
+    //    componente sozinho, já que título+aviso+rodapé também consomem
+    //    a mesma cota.
+    // 3) Um Container só aceita até 40 componentes filhos no total —
     //    MAX_PER_PART divide em várias MENSAGENS quando mesmo assim não
     //    coube (praticamente nunca deve acontecer agora que cada seção
     //    vira 1-2 componentes em vez de 1 por item, mas fica como último
     //    recurso pra combates realmente gigantescos). ─────────────────────
-    const MAX_CHARS_PER_BLOCK = 3800;
+    const MAX_CHARS_PER_BLOCK = 1500;
+    const MAX_TEXT_PER_PART = 3500;
     const MAX_PER_PART = 39;
     const payloads = [];
     let builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
     let count = 0;
+    let textLength = 0;
     let part = 1;
 
     const finalizePart = (isLast) => {
         if (isLast) {
-            ensureRoom(1);
-            builder.footer(guild?.name || 'Servidor');
+            const footerText = guild?.name || 'Servidor';
+            ensureRoom(1, footerText);
+            builder.footer(footerText);
         }
         const { components, flags } = builder.build();
         payloads.push({ components: components.map((c) => c.toJSON()), flags });
@@ -941,24 +956,27 @@ function buildDamageReportPayload(encounter, guild) {
     const startNewPart = () => {
         part += 1;
         builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        builder.text(`*(continuação ${part})*`);
+        const continuationText = `*(continuação ${part})*`;
+        builder.text(continuationText);
         count = 1;
+        textLength = continuationText.length;
     };
-    function ensureRoom(needed = 1) {
-        if (count + needed > MAX_PER_PART) {
+    function ensureRoom(needed = 1, textToAdd = '') {
+        if (count + needed > MAX_PER_PART || textLength + textToAdd.length > MAX_TEXT_PER_PART) {
             finalizePart(false);
             startNewPart();
         }
     }
-    const addTitle = (text, level) => { ensureRoom(); builder.title(text, level); count += 1; };
-    const addText = (text) => { ensureRoom(); builder.text(text); count += 1; };
+    const addTitle = (text, level) => { ensureRoom(1, text); builder.title(text, level); count += 1; textLength += text.length; };
+    const addText = (text) => { ensureRoom(1, text); builder.text(text); count += 1; textLength += text.length; };
     const addSeparator = () => { ensureRoom(); builder.separator(); count += 1; };
     // Adiciona uma LISTA de itens (um por participante, um por segmento de
-    // dano...) juntando o máximo possível em cada bloco de texto — vira 1
-    // componente só pro grupo inteiro na imensa maioria dos casos, em vez
-    // de 1 componente por item (raiz do bug de combates grandes nunca
-    // chegarem, ver docblock). Só quebra em mais de um bloco se o texto
-    // combinado passar do limite de caracteres de um TextDisplay.
+    // dano...) juntando vários num componente só (bem abaixo do limite por
+    // componente, ver MAX_CHARS_PER_BLOCK acima) em vez de 1 componente
+    // por item (raiz do bug de combates grandes nunca chegarem, ver
+    // docblock) — cada bloco resultante passa por addText, que já cuida
+    // de rolar pra uma mensagem nova sozinho se o total da mensagem atual
+    // (rede de segurança 2 acima) estourar.
     const addItemList = (items) => {
         for (const block of chunkIntoBlocks(items, MAX_CHARS_PER_BLOCK)) {
             addText(block);
