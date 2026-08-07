@@ -19,7 +19,59 @@
 
   Uso: include( partials/save-result-overlay , { saved } ) — saved vem
   direto de req.query.saved ('success'/'error'/undefined).
+
+  PRESERVAÇÃO DE SCROLL (pedido do dono, 2026-08-07: "ao salvar e
+  aparecer a overlay ele sobe o rolamento da página inteira, é possível
+  manter fixa onde estava? para todas as páginas") — todo POST daqui
+  (criar/editar/deletar nível, salvar configurações, etc) redireciona de
+  volta pra mesma página com um GET novo, e um GET novo sempre volta pro
+  topo por padrão do navegador; não tem relação com a overlay em si (que
+  é position:fixed, não desloca nada). Corrigido SEMPRE que este parcial
+  é incluído (script abaixo roda incondicional, fora do `if (saved)` —
+  precisa estar ativo ANTES do form dar submit, não só quando a overlay
+  aparece) — grava a posição de rolagem em sessionStorage no momento do
+  submit de QUALQUER <form> da página, e restaura na próxima carga
+  (mesmo pathname só, por segurança). Como está neste parcial
+  compartilhado (moderacao/events/reports/perfil/dev-image-pool.ejs),
+  cobre "todas as páginas" que usam esse fluxo de uma vez só.
 %>
+<script>
+    (function () {
+        var STORAGE_KEY = 'tp_scroll_restore';
+        var storedY = null;
+        try {
+            var raw = sessionStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                sessionStorage.removeItem(STORAGE_KEY);
+                var data = JSON.parse(raw);
+                if (data && data.path === window.location.pathname && typeof data.y === 'number') {
+                    storedY = data.y;
+                }
+            }
+        } catch (e) {}
+
+        if (storedY !== null) {
+            var apply = function () { window.scrollTo(0, storedY); };
+            // Aplica já (se o DOM já estiver pronto o bastante) e de novo
+            // em DOMContentLoaded/load — página pode ainda não ter a
+            // altura final quando este script roda (ele fica cedo na
+            // página, logo depois do cabeçalho).
+            apply();
+            document.addEventListener('DOMContentLoaded', apply);
+            window.addEventListener('load', apply);
+        }
+
+        // Grava a posição ANTES de qualquer form nativo navegar pra
+        // longe da página — cobre todo <form> existente, sem precisar
+        // marcar um por um.
+        document.addEventListener('submit', function (e) {
+            if (e.defaultPrevented) return;
+            try {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ path: window.location.pathname, y: window.scrollY }));
+            } catch (err) {}
+        }, true);
+    })();
+</script>
 <% if (typeof saved !== 'undefined' && (saved === 'success' || saved === 'error')) { %>
     <% const srIsOk = saved === 'success'; %>
     <div class="dev-overlay" id="saveResultOverlay">

@@ -5924,3 +5924,58 @@ frente, nao so este relatorio):
   frases em inglês corrigidas aparecem no HTML, os textos de permissão
   novos aparecem nos 2 idiomas, e o português continua intacto
   (RASTREADOR+/CAÇADOR ainda presentes no HTML pro toggle PT).
+
+127) 2 bugs de UI no editor de Níveis de Punição / overlay de save:
+     botão "Criar Nível" pulava pra cima ao abrir + rolagem da página
+     voltava pro topo depois de qualquer save
+------------------------------------------------------------------
+- Pedido do dono: "Na lista de criar nivel, quando clicamos no botão
+  para criar nivel, ele sobe um pouco ficando colado na lista acima e
+  cria outro botão abaixo ficando duplicado, consegue melhorar essa
+  visualização? Alem disso ao salva e aparecer a overlay ele sobe o
+  rolamentod da pagina inteira é possivel manter fixa onde estava?
+  para todas as paginas."
+- Bug 1 — <details> de "+ Criar Nível" pulando pra cima ao abrir:
+  causa raiz era um conflito de especificidade CSS. O <details>
+  standalone de Criar Nível (`web/views/moderacao.ejs`) usa a MESMA
+  classe `.level-form-details` do <details> de "Editar" de CADA nível
+  (dentro de `.level-card-actions`, um flex row) — e a regra
+  `.level-form-details[open] { margin-top: 4px }` (criada na sessão
+  anterior só pro caso Editar, ver seção anterior sobre esse mesmo
+  arquivo) tem 2 seletores de especificidade, então VENCIA a classe
+  Tailwind `mt-3` (12px) do Criar Nível ao abrir — a margem encolhia de
+  12px pra 4px, dando a impressão de "pular pra cima e colar na lista".
+  Corrigido escopando a regra pra só `.level-card-actions
+  .level-form-details[open]` (`web/public/css/style.css`) — o caso
+  Editar continua com o comportamento antigo intacto, o Criar Nível
+  agora mantém os 12px do mt-3 sempre, aberto ou fechado.
+- Bug 1 (parte 2) — "outro botão abaixo ficando duplicado": não é bug
+  de layout, é rótulo repetido — o <summary> (botão que abre o
+  formulário) já dizia "+ Criar Nível", e o botão de submit no fim do
+  formulário TAMBÉM dizia "Criar Nível", criando a leitura de 2 botões
+  iguais empilhados. Renomeado o botão de submit pra "Confirmar
+  Criação" (EN: "Confirm Creation") — mesmo espírito do form de Editar,
+  que já usa "Salvar Nível" em vez de repetir "Editar".
+- Bug 2 — rolagem volta pro topo depois de salvar: não tem relação com
+  a overlay em si (`.dev-overlay` é `position:fixed`, não desloca
+  layout nenhum) — é o POST->redirect->GET de QUALQUER form do
+  dashboard (salvar config, criar/editar/deletar nível, etc), que por
+  padrão do navegador volta pro topo numa navegação nova. Corrigido em
+  `partials/save-result-overlay.ejs` (parcial compartilhado por
+  moderacao/events/reports/perfil/dev-image-pool.ejs — resolver aqui
+  cobre "todas as páginas" de uma vez, como pedido) com um script NOVO,
+  fora do `if (saved)` (roda sempre, precisa estar ativo ANTES do
+  usuário dar submit): grava `window.scrollY` + `location.pathname` no
+  `sessionStorage` a cada evento `submit` de qualquer `<form>` da
+  página (captura em fase de captura, ignora se algum outro JS já deu
+  `preventDefault`), e na carga seguinte, se existir um valor salvo
+  pro MESMO pathname (proteção contra restaurar num redirect pra outra
+  página), aplica `window.scrollTo` de novo em `DOMContentLoaded` e
+  `load` (o script fica cedo na página, então a altura final do
+  documento ainda pode não estar pronta na primeira tentativa).
+- Verificado com `ejs.renderFile()` (não commitado): `moderacao.ejs`
+  com `saved` undefined/success/error confirmando que o script de
+  scroll aparece nos 3 casos (incondicional) e que o botão de submit
+  mostra "Confirmar Criação"; e `dev-image-pool.ejs` confirmando que o
+  mesmo script aparece corretamente incluído via o parcial
+  compartilhado.
