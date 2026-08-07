@@ -29,55 +29,58 @@ do Cloudflare e mostra:
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
 
-MOEDA HUNT (ver secao 107): economia interna do bot, sem NENHUM efeito
-dentro do jogo Path of Titans em si - nao altera taxa de farm, crescimento,
-atributos, progresso ou qualquer outro aspecto do jogo. Ganha-se Hunt
-jogando/completando missoes (gatilho exato varia por tier, ver bullets
-abaixo) e ela so pode ser trocada por: (1) personalizacao de perfil na
-loja do bot (avatar/plano de fundo/badge/titulo) e (2), futuramente,
-recursos de criacao de cla dentro da comunidade - APENAS isso. Hunt NUNCA
-pode ser trocada por Marks, dinheiro real ou virtual, nem qualquer
-beneficio ou vantagem dentro do jogo, incluindo skins - conformidade com o
-Server Hosting Agreement da Alderon Games (proibe oferecer skins/conteudo
-do jogo como recompensa de evento/doacao e proibe vender vantagem em jogo
-ou taxa de ganho de moeda virtual em troca de dinheiro real). Sistema de
-Hunt/loja ainda NAO implementado - "vindo em breve" em todo tier.
+MOEDA CAÇADAS (nome técnico/interno "Hunt" nas seções 104/107 —
+traduzida pro português nesta revisão, ver seção 121): economia interna
+do bot, sem NENHUM efeito dentro do jogo Path of Titans em si - não
+altera taxa de farm, crescimento, atributos, progresso ou qualquer outro
+aspecto do jogo. Ganha-se Caçadas jogando/completando missões (gatilho
+exato varia por tier, ver bullets abaixo) e elas só podem ser trocadas
+por: (1) personalização de perfil na loja do bot (avatar/plano de
+fundo/badge/título) e (2), futuramente, recursos de criação de clã
+dentro da comunidade - APENAS isso. Caçadas NUNCA podem ser trocadas por
+Marks, dinheiro real ou virtual, nem qualquer benefício ou vantagem
+dentro do jogo, incluindo skins - conformidade com o Server Hosting
+Agreement da Alderon Games (proíbe oferecer skins/conteúdo do jogo como
+recompensa de evento/doação e proíbe vender vantagem em jogo ou taxa de
+ganho de moeda virtual em troca de dinheiro real). Sistema de
+Caçadas/loja ainda NÃO implementado - "vindo em breve" em todo tier.
 
-MOEDA OSSO/BONE (ver secao 117 - pedido do dono, 2026-08-06): SEGUNDA
-moeda interna, diferente da Hunt em proposito - Bones sao a moeda da
-LOJA DE JOGO (bonus aplicados dentro do Path of Titans em si via RCON,
-ver catalogo abaixo), Hunt continua sendo so a moeda de personalizacao de
-perfil. As duas nao se misturam livremente: Bones PODEM ser convertidos
-em Hunt (limite de 100 Bones por semana), mas o caminho INVERSO nao
-existe - Hunt nunca vira Bones, e Hunt nunca compra nenhum item da loja
-de jogo (so Bones compram). Fonte de Bones e restrita de proposito: SO
-missoes que QUALQUER jogador (premium ou nao) pode completar rendem
-Bones - missoes exclusivas de tier premium (ex: Missoes Titan do Raptor)
-so podem render Hunt, nunca Bones. ATENCAO - CONFORMIDADE (mesmo
-raciocinio do Server Hosting Agreement ja citado acima pra Hunt, secao
-2.b: proibe vender vantagem em jogo ou taxa de ganho de moeda virtual em
-troca de dinheiro real): como Bones COMPRAM vantagem real dentro do jogo
-(diferente da Hunt), servidores NAO PODEM conceder Bones pra jogadores
-que pagam qualquer valor em dinheiro real - pedido explicito do dono
-("para não infligir os termos do jogo"). RESOLVIDO (ver secao 118): o
-enforcement e ESTRUTURAL, nao um monitoramento tecnico - Bones SO podem
-vir de 2 fontes automaticas (hora de jogo, mesma taxa pra todo mundo, e
-missao aberta a QUALQUER jogador), nunca de concessao manual/admin
-nenhuma. Sem nenhum comando que deixe staff conceder Bones a um jogador
-especifico, nao existe caminho pra recompensar seletivamente um
-assinante pago - a mesma regra que ja vale pra missao premium-only
-(nunca rende Bones, so Hunt) fecha o resto do raciocinio: dinheiro real
-(seja pro bot, seja pro proprio host do servidor) nunca compra nem
-influencia Bones, ponto. Conforme confirmado pelo dono: "os termos do
-jogo permitem existir uma loja que tenha comercio entre itens do jogo
-desde que a aquisicao da moeda ou dos itens nao envolva dinheiro ou
-itens reais" - e exatamente esse o design. Sistema de Bones/loja de jogo
-ainda NAO implementado - "vindo em breve", mesmo estagio que a Hunt.
+MOEDA OSSO/BONE (ver seção 117 - pedido do dono, 2026-08-06): SEGUNDA
+moeda interna, diferente das Caçadas em propósito - Bones são a moeda da
+LOJA DE JOGO (bônus aplicados dentro do Path of Titans em si via RCON,
+ver catálogo abaixo), Caçadas continuam sendo só a moeda de
+personalização de perfil. As duas não se misturam livremente: Bones
+PODEM ser convertidos em Caçadas (limite de 100 Bones por semana), mas o
+caminho INVERSO não existe - Caçadas nunca viram Bones, e Caçadas nunca
+compram nenhum item da loja de jogo (só Bones compram). Fonte de Bones é
+restrita de propósito: SÓ missões que QUALQUER jogador (premium ou não)
+pode completar rendem Bones - missões exclusivas de tier premium (ex:
+Missões Titan do Raptor) só podem render Caçadas, nunca Bones. ATENÇÃO -
+CONFORMIDADE (mesmo raciocínio do Server Hosting Agreement já citado
+acima pras Caçadas, seção 2.b: proíbe vender vantagem em jogo ou taxa de
+ganho de moeda virtual em troca de dinheiro real): como Bones COMPRAM
+vantagem real dentro do jogo (diferente das Caçadas), servidores NÃO
+PODEM conceder Bones pra jogadores que pagam qualquer valor em dinheiro
+real - pedido explícito do dono ("para não infligir os termos do
+jogo"). RESOLVIDO (ver seção 118): o enforcement é ESTRUTURAL, não um
+monitoramento técnico - Bones SÓ podem vir de 2 fontes automáticas (hora
+de jogo, mesma taxa pra todo mundo, e missão aberta a QUALQUER
+jogador), nunca de concessão manual/admin nenhuma. Sem nenhum comando
+que deixe staff conceder Bones a um jogador específico, não existe
+caminho pra recompensar seletivamente um assinante pago - a mesma regra
+que já vale pra missão premium-only (nunca rende Bones, só Caçadas)
+fecha o resto do raciocínio: dinheiro real (seja pro bot, seja pro
+próprio host do servidor) nunca compra nem influencia Bones, ponto.
+Conforme confirmado pelo dono: "os termos do jogo permitem existir uma
+loja que tenha comércio entre itens do jogo desde que a aquisição da
+moeda ou dos itens não envolva dinheiro ou itens reais" - é exatamente
+esse o design. Sistema de Bones/loja de jogo ainda NÃO implementado -
+"vindo em breve", mesmo estágio que as Caçadas.
 
-NIVEL/XP (ver secao 117): separado das duas moedas acima - 1 hora de
-jogo = 1 XP. O badge "Nivel" do card de /perfil (hoje fixo em "Nivel 1",
-ver Seção "O que ja funciona hoje") vai passar a refletir isso quando
-implementado. Ainda NAO implementado - "vindo em breve".
+NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
+jogo = 1 XP. O badge "Nível" do card de /perfil (hoje fixo em "Nível 1",
+ver Seção "O que já funciona hoje") vai passar a refletir isso quando
+implementado. Ainda NÃO implementado - "vindo em breve".
 
 FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar) - PUBLICO desde a
@@ -99,9 +102,9 @@ FREE
   cadastrados antes de acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
-- Ganha Hunt E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
-  Hunt + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
-  moeda Hunt/Osso/Nivel no topo desta secao. (ainda nao implementado -
+- Ganha Caçadas E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
+  Caçada + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
+  moeda Caçadas/Osso/Nível no topo desta seção. (ainda não implementado -
   "vindo em breve")
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
@@ -128,8 +131,8 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
 - Perfil personalizavel pela loja (badge/titulo exclusivos). Completar
-  missoes recompensa com Hunt, alem do ganho por hora de jogo do Free -
-  ver moeda Hunt no topo desta secao. (ainda nao implementado - "vindo em
+  missoes recompensa com Caçadas, alem do ganho por hora de jogo do Free -
+  ver moeda Caçadas no topo desta seção. (ainda nao implementado - "vindo em
   breve")
 
 RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Compy +")
@@ -148,8 +151,8 @@ RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) 
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
   versao "banco de titulos" pro Compy, ver acima).
 - Footer de perfil padrao do tier Raptor.
-- Completar missoes recompensa com Hunt, incluindo Missoes Titan
-  exclusivas deste tier - ver moeda Hunt no topo desta secao. (ainda nao
+- Completar missoes recompensa com Caçadas, incluindo Missoes Titan
+  exclusivas deste tier - ver moeda Caçadas no topo desta seção. (ainda nao
   implementado - "vindo em breve")
 
 O QUE JA FUNCIONA HOJE, DE VERDADE:
@@ -210,12 +213,12 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   migradas pro pool dinamico de PLANO DE FUNDO (ver secao 98) - o pool de
   AVATAR comeca vazio ate o dono cadastrar fotos novas via /perfil-pool add
   avatar.
-- Loja (trocar Hunt por fotos/badges/titulos/recursos de cla) e so a
+- Loja (trocar Caçadas por fotos/badges/titulos/recursos de cla) e so a
   FUNDACAO (o sistema de tier), ainda NAO tem loja implementada de fato -
   a foto por menu do Compy (acima) e um recurso PROPRIO, nao depende da
   loja.
 - Serão DUAS lojas separadas (pedido do dono, 2026-08-06, ver seção 117):
-  Loja de Personalização (moeda Hunt, só imagens de perfil - avatar/
+  Loja de Personalização (moeda Caçadas, só imagens de perfil - avatar/
   plano de fundo/badge, mesmo pool dinâmico já usado no /perfil-edit) e
   Loja de Jogo (moeda Bones, bônus DENTRO do Path of Titans via RCON -
   ver catálogo completo e ressalva de conformidade na seção 117). Uma
@@ -5517,3 +5520,64 @@ frente, nao so este relatorio):
 - Verificado com `node --check` no arquivo renomeado e em
   `handlers.js`/`ajuda.js`; busca de código confirmando zero ocorrências
   restantes de "reportarbug" fora da seção histórica 58 e desta entrada.
+
+121) Moeda "Hunt" traduzida para "Caçadas" no português (inglês continua
+     "Hunt")
+------------------------------------------------------------------
+- Pedido do dono: "Traduza a moeda hunt para Caçadas no português."
+  Mesma moeda, mesmas regras (ver "MOEDA CAÇADAS" no topo da Seção 1) —
+  só o NOME em português muda. A versão em inglês de todo texto
+  bilíngue continua "Hunt" (nome original, sem tradução) — o pedido foi
+  especificamente "no português".
+- Seções 1-2 (descrição viva) atualizadas por completo: parágrafo
+  "MOEDA HUNT" virou "MOEDA CAÇADAS" (com uma nota entre parênteses
+  citando "Hunt" como nome técnico/interno, seções 104/107, pra quem
+  vier procurando pelo nome antigo); os bullets de Free/Compy/Raptor
+  ("Ganha Hunt...") e o bullet de loja da Seção 2 também atualizados.
+  Concordância em português ajustada onde necessário (Caçadas é
+  feminino plural: "elas", "podem", "trocadas", em vez de "ela"/"pode"/
+  "trocada" usado com Hunt no singular) — "1 Caçada" no singular quando
+  o número é exatamente 1 (mesmo padrão gramatical já usado pra "1
+  Osso"/"5 Ossos").
+- NÃO tocadas de propósito: as seções numeradas 104/105/107 e os
+  changelogs 116-120 (histórico — descrevem decisões tomadas quando a
+  moeda genuinamente se chamava só "Hunt", reescrever isso apagaria a
+  precisão histórica do documento, mesmo critério já usado nas seções
+  58/119).
+- `web/views/perfil.ejs`: o selo "Hunt: Em breve" no card do /perfil
+  NÃO era bilíngue antes (mostrava "Hunt:" fixo nos dois idiomas) —
+  virou `<span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>`,
+  primeira vez que esse rótulo específico precisa de tradução de
+  verdade.
+- `web/views/loja.ejs`: título do card ("HUNT — Personalização" →
+  "CAÇADAS — Personalização") e todo texto PT que mencionava a moeda
+  (taxa de ganho, conversão, "paga com"), mantendo os itens da Loja de
+  Jogo (pagos em Ossos) intocados.
+- `web/views/hero.ejs` (landing page pública): bloco "PONTOS DE CAÇADA!"
+  (o heading em si já usava "Caçada" há mais tempo, só o corpo do texto
+  ainda dizia "Hunt" 3 vezes) e os 3 bullets de "Ganhe/Ganho extra de
+  Hunt" nos cards de preço Free/Compy/Raptor.
+- `TERMOS_DE_SERVICO.txt` (documento legal real, servido em `/termos`,
+  Seção 5) — todas as 5 ocorrências de "Hunt" no corpo do texto (fora do
+  histórico de versões) traduzidas, incluindo ajuste gramatical de
+  concordância. `TERMOS_DE_SERVICO_EN.txt` NÃO teve o conteúdo alterado
+  (mantém "Hunt"), só ganhou o mesmo bump de versão (1.3 → 1.4) e uma
+  entrada de changelog explicando que só o lado PT mudou — mantém as
+  duas versões numericamente sincronizadas mesmo quando só uma muda de
+  conteúdo. Contagem de tags `[==...==]{#cor}` (27=27) e separadores
+  `────` (15=15) conferida idêntica entre os 2 arquivos antes de
+  considerar seguro.
+- `scripts/generate-premium-images.js`: as 3 mesmas bullets de "Ganhe/
+  Ganho extra de Hunt" (usadas pra gerar `VIEW PLAYER PREMIUM.webp`,
+  mesmo texto do hero.ejs, ver comentário no topo do script) também
+  atualizadas no CÓDIGO-FONTE. O script NÃO foi executado nesta revisão
+  — mesmo critério já documentado no CLAUDE.md pra imagens estáticas de
+  marketing (regeneração é decisão do dono, não uma ação automática):
+  falta rodar `npm run generate-premium-images` pra a imagem real
+  refletir o texto novo.
+- Verificado com busca de código em todo o repositório (`grep -rn
+  "Hunt"`, excluindo falsos positivos de "Hunter", o nome do tier) —
+  toda ocorrência restante é EN intencional, comentário interno/
+  histórico, ou as 2 imagens de photo pool "Desert Hunt"/"Family Hunt"
+  (nomes de foto sem relação nenhuma com a moeda, não tocadas). `node
+  --check` em `generate-premium-images.js`.

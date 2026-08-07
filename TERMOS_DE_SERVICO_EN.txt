@@ -1,7 +1,7 @@
 TERMS OF SERVICE AND PRIVACY POLICY – TITAN'S PASS (testing phase)
 
-Last updated: 06.08.2026
-Version: 1.3 (Pre-launch)
+Last updated: 07.08.2026
+Version: 1.4 (Pre-launch)
 
 [==⚠️ READ BEFORE USING THE BOT==]{#ffcc00}
 
@@ -214,6 +214,7 @@ For questions, data-removal requests, reporting abuse, or exercising your privac
 
 VERSION HISTORY:
 
+• v1.4 (07.08.2026): The "Hunt" currency was renamed to "Caçadas" in the Portuguese version only (Section 5) — same currency, only the PT-language name changes; this English version keeps "Hunt" (original name, not translated).
 • v1.3 (06.08.2026): /reportarbug command renamed to /feedback (Section 12) — same command, no behavior change.
 • v1.2 (06.08.2026): Section 5 (Store, Currency, and Premium System) updated to describe the second internal currency, Bones, and the game store it pays for — unlike the customization store (Hunt), the game store applies bonuses INSIDE Path of Titans (dinosaur growth, quests, Marks). This is only permitted because Bones can never be purchased with real money, real items, or exchanged from Hunt — they are earned exclusively by playing and completing quests open to any player, in compliance with Alderon Games' Server Hosting Agreement (which permits trading in-game items as long as their acquisition never involves real-world money or items).
 • v1.1 (17.07.2026): Added Section 4 (Game Server Integration / compliance with Alderon Games) and Section 5 (Store, Currency, and Premium System), clarifying that the Bot's internal economy does not grant in-game advantages and that RCON/buff tools are exclusively for host use, with a clause on blocking in case of proven misuse. Harmonized the advance-notice period (14 days) between Sections 2 and 11. Fixed typos and expanded Section 1 with the full list of the Bot's areas.

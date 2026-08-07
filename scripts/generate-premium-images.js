@@ -143,7 +143,7 @@ async function buildPlayerPremium() {
                 'Perfil sincronizado com o Discord',
                 'Badges de missões',
                 'Títulos de missões',
-                'Ganhe Hunt por hora de jogo',
+                'Ganhe Caçadas por hora de jogo',
             ],
         },
         {
@@ -152,14 +152,14 @@ async function buildPlayerPremium() {
                 'Perfil personalizável pela loja',
                 'Badge exclusivo',
                 'Títulos exclusivos',
-                'Ganho extra de Hunt por missão concluída',
+                'Ganho extra de Caçadas por missão concluída',
             ],
         },
         {
             name: 'RAPTOR', nameColor: '#FF4E3B', featured: false, price: 'R$25/mês', inherits: 'Tudo do Compy +',
             bullets: [
                 'Perfil 100% personalizável com suas próprias imagens',
-                'Ganho extra de Hunt por Missão Titan concluída',
+                'Ganho extra de Caçadas por Missão Titan concluída',
             ],
         },
     ];

@@ -1,7 +1,7 @@
 TERMOS DE SERVIÇO E POLÍTICA DE PRIVACIDADE – TITAN'S PASS (em fase de testes)
 
-Última atualização: 06.08.2026
-Versão: 1.3 (Pré-lançamento)
+Última atualização: 07.08.2026
+Versão: 1.4 (Pré-lançamento)
 
 [==⚠️ LEIA ANTES DE USAR O BOT==]{#ffcc00}
 
@@ -89,13 +89,13 @@ O Titan's Pass oferece ferramentas administrativas que se conectam ao servidor P
 
 5. LOJA, MOEDAS E SISTEMA PREMIUM:
 
-O Titan's Pass possui uma economia interna própria, usando duas moedas virtuais: Hunt e Ossos (Bones). O jogador pode ganhar Hunt através de eventos especiais em parceria com o servidor, sorteios, missões e horas de jogo, com taxas de ganho maiores conforme o nível Premium. Ossos são ganhos SOMENTE jogando (por hora de jogo) e completando missões abertas a QUALQUER jogador — nunca por missões exclusivas de assinantes Premium, e nunca em troca de dinheiro real, itens reais ou Hunt.
+O Titan's Pass possui uma economia interna própria, usando duas moedas virtuais: Caçadas e Ossos (Bones). O jogador pode ganhar Caçadas através de eventos especiais em parceria com o servidor, sorteios, missões e horas de jogo, com taxas de ganho maiores conforme o nível Premium. Ossos são ganhos SOMENTE jogando (por hora de jogo) e completando missões abertas a QUALQUER jogador — nunca por missões exclusivas de assinantes Premium, e nunca em troca de dinheiro real, itens reais ou Caçadas.
 
-[==A loja de personalização do Bot oferece, e pretende continuar oferecendo, apenas itens de customização de perfil dentro do próprio Titan's Pass==]{#66ff66} (avatar, plano de fundo, badge, título e similares) e, futuramente, recursos de criação de clã dentro da comunidade — sem qualquer efeito, vantagem ou desbloqueio dentro do jogo Path of Titans. [==Hunt não pode, em nenhuma circunstância, ser trocada por Marks, dinheiro real ou virtual, Ossos, benefícios ou vantagens dentro do jogo, ou skins==]{#ff4444}.
+[==A loja de personalização do Bot oferece, e pretende continuar oferecendo, apenas itens de customização de perfil dentro do próprio Titan's Pass==]{#66ff66} (avatar, plano de fundo, badge, título e similares) e, futuramente, recursos de criação de clã dentro da comunidade — sem qualquer efeito, vantagem ou desbloqueio dentro do jogo Path of Titans. [==Caçadas não podem, em nenhuma circunstância, ser trocadas por Marks, dinheiro real ou virtual, Ossos, benefícios ou vantagens dentro do jogo, ou skins==]{#ff4444}.
 
-[==A loja de jogo do Bot oferece bônus aplicados DENTRO do Path of Titans (ex: crescimento do dinossauro, missões, Marks), pagos exclusivamente em Ossos==]{#66ff66}. Essa loja só é possível porque Ossos [==nunca podem ser adquiridos com dinheiro real, itens reais, doações, ou trocados a partir de Hunt — só são obtidos jogando==]{#ff4444}, em conformidade com o Server Hosting Agreement da Alderon Games, que permite comércio de itens dentro do jogo desde que sua aquisição nunca envolva dinheiro ou itens do mundo real. [==Ossos só podem ser trocados por Hunt (nunca o inverso), com limite semanal, e nunca compram nada fora da loja de jogo==]{#ff4444}.
+[==A loja de jogo do Bot oferece bônus aplicados DENTRO do Path of Titans (ex: crescimento do dinossauro, missões, Marks), pagos exclusivamente em Ossos==]{#66ff66}. Essa loja só é possível porque Ossos [==nunca podem ser adquiridos com dinheiro real, itens reais, doações, ou trocados a partir de Caçadas — só são obtidos jogando==]{#ff4444}, em conformidade com o Server Hosting Agreement da Alderon Games, que permite comércio de itens dentro do jogo desde que sua aquisição nunca envolva dinheiro ou itens do mundo real. [==Ossos só podem ser trocados por Caçadas (nunca o inverso), com limite semanal, e nunca compram nada fora da loja de jogo==]{#ff4444}.
 
-Nenhuma quantidade de Hunt, item ou benefício adquirido através da loja de personalização altera atributos, progresso, crescimento, itens ou qualquer outro aspecto do jogo em si; os itens da loja de jogo, pagos exclusivamente em Ossos, alteram o jogo dentro dos limites estritos descritos acima.
+Nenhuma quantidade de Caçadas, item ou benefício adquirido através da loja de personalização altera atributos, progresso, crescimento, itens ou qualquer outro aspecto do jogo em si; os itens da loja de jogo, pagos exclusivamente em Ossos, alteram o jogo dentro dos limites estritos descritos acima.
 
 Caso o Bot venha a oferecer futuramente um projeto de skins através de mods, esse conteúdo será disponibilizado em conformidade com o Modding Agreement da Alderon Games, que veda a venda ou o "paywall" de mods/UGC e proíbe conceder skins ou benefícios dentro do jogo como retorno de doação ou pagamento. Nenhuma funcionalidade desse tipo entrará em vigor antes de garantida essa conformidade.
 
@@ -214,6 +214,7 @@ Para dúvidas, solicitação de remoção de dados, reportar abuso ou exercer se
 
 HISTÓRICO DE VERSÕES:
 
+• v1.4 (07.08.2026): Moeda "Hunt" traduzida para "Caçadas" nesta versão em português (Seção 5) — mesma moeda, só o nome em PT muda; a versão em inglês continua "Hunt" (nome original, sem tradução).
 • v1.3 (06.08.2026): Comando /reportarbug renomeado para /feedback (Seção 12) — mesmo comando, sem mudança de comportamento.
 • v1.2 (06.08.2026): Seção 5 (Loja, Moedas e Sistema Premium) atualizada para descrever a segunda moeda interna, Ossos (Bones), e a loja de jogo que ela paga — diferente da loja de personalização (Hunt), a loja de jogo aplica bônus DENTRO do Path of Titans (crescimento do dinossauro, missões, Marks). Isso só é permitido porque Ossos nunca podem ser comprados com dinheiro real, itens reais, nem trocados a partir de Hunt — são obtidos exclusivamente jogando e completando missões abertas a qualquer jogador, em conformidade com o Server Hosting Agreement da Alderon Games (que permite comércio de itens dentro do jogo desde que sua aquisição nunca envolva dinheiro ou itens do mundo real).
 • v1.1 (17.07.2026): Adicionada Seção 4 (Integração com o Servidor de Jogo / conformidade com a Alderon Games) e Seção 5 (Loja, Moedas e Sistema Premium), esclarecendo que a economia interna do Bot não concede vantagens dentro do jogo e que ferramentas de RCON/buff são de uso exclusivo do host, com cláusula de bloqueio em caso de uso indevido comprovado. Harmonizado prazo de aviso prévio (14 dias) entre as Seções 2 e 11. Corrigidos erros de digitação e expandida a Seção 1 com a lista completa de frentes do Bot.
