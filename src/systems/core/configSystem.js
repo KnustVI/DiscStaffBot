@@ -327,6 +327,23 @@ const ConfigSystem = {
     },
 
     /**
+     * True se o membro tem o cargo Moderador OU Supervisor configurado.
+     * Pedido do dono (2026-08-07): Supervisor é hierarquicamente ACIMA de
+     * Moderador, então qualquer checagem de "isso é coisa de Moderador?"
+     * deve aceitar Supervisor também, mesmo que o cargo dele não esteja
+     * TAMBÉM cadastrado na lista de Moderador — sem precisar duplicar o
+     * cargo nas 2 listas em /config roles. Diferente de
+     * memberHasAnyStaffRole (que também aceita Equipe de Eventos, cargo
+     * sem relação nenhuma com moderação/punição/reports) — usar esta
+     * função em qualquer lugar que hoje só verifica 'staff_role' sozinho
+     * mas deveria tratar Supervisor como equivalente.
+     */
+    memberHasModOrSupervisorRole(guildId, member) {
+        return this.memberHasConfiguredRole(guildId, member, 'staff_role') ||
+            this.memberHasConfiguredRole(guildId, member, 'supervisor_role');
+    },
+
+    /**
      * Retorna o canal de log "Geral / AutoMod" unificado.
      *
      * ✅ UNIFICAÇÃO: Geral e AutoMod agora compartilham o mesmo canal,

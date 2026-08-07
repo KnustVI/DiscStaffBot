@@ -52,24 +52,32 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Alvo').setRequired(true))
         .addIntegerOption(opt => opt.setName('pontos').setDescription('Nova pontuação (0-100)').setRequired(true).setMinValue(0).setMaxValue(100))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo do ajuste').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers), // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
 
     async execute(interaction, client) {
         const startTime = Date.now();
         const { guild, options, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
-        
+
         const target = options.getUser('usuario');
         const newPoints = options.getInteger('pontos');
         const reason = options.getString('motivo');
-        
+
         let emojis = {};
         try {
             const emojisFile = require('../../database/emojis.js');
             emojis = emojisFile.EMOJIS || {};
         } catch (err) {}
-        
+
         try {
+            // ── Checagem REAL de permissão (pedido do dono, 2026-08-07) —
+            // mesmo raciocínio do /strike: exige o cargo Moderador ou
+            // Supervisor configurado, ou Administrador de verdade. ────────
+            const ConfigSystem = require('../../systems/core/configSystem');
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, staffMember) && !staffMember.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
+            }
+
             if (!target) {
                 return await ResponseManager.error(interaction, 'Usuário não encontrado.');
             }
@@ -81,9 +89,7 @@ module.exports = {
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
-            
-            const ConfigSystem = require('../../systems/core/configSystem');
-            
+
             let targetMember = null;
             try {
                 targetMember = await guild.members.fetch(target.id).catch(() => null);

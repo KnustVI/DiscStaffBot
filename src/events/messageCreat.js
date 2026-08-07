@@ -23,7 +23,7 @@ module.exports = {
         const member = await guild.members.fetch(message.author.id).catch(() => null);
         if (!member) return;
 
-        const isStaff = ConfigSystem.memberHasConfiguredRole(guild.id, member, 'staff_role');
+        const isStaff = ConfigSystem.memberHasModOrSupervisorRole(guild.id, member);
         const now = Date.now();
         
         // Determinar o novo status baseado em quem respondeu

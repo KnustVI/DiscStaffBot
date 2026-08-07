@@ -770,7 +770,7 @@ class ReportChatSystem {
         const { guild, user, member } = interaction;
         
         try {
-            if (!ConfigSystem.memberHasConfiguredRole(guild.id, member, 'staff_role')) {
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member)) {
                 await this.sendTempReply(interaction, `Você não tem permissão para entrar em reports.`, false);
                 return;
             }

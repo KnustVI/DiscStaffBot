@@ -127,7 +127,7 @@ module.exports = {
             });
             
             const ConfigSystem = require('../../systems/core/configSystem');
-            if (ConfigSystem.memberHasConfiguredRole(guildId, member, 'staff_role')) {
+            if (ConfigSystem.memberHasModOrSupervisorRole(guildId, member)) {
                 const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }

@@ -5771,3 +5771,66 @@ frente, nao so este relatorio):
   contra um servidor real, então qualquer tentativa de automação seria
   um chute. Fica como possível próximo passo se o dono confirmar o
   texto exato que o jogo devolve nesse caso.
+
+124) Supervisor passa a contar como Moderador em todo lugar + comandos
+     de punição ganham checagem real de cargo (Moderador/Supervisor ou
+     Administrador)
+------------------------------------------------------------------
+- Pedido do dono, respondendo a uma checagem detalhada de onde
+  Supervisor tinha (ou não) o mesmo acesso de Moderador: "Então permita
+  a supervisão nos 3 pontos. Eles contam como uma cargo acima da
+  moderação e devem e podem contar como moderadores. Sobre os comandos
+  que fizemos para moderação eles só podem ser usados por quem estar
+  com o cargo configurado no bot ou administrador do discord." — dois
+  pedidos distintos, os dois implementados nesta revisão.
+- PARTE 1 — Supervisor = Moderador nos 3 pontos que só olhavam pro
+  cargo Moderador sozinho (`staff_role`), deixando Supervisor de fora
+  mesmo sem ele estar cadastrado também na lista de Moderador em
+  /config roles:
+    - `ConfigSystem.memberHasModOrSupervisorRole(guildId, member)`
+      (nova função, `src/systems/core/configSystem.js`) — true se o
+      membro tem o cargo Moderador OU Supervisor configurado. Difere
+      de `memberHasAnyStaffRole` (já existia) por NÃO incluir Equipe de
+      Eventos, que não tem relação com moderação/punição/reports.
+    - Ponto 1 — Entrar em reports: `reportChatSystem.js` `joinReport`
+      bloqueava com "Você não tem permissão para entrar em reports."
+      qualquer um que não estivesse no cargo Moderador — agora aceita
+      Supervisor também.
+    - Ponto 2 — Resposta em thread de report contar como resposta de
+      staff: `messageCreat.js` (`isStaff`, decide se a mensagem conta
+      como resposta do staff ou do jogador pra fins de status do
+      report) tratava Supervisor como se fosse o próprio jogador
+      respondendo — corrigido.
+    - Ponto 3 — Contagem pra staff analytics: `historico.js` (ver
+      player history) e `feedback.js` só creditavam a ação nas
+      estatísticas do staff (`AnalyticsSystem.updateStaffAnalytics`) se
+      o autor estivesse no cargo Moderador — agora Supervisor também
+      conta.
+- PARTE 2 — comandos de punição (`/strike`, `/unstrike`, `/repset`)
+  ganham checagem REAL de cargo, coisa que não existia antes: eles só
+  usavam `setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)`
+  como sugestão de permissão padrão do Discord — qualquer servidor pode
+  reatribuir livremente essa permissão nativa por Integrações, sem
+  relação nenhuma com quem o bot considera staff (Moderador/Supervisor
+  configurados em /config roles). Agora os 3 exigem, logo no início do
+  `execute()`: `ConfigSystem.memberHasModOrSupervisorRole(...)` OU
+  `member.permissions.has(PermissionFlagsBits.Administrator)` —
+  qualquer um dos dois libera, nenhum dos dois bloqueia. Mesmo padrão
+  já usado pelos `/ingame-*` (que já faziam essa checagem real dentro
+  de `executeRconSubcommand`, só que sem o fallback de Administrador —
+  esse fallback é novo, específico do pedido desta revisão).
+  `strike/registro.js` (caminho Free do `/strike` unificado) não
+  precisou de checagem própria — ele é chamado de dentro do `execute()`
+  de `strike/index.js`, então já herda a checagem feita ali.
+  `/historico` não foi tocado na Parte 2 (já tinha
+  `memberHasAnyStaffRole` desde antes, cobrindo Supervisor; não tinha
+  fallback de Administrador, mas isso não foi pedido nem estava entre
+  os comandos sinalizados como sem checagem nenhuma).
+- Verificado com `node --check` nos 8 arquivos alterados e um script de
+  teste isolado (não commitado) validando `memberHasModOrSupervisorRole`
+  contra o banco de dados de verdade: cargo só-Moderador conta, cargo
+  só-Supervisor (SEM estar cadastrado em Moderador) TAMBÉM conta, os
+  dois cargos juntos conta, nenhum dos dois não conta — e confirmando
+  que `memberHasConfiguredRole(..., 'staff_role')` sozinha continua com
+  o comportamento antigo intacto (função separada, não alterada) pra
+  quem ainda precisar checar Moderador especificamente.

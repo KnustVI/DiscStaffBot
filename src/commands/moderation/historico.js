@@ -118,7 +118,7 @@ module.exports = {
                 hasRecords: totalRecords > 0,
             });
 
-            if (ConfigSystem.memberHasConfiguredRole(guildId, interaction.member, 'staff_role')) {
+            if (ConfigSystem.memberHasModOrSupervisorRole(guildId, interaction.member)) {
                 await AnalyticsSystem.updateStaffAnalytics(guildId, user.id);
             }
 

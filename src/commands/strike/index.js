@@ -162,7 +162,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('strike')
         .setDescription('⚖️ Aplica uma punição a um jogador.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers) // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
         // Discord exige que opções obrigatórias venham ANTES das opcionais
         // na lista (rejeitado com erro 50035/APPLICATION_COMMAND_OPTIONS_
         // REQUIRED_INVALID se não seguir essa ordem — usuario/agid vinham
@@ -207,7 +207,7 @@ module.exports = {
     },
 
     async execute(interaction, client) {
-        const { guild, options } = interaction;
+        const { guild, options, member } = interaction;
         const guildId = guild.id;
 
         const targetUserOption = options.getUser('usuario');
@@ -219,6 +219,21 @@ module.exports = {
         let reportId = options.getString('report') || null;
 
         try {
+            // ── Checagem REAL de permissão (pedido do dono, 2026-08-07): o
+            // default do Discord acima (ModerateMembers) é só um PONTO DE
+            // PARTIDA sugerido — qualquer servidor pode reatribuir essa
+            // permissão nativa livremente pelas próprias Integrações, sem
+            // relação nenhuma com quem o bot considera staff. Punição só
+            // pode ser aplicada por quem tem o cargo Moderador OU Supervisor
+            // configurado em /config roles (Supervisor conta como Moderador,
+            // ver ConfigSystem.memberHasModOrSupervisorRole), ou por um
+            // Administrador de verdade do servidor — mesmo padrão já usado
+            // pelos comandos /ingame-*. ──────────────────────────────────
+            const ConfigSystem = require('../../systems/core/configSystem');
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, member) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
+            }
+
             if (!targetUserOption && !agidOption) {
                 return await ResponseManager.error(interaction, 'Informe `usuario` e/ou `agid` pra identificar o jogador.');
             }

@@ -14,7 +14,7 @@ module.exports = {
         .setDescription('Anula uma punição e devolve os pontos ao usuário.')
         .addIntegerOption(opt => opt.setName('id').setDescription('Número do Strike (o mesmo mostrado em "Strike #N")').setRequired(true))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da anulação').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers), // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
 
     async execute(interaction, client) {
         const { guild, options, user: staff, member: staffMember } = interaction;
@@ -29,6 +29,14 @@ module.exports = {
         } catch (err) {}
 
         try {
+            // ── Checagem REAL de permissão (pedido do dono, 2026-08-07) —
+            // mesmo raciocínio do /strike: exige o cargo Moderador ou
+            // Supervisor configurado, ou Administrador de verdade. ────────
+            const ConfigSystem = require('../../systems/core/configSystem');
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, staffMember) && !staffMember.permissions.has(PermissionFlagsBits.Administrator)) {
+                return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
+            }
+
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
