@@ -470,6 +470,55 @@ function getUserReportsData(userId, client, state) {
     };
 }
 
+// "Histórico do jogador" no /perfil (pedido do dono, 2026-08-07: "Adicione
+// ao perfil um botão de histórico do jogador puxando o histórico de
+// reputação e punição") — GLOBAL como "Suas Denúncias" acima (mesmo
+// espírito de self-view sem plateia): junta reputação + punições de
+// QUALQUER servidor onde o usuário tem registro, tudo numa página só, sem
+// precisar de um seletor de servidor como o Conversor de Moedas (aqui é só
+// leitura de banco, não RCON contra um servidor específico). Reputação
+// respeita o gate de tier por servidor (reputationEnabled — mesma regra
+// aplicada por linha que o /historico do Discord usa em
+// punishmentSystem.js#generateHistoryContainer) porque é um RECURSO
+// premium; punições NUNCA são escondidas por tier — são registro de
+// auditoria, ver a regra "Favorecer economia de espaço para dados
+// derivados" no CLAUDE.md, que explicitamente NÃO se aplica a
+// punishments/reports.
+function getPlayerHistoryData(userId, client) {
+    const guildIds = db.prepare(`
+        SELECT DISTINCT guild_id FROM punishments WHERE user_id = ?
+        UNION
+        SELECT DISTINCT guild_id FROM reputation WHERE user_id = ?
+    `).all(userId, userId).map((row) => row.guild_id);
+
+    const reputationByGuild = guildIds.map((guildId) => {
+        const rep = db.prepare('SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
+        if (!rep) return null;
+        const guild = client.guilds.cache.get(guildId);
+        return {
+            guildId,
+            guildName: guild?.name || 'Servidor desconhecido',
+            guildIconUrl: guild?.icon ? `https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png` : null,
+            points: rep.points,
+            reputationEnabled: PremiumSystem.getGuildLimits(guildId).reputationEnabled,
+        };
+    }).filter(Boolean).sort((a, b) => a.guildName.localeCompare(b.guildName));
+
+    const punishments = db.prepare(
+        `SELECT * FROM punishments WHERE user_id = ? ORDER BY created_at DESC`
+    ).all(userId).map((p) => {
+        const guild = client.guilds.cache.get(p.guild_id);
+        return {
+            ...p,
+            guildName: guild?.name || 'Servidor desconhecido',
+            guildIconUrl: guild?.icon ? `https://cdn.discordapp.com/icons/${p.guild_id}/${guild.icon}.png` : null,
+            moderatorName: resolveUserDisplayName(client, p.moderator_id),
+        };
+    });
+
+    return { reputationByGuild, punishments };
+}
+
 // Mesmo ID hardcoded em todo comando de developer (ver src/commands/developer/*.js)
 // — usado aqui pra liberar o preview de região (BR/internacional) da
 // landing page pro dono logado (GET /) e, agora, pra travar o dashboard
@@ -1117,6 +1166,13 @@ function loadDashboard(client) {
         const premiumInfo = PremiumSystem.getPlayerPremiumInfo(userId);
         const isCompyPlus = playerTier === 'compy' || playerTier === 'raptor';
         const isRaptor = playerTier === 'raptor';
+        // Saldo real de Caçadas (pedido do dono, 2026-08-07: "Libere o farm
+        // dos itens por hora jogada agora") — não depende de `link` (mesma
+        // função já usada em /loja, devolve 0 com segurança pra quem não
+        // tem player_links ainda), calculado fora do bloco `if (link)`
+        // abaixo porque o selo .perfil-hunt-pill no topo do card aparece
+        // pra QUALQUER usuário logado, vinculado ou não.
+        const huntBalance = PlayerRegistry.getHuntBalance(userId);
 
         let honorStars = null;
         let mostPlayedDinosaur = null;
@@ -1173,6 +1229,7 @@ function loadDashboard(client) {
             honorStars,
             mostPlayedDinosaur,
             kdStats,
+            huntBalance,
             playedGuilds,
             badgeOptions,
             avatarOptions,
@@ -1180,6 +1237,25 @@ function loadDashboard(client) {
             avatarPreviewUrl,
             backgroundPreviewUrl,
             saved: req.query.saved,
+        });
+    });
+
+    // "Histórico do jogador" (pedido do dono, 2026-08-07: "Adicione ao
+    // perfil um botão de histórico do jogador puxando o histórico de
+    // reputação e punição") — ver getPlayerHistoryData acima pra
+    // explicação completa do formato/regras de gate. Só checkAuth, mesmo
+    // espírito self-view de /perfil/denuncias (qualquer usuário logado vê
+    // o PRÓPRIO histórico, não precisa ser admin de servidor nenhum).
+    app.get('/perfil/historico', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { reputationByGuild, punishments } = getPlayerHistoryData(req.user.id, client);
+        res.render('perfil-historico', {
+            nickname: req.user.global_name || req.user.username,
+            role: 'Membro',
+            isOwner: isOwnerSession(req),
+            otherGuilds: await getAdminGuildsWithBot(req),
+            reputationByGuild,
+            punishments,
         });
     });
 
@@ -1245,6 +1321,8 @@ function loadDashboard(client) {
 
         const link = PlayerRegistry.getPlayerByDiscordId(req.user.id);
         const bonesBalance = PlayerRegistry.getBonesBalance(req.user.id);
+        const huntBalance = PlayerRegistry.getHuntBalance(req.user.id);
+        const xpBalance = PlayerRegistry.getXp(req.user.id);
         const playedGuilds = link ? getPlayedGuilds(link.alderon_id, client) : [];
 
         res.render('loja', {
@@ -1257,6 +1335,8 @@ function loadDashboard(client) {
             badges,
             isLinked: !!link,
             bonesBalance,
+            huntBalance,
+            xpBalance,
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
             playedGuilds,
             convertResult: req.query.convertido || null,

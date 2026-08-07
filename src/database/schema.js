@@ -328,7 +328,10 @@ const SCHEMA = {
             background_message_id TEXT,
             selected_background_key TEXT,
             hide_kda INTEGER DEFAULT 0,
-            bones_balance INTEGER NOT NULL DEFAULT 0
+            bones_balance INTEGER NOT NULL DEFAULT 0,
+            hunt_balance INTEGER NOT NULL DEFAULT 0,
+            xp INTEGER NOT NULL DEFAULT 0,
+            playtime_credit_seconds INTEGER NOT NULL DEFAULT 0
         )
     `,
 

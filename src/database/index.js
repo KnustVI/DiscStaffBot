@@ -193,11 +193,25 @@ class DatabaseManager {
             this.ensureColumn('player_links', 'selected_background_key', 'TEXT');
             this.ensureColumn('player_links', 'hide_kda', 'INTEGER DEFAULT 0');
             // Saldo de Ossos (Bones, moeda da Loja de Jogo — ver
-            // PREMIUM.txt seção 122) — global por jogador, igual toda a
-            // economia do bot (Player Premium). Só existe conversão
-            // Ossos<->Marks por enquanto (currencySystem.js); a fonte de
-            // ganho por hora de jogo ainda não está implementada.
+            // PREMIUM.txt seção 122). Global por jogador, igual toda a
+            // economia do bot (Player Premium).
             this.ensureColumn('player_links', 'bones_balance', 'INTEGER NOT NULL DEFAULT 0');
+            // Saldo de Caçadas (Hunt, moeda da Loja de Personalização) e XP
+            // (sistema de nível) — pedido do dono, 2026-08-07: "Libere o
+            // farm dos itens por hora jogada agora". As duas são creditadas
+            // junto com Ossos toda vez que uma sessão de jogo fecha (ver
+            // potPlayerRegistry.js _creditPlaytimeCurrency, chamada de
+            // upsertPlayerFromEvent) — 1h jogada = 1 Caçada + 5 Ossos + 1 XP,
+            // taxa original do dono (ver PREMIUM.txt seção 117).
+            this.ensureColumn('player_links', 'hunt_balance', 'INTEGER NOT NULL DEFAULT 0');
+            this.ensureColumn('player_links', 'xp', 'INTEGER NOT NULL DEFAULT 0');
+            // Sobra de segundos ainda não convertida numa hora cheia — ex:
+            // 3 sessões de 20min cada precisam SOMAR até completarem 3600s
+            // antes de render 1 hora de moeda; sem isso, sessões curtas
+            // nunca creditariam nada. Puramente interno (nunca mostrado ao
+            // jogador), reseta o resto (`% 3600`) toda vez que soma o
+            // bastante pra fechar 1+ hora.
+            this.ensureColumn('player_links', 'playtime_credit_seconds', 'INTEGER NOT NULL DEFAULT 0');
             // Snapshot do nível de punição customizado usado no momento do strike
             // (ver punishmentLevels.js) — congelado na hora de aplicar, pra editar
             // um nível depois não reescrever punições já aplicadas. A coluna

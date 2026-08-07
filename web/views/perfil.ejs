@@ -263,17 +263,18 @@
                 <%#
                     Saldo de Caçadas (pedido do dono, 2026-08-05: "pode
                     ficar no primeiro bloco de perfil no canto direito
-                    superior do mesmo") — sistema ainda não implementado
-                    (ver PREMIUM.txt, "MOEDA CAÇADAS"), por isso só o selo
-                    "Em breve" por enquanto, sem valor nenhum pra mostrar.
-                    Nome da moeda agora bilíngue (pedido do dono,
-                    2026-08-07: "traduza a moeda hunt para Caçadas no
-                    português") — PT mostra "Caçadas", EN continua "Hunt"
-                    (nome original, sem tradução).
+                    superior do mesmo") — real a partir de 2026-08-07
+                    (pedido do dono: "Libere o farm dos itens por hora
+                    jogada agora"), ver PlayerRegistry.getHuntBalance/
+                    _creditPlaytimeCurrency em potPlayerRegistry.js. Nome
+                    da moeda bilíngue (pedido do dono, 2026-08-07: "traduza
+                    a moeda hunt para Caçadas no português") — PT mostra
+                    "Caçadas", EN continua "Hunt" (nome original, sem
+                    tradução).
                 %>
                 <div class="perfil-hunt-pill">
                     <i data-lucide="coins"></i>
-                    <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><span data-i18n-pt>Em breve</span><span data-i18n-en>Coming soon</span></strong></span>
+                    <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><%= huntBalance %></strong></span>
                 </div>
             </div>
 
@@ -329,6 +330,20 @@
                                 <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
                             </span>
                         </div>
+
+                        <%#
+                            Botão de Histórico (pedido do dono, 2026-08-07:
+                            "Adicione ao perfil um botão de histórico do
+                            jogador puxando o histórico de reputação e
+                            punição") — mesmo estilo de chip clicável já
+                            usado em .perfil-guild-chip, reaproveitado como
+                            botão de ação em vez de link pra servidor. Leva
+                            pra /perfil/historico (ver dashboard.js).
+                        %>
+                        <a href="/perfil/historico" class="perfil-guild-chip self-start mt-1">
+                            <i data-lucide="history" class="w-4 h-4 ml-1 text-titan-gold"></i>
+                            <span><span data-i18n-pt>Histórico de Reputação e Punições</span><span data-i18n-en>Reputation & Punishment History</span></span>
+                        </a>
                     </div>
 
                     <%#

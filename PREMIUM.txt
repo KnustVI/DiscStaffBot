@@ -42,8 +42,12 @@ Marks, dinheiro real ou virtual, nem qualquer benefício ou vantagem
 dentro do jogo, incluindo skins - conformidade com o Server Hosting
 Agreement da Alderon Games (proíbe oferecer skins/conteúdo do jogo como
 recompensa de evento/doação e proíbe vender vantagem em jogo ou taxa de
-ganho de moeda virtual em troca de dinheiro real). Sistema de
-Caçadas/loja ainda NÃO implementado - "vindo em breve" em todo tier.
+ganho de moeda virtual em troca de dinheiro real). O GANHO de Caçadas por
+hora jogada (1h = 1 Caçada, mesmo gatilho de Bones/XP abaixo) JÁ ESTÁ
+IMPLEMENTADO a partir desta revisão (2026-08-07, ver seção 135) - o que
+ainda falta é a LOJA em si (trocar Caçadas por itens de personalização),
+que continua "vindo em breve" em todo tier. Ganho por missão (distinto do
+ganho por hora) também continua "vindo em breve".
 
 MOEDA OSSO/BONE (ver seção 117 - pedido do dono, 2026-08-06): SEGUNDA
 moeda interna, diferente das Caçadas em propósito - Bones são a moeda da
@@ -74,13 +78,19 @@ próprio host do servidor) nunca compra nem influencia Bones, ponto.
 Conforme confirmado pelo dono: "os termos do jogo permitem existir uma
 loja que tenha comércio entre itens do jogo desde que a aquisição da
 moeda ou dos itens não envolva dinheiro ou itens reais" - é exatamente
-esse o design. Sistema de Bones/loja de jogo ainda NÃO implementado -
-"vindo em breve", mesmo estágio que as Caçadas.
+esse o design. O GANHO de Bones por hora jogada (1h = 5 Bones) JÁ ESTÁ
+IMPLEMENTADO (2026-08-07, ver seção 135), mesmo estágio que as Caçadas -
+o que ainda falta é o CATÁLOGO da loja de jogo em si (bônus RCON tipo
+Growth/Skipshed); o CONVERSOR Ossos<->Marks já era funcional desde a
+seção 122, antes mesmo do ganho por hora. Ganho por missão continua
+"vindo em breve".
 
 NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
-jogo = 1 XP. O badge "Nível" do card de /perfil (hoje fixo em "Nível 1",
-ver Seção "O que já funciona hoje") vai passar a refletir isso quando
-implementado. Ainda NÃO implementado - "vindo em breve".
+jogo = 1 XP. O ACÚMULO de XP em si JÁ ESTÁ IMPLEMENTADO (2026-08-07, ver
+seção 135) e visível no saldo mostrado em /loja - o que ainda falta é o
+badge "Nível" do card de /perfil (hoje fixo em "Nível 1", ver Seção "O
+que já funciona hoje") passar a refletir esse XP acumulado numa fórmula
+de nível; esse cálculo continua "vindo em breve".
 
 FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar) - PUBLICO desde a
@@ -104,8 +114,9 @@ FREE
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
 - Ganha Caçadas E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
   Caçada + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
-  moeda Caçadas/Osso/Nível no topo desta seção. (ainda não implementado -
-  "vindo em breve")
+  moeda Caçadas/Osso/Nível no topo desta seção. JÁ IMPLEMENTADO
+  (2026-08-07, ver seção 135) - saldo real, visível em /loja e (Caçadas)
+  em /perfil.
 
 COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("Tudo do Free +")
 - Banner de perfil padrao do tier Compy (imagem fixa). No futuro, vai poder
@@ -130,10 +141,12 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
-- Perfil personalizavel pela loja (badge/titulo exclusivos). Completar
-  missoes recompensa com Caçadas, alem do ganho por hora de jogo do Free -
-  ver moeda Caçadas no topo desta seção. (ainda nao implementado - "vindo em
-  breve")
+- Perfil personalizavel pela loja (badge/titulo exclusivos) - loja em si
+  ainda "vindo em breve" (ver topo desta seção). Completar missoes
+  recompensa com Caçadas, alem do ganho por hora de jogo do Free (esse
+  JÁ IMPLEMENTADO pra qualquer tier, ver bullet Free acima e seção 135) -
+  ver moeda Caçadas no topo desta seção. Ganho por MISSÃO especificamente
+  continua "vindo em breve".
 
 RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) ("Tudo do Compy +")
 - Perfil 100% personalizado com imagens proprias.
@@ -176,8 +189,10 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
     - TITULO (badge superior) - PLACEHOLDER fixo ("Em breve (missoes)") pra
       Free/Compy; Raptor pode substituir por texto livre via /perfil-edit
       (JA IMPLEMENTADO, ver secao Raptor acima). NIVEL (badge do meio) -
-      ainda PLACEHOLDER fixo ("Nivel 1") em todo tier, esperando o sistema
-      de XP por hora jogada ser desenhado;
+      ainda PLACEHOLDER fixo ("Nivel 1") em todo tier - o ACUMULO de XP por
+      hora jogada por tras disso ja e real desde 2026-08-07 (ver secao
+      135), so falta a formula que converte esse XP num numero de nivel
+      pra mostrar aqui;
     - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
       liberada em QUALQUER tier (JA IMPLEMENTADA), lista de opcoes
       alimentada pelo dono via /perfil-pool add badge (ver secao 97), mas o
@@ -226,7 +241,11 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   catálogo de bônus (Growth/Skipshed/Missão de Marks) continua só
   prévia, mas o CONVERSOR Ossos<->Marks dentro da Loja de Jogo já é
   FUNCIONAL DE VERDADE (saldo real + RCON de verdade, taxa 1 Osso = 100
-  Marks nos 2 sentidos) - ver seção 122.
+  Marks nos 2 sentidos) - ver seção 122. O FARM por hora jogada (Caçadas/
+  Ossos/XP) também já é real desde 2026-08-07 (ver seção 135) - os 3
+  cards de moeda em `/loja` mostram o saldo/XP atual do jogador, não só a
+  descrição de como cada moeda funciona; o que continua só prévia é
+  GASTAR essas moedas (compras em si, incluindo o catálogo de bônus).
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -6464,3 +6483,94 @@ frente, nao so este relatorio):
   `refreshFilterPanel` — 34 componentes, dentro do teto de 40, com o
   aviso de "+17 não exibidas" presente. `node --check` em
   `chatFilterPanelSystem.js`.
+
+------------------------------------------------------------------
+135) Libera o farm de Caçadas/Ossos/XP por hora jogada (era só prévia
+     desde a seção 117) + mostra o saldo real em /loja e /perfil +
+     conversor marcado como fase de testes + botão de Histórico
+     (reputação/punições) no /perfil
+------------------------------------------------------------------
+- Pedido do dono (2026-08-07): "Adicione o saldo atual de Caçada, Osso e
+  XP na loja. Libere o farm dos itens por hora jogada agora. Informe que
+  o conversor de ossos esta no momento em fases de testes. Adicione ao
+  perfil um botão de histórico do jogador puxando o histórico de
+  reputação e punição."
+- FARM POR HORA JOGADA (ver moeda Caçadas/Osso/Nível no topo da seção 1,
+  atualizada nesta revisão) - motor novo em
+  `potPlayerRegistry.js#_creditPlaytimeCurrency`, chamado de dentro de
+  `upsertPlayerFromEvent` (mesmo ponto que já fecha sessão e credita
+  `pot_players.total_playtime`, logo DEPOIS de `_syncGlobalLinkFromWebhook`
+  de propósito - se o PRÓPRIO evento que fechou a sessão também acabou de
+  criar o vínculo Discord, essa mesma sessão já entra creditando moeda,
+  sem precisar de mais um login/logout pra "descobrir" o vínculo). Regra
+  fixa: 1 hora jogada = 1 Caçada + 5 Ossos + 1 XP - reaproveita o MESMO
+  valor de segundos que já alimenta `total_playtime`, então os dois
+  números nunca podem divergir. Sessão fracionada (menos de 1h) não perde
+  progresso: `player_links.playtime_credit_seconds` guarda o resto em
+  segundos e soma na próxima sessão (inclusive em OUTRO servidor, já que
+  a carteira é global, por `user_id`, não por `guild_id`). Só credita
+  jogador com vínculo (/registrar) existente - sem vínculo, evento é
+  ignorado silenciosamente (mesmo padrão já usado por `bones_balance`).
+  Sem gate de tier: ganho por hora vale em qualquer tier (Free incluso),
+  igual já era documentado pra Bones - só GASTAR as moedas (loja em si)
+  continua exclusivo de quando a loja existir de fato.
+    - Schema (`src/database/schema.js` + `ensureColumn` em
+      `src/database/index.js`): `player_links` ganha `hunt_balance`,
+      `xp` e `playtime_credit_seconds` (as 3 `INTEGER NOT NULL DEFAULT
+      0`) - `bones_balance` já existia.
+    - `potPlayerRegistry.js`: `getHuntBalance`/`addHunt`/`getXp`/`addXp`
+      (mesmo padrão de `getBonesBalance`/`addBones`) + `_creditPlaytime
+      Currency` (interna, não exportada, mesmo critério de
+      `_syncGlobalLinkFromWebhook`).
+- SALDO REAL NA LOJA (`web/views/loja.ejs` + `dashboard.js` GET /loja) -
+  os 3 cards de moeda (Caçadas/Ossos/Nível), que antes só explicavam como
+  cada moeda funciona, agora mostram o saldo/XP ATUAL do jogador (`hunt
+  Balance`/`bonesBalance`/`xpBalance`, novos locals). O aviso "Loja em
+  construção" no topo da página foi reescrito pra deixar claro que o
+  FARM já é real, só as COMPRAS continuam vindo em breve.
+- SALDO REAL NO /perfil - o selo `.perfil-hunt-pill` no card do jogador
+  (topo direito, existia desde 2026-08-05 mas sempre fixo em "Em breve")
+  agora mostra o `huntBalance` de verdade, mesma fonte da loja.
+- CONVERSOR EM FASE DE TESTES (`loja.ejs`, seção "CONVERSOR DE MOEDAS") -
+  aviso novo (`outline-chip`, ícone `flask-conical`) avisando que o
+  conversor Ossos<->Marks (funcional desde a seção 122) ainda está em
+  fase de testes e pode passar por ajustes - só informativo, não altera
+  nenhum comportamento/trava do conversor em si.
+- BOTÃO DE HISTÓRICO NO /perfil (`web/views/perfil.ejs` +
+  `web/views/perfil-historico.ejs`, novo + `dashboard.js` GET
+  /perfil/historico) - espelha o `/historico jogador` do Discord
+  (`punishmentSystem.js#generateHistoryContainer`), mas GLOBAL em vez de
+  por-servidor: junta reputação + punições de QUALQUER servidor onde o
+  usuário tem registro numa página só, sem precisar escolher servidor
+  primeiro (diferente do Conversor de Moedas, que precisa de um servidor
+  específico pra mirar o RCON - aqui é só leitura de banco). Nova função
+  `getPlayerHistoryData(userId, client)` em `dashboard.js`: junta
+  `guild_id` distintos de `punishments`/`reputation` pra esse `user_id`,
+  monta reputação por servidor e a lista completa de punições (com nome/
+  ícone do servidor e nome do moderador resolvidos). Reputação respeita o
+  gate de tier por servidor (`reputationEnabled` - mesma regra usada
+  linha a linha pelo comando no Discord, mostra "disponível a partir do
+  plano Rastreador" quando desligado); punições NUNCA são escondidas por
+  tier - são registro de auditoria, mesma regra já documentada no
+  CLAUDE.md do repositório pra `punishments`/`reports`. Botão novo em
+  `perfil.ejs` (`.perfil-guild-chip` reaproveitado como botão de ação,
+  logo abaixo das estrelas de Honra) leva pra `/perfil/historico`.
+- Verificado com `ejs.renderFile()` (mocks, não commitado) em `loja.ejs`,
+  `perfil.ejs` e `perfil-historico.ejs` - saldo/XP aparecem corretos,
+  aviso de fase de testes presente nos 2 idiomas, botão de Histórico
+  presente, reputação respeitando o gate de tier por linha, severidade
+  legada (punições antigas sem `level_severity`) e status "Anulado"
+  renderizando sem quebrar. Motor de acúmulo por hora testado à parte com
+  um script isolado (não commitado) chamando
+  `PlayerRegistry.upsertPlayerFromEvent` de verdade com payloads
+  `PlayerLogin`/`PlayerLogout` reais (14 asserções: sessão fracionada não
+  credita nada sozinha, duas sessões de 30min somam 1h = 1/5/1, sessão de
+  2h15min credita +2/+10/+2 e deixa exatamente 15min de resto, jogador
+  sem vínculo não credita nem quebra). `node --check` em `dashboard.js`,
+  `potPlayerRegistry.js` e `src/database/index.js`.
+- Linha 184 de `moderacao.ejs` (reportada pelo dono como possível erro) -
+  investigada e confirmada como falso positivo do linter do editor (não
+  entende tag EJS dentro de `style=""` inline) - render real com
+  `ejs.renderFile()` confirma saída correta pras 3 severidades e pro
+  fallback de severidade desconhecida. Nenhuma mudança de código
+  necessária aqui - confirmado com o dono antes de seguir em frente.

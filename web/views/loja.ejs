@@ -16,13 +16,22 @@
   (player_links.bones_balance) + RCON de verdade contra o servidor de
   jogo escolhido — ver src/systems/pot/currencySystem.js.
 
+  Ainda 2026-08-07 (pedido do dono: "Libere o farm dos itens por hora
+  jogada agora"): o farm de Caçadas/Ossos/XP por hora jogada também
+  virou real — cada hora completada num servidor com PoT integrado
+  credita 1 Caçada + 5 Ossos + 1 XP automaticamente (ver
+  potPlayerRegistry.js#_creditPlaytimeCurrency, chamada de dentro de
+  upsertPlayerFromEvent). Os 3 cards de moeda abaixo agora mostram o
+  saldo/XP REAL do jogador, não só a descrição de como a moeda funciona.
+  O que continua só prévia é gastar essas moedas na loja em si (compras).
+
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
-    avatars, backgrounds, badges, isLinked, bonesBalance, marksPerBone,
-    playedGuilds, convertResult, convertError, convertAmount,
-    convertRconResponse }) — as 3 listas de imagens são o mesmo pool
-    dinâmico do /perfil-edit (só as PÚBLICAS), reaproveitado aqui como
-    inventário de EXEMPLO da Loja de Personalização em vez de itens
-    inventados — ver dashboard.js GET /loja.
+    avatars, backgrounds, badges, isLinked, bonesBalance, huntBalance,
+    xpBalance, marksPerBone, playedGuilds, convertResult, convertError,
+    convertAmount, convertRconResponse }) — as 3 listas de imagens são o
+    mesmo pool dinâmico do /perfil-edit (só as PÚBLICAS), reaproveitado
+    aqui como inventário de EXEMPLO da Loja de Personalização em vez de
+    itens inventados — ver dashboard.js GET /loja.
 
   Regras confirmadas pelo dono 2026-08-07 (ver PREMIUM.txt seção 123):
   jogador precisa estar ONLINE no servidor de jogo pras 2 direções
@@ -74,6 +83,17 @@
         .loja-currency-icon i { width: 22px; height: 22px; }
         .loja-currency-title { font-family: 'Tilt Warp', cursive; font-size: 15px; color: #F8DCC0; }
         .loja-currency-text { font-family: 'Poppins', sans-serif; font-size: 12.5px; opacity: 0.6; line-height: 1.5; }
+        .loja-currency-balance {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .loja-currency-balance-value { font-size: 22px; font-weight: 700; }
+        .loja-currency-balance-label { font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; }
+        .loja-currency-balance.is-hunt .loja-currency-balance-value { color: #DCA15E; }
+        .loja-currency-balance.is-bones .loja-currency-balance-value { color: #F8DCC0; }
+        .loja-currency-balance.is-xp .loja-currency-balance-value { color: #A5FFA1; }
 
         /* Grade de itens (personalização + jogo) — mesmo espírito de
            .pool-item já usado em dev-image-pool.ejs, adaptado pra
@@ -163,7 +183,7 @@
             <i data-lucide="construction" class="outline-chip-icon"></i>
             <div class="outline-chip-text">
                 <span class="outline-chip-headline"><span data-i18n-pt>Loja em construção</span><span data-i18n-en>Shop under construction</span></span>
-                <span class="outline-chip-subtitle"><span data-i18n-pt>Esta página mostra como a loja vai funcionar. Saldo de Caçadas/Ossos, níveis e compras ainda não existem de verdade.</span><span data-i18n-en>This page shows how the shop will work. Hunt/Bones balances, levels, and purchases don't exist yet.</span></span>
+                <span class="outline-chip-subtitle"><span data-i18n-pt>Esta página mostra como a loja vai funcionar. O farm de Caçadas/Ossos/XP por hora jogada já é real, mas as compras ainda não existem.</span><span data-i18n-en>This page shows how the shop will work. Earning Hunt/Bones/XP per hour played is already live, but purchases don't exist yet.</span></span>
             </div>
         </div>
 
@@ -181,16 +201,28 @@
             <section class="titan-card-premium loja-currency-card">
                 <div class="loja-currency-icon is-hunt"><i data-lucide="gem"></i></div>
                 <span class="loja-currency-title"><span data-i18n-pt>CAÇADAS — Personalização</span><span data-i18n-en>HUNT — Customization</span></span>
+                <div class="loja-currency-balance is-hunt">
+                    <span class="loja-currency-balance-value"><%= huntBalance %></span>
+                    <span class="loja-currency-balance-label"><span data-i18n-pt>seu saldo</span><span data-i18n-en>your balance</span></span>
+                </div>
                 <p class="loja-currency-text"><span data-i18n-pt>Ganhe 1 Caçada por hora jogada, ou completando missões. Só troca por itens de personalização de perfil — nunca por vantagens dentro do jogo.</span><span data-i18n-en>Earn 1 Hunt per hour played, or by completing quests. Only spent on profile customization — never on in-game advantages.</span></p>
             </section>
             <section class="titan-card-premium loja-currency-card">
                 <div class="loja-currency-icon is-bones"><i data-lucide="bone"></i></div>
                 <span class="loja-currency-title"><span data-i18n-pt>OSSOS — Loja de Jogo</span><span data-i18n-en>BONES — Game Shop</span></span>
+                <div class="loja-currency-balance is-bones">
+                    <span class="loja-currency-balance-value"><%= bonesBalance %></span>
+                    <span class="loja-currency-balance-label"><span data-i18n-pt>seu saldo</span><span data-i18n-en>your balance</span></span>
+                </div>
                 <p class="loja-currency-text"><span data-i18n-pt>Ganhe 5 Ossos por hora jogada. Use na Loja de Jogo ou converta em Caçadas (até 100 Ossos/semana). Só vêm de missões abertas a qualquer jogador.</span><span data-i18n-en>Earn 5 Bones per hour played. Spend them in the Game Shop or convert to Hunt (up to 100 Bones/week). Only earned from quests open to any player.</span></p>
             </section>
             <section class="titan-card-premium loja-currency-card">
                 <div class="loja-currency-icon is-xp"><i data-lucide="trending-up"></i></div>
                 <span class="loja-currency-title"><span data-i18n-pt>NÍVEL — Experiência</span><span data-i18n-en>LEVEL — Experience</span></span>
+                <div class="loja-currency-balance is-xp">
+                    <span class="loja-currency-balance-value"><%= xpBalance %></span>
+                    <span class="loja-currency-balance-label"><span data-i18n-pt>XP acumulado</span><span data-i18n-en>XP earned</span></span>
+                </div>
                 <p class="loja-currency-text"><span data-i18n-pt>1 hora jogada = 1 XP. Sobe o "Nível" do seu card de /perfil (hoje sempre "Nível 1") conforme você joga.</span><span data-i18n-en>1 hour played = 1 XP. Raises the "Level" badge on your /perfil card (currently always "Level 1") as you play.</span></p>
             </section>
         </div>
@@ -315,6 +347,14 @@
                     <span data-i18n-pt>Taxa: 1 Osso = <%= marksPerBone %> Marks, nos dois sentidos. Seu saldo atual: </span><span data-i18n-en>Rate: 1 Bone = <%= marksPerBone %> Marks, both ways. Your current balance: </span><strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong>.
                 </p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Você precisa estar online no servidor de jogo escolhido pra converter.</span><span data-i18n-en>You need to be online on the chosen game server to convert.</span></p>
+            </div>
+
+            <div class="outline-chip">
+                <i data-lucide="flask-conical" class="outline-chip-icon" style="color:#F8DCC0;"></i>
+                <div class="outline-chip-text">
+                    <span class="outline-chip-headline"><span data-i18n-pt>Conversor em fase de testes</span><span data-i18n-en>Converter in testing phase</span></span>
+                    <span class="outline-chip-subtitle"><span data-i18n-pt>O conversor está funcionando, mas ainda em testes — pode passar por ajustes. Se algo der errado numa conversão, avise a staff.</span><span data-i18n-en>The converter is working, but still in testing — it may go through adjustments. If a conversion goes wrong, let staff know.</span></span>
+                </div>
             </div>
 
             <% if (convertResult) { %>

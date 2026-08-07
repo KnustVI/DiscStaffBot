@@ -358,6 +358,11 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
 
         if (discordId) _syncGlobalLinkFromWebhook(discordId, alderonId, playerName);
         if (shouldRecordDinosaurPick) _recordDinosaurPick(guildId, alderonId, dinosaurType);
+        // DEPOIS do sync acima de propósito — se este mesmo evento acabou
+        // de criar o vínculo (discord_id vindo do próprio jogo), a
+        // sessão que fechou agora já entra creditando moeda, em vez de
+        // precisar de um PRÓXIMO login/logout pra "descobrir" o vínculo.
+        if (sessionSecondsToAdd) _creditPlaytimeCurrency(alderonId, sessionSecondsToAdd);
         return { created: false, alderonId };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao cadastrar/atualizar jogador:', error);
@@ -813,6 +818,136 @@ function spendBones(discordId, amount) {
 }
 
 /**
+ * Saldo de Caçadas (Hunt, moeda da Loja de Personalização) — mesmo padrão
+ * de getBonesBalance, ver docblock lá.
+ * @param {string} discordId
+ * @returns {number}
+ */
+function getHuntBalance(discordId) {
+    if (!discordId) return 0;
+    try {
+        const row = db.prepare(`SELECT hunt_balance FROM player_links WHERE user_id = ?`).get(discordId);
+        return row ? row.hunt_balance : 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar saldo de Caçadas:', error);
+        return 0;
+    }
+}
+
+/**
+ * Credita Caçadas ao jogador — mesmo padrão de addBones, ver docblock lá.
+ * @param {string} discordId
+ * @param {number} amount - inteiro positivo
+ * @returns {boolean}
+ */
+function addHunt(discordId, amount) {
+    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET hunt_balance = hunt_balance + ?, updated_at = ? WHERE user_id = ?
+        `).run(amount, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao creditar Caçadas:', error);
+        return false;
+    }
+}
+
+/**
+ * XP acumulado (sistema de Nível, ver PREMIUM.txt) — sempre cresce, sem
+ * conceito de "gastar" (diferente de Ossos/Caçadas, que são moeda de
+ * verdade). Cálculo de qual NÍVEL isso representa fica pra quem exibe
+ * (ver web/views/loja.ejs) — este arquivo só guarda o total bruto.
+ * @param {string} discordId
+ * @returns {number}
+ */
+function getXp(discordId) {
+    if (!discordId) return 0;
+    try {
+        const row = db.prepare(`SELECT xp FROM player_links WHERE user_id = ?`).get(discordId);
+        return row ? row.xp : 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar XP:', error);
+        return 0;
+    }
+}
+
+/**
+ * Credita XP ao jogador — mesmo padrão de addBones/addHunt.
+ * @param {string} discordId
+ * @param {number} amount - inteiro positivo
+ * @returns {boolean}
+ */
+function addXp(discordId, amount) {
+    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET xp = xp + ?, updated_at = ? WHERE user_id = ?
+        `).run(amount, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao creditar XP:', error);
+        return false;
+    }
+}
+
+/**
+ * Converte tempo de jogo em moeda — pedido do dono, 2026-08-07: "Libere o
+ * farm dos itens por hora jogada agora". Taxa original do dono (ver
+ * PREMIUM.txt seção 117): 1 HORA jogada = 1 Caçada (Hunt) + 5 Ossos
+ * (Bones) + 1 XP — as 3 juntas, sempre na mesma proporção, nunca uma sem
+ * as outras.
+ *
+ * Chamada de upsertPlayerFromEvent toda vez que uma sessão de jogo fecha
+ * (mesmo `sessionSecondsToAdd` que também alimenta pot_players.
+ * total_playtime — nunca um valor diferente, pra moeda e "tempo total
+ * exibido" nunca discordarem entre si). Só credita se o Alderon ID tiver
+ * vínculo com uma conta Discord (player_links) — sem vínculo, não tem
+ * onde guardar o saldo, mesmo critério de todo o resto da economia
+ * (Player Premium é sempre amarrado a um user_id do Discord).
+ *
+ * `playtime_credit_seconds` é a SOBRA entre uma hora fechada e outra —
+ * sem ela, sessões curtas (a maioria) nunca completariam 3600s sozinhas e
+ * NUNCA creditariam nada. Cada chamada soma a sobra antiga + os segundos
+ * novos, credita quantas horas CHEIAS isso já forma, e guarda só o resto
+ * (`% 3600`) pra próxima vez — nunca perde segundo nenhum, só atrasa o
+ * crédito até fechar 3600s de verdade.
+ *
+ * @param {string} alderonId
+ * @param {number} sessionSeconds - segundos da sessão que acabou de fechar
+ */
+function _creditPlaytimeCurrency(alderonId, sessionSeconds) {
+    if (!alderonId || !sessionSeconds || sessionSeconds <= 0) return;
+    try {
+        const link = getPlayerByAlderonId(alderonId);
+        if (!link) return; // sem vínculo Discord — nada a creditar ainda
+
+        const row = db.prepare(`SELECT playtime_credit_seconds FROM player_links WHERE user_id = ?`).get(link.user_id);
+        const carrySeconds = (row?.playtime_credit_seconds || 0) + Math.floor(sessionSeconds);
+        const hoursEarned = Math.floor(carrySeconds / 3600);
+        const remainderSeconds = carrySeconds % 3600;
+
+        if (hoursEarned > 0) {
+            db.prepare(`
+                UPDATE player_links SET
+                    hunt_balance = hunt_balance + ?,
+                    bones_balance = bones_balance + ?,
+                    xp = xp + ?,
+                    playtime_credit_seconds = ?,
+                    updated_at = ?
+                WHERE user_id = ?
+            `).run(hoursEarned, hoursEarned * 5, hoursEarned, remainderSeconds, Math.floor(Date.now() / 1000), link.user_id);
+        } else {
+            db.prepare(`
+                UPDATE player_links SET playtime_credit_seconds = ?, updated_at = ? WHERE user_id = ?
+            `).run(remainderSeconds, Math.floor(Date.now() / 1000), link.user_id);
+        }
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao creditar moeda por tempo de jogo:', error);
+    }
+}
+
+/**
  * Monta o sufixo "|ID ALDERON:xxx-xxx-xxx" usado nas linhas de identificação
  * de usuário nos containers (strike, unstrike, repset, historico, reportchat).
  * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
@@ -983,6 +1118,13 @@ module.exports = {
     getBonesBalance,
     addBones,
     spendBones,
+    // Saldo de Caçadas (Hunt) e XP — ganhos por hora de jogo, ver
+    // _creditPlaytimeCurrency (chamada de dentro de upsertPlayerFromEvent)
+    // e /loja.
+    getHuntBalance,
+    addHunt,
+    getXp,
+    addXp,
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,

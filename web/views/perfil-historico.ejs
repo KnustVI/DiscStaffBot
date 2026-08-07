@@ -1,0 +1,187 @@
+<%#
+  web/views/perfil-historico.ejs
+  "Histórico do jogador" (pedido do dono, 2026-08-07: "Adicione ao perfil
+  um botão de histórico do jogador puxando o histórico de reputação e
+  punição") — página GLOBAL (sem :guildID, mesmo espírito self-view de
+  perfil.ejs/perfil-denuncias.ejs) que junta reputação + punições de
+  QUALQUER servidor onde o usuário tem registro, sem precisar escolher um
+  servidor primeiro (diferente do Conversor de Moedas em loja.ejs, que
+  precisa de um servidor específico pra mirar o RCON — aqui é só leitura
+  de banco). Espelha o /historico jogador do Discord
+  (src/commands/moderation/historico.js +
+  punishmentSystem.js#generateHistoryContainer), mas GLOBAL em vez de
+  por-servidor.
+
+  Reputação respeita o gate de tier por servidor (reputationEnabled —
+  mesma regra usada linha a linha pelo /historico do Discord) porque é um
+  RECURSO premium; punições NUNCA são escondidas por tier — são registro
+  de auditoria (ver CLAUDE.md).
+
+  Uso: res.render('perfil-historico', { nickname, role, isOwner,
+    otherGuilds, reputationByGuild, punishments }) — ver dashboard.js GET
+    /perfil/historico e getPlayerHistoryData.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos só desta página — mesmo espírito de dev-image-pool.ejs. */
+        .ph-rep-grid { display: flex; flex-wrap: wrap; gap: 14px; }
+        .ph-rep-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            border-radius: 12px;
+            min-width: 220px;
+        }
+        .ph-rep-card img { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; flex: none; }
+        .ph-rep-card-guild { font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; color: #F8DCC0; }
+        .ph-rep-card-points { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.7; }
+
+        .ph-punishment-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 14px 16px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            border-radius: 12px;
+        }
+        .ph-punishment-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .ph-punishment-title { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; color: #F8DCC0; }
+        .ph-punishment-meta { display: flex; flex-wrap: wrap; gap: 12px; font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.6; }
+        .ph-punishment-meta span { display: inline-flex; align-items: center; gap: 5px; }
+        .ph-punishment-meta i { width: 13px; height: 13px; }
+        .ph-revoked-badge {
+            font-family: 'Poppins', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 147.5px;
+            background: rgba(165, 255, 161, 0.12);
+            color: #A5FFA1;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
+        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>
+    </aside>
+
+    <%# Sem overflow-y-auto — ver comentário completo em moderacao.ejs (evita cortar a sombra dos cards perto da sidebar). %>
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
+
+        <%
+            const phIconUrl = user.avatar
+                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${user.id % 5}.png`;
+        %>
+        <%- include('partials/page-header', { title: 'HISTÓRICO', titleEn: 'HISTORY', subtitle: 'Reputação e punições em todos os seus servidores', subtitleEn: 'Reputation and punishments across all your servers', iconUrl: phIconUrl }) %>
+
+        <a href="/perfil" class="text-[13px] opacity-50 hover:opacity-80 transition-opacity -mt-2 inline-flex items-center gap-1 w-fit">
+            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Voltar ao perfil</span><span data-i18n-en>Back to profile</span>
+        </a>
+
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg"><span data-i18n-pt>Reputação por Servidor</span><span data-i18n-en>Reputation by Server</span></h2>
+            <% if (reputationByGuild.length === 0) { %>
+                <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum registro de reputação ainda.</span><span data-i18n-en>No reputation record yet.</span></p>
+            <% } else { %>
+                <div class="ph-rep-grid">
+                    <% reputationByGuild.forEach(rep => { %>
+                        <div class="ph-rep-card">
+                            <% if (rep.guildIconUrl) { %>
+                                <img src="<%= rep.guildIconUrl %>" alt="">
+                            <% } else { %>
+                                <div class="ph-rep-card-icon-fallback" style="width:32px;height:32px;border-radius:8px;background:#1F1D20;display:flex;align-items:center;justify-content:center;flex:none;">
+                                    <i data-lucide="server" class="w-4 h-4 opacity-40"></i>
+                                </div>
+                            <% } %>
+                            <div class="flex flex-col gap-1">
+                                <span class="ph-rep-card-guild"><%= rep.guildName %></span>
+                                <% if (rep.reputationEnabled) { %>
+                                    <span class="ph-rep-card-points" style="color:<%= rep.points > 70 ? '#A5FFA1' : (rep.points < 30 ? '#FF4E3B' : '#DCA15E') %>">
+                                        <%= rep.points %>/100 <span data-i18n-pt>pontos</span><span data-i18n-en>points</span>
+                                    </span>
+                                <% } else { %>
+                                    <span class="ph-rep-card-points"><span data-i18n-pt>Disponível a partir do plano Rastreador</span><span data-i18n-en>Available from the Tracker plan</span></span>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg"><span data-i18n-pt>Punições</span><span data-i18n-en>Punishments</span></h2>
+            <% if (punishments.length === 0) { %>
+                <p class="text-sm opacity-40"><span data-i18n-pt>Nenhuma punição registrada em nenhum servidor.</span><span data-i18n-en>No punishment recorded on any server.</span></p>
+            <% } else { %>
+                <%
+                    const severityColors = { Leve: '#8BE28B', Moderada: '#E2C168', Grave: '#E2924E', Severa: '#FF4E3B' };
+                %>
+                <div class="flex flex-col gap-3">
+                    <% punishments.forEach(p => { %>
+                        <div class="ph-punishment-row">
+                            <div class="ph-punishment-head">
+                                <span class="level-severity-dot" style="background:<%= p.level_severity ? (severityColors[p.level_severity] || '#A89986') : '#A89986' %>"></span>
+                                <span class="ph-punishment-title">
+                                    Strike #<%= p.strike_number || p.id %><% if (p.level_name) { %> (<%= p.level_name %>)<% } else if (p.severity) { %> (<span data-i18n-pt>severidade legada</span><span data-i18n-en>legacy severity</span> <%= p.severity %>)<% } %>
+                                </span>
+                                <% if (p.status === 'revoked') { %>
+                                    <span class="ph-revoked-badge"><span data-i18n-pt>Anulado</span><span data-i18n-en>Revoked</span></span>
+                                <% } %>
+                            </div>
+                            <div class="ph-punishment-meta">
+                                <span>
+                                    <% if (p.guildIconUrl) { %><img src="<%= p.guildIconUrl %>" alt="" style="width:14px;height:14px;border-radius:4px;object-fit:cover;"><% } else { %><i data-lucide="server"></i><% } %>
+                                    <%= p.guildName %>
+                                </span>
+                                <span><i data-lucide="calendar"></i> <%= new Date(p.created_at).toLocaleDateString('pt-BR') %></span>
+                                <span><i data-lucide="shield"></i> <%= p.moderatorName %></span>
+                                <% if (p.report_id) { %><span><i data-lucide="flag"></i> <%= p.report_id %></span><% } %>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>
