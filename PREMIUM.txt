@@ -6205,3 +6205,50 @@ frente, nao so este relatorio):
   staff (listas de staff configurado tendem a ser pequenas — poucas
   dezenas no máximo — diferente de reports/histórico, que já paginam);
   nenhuma edição no `/staff-perfil` (é intencionalmente só leitura).
+
+131) Corrige upload de banner (Report-Chat e outros 3 uploads do
+     dashboard) virando uma tela de erro crua do Express
+------------------------------------------------------------------
+- Pedido do dono: "Subir o arquivo de personalização de banner de
+  report parece que deu erro pelo site pode verificar?"
+- Causa raiz: `upload.single('report_chat_banner_file')` (multer) é
+  usado como MIDDLEWARE antes do handler da rota `POST /reports/
+  :guildID/save` — quando o multer REJEITA o arquivo (tipo diferente
+  de png/jpg/webp, ou maior que o limite de 8MB, ver `fileFilter`/
+  `limits` no topo de `dashboard.js`), ele chama `next(err)` ANTES do
+  handler da rota sequer rodar — esse erro nunca chegava no try/catch
+  de dentro da rota (que só protege o CÓDIGO da rota, não os
+  middlewares antes dela). Sem um error handler próprio, esse `err`
+  caía no handler PADRÃO do Express: uma página crua "Error: ..." (ou
+  um 500 genérico), sem nada a ver com o resto do site — exatamente o
+  "deu erro" relatado. Provavelmente disparado por um arquivo maior
+  que 8MB (foto de celular) ou um formato fora da whitelist (ex: GIF
+  animado, HEIC do iPhone).
+- Mesma causa raiz afeta OUTROS 3 uploads do dashboard, não só o do
+  report-chat: `/perfil/save` (avatar/fundo), `/moderacao/:guildID/
+  save` (banner de strike/unstrike) e `/dev/image-pool/:type/upload`
+  (pool de imagens do dono) — todos usam o mesmo `upload.single`/
+  `upload.fields` sem tratamento de erro. Corrigidos os 4 de uma vez
+  em vez de só o reportado, já que é o mesmo bug com o mesmo remédio.
+- Corrigido com uma função nova, `safeUpload(multerMiddleware,
+  redirectTo)` (`dashboard.js`, logo depois da definição do `upload`)
+  — envolve o middleware do multer, captura o erro no próprio
+  callback (em vez de deixar propagar via `next(err)`) e redireciona
+  pra MESMA URL de `?saved=error` que a rota já usaria num erro normal
+  (reaproveita o aviso visual já existente, `partials/
+  save-result-overlay.ejs` — sem inventar um padrão de erro novo).
+  `redirectTo` aceita uma string fixa (rotas sem `:guildID`, ex:
+  `/perfil`/`/dev/image-pool`) ou uma função `(req) => ...` (rotas com
+  `:guildID` no path, resolvido em tempo de request).
+- Não muda a mensagem genérica mostrada ("Falha ao salvar") — mesmo
+  padrão já usado por QUALQUER outra falha de save neste dashboard
+  (níveis de punição, configurações gerais, etc.), nenhuma delas
+  mostra o motivo específico hoje; ficou fora do escopo inventar essa
+  capacidade só aqui.
+- Verificado com um app Express de teste isolado (não commitado, só
+  copiando o mesmo config de `multer`/`safeUpload`) provando o bug de
+  verdade ANTES da correção (arquivo de tipo inválido E arquivo >8MB
+  os dois retornando 500 cru) e confirmando a correção DEPOIS (os
+  mesmos 2 casos agora redirecionam 302 pra `?saved=error`, e um
+  arquivo válido continua passando normal pro handler da rota) — 6
+  asserções, todas passaram. `node --check` em `dashboard.js`.

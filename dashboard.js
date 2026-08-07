@@ -39,6 +39,33 @@ const upload = multer({
     },
 });
 
+// Multer chama next(err) quando o arquivo é rejeitado (tipo inválido, ou
+// maior que os 8MB do limite acima) — como upload.single()/upload.fields()
+// é usado como middleware ANTES do handler da rota, esse erro nunca
+// chegava no try/catch de dentro da rota; sem um error handler próprio ele
+// caía no handler PADRÃO do Express (página crua "Error: ...", sem nada a
+// ver com o resto do site) em vez do fluxo normal de "?saved=error" que
+// toda página de save já usa. Bug real reportado pelo dono, 2026-08-07:
+// "Subir o arquivo de personalização de banner de report parece que deu
+// erro" — mesma causa afeta TODOS os 4 uploads do dashboard (perfil,
+// moderação, report-chat, pool de imagens do dono), não só o de report,
+// então corrigido nos 4 de uma vez com este wrapper em vez de só o
+// reportado. Envolve QUALQUER upload.single/upload.fields, redirecionando
+// de volta com o mesmo aviso visual de erro já usado no resto do
+// dashboard (partials/save-result-overlay.ejs) em vez de mostrar a tela
+// crua do Express.
+function safeUpload(multerMiddleware, redirectTo) {
+    return (req, res, next) => {
+        multerMiddleware(req, res, (err) => {
+            if (err) {
+                console.error(`❌ [Dashboard] Erro de upload (${req.originalUrl}):`, err.message);
+                return res.redirect(typeof redirectTo === 'function' ? redirectTo(req) : redirectTo);
+            }
+            next();
+        });
+    };
+}
+
 // Rótulos exibidos pra web dos status reais de reports.status (mesmo mapa
 // usado em reportChatSystem.js:89-106) — 'closed_no_reason'/'closed_with_reason'
 // são os dois únicos valores "fechado" (checados via LIKE 'closed%' nas
@@ -835,7 +862,7 @@ function loadDashboard(client) {
     app.post(
         '/dev/image-pool/:type/upload',
         checkAuth,
-        upload.single('imagem'),
+        safeUpload(upload.single('imagem'), '/dev/image-pool?saved=error'),
         async (req, res) => {
             if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
             const { type } = req.params;
@@ -1271,7 +1298,7 @@ function loadDashboard(client) {
     app.post(
         '/perfil/save',
         checkAuth,
-        upload.fields([{ name: 'avatar_file', maxCount: 1 }, { name: 'background_file', maxCount: 1 }]),
+        safeUpload(upload.fields([{ name: 'avatar_file', maxCount: 1 }, { name: 'background_file', maxCount: 1 }]), '/perfil?saved=error'),
         async (req, res) => {
             if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
@@ -1669,7 +1696,7 @@ function loadDashboard(client) {
     app.post(
         '/moderacao/:guildID/save',
         checkAuth,
-        upload.fields([{ name: 'strike_banner_file', maxCount: 1 }, { name: 'unstrike_banner_file', maxCount: 1 }]),
+        safeUpload(upload.fields([{ name: 'strike_banner_file', maxCount: 1 }, { name: 'unstrike_banner_file', maxCount: 1 }]), (req) => `/moderacao/${req.params.guildID}?saved=error`),
         async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
@@ -2012,7 +2039,7 @@ function loadDashboard(client) {
     app.post(
         '/reports/:guildID/save',
         checkAuth,
-        upload.single('report_chat_banner_file'),
+        safeUpload(upload.single('report_chat_banner_file'), (req) => `/reports/${req.params.guildID}?saved=error`),
         async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildID } = req.params;
