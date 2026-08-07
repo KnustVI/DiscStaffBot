@@ -5169,3 +5169,33 @@ frente, nao so este relatorio):
   confirmando zero lugares com o número 5 hardcoded fora do changelog
   histórico. Sem servidor Discord real aqui pra confirmar visualmente o
   painel liberando o 10º cargo em produção.
+
+116) Tempo de jogo travado também no /perfil do Discord (não só no web)
+------------------------------------------------------------------
+- Pedido do dono: "Coloque ele travado também no perfil do discord.
+  mostrando horas por servidor q ele ta jogando." — o /perfil web já
+  tinha o card "Tempo de Jogo" travado em "em breve" desde a seção 11
+  original (pedido anterior: "prepare... mas não comece a contar
+  ainda"), mas o /perfil do DISCORD continuava mostrando o número de
+  verdade (`Tempo de jogo: Xh Ym`) na linha de status, só enquanto o
+  jogador estava online jogando — inconsistente entre os dois lados.
+- `playerRegistrationSystem.js`: a linha `Growth: X | Tempo de jogo: Xh
+  Ym` (só aparecia no estado "Jogando agora de <dino>", com dinossauro
+  ativo) virou `Growth: X | Tempo de jogo por servidor: Em breve` — o
+  rótulo mudou pra "por servidor" de propósito, já adiantando que a
+  versão real (quando ligar) não vai ser só a sessão atual deste
+  servidor, e sim uma quebra por cada servidor jogado (mesmo conceito já
+  usado em `dashboard.js` `getPlayedGuilds`/`pot_players.total_playtime`
+  por guild_id).
+- `formatPlaytime()` (a função que formata segundos em "Xh Ym") NÃO foi
+  removida, mesmo ficando sem nenhuma chamada agora — comentário
+  adicionado explicando que ela fica pronta pra quando a exibição for
+  ligada de verdade nos dois lados (web e Discord), sem precisar
+  reescrever a formatação do zero. O DADO em si (`stats.totalPlaytime`,
+  `getGuildPlayerStats`) continua sendo calculado normalmente em segundo
+  plano — só a exibição foi travada, igual já era no web.
+- Verificado com `node --check` no arquivo alterado; busca de código
+  confirmando que `formatPlaytime`/`totalPlaytime` não têm mais nenhum
+  outro ponto de exibição fora deste (o card web da seção 11 já estava
+  travado desde antes). Sem servidor Discord real aqui pra confirmar
+  visualmente a mensagem no `/perfil`.

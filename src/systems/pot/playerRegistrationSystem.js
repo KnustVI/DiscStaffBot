@@ -68,6 +68,11 @@ try {
 
 const ALDERON_ID_REGEX = /^\d{3}-\d{3}-\d{3}$/;
 
+// Sem nenhuma chamada por enquanto (2026-08-06) — tempo de jogo está
+// TRAVADO tanto aqui quanto no /perfil web (ver "Tempo de jogo por
+// servidor: Em breve" mais abaixo e perfil.ejs), pedido do dono. Mantida
+// pronta pra quando a exibição for ligada de verdade — nenhum dos dois
+// lados precisa reescrever a formatação do zero.
 function formatPlaytime(totalSeconds) {
     const seconds = Number(totalSeconds) || 0;
     const hours = Math.floor(seconds / 3600);
@@ -408,9 +413,17 @@ class PlayerRegistrationSystem {
 
             const statsLines = [];
             if (stats.isOnline && stats.dinosaurActive && stats.dinosaurType) {
+                // Tempo de jogo TRAVADO aqui também (pedido do dono,
+                // 2026-08-06 — mesma decisão já tomada pro card "Tempo de
+                // Jogo" do /perfil web, ver perfil.ejs): o dado em si já
+                // existe e é calculado de verdade (stats.totalPlaytime, ver
+                // getGuildPlayerStats), só não é mostrado ainda. Quando
+                // "ligar" pra valer, a ideia é virar uma quebra POR
+                // SERVIDOR (não só a sessão atual deste servidor) — reusa
+                // formatPlaytime() já definida acima quando isso acontecer.
                 statsLines.push(
                     `## ${EMOJIS.circlecheck || '🟢'} Jogando agora de ${stats.dinosaurType}`,
-                    `**Growth:** ${formatGrowth(stats.dinosaurGrowth)} | **Tempo de jogo:** ${formatPlaytime(stats.totalPlaytime)}`,
+                    `**Growth:** ${formatGrowth(stats.dinosaurGrowth)} | **Tempo de jogo por servidor:** Em breve`,
                 );
             } else if (stats.isOnline) {
                 statsLines.push(`${EMOJIS.circlecheck || '🟢'} **Jogando agora na seleção de dinossauros.**`);
