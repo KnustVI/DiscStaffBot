@@ -895,7 +895,7 @@ const PunishmentSystem = {
         await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
 
         const containerBuilder = await this.generateStrikeUnifiedContainer(
-            interaction.client, targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
+            guild.client, targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
             pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id,
             jogoAct, ingameActionResult
         );

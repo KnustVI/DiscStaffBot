@@ -6873,3 +6873,56 @@ frente, nao so este relatorio):
   encontrada (só campos escolhidos a dedo), quebrando silenciosamente a
   data de registro no `/perfil` (seção 137, Discord E site) desde que
   foi implementada — corrigido junto (2 colunas a mais no SELECT).
+
+------------------------------------------------------------------
+139) Corrige `ReferenceError: interaction is not defined` que quebrava
+     TODO /strike (registrado ou não) na hora de gerar a mensagem final
+------------------------------------------------------------------
+- Pedido do dono (2026-08-07): reportou um crash real de produção
+  aplicando /strike com ação in-game ServerMute contra um jogador sem
+  AGID vinculado, e pediu pra verificar se era bug de código ou só falta
+  de AGID mal tratada (pedindo, nesse segundo caso, uma mensagem
+  explicativa pro moderador em vez do erro cru).
+- DIAGNÓSTICO: bug de código de verdade, SEM relação nenhuma com AGID —
+  `src/systems/moderation/punishmentSystem.js`, função `_executeStrike`
+  (linha 897, antes do fix), chamava
+  `this.generateStrikeUnifiedContainer(interaction.client, ...)`, mas
+  `interaction` NUNCA foi parâmetro desta função (assinatura real:
+  `_executeStrike(guild, staff, session)` — ver docblock da própria
+  função, que documenta ela ser COMPARTILHADA entre 2 fluxos com
+  interactions DIFERENTES: confirmação direta do staff comum
+  `handleStrikeConfirmation`, linha ~534, E aprovação de Supervisor pra
+  punição severa `handleSupervisorApproval`/linha ~701, onde a
+  interaction de quem aprova é outra pessoa, em outro momento, da
+  interaction de quem pediu o strike). `ReferenceError` (não
+  `TypeError`/`undefined`) confirma que a variável nunca existiu nesse
+  escopo - resto de um refatoração anterior que trocou a assinatura da
+  função mas esqueceu esta ÚNICA chamada. Por rodar DEPOIS de já ter
+  gravado a punição no banco (`applyPunishment`, bem antes na mesma
+  função), o strike ERA aplicado de verdade (reputação descontada, cargo
+  temporário, ação in-game quando aplicável) mas a mensagem final pro
+  staff, a DM pro jogador e o log no canal configurado NUNCA eram
+  enviados — o moderador só via o erro cru no console/log do bot, sem
+  confirmação nenhuma de que o strike tinha ido pra frente.
+- Sobre a hipótese de "falta de AGID": o caminho de ação in-game (linhas
+  ~838-841 da mesma função) JÁ tratava esse caso corretamente ANTES
+  deste bug - jogador sem `alderonId` na sessão e sem vínculo
+  (`getPlayerByDiscordId` vazio) já resultava em
+  `ingameActionResult = 'Jogador não vinculado ao Path of Titans
+  (/registrar) — ação in-game não executada.'`, incluído no resumo final
+  pro staff (`_buildStrikeSummaryLines`) em vez de tentar rodar o
+  comando RCON contra um AGID inexistente. Esse tratamento já existia e
+  continua funcionando - nenhuma mudança adicional foi necessária aqui,
+  o crash reportado era 100% o bug de `interaction` acima, que acontecia
+  DEPOIS dessa checagem, em QUALQUER strike (com ou sem AGID, com ou sem
+  ação in-game pedida).
+- FIX: troca `interaction.client` por `guild.client` (linha 897) - mesmo
+  objeto Client do bot, já usado desse jeito mais acima na MESMA função
+  (linha 758, `guild.client.users.fetch`) e sempre disponível nos 2
+  fluxos que chamam `_executeStrike`, ao contrário de `interaction`.
+- Verificação: `node --check` na função inteira, e uma varredura no
+  arquivo inteiro confirmando que não sobrou nenhuma outra referência a
+  `interaction` dentro de `_executeStrike` nem duplicidade do mesmo erro
+  em `handleUnstrikeConfirmation`/`generateUnstrikeUnifiedContainer`
+  (essa função recebe `interaction` de verdade como parâmetro, sem o
+  mesmo risco).
