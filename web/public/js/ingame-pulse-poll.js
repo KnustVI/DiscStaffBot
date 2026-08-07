@@ -15,9 +15,15 @@
 
         var guildId = root.dataset.guildId;
         var showRoster = root.dataset.showRoster !== 'false';
+        // category (pedido do dono, 2026-08-07: roster separado por página
+        // — Moderação só mostra Moderador/Supervisor, Eventos só mostra
+        // Equipe de Eventos, ver dashboard.js getServerPulse) — opcional,
+        // páginas sem data-category (ex: Reports, que nem mostra o roster)
+        // caem no comportamento antigo no servidor.
+        var category = root.dataset.category || '';
 
         function refresh() {
-            fetch('/fragments/ingame-pulse/' + guildId + '?showRoster=' + showRoster)
+            fetch('/fragments/ingame-pulse/' + guildId + '?showRoster=' + showRoster + '&category=' + category)
                 .then(function (res) { return res.ok ? res.text() : null; })
                 .then(function (html) {
                     if (!html) return; // falha silenciosa — mantém o que já está na tela

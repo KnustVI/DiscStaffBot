@@ -1,0 +1,34 @@
+<%#
+  web/views/partials/staff-row.ejs
+  Uma linha da lista de staff de partials/ingame-pulse.ejs — extraído pra
+  cá (em vez de montar a mesma linha 2x, uma pro grupo Online e outra pro
+  Offline) só pra reaproveitar sem duplicar HTML. Usa a tag de OUTPUT
+  normal do EJS (igual/porcento) em TODOS os campos vindos do roster
+  (nome/cargo/AGID/dinossauro) de propósito — são dados que o próprio
+  usuário/jogo controla (nickname do Discord, nome de cargo customizado,
+  etc.), então precisam do escape automático do EJS; nunca construa esta
+  linha via template string JS (perderia esse escape e abriria brecha de
+  HTML injection).
+
+  Uso: include('staff-row', { staff }) — staff é um item de pulse.roster
+  (ver dashboard.js getServerPulse, que já monta staff.profileUrl pronto).
+%>
+<div class="staff-row <%= staff.online ? '' : 'is-offline' %>">
+    <i data-lucide="power" class="staff-row-icon"></i>
+    <div class="staff-row-body">
+        <div class="staff-row-top">
+            <span class="staff-row-name"><%= staff.name %></span>
+            <span class="staff-row-status">
+                <% if (staff.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else if (staff.online) { %>Online<% } else { %>Offline<% } %>
+                <% if (staff.onlineSince) { %> · <span data-i18n-pt>há</span><span data-i18n-en>for</span> <%= staff.onlineSince %><% } %>
+            </span>
+        </div>
+        <div class="staff-row-meta">
+            <span><span data-i18n-pt>Cargo:</span><span data-i18n-en>Discord role:</span> <%= staff.cargo %></span>
+            <span><span data-i18n-pt>Função:</span><span data-i18n-en>Category:</span> <%= staff.roleLabel %></span>
+            <span>AGID: <% if (staff.alderonId) { %><%= staff.alderonId %><% } else { %><span data-i18n-pt>Não vinculado</span><span data-i18n-en>Not linked</span><% } %></span>
+            <% if (staff.dinosaurType) { %><span><span data-i18n-pt>Jogando:</span><span data-i18n-en>Playing:</span> <%= staff.dinosaurType %></span><% } %>
+        </div>
+    </div>
+    <a href="<%= staff.profileUrl %>" class="staff-row-link"><span data-i18n-pt>Ver perfil</span><span data-i18n-en>View profile</span> <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></a>
+</div>

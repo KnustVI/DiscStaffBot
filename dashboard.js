@@ -17,6 +17,7 @@ const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
 const CurrencySystem = require('./src/systems/pot/currencySystem');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
+const StaffPresenceSystem = require('./src/systems/moderation/staffPresenceSystem');
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
 const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSystem');
 const { renderProfileCard } = require('./src/utils/profileCardRenderer');
@@ -91,18 +92,85 @@ function highestStaffRoleName(guildId, member, staffRoleIds) {
     return topRole ? topRole.name : null;
 }
 
+// "Função" do staff (pedido do dono, 2026-08-07: "informe a role... alem
+// do nome do maior cargo no discord") — DIFERENTE de highestStaffRoleName
+// acima: aquela é o NOME LITERAL do cargo do Discord (pode ser qualquer
+// coisa, ex: "Moderador Sênior"); esta é a CATEGORIA configurada em
+// /config roles que a pessoa efetivamente ocupa (Moderador/Supervisor/
+// Equipe de Eventos) — mostra TODAS que ela tiver, já que alguém pode
+// acumular mais de uma (ex: Moderador Sênior é ao mesmo tempo Supervisor).
+function staffRoleCategoryLabel(guildId, member) {
+    if (!member) return '—';
+    const parts = [];
+    if (ConfigSystem.memberHasConfiguredRole(guildId, member, 'staff_role')) parts.push('Moderador');
+    if (ConfigSystem.memberHasConfiguredRole(guildId, member, 'supervisor_role')) parts.push('Supervisor');
+    if (ConfigSystem.memberHasConfiguredRole(guildId, member, 'event_role')) parts.push('Equipe de Eventos');
+    return parts.length > 0 ? parts.join(' + ') : '—';
+}
+
+// Status EM JOGO (online/espectador/jogando + dinossauro + duração) de UM
+// staff a partir da linha crua de pot_players + se tem sessão aberta em
+// pot_spectator_sessions — extraído de getServerPulse pra ser reaproveitado
+// também por GET /staff-perfil/:guildID/:userId (mesma regra, uma fonte só
+// de verdade). Recebe os dados já buscados (não faz query sozinha) porque
+// getServerPulse busca em lote pro roster inteiro (1 query de espectadores
+// pra todo mundo, não 1 por pessoa) — só quem chama decide como buscar.
+function computeGameStatus({ online, spectating, dinosaurType, sessionStartedAt }) {
+    // "Jogando" (dono, 2026-07-20): online e fora do modo espectador —
+    // definição simples, mesma usada tanto no rótulo por staff quanto no
+    // total do donut (uma única fonte de verdade, sem os dois discordarem).
+    const playing = online && !spectating;
+    return {
+        online,
+        moderating: spectating,
+        playing,
+        // Texto literal do card (pedido do dono: "Online ou Offline ou
+        // Espectador") — a cor da borda continua só 2 estados (verde/
+        // vermelho, ver ingame-pulse.ejs), pois "Espectador" ainda é
+        // online (só uma sub-condição dele).
+        statusLabel: spectating ? 'Espectador' : (online ? 'Online' : 'Offline'),
+        // Duração da sessão atual (pedido do dono, 2026-08-07: "se online
+        // mostre a quanto tempo esta online") — mesmo formatDuration já
+        // usado por /staffonline (presença do Discord), reaproveitado aqui
+        // pra sessão EM JOGO (session_started_at, ver potPlayerRegistry.js
+        // upsertPlayerFromEvent — marcado no PlayerLogin, limpo no logout).
+        onlineSince: (online && sessionStartedAt) ? StaffPresenceSystem.formatDuration(Date.now() - sessionStartedAt) : null,
+        // Dinossauro jogando agora (pedido do dono: "se não estiver no modo
+        // espectador fale o dinossauro que esta jogando") — só faz sentido
+        // fora do modo espectador (quem está espectando não está "jogando"
+        // um dinossauro).
+        dinosaurType: playing ? (dinosaurType || null) : null,
+    };
+}
+
 // "Pulso" do servidor (jogadores/staff online agora) — reaproveitado pelas
 // páginas de Moderação, Reports e Events (o Figma repete a mesma seção "IN
 // GAME"/"STAFF ONLINE" nelas). Staff "online"/"offline" aqui é status EM
 // JOGO (via pot_players.is_online, alimentado pelo webhook de login do PoT),
 // não presença do Discord — o bot não tem a intent GuildPresences habilitada,
 // e o dono confirmou que o sentido real dessa seção é status em jogo mesmo.
-async function getServerPulse(guildId, guild) {
-    const staffRoleIds = new Set([
-        ...ConfigSystem.getRoleIds(guildId, 'staff_role'),
-        ...ConfigSystem.getRoleIds(guildId, 'supervisor_role'),
-        ...ConfigSystem.getRoleIds(guildId, 'event_role'),
-    ]);
+//
+// `category` (pedido do dono, 2026-08-07: "na pagina de moderação mostre
+// apenas os staffs configurados para moderação e na de eventos apenas os
+// de eventos" — antes o MESMO roster com os 3 cargos combinados aparecia
+// nas 2 páginas) — 'moderacao' filtra pra staff_role+supervisor_role
+// (Supervisor conta como Moderador aqui também, mesmo raciocínio da seção
+// 124), 'eventos' filtra só event_role. Sem category (ex: reports.ejs, que
+// nem mostra o roster — showRoster:false) cai no comportamento antigo (os
+// 3 cargos juntos), preservado só por compatibilidade.
+async function getServerPulse(guildId, guild, category) {
+    const staffRoleIds = new Set(
+        category === 'moderacao' ? [
+            ...ConfigSystem.getRoleIds(guildId, 'staff_role'),
+            ...ConfigSystem.getRoleIds(guildId, 'supervisor_role'),
+        ] : category === 'eventos' ? [
+            ...ConfigSystem.getRoleIds(guildId, 'event_role'),
+        ] : [
+            ...ConfigSystem.getRoleIds(guildId, 'staff_role'),
+            ...ConfigSystem.getRoleIds(guildId, 'supervisor_role'),
+            ...ConfigSystem.getRoleIds(guildId, 'event_role'),
+        ]
+    );
 
     const members = staffRoleIds.size > 0 ? await getCachedMembers(guild) : new Map();
     const staffMembers = [...members.values()].filter(m => [...staffRoleIds].some(id => m.roles.cache.has(id)));
@@ -116,30 +184,30 @@ async function getServerPulse(guildId, guild) {
     );
 
     const roster = staffMembers.map(m => {
-        const link = db.prepare('SELECT alderon_id FROM player_links WHERE user_id = ?').get(m.id);
+        const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(m.id);
         const potPlayer = link
-            ? db.prepare('SELECT is_online FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
+            ? db.prepare('SELECT is_online, session_started_at, dinosaur_type FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
             : null;
         const online = !!potPlayer?.is_online;
         const spectating = online && !!link && spectatingAlderonIds.has(link.alderon_id);
-        // "Jogando" (dono, 2026-07-20): online e fora do modo espectador —
-        // definição simples, mesma usada tanto no rótulo por staff quanto
-        // no total do donut (uma única fonte de verdade, sem os dois
-        // discordarem entre si).
-        const playing = online && !spectating;
+        const gameStatus = computeGameStatus({
+            online,
+            spectating,
+            dinosaurType: potPlayer?.dinosaur_type,
+            sessionStartedAt: potPlayer?.session_started_at,
+        });
 
         return {
             id: m.id,
             name: m.nickname || m.user.username,
             cargo: highestStaffRoleName(guildId, m, staffRoleIds) || '—',
-            online,
-            moderating: spectating,
-            playing,
-            // Texto literal do card (pedido do dono: "Online ou Offline ou
-            // Espectador") — a cor da borda continua só 2 estados (verde/
-            // vermelho, ver ingame-pulse.ejs), pois "Espectador" ainda é
-            // online (só uma sub-condição dele).
-            statusLabel: spectating ? 'Espectador' : (online ? 'Online' : 'Offline'),
+            roleLabel: staffRoleCategoryLabel(guildId, m),
+            // ID em jogo (pedido do dono: "informe... o ID deles em jogo")
+            // — null quando o staff nunca rodou /registrar; o template
+            // mostra "Não vinculado" nesse caso.
+            alderonId: link?.alderon_id || null,
+            profileUrl: `/staff-perfil/${guildId}/${m.id}`,
+            ...gameStatus,
         };
     });
 
@@ -1358,10 +1426,97 @@ function loadDashboard(client) {
         }
         if (!isStaff) return res.status(403).send('');
 
-        const pulse = await getServerPulse(guildID, guild);
+        // category (ver ingame-pulse-poll.js data-category) mantém o poll
+        // de 15s filtrado igual ao carregamento inicial da página — sem
+        // isso, o refresh trocaria o roster filtrado pelo combinado antigo.
+        const category = req.query.category === 'moderacao' || req.query.category === 'eventos' ? req.query.category : undefined;
+        const pulse = await getServerPulse(guildID, guild, category);
         res.render('partials/ingame-pulse', {
             pulse,
             showRoster: req.query.showRoster !== 'false',
+        });
+    });
+
+    // Perfil de staff, SÓ LEITURA (pedido do dono, 2026-08-07: "adicione um
+    // link em cada um para visitar o perfil deles, com um botão de volta
+    // depois", ver o link "Ver perfil" em partials/staff-row.ejs) — versão
+    // enxuta do /perfil normal (que só existe pro próprio usuário logado,
+    // com forms de edição amarrados a req.user.id): aqui é sempre outro
+    // staff, sem NENHUM formulário, só identidade Discord + vínculo PoT +
+    // status em jogo NESTE servidor. Acesso: qualquer staff do servidor
+    // (mesmo gate isStaff das outras páginas de guild), não só quem
+    // configurou os cargos. Botão "Voltar" usa history.back() no template
+    // (não uma URL fixa) — funciona voltando pra Moderação, Eventos, ou
+    // qualquer lugar que tenha linkado pra cá, sem precisar de ?returnTo=.
+    app.get('/staff-perfil/:guildID/:userID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, userID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.redirect('/dashboard');
+        const { isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isStaff) return res.redirect('/dashboard');
+
+        const targetMember = await guild.members.fetch(userID).catch(() => null);
+        if (!targetMember) return res.status(404).send('Membro não encontrado neste servidor.');
+
+        const link = PlayerRegistry.getPlayerByDiscordId(userID);
+        const playerTier = PremiumSystem.getPlayerTier(userID);
+        const premiumInfo = PremiumSystem.getPlayerPremiumInfo(userID);
+
+        let honorStars = null;
+        let mostPlayedDinosaur = null;
+        let kdStats = null;
+        let gameStatus = null;
+
+        // Mesma regra do /perfil normal: só calcula/mostra o que depende de
+        // vínculo quando ele existe, e respeita hide_kda (privacidade que o
+        // PRÓPRIO jogador escolheu, vale pra qualquer um vendo, staff ou não).
+        if (link) {
+            honorStars = PunishmentSystem.getGlobalHonorStars(userID);
+            mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
+            if (!link.hide_kda) {
+                const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
+                kdStats = { kills: stats.kills, deaths: stats.deaths, kd: formatKD(stats.kills, stats.deaths) };
+            }
+
+            // Status em jogo NESTE servidor — mesma regra/mesma função de
+            // getServerPulse (computeGameStatus), só que buscada avulsa (1
+            // membro, não o roster inteiro) já que aqui é sempre 1 pessoa só.
+            const potPlayer = db.prepare(
+                'SELECT is_online, session_started_at, dinosaur_type FROM pot_players WHERE guild_id = ? AND alderon_id = ?'
+            ).get(guildID, link.alderon_id);
+            const online = !!potPlayer?.is_online;
+            const spectating = online && !!db.prepare(
+                'SELECT 1 FROM pot_spectator_sessions WHERE guild_id = ? AND alderon_id = ?'
+            ).get(guildID, link.alderon_id);
+            gameStatus = computeGameStatus({
+                online,
+                spectating,
+                dinosaurType: potPlayer?.dinosaur_type,
+                sessionStartedAt: potPlayer?.session_started_at,
+            });
+        }
+
+        res.render('staff-perfil', {
+            nickname: req.user.global_name || req.user.username,
+            role: 'Membro',
+            isOwner: isOwnerSession(req),
+            guild,
+            discordUser: targetMember.user,
+            displayName: targetMember.nickname || targetMember.user.username,
+            cargo: highestStaffRoleName(guildID, targetMember) || '—',
+            roleLabel: staffRoleCategoryLabel(guildID, targetMember),
+            link,
+            playerTier,
+            premiumInfo,
+            honorStars,
+            mostPlayedDinosaur,
+            kdStats,
+            gameStatus,
         });
     });
 
@@ -1403,7 +1558,7 @@ function loadDashboard(client) {
         // db.incrementDashboardAvatarHintViews e partials/sidebar-v2.ejs.
         const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
 
-        const pulse = await getServerPulse(guildID, guild);
+        const pulse = await getServerPulse(guildID, guild, 'moderacao');
 
         // discordUsername resolvido aqui (mesma resolveUserDisplayName usada
         // por getReportsData) — o card usava "<@user_id>", sintaxe de menção
@@ -1930,7 +2085,7 @@ function loadDashboard(client) {
         // completo em GET /moderacao/:guildID.
         const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
 
-        const pulse = await getServerPulse(guildID, guild);
+        const pulse = await getServerPulse(guildID, guild, 'eventos');
 
         // Eventos são nativos do Discord (guild.scheduledEvents), não uma tabela
         // própria — buscados um a um com withUserCount pra pegar "inscritos"

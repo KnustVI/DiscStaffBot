@@ -7,16 +7,25 @@
   (Jogando / Em modo espectador / Jogadores Online). Ordem trocada a
   pedido do dono (lista de staff acima dos gráficos, não abaixo).
 
-  Cada card de staff usa .staff-chip (Figma: "Property 1=Online"/
-  "Property 1=Offline", 205x94, confirmado pelo dono — tamanho menor que
-  o antigo .outline-chip de 314x90 usado aqui antes). Nome/cargo/status
-  em 3 linhas dentro do card: STAFFNAME (maior, dourado), CARGO (maior
-  cargo de staff no Discord — não existe conceito de cargo/rank EM JOGO
-  nos dados do PoT hoje, ver dashboard.js:getServerPulse) e STATUS (texto
-  literal "Online"/"Offline"/"Espectador", pedido do dono). A borda
-  continua só 2 cores (verde=online inclusive espectador, vermelho=
-  offline) — o Figma só define esses 2 estados visuais; "Espectador" é
-  só uma variação de texto sobre o estado "online".
+  Cada staff vira uma LINHA em .staff-list (pedido do dono, 2026-08-07:
+  "o visual atual não caiu bem para uma lista grande, faça uma lista mais
+  confortável de visualizar" — trocado do grid de chips pequenos de
+  205x94 que quebrava linha de forma confusa com listas grandes por uma
+  lista vertical de linhas full-width, cada uma com todo o contexto:
+  nome, maior cargo do Discord, função configurada (Moderador/Supervisor/
+  Equipe de Eventos — ver dashboard.js:staffRoleCategoryLabel, DIFERENTE
+  do "cargo" que é só o nome literal do cargo do Discord), ID em jogo
+  (Alderon ID, "Não vinculado" se nunca rodou /registrar), status com
+  duração (ver dashboard.js:computeGameStatus), dinossauro jogando (só
+  fora do modo espectador) e um link "Ver perfil" (ver GET /staff-
+  perfil/:guildID/:userId). Continua só 2 cores de borda (verde=online
+  inclusive espectador, vermelho=offline) — "Espectador" é só uma
+  variação de texto sobre o estado "online".
+
+  A LISTA em si já vem PRÉ-FILTRADA pela categoria certa (Moderação só
+  Moderador/Supervisor, Eventos só Equipe de Eventos — pedido do dono,
+  ver dashboard.js:getServerPulse `category`) — este parcial só
+  renderiza o que `pulse.roster` já trouxe, sem filtrar nada sozinho.
 
   O donut maior fica SEMPRE por último (mais à direita, com
   justify-content:flex-end do card) e é SEMPRE "Jogadores Online" sobre
@@ -81,36 +90,25 @@
             <p class="text-sm opacity-40 text-center ingame-staff-grid-spacing"><span data-i18n-pt>Nenhum cargo de staff configurado ainda.</span><span data-i18n-en>No staff role configured yet.</span></p>
         <% } else { %>
             <%#
-                staff.statusLabel (dashboard.js:getServerPulse) vem pronto
-                em português ("Online"/"Offline"/"Espectador") — em vez de
-                mexer no backend só pra isso, deriva o texto bilíngue AQUI
-                a partir dos MESMOS booleans que o backend já manda
-                (staff.online/staff.moderating), replicando a mesma regra
-                (ver comentário de getServerPulse: moderating=true ainda
-                conta como online, só é uma sub-condição). "Online"/
-                "Offline" já são a mesma palavra nos dois idiomas.
+                Pedido do dono, 2026-08-07: "separe" — os 2 grupos (Online/
+                Offline) ganham um título pequeno próprio em vez de só a
+                cor da borda diferenciando, ajuda a escanear listas grandes.
+                Cada linha vem de partials/staff-row.ejs (ver lá o motivo de
+                ser um include em vez de montado aqui).
             %>
-            <div class="ingame-staff-grid ingame-staff-grid-spacing">
-                <% online.forEach(staff => { %>
-                    <div class="staff-chip">
-                        <i data-lucide="power" class="staff-chip-icon"></i>
-                        <div class="staff-chip-col">
-                            <span class="staff-chip-name"><%= staff.name %></span>
-                            <span class="staff-chip-role"><%= staff.cargo %></span>
-                            <span class="staff-chip-status"><% if (staff.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else { %>Online<% } %></span>
-                        </div>
+            <div class="staff-list-wrap ingame-staff-grid-spacing">
+                <% if (online.length > 0) { %>
+                    <h3 class="staff-list-heading"><span data-i18n-pt>Online</span><span data-i18n-en>Online</span> (<%= online.length %>)</h3>
+                    <div class="staff-list">
+                        <% online.forEach(staff => { %><%- include('staff-row', { staff }) %><% }); %>
                     </div>
-                <% }); %>
-                <% offline.forEach(staff => { %>
-                    <div class="staff-chip is-offline">
-                        <i data-lucide="power" class="staff-chip-icon"></i>
-                        <div class="staff-chip-col">
-                            <span class="staff-chip-name"><%= staff.name %></span>
-                            <span class="staff-chip-role"><%= staff.cargo %></span>
-                            <span class="staff-chip-status">Offline</span>
-                        </div>
+                <% } %>
+                <% if (offline.length > 0) { %>
+                    <h3 class="staff-list-heading is-offline"><span data-i18n-pt>Offline</span><span data-i18n-en>Offline</span> (<%= offline.length %>)</h3>
+                    <div class="staff-list">
+                        <% offline.forEach(staff => { %><%- include('staff-row', { staff }) %><% }); %>
                     </div>
-                <% }); %>
+                <% } %>
             </div>
         <% } %>
     <% } %>
@@ -129,88 +127,92 @@
        no site (pedido do dono) — separado do gap:12px genérico do
        .ingame-pulse (que é só entre título/card/lista). */
     .ingame-staff-grid-spacing { margin-top: 20px; margin-bottom: 20px; }
-    /* Linha de cards de staff — trocado de CSS grid (3 colunas fixas,
-       travadas em 655px de largura total) pra flexbox com wrap (pedido do
-       dono): cada .staff-chip agora abraça o próprio conteúdo (largura
-       natural, não mais esticado pra preencher uma coluna de grid), e a
-       linha inteira preenche a largura máxima do corpo (sem max-width
-       aqui — o container já herda 100% do body da página). Alinhado à
-       esquerda (justify-content:flex-start) — testado centralizado
-       primeiro a pedido do dono, mas ficou ruim (linha incompleta
-       "flutuando" no meio), então virou esquerda pra direita preenchendo
-       a linha. Isso substitui a decisão anterior de "sempre 3 por linha"
-       — agora quantos cards cabem por linha depende da largura de cada
-       card + do espaço disponível. */
-    .ingame-staff-grid {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-start;
-        gap: 20px;
-        width: 100%;
+    .staff-list-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .staff-list-heading {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #A5FFA1;
+        opacity: 0.8;
+        margin-top: 4px;
     }
+    .staff-list-heading.is-offline { color: #FF4E3B; }
+    .staff-list-heading:first-child { margin-top: 0; }
+    /* Lista vertical (pedido do dono, 2026-08-07: "o visual atual não caiu
+       bem para uma lista grande, faça uma lista mais confortável de
+       visualizar") — trocado do grid de chips pequenos que quebrava linha
+       de forma confusa numa lista longa por linhas full-width, cada uma
+       com todo o contexto do staff (ver staff-row.ejs); escala pra
+       qualquer tamanho de lista só crescendo verticalmente, sem
+       reorganizar nada. */
+    .staff-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 
-    /* Card de staff (Figma: "Property 1=Online"/"Property 1=Offline",
-       205x94 usado como referência de padding/gap/fontes, não mais como
-       tamanho travado) — borda verde/vermelha + ícone + 3 linhas de texto
-       (nome/cargo/status, ver doc-comment no topo do arquivo). Próprio
-       daqui, não reaproveita .outline-chip: o Figma empilha o texto em 3
-       linhas com o status numa linha própria embaixo, layout diferente do
-       chip de 2 linhas usado no quadro de alerta (moderacao.ejs).
-       min-width mantém o "peso" visual do Figma pra nomes curtos; o card
-       cresce além disso se o nome/cargo precisar de mais espaço. Tamanho
-       reduzido ~25% (pedido do dono: estava grande demais, competindo
-       visualmente com os gráficos de donut abaixo). */
-    .staff-chip {
-        --chip-color: #A5FFA1;
+    /* Linha de staff — borda verde/vermelha (mesma ideia visual do antigo
+       .staff-chip) + ícone + nome/status numa linha de topo, meta info
+       (cargo/função/AGID/dinossauro) numa linha secundária que QUEBRA
+       livremente (flex-wrap, pedido do dono: lista "confortável" mesmo
+       com muito texto por linha, diferente do chip antigo que cortava com
+       reticências). Link "Ver perfil" fica à direita em telas largas e
+       desce pra própria linha em telas estreitas (flex-wrap no container
+       inteiro). */
+    .staff-row {
+        --row-color: #A5FFA1;
         box-sizing: border-box;
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: 1px solid var(--chip-color);
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        padding: 10px 16px;
+        border: 1px solid var(--row-color);
         border-radius: 10px;
-        background: none;
-        flex: 0 0 auto;
-        min-width: 155px;
+        background: #131314;
     }
-    .staff-chip.is-offline { --chip-color: #FF4E3B; }
-    .staff-chip-icon { width: 38px; height: 38px; flex: none; color: var(--chip-color); }
-    /* max-width é só uma rede de segurança pra nicknames do Discord fora
-       do comum (até 32 caracteres) não esticarem o card demais — nomes/
-       cargos normais ficam bem abaixo disso e o card hugga em volta deles
-       sem sobrar espaço. */
-    .staff-chip-col { display: flex; flex-direction: column; justify-content: center; min-width: 0; max-width: 170px; gap: 2px; }
-    .staff-chip-name {
+    .staff-row.is-offline { --row-color: #FF4E3B; }
+    .staff-row-icon { width: 26px; height: 26px; flex: none; color: var(--row-color); }
+    .staff-row-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 220px; }
+    .staff-row-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+    .staff-row-name {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
-        font-size: clamp(11px, 1.3vw, 16px);
-        line-height: 1.4;
+        font-size: 14px;
         color: #DCA15E;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
-    .staff-chip-role {
+    .staff-row-status {
         font-family: 'Poppins', sans-serif;
         font-weight: 400;
-        font-size: clamp(8px, 0.8vw, 9px);
-        line-height: 1.4;
+        font-size: 12px;
         color: #F8DCC0;
         opacity: 0.85;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
-    .staff-chip-status {
+    .staff-row-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 14px;
         font-family: 'Poppins', sans-serif;
-        font-weight: 400;
-        font-size: clamp(9px, 1vw, 13px);
-        line-height: 1.4;
-        color: #F8DCC0;
+        font-size: 11px;
+        color: #A89986;
     }
+    .staff-row-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex: none;
+        margin-left: auto;
+        padding: 6px 12px;
+        border: 1px solid #DCA15E;
+        border-radius: 147.5px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 11px;
+        color: #DCA15E;
+        text-decoration: none;
+        transition: background 0.15s ease;
+    }
+    .staff-row-link:hover { background: rgba(220, 161, 94, 0.12); }
     @media (max-width: 640px) {
-        .ingame-staff-grid { gap: 10px; }
-        .staff-chip { padding: 6px 8px; gap: 5px; }
-        .staff-chip-icon { width: 26px; height: 26px; }
+        .staff-row { padding: 8px 12px; gap: 8px; }
+        .staff-row-link { margin-left: 0; }
     }
 </style>

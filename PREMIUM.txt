@@ -6102,3 +6102,106 @@ frente, nao so este relatorio):
   `/eventos-agendados` aparece (id/nome/link do índice) e que
   `/eventos` (nome antigo) não aparece mais em nenhum card/índice de
   comando.
+
+130) Lista de staff online (Moderação/Eventos, web) redesenhada + separada
+     por categoria + link pro perfil de cada staff
+------------------------------------------------------------------
+- Pedido do dono: "Sobre a lista de staffs online o visual atual não
+  caiu bem para uma lista grande, faça uma lista mais confrotavel de
+  visualizar, e separe. Na pagina de moderação mostre apenas os staffs
+  configurados para moderação e na de eventos apenas os de eventos.
+  Informe a role e o ID deles em jogo, alem do nomde do maior cargo no
+  disocord. Se online mostre a quanto tempo esta online. Se esta no
+  modo espectador ou não, se não estiver no modo espectador fale o
+  dinossauro que esta joganod. Adicione um link em cada um para
+  visitar o perfil deles, com um botão de volta depois." — sobre a
+  seção "STAFF ONLINE"/"IN GAME" que Moderação e Eventos compartilham
+  (`partials/ingame-pulse.ejs`, dados de `dashboard.js getServerPulse`
+  — status EM JOGO via `pot_players.is_online`, NÃO presença do
+  Discord, ver seção 128 pra essa distinção com `/staffonline`).
+- Separado por página: `getServerPulse(guildId, guild, category)` ganha
+  um 3º parâmetro — `'moderacao'` filtra o roster pra staff_role +
+  supervisor_role (Supervisor conta como Moderador aqui também, mesmo
+  raciocínio da seção 124), `'eventos'` filtra só event_role. ANTES as
+  2 páginas mostravam o MESMO roster combinado (staff_role +
+  supervisor_role + event_role juntos) — agora cada página só vê quem
+  de fato está configurado pra ela. `category` propagado pelo poll de
+  15s também (`data-category` no `#ingamePulseRoot`, lido por
+  `ingame-pulse-poll.js` e repassado pra `/fragments/ingame-pulse/
+  :guildID?category=...`), senão o refresh automático voltaria a
+  misturar tudo de novo a cada 15s.
+- Novos campos por staff (`dashboard.js`, roster de `getServerPulse`):
+    - `roleLabel` — a CATEGORIA configurada (Moderador/Supervisor/
+      Equipe de Eventos, podendo acumular mais de uma com "+") via
+      nova `staffRoleCategoryLabel()`. DIFERENTE de `cargo` (já
+      existia, mantido) — `cargo` é o NOME LITERAL do cargo mais alto
+      do Discord (pode ser qualquer coisa customizada, ex: "Moderador
+      Sênior"); `roleLabel` é sempre uma das 3 categorias reais.
+    - `alderonId` — ID em jogo (Alderon ID), null se o staff nunca
+      rodou `/registrar` (template mostra "Não vinculado").
+    - `onlineSince` — duração formatada ("2h 15m") desde que a sessão
+      atual começou (`pot_players.session_started_at`, marcado no
+      PlayerLogin — mesmo dado que já alimentava "Tempo de jogo" no
+      /perfil). Reaproveita `StaffPresenceSystem.formatDuration`
+      (mesma função já usada por `/staffonline`, seção 128, só que ali
+      é pra presença do Discord — aqui é sessão EM JOGO, dados
+      diferentes, formatação igual).
+    - `dinosaurType` — só populado quando `playing=true` (online E
+      fora do modo espectador) — pedido do dono: "se não estiver no
+      modo espectador fale o dinossauro que esta jogando".
+  Extraída a lógica de status (online/espectador/jogando/duração/
+  dinossauro) pra uma função pura nova, `computeGameStatus()` —
+  reaproveitada tanto no roster (`getServerPulse`) quanto no novo
+  `/staff-perfil` abaixo, uma fonte só de verdade.
+- Visual novo: `.staff-chip` (grid de cards pequenos 205x94 que
+  quebrava linha de forma confusa numa lista grande) virou `.staff-row`
+  — lista vertical de linhas full-width (`web/views/partials/
+  ingame-pulse.ejs` + novo `partials/staff-row.ejs`, um por linha),
+  cada uma com nome, status+duração, cargo, função, AGID, dinossauro
+  (se aplicável) e o link "Ver perfil". Pedido "e separe" atendido nos
+  2 sentidos: por PÁGINA (category acima) e dentro da MESMA lista,
+  onde os grupos Online/Offline ganham um título próprio
+  (`.staff-list-heading`) em vez de só a cor da borda diferenciando.
+  `staff-row.ejs` existe como parcial separado (não construído via
+  template string JS) DE PROPÓSITO: nome/cargo/AGID vêm de dado
+  controlado pelo usuário (nickname do Discord, nome de cargo
+  customizado) — só a tag de output normal do EJS garante o escape
+  automático contra HTML injection; testado com nomes contendo
+  `<script>`/`<b>` de propósito pra confirmar o escape.
+- Link "Ver perfil" + botão "Voltar": nova rota `GET /staff-perfil/
+  :guildID/:userID` (`dashboard.js`) — versão SÓ LEITURA do `/perfil`
+  normal (que é sempre o próprio usuário logado, com forms de edição
+  amarrados a `req.user.id`; reaproveitar aquela rota pra ver OUTRO
+  staff exigiria desligar formulário por formulário, arriscado).
+  Acesso: qualquer staff do servidor (mesmo `isStaff`/
+  `resolveAdminMember` das outras páginas de guild), não só quem
+  configurou os cargos. Mostra identidade Discord, cargo/função (mesmos
+  campos do roster), vínculo Path of Titans (Alderon ID, espécie mais
+  jogada, KD respeitando `hide_kda` do ALVO, honra) e o status em jogo
+  NESTE servidor (via `computeGameStatus`, mesma função do roster).
+  Novo `web/views/staff-perfil.ejs` reaproveita as classes CSS
+  `.perfil-hero*`/`.perfil-tier-pill`/`.perfil-stat-line`/`.perfil-stars`
+  de `perfil.ejs` (copiadas — são estilos só-da-página lá também, sem
+  duplicar no style.css compartilhado). Botão "Voltar" usa
+  `history.back()` via JS (checando `document.referrer` antes, cai pra
+  `/dashboard` se não tiver de onde voltar) em vez de uma URL fixa —
+  funciona voltando de Moderação, Eventos, ou qualquer lugar que tenha
+  linkado pra cá, sem precisar de `?returnTo=`.
+- Verificado com `node --check` em todos os `.js` alterados/criados; um
+  script de teste isolado (não commitado) com 11 asserções cobrindo
+  `computeGameStatus` (offline/jogando/espectador — dinossauro OMITIDO
+  quando espectador mesmo tendo valor — e o caso defensivo de sessão
+  sem `session_started_at`) e `staffRoleCategoryLabel` (cada categoria
+  isolada, combinações, nenhum cargo, member null); `ejs.renderFile()`
+  de `ingame-pulse.ejs`+`staff-row.ejs` isolados (roster populado,
+  vazio, `showRoster:false`) confirmando renderização, escape de HTML e
+  todos os campos novos presentes; `ejs.renderFile()` de
+  `staff-perfil.ejs` em 4 cenários (sem vínculo, online jogando,
+  espectador, offline) confirmando `hide_kda` respeitado; e
+  `ejs.renderFile()` das páginas INTEIRAS `moderacao.ejs`/`events.ejs`
+  confirmando a integração ponta a ponta (o roster novo aparece
+  corretamente dentro da página completa, não só isolado).
+- NÃO implementado (fora do pedido): nenhuma paginação da lista de
+  staff (listas de staff configurado tendem a ser pequenas — poucas
+  dezenas no máximo — diferente de reports/histórico, que já paginam);
+  nenhuma edição no `/staff-perfil` (é intencionalmente só leitura).

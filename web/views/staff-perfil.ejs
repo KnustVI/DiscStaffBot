@@ -1,0 +1,215 @@
+<%#
+  web/views/staff-perfil.ejs
+  Perfil de OUTRO staff, só leitura — pedido do dono, 2026-08-07:
+  "Adicione um link em cada um para visitar o perfil deles, com um botão
+  de volta depois" (ver o link "Ver perfil" na lista de staff de
+  partials/staff-row.ejs, dentro de Moderação/Eventos). Diferente de
+  web/views/perfil.ejs (que é SEMPRE o próprio usuário logado, com forms
+  de edição/personalização amarrados a req.user.id): esta página nunca
+  tem formulário nenhum, só mostra identidade Discord + vínculo Path of
+  Titans + status em jogo NESTE servidor de quem foi clicado. Reaproveita
+  as MESMAS classes .perfil-hero*/.perfil-tier-pill/.perfil-stat-line/
+  .perfil-stars de perfil.ejs (copiadas aqui, são estilos só-da-página lá
+  também — sem isso duplicava a MESMA cópia de CSS 2x no compartilhado
+  style.css por engano).
+
+  Botão "Voltar" usa history.back() via JS (não uma URL fixa) — volta pra
+  Moderação, Eventos, ou qualquer página que tenha linkado pra cá.
+
+  Uso: res.render('staff-perfil', { ... }) — ver dashboard.js GET
+  /staff-perfil/:guildID/:userID pra lista completa de locals.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil de <%= displayName %> | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Copiado de perfil.ejs (mesmas classes, mesmo motivo: estilo só
+           desta página, não entra no style.css compartilhado). */
+        .perfil-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+        .perfil-hero-avatar {
+            box-sizing: border-box;
+            flex: none;
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: #4B2427;
+            border: 4px solid #803E30;
+            box-shadow: 0px 12px 18px 11px rgba(1, 2, 10, 0.45);
+            overflow: hidden;
+        }
+        .perfil-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .perfil-hero-name { font-family: 'Tilt Warp', cursive; font-size: clamp(20px, 3vw, 28px); line-height: 1.2; color: #F8DCC0; }
+        .perfil-hero-id { font-family: 'Poppins', sans-serif; font-size: 13px; line-height: 1.2; opacity: 0.5; }
+        .perfil-tier-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 16px;
+            border-radius: 147.5px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            line-height: 1.2;
+            border: 1px solid var(--pt-color, #F8DCC0);
+            color: var(--pt-color, #F8DCC0);
+        }
+        .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
+        .perfil-stars .is-filled { color: #DCA15E; }
+        .perfil-stat-line { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.7; }
+        /* Botão Voltar (history.back(), ver script no fim da página). */
+        .sp-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border: 1px solid #DCA15E;
+            border-radius: 147.5px;
+            background: none;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: #DCA15E;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .sp-back-btn:hover { background: rgba(220, 161, 94, 0.12); }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
+        <%- include('partials/sidebar-v2', { active: '', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false, showAvatarHint: false }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
+
+        <%- include('partials/page-header', { guild, pageLabel: 'PERFIL DO STAFF', pageLabelEn: 'STAFF PROFILE' }) %>
+
+        <button type="button" class="sp-back-btn" id="spBackBtn" style="align-self: flex-start;">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span data-i18n-pt>Voltar</span><span data-i18n-en>Back</span>
+        </button>
+
+        <%
+            const spAvatarUrl = discordUser.avatar
+                ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+                : `https://cdn.discordapp.com/embed/avatars/${discordUser.id % 5}.png`;
+            const spTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
+            const spTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
+        %>
+        <section class="titan-card-premium flex-col gap-5">
+            <div class="perfil-hero">
+                <div class="flex items-center gap-5">
+                    <div class="perfil-hero-avatar"><img src="<%= spAvatarUrl %>" alt=""></div>
+                    <div class="flex flex-col gap-3 items-start">
+                        <span class="perfil-hero-name"><%= displayName %></span>
+                        <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
+                        <span class="perfil-tier-pill" style="--pt-color: <%= spTierColors[playerTier] %>">
+                            <i data-lucide="badge" class="w-4 h-4"></i> <span data-i18n-pt>Player Premium:</span><span data-i18n-en>Player Premium:</span> <%= spTierLabels[playerTier] %>
+                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <span data-i18n-pt>expira em</span><span data-i18n-en>expires on</span> <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
+                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Cargo no Discord:</span><span data-i18n-en>Discord role:</span></strong> <%= cargo %></span>
+                <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Função:</span><span data-i18n-en>Staff category:</span></strong> <%= roleLabel %></span>
+            </div>
+        </section>
+
+        <% if (!link) { %>
+            <section class="titan-card-premium flex-col gap-3">
+                <h2 class="section-title text-lg flex items-center gap-3">
+                    <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
+                    Path of Titans
+                </h2>
+                <p class="text-sm opacity-60"><span data-i18n-pt>Este staff ainda não vinculou a conta do Discord a um jogador de Path of Titans.</span><span data-i18n-en>This staff hasn't linked their Discord account to a Path of Titans player yet.</span></p>
+                <p class="text-[13px] opacity-40">AGID: <span data-i18n-pt>Não vinculado</span><span data-i18n-en>Not linked</span></p>
+            </section>
+        <% } else { %>
+            <section class="titan-card-premium flex-col gap-5">
+                <h2 class="section-title text-lg flex items-center gap-3">
+                    <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
+                    Path of Titans
+                </h2>
+                <div class="flex flex-col gap-2">
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nome no jogo:</span><span data-i18n-en>In-game name:</span></strong> <%= link.player_name || '—' %></span>
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
+                    <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Espécie mais jogada:</span><span data-i18n-en>Most played species:</span></strong> <% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
+                    <% if (kdStats) { %>
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Kills:</strong> <%= kdStats.kills %> <strong class="text-titan-cream opacity-100 ml-2">Deaths:</strong> <%= kdStats.deaths %> <strong class="text-titan-cream opacity-100 ml-2">K/D:</strong> <%= kdStats.kd %> <span class="opacity-50">(<span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum of all servers</span>)</span></span>
+                    <% } %>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Honra:</span><span data-i18n-en>Honor:</span></strong></span>
+                        <span class="perfil-stars">
+                            <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
+                        </span>
+                    </div>
+                </div>
+
+                <%#
+                    Status em jogo NESTE servidor (pedido do dono: "se online
+                    mostre a quanto tempo esta online. se esta no modo
+                    espectador ou não. se não estiver no modo espectador
+                    fale o dinossauro que esta jogando") — mesmos dados
+                    (gameStatus) e mesma regra da lista de staff (ver
+                    dashboard.js computeGameStatus/partials/staff-row.ejs).
+                %>
+                <div class="pt-2" style="border-top: 1px solid rgba(217, 163, 98, 0.15);">
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Status em</span><span data-i18n-en>Status on</span> <%= guild.name %></h3>
+                    <div class="flex flex-col gap-2">
+                        <span class="perfil-stat-line">
+                            <strong class="text-titan-cream opacity-100"><span data-i18n-pt>Situação:</span><span data-i18n-en>Status:</span></strong>
+                            <% if (gameStatus.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else if (gameStatus.online) { %>Online<% } else { %>Offline<% } %>
+                            <% if (gameStatus.onlineSince) { %> — <span data-i18n-pt>há</span><span data-i18n-en>for</span> <%= gameStatus.onlineSince %><% } %>
+                        </span>
+                        <% if (gameStatus.dinosaurType) { %>
+                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Jogando:</span><span data-i18n-en>Playing:</span></strong> <%= gameStatus.dinosaurType %></span>
+                        <% } %>
+                    </div>
+                </div>
+            </section>
+        <% } %>
+    </main>
+
+    <%# Lucide (unpkg) + o toggle de idioma (bandeiras/data-lang/localStorage)
+        já vêm de partials/sidebar-v2.ejs — não precisa carregar de novo
+        aqui, só disparar createIcons() depois que o resto da página (com
+        os data-lucide daqui) também está no DOM, mesmo padrão de
+        moderacao.ejs/events.ejs. %>
+    <script>
+        if (window.lucide) window.lucide.createIcons();
+        document.getElementById('spBackBtn').addEventListener('click', function () {
+            if (document.referrer && document.referrer.indexOf(window.location.origin) === 0) {
+                history.back();
+            } else {
+                window.location.href = '/dashboard';
+            }
+        });
+    </script>
+</body>
+</html>
