@@ -211,7 +211,7 @@
 <body class="flex min-h-screen<%= backgroundPreviewUrl ? ' perfil-has-bg' : '' %>">
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
-        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>
+        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true, defaultCollapsed: true }) %>
     </aside>
 
     <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards perto da sidebar). %>
