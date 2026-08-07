@@ -1,4 +1,4 @@
-// src/commands/events/eventos.js
+// src/commands/events/eventos-agendados.js
 const { SlashCommandBuilder, GuildScheduledEventStatus } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 
@@ -40,7 +40,7 @@ function formatEventBlock(event) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('eventos')
+        .setName('eventos-agendados')
         .setDescription('📅 Mostra os eventos agendados do Discord para os próximos 7 dias.'),
 
     async execute(interaction, client) {

@@ -421,7 +421,7 @@ const toc = [
         { id: 'cmd-staffonline', label: '/staffonline' },
     ] },
     { catPt: 'Denúncias & Eventos', catEn: 'Reports & Events', items: [
-        { id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' }, { id: 'cmd-eventos', label: '/eventos' },
+        { id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' }, { id: 'cmd-eventos-agendados', label: '/eventos-agendados' },
     ] },
     { catPt: 'Configuração (Admin)', catEn: 'Configuration (Admin)', items: [
         { id: 'cmd-config', label: '/config' }, { id: 'cmd-potserver', label: '/potserver' }, { id: 'cmd-ping', label: '/ping' },
@@ -715,7 +715,7 @@ const toc = [
                     ],
                 }) %>
                 <%- cmdCard({
-                    id: 'eventos', name: 'eventos', permPt: 'Todos', permEn: 'Everyone',
+                    id: 'eventos-agendados', name: 'eventos-agendados', permPt: 'Todos', permEn: 'Everyone',
                     descPt: 'Lista os eventos do servidor: os que estão acontecendo agora e os agendados pra os próximos 7 dias, com horário, local, número de interessados e link — funciona pra qualquer Evento Agendado nativo do Discord, criado com /evento ou direto pela interface do Discord.',
                     descEn: "Lists the server's events: the ones happening right now and the ones scheduled for the next 7 days, with time, location, interested count, and link — works for any native Discord Scheduled Event, whether created with /evento or directly through Discord's own interface.",
                 }) %>

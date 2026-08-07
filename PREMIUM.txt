@@ -6066,3 +6066,39 @@ frente, nao so este relatorio):
   premium (ver decisão acima); nenhuma exibição de staff OFFLINE na
   resposta (só quem está online agora, mais o total configurado como
   contexto).
+
+129) Comando /eventos renomeado para /eventos-agendados
+------------------------------------------------------------------
+- Pedido do dono: "Altere o nome do comando eventos para evntos
+  agendados." — API de slash command do Discord não aceita espaço no
+  nome (só letras/números/hífen/underscore), então virou
+  `eventos-agendados` (hífen), mesma convenção já usada por outros
+  comandos de 2 palavras neste bot (`perfil-edit`, `ingame-buff`,
+  `ingame-comandos` etc.).
+- Só o comando de LISTAR eventos agendados (criado na seção 111,
+  `guild.scheduledEvents.fetch()`) foi renomeado — `/evento` (singular,
+  cria um evento novo) não foi tocado, são comandos diferentes. A
+  página web "Eventos" do dashboard (`sidebar-v2.ejs`/`events.ejs`)
+  também não foi tocada — o pedido foi especificamente sobre "o
+  comando", não a página do site.
+- `src/commands/events/eventos.js` renomeado (via `git mv`, preserva
+  histórico) pra `src/commands/events/eventos-agendados.js` —
+  `.setName('eventos')` -> `.setName('eventos-agendados')`, comentário
+  de cabeçalho do arquivo atualizado junto. Nenhum outro arquivo do
+  código tinha referência direta ao nome do comando (nem `require` por
+  caminho, nem `ajuda.js`) — só precisou mexer no próprio arquivo.
+- `web/views/documentacao.ejs`: `cmdCard` (id + name) e a entrada do
+  índice na categoria "Denúncias & Eventos" atualizados de
+  `eventos`/`/eventos` pra `eventos-agendados`/`/eventos-agendados`.
+- Como o Discord não permite RENOMEAR um slash command já registrado
+  (é sempre um comando NOVO com nome novo) — depois do próximo `node
+  deploy.js`, `/eventos-agendados` aparece como comando novo e
+  `/eventos` (antigo) SOME da lista de comandos do servidor
+  automaticamente (não fica um comando fantasma/quebrado pra trás,
+  mas quem tinha o atalho antigo digitado precisa se acostumar com o
+  nome novo).
+- Verificado com `node --check` no arquivo renomeado e um
+  `ejs.renderFile()` de `documentacao.ejs` confirmando que
+  `/eventos-agendados` aparece (id/nome/link do índice) e que
+  `/eventos` (nome antigo) não aparece mais em nenhum card/índice de
+  comando.
