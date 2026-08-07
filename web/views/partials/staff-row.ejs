@@ -12,23 +12,36 @@
 
   Uso: include('staff-row', { staff }) — staff é um item de pulse.roster
   (ver dashboard.js getServerPulse, que já monta staff.profileUrl pronto).
+
+  Visual copiado do .level-card da lista de Níveis de Punição (pedido do
+  dono, 2026-08-07: "mesmo visual da lista de níveis criados") — pontinho
+  colorido (.staff-row-dot) em vez do ícone de tomada anterior; verde/
+  amarelo/vermelho conforme online/espectador/offline, ver CSS em
+  ingame-pulse.ejs (mesma paleta de cor da severidade dos níveis).
 %>
-<div class="staff-row <%= staff.online ? '' : 'is-offline' %>">
-    <i data-lucide="power" class="staff-row-icon"></i>
-    <div class="staff-row-body">
-        <div class="staff-row-top">
-            <span class="staff-row-name"><%= staff.name %></span>
-            <span class="staff-row-status">
-                <% if (staff.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else if (staff.online) { %>Online<% } else { %>Offline<% } %>
-                <% if (staff.onlineSince) { %> · <span data-i18n-pt>há</span><span data-i18n-en>for</span> <%= staff.onlineSince %><% } %>
-            </span>
-        </div>
-        <div class="staff-row-meta">
-            <span><span data-i18n-pt>Cargo:</span><span data-i18n-en>Discord role:</span> <%= staff.cargo %></span>
-            <span><span data-i18n-pt>Função:</span><span data-i18n-en>Category:</span> <%= staff.roleLabel %></span>
-            <span>AGID: <% if (staff.alderonId) { %><%= staff.alderonId %><% } else { %><span data-i18n-pt>Não vinculado</span><span data-i18n-en>Not linked</span><% } %></span>
-            <% if (staff.dinosaurType) { %><span><span data-i18n-pt>Jogando:</span><span data-i18n-en>Playing:</span> <%= staff.dinosaurType %></span><% } %>
+<%
+    const srStateClass = staff.moderating ? 'is-spectating' : (staff.online ? '' : 'is-offline');
+%>
+<div class="staff-row <%= srStateClass %>">
+    <div class="staff-row-main">
+        <span class="staff-row-dot"></span>
+        <div class="staff-row-info">
+            <div class="staff-row-top">
+                <span class="staff-row-name"><%= staff.name %></span>
+                <span class="staff-row-status">
+                    <% if (staff.moderating) { %><span data-i18n-pt>Espectador</span><span data-i18n-en>Spectator</span><% } else if (staff.online) { %>Online<% } else { %>Offline<% } %>
+                    <% if (staff.onlineSince) { %> · <span data-i18n-pt>há</span><span data-i18n-en>for</span> <%= staff.onlineSince %><% } %>
+                </span>
+            </div>
+            <div class="staff-row-meta">
+                <span><span data-i18n-pt>Cargo:</span><span data-i18n-en>Discord role:</span> <%= staff.cargo %></span>
+                <span><span data-i18n-pt>Função:</span><span data-i18n-en>Category:</span> <%= staff.roleLabel %></span>
+                <span>AGID: <% if (staff.alderonId) { %><%= staff.alderonId %><% } else { %><span data-i18n-pt>Não vinculado</span><span data-i18n-en>Not linked</span><% } %></span>
+                <% if (staff.dinosaurType) { %><span><span data-i18n-pt>Jogando:</span><span data-i18n-en>Playing:</span> <%= staff.dinosaurType %></span><% } %>
+            </div>
         </div>
     </div>
-    <a href="<%= staff.profileUrl %>" class="staff-row-link"><span data-i18n-pt>Ver perfil</span><span data-i18n-en>View profile</span> <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></a>
+    <div class="staff-row-actions">
+        <a href="<%= staff.profileUrl %>" class="staff-row-link"><span data-i18n-pt>Ver perfil</span><span data-i18n-en>View profile</span> <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></a>
+    </div>
 </div>

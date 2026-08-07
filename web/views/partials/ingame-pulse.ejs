@@ -18,9 +18,24 @@
   (Alderon ID, "Não vinculado" se nunca rodou /registrar), status com
   duração (ver dashboard.js:computeGameStatus), dinossauro jogando (só
   fora do modo espectador) e um link "Ver perfil" (ver GET /staff-
-  perfil/:guildID/:userId). Continua só 2 cores de borda (verde=online
-  inclusive espectador, vermelho=offline) — "Espectador" é só uma
-  variação de texto sobre o estado "online".
+  perfil/:guildID/:userId).
+
+  Visual da LINHA copiado do .level-card da lista de Níveis de Punição
+  (moderacao.ejs) — pedido do dono, 2026-08-07: "gostaria que a lista de
+  staffs tivessem o mesmo visual da lista de níveis criados". Borda
+  dourada sutil + sombra interna (não mais borda verde/vermelha cheia);
+  o status vira um PONTINHO colorido (.staff-row-dot, mesma ideia do
+  .level-severity-dot) — verde=online, amarelo=espectador, vermelho=
+  offline (mesma paleta de cores da severidade dos níveis, só remapeada
+  pro conceito de status).
+
+  A lista INTEIRA agora mora dentro de um <details> (pedido do dono:
+  "que essa lista esteja dentro de um card que pode ser aberto e
+  fechado para vizualização, sendo o padrão fechado") — fecha por
+  padrão (sem o atributo `open`), mesmo padrão sem-JS já usado em
+  Criar/Editar Nível (moderacao.ejs) e no TOC de documentacao.ejs. O
+  <summary> mostra um resumo (quantos online/offline) mesmo fechado,
+  pra dar uma pista do conteúdo sem precisar abrir.
 
   A LISTA em si já vem PRÉ-FILTRADA pela categoria certa (Moderação só
   Moderador/Supervisor, Eventos só Equipe de Eventos — pedido do dono,
@@ -86,31 +101,47 @@
 <section class="ingame-pulse">
     <% if (ipShowRoster) { %>
         <% const online = pulse.roster.filter(s => s.online); const offline = pulse.roster.filter(s => !s.online); %>
-        <% if (pulse.roster.length === 0) { %>
-            <p class="text-sm opacity-40 text-center ingame-staff-grid-spacing"><span data-i18n-pt>Nenhum cargo de staff configurado ainda.</span><span data-i18n-en>No staff role configured yet.</span></p>
-        <% } else { %>
-            <%#
-                Pedido do dono, 2026-08-07: "separe" — os 2 grupos (Online/
-                Offline) ganham um título pequeno próprio em vez de só a
-                cor da borda diferenciando, ajuda a escanear listas grandes.
-                Cada linha vem de partials/staff-row.ejs (ver lá o motivo de
-                ser um include em vez de montado aqui).
-            %>
-            <div class="staff-list-wrap ingame-staff-grid-spacing">
-                <% if (online.length > 0) { %>
-                    <h3 class="staff-list-heading"><span data-i18n-pt>Online</span><span data-i18n-en>Online</span> (<%= online.length %>)</h3>
-                    <div class="staff-list">
-                        <% online.forEach(staff => { %><%- include('staff-row', { staff }) %><% }); %>
-                    </div>
-                <% } %>
-                <% if (offline.length > 0) { %>
-                    <h3 class="staff-list-heading is-offline"><span data-i18n-pt>Offline</span><span data-i18n-en>Offline</span> (<%= offline.length %>)</h3>
-                    <div class="staff-list">
-                        <% offline.forEach(staff => { %><%- include('staff-row', { staff }) %><% }); %>
-                    </div>
-                <% } %>
-            </div>
-        <% } %>
+        <%
+            // Resumo mostrado no <summary>, mesmo fechado — pedido do dono:
+            // "sendo o padrão fechado" não deveria significar "sem pista
+            // nenhuma do conteúdo". "Online"/"Offline" já são a mesma
+            // palavra nos 2 idiomas, só o "de" muda.
+            const summaryHtml = pulse.roster.length === 0
+                ? '<span data-i18n-pt>Nenhum cargo de staff configurado ainda</span><span data-i18n-en>No staff role configured yet</span>'
+                : `${online.length} Online <span data-i18n-pt>de</span><span data-i18n-en>of</span> ${pulse.roster.length}`;
+        %>
+        <details class="staff-list-card ingame-staff-grid-spacing">
+            <summary class="staff-list-summary">
+                <span class="staff-list-summary-text">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span data-i18n-pt>Staff</span><span data-i18n-en>Staff</span> — <%- summaryHtml %>
+                </span>
+                <i data-lucide="chevron-down" class="staff-list-chevron w-4 h-4"></i>
+            </summary>
+            <% if (pulse.roster.length > 0) { %>
+                <%#
+                    Pedido do dono, 2026-08-07: "separe" — os 2 grupos
+                    (Online/Offline) ganham um título pequeno próprio em vez
+                    de só a cor do pontinho diferenciando, ajuda a escanear
+                    listas grandes. Cada linha vem de partials/staff-row.ejs
+                    (ver lá o motivo de ser um include em vez de montado aqui).
+                %>
+                <div class="staff-list-wrap">
+                    <% if (online.length > 0) { %>
+                        <h3 class="staff-list-heading"><span data-i18n-pt>Online</span><span data-i18n-en>Online</span> (<%= online.length %>)</h3>
+                        <div class="staff-list">
+                            <% online.forEach(staff => { %><%- include('staff-row', { staff }) %><% }); %>
+                        </div>
+                    <% } %>
+                    <% if (offline.length > 0) { %>
+                        <h3 class="staff-list-heading is-offline"><span data-i18n-pt>Offline</span><span data-i18n-en>Offline</span> (<%= offline.length %>)</h3>
+                        <div class="staff-list">
+                            <% offline.forEach(staff => { %><%- include('staff-row', { staff }) %><% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            <% } %>
+        </details>
     <% } %>
 
     <h2 class="ingame-pulse-title">IN GAME</h2>
@@ -123,11 +154,48 @@
        mesmo estilo agora) — classe global, não fica mais só neste
        parcial. */
 
-    /* 20px de respiro entre a lista de staff e o que vem antes/depois dela
+    /* 20px de respiro entre o card de staff e o que vem antes/depois dele
        no site (pedido do dono) — separado do gap:12px genérico do
        .ingame-pulse (que é só entre título/card/lista). */
     .ingame-staff-grid-spacing { margin-top: 20px; margin-bottom: 20px; }
-    .staff-list-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+    /* Card colapsável (pedido do dono, 2026-08-07: "que essa lista esteja
+       dentro de um card que pode ser aberto e fechado para vizualização,
+       sendo o padrão fechado") — <details> nativo, fecha sozinho sem JS
+       (mesmo padrão sem-JS de Criar/Editar Nível em moderacao.ejs). Visual
+       próprio (não .titan-card-premium — aquele tem padding:40px, pesado
+       demais pra um card ANINHADO dentro da seção "IN GAME"); usa a MESMA
+       receita visual do .level-card da lista de Níveis de Punição
+       (fundo #131314 + borda dourada sutil + sombra interna), só que como
+       moldura do card inteiro em vez de cada linha. */
+    .staff-list-card {
+        width: 100%;
+        background: #131314;
+        border: 1px solid rgba(217, 163, 98, 0.25);
+        border-radius: 14px;
+        box-shadow: inset 0px 2px 10px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+    }
+    .staff-list-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 18px;
+        cursor: pointer;
+        list-style: none;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        color: #F8DCC0;
+    }
+    .staff-list-summary::-webkit-details-marker { display: none; }
+    .staff-list-summary::marker { content: ''; }
+    .staff-list-summary-text { display: inline-flex; align-items: center; gap: 8px; color: #DCA15E; }
+    .staff-list-summary-text i { flex: none; }
+    .staff-list-chevron { flex: none; color: #DCA15E; transition: transform 0.15s ease; }
+    .staff-list-card[open] > .staff-list-summary .staff-list-chevron { transform: rotate(180deg); }
+    .staff-list-wrap { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 0 18px 18px; }
     .staff-list-heading {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
@@ -147,37 +215,49 @@
        com todo o contexto do staff (ver staff-row.ejs); escala pra
        qualquer tamanho de lista só crescendo verticalmente, sem
        reorganizar nada. */
-    .staff-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .staff-list { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 
-    /* Linha de staff — borda verde/vermelha (mesma ideia visual do antigo
-       .staff-chip) + ícone + nome/status numa linha de topo, meta info
-       (cargo/função/AGID/dinossauro) numa linha secundária que QUEBRA
-       livremente (flex-wrap, pedido do dono: lista "confortável" mesmo
-       com muito texto por linha, diferente do chip antigo que cortava com
-       reticências). Link "Ver perfil" fica à direita em telas largas e
-       desce pra própria linha em telas estreitas (flex-wrap no container
-       inteiro). */
+    /* Linha de staff — MESMO visual do .level-card da lista de Níveis de
+       Punição (pedido do dono, 2026-08-07: "gostaria que a lista de
+       staffs tivessem o mesmo visual da lista de níveis criados"): fundo
+       um tom mais claro que o card (#1F1D20, o card em si já é #131314),
+       borda dourada sutil (não mais verde/vermelha cheia) + PONTINHO
+       colorido de status (.staff-row-dot, mesma ideia do
+       .level-severity-dot) em vez do ícone de tomada anterior. Nome/meta
+       numa coluna, link "Ver perfil" nas ações à direita — mesma
+       estrutura main+actions do .level-card (dot+info à esquerda, ações à
+       direita, space-between). */
     .staff-row {
-        --row-color: #A5FFA1;
         box-sizing: border-box;
         display: flex;
-        align-items: center;
         flex-wrap: wrap;
-        gap: 10px 14px;
-        padding: 10px 16px;
-        border: 1px solid var(--row-color);
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #1F1D20;
+        border: 1px solid rgba(217, 163, 98, 0.25);
         border-radius: 10px;
-        background: #131314;
     }
-    .staff-row.is-offline { --row-color: #FF4E3B; }
-    .staff-row-icon { width: 26px; height: 26px; flex: none; color: var(--row-color); }
-    .staff-row-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 220px; }
+    .staff-row-main { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 220px; }
+    .staff-row-dot {
+        --dot-color: #8BE28B;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex: none;
+        background: var(--dot-color);
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+    }
+    .staff-row.is-spectating .staff-row-dot { --dot-color: #E2C168; }
+    .staff-row.is-offline .staff-row-dot { --dot-color: #FF4E3B; }
+    .staff-row-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .staff-row-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
     .staff-row-name {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
         font-size: 14px;
-        color: #DCA15E;
+        color: #F8DCC0;
     }
     .staff-row-status {
         font-family: 'Poppins', sans-serif;
@@ -191,15 +271,14 @@
         flex-wrap: wrap;
         gap: 4px 14px;
         font-family: 'Poppins', sans-serif;
-        font-size: 11px;
+        font-size: 12px;
         color: #A89986;
     }
+    .staff-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: none; }
     .staff-row-link {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        flex: none;
-        margin-left: auto;
         padding: 6px 12px;
         border: 1px solid #DCA15E;
         border-radius: 147.5px;
@@ -212,7 +291,8 @@
     }
     .staff-row-link:hover { background: rgba(220, 161, 94, 0.12); }
     @media (max-width: 640px) {
-        .staff-row { padding: 8px 12px; gap: 8px; }
-        .staff-row-link { margin-left: 0; }
+        .staff-row { padding: 10px 12px; gap: 8px; }
+        .staff-list-summary { padding: 12px 14px; }
+        .staff-list-wrap { padding: 0 14px 14px; }
     }
 </style>

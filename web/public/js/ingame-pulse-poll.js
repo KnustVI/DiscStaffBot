@@ -23,11 +23,24 @@
         var category = root.dataset.category || '';
 
         function refresh() {
+            // Preserva o card de staff (partials/ingame-pulse.ejs) ABERTO
+            // entre polls — sem isso, o innerHTML inteiro é trocado a cada
+            // 15s por HTML novo do servidor, que SEMPRE renderiza o
+            // <details> fechado (estado padrão); quem tivesse aberto pra
+            // olhar a lista veria ela fechar sozinha no meio da leitura.
+            var wasOpen = false;
+            var existingCard = root.querySelector('.staff-list-card');
+            if (existingCard) wasOpen = existingCard.hasAttribute('open');
+
             fetch('/fragments/ingame-pulse/' + guildId + '?showRoster=' + showRoster + '&category=' + category)
                 .then(function (res) { return res.ok ? res.text() : null; })
                 .then(function (html) {
                     if (!html) return; // falha silenciosa — mantém o que já está na tela
                     root.innerHTML = html;
+                    if (wasOpen) {
+                        var newCard = root.querySelector('.staff-list-card');
+                        if (newCard) newCard.setAttribute('open', '');
+                    }
                     if (window.lucide) window.lucide.createIcons();
                 })
                 .catch(function () { /* rede caiu por um instante — próximo poll tenta de novo */ });

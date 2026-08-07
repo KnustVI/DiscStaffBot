@@ -6370,3 +6370,46 @@ frente, nao so este relatorio):
   `defaultCollapsed` confirmando que páginas normais continuam sem
   `data-force-default` e com o comportamento de sempre (nenhuma
   regressão nas outras ~10 páginas que usam esse parcial).
+
+133) Lista de staff (Moderação/Eventos, web) ganha o visual da lista de
+     Níveis de Punição + vira um card que abre/fecha, padrão fechado
+------------------------------------------------------------------
+- Pedido do dono (mesma mensagem da seção 132): "gostaria que a lista
+  de staffs tivessem o mesmo visual da lista de níveis criados e que
+  essa lsita esteja dentro de um card que pode ser aberto e fechado
+  para vizualização, sendo o padrão fechado."
+- Visual da LINHA (`partials/staff-row.ejs`) copiado do `.level-card`
+  da lista de Níveis de Punição (`moderacao.ejs`, ver seção 125/130):
+  fundo mais claro que o card em volta, borda dourada sutil (não mais
+  verde/vermelha cheia) + um PONTINHO colorido de status
+  (`.staff-row-dot`, mesma ideia do `.level-severity-dot`) — verde=
+  online, amarelo=espectador, vermelho=offline (mesma paleta de cor da
+  severidade dos níveis, só remapeada pro conceito de status de staff).
+  Estrutura também alinhada: pontinho+info à esquerda, ações (link "Ver
+  perfil") à direita, `justify-content: space-between` como no
+  `.level-card`.
+- Lista inteira agora dentro de um `<details class="staff-list-card">`
+  (`partials/ingame-pulse.ejs`) — fecha por padrão (sem o atributo
+  `open`), mesmo padrão sem-JS já usado em Criar/Editar Nível
+  (`moderacao.ejs`) e no índice de `documentacao.ejs`. O `<summary>`
+  mostra um resumo (`"X Online de Y"`, ou a mensagem de "nenhum cargo
+  configurado") mesmo fechado, com um ícone de chevron que gira 180°
+  quando aberto (CSS puro, `[open] .staff-list-chevron { transform:
+  rotate(180deg) }`).
+- Bug PRÓPRIO pego e corrigido antes de commitar (não fazia parte do
+  pedido, mas quebraria a experiência se ficasse): o poll de 15s
+  (`ingame-pulse-poll.js`) troca o `innerHTML` do fragmento INTEIRO a
+  cada atualização — como o servidor sempre renderiza o `<details>`
+  FECHADO (é o estado padrão), um staff que tivesse aberto a lista pra
+  olhar veria ela fechar sozinha no meio da leitura, a cada 15
+  segundos. Corrigido guardando se o card estava aberto ANTES de trocar
+  o HTML, e reaplicando o atributo `open` no card novo depois —
+  preserva a escolha do usuário entre atualizações, só o CONTEÚDO
+  atualiza.
+- Verificado com `ejs.renderFile()` de `ingame-pulse.ejs`+
+  `staff-row.ejs` isolados (10 checagens: card presente E fechado por
+  padrão, chevron presente, pontinho de status presente, classe
+  `is-spectating` presente, escape de HTML contra nomes maliciosos, e o
+  resumo do `<summary>` batendo com a contagem real de online) e das
+  páginas INTEIRAS `moderacao.ejs`/`events.ejs` confirmando a
+  integração ponta a ponta. `node --check` em `ingame-pulse-poll.js`.
