@@ -418,6 +418,7 @@ const toc = [
     { catPt: 'Moderação', catEn: 'Moderation', items: [
         { id: 'cmd-strike', label: '/strike' }, { id: 'cmd-unstrike', label: '/unstrike' },
         { id: 'cmd-repset', label: '/repset' }, { id: 'cmd-historico', label: '/historico' },
+        { id: 'cmd-staffonline', label: '/staffonline' },
     ] },
     { catPt: 'Denúncias & Eventos', catEn: 'Reports & Events', items: [
         { id: 'cmd-reportchat', label: '/reportchat' }, { id: 'cmd-evento', label: '/evento' }, { id: 'cmd-eventos', label: '/eventos' },
@@ -674,6 +675,13 @@ const toc = [
                             { name: 'staff', type: 'Usuário', req: false, descPt: 'Vazio = ranking geral.', descEn: 'Empty = overall ranking.' },
                         ] },
                     ],
+                }) %>
+                <%- cmdCard({
+                    id: 'staffonline', name: 'staffonline', permPt: 'Moderador ou Supervisor (ou Administrador)', permEn: 'Moderator or Supervisor (or Administrator)',
+                    descPt: 'Mostra quais staffs (cargo Moderador ou Supervisor) estão online/ausente/não perturbe no Discord agora, e há quanto tempo cada um está nessa sessão contínua. Resposta privada (só quem rodou o comando vê).',
+                    descEn: "Shows which staff (Moderator or Supervisor role) are online/idle/do-not-disturb on Discord right now, and how long each has been in that continuous session. Private response (only the person who ran it can see it).",
+                    notePt: 'A duração é contada pelo próprio bot a partir de quando cada um ficou online — reseta a cada restart do bot (a API do Discord não guarda "desde quando" alguém está online).',
+                    noteEn: "Duration is tracked by the bot itself from when each person went online — it resets on every bot restart (Discord's API doesn't store \"since when\" someone has been online).",
                 }) %>
             </div>
         </section>

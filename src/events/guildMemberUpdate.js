@@ -5,12 +5,14 @@
  * "Notificação de Eventos" fica de fora de propósito, é só um cargo de
  * avisos, não staff).
  *
- * Dois efeitos independentes:
+ * Três efeitos independentes:
  * 1. Log de ganho/perda em log_staff — só tier Caçador (analyticsEnabled).
  * 2. Purge do histórico agregado (staff_analytics) quando o membro fica sem
  *    NENHUM dos 3 cargos — independente de tier, é limpeza de dado ligada a
  *    perda de CARGO (fato do Discord), não uma feature paga. Ver
  *    AnalyticsSystem.purgeStaffOnRoleLoss.
+ * 3. Encerra a sessão de presença online (/staffonline) quando o membro
+ *    fica sem Moderador E Supervisor — ver staffPresenceSystem.clearOnline.
  */
 const ConfigSystem = require('../systems/core/configSystem');
 const PremiumSystem = require('../systems/premium/premiumSystem');
@@ -84,6 +86,16 @@ module.exports = {
 
             if (hadAnyStaffRoleBefore && !hasAnyStaffRoleNow) {
                 await AnalyticsSystem.purgeStaffOnRoleLoss(guild, newMember.user);
+            }
+
+            // Perdeu Moderador E Supervisor (não importa se ainda tem Equipe
+            // de Eventos) — encerra a sessão de presença ativa dele agora,
+            // em vez de deixar ele aparecer em /staffonline até a PRÓXIMA
+            // troca de status. Ver staffPresenceSystem.js.
+            const hadModOrSupervisorBefore = ConfigSystem.memberHasModOrSupervisorRole(guild.id, { roles: { cache: oldRoles } });
+            const hasModOrSupervisorNow = ConfigSystem.memberHasModOrSupervisorRole(guild.id, newMember);
+            if (hadModOrSupervisorBefore && !hasModOrSupervisorNow) {
+                require('../systems/moderation/staffPresenceSystem').clearOnline(guild.id, newMember.id);
             }
         } catch (err) {
             console.error('❌ [guildMemberUpdate] Erro ao processar mudança de cargo:', err.message);

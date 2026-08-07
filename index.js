@@ -13,7 +13,17 @@ const client = new Client({
         GatewayIntentBits.GuildModeration,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMessageReactions
+        GatewayIntentBits.GuildMessageReactions,
+        // Pedido do dono, 2026-08-07: "/staffonline" (ver src/commands/
+        // moderation/staffonline.js) precisa saber quem está online/idle/
+        // dnd no Discord agora — sem essa intent, member.presence é sempre
+        // null e o evento presenceUpdate nunca dispara. INTENT PRIVILEGIADA:
+        // além desta linha, o dono TEM que habilitar manualmente "Presence
+        // Intent" em https://discord.com/developers/applications (aba Bot
+        // do MESMO app do TOKEN principal) — sem isso o bot vai falhar ao
+        // logar (erro "Used disallowed intents"). Não afeta o bot de
+        // developer (devBot.js), que não usa presença.
+        GatewayIntentBits.GuildPresences,
     ]
 });
 

@@ -413,6 +413,28 @@ const SCHEMA = {
         )
     `,
 
+    // ==================== SESSÕES DE PRESENÇA DE STAFF NO DISCORD (/staffonline) ====================
+    // Mesmo espírito de pot_spectator_sessions acima: guarda só a sessão
+    // ATUALMENTE aberta (uma linha = um staff online agora), sem histórico
+    // linha-a-linha. Populada por src/events/presenceUpdate.js sempre que
+    // um membro com cargo Moderador OU Supervisor transiciona de/para
+    // offline — status guarda o último status visto (online/idle/dnd,
+    // nunca 'offline': a linha inteira é apagada quando o staff fica
+    // offline, ver staffPresenceSystem.js). started_at NÃO muda quando só
+    // o status muda de sabor (online->idle->dnd) — continua contando como
+    // a MESMA sessão contínua online, só encerra quando fica offline de
+    // verdade. Pedido do dono, 2026-08-07: "visualizar os staffs onlines
+    // pelo discord, e a quanto tempo eles estão online".
+    staff_presence_sessions: `
+        CREATE TABLE IF NOT EXISTS staff_presence_sessions (
+            guild_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            started_at INTEGER NOT NULL,
+            PRIMARY KEY (guild_id, user_id)
+        )
+    `,
+
     // ==================== TP CONFIGURÁVEL DE EVENTO (/evento) ====================
     // Coordenadas de teleporte (RCON `teleport`) configuradas pelo staff na
     // postagem de um evento — até 2 por evento (Herbívoro/Carnívoro), ver

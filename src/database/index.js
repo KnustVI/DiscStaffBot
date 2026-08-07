@@ -80,6 +80,7 @@ class DatabaseManager {
                 'guild_premium',
                 'punishment_levels',
                 'pot_spectator_sessions',
+                'staff_presence_sessions',
                 'event_teleports',
                 'event_teleport_uses',
                 'event_posts',

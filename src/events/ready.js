@@ -61,6 +61,24 @@ module.exports = {
             console.log('ℹ️ [PoT] Reconexão de RCON no boot não disponível:', err.message);
         }
 
+        // Semeia staff_presence_sessions com quem JÁ está online agora —
+        // ver src/systems/moderation/staffPresenceSystem.js. O bot só
+        // aprende de TRANSIÇÕES via presenceUpdate dali em diante; sem
+        // isso, ninguém apareceria como online em /staffonline até a
+        // PRÓXIMA mudança de status de cada staff (poderia levar horas).
+        // Fire-and-forget por guild, mesma filosofia do RCON acima — não
+        // bloqueia o boot nem derruba o bot se uma guild falhar.
+        try {
+            const StaffPresenceSystem = require('../systems/moderation/staffPresenceSystem');
+            for (const guild of client.guilds.cache.values()) {
+                StaffPresenceSystem.syncGuildPresence(guild).catch(err => {
+                    console.error(`❌ [StaffPresence] Erro ao sincronizar guild ${guild.id} no boot:`, err.message);
+                });
+            }
+        } catch (err) {
+            console.log('ℹ️ [StaffPresence] Sincronização inicial não disponível:', err.message);
+        }
+
         // 1. Inicializar handler central (cache)
         try {
             if (!handler) {

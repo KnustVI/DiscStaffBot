@@ -5979,3 +5979,90 @@ frente, nao so este relatorio):
   mostra "Confirmar Criação"; e `dev-image-pool.ejs` confirmando que o
   mesmo script aparece corretamente incluído via o parcial
   compartilhado.
+
+128) Novo comando /staffonline — mostra quais staffs estão online no
+     Discord e há quanto tempo (Moderador/Supervisor)
+------------------------------------------------------------------
+- Pedido do dono: "Crie um comando para visualizar os staffs onlines
+  pelo disocord, e a quanto tempo eles estão online. Comando de uso da
+  moderação e supervisão. Atualize a documentação."
+- ⚠️ AÇÃO MANUAL NECESSÁRIA DO DONO (fora do repositório, só ele pode
+  fazer): habilitar o toggle **"Presence Intent"** em
+  https://discord.com/developers/applications, na aba **Bot** do MESMO
+  Application do token principal (`TOKEN` no `.env`, não o `DEV_TOKEN`
+  do bot de developer). Sem isso o bot vai FALHAR AO LOGAR com erro
+  "Used disallowed intents" assim que `GatewayIntentBits.GuildPresences`
+  for adicionado ao código (ver abaixo) — é uma intent PRIVILEGIADA,
+  não fica disponível só por código. Não precisa de verificação/
+  whitelisting da Discord pra isso (esse requisito só existe a partir
+  de 100 servidores, muito acima da escala atual do bot).
+- `index.js`: `GatewayIntentBits.GuildPresences` adicionado à lista de
+  intents do client PRINCIPAL (não mexe no bot de developer, que não
+  usa presença).
+- SCHEMA: nova tabela `staff_presence_sessions` (guild_id, user_id,
+  status, started_at, PK(guild_id,user_id)) — mesmo espírito de
+  `pot_spectator_sessions` (guarda só a sessão ATUALMENTE aberta, sem
+  histórico linha-a-linha; uma linha = um staff online agora, apagada
+  assim que ele fica offline).
+- **Por que precisa de um sistema próprio pra "há quanto tempo":** a
+  API do Discord não guarda "desde quando" alguém está online — só
+  manda EVENTOS de transição (`presenceUpdate`). `src/systems/
+  moderation/staffPresenceSystem.js` (novo) guarda o timestamp de
+  início por conta própria: `handlePresenceUpdate(oldPresence,
+  newPresence)` filtra pra só processar membros com cargo Moderador OU
+  Supervisor (`ConfigSystem.memberHasModOrSupervisorRole`) — sem isso o
+  evento dispararia (e gravaria no banco) a cada troca de status/jogo/
+  Spotify de QUALQUER membro em QUALQUER guild compartilhada, o que é
+  MUITO barulho. Troca de "sabor" (online->idle->dnd) SÓ atualiza o
+  status, não reseta `started_at` — continua contando como a mesma
+  sessão contínua; só ficar offline de verdade apaga a linha.
+- `src/events/presenceUpdate.js` (novo): fininho, só repassa pro
+  sistema acima.
+- **Sincronização inicial no boot** (`syncGuildPresence`, chamada em
+  `events/ready.js` pra cada guild, fire-and-forget): sem isso,
+  ninguém apareceria como online até a PRÓXIMA mudança de status de
+  cada staff depois de um restart do bot (podia levar horas/dias).
+  Usa `guild.members.fetch({ withPresences: true })` pra trazer
+  presença junto. Limitação aceita e documentada no código: pra quem
+  JÁ estava online antes do boot, `started_at` vira o momento do boot
+  (o bot não tem como saber a hora real de antes) — a duração mostrada
+  reseta pra esses casos a cada restart.
+- `src/events/guildMemberUpdate.js`: ganha um 3º efeito (além do log de
+  cargo e do purge de analytics já existentes) — encerra a sessão de
+  presença na hora se o membro perde Moderador E Supervisor ao mesmo
+  tempo (`StaffPresenceSystem.clearOnline`), em vez de deixá-lo
+  aparecer como "staff online" até a próxima troca de status dele.
+- `/staffonline` (`src/commands/moderation/staffonline.js`, novo):
+  restrito a Moderador OU Supervisor (ou Administrador) — mesmo padrão
+  de checagem real de `/strike`/`/unstrike`/`/repset` (ver seção 124).
+  Busca todos os membros com esses 2 cargos (`guild.members.fetch()`,
+  cai pro cache se falhar), cruza com `getOnlineStaff` pra saber quem
+  está online/idle/dnd AGORA e há quanto tempo, ordenado por quem está
+  online há mais tempo primeiro. Resposta EPHEMERAL (adicionado à
+  lista em `handlers.js`) — quem está online é informação só da staff,
+  não pro canal todo. Disponível em QUALQUER plano (sem gate de tier)
+  — é uma ferramenta leve de moderação, não um recurso pesado de
+  RCON/analytics que justificasse ficar preso a um tier pago; decisão
+  não pedida explicitamente, sinalizada aqui pro dono revisar se
+  quiser mudar.
+- Documentação atualizada nos 2 lugares (pedido explícito do dono):
+  `web/views/documentacao.ejs` (novo `cmdCard` na seção Moderação +
+  entrada no índice) e `src/commands/ajuda/ajuda.js` (linha nova em
+  "Comandos de Punição").
+- Verificado com `node --check` nos 10 arquivos novos/alterados; um
+  smoke-test de `require()` de todos os módulos novos contra o banco
+  de dados de verdade (confirmando que a tabela nova é criada sem
+  erro); um script de teste isolado (não commitado) com 13 asserções
+  cobrindo `handlePresenceUpdate` (staff fica online, não-staff e bots
+  são ignorados, troca de sabor não reseta `started_at`, evento
+  repetido não altera nada, ordenação por tempo online, offline apaga
+  a sessão, `clearOnline` manual) e `formatDuration` (segundos/
+  minutos/horas/dias); e um `ejs.renderFile()` de `documentacao.ejs`
+  confirmando o card novo, os textos de permissão e a nota sobre reset
+  no restart nos 2 idiomas.
+- NÃO implementado (fora do pedido): nenhuma tentativa de "recuperar"
+  o tempo online de antes do boot (impossível sem a API do Discord
+  guardar isso — ver limitação documentada acima); nenhum gate de tier
+  premium (ver decisão acima); nenhuma exibição de staff OFFLINE na
+  resposta (só quem está online agora, mais o total configurado como
+  contexto).

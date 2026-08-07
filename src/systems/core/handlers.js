@@ -110,7 +110,7 @@ class InteractionHandler {
         // cobre roles/logs/punishments (interaction.commandName é sempre o
         // nome do comando pai, nunca o nome do subcomando).
         const ephemeralCommands = [
-            'strike', 'unstrike', 'repset',
+            'strike', 'unstrike', 'repset', 'staffonline',
             'config',
             'botstatus', 'potserver',
             // 'perfil' SAIU desta lista de propósito — pedido do dono pra

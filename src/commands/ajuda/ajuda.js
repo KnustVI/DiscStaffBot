@@ -74,6 +74,7 @@ function buildPageSetupModeration(guildName, emojis) {
         '• **/unstrike** — Anula punição e restaura pontos',
         '• **/historico** — Consulta ficha completa do usuário',
         '• **/repset** — Ajuste manual de reputação',
+        '• **/staffonline** — Mostra quais staffs (Moderador/Supervisor) estão online no Discord agora, e há quanto tempo',
     ]);
     builder.separator();
 
