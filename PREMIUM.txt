@@ -5834,3 +5834,50 @@ frente, nao so este relatorio):
   que `memberHasConfiguredRole(..., 'staff_role')` sozinha continua com
   o comportamento antigo intacto (função separada, não alterada) pra
   quem ainda precisar checar Moderador especificamente.
+
+125) Ajustes visuais no editor de Níveis de Punição (site): lista sempre
+     em ordem de severidade + campos do formulário mais altos + label
+     de Duração alinhado
+------------------------------------------------------------------
+- Pedido do dono, olhando o print do editor de níveis (moderacao.ejs):
+  "na lista de niveis criados deixar sempre eles em ordem de
+  severidade. E na criação os campos de preenchimento pode ser um
+  pouco mais altos para não ter o texto tão expremido, então ponha uma
+  margem nas laterais e verticais do campo para o texto. O campo de
+  duração não esta alinhado por ter uma descrição de exemplo, coloque
+  essa descrição abaixo do campo e alinhe ele com os outros."
+- Ordem por severidade: `PunishmentLevels.getLevels(guildId)`
+  (`src/systems/moderation/punishmentLevels.js`) buscava do banco só
+  com `ORDER BY created_at ASC` (ordem de criação) — agora ordena
+  também por severidade (Leve→Moderada→Grave→Severa, mesma ordem de
+  `SEVERITY_OPTIONS`, fonte única já usada no resto do arquivo),
+  mantendo `created_at ASC` como critério de desempate dentro da mesma
+  severidade (sort estável do V8/Node, sem precisar de comparador
+  secundário explícito). Corrigido NA FONTE (não só no template
+  `moderacao.ejs`) porque essa mesma função também alimenta o painel
+  Discord `/config punishments` (`configSystem.js` refreshPointsPanel)
+  e o autocomplete de `/strike` — os 3 lugares passam a mostrar a
+  mesma ordem, de graça.
+- Campos mais altos: `.level-form-grid .input-premium-field` (só
+  dentro do formulário de Criar/Editar Nível, não
+  `.input-premium-field` geral) ganhou `padding: 11px 16px` — antes
+  era só `padding: 0 15px` (herdado da regra geral, pensada pra campos
+  COM `.icon-box` do lado definindo a altura de 45px; este formulário
+  não usa `.icon-box`, então a caixa ficava fina, só do tamanho da
+  fonte, texto colado nas bordas).
+- Duração alinhada: o `<label>` "Duração (ex: 10m, 1h, 3d — vazio =
+  perm.)" era o único com texto longo o bastante pra quebrar em 2
+  linhas dentro da coluna do grid, empurrando só aquele input mais pra
+  baixo que os campos vizinhos na mesma linha (Nome/Severidade/Pontos/
+  Ação, labels curtos de 1 linha só). Virou só "Duração" (curto, igual
+  aos outros), e o texto de exemplo foi pra um `<span class="level-
+  form-hint">` NOVO, abaixo da caixa do campo — mesma mudança feita
+  nos dois formulários (Criar E Editar, cada nível tem o seu).
+- Verificado com `node --check` em `punishmentLevels.js`; um script de
+  teste isolado (não commitado) contra o banco de dados de verdade
+  confirmando a ordem por severidade com desempate por `created_at`
+  correto; e um `ejs.renderFile()` de `moderacao.ejs` confirmando que
+  o label de Duração não tem mais o texto de exemplo embutido, que o
+  `level-form-hint` aparece uma vez por formulário (Criar + 1 por
+  nível existente no Editar), e que a ordem de severidade renderizada
+  no HTML bate com a esperada.

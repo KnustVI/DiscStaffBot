@@ -536,6 +536,19 @@ summary.btn-chip::marker { content: ''; }
 }
 .level-form-grid label { font-size: 11px; opacity: 0.6; display: block; margin-bottom: 4px; }
 .level-form-grid .input-container-premium { max-width: none; margin-bottom: 8px; }
+/* Sem .icon-box do lado (diferente do resto do site), a altura da caixa
+   vem só do padding do próprio input — estava com padding:0 15px (só
+   lateral), texto colado em cima/embaixo. Pedido do dono: "campos de
+   preenchimento pode ser um pouco mais altos... margem nas laterais e
+   verticais" — só aqui, não em .input-premium-field geral (que já tem
+   sua própria altura definida por .icon-box no resto do dashboard). */
+.level-form-grid .input-premium-field { padding: 11px 16px; }
+/* Texto de exemplo (ex: "10m, 1h, 3d — vazio = perm.") movido pra baixo
+   do campo em vez de dentro do <label> — pedido do dono: o label de
+   Duração era o único com 2 linhas, empurrando aquele input mais pra
+   baixo que os campos vizinhos na mesma linha do grid (label mais curto
+   = todos os inputs alinham pelo topo). */
+.level-form-grid .level-form-hint { display: block; font-size: 10px; opacity: 0.4; margin-top: 2px; margin-bottom: 4px; }
 .level-form-actions { display: flex; gap: 10px; margin-top: 4px; }
 
 /* Botão Salvar Específico da Imagem */

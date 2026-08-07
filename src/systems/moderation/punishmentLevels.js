@@ -25,8 +25,18 @@ const SEVERITY_ICONS = {
     Severa: EMOJIS.severidadealta || '🔴',
 };
 
+/**
+ * Sempre em ordem de severidade (Leve->Severa, mesma ordem de
+ * SEVERITY_OPTIONS) — pedido do dono, 2026-08-07: a lista de níveis (site
+ * e painel /config punishments) estava em ordem de criação, misturando
+ * severidades sem padrão nenhum. Empate na mesma severidade cai pra
+ * created_at ASC (ordem de criação), mesmo critério de antes. Ordenado em
+ * JS (não SQL) porque SEVERITY_OPTIONS já é a fonte única da ordem usada
+ * em todo o resto do arquivo — evita duplicar a mesma ordem num CASE WHEN.
+ */
 function getLevels(guildId) {
-    return db.prepare(`SELECT * FROM punishment_levels WHERE guild_id = ? ORDER BY created_at ASC`).all(guildId);
+    const levels = db.prepare(`SELECT * FROM punishment_levels WHERE guild_id = ? ORDER BY created_at ASC`).all(guildId);
+    return levels.sort((a, b) => SEVERITY_OPTIONS.indexOf(a.severity) - SEVERITY_OPTIONS.indexOf(b.severity));
 }
 
 function getLevel(guildId, levelId) {
