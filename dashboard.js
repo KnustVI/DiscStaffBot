@@ -1120,12 +1120,18 @@ function loadDashboard(client) {
     //
     // O conversor Ossos<->Marks (pedido do dono, 2026-08-07: "adicione um
     // sistema de conversor de moedas") é FUNCIONAL DE VERDADE — ver
-    // PREMIUM.txt seção 122/currencySystem.js: saldo real
+    // PREMIUM.txt seção 122/123/currencySystem.js: saldo real
     // (player_links.bones_balance) + RCON de verdade contra o servidor
     // de jogo escolhido. Precisa do jogador estar vinculado (/registrar)
-    // pra saber o Alderon ID a mirar no RCON, e de pelo menos um
-    // servidor jogado (getPlayedGuilds, mesma fonte já usada no /perfil)
-    // pra escolher ONDE creditar/remover os Marks.
+    // pra saber o Alderon ID a mirar no RCON, de pelo menos um servidor
+    // jogado (getPlayedGuilds, mesma fonte já usada no /perfil) pra
+    // escolher ONDE creditar/remover os Marks, e de estar ONLINE nesse
+    // servidor agora (confirmado pelo dono: addmarks só funciona online,
+    // e o conversor como um todo exige isso — checado em
+    // currencySystem.js._resolveTarget). O texto cru que o RCON devolveu
+    // (?resposta=) é repassado pro template pra transparência, já que um
+    // `removemarks` "bem sucedido" no transporte não garante saldo
+    // suficiente no jogo (ver comentário no topo de currencySystem.js).
     app.get('/loja', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
@@ -1161,6 +1167,7 @@ function loadDashboard(client) {
             convertResult: req.query.convertido || null,
             convertError: req.query.erro || null,
             convertAmount: req.query.valor || null,
+            convertRconResponse: req.query.resposta || null,
         });
     });
 
@@ -1177,7 +1184,7 @@ function loadDashboard(client) {
         const amount = parseInt(quantidade, 10);
         const result = await CurrencySystem.convertBonesToMarks(client, req.user.id, guildId, amount);
         if (result.ok) {
-            return res.redirect(`/loja?convertido=ossos-marks&valor=${result.marksCredited}`);
+            return res.redirect(`/loja?convertido=ossos-marks&valor=${result.marksCredited}&resposta=${encodeURIComponent(result.rconResponse || '')}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });
@@ -1188,7 +1195,7 @@ function loadDashboard(client) {
         const amount = parseInt(quantidade, 10);
         const result = await CurrencySystem.convertMarksToBones(client, req.user.id, guildId, amount);
         if (result.ok) {
-            return res.redirect(`/loja?convertido=marks-ossos&valor=${result.bonesCredited}`);
+            return res.redirect(`/loja?convertido=marks-ossos&valor=${result.bonesCredited}&resposta=${encodeURIComponent(result.rconResponse || '')}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });

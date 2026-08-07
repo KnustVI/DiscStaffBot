@@ -5699,3 +5699,75 @@ frente, nao so este relatorio):
   jeito de um jogador ter saldo de Ossos pra converter é alguém
   creditar manualmente no banco (não existe comando/painel pra isso
   ainda tampouco).
+
+123) Conversor Ossos<->Marks: exigência de jogador ONLINE + resposta
+     real do RCON exibida pro jogador (fecha os pontos em aberto da
+     seção 122)
+------------------------------------------------------------------
+- Pedido do dono, com o comando `addmarks`/`removemarks` reais em mãos:
+  "Importante ressalva o comando addmarks só funciona se o jogador
+  estiver online no servidor. E nos temos o comando /removemarks
+  [user/AGID] [number] [...] Use ele para remover marks, se o jogador
+  não tiver a quantidade o comando não aplica, rcon deve enviar
+  resposta sobre isso também. E o jogador tem q ta online para usar o
+  conversor."
+- `/removemarks [user/AGID] [number]` confirma a sintaxe que já estava
+  implementada desde a seção 122 (`r.target`, ou seja Alderon ID, não
+  nome em jogo) — nenhuma mudança necessária em
+  `rconCommandCatalog.js` pra isso.
+- NOVO: `currencySystem.js._resolveTarget` ganha um terceiro checkpoint
+  (além de vínculo/`registrar` e plano Caçador) — `jogador ONLINE` no
+  servidor de jogo escolhido, via `PlayerRegistry.getOnlinePotPlayer
+  (guildId, alderonId)` (função já existente, mesma usada por
+  `/ingame-buff`, `eventTeleportSystem.js` e o fluxo de verificação do
+  `/registrar` — só reaproveitada aqui, nada novo no registro
+  online/offline em si, que já vem dos webhooks PlayerLogin/
+  PlayerLogout). Se não estiver online, as duas direções (Ossos→Marks
+  E Marks→Ossos) retornam erro ANTES de debitar/creditar qualquer
+  saldo ou disparar RCON — atende tanto "addmarks só funciona online"
+  quanto "o jogador tem que tá online para usar o conversor" (o pedido
+  cobre as duas direções, não só addmarks).
+- NOVO: confirmação de que `removemarks` "não aplica" silenciosamente
+  quando o jogador não tem saldo suficiente — o RCON ainda responde
+  `success: true` no nível de transporte (o comando rodou), só que sem
+  efeito nenhum no jogo. Como não existe "getmarks" pra checar o saldo
+  antes (mesma limitação já documentada na seção 122), a mitigação
+  escolhida foi TRANSPARÊNCIA em vez de tentar adivinhar: `sendCommand`
+  (`rconClient.js`) já devolvia o texto cru da resposta do jogo em
+  `response` (nunca era usado); agora `convertBonesToMarks` e
+  `convertMarksToBones` repassam esse texto como `rconResponse` no
+  resultado, `dashboard.js` carrega ele na query string do redirect
+  (`?resposta=`) e `loja.ejs` mostra ele dentro do banner de sucesso
+  ("Resposta do jogo: ...") — o jogador/staff vê exatamente o que o
+  jogo respondeu em vez de confiar cegamente num "convertido com
+  sucesso" genérico. Isso vale pras 2 direções (não só Marks→Ossos),
+  já que agora as duas passam a expor a resposta crua.
+- Texto de aviso do formulário Marks→Ossos em `loja.ejs` foi reescrito:
+  antes dizia "não conseguimos checar seu saldo real de Marks", o que
+  ficou impreciso com a informação nova — hoje o jogo CHECA sim (do
+  lado dele), só não avisa o bot de forma estruturada. Novo texto:
+  "o próprio jogo confere seu saldo de Marks: se você não tiver o
+  suficiente, a conversão não credita nenhum Osso. Confira a resposta
+  do jogo depois de converter pra ter certeza." — mais uma linha fixa
+  avisando que é preciso estar online pra converter.
+- Doc-comments de `currencySystem.js` (topo do arquivo + JSDoc das 2
+  funções) reescritos pra não afirmar mais que o bot "confia cegamente"
+  no valor informado — a confiança agora é mitigada pela resposta
+  exibida, mesmo sem parsing/regex em cima dela (o texto exato de uma
+  rejeição por saldo insuficiente nunca foi confirmado contra servidor
+  real, então não dá pra automatizar essa detecção com segurança ainda;
+  só exibição transparente do que o jogo mandou).
+- Verificado com `node --check` em `currencySystem.js`/`dashboard.js` e
+  um `ejs.renderFile()` de `loja.ejs` cobrindo 7 cenários (sem vínculo,
+  vinculado sem servidor, formulário completo, sucesso Ossos→Marks com
+  resposta do RCON, sucesso Marks→Ossos com resposta do RCON, sucesso
+  sem texto de resposta, banner de erro) — todos renderizaram sem
+  exceção, com o aviso de "precisa estar online" presente em todos e o
+  texto da resposta do RCON/erro aparecendo corretamente quando
+  informado.
+- NÃO implementado (fora do pedido): nenhum parsing/regex sobre o texto
+  de resposta do RCON pra detectar programaticamente "saldo
+  insuficiente" — o texto exato dessa rejeição nunca foi confirmado
+  contra um servidor real, então qualquer tentativa de automação seria
+  um chute. Fica como possível próximo passo se o dono confirmar o
+  texto exato que o jogo devolve nesse caso.

@@ -18,11 +18,21 @@
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
     avatars, backgrounds, badges, isLinked, bonesBalance, marksPerBone,
-    playedGuilds, convertResult, convertError, convertAmount }) — as 3
-    listas de imagens são o mesmo pool dinâmico do /perfil-edit (só as
-    PÚBLICAS), reaproveitado aqui como inventário de EXEMPLO da Loja de
-    Personalização em vez de itens inventados — ver dashboard.js GET
-    /loja.
+    playedGuilds, convertResult, convertError, convertAmount,
+    convertRconResponse }) — as 3 listas de imagens são o mesmo pool
+    dinâmico do /perfil-edit (só as PÚBLICAS), reaproveitado aqui como
+    inventário de EXEMPLO da Loja de Personalização em vez de itens
+    inventados — ver dashboard.js GET /loja.
+
+  Regras confirmadas pelo dono 2026-08-07 (ver PREMIUM.txt seção 123):
+  jogador precisa estar ONLINE no servidor de jogo pras 2 direções
+  (addmarks só funciona online; o conversor como um todo exige isso),
+  checado no back-end (currencySystem.js) — aqui só existe o aviso de
+  texto. `removemarks` (Marks->Ossos) é validado pelo PRÓPRIO JOGO: se o
+  jogador não tiver saldo suficiente, o comando não aplica, mas ainda
+  assim retorna sucesso no nível de RCON — por isso convertRconResponse
+  mostra o texto cru que o jogo devolveu, pro jogador conferir de
+  verdade em vez de confiar cegamente no "convertido com sucesso".
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -281,13 +291,19 @@
             conversor de moedas de ossos para marks... converter 100
             marks em 1 osso"), diferente do resto (ainda só prévia). Taxa
             de 1 Osso pra N Marks (valor de marksPerBone, hoje 100) nas 2
-            direções — ver currencySystem.js/PREMIUM.txt seção 122. Precisa de vínculo
-            (/registrar, pra saber o Alderon ID a mirar no RCON) e pelo
+            direções — ver currencySystem.js/PREMIUM.txt seção 122/123. Precisa de vínculo
+            (/registrar, pra saber o Alderon ID a mirar no RCON), pelo
             menos 1 servidor jogado (playedGuilds — RCON precisa saber
-            ONDE creditar/remover os Marks); sem isso, mostra um aviso em
-            vez do formulário. Resultado da última conversão (sucesso ou
-            erro) vem via query string (?convertido=/?erro=), preenchida
-            pelo redirect das 2 rotas POST em dashboard.js.
+            ONDE creditar/remover os Marks) e estar ONLINE nesse servidor
+            na hora de converter (checado no back-end, ver seção 123);
+            sem vínculo/servidor jogado, mostra um aviso em vez do
+            formulário — não dá pra checar "está online agora" aqui no
+            GET sem custar uma consulta extra a cada carregamento da
+            página, então esse caso só aparece como erro depois de tentar
+            o POST. Resultado da última conversão (sucesso ou erro) vem
+            via query string (?convertido=/?erro=/?resposta=), preenchida
+            pelo redirect das 2 rotas POST em dashboard.js — ?resposta=
+            carrega o texto cru que o RCON devolveu, pra transparência.
         %>
         <section class="titan-card-premium flex-col gap-4">
             <div>
@@ -298,6 +314,7 @@
                 <p class="text-[13px] opacity-50 mt-1">
                     <span data-i18n-pt>Taxa: 1 Osso = <%= marksPerBone %> Marks, nos dois sentidos. Seu saldo atual: </span><span data-i18n-en>Rate: 1 Bone = <%= marksPerBone %> Marks, both ways. Your current balance: </span><strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong>.
                 </p>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Você precisa estar online no servidor de jogo escolhido pra converter.</span><span data-i18n-en>You need to be online on the chosen game server to convert.</span></p>
             </div>
 
             <% if (convertResult) { %>
@@ -310,6 +327,9 @@
                                 <span data-i18n-pt><%= convertAmount %> Marks creditados no jogo.</span><span data-i18n-en><%= convertAmount %> Marks credited in-game.</span>
                             <% } else { %>
                                 <span data-i18n-pt><%= convertAmount %> Ossos creditados no seu saldo.</span><span data-i18n-en><%= convertAmount %> Bones credited to your balance.</span>
+                            <% } %>
+                            <% if (convertRconResponse) { %>
+                                <br><span data-i18n-pt>Resposta do jogo: </span><span data-i18n-en>Game response: </span>"<%= convertRconResponse %>"
                             <% } %>
                         </span>
                     </div>
@@ -362,7 +382,7 @@
                             <input type="number" name="quantidade" class="input-premium-field" min="<%= marksPerBone %>" step="<%= marksPerBone %>" required>
                         </div>
                         <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Ossos</span><span data-i18n-en>Convert to Bones</span></button>
-                        <p class="text-[11px] opacity-40 mt-2"><span data-i18n-pt>⚠️ Não conseguimos checar seu saldo real de Marks no jogo antes de converter — informe um valor que você realmente tem.</span><span data-i18n-en>⚠️ We can't verify your real in-game Marks balance before converting — only enter an amount you actually have.</span></p>
+                        <p class="text-[11px] opacity-40 mt-2"><span data-i18n-pt>⚠️ O próprio jogo confere seu saldo de Marks: se você não tiver o suficiente, a conversão não credita nenhum Osso. Confira a resposta do jogo depois de converter pra ter certeza.</span><span data-i18n-en>⚠️ The game itself checks your Marks balance: if you don't have enough, the conversion won't credit any Bones. Check the game's response after converting to be sure.</span></p>
                     </form>
                 </div>
             <% } %>
