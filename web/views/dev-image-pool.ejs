@@ -173,11 +173,18 @@
             <section class="titan-card-premium flex-col gap-4">
                 <h2 class="section-title text-lg"><%= group.label %> (<%= group.images.length %>)</h2>
 
-                <form class="pool-upload-form" action="/dev/image-pool/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
-                    <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
-                    <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
-                    <button type="submit" class="pool-upload-submit">Adicionar</button>
-                </form>
+                <% if (group.type === 'titulo') { %>
+                    <form class="pool-upload-form" action="/dev/image-pool/titulo/add" method="POST">
+                        <input type="text" name="titulo" placeholder="Texto do título" maxlength="80" required>
+                        <button type="submit" class="pool-upload-submit">Adicionar</button>
+                    </form>
+                <% } else { %>
+                    <form class="pool-upload-form" action="/dev/image-pool/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
+                        <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
+                        <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
+                        <button type="submit" class="pool-upload-submit">Adicionar</button>
+                    </form>
+                <% } %>
 
                 <% if (group.images.length === 0) { %>
                     <p class="text-sm opacity-40">Nenhuma imagem cadastrada ainda.</p>
@@ -185,8 +192,14 @@
                     <div class="pool-grid">
                         <% group.images.forEach(img => { %>
                             <div class="pool-item">
-                                <div class="pool-item-thumb" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"></div>
-                                <span class="pool-item-label"><%= img.label %></span>
+                                <% if (group.type === 'titulo') { %>
+                                    <div class="pool-item-thumb flex items-center justify-center text-center p-2">
+                                        <span class="pool-item-label !whitespace-normal"><%= img.label %></span>
+                                    </div>
+                                <% } else { %>
+                                    <div class="pool-item-thumb" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"></div>
+                                    <span class="pool-item-label"><%= img.label %></span>
+                                <% } %>
                                 <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                                 <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
                                 <div class="pool-item-actions">

@@ -43,6 +43,22 @@ function buildPageWelcome(displayName, guildName, emojis, isAdmin) {
             ? `Olá **${displayName}**! Este é o guia do bot em **${guildName}** — use o menu abaixo pra escolher o tópico que você procura.`
             : `Olá **${displayName}**! Sou o sistema de gestão de **${guildName}** — use o menu abaixo pra escolher o tópico que você procura.`
     );
+
+    // Registro (pedido do dono, 2026-08-07: "No comando de ajuda em
+    // inicio, adicione as forma de registro do jogador, para todos
+    // verem") — antes só aparecia no tópico "Membros" (buildPageUserSimple,
+    // não visto por administradores). Fica aqui na página de boas-vindas,
+    // compartilhada por QUALQUER pessoa que abre /ajuda (admin ou não),
+    // pra garantir que todo mundo vê logo de cara, não só quem cai no
+    // tópico de membro comum.
+    builder.separator();
+    builder.title(`${emojis.idcard || '🆔'} Registro (/registrar e /perfil)`, 2);
+    builder.block([
+        '• **/registrar** vincula seu Discord ao seu Alderon ID (Path of Titans).',
+        '• **Esse vínculo é global** — faça uma vez só e ele vale em qualquer servidor que tiver o bot, não precisa repetir em cada comunidade.',
+        '• **/perfil** mostra seu cartão de jogador (ou o de outra pessoa).',
+    ]);
+
     builder.footer(guildName);
     return builder;
 }
@@ -74,7 +90,7 @@ function buildPageSetupModeration(guildName, emojis) {
         '• **/unstrike** — Anula punição e restaura pontos',
         '• **/historico** — Consulta ficha completa do usuário',
         '• **/repset** — Ajuste manual de reputação',
-        '• **/staffonline** — Mostra quais staffs (Moderador/Supervisor) estão online no Discord agora, e há quanto tempo',
+        '• **/staffonline** — Mostra quais staffs (Moderador/Supervisor) estão online AGORA NO JOGO (Path of Titans), e há quanto tempo',
     ]);
     builder.separator();
 
@@ -151,14 +167,10 @@ function buildPageUserSimple(displayName, guildName, emojis) {
         '• Infrações reduzem sua pontuação; bom comportamento (sem punições) recupera pontos automaticamente com o tempo.',
         '• Reputação muito baixa ou muito alta pode te dar (ou tirar) cargos automáticos (só no plano Caçador).',
     ]);
-    builder.separator();
-
-    builder.title(`${emojis.idcard || '🆔'} Registro (/registrar e /perfil)`, 2);
-    builder.block([
-        '• **/registrar** vincula seu Discord ao seu Alderon ID (Path of Titans).',
-        '• **Esse vínculo é global** — faça uma vez só e ele vale em qualquer servidor que tiver o bot, não precisa repetir em cada comunidade.',
-        '• **/perfil** mostra seu cartão de jogador (ou o de outra pessoa).',
-    ]);
+    // Registro (/registrar e /perfil) foi pra página de boas-vindas
+    // (buildPageWelcome, ver seção "Registro" lá) — visível pra QUALQUER
+    // pessoa que abre /ajuda, não só quem cai neste tópico específico de
+    // membro comum, então não repete aqui.
 
     builder.footer(guildName);
     return builder;

@@ -247,6 +247,23 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   descrição de como cada moeda funciona; o que continua só prévia é
   GASTAR essas moedas (compras em si, incluindo o catálogo de bônus).
 
+PENDENTE (pedido do dono, 2026-08-07, ainda NÃO implementado - anotado a
+pedido explícito do dono, "essa tarefa é grande, apenas anote ela como
+pendente"): a Loja de Personalização vai abrir pra QUALQUER jogador
+comprar imagens (avatar/plano de fundo/badge) com Caçadas e guardar no
+INVENTÁRIO próprio - Compy já poderia usar as imagens já cadastradas no
+pool (como já combinado antes), mas o fluxo de COMPRA/inventário em si
+ainda não existe. Precisa de: (1) uma configuração nova no pool de
+imagens (`/perfil-pool`/`dev-image-pool.ejs`) pro dono gerenciar cada
+imagem como "item de loja" - preço em Caçadas, e uma regra por imagem de
+quem PODE USAR ela (ex: só Compy+) vs quem só pode COMPRAR pro
+inventário mas não necessariamente usar ainda (ou algum outro corte -
+detalhar melhor quando for implementar); (2) uma tabela nova de
+inventário por jogador (o que cada um comprou); (3) o fluxo de compra em
+si na `/loja` (hoje só prévia visual, sem botão de comprar funcional).
+Sem escopo técnico definido ainda - só a intenção registrada aqui pra não
+perder o pedido.
+
 
 2) SERVER PREMIUM (por servidor Discord)
 ------------------------------------------------
@@ -6620,3 +6637,110 @@ frente, nao so este relatorio):
   tem mais o botão antigo; o item "Histórico" aparece na sidebar de
   `perfil-historico.ejs` com a classe `active` aplicada (confirma o
   destaque visual funcionando). `node --check` em `dashboard.js`.
+
+------------------------------------------------------------------
+137) /staffonline passa a checar presença NO JOGO (não mais Discord) +
+     pool de imagens ganha um tipo de TEXTO (títulos) + botão de Perfil
+     explícito nas 2 sidebars + data de registro e cargo de staff no
+     /perfil (site e Discord) + /ajuda menciona /registrar pra todo mundo
+------------------------------------------------------------------
+- Pedido do dono (2026-08-07), lista grande de pedidos numa mensagem só:
+  "Comando staffonline deve verificar se o staff esta online no jogo e
+  não no discord." + "Adicione o botão perfil nas duas sidebars pois
+  acho que não esta intuitivo que o usuário pode usar o avatar dele de
+  botão." + "Registre a data de registro dos jogadores, adicione ao
+  perfil no site e no discord." + "Quando um usuário tiver o cargo staff
+  configurado no discord, adicionar esse cargo ao perfil dele no site e
+  no discord." + "No pool de imagens, adicione uma forma de adicionar
+  titulos tambem." + "No comando de ajuda em inicio, adicione as forma
+  de registro do jogador, para todos verem." Mais 3 itens da mesma
+  mensagem já vieram RESOLVIDOS sem precisar de código (checado antes de
+  mexer em qualquer coisa): "Gráficos no site em tempo real" já existe
+  de verdade desde antes (donut cluster de Moderação/Eventos/Denúncias,
+  poll de 15s via `ingame-pulse-poll.js` contra `getServerPulse` — sem
+  cache, dado sempre fresco do banco); "paginação em /config
+  punishments" e "paginação no relatório de combate" pro erro
+  `COMPONENT_MAX_TOTAL_COMPONENTS_EXCEEDED` já tinham sido corrigidos
+  (seção 132, hoje mesmo, e num commit de 2026-07-11, respectivamente) —
+  confirmado via leitura do código + git log, nenhuma mudança nova
+  precisou entrar. Por fim, "a loja vai ser permitida a qualquer
+  jogador... pool de imagens vira itens de loja com permissão de uso"
+  foi anotada como PENDENTE só (pedido explícito do dono: "essa tarefa é
+  grande, apenas anote ela como pendente") — ver bloco PENDENTE na seção
+  1 deste arquivo, nenhum código escrito pra isso ainda.
+- /STAFFONLINE (`src/commands/moderation/staffonline.js`, reescrito):
+  antes checava presença do DISCORD (online/ausente/não perturbe, via
+  `staffPresenceSystem.js`/`presenceUpdate`); agora cruza `player_links`
+  (vínculo Discord↔Alderon ID) com `pot_players.is_online` (populado ao
+  vivo pelos webhooks PlayerLogin/PlayerLogout/PlayerLeave do Path of
+  Titans), sempre escopado ao servidor atual. 3 estados em vez de 2:
+  online no jogo, vinculado mas offline, ou nunca vinculou o Discord
+  (sem sinal de presença possível pra esse caso, mostrado como "Não
+  vinculado"). `staffPresenceSystem.js` continua intacto (não é mais a
+  fonte do status, mas `formatDuration` é reaproveitado por ser um
+  formatador genérico). Texto do comando (`/ajuda` e
+  `documentacao.ejs`) atualizado nos dois lugares pra não dizer mais
+  "online no Discord".
+- POOL DE IMAGENS GANHA TIPO 'titulo' (texto puro, não imagem) —
+  `src/systems/pot/profileImagePool.js`: `VALID_TYPES` ganha `'titulo'`;
+  pra essa entrada, a coluna `label` (já texto livre em todo tipo) vira
+  o PRÓPRIO TEXTO DO TÍTULO, e `message_id` é gravado como `''` (nunca
+  `null` — coluna é `TEXT NOT NULL`, mas string vazia satisfaz) já que
+  não existe attachment do Discord pra um título; `resolveImageUrl`/
+  `resolveImageBuffer` ganham um guard que devolve `null` na hora pra
+  esse tipo, sem tentar buscar mensagem nenhuma. Zero mudança de schema.
+  Gerenciável nos 2 lugares de sempre: `/perfil-pool add` (Discord, novo
+  branch que aceita a opção `texto` em vez de `imagem` quando
+  `tipo=titulo`) e `/dev/image-pool` (web, novo formulário de texto +
+  card sem thumbnail, só mostrando o texto). IMPORTANTE — escopo
+  deliberadamente limitado ao GERENCIAMENTO das opções: deixar o
+  jogador ESCOLHER um título deste pool (ex: Compy escolher por menu,
+  como já acontece com avatar/plano de fundo) NÃO foi implementado
+  nesta revisão — o texto livre via `/perfil-edit` (Raptor only,
+  `player_links.profile_title`) continua sendo o único jeito de
+  título hoje. Mensagem de sucesso do `/perfil-pool add` foi
+  redigida com cuidado pra não sugerir que a seleção já existe.
+- BOTÃO DE PERFIL NAS 2 SIDEBARS (`web/views/partials/sidebar-v2.ejs`) —
+  antes só existia o avatar clicável (`.tp-sidebar-avatar-btn`, continua
+  existindo do jeito que já era); agora também é um item normal de
+  `NAV_ITEMS` (`key: 'perfil'`, ícone `user`) nas 2 variantes (restrita
+  E completa), mesmo padrão dos outros itens (Loja/Histórico na
+  restrita; Moderação/Eventos na completa). `perfil.ejs` passa a usar
+  `active: 'perfil'` no include (antes `null`, sem item pra destacar).
+- DATA DE REGISTRO + CARGO DE STAFF NO /PERFIL (site e Discord) —
+  `player_links.registered_at` já existia e já era carimbado desde o
+  primeiro `/registrar` (nenhuma mudança de schema necessária), só
+  faltava EXIBIR: adicionado como "Registrado em: DD/MM/AAAA" (web,
+  `perfil.ejs`) e `<t:...:D> (<t:...:R>)` (Discord,
+  `playerRegistrationSystem.js#sendProfile`). Cargo de staff é NOVO —
+  função compartilhada `ConfigSystem.highestStaffRoleName`/
+  `staffRoleCategoryLabel` (`src/systems/core/configSystem.js`, mesma
+  lógica que já existia SÓ dentro de `dashboard.js` pro roster de
+  Moderação/Eventos, agora também disponível pro comando /perfil, que
+  não pode depender de `dashboard.js`) — mostra a(s) categoria(s)
+  configurada(s) em /config roles (Moderador/Supervisor/Equipe de
+  Eventos) que a pessoa ocupa NESTE servidor (Discord) ou em QUALQUER
+  servidor onde o bot a vê como membro (web, já que /perfil ali é
+  global — nova função `getStaffRoles` em `dashboard.js`, cache-only de
+  propósito, mesmo critério já aceito por `resolveStaffRoleLabel`: sem
+  fetch por servidor a cada carregamento de página). Cargo é sobre a
+  conta DISCORD, então aparece mesmo pra quem não vinculou ao Path of
+  Titans ainda (diferente da data de registro, que exige vínculo).
+- /AJUDA MENCIONA /REGISTRAR PRA TODO MUNDO (`src/commands/ajuda/ajuda.js`)
+  — o bloco "Registro (/registrar e /perfil)" antes só aparecia no
+  tópico de membro comum (`buildPageUserSimple`, nunca visto por
+  administradores); movido pra `buildPageWelcome`, a página de boas-
+  vindas compartilhada por QUALQUER pessoa que abre /ajuda (admin ou
+  não) — removida a duplicata do tópico de membro comum pra não repetir
+  o mesmo bloco dentro do mesmo comando.
+- Verificação: `node --check` em todos os arquivos `.js` tocados.
+  `profileImagePool.js` testado com um script isolado (não commitado)
+  contra o banco real: insere entrada `titulo`, confirma
+  `listImages('titulo')`/`resolveImageUrl`/`resolveImageBuffer`
+  corretos, remove no fim. `staffonline.js` testado com um script
+  isolado (não commitado) replicando a query de classificação com casos
+  sintéticos online/offline/não-vinculado, limpo no fim. `loja.ejs`/
+  `perfil.ejs`/`dev-image-pool.ejs` testados com `ejs.renderFile()`
+  (mocks, não commitado) cobrindo saldo de moeda, pills de cargo de
+  staff, data de registro presente/ausente, e grupo `titulo` no pool
+  (form de texto em vez de upload, card sem thumbnail).

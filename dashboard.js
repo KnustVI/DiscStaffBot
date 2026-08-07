@@ -311,6 +311,36 @@ function resolveStaffRoleLabel(client, guildId, userId) {
     return highestStaffRoleName(guildId, member) || 'Não é staff';
 }
 
+// Cargo(s) de staff configurado(s) (/config roles) do usuário logado, em
+// QUALQUER servidor onde o bot o vê como membro — pedido do dono,
+// 2026-08-07: "quando um usuário tiver o cargo staff configurado no
+// discord, adicionar esse cargo ao perfil dele no site". GLOBAL como o
+// resto do /perfil (mesmo espírito de getPlayedGuilds acima), reaproveita
+// highestStaffRoleName/staffRoleCategoryLabel já definidas nesta mesma
+// função — cache-only de propósito, mesmo critério já usado por
+// resolveStaffRoleLabel logo acima: iterar E buscar (fetch) o membro em
+// TODO servidor que o bot atende seria lento/bateria em rate limit à toa
+// num carregamento de página; se o membro não estiver em cache nalgum
+// servidor onde na verdade é staff, essa entrada simplesmente não aparece
+// (mesmo risco aceito já documentado ali).
+function getStaffRoles(userId, client) {
+    const roles = [];
+    for (const guild of client.guilds.cache.values()) {
+        const member = guild.members.cache.get(userId);
+        if (!member) continue;
+        const category = staffRoleCategoryLabel(guild.id, member);
+        if (category === '—') continue;
+        roles.push({
+            guildId: guild.id,
+            guildName: guild.name,
+            guildIconUrl: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
+            category,
+            roleName: highestStaffRoleName(guild.id, member),
+        });
+    }
+    return roles;
+}
+
 // Pedido do dono: "reports pode virar uma lista enorme no futuro" — cada
 // seção (abertos/fechados) pagina em REPORTS_PAGE_SIZE (10) e aceita busca
 // por report_id (ex: "R123"/"123", bate por substring no '#R'||report_number
@@ -878,6 +908,11 @@ function loadDashboard(client) {
         { type: 'background', label: 'Plano de Fundo' },
         { type: 'badge', label: 'Emblema' },
         { type: 'banner', label: 'Banner (Personalização)' },
+        // Único tipo texto (sem imagem) do pool — ver o comentário no topo de
+        // profileImagePool.js. A view trata esse type com um form de texto
+        // simples em vez do form de upload, e o card mostra o texto do
+        // título no lugar da thumbnail (não há imagem pra resolver).
+        { type: 'titulo', label: 'Título de Perfil' },
     ];
 
     app.get('/dev/image-pool', checkAuth, async (req, res) => {
@@ -936,6 +971,21 @@ function loadDashboard(client) {
             res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
         }
     );
+
+    // Adiciona uma entrada de título (type==='titulo') — único tipo do pool
+    // que é texto puro, sem attachment nenhum pra subir, então tem sua
+    // própria rota em vez de passar pelo upload multer acima (ver
+    // profileImagePool.js pro porquê de messageId ser '' e não null).
+    app.post('/dev/image-pool/titulo/add', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const text = (req.body.titulo || '').trim();
+        let ok = false;
+        if (text) {
+            ProfileImagePool.addImage('titulo', text, '', req.user.id);
+            ok = true;
+        }
+        res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+    });
 
     // Remove de verdade (diferente do toggle, que só esconde) — mesmo
     // efeito de /perfil-pool remover no Discord, só que pelo dashboard.
@@ -1173,6 +1223,10 @@ function loadDashboard(client) {
         // abaixo porque o selo .perfil-hunt-pill no topo do card aparece
         // pra QUALQUER usuário logado, vinculado ou não.
         const huntBalance = PlayerRegistry.getHuntBalance(userId);
+        // Cargo(s) de staff configurado(s) (pedido do dono, 2026-08-07) —
+        // não depende de `link` (é sobre a conta Discord, não sobre o
+        // vínculo PoT), ver getStaffRoles acima.
+        const staffRoles = getStaffRoles(userId, client);
 
         let honorStars = null;
         let mostPlayedDinosaur = null;
@@ -1230,6 +1284,7 @@ function loadDashboard(client) {
             mostPlayedDinosaur,
             kdStats,
             huntBalance,
+            staffRoles,
             playedGuilds,
             badgeOptions,
             avatarOptions,

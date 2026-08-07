@@ -40,8 +40,9 @@ const TYPE_CHOICES = [
     { name: 'Plano de fundo', value: 'background' },
     { name: 'Emblema', value: 'badge' },
     { name: 'Banner (Personalização)', value: 'banner' },
+    { name: 'Título de Perfil (texto)', value: 'titulo' },
 ];
-const TYPE_LABELS = { avatar: 'Avatar', background: 'Plano de fundo', badge: 'Emblema', banner: 'Banner (Personalização)' };
+const TYPE_LABELS = { avatar: 'Avatar', background: 'Plano de fundo', badge: 'Emblema', banner: 'Banner (Personalização)', titulo: 'Título de Perfil' };
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -53,10 +54,11 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(sub => sub
             .setName('add')
-            .setDescription('Adiciona uma nova imagem a um dos pools')
+            .setDescription('Adiciona uma nova imagem (ou título de texto) a um dos pools')
             .addStringOption(opt => opt.setName('tipo').setDescription('Qual pool').setRequired(true).addChoices(...TYPE_CHOICES))
-            .addStringOption(opt => opt.setName('nome').setDescription('Nome de exibição (aparece no menu de escolha)').setRequired(true))
-            .addAttachmentOption(opt => opt.setName('imagem').setDescription('Imagem (png, jpg ou webp — sem gif)').setRequired(true)))
+            .addStringOption(opt => opt.setName('nome').setDescription('Nome de exibição (aparece no menu de escolha) — não usado pro tipo \'titulo\'').setRequired(true))
+            .addAttachmentOption(opt => opt.setName('imagem').setDescription('Imagem (png, jpg ou webp — sem gif) — obrigatória, exceto pro tipo \'titulo\'').setRequired(false))
+            .addStringOption(opt => opt.setName('texto').setDescription('Texto do título (só pro tipo \'titulo\')').setRequired(false)))
         .addSubcommand(sub => sub
             .setName('remover')
             .setDescription('Remove uma imagem de um dos pools')
@@ -90,31 +92,57 @@ module.exports = {
         if (sub === 'add') {
             const nome = interaction.options.getString('nome');
             const imagem = interaction.options.getAttachment('imagem');
-            const result = await uploadAndStoreImage(client, imagem, `${tipoLabel} (pool) — "${nome}" adicionado por \`${user.tag}\``);
+            const texto = interaction.options.getString('texto');
 
-            if (!result.ok) {
-                builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                    .text(`${EMOJIS.circlealert || '❌'} ${result.error}`);
-            } else {
-                const row = ProfileImagePool.addImage(tipo, nome, result.messageId, user.id);
-                db.logActivity(null, user.id, 'perfil_pool_add', null, { tipo, id: row.id, nome });
-
-                let availabilityNote;
-                if (tipo === 'badge') {
-                    availabilityNote = 'Já aparece no menu de escolha do `/perfil-edit` em QUALQUER tier (Emblema é liberado pra todos).';
-                } else if (tipo === 'banner') {
-                    availabilityNote = 'Já aparece na galeria de banner do `/config personalizar` (Strike/Unstrike/Report-Chat) pra servidores Caçador, no Discord e no dashboard.';
+            if (tipo === 'titulo') {
+                // Tipo texto puro (sem attachment) — ver o comentário no topo
+                // de profileImagePool.js. 'nome' não é usado aqui: o próprio
+                // 'texto' vira o label da entrada.
+                if (!texto) {
+                    builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                        .text(`${EMOJIS.circlealert || '❌'} Informe a opção \`texto\` com o texto do título (o tipo **${tipoLabel}** não usa imagem).`);
                 } else {
-                    availabilityNote = 'Já aparece no menu de escolha do `/perfil-edit` pra jogadores Player Premium Compy ou superior.';
-                }
+                    const row = ProfileImagePool.addImage('titulo', texto, '', user.id);
+                    db.logActivity(null, user.id, 'perfil_pool_add', null, { tipo, id: row.id, texto });
 
-                builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
-                    .text([
-                        `# ${tipoLabel.toUpperCase()} ADICIONADO AO POOL`,
-                        `**ID:** \`${row.id}\``,
-                        `**Nome:** ${nome}`,
-                        availabilityNote,
-                    ].join('\n'));
+                    builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
+                        .text([
+                            `# ${tipoLabel.toUpperCase()} ADICIONADO AO POOL`,
+                            `**ID:** \`${row.id}\``,
+                            `**Texto:** ${texto}`,
+                            'Entrada salva no pool (também gerenciável pelo dashboard em `/dev/image-pool`) — deixar o jogador ESCOLHER um título deste pool ainda não está implementado, isso aqui é só o gerenciamento das opções.',
+                        ].join('\n'));
+                }
+            } else if (!imagem) {
+                builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                    .text(`${EMOJIS.circlealert || '❌'} A opção \`imagem\` é obrigatória pro tipo **${tipoLabel}**.`);
+            } else {
+                const result = await uploadAndStoreImage(client, imagem, `${tipoLabel} (pool) — "${nome}" adicionado por \`${user.tag}\``);
+
+                if (!result.ok) {
+                    builder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
+                        .text(`${EMOJIS.circlealert || '❌'} ${result.error}`);
+                } else {
+                    const row = ProfileImagePool.addImage(tipo, nome, result.messageId, user.id);
+                    db.logActivity(null, user.id, 'perfil_pool_add', null, { tipo, id: row.id, nome });
+
+                    let availabilityNote;
+                    if (tipo === 'badge') {
+                        availabilityNote = 'Já aparece no menu de escolha do `/perfil-edit` em QUALQUER tier (Emblema é liberado pra todos).';
+                    } else if (tipo === 'banner') {
+                        availabilityNote = 'Já aparece na galeria de banner do `/config personalizar` (Strike/Unstrike/Report-Chat) pra servidores Caçador, no Discord e no dashboard.';
+                    } else {
+                        availabilityNote = 'Já aparece no menu de escolha do `/perfil-edit` pra jogadores Player Premium Compy ou superior.';
+                    }
+
+                    builder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS })
+                        .text([
+                            `# ${tipoLabel.toUpperCase()} ADICIONADO AO POOL`,
+                            `**ID:** \`${row.id}\``,
+                            `**Nome:** ${nome}`,
+                            availabilityNote,
+                        ].join('\n'));
+                }
             }
         } else if (sub === 'remover') {
             const id = interaction.options.getInteger('id');

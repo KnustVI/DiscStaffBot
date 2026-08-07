@@ -34,7 +34,13 @@
  */
 const db = require('../../database/index');
 
-const VALID_TYPES = ['avatar', 'background', 'badge', 'banner'];
+// 'titulo' é o único tipo TEXTO do pool (título de perfil pré-definido pelo
+// dono) — todos os outros são backed por um attachment do Discord. Pra uma
+// linha 'titulo', a coluna `label` (já texto livre pra todo tipo) guarda o
+// TEXTO DO TÍTULO em si, e `message_id` é gravado como string vazia ''
+// (nunca null — a coluna é TEXT NOT NULL) porque não existe mensagem/anexo
+// pra resolver. Ver addImage() e o guard em resolveImageUrl/Buffer abaixo.
+const VALID_TYPES = ['avatar', 'background', 'badge', 'banner', 'titulo'];
 const POOL_PREFIX = 'pool:';
 
 function toPoolValue(id) {
@@ -59,6 +65,16 @@ function getByTypeAndId(type, id) {
     return db.prepare(`SELECT * FROM profile_image_pool WHERE type = ? AND id = ?`).get(type, id) || null;
 }
 
+/**
+ * @param {string} type - um de VALID_TYPES.
+ * @param {string} label - pra avatar/background/badge/banner é o nome de
+ *   exibição do item; pra type==='titulo' é o PRÓPRIO TEXTO DO TÍTULO
+ *   (não um rótulo separado — não existe imagem, então não há o que rotular).
+ * @param {string} messageId - ID da mensagem no canal de armazenamento com o
+ *   anexo; pra type==='titulo' passe '' (string vazia, nunca null/undefined —
+ *   a coluna é TEXT NOT NULL e não há mensagem/anexo pra um título).
+ * @param {string} createdBy - ID do usuário (dono) que criou a entrada.
+ */
 function addImage(type, label, messageId, createdBy) {
     if (!VALID_TYPES.includes(type)) throw new Error(`Tipo de pool inválido: ${type}`);
     const result = db.prepare(`
@@ -109,6 +125,9 @@ function listImages(type, opts = {}) {
  */
 async function resolveImageUrl(client, type, id) {
     const row = getByTypeAndId(type, id);
+    // 'titulo' é texto puro (o texto já está em row.label) — não há
+    // mensagem/anexo do Discord pra resolver, então nem tenta.
+    if (row && row.type === 'titulo') return null;
     if (!row || !process.env.BANNER_STORAGE_CHANNEL_ID) return null;
     try {
         const storageChannel = await client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
@@ -126,6 +145,8 @@ async function resolveImageUrl(client, type, id) {
  * @returns {Promise<Buffer|null>}
  */
 async function resolveImageBuffer(client, type, id) {
+    // 'titulo' não tem bytes de imagem pra devolver (ver resolveImageUrl).
+    if (type === 'titulo') return null;
     const url = await resolveImageUrl(client, type, id);
     if (!url) return null;
     try {

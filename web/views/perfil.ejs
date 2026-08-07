@@ -211,7 +211,7 @@
 <body class="flex min-h-screen<%= backgroundPreviewUrl ? ' perfil-has-bg' : '' %>">
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
-        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true, defaultCollapsed: false }) %>
+        <%- include('partials/sidebar-v2', { active: 'perfil', guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true, defaultCollapsed: false }) %>
     </aside>
 
     <%# Sem overflow-y-auto (pedido do dono, 2026-08-05) — ver comentário completo em moderacao.ejs. Página inteira rola via <body>, não mais o <main> por dentro (evita cortar a sombra dos cards perto da sidebar). %>
@@ -258,6 +258,22 @@
                             <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <span data-i18n-pt>expira em</span><span data-i18n-en>expires on</span> <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
                             <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %>
                         </span>
+                        <%#
+                            Cargo(s) de staff (pedido do dono, 2026-08-07:
+                            "quando um usuário tiver o cargo staff
+                            configurado no discord, adicionar esse cargo ao
+                            perfil dele no site") — não depende de `link`
+                            (é sobre a conta Discord, não sobre vínculo
+                            PoT), por isso fica aqui na hero, fora do bloco
+                            que exige vínculo. Uma pill por servidor onde a
+                            pessoa é staff (pode ser mais de um) — ver
+                            getStaffRoles em dashboard.js.
+                        %>
+                        <% staffRoles.forEach(sr => { %>
+                            <span class="perfil-tier-pill" style="--pt-color: #DCA15E;" title="<%= sr.guildName %>">
+                                <i data-lucide="shield" class="w-4 h-4"></i> <span data-i18n-pt>Staff:</span><span data-i18n-en>Staff:</span> <%= sr.category %> — <%= sr.guildName %>
+                            </span>
+                        <% }); %>
                     </div>
                 </div>
                 <%#
@@ -318,6 +334,10 @@
                     <div class="flex flex-col gap-2">
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nome no jogo:</span><span data-i18n-en>In-game name:</span></strong> <%= link.player_name || '—' %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
+                        <%# Data de registro (pedido do dono, 2026-08-07: "Registre a data de registro dos jogadores, adicione ao perfil") — player_links.registered_at, carimbada desde o primeiro /registrar. %>
+                        <% if (link.registered_at) { %>
+                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Registrado em:</span><span data-i18n-en>Registered on:</span></strong> <%= new Date(link.registered_at).toLocaleDateString('pt-BR') %></span>
+                        <% } %>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Título:</span><span data-i18n-en>Title:</span></strong> <% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Espécie mais jogada:</span><span data-i18n-en>Most played species:</span></strong> <% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
                         <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nível:</span><span data-i18n-en>Level:</span></strong> 1 <span class="opacity-50">(<span data-i18n-pt>sistema de XP em breve</span><span data-i18n-en>XP system coming soon</span>)</span></span>

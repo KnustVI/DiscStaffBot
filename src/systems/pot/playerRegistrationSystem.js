@@ -458,6 +458,35 @@ class PlayerRegistrationSystem {
             builder.text(`${EMOJIS.sparkles || '✨'} *Títulos e emblemas exclusivos chegando em breve!*`);
         }
 
+        // ── Cargo de staff configurado (/config roles) + data de registro
+        // (pedido do dono, 2026-08-07: "Registre a data de registro dos
+        // jogadores, adicione ao perfil no site e no discord" +  "Quando um
+        // usuário tiver o cargo staff configurado no discord, adicionar
+        // esse cargo ao perfil dele no site e no discord"). Cargo é POR
+        // SERVIDOR (mesma razão do KDA acima: /perfil é público aqui,
+        // mostrar cargo de OUTRO servidor confundiria a comunidade deste);
+        // data de registro é GLOBAL (player_links.registered_at, já vem
+        // carimbada desde o primeiro /registrar, ver potPlayerRegistry.js
+        // registerPlayerManually/_syncGlobalLinkFromWebhook — preservada em
+        // re-vínculo, nunca sobrescrita). ───────────────────────────────────
+        const ConfigSystem = require('../core/configSystem');
+        const targetMember = guild.members.cache.get(targetUser.id)
+            || await guild.members.fetch(targetUser.id).catch(() => null);
+        const staffCategory = ConfigSystem.staffRoleCategoryLabel(guild.id, targetMember);
+        const staffRoleName = ConfigSystem.highestStaffRoleName(guild.id, targetMember);
+        const extraLines = [];
+        if (staffCategory) {
+            extraLines.push(`${EMOJIS.shield || '🛡️'} **Cargo de Staff:** ${staffCategory}${staffRoleName ? ` (${staffRoleName})` : ''}`);
+        }
+        if (player?.registered_at) {
+            const regSeconds = Math.floor(player.registered_at / 1000);
+            extraLines.push(`${EMOJIS.calendar || '📅'} **Registrado em:** <t:${regSeconds}:D> (<t:${regSeconds}:R>)`);
+        }
+        if (extraLines.length > 0) {
+            addSeparatorIfNeeded();
+            builder.text(extraLines.join('\n'));
+        }
+
         if (playerTier !== 'free') {
             addSeparatorIfNeeded();
             const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';

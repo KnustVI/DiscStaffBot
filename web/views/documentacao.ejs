@@ -678,10 +678,10 @@ const toc = [
                 }) %>
                 <%- cmdCard({
                     id: 'staffonline', name: 'staffonline', permPt: 'Moderador ou Supervisor (ou Administrador)', permEn: 'Moderator or Supervisor (or Administrator)',
-                    descPt: 'Mostra quais staffs (cargo Moderador ou Supervisor) estão online/ausente/não perturbe no Discord agora, e há quanto tempo cada um está nessa sessão contínua. Resposta privada (só quem rodou o comando vê).',
-                    descEn: "Shows which staff (Moderator or Supervisor role) are online/idle/do-not-disturb on Discord right now, and how long each has been in that continuous session. Private response (only the person who ran it can see it).",
-                    notePt: 'A duração é contada pelo próprio bot a partir de quando cada um ficou online — reseta a cada restart do bot (a API do Discord não guarda "desde quando" alguém está online).',
-                    noteEn: "Duration is tracked by the bot itself from when each person went online — it resets on every bot restart (Discord's API doesn't store \"since when\" someone has been online).",
+                    descPt: 'Mostra quais staffs (cargo Moderador ou Supervisor) estão online AGORA NO JOGO (Path of Titans), e há quanto tempo. Staff sem /registrar aparece como "Não vinculado" (sem nenhum sinal de presença possível nesse caso). Resposta privada (só quem rodou o comando vê).',
+                    descEn: 'Shows which staff (Moderator or Supervisor role) are online in the GAME (Path of Titans) right now, and for how long. Staff without /registrar shows as "Not linked" (no presence signal is possible in that case). Private response (only the person who ran it can see it).',
+                    notePt: 'O status vem da sessão atual no jogo (webhooks do Path of Titans — mesma fonte que /perfil usa), não do status do Discord (online/ausente/não perturbe).',
+                    noteEn: "Status comes from the current in-game session (Path of Titans webhooks — same source /perfil uses), not from Discord status (online/idle/do-not-disturb).",
                 }) %>
             </div>
         </section>

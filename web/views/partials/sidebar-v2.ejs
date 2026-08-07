@@ -89,6 +89,12 @@
     // do site (ver visão geral abaixo, no <a> de cada item).
     const NAV_ITEMS = sbRestricted ? [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        // Botão explícito de Perfil (pedido do dono, 2026-08-07: "não está
+        // intuitivo que o usuário pode usar o avatar dele de botão") —
+        // além do avatar clicável (.tp-sidebar-avatar-btn, mais abaixo
+        // neste arquivo, continua existindo do jeito que já era), agora
+        // também vira um item normal de nav, igual Loja/Ajuda/Histórico.
+        { key: 'perfil', labelPt: 'Perfil', labelEn: 'Profile', icon: 'user', href: '/perfil' },
         // Prévia da loja (pedido do dono, 2026-08-06) — ver web/views/loja.ejs
         // e PREMIUM.txt seção 116. Global como Premium/Ajuda (moeda é do
         // jogador, não do servidor), por isso mora aqui e não na nav completa.
@@ -109,6 +115,10 @@
         { key: 'eventos', labelPt: 'Eventos', labelEn: 'Events', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', labelPt: 'Denúncias', labelEn: 'Reports', icon: 'message-square-warning', href: guildHref('reports') },
         { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
+        // Mesmo botão explícito de Perfil da variante restrita acima
+        // (pedido do dono, 2026-08-07) — global, sem :guildID, por isso
+        // não usa guildHref.
+        { key: 'perfil', labelPt: 'Perfil', labelEn: 'Profile', icon: 'user', href: '/perfil' },
         // Só o dono do bot vê esse item (pedido do dono: controle de
         // visibilidade do pool de imagens, ver dashboard.js /dev/image-pool)
         // — página global, sem :guildID, por isso não usa guildHref.

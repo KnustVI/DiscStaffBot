@@ -344,6 +344,48 @@ const ConfigSystem = {
     },
 
     /**
+     * Cargo de staff de MAIOR posição no Discord que um membro possui,
+     * entre os 3 cargos configurados em /config roles (staff_role/
+     * supervisor_role/event_role) — mesma lógica que já existia SÓ dentro
+     * de dashboard.js (highestStaffRoleName, usada pelo roster de
+     * Moderação/Eventos), centralizada aqui pra também dar pro comando
+     * /perfil do Discord reutilizar sem duplicar (um comando do bot não
+     * deveria depender/requerer dashboard.js). Pedido do dono, 2026-08-07:
+     * "quando um usuário tiver o cargo staff configurado, adicionar esse
+     * cargo ao perfil dele no site e no discord" — ver playerRegistrationSystem.js
+     * sendProfile() e dashboard.js GET /perfil.
+     */
+    highestStaffRoleName(guildId, member) {
+        if (!member) return null;
+        const ids = new Set([
+            ...this.getRoleIds(guildId, 'staff_role'),
+            ...this.getRoleIds(guildId, 'supervisor_role'),
+            ...this.getRoleIds(guildId, 'event_role'),
+        ]);
+        const memberStaffRoles = [...(member.roles?.cache?.values() || [])].filter(r => ids.has(r.id));
+        const topRole = memberStaffRoles.sort((a, b) => b.position - a.position)[0];
+        return topRole ? topRole.name : null;
+    },
+
+    /**
+     * Categoria(s) configurada(s) em /config roles que o membro ocupa
+     * (Moderador/Supervisor/Equipe de Eventos) — diferente de
+     * highestStaffRoleName acima (que é o NOME LITERAL do cargo do
+     * Discord, pode ser qualquer coisa). Mostra TODAS as categorias que a
+     * pessoa tiver, já que pode acumular mais de uma (ex: Supervisor
+     * também conta como Moderador). Retorna null (não '—') quando o
+     * membro não tem nenhuma — quem chama decide como tratar a ausência.
+     */
+    staffRoleCategoryLabel(guildId, member) {
+        if (!member) return null;
+        const parts = [];
+        if (this.memberHasConfiguredRole(guildId, member, 'staff_role')) parts.push('Moderador');
+        if (this.memberHasConfiguredRole(guildId, member, 'supervisor_role')) parts.push('Supervisor');
+        if (this.memberHasConfiguredRole(guildId, member, 'event_role')) parts.push('Equipe de Eventos');
+        return parts.length > 0 ? parts.join(' + ') : null;
+    },
+
+    /**
      * Retorna o canal de log "Geral / AutoMod" unificado.
      *
      * ✅ UNIFICAÇÃO: Geral e AutoMod agora compartilham o mesmo canal,
