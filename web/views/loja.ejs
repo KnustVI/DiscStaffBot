@@ -3,20 +3,26 @@
   Página GLOBAL (sem :guildID — moeda é do JOGADOR, não do servidor),
   pedido do dono 2026-08-06: "Monte um site com uma prévia da loja
   parecida com o que combinamos que fez com o image-pool" — ver
-  PREMIUM.txt seção 116 pra especificação completa (moedas Hunt/Ossos,
-  regras de conversão, catálogo da loja de jogo).
+  PREMIUM.txt seção 116/122 pra especificação completa (moedas
+  Caçadas/Ossos, regras de conversão, catálogo da loja de jogo).
 
-  PRÉVIA VISUAL só — nenhuma compra de verdade acontece aqui. Sem saldo
-  real (as colunas hunt_balance/bones_balance/xp ainda não existem em
-  player_links), sem RCON disparado, sem missão nenhuma. Mesmo
-  tratamento "em breve" já usado nos outros cards do /perfil (Lista de
-  Amigos/Títulos/Badges/Tempo de Jogo).
+  MISTA a partir de 2026-08-07 (pedido do dono: "adicione um sistema de
+  conversor de moedas de ossos para marks... a loja do jogo pode liberar
+  para uso"): a Loja de Personalização (Caçadas) e o catálogo da Loja de
+  Jogo (Growth/Skipshed/Missão de Marks) continuam só PRÉVIA VISUAL —
+  mesmo tratamento "em breve" já usado nos outros cards do /perfil
+  (Lista de Amigos/Títulos/Badges/Tempo de Jogo). O CONVERSOR
+  Ossos<->Marks, porém, é FUNCIONAL DE VERDADE: saldo real
+  (player_links.bones_balance) + RCON de verdade contra o servidor de
+  jogo escolhido — ver src/systems/pot/currencySystem.js.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
-    avatars, backgrounds, badges }) — as 3 listas de imagens são o
-    mesmo pool dinâmico do /perfil-edit (só as PÚBLICAS), reaproveitado
-    aqui como inventário de EXEMPLO da Loja de Personalização em vez de
-    itens inventados — ver dashboard.js GET /loja.
+    avatars, backgrounds, badges, isLinked, bonesBalance, marksPerBone,
+    playedGuilds, convertResult, convertError, convertAmount }) — as 3
+    listas de imagens são o mesmo pool dinâmico do /perfil-edit (só as
+    PÚBLICAS), reaproveitado aqui como inventário de EXEMPLO da Loja de
+    Personalização em vez de itens inventados — ver dashboard.js GET
+    /loja.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -116,6 +122,18 @@
             letter-spacing: 0.5px;
             padding: 3px 30px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        /* Formulários do Conversor de Moedas — mesma cápsula
+           .input-container-premium/.input-premium-field do resto do
+           dashboard, só o layout em coluna é próprio desta seção. */
+        .loja-converter-form {
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.2);
+            border-radius: 10px;
         }
     </style>
 </head>
@@ -240,7 +258,6 @@
                     { icon: 'sprout', labelPt: 'Growth: Adulto', labelEn: 'Growth: Adult', descPt: 'Define Growth em 1.0.', descEn: 'Sets Growth to 1.0.' },
                     { icon: 'refresh-cw', labelPt: 'Skipshed', labelEn: 'Skipshed', descPt: 'Pula a muda (troca de pele).', descEn: 'Skips the molt (skin shed).' },
                     { icon: 'scroll-text', labelPt: 'Missão de Marks', labelEn: 'Marks Quest', descPt: 'Concede uma missão em jogo que recompensa Marks.', descEn: 'Grants an in-game quest that rewards Marks.' },
-                    { icon: 'repeat', labelPt: 'Converter em Marks', labelEn: 'Convert to Marks', descPt: '1 Osso = 10 Marks.', descEn: '1 Bone = 10 Marks.', isRate: true },
                 ];
             %>
             <div class="loja-grid">
@@ -252,14 +269,103 @@
                         <% if (item.descPt) { %>
                             <span class="loja-item-desc"><span data-i18n-pt><%= item.descPt %></span><span data-i18n-en><%= item.descEn %></span></span>
                         <% } %>
-                        <% if (item.isRate) { %>
-                            <span class="loja-item-price is-bones"><i data-lucide="bone"></i> <span data-i18n-pt>Taxa: 1 Osso = 10 Marks</span><span data-i18n-en>Rate: 1 Bone = 10 Marks</span></span>
-                        <% } else { %>
-                            <span class="loja-item-price is-bones"><i data-lucide="bone"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
-                        <% } %>
+                        <span class="loja-item-price is-bones"><i data-lucide="bone"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
                     </div>
                 <% }); %>
             </div>
+        </section>
+
+        <%#
+            CONVERSOR DE MOEDAS — a ÚNICA parte da loja que é FUNCIONAL DE
+            VERDADE (pedido do dono, 2026-08-07: "adicione um sistema de
+            conversor de moedas de ossos para marks... converter 100
+            marks em 1 osso"), diferente do resto (ainda só prévia). Taxa
+            de 1 Osso pra N Marks (valor de marksPerBone, hoje 100) nas 2
+            direções — ver currencySystem.js/PREMIUM.txt seção 122. Precisa de vínculo
+            (/registrar, pra saber o Alderon ID a mirar no RCON) e pelo
+            menos 1 servidor jogado (playedGuilds — RCON precisa saber
+            ONDE creditar/remover os Marks); sem isso, mostra um aviso em
+            vez do formulário. Resultado da última conversão (sucesso ou
+            erro) vem via query string (?convertido=/?erro=), preenchida
+            pelo redirect das 2 rotas POST em dashboard.js.
+        %>
+        <section class="titan-card-premium flex-col gap-4">
+            <div>
+                <h2 class="section-title text-lg flex items-center gap-2">
+                    <i data-lucide="repeat" class="w-5 h-5" style="color:#F8DCC0;"></i>
+                    <span data-i18n-pt>CONVERSOR DE MOEDAS</span><span data-i18n-en>CURRENCY CONVERTER</span>
+                </h2>
+                <p class="text-[13px] opacity-50 mt-1">
+                    <span data-i18n-pt>Taxa: 1 Osso = <%= marksPerBone %> Marks, nos dois sentidos. Seu saldo atual: </span><span data-i18n-en>Rate: 1 Bone = <%= marksPerBone %> Marks, both ways. Your current balance: </span><strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong>.
+                </p>
+            </div>
+
+            <% if (convertResult) { %>
+                <div class="outline-chip">
+                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Conversão concluída</span><span data-i18n-en>Conversion complete</span></span>
+                        <span class="outline-chip-subtitle">
+                            <% if (convertResult === 'ossos-marks') { %>
+                                <span data-i18n-pt><%= convertAmount %> Marks creditados no jogo.</span><span data-i18n-en><%= convertAmount %> Marks credited in-game.</span>
+                            <% } else { %>
+                                <span data-i18n-pt><%= convertAmount %> Ossos creditados no seu saldo.</span><span data-i18n-en><%= convertAmount %> Bones credited to your balance.</span>
+                            <% } %>
+                        </span>
+                    </div>
+                </div>
+            <% } %>
+            <% if (convertError) { %>
+                <div class="outline-chip is-bad">
+                    <i data-lucide="circle-alert" class="outline-chip-icon"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Não foi possível converter</span><span data-i18n-en>Couldn't convert</span></span>
+                        <span class="outline-chip-subtitle"><%= convertError %></span>
+                    </div>
+                </div>
+            <% } %>
+
+            <% if (!isLinked) { %>
+                <p class="text-sm opacity-50"><span data-i18n-pt>Vincule sua conta com</span><span data-i18n-en>Link your account with</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra poder converter.</span><span data-i18n-en>on Discord to be able to convert.</span></p>
+            <% } else if (playedGuilds.length === 0) { %>
+                <p class="text-sm opacity-50"><span data-i18n-pt>Jogue em algum servidor com o bot integrado ao Path of Titans primeiro — é lá que os Marks são creditados/removidos.</span><span data-i18n-en>Play on a server with the bot integrated with Path of Titans first — that's where Marks get credited/removed.</span></p>
+            <% } else { %>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
+                    <form action="/loja/converter/ossos-marks" method="POST" class="loja-converter-form">
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Ossos → Marks</span><span data-i18n-en>Bones → Marks</span></h3>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Servidor</span><span data-i18n-en>Server</span></label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="server"></i></div>
+                            <select name="guildId" class="input-premium-field" required>
+                                <% playedGuilds.forEach(g => { %><option value="<%= g.guildId %>"><%= g.name %></option><% }); %>
+                            </select>
+                        </div>
+                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Ossos</span><span data-i18n-en>Amount of Bones</span></label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="bone"></i></div>
+                            <input type="number" name="quantidade" class="input-premium-field" min="1" step="1" max="<%= bonesBalance %>" required>
+                        </div>
+                        <button type="submit" class="btn-salvar-final self-start mt-3"<%= bonesBalance < 1 ? ' disabled' : '' %>><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
+                    </form>
+                    <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form">
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Marks → Ossos</span><span data-i18n-en>Marks → Bones</span></h3>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Servidor</span><span data-i18n-en>Server</span></label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="server"></i></div>
+                            <select name="guildId" class="input-premium-field" required>
+                                <% playedGuilds.forEach(g => { %><option value="<%= g.guildId %>"><%= g.name %></option><% }); %>
+                            </select>
+                        </div>
+                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Marks (múltiplo de <%= marksPerBone %>)</span><span data-i18n-en>Amount of Marks (multiple of <%= marksPerBone %>)</span></label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="coins"></i></div>
+                            <input type="number" name="quantidade" class="input-premium-field" min="<%= marksPerBone %>" step="<%= marksPerBone %>" required>
+                        </div>
+                        <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Ossos</span><span data-i18n-en>Convert to Bones</span></button>
+                        <p class="text-[11px] opacity-40 mt-2"><span data-i18n-pt>⚠️ Não conseguimos checar seu saldo real de Marks no jogo antes de converter — informe um valor que você realmente tem.</span><span data-i18n-en>⚠️ We can't verify your real in-game Marks balance before converting — only enter an amount you actually have.</span></p>
+                    </form>
+                </div>
+            <% } %>
         </section>
 
         <footer class="flex justify-end pb-2">

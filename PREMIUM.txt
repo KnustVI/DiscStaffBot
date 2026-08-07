@@ -222,8 +222,11 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   plano de fundo/badge, mesmo pool dinâmico já usado no /perfil-edit) e
   Loja de Jogo (moeda Bones, bônus DENTRO do Path of Titans via RCON -
   ver catálogo completo e ressalva de conformidade na seção 117). Uma
-  prévia visual das duas (`/loja`, sem nenhuma compra de verdade ainda)
-  JÁ IMPLEMENTADA - ver seção 117.
+  prévia visual das duas (`/loja`) JÁ IMPLEMENTADA - ver seção 117. O
+  catálogo de bônus (Growth/Skipshed/Missão de Marks) continua só
+  prévia, mas o CONVERSOR Ossos<->Marks dentro da Loja de Jogo já é
+  FUNCIONAL DE VERDADE (saldo real + RCON de verdade, taxa 1 Osso = 100
+  Marks nos 2 sentidos) - ver seção 122.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -5581,3 +5584,118 @@ frente, nao so este relatorio):
   histórico, ou as 2 imagens de photo pool "Desert Hunt"/"Family Hunt"
   (nomes de foto sem relação nenhuma com a moeda, não tocadas). `node
   --check` em `generate-premium-images.js`.
+
+122) Conversor de Moedas Ossos<->Marks vira FUNCIONAL DE VERDADE (não
+     mais item de prévia) — taxa muda de 1:10 pra 1:100, saldo real,
+     RCON de verdade
+------------------------------------------------------------------
+- Pedido do dono: "Na loja ao invés da conversão de osso ser um item
+  adicione um sistema de conversor de moedas de ossos para marks. A
+  pessoa escolhe um número de osso que deseja converter e Valor de
+  conversão se torna agora 1 osso = 100 marks. Dê também a opção do
+  jogador converter 100 marks em 1 osso. A loja do jogo pode liberar
+  para uso." — muda a taxa da seção 117/121 (1 Osso = 10 Marks) pra 1
+  Osso = 100 Marks, e pede a direção INVERSA (Marks→Ossos) que não
+  existia antes.
+- ⚠️ CONFORMIDADE checada ANTES de implementar (o dono já tinha
+  sinalizado essa preocupação em seções anteriores) — pergunta feita
+  direto: "Marks podem ser comprados com dinheiro real na loja oficial
+  do Path of Titans?". Resposta do dono: "Não, só se ganha jogando" +
+  confirmação adicional: "A Alderon permite a criação de uma moeda e
+  comércio desde que não envolva dinheiro real, se o jogador só pode
+  adquirir Ossos jogando, usar Ossos para comprar vantagens em jogo não
+  infringe as diretrizes do jogo." Como Marks TAMBÉM só é ganho jogando
+  (nunca comprado), a conversão nos 2 sentidos fica dentro do mesmo
+  raciocínio de conformidade já estabelecido pra Ossos (seções 117/118)
+  — nenhum caminho de dinheiro real entra na equação em nenhum dos dois
+  lados.
+- Segunda pergunta feita direto ao dono: "'A loja do jogo pode liberar
+  para uso' - o que isso significa pra esta etapa?", com 2 opções
+  apresentadas (calculadora interativa sem saldo real vs. sistema de
+  economia real com saldo de verdade). Escolhida a segunda: "Sistema de
+  economia real, com saldo de verdade" — por isso esta revisão implementa
+  saldo PERSISTIDO e RCON de verdade, não só uma calculadora decorativa.
+- SCHEMA: `player_links` ganha a coluna `bones_balance` (INTEGER NOT
+  NULL DEFAULT 0) — `schema.js` (bancos novos) + `ensureColumn` em
+  `index.js` (bancos já existentes, mesmo padrão de sempre pra coluna
+  nova em tabela já existente). Global por jogador (Player Premium é
+  sempre global, nunca por servidor), mesmo critério das outras colunas
+  de `player_links`.
+- `potPlayerRegistry.js` ganha 3 funções: `getBonesBalance(discordId)`,
+  `addBones(discordId, amount)`, `spendBones(discordId, amount)` — a
+  última é ATÔMICA (`UPDATE ... WHERE bones_balance >= ?` numa query só,
+  não um SELECT seguido de UPDATE) pra 2 conversões simultâneas do mesmo
+  jogador nunca conseguirem descontar saldo que já não existia mais.
+- `src/systems/pot/currencySystem.js` (novo) concentra a lógica das 2
+  direções:
+    - Ossos→Marks: SEGURA de verdade — debita o saldo de Ossos ANTES de
+      chamar o RCON (`addmarks <alderonId> <marks>`); se o RCON falhar
+      por qualquer motivo (servidor offline, RCON não configurado), o
+      saldo é DEVOLVIDO na hora, o jogador nunca perde Ossos por uma
+      falha fora do controle dele.
+    - Marks→Ossos: ⚠️ ASSIMÉTRICA de propósito, documentado no topo do
+      arquivo — não existe nenhum comando RCON catalogado
+      (`rconCommandCatalog.js`) pra CONSULTAR o saldo atual de Marks do
+      jogador (só `setmarks`/`addmarks`/`removemarks`, nenhum
+      "getmarks"), então o bot confia no valor INFORMADO pelo jogador e
+      dispara `removemarks` direto — só credita Ossos se o RCON
+      responder sucesso, mas mesmo um "sucesso" não confirma que o
+      jogador realmente tinha aquele saldo em Marks. Risco aceito
+      explicitamente pelo dono (ver conformidade acima) — o pior caso é
+      um jogador inflando o valor informado e "roubando" Ossos do
+      próprio bot, não uma brecha de conformidade com a Alderon.
+    - As duas direções exigem: jogador vinculado (`/registrar`, sem
+      Alderon ID não tem quem o RCON mire) e o SERVIDOR escolhido estar
+      no plano Caçador (`GUILD_LIMITS.genericRconEnabled`, mesmo gate já
+      usado por QUALQUER RCON manual via `/ingame-*` — a Loja de Jogo não
+      abre uma porta nova de RCON, só reaproveita a mesma já existente).
+      Checado ANTES de debitar/creditar qualquer saldo.
+- `dashboard.js` GET `/loja` agora calcula `bonesBalance` de verdade
+  (`getBonesBalance`) e `playedGuilds` (mesma fonte já usada no
+  `/perfil` — servidores onde o Alderon ID do jogador já teve
+  atividade, é de lá que ele escolhe ONDE o RCON vai mirar). 2 rotas
+  POST novas (`/loja/converter/ossos-marks`, `/loja/converter/marks-
+  ossos`) chamam `currencySystem.js` e redirecionam de volta pra `/loja`
+  com o resultado na query string (`?convertido=.../?erro=...`) — mesmo
+  espírito do `?saved=success/error` já usado em Moderação/Eventos, só
+  que com uma mensagem específica (quanto foi convertido, ou o motivo
+  exato da falha) em vez do genérico "Configurações salvas".
+- `web/views/loja.ejs`: o item estático "Converter em Marks" (catálogo
+  da Loja de Jogo, taxa antiga 1:10) foi REMOVIDO — vira uma seção
+  própria "CONVERSOR DE MOEDAS" com 2 formulários reais (Ossos→Marks e
+  Marks→Ossos), cada um com um `<select>` de servidor (só aparece
+  quando `playedGuilds` não está vazio) e um `<input type="number">` de
+  quantidade (no lado Marks→Ossos, `step="100"` trava o navegador a só
+  aceitar múltiplos de 100 antes mesmo do POST). Estados cobertos: sem
+  vínculo (aponta pro `/registrar`), vinculado mas sem servidor jogado
+  (aponta pra jogar em algum servidor integrado primeiro), e o
+  formulário completo — mais os banners de sucesso/erro da última
+  conversão. O resto da página (Loja de Personalização + catálogo da
+  Loja de Jogo) continua só prévia "Em breve", sem mudança.
+- Bug pego durante a implementação: o comentário `<%# ... %>` que
+  introduzia a seção do conversor tinha um `<%= marksPerBone %>`
+  aninhado dentro dele — EJS não aceita tag aninhada dentro de
+  comentário de verdade (mesma pegadinha já documentada no cabeçalho de
+  `sidebar-v2.ejs`, "quebra o parser"), quebrando a página inteira.
+  Pego pelo teste de `ejs.renderFile()` (nunca teria passado sem
+  renderizar de verdade) e corrigido antes de commitar.
+- Verificado com um script de teste isolado (não commitado) rodando as
+  funções reais contra o banco de dados de verdade (limpo depois):
+  saldo 0 sem vínculo, `addBones`/`spendBones` creditando/debitando
+  certo, `spendBones` bloqueando saldo insuficiente sem alterar o saldo,
+  rejeição de valores negativos/não-inteiros, `convertMarksToBones`
+  rejeitando quantidade não-múltipla de 100, `convertBonesToMarks`
+  bloqueando servidor fora do Caçador ANTES de debitar Ossos, e
+  confirmação de que uma falha de RCON (sem `client` de verdade nesse
+  teste) devolve o saldo debitado em vez de perdê-lo — 19 asserções, 19
+  passaram. `ejs.renderFile()` em `loja.ejs` cobrindo os 5 estados (sem
+  vínculo, sem servidor, formulário vazio, sucesso, erro). `node --check`
+  em todos os arquivos `.js` alterados/criados.
+- NÃO implementado nesta revisão (fora do pedido, deixado como próximo
+  passo se o dono quiser): o catálogo de bônus em si
+  (Growth/Skipshed/Missão de Marks) continua só prévia, sem compra
+  real; o sistema de ganho de Ossos por hora de jogo (a FONTE do saldo
+  que o jogador vai converter) também não existe ainda — hoje o único
+  jeito de um jogador ter saldo de Ossos pra converter é alguém
+  creditar manualmente no banco (não existe comando/painel pra isso
+  ainda tampouco).

@@ -327,7 +327,8 @@ const SCHEMA = {
             selected_badge_key TEXT,
             background_message_id TEXT,
             selected_background_key TEXT,
-            hide_kda INTEGER DEFAULT 0
+            hide_kda INTEGER DEFAULT 0,
+            bones_balance INTEGER NOT NULL DEFAULT 0
         )
     `,
 

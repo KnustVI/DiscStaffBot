@@ -749,6 +749,70 @@ function setHideKda(discordId, hide) {
 }
 
 /**
+ * Saldo de Ossos (Bones, moeda da Loja de Jogo — ver PREMIUM.txt seção
+ * 122) do jogador. 0 se ele nunca teve vínculo (sem /registrar não tem
+ * onde guardar saldo nenhum) — nunca null, sempre seguro pra exibir/somar
+ * direto.
+ * @param {string} discordId
+ * @returns {number}
+ */
+function getBonesBalance(discordId) {
+    if (!discordId) return 0;
+    try {
+        const row = db.prepare(`SELECT bones_balance FROM player_links WHERE user_id = ?`).get(discordId);
+        return row ? row.bones_balance : 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar saldo de Ossos:', error);
+        return 0;
+    }
+}
+
+/**
+ * Credita Ossos ao jogador (ex: conversão Marks->Ossos concluída com
+ * sucesso via RCON, ver currencySystem.js) — sempre soma, sem checagem
+ * de limite superior.
+ * @param {string} discordId
+ * @param {number} amount - inteiro positivo
+ * @returns {boolean} true se creditou de verdade (jogador tem vínculo)
+ */
+function addBones(discordId, amount) {
+    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET bones_balance = bones_balance + ?, updated_at = ? WHERE user_id = ?
+        `).run(amount, Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao creditar Ossos:', error);
+        return false;
+    }
+}
+
+/**
+ * Debita Ossos do jogador SE ele tiver saldo suficiente — checa e
+ * desconta na MESMA query (WHERE bones_balance >= ?), atômico o
+ * suficiente pra evitar 2 conversões simultâneas do mesmo jogador
+ * descontando saldo que já não existia mais (better-sqlite3 é síncrono,
+ * então não há como uma segunda chamada entrelaçar no meio desta).
+ * @param {string} discordId
+ * @param {number} amount - inteiro positivo
+ * @returns {boolean} true se debitou de verdade, false se saldo insuficiente/sem vínculo
+ */
+function spendBones(discordId, amount) {
+    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+    try {
+        const result = db.prepare(`
+            UPDATE player_links SET bones_balance = bones_balance - ?, updated_at = ?
+            WHERE user_id = ? AND bones_balance >= ?
+        `).run(amount, Math.floor(Date.now() / 1000), discordId, amount);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao debitar Ossos:', error);
+        return false;
+    }
+}
+
+/**
  * Monta o sufixo "|ID ALDERON:xxx-xxx-xxx" usado nas linhas de identificação
  * de usuário nos containers (strike, unstrike, repset, historico, reportchat).
  * Retorna string vazia se o jogador ainda não tiver vínculo — nesse caso a
@@ -915,6 +979,10 @@ module.exports = {
     setBackgroundMessageId,
     setSelectedBackgroundKey,
     setHideKda,
+    // Saldo de Ossos (Bones) — ver currencySystem.js e /loja.
+    getBonesBalance,
+    addBones,
+    spendBones,
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,

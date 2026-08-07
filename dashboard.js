@@ -15,6 +15,7 @@ const { storeImageBuffer } = require('./src/utils/imageStorage');
 const ProfileImagePool = require('./src/systems/pot/profileImagePool');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
+const CurrencySystem = require('./src/systems/pot/currencySystem');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
 const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSystem');
@@ -1110,20 +1111,21 @@ function loadDashboard(client) {
     });
 
     // "Loja" (pedido do dono, 2026-08-06: "Monte um site com uma prévia da
-    // loja parecida com o que combinamos que fez com o image-pool") —
-    // PRÉVIA VISUAL das duas lojas planejadas (Personalização/Hunt e
-    // Jogo/Bones, ver PREMIUM.txt seção 116), global como /perfil (moeda é
-    // do JOGADOR, não do servidor). Nenhuma compra de verdade acontece
-    // aqui: sem colunas de saldo (hunt/bones ainda não existem em
-    // player_links), sem RCON disparado, sem missão nenhuma — é só o
-    // catálogo mostrado com o mesmo tratamento "em breve" já usado em
-    // outros cards do /perfil (Lista de Amigos/Títulos/Badges/Tempo de
-    // Jogo). Reaproveita o pool dinâmico de imagens (avatar/plano de
-    // fundo/emblema) já existente como inventário de EXEMPLO da Loja de
-    // Personalização, em vez de inventar itens fake — mesma fonte de
-    // dados de GET /perfil, só limitada às imagens PÚBLICAS (publicOnly),
-    // mesmo critério de visibilidade que qualquer jogador já vê nos
-    // menus de /perfil-edit.
+    // loja parecida com o que combinamos que fez com o image-pool"),
+    // global como /perfil (moeda é do JOGADOR, não do servidor). A Loja
+    // de Personalização (Caçadas) continua PRÉVIA VISUAL só (sistema de
+    // Caçadas/XP ainda não implementado) — reaproveita o pool dinâmico
+    // de imagens (avatar/plano de fundo/emblema) como inventário de
+    // EXEMPLO, mesmo critério de visibilidade PÚBLICA do /perfil-edit.
+    //
+    // O conversor Ossos<->Marks (pedido do dono, 2026-08-07: "adicione um
+    // sistema de conversor de moedas") é FUNCIONAL DE VERDADE — ver
+    // PREMIUM.txt seção 122/currencySystem.js: saldo real
+    // (player_links.bones_balance) + RCON de verdade contra o servidor
+    // de jogo escolhido. Precisa do jogador estar vinculado (/registrar)
+    // pra saber o Alderon ID a mirar no RCON, e de pelo menos um
+    // servidor jogado (getPlayedGuilds, mesma fonte já usada no /perfil)
+    // pra escolher ONDE creditar/remover os Marks.
     app.get('/loja', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
@@ -1140,6 +1142,10 @@ function loadDashboard(client) {
             resolvePublicGroup('badge'),
         ]);
 
+        const link = PlayerRegistry.getPlayerByDiscordId(req.user.id);
+        const bonesBalance = PlayerRegistry.getBonesBalance(req.user.id);
+        const playedGuilds = link ? getPlayedGuilds(link.alderon_id, client) : [];
+
         res.render('loja', {
             nickname: req.user.global_name || req.user.username,
             role: 'Membro',
@@ -1148,7 +1154,43 @@ function loadDashboard(client) {
             avatars,
             backgrounds,
             badges,
+            isLinked: !!link,
+            bonesBalance,
+            marksPerBone: CurrencySystem.MARKS_PER_BONE,
+            playedGuilds,
+            convertResult: req.query.convertido || null,
+            convertError: req.query.erro || null,
+            convertAmount: req.query.valor || null,
         });
+    });
+
+    // Conversor Ossos<->Marks (POST, redireciona de volta pra /loja com o
+    // resultado na query string — mesmo padrão de feedback já usado em
+    // ?saved=success/error, só que com uma mensagem específica em vez do
+    // genérico "Configurações salvas", já que aqui o valor convertido
+    // importa). Nenhuma das duas rotas usa :guildID na URL (a Loja é
+    // global) — o servidor de destino do RCON vem do corpo do form
+    // (guildId, escolhido entre os servidores que o jogador já jogou).
+    app.post('/loja/converter/ossos-marks', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildId, quantidade } = req.body;
+        const amount = parseInt(quantidade, 10);
+        const result = await CurrencySystem.convertBonesToMarks(client, req.user.id, guildId, amount);
+        if (result.ok) {
+            return res.redirect(`/loja?convertido=ossos-marks&valor=${result.marksCredited}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+    });
+
+    app.post('/loja/converter/marks-ossos', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildId, quantidade } = req.body;
+        const amount = parseInt(quantidade, 10);
+        const result = await CurrencySystem.convertMarksToBones(client, req.user.id, guildId, amount);
+        if (result.ok) {
+            return res.redirect(`/loja?convertido=marks-ossos&valor=${result.bonesCredited}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });
 
     app.post(

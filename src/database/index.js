@@ -191,6 +191,12 @@ class DatabaseManager {
             this.ensureColumn('player_links', 'background_message_id', 'TEXT');
             this.ensureColumn('player_links', 'selected_background_key', 'TEXT');
             this.ensureColumn('player_links', 'hide_kda', 'INTEGER DEFAULT 0');
+            // Saldo de Ossos (Bones, moeda da Loja de Jogo — ver
+            // PREMIUM.txt seção 122) — global por jogador, igual toda a
+            // economia do bot (Player Premium). Só existe conversão
+            // Ossos<->Marks por enquanto (currencySystem.js); a fonte de
+            // ganho por hora de jogo ainda não está implementada.
+            this.ensureColumn('player_links', 'bones_balance', 'INTEGER NOT NULL DEFAULT 0');
             // Snapshot do nível de punição customizado usado no momento do strike
             // (ver punishmentLevels.js) — congelado na hora de aplicar, pra editar
             // um nível depois não reescrever punições já aplicadas. A coluna
