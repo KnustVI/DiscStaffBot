@@ -330,20 +330,6 @@
                                 <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
                             </span>
                         </div>
-
-                        <%#
-                            Botão de Histórico (pedido do dono, 2026-08-07:
-                            "Adicione ao perfil um botão de histórico do
-                            jogador puxando o histórico de reputação e
-                            punição") — mesmo estilo de chip clicável já
-                            usado em .perfil-guild-chip, reaproveitado como
-                            botão de ação em vez de link pra servidor. Leva
-                            pra /perfil/historico (ver dashboard.js).
-                        %>
-                        <a href="/perfil/historico" class="perfil-guild-chip self-start mt-1">
-                            <i data-lucide="history" class="w-4 h-4 ml-1 text-titan-gold"></i>
-                            <span><span data-i18n-pt>Histórico de Reputação e Punições</span><span data-i18n-en>Reputation & Punishment History</span></span>
-                        </a>
                     </div>
 
                     <%#

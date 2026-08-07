@@ -6574,3 +6574,49 @@ frente, nao so este relatorio):
   `ejs.renderFile()` confirma saída correta pras 3 severidades e pro
   fallback de severidade desconhecida. Nenhuma mudança de código
   necessária aqui - confirmado com o dono antes de seguir em frente.
+
+------------------------------------------------------------------
+136) Ajustes de texto dos 3 cards de moeda em /loja + botão de Histórico
+     movido pra sidebar (correção sobre a seção 135, mesmo dia)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-07): reescreveu o texto dos 3 cards de moeda
+  (Caçadas/Ossos/Nível) em `web/views/loja.ejs` e pediu que o botão de
+  Histórico (seção 135) saísse de dentro do card de `/perfil` e fosse
+  pra sidebar junto dos outros botões padrão.
+- TEXTOS (`loja.ejs`, mesmos 3 `<p class="loja-currency-text">`):
+    - CAÇADAS: "Ganhe 1 Caçada por hora jogada (ou em missões, em
+      breve). Só troca por itens de personalização de perfil e não pode
+      ser convertida em nenhuma outra moeda da loja." - troca o antigo
+      "nunca por vantagens dentro do jogo" por uma ressalva mais
+      específica (não converte pra nenhuma outra moeda da loja).
+    - OSSOS: "Ganhe 5 Ossos por hora jogada (ou em missões, em breve).
+      Troque Ossos por Marks ou por Caçadas (máximo 100 Caçadas por
+      semana)." - passa a mencionar os DOIS destinos do conversor
+      (Marks, já funcional desde a seção 122, e Caçadas, ainda "vindo em
+      breve" - o texto descreve o Ossos como moeda de forma ampla, não
+      só o que já está implementado hoje, mesmo padrão que a versão
+      anterior deste card já usava). O limite de "100/semana" nunca foi
+      de fato aplicado no código (`currencySystem.js` só implementa
+      Ossos<->Marks, sem limite semanal - ver seção 117/PREMIUM.txt
+      linha ~57) - permanece como texto descritivo do design, igual já
+      era antes desta revisão.
+    - NÍVEL/XP: "Sobe o seu Nível conforme você joga." - remove a menção
+      a "(hoje sempre 'Nível 1')": como o acúmulo de XP por hora já é
+      real (seção 135), essa ressalva de placeholder deixou de fazer
+      sentido no texto explicativo da moeda (o placeholder do BADGE em
+      si, no card de /perfil, continua existindo até a fórmula de nível
+      ser desenhada - ver nota atualizada na seção "O que já funciona
+      hoje" no topo deste arquivo).
+- BOTÃO DE HISTÓRICO NA SIDEBAR: removido o botão solto que tinha sido
+  colocado dentro do card de `perfil.ejs` (abaixo das estrelas de Honra)
+  na seção 135; vira um item normal de `NAV_ITEMS` na variante restrita
+  de `partials/sidebar-v2.ejs` (`key: 'historico'`, ícone `history`),
+  ao lado de Loja/Ajuda/Suas Denúncias - mesmo grupo de páginas globais
+  (sem `:guildID`). `perfil-historico.ejs` passa a usar
+  `active: 'historico'` no include da sidebar (antes era `null`, sem
+  item correspondente pra destacar).
+- Verificado com `ejs.renderFile()` (mocks, não commitado): os 3 textos
+  novos aparecem certinho nos 2 idiomas em `loja.ejs`; `perfil.ejs` não
+  tem mais o botão antigo; o item "Histórico" aparece na sidebar de
+  `perfil-historico.ejs` com a classe `active` aplicada (confirma o
+  destaque visual funcionando). `node --check` em `dashboard.js`.

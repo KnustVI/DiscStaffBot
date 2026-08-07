@@ -95,6 +95,11 @@
         { key: 'loja', labelPt: 'Loja', labelEn: 'Shop', icon: 'store', href: '/loja' },
         { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
         { key: 'minhas-denuncias', labelPt: 'Suas Denúncias', labelEn: 'Your Reports', icon: 'message-square-warning', href: '/perfil/denuncias' },
+        // Histórico de reputação/punições (pedido do dono, 2026-08-07) —
+        // pedido explícito de ficar na sidebar junto dos outros botões
+        // padrão, em vez de um botão solto dentro do card de /perfil (ver
+        // web/views/perfil-historico.ejs). Global como os itens acima.
+        { key: 'historico', labelPt: 'Histórico', labelEn: 'History', icon: 'history', href: '/perfil/historico' },
         // Faltava (pedido do dono, 2026-08-06) — a variante restrita nunca
         // teve como sair sem editar a URL na mão.
         { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },

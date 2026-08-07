@@ -17,6 +17,11 @@
   RECURSO premium; punições NUNCA são escondidas por tier — são registro
   de auditoria (ver CLAUDE.md).
 
+  Acesso: item "Histórico" na sidebar restrita (partials/sidebar-v2.ejs),
+  ao lado de Loja/Ajuda/Suas Denúncias — pedido explícito do dono
+  (2026-08-07) de ficar junto dos outros botões padrão da sidebar, não um
+  botão solto dentro do card de perfil.ejs (versão anterior).
+
   Uso: res.render('perfil-historico', { nickname, role, isOwner,
     otherGuilds, reputationByGuild, punishments }) — ver dashboard.js GET
     /perfil/historico e getPlayerHistoryData.
@@ -91,7 +96,7 @@
 <body class="flex min-h-screen">
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
-        <%- include('partials/sidebar-v2', { active: null, guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>
+        <%- include('partials/sidebar-v2', { active: 'historico', guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>
     </aside>
 
     <%# Sem overflow-y-auto — ver comentário completo em moderacao.ejs (evita cortar a sombra dos cards perto da sidebar). %>
