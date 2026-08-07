@@ -43,7 +43,7 @@ do jogo como recompensa de evento/doacao e proibe vender vantagem em jogo
 ou taxa de ganho de moeda virtual em troca de dinheiro real). Sistema de
 Hunt/loja ainda NAO implementado - "vindo em breve" em todo tier.
 
-MOEDA OSSO/BONE (ver secao 116 - pedido do dono, 2026-08-06): SEGUNDA
+MOEDA OSSO/BONE (ver secao 117 - pedido do dono, 2026-08-06): SEGUNDA
 moeda interna, diferente da Hunt em proposito - Bones sao a moeda da
 LOJA DE JOGO (bonus aplicados dentro do Path of Titans em si via RCON,
 ver catalogo abaixo), Hunt continua sendo so a moeda de personalizacao de
@@ -59,14 +59,22 @@ raciocinio do Server Hosting Agreement ja citado acima pra Hunt, secao
 troca de dinheiro real): como Bones COMPRAM vantagem real dentro do jogo
 (diferente da Hunt), servidores NAO PODEM conceder Bones pra jogadores
 que pagam qualquer valor em dinheiro real - pedido explicito do dono
-("para não infligir os termos do jogo"). Isso e uma regra de PRODUTO
-ainda sem mecanismo de ENFORCEMENT tecnico desenhado (como o bot vai
-saber/impedir um servidor de conceder Bones a um assinante pago de algo
-externo e algo a resolver antes da implementacao de verdade - ver secao
-116). Sistema de Bones/loja de jogo ainda NAO implementado - "vindo em
-breve", mesmo estagio que a Hunt.
+("para não infligir os termos do jogo"). RESOLVIDO (ver secao 118): o
+enforcement e ESTRUTURAL, nao um monitoramento tecnico - Bones SO podem
+vir de 2 fontes automaticas (hora de jogo, mesma taxa pra todo mundo, e
+missao aberta a QUALQUER jogador), nunca de concessao manual/admin
+nenhuma. Sem nenhum comando que deixe staff conceder Bones a um jogador
+especifico, nao existe caminho pra recompensar seletivamente um
+assinante pago - a mesma regra que ja vale pra missao premium-only
+(nunca rende Bones, so Hunt) fecha o resto do raciocinio: dinheiro real
+(seja pro bot, seja pro proprio host do servidor) nunca compra nem
+influencia Bones, ponto. Conforme confirmado pelo dono: "os termos do
+jogo permitem existir uma loja que tenha comercio entre itens do jogo
+desde que a aquisicao da moeda ou dos itens nao envolva dinheiro ou
+itens reais" - e exatamente esse o design. Sistema de Bones/loja de jogo
+ainda NAO implementado - "vindo em breve", mesmo estagio que a Hunt.
 
-NIVEL/XP (ver secao 116): separado das duas moedas acima - 1 hora de
+NIVEL/XP (ver secao 117): separado das duas moedas acima - 1 hora de
 jogo = 1 XP. O badge "Nivel" do card de /perfil (hoje fixo em "Nivel 1",
 ver Seção "O que ja funciona hoje") vai passar a refletir isso quando
 implementado. Ainda NAO implementado - "vindo em breve".
@@ -206,13 +214,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   FUNDACAO (o sistema de tier), ainda NAO tem loja implementada de fato -
   a foto por menu do Compy (acima) e um recurso PROPRIO, nao depende da
   loja.
-- Serão DUAS lojas separadas (pedido do dono, 2026-08-06, ver seção 116):
+- Serão DUAS lojas separadas (pedido do dono, 2026-08-06, ver seção 117):
   Loja de Personalização (moeda Hunt, só imagens de perfil - avatar/
   plano de fundo/badge, mesmo pool dinâmico já usado no /perfil-edit) e
   Loja de Jogo (moeda Bones, bônus DENTRO do Path of Titans via RCON -
-  ver catálogo completo e ressalva de conformidade na seção 116). Uma
+  ver catálogo completo e ressalva de conformidade na seção 117). Uma
   prévia visual das duas (`/loja`, sem nenhuma compra de verdade ainda)
-  JÁ IMPLEMENTADA - ver seção 116.
+  JÁ IMPLEMENTADA - ver seção 117.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -5236,7 +5244,7 @@ frente, nao so este relatorio):
   travado desde antes). Sem servidor Discord real aqui pra confirmar
   visualmente a mensagem no `/perfil`.
 
-116) Moeda OSSO/BONE + XP/Nível desenhados + prévia visual da Loja
+117) Moeda OSSO/BONE + XP/Nível desenhados + prévia visual da Loja
      (`/loja`) + botão na sidebar do /perfil — SÓ DESIGN/PRÉVIA, nada
      implementado de verdade ainda
 ------------------------------------------------------------------
@@ -5334,3 +5342,99 @@ frente, nao so este relatorio):
   que o item Loja aparece na sidebar restrita e NÃO aparece na sidebar
   completa/guild-scoped). Sem servidor Discord real aqui pra confirmar
   visualmente a página em produção.
+
+118) Resolvidos os 2 pontos em aberto da seção 117 (conformidade + valor
+     de Growth) + comando real de missão de Marks + TERMOS_DE_SERVICO
+     atualizado
+------------------------------------------------------------------
+- Resposta do dono aos 2 pontos sinalizados na seção 117 (citada por
+  completo): "Os termos do jogo permite existir uma loja que tenha
+  comercio entre itens do jogo desde que a aquisição da moeda ou dos
+  itens não envolva dinheiro ou itens reais, por isso essa loja do jogo,
+  os ossos, só pode ser conseguida jogando e por missões globais
+  liberadas a qualquer player. [...] Se ossos não podem ser comprados por
+  dinheiro real e nem a moeda caçada [Hunt] pode ser usada para adiquirir
+  ossos. Ossos só podem ser usada na loja do jogo." + notas menores: "1 é
+  adulto, 0.75 sub, 0.50 adolescente, 0.25 juv e zero filhote" e o
+  comando real: "/GiveQuest [user/AGID] [questname] — /givequest mike
+  Collect Mushrooms".
+- CONFORMIDADE (Ponto 1) — resolvida, ver parágrafo MOEDA OSSO/BONE
+  (Seção 1) atualizado: o enforcement da regra "sem Bones pra quem paga
+  dinheiro real" é ESTRUTURAL, não um monitoramento técnico. Bones só
+  têm 2 fontes, as duas 100% automáticas (hora de jogo na MESMA taxa pra
+  todo mundo, e missão aberta a qualquer jogador) — não existe, e não vai
+  existir, nenhum comando que deixe um admin conceder Bones manualmente
+  a um jogador específico. Sem caminho de concessão discricionária, não
+  há como recompensar seletivamente quem paga algo (ao bot ou ao próprio
+  host do servidor) com mais Bones — o mesmo raciocínio que já bloqueia
+  Bones em missão premium-only.
+- CONVERSÃO (Ponto 2, reforço) — já estava certo, só ficou mais
+  explícito: Hunt nunca compra Bones (nenhuma direção), e Bones nunca
+  saem da Loja de Jogo (não compram nada em Personalização) — sem
+  NENHUM caminho de Hunt/dinheiro real virar Bones, e sem Bones saindo
+  do escopo da própria Loja de Jogo.
+- GROWTH — valores confirmados pelo dono, substituindo o "não
+  confirmado, precisa de pesquisa" da seção 117: Filhote = 0, Juvenil =
+  0.25, Adolescente = 0.50, Subadulto = 0.75, Adulto = 1. Só os 4
+  últimos entram no catálogo da Loja de Jogo (Filhote é o ponto de
+  partida de todo dinossauro, não algo que se compra). `loja.ejs`
+  atualizado pra mostrar o valor exato de cada item ("Define Growth em
+  0.25" etc.).
+  ⚠️ NOTA IMPORTANTE não resolvida nesta revisão: esses 5 pontos (0/
+  0.25/0.5/0.75/1) são DIFERENTES dos 3 pontos até agora usados pela
+  EXIBIÇÃO de estágio no `/perfil` (`formatGrowth()`,
+  `playerRegistrationSystem.js` — 0.1/0.5/1.0, com quebras em 0.3/0.75,
+  ver seção 10/11). Um dinossauro com Growth = 0.25 (recém-comprado como
+  "Juvenil" na loja) seria classificado como "Filhote" pela exibição
+  atual do `/perfil` (abaixo da quebra de 0.3) — os nomes das duas
+  escalas não bateriam. `formatGrowth()` NÃO foi alterado nesta revisão
+  (fora do que foi pedido, e mudaria a exibição do `/perfil` pra TODO
+  jogador, não só quem usa a loja) — sinalizado de volta pro dono, não
+  resolvido silenciosamente.
+- COMANDO REAL DE MISSÃO: `rconCommandCatalog.js` ganhou a entrada
+  `givequest` em `MARKS_COMMANDS` (categoria `/ingame-marks`, mesmo
+  arquivo que já tinha `setmarks`/`addmarks`/`addmarksall`/
+  `removemarks`) — `GiveQuest <nome-em-jogo> <missão>`. Usa
+  `r.targetName` (nome em jogo), não `r.target` (Alderon ID), mesma
+  precaução já aplicada a `whisper`/`systemmessage` (seção 83): a
+  notação genérica "[user/AGID]" da doc do site não bateu com a
+  realidade nesses 2 casos já testados, só o nome funcionou — até
+  confirmação em servidor real, `givequest` segue o mesmo padrão por
+  cautela. AINDA NÃO TESTADO contra servidor real. Novo subcomando
+  aparece automaticamente em `/ingame-marks` (catálogo é 100%
+  declarativo, sem registro manual por comando — ver comentário de topo
+  do arquivo) — falta rodar `node deploy.js` pra publicar no Discord.
+  Também esclarecido: "Converter Bones em Marks" (item separado da
+  Loja de Jogo) NÃO usa `givequest` — usa o `addmarks` já existente
+  (soma Marks direto, sem missão no meio); `givequest` é só pro item
+  "Missão de Marks" (concede a missão, o jogador ainda precisa
+  completá-la).
+- `TERMOS_DE_SERVICO.txt`/`TERMOS_DE_SERVICO_EN.txt` (Seção 5, documento
+  legal de verdade, servido ao vivo em `/termos`) ATUALIZADOS — a
+  promessa antiga era ABSOLUTA ("a loja do Bot oferece, e pretende
+  continuar oferecendo, APENAS itens de customização de perfil... SEM
+  QUALQUER efeito, vantagem ou desbloqueio dentro do jogo"), incompatível
+  com a Loja de Jogo. Reescrito em 2 blocos separados: a loja de
+  personalização (Hunt) mantém a MESMA promessa absoluta de sempre, sem
+  nenhum enfraquecimento; um bloco NOVO descreve a loja de jogo (Ossos)
+  e por que ela é permitida (Ossos nunca compráveis com dinheiro real,
+  itens reais, doação ou Hunt — só jogando), citando o mesmo Server
+  Hosting Agreement já referenciado pra Hunt. Versão bump 1.1 → 1.2
+  (06.08.2026), entrada nova em HISTÓRICO DE VERSÕES/VERSION HISTORY nos
+  2 arquivos. Contagem de tags `[==...==]{#cor}` conferida balanceada
+  (27=27) e número de separadores `────` conferido idêntico (15=15)
+  entre PT/EN antes de considerar seguro pro parser de `/termos`
+  (`dashboard.js` `loadTermosBilingual`/`splitTermosBlocks` zipa as 2
+  versões por ÍNDICE de seção — depende da mesma estrutura nos dois
+  arquivos).
+- Verificado com `node --check` em `rconCommandCatalog.js`; e, pra
+  `/termos`, uma cópia isolada das 5 funções puras de parse de
+  `dashboard.js` (`parseTermosInline`/`parseTermosBody`/
+  `splitTermosBlocks`/`termosBlockToSection`/`parseTermosFile` — não
+  exportadas, mas sem dependência nenhuma de Express/DB, só `fs`/`path`)
+  rodada num script à parte contra os 2 arquivos reais: confirma 15
+  seções em cada lado (PT=EN), título/corpo da Seção 5 saindo formatado
+  certo nos dois idiomas (`<span style="color:...">` nos trechos
+  destacados, parágrafos separados certos), e versão/data lidos como
+  "1.2"/"06.08.2026" nos dois. Verificação forte, mas indireta — não é a
+  função de verdade rodando dentro do dashboard, é uma cópia fiel dela.

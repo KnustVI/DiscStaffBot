@@ -228,13 +228,18 @@
             </div>
 
             <%
+                // Valores de Growth confirmados pelo dono (2026-08-06):
+                // 0 Filhote / 0.25 Juvenil / 0.50 Adolescente / 0.75
+                // Subadulto / 1 Adulto — só os 4 estágios COMPRÁVEIS entram
+                // no catálogo (Filhote é o ponto de partida de todo
+                // dinossauro, não um item de loja).
                 const lojaJogoItems = [
-                    { icon: 'sprout', labelPt: 'Growth: Juvenil', labelEn: 'Growth: Juvenile' },
-                    { icon: 'sprout', labelPt: 'Growth: Adolescente', labelEn: 'Growth: Adolescent' },
-                    { icon: 'sprout', labelPt: 'Growth: Subadulto', labelEn: 'Growth: Sub-Adult' },
-                    { icon: 'sprout', labelPt: 'Growth: Adulto', labelEn: 'Growth: Adult' },
+                    { icon: 'sprout', labelPt: 'Growth: Juvenil', labelEn: 'Growth: Juvenile', descPt: 'Define Growth em 0.25.', descEn: 'Sets Growth to 0.25.' },
+                    { icon: 'sprout', labelPt: 'Growth: Adolescente', labelEn: 'Growth: Adolescent', descPt: 'Define Growth em 0.50.', descEn: 'Sets Growth to 0.50.' },
+                    { icon: 'sprout', labelPt: 'Growth: Subadulto', labelEn: 'Growth: Sub-Adult', descPt: 'Define Growth em 0.75.', descEn: 'Sets Growth to 0.75.' },
+                    { icon: 'sprout', labelPt: 'Growth: Adulto', labelEn: 'Growth: Adult', descPt: 'Define Growth em 1.0.', descEn: 'Sets Growth to 1.0.' },
                     { icon: 'refresh-cw', labelPt: 'Skipshed', labelEn: 'Skipshed', descPt: 'Pula a muda (troca de pele).', descEn: 'Skips the molt (skin shed).' },
-                    { icon: 'scroll-text', labelPt: 'Missão de Marks', labelEn: 'Marks Quest', descPt: 'Recebe uma missão em jogo que recompensa Marks.', descEn: 'Grants an in-game quest that rewards Marks.' },
+                    { icon: 'scroll-text', labelPt: 'Missão de Marks', labelEn: 'Marks Quest', descPt: 'Concede uma missão em jogo que recompensa Marks.', descEn: 'Grants an in-game quest that rewards Marks.' },
                     { icon: 'repeat', labelPt: 'Converter em Marks', labelEn: 'Convert to Marks', descPt: '1 Osso = 10 Marks.', descEn: '1 Bone = 10 Marks.', isRate: true },
                 ];
             %>

@@ -201,6 +201,27 @@ const MARKS_COMMANDS = [
         ],
         buildCommand: (r) => `removemarks ${r.target} ${r.numero}`,
     },
+    {
+        name: 'givequest',
+        description: 'Concede uma missão em jogo (por nome) ao jogador informado.',
+        requiresTarget: true,
+        options: [...TARGET_OPTIONS,
+            { name: 'missao', type: 'string', required: true, description: 'Nome exato da missão (ex: "Collect Mushrooms")' },
+        ],
+        // Sintaxe passada pelo dono (2026-08-06, item "Missão de Marks" da
+        // Loja de Jogo — ver PREMIUM.txt seção 116): "/GiveQuest [user/AGID]
+        // [questname]", ex: "/givequest mike Collect Mushrooms". O exemplo
+        // "mike" é o MESMO nome genérico usado na doc de systemmessage/
+        // whisper acima — indício de que vem da mesma fonte
+        // (hosting.pathoftitans.wiki). Por precaução usa `r.targetName`
+        // (nome em jogo), não `r.target` (Alderon ID) — mesma lição já
+        // aprendida com systemmessage/whisper: a notação genérica
+        // "[user/AGID]" da doc não bateu com a realidade nos dois casos já
+        // testados, só o NOME funcionou. AINDA NÃO TESTADO contra servidor
+        // real (nem por RCON de admin manual, nem pela futura Loja de Jogo)
+        // — confirmar antes de confiar 100%.
+        buildCommand: (r) => `GiveQuest ${r.targetName} ${r.missao}`,
+    },
 ];
 
 // ==================== ADMIN ====================

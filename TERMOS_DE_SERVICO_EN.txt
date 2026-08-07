@@ -1,7 +1,7 @@
 TERMS OF SERVICE AND PRIVACY POLICY – TITAN'S PASS (testing phase)
 
-Last updated: 17.07.2026
-Version: 1.1 (Pre-launch)
+Last updated: 06.08.2026
+Version: 1.2 (Pre-launch)
 
 [==⚠️ READ BEFORE USING THE BOT==]{#ffcc00}
 
@@ -89,9 +89,13 @@ Titan's Pass offers administrative tools that connect to your host's Path of Tit
 
 5. STORE, CURRENCY, AND PREMIUM SYSTEM:
 
-Titan's Pass has its own internal economy, using a virtual currency called Hunt. Players can earn Hunt through special events in partnership with the server, giveaways, missions, and playtime — with higher earning rates depending on Premium tier.
+Titan's Pass has its own internal economy, using two virtual currencies: Hunt and Bones. Players can earn Hunt through special events in partnership with the server, giveaways, missions, and playtime — with higher earning rates depending on Premium tier. Bones are earned ONLY by playing (per hour played) and completing quests open to ANY player — never through Premium-exclusive quests, and never in exchange for real money, real items, or Hunt.
 
-[==The Bot's store offers, and intends to continue offering, only profile-customization items within Titan's Pass itself==]{#66ff66} (avatar, background, badge, title, and similar) and, in the future, community clan-creation features — with no effect, advantage, or unlock within the Path of Titans game. [==Hunt can never, under any circumstances, be exchanged for Marks, real or virtual currency, in-game benefits or advantages, or skins==]{#ff4444}. No amount of Hunt, item, or benefit acquired or earned through the Bot alters attributes, progress, growth, items, or any other aspect of the game itself.
+[==The Bot's customization store offers, and intends to continue offering, only profile-customization items within Titan's Pass itself==]{#66ff66} (avatar, background, badge, title, and similar) and, in the future, community clan-creation features — with no effect, advantage, or unlock within the Path of Titans game. [==Hunt can never, under any circumstances, be exchanged for Marks, real or virtual currency, Bones, in-game benefits or advantages, or skins==]{#ff4444}.
+
+[==The Bot's game store offers bonuses applied INSIDE Path of Titans (e.g. dinosaur growth, quests, Marks), paid for exclusively in Bones==]{#66ff66}. This store is only possible because Bones [==can never be purchased with real money, real items, donations, or exchanged from Hunt — they are only obtained by playing==]{#ff4444}, in compliance with Alderon Games' Server Hosting Agreement, which permits trading in-game items as long as their acquisition never involves real-world money or items. [==Bones can only be exchanged for Hunt (never the reverse), subject to a weekly cap, and never purchase anything outside the game store==]{#ff4444}.
+
+No amount of Hunt, item, or benefit acquired through the customization store alters attributes, progress, growth, items, or any other aspect of the game itself; game store items, paid for exclusively in Bones, alter the game within the strict limits described above.
 
 Should the Bot later offer a skins project through mods, that content will be made available in compliance with Alderon Games' Modding Agreement, which prohibits selling or "paywalling" mods/UGC and prohibits granting in-game skins or benefits as a return for a donation or payment. No such feature will go live before that compliance is guaranteed.
 
@@ -210,5 +214,6 @@ For questions, data-removal requests, reporting abuse, or exercising your privac
 
 VERSION HISTORY:
 
+• v1.2 (06.08.2026): Section 5 (Store, Currency, and Premium System) updated to describe the second internal currency, Bones, and the game store it pays for — unlike the customization store (Hunt), the game store applies bonuses INSIDE Path of Titans (dinosaur growth, quests, Marks). This is only permitted because Bones can never be purchased with real money, real items, or exchanged from Hunt — they are earned exclusively by playing and completing quests open to any player, in compliance with Alderon Games' Server Hosting Agreement (which permits trading in-game items as long as their acquisition never involves real-world money or items).
 • v1.1 (17.07.2026): Added Section 4 (Game Server Integration / compliance with Alderon Games) and Section 5 (Store, Currency, and Premium System), clarifying that the Bot's internal economy does not grant in-game advantages and that RCON/buff tools are exclusively for host use, with a clause on blocking in case of proven misuse. Harmonized the advance-notice period (14 days) between Sections 2 and 11. Fixed typos and expanded Section 1 with the full list of the Bot's areas.
 • v1.0 (09.06.2026): Initial pre-launch version.
