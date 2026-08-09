@@ -86,6 +86,26 @@ class ReportChatSystem {
         return last.report_number + 1;
     }
 
+    /**
+     * Emoji por status do report, usado como prefixo do título nos painéis
+     * (pedido do dono, 2026-08-09: "No titulo do REPORTE nos paineis
+     * adicione um emoji antes do titulo, um emoji para cada status do
+     * report") — mesmos emojis já associados a cada status na linha de
+     * "Status:" abaixo do título (getStatusText/seção 4 de
+     * createBaseContainer), reaproveitados aqui pra não introduzir um
+     * segundo vocabulário visual pro mesmo conceito.
+     */
+    getStatusEmoji(status) {
+        const emojiMap = {
+            waiting: EMOJIS.clockalert || '⏳',
+            responded: EMOJIS.messagecircle || '💬',
+            inactive: EMOJIS.trianglealert || '⚠️',
+            closed_no_reason: EMOJIS.lock || '🔒',
+            closed_with_reason: EMOJIS.circlecheck || '✅',
+        };
+        return emojiMap[status] || (EMOJIS.ticket || '🎫');
+    }
+
     getStatusText(status, closedBy = null, closedReason = null, closedAt = null) {
         const statusMap = {
             waiting: `${EMOJIS.clockalert || '⏳'} Aguardando staff`,
@@ -149,16 +169,20 @@ class ReportChatSystem {
         if (audience === 'dm') builder.banner('title_report_chat');
         const reportIdDisplay = `#REP${reportNumber}`;
 
+        // Painel da staff (logs-reports) SEM nenhuma thumbnail — de usuário
+        // OU de servidor (pedido do dono, 2026-08-09: "remova todas as
+        // thumbnails de usuário e do servidor, precisamos de um painel mais
+        // limpo e mais fácil de ler") — e nome do usuário menor (mesmo
+        // pedido, "no nome do usuários pode deixar eles menores", ver
+        // buildIdentityBlock({ compact: true })). A DM do usuário não muda
+        // em nada: mantém os thumbnails e o tamanho de nome de sempre.
+        const compactPanel = audience === 'staff';
+        const identityOptions = compactPanel ? { compact: true } : {};
+
         // ==================== 1. TÍTULO ====================
-        // No painel da staff (logs-reports), o título leva o avatar do servidor.
-        if (audience === 'staff') {
-            builder.section(
-                `## ${typeLabel} | ${reportIdDisplay}`,
-                AdvancedContainerBuilder.thumbnail(guild.iconURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
-            );
-        } else {
-            builder.text(`## ${typeLabel} | ${reportIdDisplay}`);
-        }
+        // Emoji de status antes do título, nos dois painéis (pedido do
+        // dono, 2026-08-09 — ver getStatusEmoji acima).
+        builder.text(`## ${this.getStatusEmoji(status)} ${typeLabel} | ${reportIdDisplay}`);
         builder.separator();
 
         // Menção de cargo — só quando o chamador passa options.mentionRoleId
@@ -170,10 +194,14 @@ class ReportChatSystem {
         }
 
         // ==================== 2. CARD DO JOGADOR (quem abriu) ====================
-        builder.section(
-            `## JOGADOR\n${buildIdentityBlock(user)}`,
-            AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 128 })),
-        );
+        if (compactPanel) {
+            builder.text(`## JOGADOR\n${buildIdentityBlock(user, identityOptions)}`);
+        } else {
+            builder.section(
+                `## JOGADOR\n${buildIdentityBlock(user)}`,
+                AdvancedContainerBuilder.thumbnail(user.displayAvatarURL({ size: 128 })),
+            );
+        }
         builder.separator();
 
         // ==================== 3. PRESENÇA: 1º staff com card, resto por menção ====================
@@ -185,12 +213,16 @@ class ReportChatSystem {
                 : '';
 
             if (firstStaffUser) {
-                const identityLines = buildIdentityBlock(firstStaffUser).split('\n');
+                const identityLines = buildIdentityBlock(firstStaffUser, identityOptions).split('\n');
                 identityLines[0] += firstStaffJoinTime;
-                builder.section(
-                    `## STAFF RESPONSAVEL\n${identityLines.join('\n')}`,
-                    AdvancedContainerBuilder.thumbnail(firstStaffUser.displayAvatarURL({ size: 128 })),
-                );
+                if (compactPanel) {
+                    builder.text(`## STAFF RESPONSAVEL\n${identityLines.join('\n')}`);
+                } else {
+                    builder.section(
+                        `## STAFF RESPONSAVEL\n${identityLines.join('\n')}`,
+                        AdvancedContainerBuilder.thumbnail(firstStaffUser.displayAvatarURL({ size: 128 })),
+                    );
+                }
             } else {
                 builder.text(`## STAFF RESPONSAVEL\n<@${firstStaff.id}>${firstStaffJoinTime}`);
             }
@@ -535,20 +567,8 @@ class ReportChatSystem {
 
             // ==================== DM DO USUÁRIO ====================
             const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { audience: 'dm' });
-
-            const closeButton = new ButtonBuilder()
-                .setCustomId(`close:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar')
-                .setStyle(ButtonStyle.Danger);
-
-            const closeReasonButton = new ButtonBuilder()
-                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar com Motivo')
-                .setStyle(ButtonStyle.Primary);
-
-            // Adicionar botões ao builder (usando o método buttons do AdvancedContainerBuilder)
             const { components: dmComponents, flags: dmFlags, files: dmFiles } = dmBuilder.build();
-            const dmRow = new ActionRowBuilder().addComponents(closeButton, closeReasonButton);
+            const dmRow = this._buildDmButtonRow(guild, reportNumber);
 
             const dmMessage = await user.send({
                 components: [...dmComponents, dmRow],
@@ -567,25 +587,9 @@ class ReportChatSystem {
             // repetir em toda edição subsequente do mesmo painel.
             const mentionRoleId = ConfigSystem.getSetting(guild.id, 'report_mention_role');
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
-
-            const joinButton = new ButtonBuilder()
-                .setCustomId(`join:${reportId}`)
-                .setLabel('Entrar no Reporte')
-                .setStyle(ButtonStyle.Success);
-                
-            const logCloseButton = new ButtonBuilder()
-                .setCustomId(`close:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar')
-                .setStyle(ButtonStyle.Danger);
-
-            const logCloseReasonButton = new ButtonBuilder()
-                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar com Motivo')
-                .setStyle(ButtonStyle.Primary);
-            
             const { components: logComponents, flags: logFlags } = logBuilder.build();
-            const logRow = new ActionRowBuilder().addComponents(joinButton, logCloseButton, logCloseReasonButton);
-            
+            const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
+
             const logMessage = await logChannel.send({
                 components: [...logComponents, logRow],
                 flags: [logFlags]
@@ -734,19 +738,8 @@ class ReportChatSystem {
 
             // ==================== DM DO USUÁRIO ====================
             const dmBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { audience: 'dm' });
-
-            const closeButton = new ButtonBuilder()
-                .setCustomId(`close:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar')
-                .setStyle(ButtonStyle.Danger);
-
-            const closeReasonButton = new ButtonBuilder()
-                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar com Motivo')
-                .setStyle(ButtonStyle.Primary);
-
             const { components: dmComponents, flags: dmFlags, files: dmFiles } = dmBuilder.build();
-            const dmRow = new ActionRowBuilder().addComponents(closeButton, closeReasonButton);
+            const dmRow = this._buildDmButtonRow(guild, reportNumber);
 
             const dmMessage = await user.send({
                 components: [...dmComponents, dmRow],
@@ -759,24 +752,8 @@ class ReportChatSystem {
             // Mesma menção de cargo do openReport() — ver comentário lá.
             const mentionRoleId = ConfigSystem.getSetting(guild.id, 'report_mention_role');
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
-
-            const joinButton = new ButtonBuilder()
-                .setCustomId(`join:${reportId}`)
-                .setLabel('Entrar no Reporte')
-                .setStyle(ButtonStyle.Success);
-
-            const logCloseButton = new ButtonBuilder()
-                .setCustomId(`close:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar')
-                .setStyle(ButtonStyle.Danger);
-
-            const logCloseReasonButton = new ButtonBuilder()
-                .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
-                .setLabel('Fechar com Motivo')
-                .setStyle(ButtonStyle.Primary);
-
             const { components: logComponents, flags: logFlags } = logBuilder.build();
-            const logRow = new ActionRowBuilder().addComponents(joinButton, logCloseButton, logCloseReasonButton);
+            const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
 
             const logMessage = await logChannel.send({
                 components: [...logComponents, logRow],
@@ -800,8 +777,58 @@ class ReportChatSystem {
         }
     }
     
+    // ==================== BOTÕES DOS PAINÉIS (reconstruídos, nunca preservados) ====================
+    /**
+     * Botões do painel de log da staff (Entrar/Fechar/Fechar com Motivo) e
+     * da DM do usuário (Fechar/Fechar com Motivo) — SEMPRE reconstruídos do
+     * zero a partir de guild.id/reportNumber/reportId em vez de extraídos
+     * de logMessage.components/dmMessage.components de uma mensagem já
+     * enviada (pedido do dono, 2026-08-09: "houve um painel que os botões
+     * pararam de funcionar, logo não permitiu fechar o report"). O padrão
+     * antigo (usado em joinReport/updateStatus) fazia
+     * `existingComponents.slice(1)` pra "preservar" a linha de botões ao
+     * reeditar o painel — depende de o Discord devolver
+     * message.components na mesma forma exata que foi enviada, o que não é
+     * garantido (mensagem/canal recriado, ordem diferente, etc) e falha
+     * sem erro visível quando não bate. Os 3 (ou 2) botões são 100%
+     * determinísticos a partir dos IDs já em mãos, então reconstruir é
+     * estritamente mais robusto e não custa nada a mais.
+     */
+    _buildLogButtonRow(guild, reportNumber, reportId) {
+        const joinButton = new ButtonBuilder()
+            .setCustomId(`join:${reportId}`)
+            .setLabel('Entrar no Reporte')
+            .setStyle(ButtonStyle.Success);
+
+        const logCloseButton = new ButtonBuilder()
+            .setCustomId(`close:${guild.id}:${reportNumber}`)
+            .setLabel('Fechar')
+            .setStyle(ButtonStyle.Danger);
+
+        const logCloseReasonButton = new ButtonBuilder()
+            .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
+            .setLabel('Fechar com Motivo')
+            .setStyle(ButtonStyle.Primary);
+
+        return new ActionRowBuilder().addComponents(joinButton, logCloseButton, logCloseReasonButton);
+    }
+
+    _buildDmButtonRow(guild, reportNumber) {
+        const closeButton = new ButtonBuilder()
+            .setCustomId(`close:${guild.id}:${reportNumber}`)
+            .setLabel('Fechar')
+            .setStyle(ButtonStyle.Danger);
+
+        const closeReasonButton = new ButtonBuilder()
+            .setCustomId(`close_reason:${guild.id}:${reportNumber}`)
+            .setLabel('Fechar com Motivo')
+            .setStyle(ButtonStyle.Primary);
+
+        return new ActionRowBuilder().addComponents(closeButton, closeReasonButton);
+    }
+
     // ==================== STAFF ENTRAR ====================
-    
+
     async joinReport(interaction, reportId) {
         const { guild, user, member } = interaction;
         
@@ -837,44 +864,53 @@ class ReportChatSystem {
             }
 
             const targetUser = await this.client.users.fetch(report.user_id);
-            
+
+            // Log e DM atualizados em try/catch SEPARADOS (pedido do dono,
+            // 2026-08-09 — ver comentário de _buildLogButtonRow acima): o
+            // join em si (thread.members.add + staffs no banco, já feito
+            // acima) é o que realmente importa; se o painel de log ou a DM
+            // falhar ao atualizar (mensagem apagada, canal reconfigurado
+            // depois da abertura, etc), isso não pode impedir o outro
+            // update nem esconder que o join funcionou.
             const logChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
             if (logChannelId && report.log_message_id) {
-                const logChannel = await guild.channels.fetch(logChannelId);
-                const logMessage = await logChannel.messages.fetch(report.log_message_id);
-                if (logMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
-                    
-                    // Extrair componentes existentes (botões) que não são o container principal
-                    const existingComponents = logMessage.components;
-                    const buttonsToPreserve = existingComponents.slice(1);
-                    
-                    const { components: updatedComponents, flags: updatedFlags } = updatedBuilder.build();
-                    await logMessage.edit({ 
-                        components: [updatedComponents[0], ...buttonsToPreserve],
-                        flags: [updatedFlags] 
-                    });
+                try {
+                    const logChannel = await guild.channels.fetch(logChannelId);
+                    const logMessage = await logChannel.messages.fetch(report.log_message_id);
+                    if (logMessage) {
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
+                        const { components: updatedComponents, flags: updatedFlags } = updatedBuilder.build();
+                        const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
+                        await logMessage.edit({
+                            components: [...updatedComponents, logRow],
+                            flags: [updatedFlags]
+                        });
+                    }
+                } catch (err) {
+                    console.error('❌ [ReportChatSystem] Erro ao atualizar painel de log em joinReport:', err);
                 }
             }
 
             if (report.dm_message_id) {
-                const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
-                if (dmMessage) {
-                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, { audience: 'dm' });
-                    const existingComponents = dmMessage.components;
-                    const buttonsToPreserve = existingComponents.slice(1);
-
-                    const { components: updatedComponents, flags: updatedFlags, files: updatedFiles } = updatedBuilder.build();
-                    await dmMessage.edit({
-                        components: [updatedComponents[0], ...buttonsToPreserve],
-                        flags: [updatedFlags],
-                        files: updatedFiles
-                    });
+                try {
+                    const dmMessage = await user.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
+                    if (dmMessage) {
+                        const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs, { audience: 'dm' });
+                        const { components: updatedComponents, flags: updatedFlags, files: updatedFiles } = updatedBuilder.build();
+                        const dmRow = this._buildDmButtonRow(guild, reportNumber);
+                        await dmMessage.edit({
+                            components: [...updatedComponents, dmRow],
+                            flags: [updatedFlags],
+                            files: updatedFiles
+                        });
+                    }
+                } catch (err) {
+                    console.error('❌ [ReportChatSystem] Erro ao atualizar DM em joinReport:', err);
                 }
             }
 
             await this.sendTempReply(interaction, `${user} entrou no ${reportId}`, true);
-            
+
         } catch (error) {
             console.error('❌ Erro ao entrar:', error);
             await this.sendTempReply(interaction, `Erro ao entrar no report ${reportId}.`, false);
@@ -1166,37 +1202,57 @@ class ReportChatSystem {
 
         const staffs = report.staffs ? JSON.parse(report.staffs) : [];
         const targetUser = await this.client.users.fetch(report.user_id);
-        
+
+        // Reports FECHADOS não ganham a linha de botões de volta (mesmo
+        // critério de closeReport — "Entrar"/"Fechar" não fazem sentido
+        // num report já encerrado, e updateStatus(..., 'closed_no_reason')
+        // é chamado por releaseReportByThreadId quando o TÓPICO foi
+        // apagado, então "Entrar no Reporte" ficaria literalmente
+        // quebrado se continuasse aparecendo).
+        const isClosedStatus = newStatus === 'closed_no_reason' || newStatus === 'closed_with_reason';
+        const normalizedReportId = `#REP${reportNumber}`;
+
+        // Log e DM em try/catch SEPARADOS + botões reconstruídos do zero
+        // (nunca preservados via slice de mensagem já enviada) — mesmo
+        // motivo de joinReport, ver comentário de _buildLogButtonRow.
         const logChannelId = ConfigSystem.getSetting(guildId, 'log_reports');
         if (logChannelId && report.log_message_id) {
-            const logChannel = await guild.channels.fetch(logChannelId);
-            const logMessage = await logChannel.messages.fetch(report.log_message_id);
-            if (logMessage) {
-                const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs);
-                const existingComponents = logMessage.components;
-                const buttonsToPreserve = existingComponents.slice(1);
-                
-                const { components: updatedComponents, flags: updatedFlags } = updatedBuilder.build();
-                await logMessage.edit({ 
-                    components: [updatedComponents[0], ...buttonsToPreserve],
-                    flags: [updatedFlags] 
-                });
+            try {
+                const logChannel = await guild.channels.fetch(logChannelId);
+                const logMessage = await logChannel.messages.fetch(report.log_message_id);
+                if (logMessage) {
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs);
+                    const { components: updatedComponents, flags: updatedFlags } = updatedBuilder.build();
+                    const finalComponents = isClosedStatus
+                        ? updatedComponents
+                        : [...updatedComponents, this._buildLogButtonRow(guild, reportNumber, normalizedReportId)];
+                    await logMessage.edit({
+                        components: finalComponents,
+                        flags: [updatedFlags]
+                    });
+                }
+            } catch (err) {
+                console.error('❌ [ReportChatSystem] Erro ao atualizar painel de log em updateStatus:', err);
             }
         }
 
         if (report.dm_message_id) {
-            const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
-            if (dmMessage) {
-                const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs, { audience: 'dm' });
-                const existingComponents = dmMessage.components;
-                const buttonsToPreserve = existingComponents.slice(1);
-
-                const { components: updatedComponents, flags: updatedFlags, files: updatedFiles } = updatedBuilder.build();
-                await dmMessage.edit({
-                    components: [updatedComponents[0], ...buttonsToPreserve],
-                    flags: [updatedFlags],
-                    files: updatedFiles
-                });
+            try {
+                const dmMessage = await targetUser.createDM().then(dm => dm.messages.fetch(report.dm_message_id)).catch(() => null);
+                if (dmMessage) {
+                    const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, newStatus, staffs, { audience: 'dm' });
+                    const { components: updatedComponents, flags: updatedFlags, files: updatedFiles } = updatedBuilder.build();
+                    const finalComponents = isClosedStatus
+                        ? updatedComponents
+                        : [...updatedComponents, this._buildDmButtonRow(guild, reportNumber)];
+                    await dmMessage.edit({
+                        components: finalComponents,
+                        flags: [updatedFlags],
+                        files: updatedFiles
+                    });
+                }
+            } catch (err) {
+                console.error('❌ [ReportChatSystem] Erro ao atualizar DM em updateStatus:', err);
             }
         }
     }

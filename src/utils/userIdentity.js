@@ -14,9 +14,10 @@
  * confirma isso — a própria presença do Alderon ID/nome do jogo já deixa
  * claro que a conta está linkada.
  *
- * Sempre combinado com um thumbnail do avatar via
+ * Normalmente combinado com um thumbnail do avatar via
  * AdvancedContainerBuilder.thumbnail(user.displayAvatarURL(...)) no section()
- * que recebe este texto.
+ * que recebe este texto — exceto no modo `compact` (abaixo), pensado
+ * exatamente para quando o chamador NÃO usa thumbnail nenhuma.
  */
 const PlayerRegistry = require('../systems/pot/potPlayerRegistry');
 
@@ -25,12 +26,21 @@ try { EMOJIS = require('../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
 /**
  * @param {import('discord.js').User} discordUser
+ * @param {object} [options]
+ * @param {boolean} [options.compact=false] - Pedido do dono, 2026-08-09
+ *   ("No nome do usuários pode deixar eles menores"), usado só pelo painel
+ *   de log da staff no ReportChat (ver reportChatSystem.createBaseContainer,
+ *   audience 'staff') — troca a 1ª linha de heading (`## mention`) pro
+ *   estilo "subtext" do Discord (`-# `, mesmo usado nos footers deste bot),
+ *   bem menor e mais discreto. A 2ª linha (username/AGID) já era texto
+ *   normal, sem heading, então não muda.
  * @returns {string}
  */
-function buildIdentityBlock(discordUser) {
+function buildIdentityBlock(discordUser, options = {}) {
     const linked = discordUser?.id ? PlayerRegistry.getPlayerByDiscordId(discordUser.id) : null;
+    const headingPrefix = options.compact ? '-#' : '##';
 
-    let line1 = `## ${discordUser?.toString?.() || 'Desconhecido'}`;
+    let line1 = `${headingPrefix} ${discordUser?.toString?.() || 'Desconhecido'}`;
     if (linked) line1 += ` | ${EMOJIS.PotLogo || '🦖'} \`${linked.alderon_id}\``;
 
     let line2 = `${EMOJIS.DiscLogo || '💬'} ${discordUser?.username || '?'}`;

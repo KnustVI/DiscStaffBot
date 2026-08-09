@@ -7157,3 +7157,95 @@ frente, nao so este relatorio):
   carregamento dos 28 comandos não-developer do bot sem nenhuma falha.
   Scripts de teste temporários (prefixo `_test_`), sempre removidos
   depois de passar.
+
+------------------------------------------------------------------
+142) Corrige botões do painel de log de reports que paravam de
+     funcionar (sem permitir fechar) + /report-fechar como alternativa;
+     remove thumbnails e diminui nome de usuário no painel da staff;
+     adiciona emoji de status ao título do report nos painéis
+------------------------------------------------------------------
+- Pedido do dono (2026-08-09): "houve um painel que os botões pararam
+  de funcionar, logo não permitiu fechar o report... adicione um slash
+  comando para fechar o report" + limpeza visual do painel de log da
+  staff + emoji de status no título.
+- CAUSA RAIZ DOS BOTÕES QUEBRADOS: `joinReport` e `updateStatus`
+  (`reportChatSystem.js`) reeditavam o painel de log/DM "preservando" a
+  linha de botões existente via `logMessage.components.slice(1)` —
+  extraindo os botões de volta da MENSAGEM JÁ ENVIADA (reidratada pelo
+  discord.js) em vez de reconstruí-los a partir dos dados já em mãos
+  (guild.id/reportNumber/reportId, 100% determinísticos). Frágil por
+  natureza: depende do Discord devolver `message.components` na mesma
+  forma exata que foi enviada, e falhava SEM erro visível quando não
+  batia (mensagem de log recriada/canal reconfigurado, edição
+  concorrente, etc) — dava exatamente a assinatura reportada: o painel
+  parece normal, mas clicar em "Fechar"/"Fechar com Motivo" não faz
+  nada. Além disso, tanto `joinReport` quanto `updateStatus` tratavam a
+  atualização do painel de LOG e da DM num bloco só (sem try/catch
+  isolado) — uma falha em QUALQUER um dos dois abortava o resto da
+  função, incluindo a mensagem de sucesso final, mesmo quando o join/a
+  mudança de status já tinham sido gravados no banco com sucesso.
+- FIX: dois métodos novos, `_buildLogButtonRow`/`_buildDmButtonRow`,
+  reconstroem os botões (Entrar/Fechar/Fechar com Motivo, ou só
+  Fechar/Fechar com Motivo na DM) DO ZERO sempre — usados agora em
+  `openReport`, `openPunishmentReview`, `joinReport` e `updateStatus`
+  (as 4 funções que hoje montam esses botões), eliminando por completo
+  a dependência de extrair botões de uma mensagem já enviada. Log e DM
+  agora em try/catch SEPARADOS em `joinReport`/`updateStatus` — uma
+  falha num não esconde nem impede o outro, e `joinReport` sempre
+  confirma sucesso pro staff quando o join em si (thread.members.add +
+  staffs no banco) deu certo, mesmo que a atualização visual do painel
+  falhe. `updateStatus` também ganhou uma correção de correção:
+  chamado com um status FECHADO (`releaseReportByThreadId`, quando o
+  tópico é apagado) agora omite a linha de botões (mesmo critério já
+  usado por `closeReport`) em vez de recolocá-la — antes disso,
+  clicar em "Entrar no Reporte" num report force-fechado por
+  tópico apagado levava a um link quebrado.
+- NOVO COMANDO `/report-fechar numero:<N> [motivo] [punicao]` —
+  alternativa aos botões, exatamente pro cenário reportado (painel sem
+  resposta). Reaproveita `ReportChatSystem.closeReport` (mesma função
+  chamada pelos botões) — sem `motivo`, fecha "sem motivo" (igual ao
+  botão "Fechar"); com `motivo`, fecha "com motivo" (igual ao modal do
+  botão "Fechar com Motivo", `punicao` incluso). Restrito a
+  Moderador/Supervisor/Administrador (`ConfigSystem.
+  memberHasModOrSupervisorRole`, mesmo padrão do resto do sistema de
+  moderação), `setDefaultMemberPermissions(null)` (mesmo raciocínio do
+  /strike, ver seção 141 item #1). Valida que o report existe e ainda
+  não está fechado antes de chamar `closeReport`, com erro claro nos
+  dois casos. Adicionado à lista de comandos ephemeral em
+  `handlers.js`.
+- LIMPEZA VISUAL DO PAINEL DA STAFF (só o painel enviado em logs de
+  reports — a DM do usuário NÃO muda em nada): removidas TODAS as
+  thumbnails (ícone do servidor no título, avatar do jogador, avatar do
+  staff responsável) — pedido do dono, "precisamos de um painel mais
+  limpo e mais fácil de ler". Nome do usuário/staff também menor: 1ª
+  linha de `buildIdentityBlock` (o `## <mention>`) agora aceita um novo
+  parâmetro `{ compact: true }` que troca o heading grande (`##`) pelo
+  "subtext" do Discord (`-# `, mesmo estilo já usado nos footers do
+  bot) — só usado nesta ÚNICA chamada (painel da staff do ReportChat);
+  todo o resto do bot (`/strike`, `/unstrike`, `/rep-set`, histórico,
+  etc) continua chamando `buildIdentityBlock(user)` sem o parâmetro,
+  comportamento 100% inalterado (backward compatible, parâmetro
+  opcional). O botão "Ir para o chat" (accessory de BOTÃO, não
+  thumbnail) continua normalmente.
+- EMOJI DE STATUS NO TÍTULO — novo método `getStatusEmoji(status)`
+  (mesmos emojis já associados a cada status na linha "Status:" logo
+  abaixo, reaproveitados em vez de inventar um segundo vocabulário
+  visual): ⏳ aguardando, 💬 respondido, ⚠️ inativo, 🔒 fechado sem
+  motivo, ✅ concluído. Aplicado ao título em AMBOS os painéis (staff e
+  DM) — diferente da limpeza de thumbnail/nome, que é só do painel da
+  staff.
+- Verificado: `node --check` nos 4 arquivos tocados
+  (`reportChatSystem.js`, `userIdentity.js`, `handlers.js`, o novo
+  `report-fechar.js`), varredura completa dos 29 comandos do bot
+  (28 anteriores + o novo) sem falhas nem nomes duplicados, testes
+  funcionais reais: customIds dos botões reconstruídos batendo
+  exatamente com o que `joinReport`/`close:`/`close_reason:` esperam,
+  `createBaseContainer` + botões combinando num payload serializável
+  sem exceção, e uma checagem estrutural completa (via
+  `ContainerBuilder.toJSON()`, inspecionando os tipos reais de
+  componente do Discord) confirmando: ZERO accessory de Thumbnail no
+  painel da staff em qualquer cenário (com/sem staff presente), pelo
+  menos 1 Thumbnail de verdade preservada no painel da DM (prova que a
+  limpeza não vazou pra lá por engano), nome compacto (`-# <mention>`)
+  presente só no painel da staff, heading normal (`## <mention>`) só na
+  DM, e emoji de status presente no título dos dois painéis.
