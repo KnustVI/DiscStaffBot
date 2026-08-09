@@ -101,7 +101,7 @@ module.exports = {
                 const reportNumber = parseInt(parts[2]);
 
                 sessionManager.set(interaction.user.id, safeGuildId, 'closing', 'closing', {
-                    reportNumber, guildId, reportId: `#R${reportNumber}`
+                    reportNumber, guildId, reportId: `#REP${reportNumber}`
                 }, 300000);
 
                 // ── A pergunta de punição só deve aparecer no modal de
@@ -123,7 +123,7 @@ module.exports = {
                 const reportNumber = parseInt(parts[2]);
 
                 sessionManager.set(interaction.user.id, safeGuildId, 'rating', 'rating', {
-                    reportNumber, guildId, reportId: `#R${reportNumber}`
+                    reportNumber, guildId, reportId: `#REP${reportNumber}`
                 }, 300000);
 
                 const reportSystem = new ReportChatSystem(client);

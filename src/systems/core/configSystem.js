@@ -90,6 +90,17 @@ const ROLE_TABS = {
                 customId: 'config-roles:staff',
                 roleLimitKey: 'moderador',
             },
+            {
+                // Pedido do dono, 2026-08-09: "Bot precisa marcar um cargo
+                // especifico ao mandar reportes aberto nos logs de reports
+                // abertos" — mencionado (ver ReportChatSystem.openReport/
+                // openPunishmentReview) na mensagem de log postada no canal
+                // configurado em log_reports (/config logs), não aqui.
+                // Opcional: sem cargo configurado, nenhuma menção é feita.
+                key: 'report_mention_role', icon: 'megaphone', label: 'Menção em Reports Abertos',
+                desc: 'Cargo mencionado no log de reports (canal configurado em /config logs) sempre que um jogador abre um report ou pede revisão de punição. Deixe sem cargo pra não mencionar ninguém.',
+                customId: 'config-roles:report-mention',
+            },
         ],
     },
     events: {
@@ -581,6 +592,10 @@ const ConfigSystem = {
             }
             if (customId === 'config-roles:supervisor') {
                 await this.setRoles(interaction, 'supervisor_role');
+                return;
+            }
+            if (customId === 'config-roles:report-mention') {
+                await this.setRoles(interaction, 'report_mention_role');
                 return;
             }
             if (customId === 'config-roles:event') {

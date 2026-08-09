@@ -142,6 +142,20 @@
                     <%- include('partials/role-picker', { id: 'staff-role', name: 'staff_role', roles, selectedIds: staffRoleIds, limit: roleLimits.moderador, icon: 'shield' }) %>
                 </div>
 
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Menção em Reports Abertos</span><span data-i18n-en>Open Report Mention</span></h3>
+                    <p class="text-[13px] opacity-40 mb-2"><span data-i18n-pt>Cargo mencionado no log de reports sempre que um jogador abre um report ou pede revisão de punição. Deixe sem cargo pra não mencionar ninguém.</span><span data-i18n-en>Role mentioned in the report log whenever a player opens a report or requests a punishment review. Leave unset to mention no one.</span></p>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="megaphone"></i></div>
+                        <select name="report_mention_role" class="input-premium-field">
+                            <option value="" data-i18n-opt-pt="— selecione um cargo —" data-i18n-opt-en="— select a role —">— selecione um cargo —</option>
+                            <% roles.forEach(r => { %>
+                                <option value="<%= r.id %>" <%= settings.report_mention_role === r.id ? 'selected' : '' %>><%= r.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </div>
+
             </div>
             <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
         </form>

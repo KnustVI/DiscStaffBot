@@ -451,6 +451,7 @@ const toc = [
             <span data-i18n-pt>Guia completo de todos os comandos do Titan's Pass — moderação, denúncias, eventos, integração com Path of Titans via RCON, e configuração do servidor. Use o índice ao lado (ou o menu abaixo, no celular) pra pular direto pro que precisa.</span>
             <span data-i18n-en>The complete guide to every Titan's Pass command — moderation, reports, events, Path of Titans integration via RCON, and server configuration. Use the index on the side (or the menu below, on mobile) to jump straight to what you need.</span>
         </p>
+        <%- include('partials/testing-phase-banner-standalone') %>
     </div>
 </div>
 
@@ -552,12 +553,12 @@ const toc = [
                     descPt: 'Lista de denúncias abertas e fechadas, com busca e paginação — pensada pra continuar usável mesmo com centenas de denúncias acumuladas.',
                     descEn: 'A list of open and closed reports, with search and pagination — built to stay usable even with hundreds of reports piled up.',
                     bulletsPt: [
-                        'Busca por ID da denúncia (ex: R128) ou pelo nome de quem abriu.',
+                        'Busca por ID da denúncia (ex: REP128) ou pelo nome de quem abriu.',
                         'Mostra quem abriu, quem fechou, e o cargo de staff de cada pessoa mencionada — validado pelos cargos configurados em /config roles.',
                         'Link direto pro tópico no Discord, quando ele ainda existir — se foi apagado, mostra quem apagou.',
                     ],
                     bulletsEn: [
-                        'Search by report ID (e.g. R128) or by the name of whoever opened it.',
+                        'Search by report ID (e.g. REP128) or by the name of whoever opened it.',
                         'Shows who opened it, who closed it, and the staff role of everyone mentioned — validated against the roles configured in /config roles.',
                         'Direct link to the Discord thread, when it still exists — if it was deleted, shows who deleted it.',
                     ],
@@ -638,17 +639,16 @@ const toc = [
                         { name: 'usuario', type: 'Usuário', req: false, descPt: 'Use este e/ou agid.', descEn: 'Use this and/or agid.' },
                         { name: 'agid', type: 'Texto', req: false, descPt: 'Alderon ID do jogador.', descEn: "The player's Alderon ID." },
                         { name: 'nivel', type: 'Texto (autocomplete)', req: false, descPt: 'Obrigatório a partir do Rastreador. Vem de /config punishments.', descEn: 'Required from Tracker onward. Comes from /config punishments.' },
-                        { name: 'duracao', type: 'Texto', req: false, descPt: 'Só tem efeito no plano Free.', descEn: 'Only has an effect on the Free plan.' },
                         { name: 'discord_act', type: 'Escolha', req: false, descPt: 'Nenhuma / Mute / Expulsar / Banir.', descEn: 'None / Mute / Kick / Ban.' },
-                        { name: 'report', type: 'Texto', req: false, descPt: 'ID de uma denúncia existente (ex: #R5) pra vincular a punição a ela.', descEn: 'ID of an existing report (e.g. #R5) to link the punishment to it.' },
+                        { name: 'report', type: 'Texto', req: false, descPt: 'ID de uma denúncia existente (ex: #REP5) pra vincular a punição a ela.', descEn: 'ID of an existing report (e.g. #REP5) to link the punishment to it.' },
                     ],
                 }) %>
                 <%- cmdCard({
                     id: 'unstrike', name: 'unstrike', permPt: 'Moderador ou Supervisor (ou Administrador) + hierarquia', permEn: 'Moderator or Supervisor (or Administrator) + hierarchy',
-                    descPt: 'Anula um strike ativo (pelo número mostrado como "Strike #N", não o ID interno do banco) e devolve os pontos de reputação perdidos, após confirmação por botão (expira em 2 minutos).',
-                    descEn: 'Reverses an active strike (by the number shown as "Strike #N", not the internal database ID) and returns the reputation points lost, after button confirmation (expires in 2 minutes).',
+                    descPt: 'Anula um strike ativo (pelo número mostrado como "Strike #IDN", não o ID interno do banco) e devolve os pontos de reputação perdidos, após confirmação por botão (expira em 2 minutos).',
+                    descEn: 'Reverses an active strike (by the number shown as "Strike #IDN", not the internal database ID) and returns the reputation points lost, after button confirmation (expires in 2 minutes).',
                     opts: [
-                        { name: 'id', type: 'Número', req: true, descPt: 'O número do strike a anular (Strike #N).', descEn: 'The strike number to reverse (Strike #N).' },
+                        { name: 'id_strike', type: 'Número', req: true, descPt: 'O número do strike a anular (Strike #IDN) — não é o Alderon ID/AGID.', descEn: 'The strike number to reverse (Strike #IDN) — not the Alderon ID/AGID.' },
                         { name: 'motivo', type: 'Texto', req: true, descPt: 'Motivo da anulação.', descEn: 'Reason for reversing it.' },
                     ],
                 }) %>

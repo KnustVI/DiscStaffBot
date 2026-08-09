@@ -25,6 +25,13 @@ do Cloudflare e mostra:
   atende só o publico de fora do Brasil, o Brasil continua pelo fluxo
   manual de sempre.
 
+AQUISICAO TEMPORARIAMENTE PAUSADA (pedido do dono, 2026-08-09 - ver secao
+141 de changelog): enquanto o bot estiver em fase de testes, todo botao de
+AQUISICAO (Ko-fi, "Adquirir Player/Server Premium", texto do Pix no site,
+"Assinar" no /premium do Discord) esta travado/avisando isso em vez de
+levar a um pagamento de verdade - NAO afeta quem ja tem premium concedido,
+só bloqueia gente NOVA tentando comprar. Remover este paragrafo quando a
+trava for desativada de volta (ConfigSystem/hero.ejs, ver secao 141).
 
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
@@ -6993,3 +7000,160 @@ frente, nao so este relatorio):
   exato contra o banco real (insert sem ensureUser/ensureGuild = mesmo
   `SQLITE_CONSTRAINT_FOREIGNKEY` do log de produção) e depois confirmando
   que o mesmo insert com ensureUser/ensureGuild antes já funciona.
+
+------------------------------------------------------------------
+141) Lote de 10 correções/ajustes pedidos pelo dono numa lista única:
+     permissão de cargo no /strike, nível não reconhecido, dashboard
+     travado, IDs renomeados (#R→#REP, →#ID), duração removida do
+     /strike, campo do /unstrike esclarecido, menção de cargo em
+     reports, link do report no log de punição, premium travado e
+     aviso de fase de testes sitewide
+------------------------------------------------------------------
+- Pedido do dono (2026-08-09), lista única de 10 itens direto no chat —
+  cada um investigado/implementado/verificado em sequência.
+- #1 ALGUNS CARGOS NÃO CONSEGUIAM APLICAR STRIKE, sem erro nenhum em log
+  ("ocorreu um erro no discord", sem mais detalhe) — causa raiz:
+  `.setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)` em
+  12 comandos (`/strike`, `/unstrike`, `/rep-set`, `/staffonline`, os 8
+  `/ingame-*`) fazia o PRÓPRIO DISCORD bloquear a interação ANTES dela
+  chegar no bot, pra qualquer cargo que não tivesse a permissão nativa
+  "Moderar Membros" — mesmo que esse cargo estivesse corretamente
+  configurado em `/config roles` como Moderador/Supervisor/Staff. Como o
+  bot nunca recebe a interação nesses casos, não tem erro nenhum pra
+  logar — só o toast genérico do PRÓPRIO Discord na tela do usuário.
+  Corrigido trocando `setDefaultMemberPermissions` pra `null` nos 12
+  comandos (comentário completo em `strike/index.js`, resumido nos
+  outros 11) — a checagem de permissão REAL já existia em código
+  (`ConfigSystem.memberHasModOrSupervisorRole`/`memberHasAnyStaffRole`)
+  em todos eles, então isso passa a ser a ÚNICA porta de entrada, sem
+  depender de admins de servidor configurarem nada a mais no painel de
+  Integrações do próprio Discord. Verificado com `node --check` +
+  load-test dos 12 arquivos confirmando `default_member_permissions:
+  null` + varredura dos 47 comandos do bot inteiro sem nenhuma outra
+  falha.
+- #3 NÍVEIS DE PUNIÇÃO CONFIGURADOS PELO SITE NÃO ERAM RECONHECIDOS PELO
+  /STRIKE DO DISCORD — causa raiz: a opção `nivel` do `/strike` usa
+  autocomplete (`StringOption` com sugestões), mas o Discord NÃO EXIGE
+  que o valor enviado seja uma das sugestões pra opções de texto — um
+  staff que digitava o NOME do nível (ex: "Grave") em vez de clicar na
+  sugestão mandava esse texto como valor, não o ID numérico esperado, e
+  `PunishmentLevels.getLevel(guildId, "Grave")` nunca batia contra a
+  coluna `id`. Corrigido com `getLevelByIdOrName` (nova função em
+  `punishmentLevels.js`) — tenta por ID primeiro, cai pra busca por NOME
+  (case-insensitive, exato) só quando o ID falha; usado exclusivamente
+  em `strike/index.js` (única entrada vinda de autocomplete não
+  estritamente respeitado). Verificado com 8 asserções contra o banco
+  real.
+- #7 DASHBOARD LIBERADO PRA ADMINISTRADORES DE SERVIDOR — antes,
+  `DASHBOARD_LOCKED_TO_OWNER = true` bloqueava TODO MUNDO além do dono
+  do bot, mesmo staff/admin de servidor de verdade. Auditadas as 23
+  rotas afetadas: as 14 por servidor (moderação/reports/eventos, GET e
+  POST/save, + 3 fragments de poll) já checavam
+  `resolveAdminMember`/`isStaff`/`isAdmin` de verdade, independente
+  dessa trava; as 8 globais (`/perfil`, `/loja` e afins) nunca
+  dependeram de permissão de servidor nenhuma. Trava virou `false` —
+  staff/admin de servidor agora vê Moderação/Reports/Eventos do(s)
+  servidor(es) onde tem cargo configurado, e `/perfil`/`/loja` abrem pra
+  qualquer usuário autenticado. `/dev/image-pool` continua exclusivo do
+  dono (`isOwnerSession`, gate totalmente separado). Verificado com
+  `node --check` + revisão completa das 23 rotas uma a uma.
+- #9 REMOVIDO O PARÂMETRO `duracao` DO `/strike` — pedido do dono:
+  "vamos sempre usar a duração configurada em NÍVEL". Opção removida do
+  `SlashCommandBuilder` inteiro (não só do caminho Rastreador+, que já
+  ignorava o valor antes). Efeito colateral aceito no Free (sem níveis,
+  `maxPunishmentLevels = 0`): toda punição desse tier agora é sempre
+  permanente, já que não sobrou nenhuma fonte de duração nesse caminho.
+- #8 CAMPO `id` DO `/unstrike` CONFUNDIA COM AGID — pedido do dono: "no
+  campo de ID peça e explique é o numero do strike". Renomeado
+  `id`→`id_strike`, descrição reforça "NÃO é o Alderon ID/AGID" e cita
+  onde o número aparece ("Strike #IDN").
+- #10 IDs RENOMEADOS: reports `#R<N>` → `#REP<N>`; punições/strikes
+  `#<N>` → `#ID<N>` (mantendo a palavra ao lado, ex: "Strike #IDN",
+  "Punição #IDN" — só o símbolo "#" some, vira "#ID"). Tocou ~20 pontos
+  de exibição em `reportChatSystem.js`, `punishmentSystem.js`,
+  `strike/index.js`, `strike/registro.js`, `unstrike.js`,
+  `interactionCreate.js`, `messageCreat.js`, `threadDelete.js`,
+  `inactiveReportsJob.js`, `reset-reports.js` (dev), mais
+  `perfil-historico.ejs`/`documentacao.ejs`/`hero.ejs` no site. Banco:
+  `reports.report_id` é coluna GERADA (`GENERATED ALWAYS AS ('#R' ||
+  report_number) STORED`) — SQLite não tem `ALTER COLUMN` pra trocar a
+  expressão, só DROP+ADD (mesmo padrão de `ensureColumn`/
+  `dropColumnIfExists` já usado no arquivo); como é `STORED`, o próprio
+  SQLite recalcula pra TODAS as linhas (antigas e novas) na hora do ADD,
+  sem UPDATE manual. Dois snapshots em TEXTO PLANO que ficariam
+  congelados no prefixo antigo (`punishments.report_id`,
+  `reports.punishment`) corrigidos por uma migração de dados nova,
+  idempotente (`migrateReportPunishmentIdPrefixes`, guardas `NOT LIKE`).
+  Compatibilidade retroativa: customIds de botões "Entrar no Reporte"
+  JÁ ENVIADOS em mensagens de log antes desta troca continuam com "#R"
+  gravado dentro pra sempre (Discord não reescreve mensagens antigas) —
+  os parses envolvidos (`joinReport`/`updateStatus`/vínculo
+  report↔punição, e a opção `report` do `/strike`) aceitam os dois
+  prefixos (`/^#?(REP|R)/i`), nunca só o novo. Verificado com testes
+  reais contra o banco (migração de schema + backfill de dados +
+  idempotência + os dois regex) e `node --check`/compile de todo
+  arquivo tocado.
+- #4 MENÇÃO DE CARGO NOS LOGS DE REPORTS ABERTOS — nova config
+  `report_mention_role` (cargo único, mesmo padrão de
+  `strike_role`/`role_exemplar`/`role_problematico`: `getRoleIds`/
+  `setRoleIds` no Discord via novo campo em `ROLE_TABS.moderation`
+  — `/config roles` —, `getSetting`/`setSetting` direto no site via
+  novo `<select>` na mesma seção "Cargos de Moderação" de
+  `moderacao.ejs`). Mencionado (`<@&id>`) só na mensagem de log da
+  ABERTURA (`openReport`/`openPunishmentReview`, via novo parâmetro
+  `options.mentionRoleId` de `createBaseContainer`) — não nas edições
+  seguintes do mesmo painel (join/close/rate), evitando repetir a
+  menção a cada atualização. Opcional: sem cargo configurado, nenhuma
+  menção é feita.
+- #6 LOG DE PUNIÇÃO AGORA LINKA PRA MENSAGEM DO REPORT, não só o ID cru
+  — `generateStrikeUnifiedContainer` já sabia renderizar um link
+  clicável (`[reportId](reportLink)`) quando recebia `reportLink`, mas
+  `_executeStrike` sempre passava `null`. Resolvido on-the-fly em
+  `_executeStrike` (canal `log_reports` ATUAL + `log_message_id` salvo
+  no report na abertura) igual ao link de thread já usado em
+  `reportChatSystem.createBaseContainer` — sem coluna nova no banco.
+  Cai pro texto puro (sem virar link) se o report não tiver log ainda
+  ou o canal não estiver configurado.
+- #2 BOTÕES DE AQUISIÇÃO DE PREMIUM TRAVADOS DURANTE A FASE DE TESTES —
+  investigado antes de mexer: não existe checkout automatizado nenhum
+  (tier sempre foi concedido manualmente, ver preâmbulo no topo deste
+  arquivo), só pontos de entrada de auto-serviço (Ko-fi fora do Brasil,
+  "Adquirir Player/Server Premium" levando pro suporte no Brasil) — são
+  esses que ficam travados, não nenhum benefício de quem já tem premium.
+  Site (`hero.ejs`): botões ganham `data-premium-locked="true"`, clique
+  interceptado (mesmo mecanismo já usado pro overlay de dashboard
+  travado) mostra um overlay novo (`premium-locked-overlay.ejs`,
+  reaproveitando `.dev-overlay`/`.dev-overlay-card`) em vez de navegar
+  pro Ko-fi/suporte; texto do Pix (Brasil) trocado de "fale com a
+  staff" pra "temporariamente pausado". Discord (`/premium`): botão
+  "Assinar" deixado como está (Link-style, só abre a vitrine no site,
+  nunca foi um checkout em si — decisão de design de 2026-08-06) porque
+  já leva pra uma página que agora está corretamente travada; converter
+  pra botão interceptável adicionaria complexidade sem mudar o
+  resultado. Verificado com render real (`ejs.renderFile`) nos dois
+  modos de região (Brasil/internacional), confirmando os botões certos
+  travados e o texto certo em cada caso.
+- #5 AVISO "BOT EM FASE DE TESTES" EM TODAS AS PÁGINAS DO SITE — chip
+  informativo (não bloqueia nada, mesmo padrão visual do aviso
+  "Conversor em fase de testes" que já existia em `loja.ejs`) em 12 das
+  13 páginas do site (`dev-image-pool.ejs`, exclusiva do dono, fica de
+  fora — mesmo critério já usado pra tradução). Dois parciais novos:
+  `testing-phase-banner.ejs` (reaproveita `.outline-chip` de
+  `style.css`, pras 8 páginas do dashboard) e
+  `testing-phase-banner-standalone.ejs` (CSS própria inline, pras 4
+  páginas públicas que não linkam `style.css` — mesmo motivo de
+  `dev-overlay-card.ejs` já duplicar sua própria `<style>`). Inserido
+  uma vez em `page-header.ejs` (propaga pra 6 páginas que o incluem:
+  moderação/reports/eventos/histórico/denúncias/staff-perfil) +
+  individualmente em `perfil.ejs`/`loja.ejs` (não usam page-header) +
+  `hero.ejs`/`documentacao.ejs`/`termos.ejs`/`portal.ejs`. Verificado
+  com render real de cada página tocada (mocks completos via
+  `ejs.renderFile`), confirmando o texto aparece nos dois idiomas em
+  todas.
+- Verificação geral do lote inteiro: `node --check` em todo arquivo
+  `.js` tocado, `ejs.compile`/`ejs.renderFile` em todo `.ejs` tocado,
+  testes funcionais contra o banco real (SQLite local, não produção)
+  pra cada mudança com lógica de dados, e uma varredura final de
+  carregamento dos 28 comandos não-developer do bot sem nenhuma falha.
+  Scripts de teste temporários (prefixo `_test_`), sempre removidos
+  depois de passar.

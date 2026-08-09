@@ -158,7 +158,7 @@
                             <div class="ph-punishment-head">
                                 <span class="level-severity-dot" style="background:<%= p.level_severity ? (severityColors[p.level_severity] || '#A89986') : '#A89986' %>"></span>
                                 <span class="ph-punishment-title">
-                                    Strike #<%= p.strike_number || p.id %><% if (p.level_name) { %> (<%= p.level_name %>)<% } else if (p.severity) { %> (<span data-i18n-pt>severidade legada</span><span data-i18n-en>legacy severity</span> <%= p.severity %>)<% } %>
+                                    Strike #ID<%= p.strike_number || p.id %><% if (p.level_name) { %> (<%= p.level_name %>)<% } else if (p.severity) { %> (<span data-i18n-pt>severidade legada</span><span data-i18n-en>legacy severity</span> <%= p.severity %>)<% } %>
                                 </span>
                                 <% if (p.status === 'revoked') { %>
                                     <span class="ph-revoked-badge"><span data-i18n-pt>Anulado</span><span data-i18n-en>Revoked</span></span>

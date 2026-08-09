@@ -31,7 +31,7 @@ module.exports = {
             const reportSystem = new ReportChatSystem(client);
             const released = reportSystem.releaseReportByThreadId(thread.id, deletedBy);
             if (released) {
-                console.log(`🔓 [ThreadDelete] Report #R${released.report_number}${deletedBy ? ` apagado por ${deletedBy}` : ' (autor da exclusão não identificado)'} em ${thread.guild?.name || thread.guildId}`);
+                console.log(`🔓 [ThreadDelete] Report #REP${released.report_number}${deletedBy ? ` apagado por ${deletedBy}` : ' (autor da exclusão não identificado)'} em ${thread.guild?.name || thread.guildId}`);
             }
         } catch (error) {
             ErrorLogger.error('thread_delete', 'releaseReport', error, { threadId: thread.id });

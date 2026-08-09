@@ -285,6 +285,34 @@ class DatabaseManager {
             // execução não sobra nenhuma linha 'pegada'/'fossil' pra migrar.
             this.migrateGuildPremiumTierNames();
 
+            // Renomeia o prefixo de identificação de reports (pedido do
+            // dono, 2026-08-09: "Mudaremos o nome da identificação de
+            // reportes... #r(numero) para #REP(NUMERO)") — reports.report_id
+            // é coluna GERADA (ver schema.js), e SQLite não tem ALTER COLUMN
+            // pra trocar a expressão de uma GENERATED existente: a única
+            // forma é DROP + ADD de novo (mesmo padrão de ensureColumn/
+            // dropColumnIfExists acima). Como é STORED, o próprio SQLite
+            // recalcula o valor pra TODAS as linhas (antigas e novas) na
+            // hora do ADD COLUMN — sem precisar de UPDATE manual aqui.
+            this.dropColumnIfExists('reports', 'report_id');
+            this.ensureColumn('reports', 'report_id', `TEXT GENERATED ALWAYS AS ('#REP' || report_number) STORED`);
+
+            // As duas linhas acima rodam em TODO boot (idempotentes, mas não
+            // um no-op puro: recriam a coluna sempre) — aceitável pro
+            // tamanho de `reports` deste bot; ver comentário de
+            // dropColumnIfExists/ensureColumn acima sobre o padrão geral.
+
+            // Corrige o prefixo congelado nos 2 snapshots em TEXTO PLANO
+            // (não gerados, então NÃO recalculados pelo passo acima) que
+            // guardam o formato antigo desde antes desta troca —
+            // punishments.report_id (gravado 1x em applyPunishment) e
+            // reports.punishment (gravado 1x quando um strike é vinculado a
+            // um report, ver punishmentSystem._executeStrike). Sem isso,
+            // punições/reports antigos ficariam com o prefixo antigo pra
+            // sempre, inconsistente com o resto do sistema. Guardas
+            // "NOT LIKE" tornam idempotente (não reaplica em quem já foi migrado).
+            this.migrateReportPunishmentIdPrefixes();
+
             console.log('📋 Schema do banco de dados criado');
 
         } catch (error) {
@@ -300,6 +328,25 @@ class DatabaseManager {
         try {
             this.db.prepare(`UPDATE guild_premium SET tier = 'rastreador' WHERE tier = 'pegada'`).run();
             this.db.prepare(`UPDATE guild_premium SET tier = 'cacador' WHERE tier = 'fossil'`).run();
+        } catch (err) {
+            // Tabela ainda não existe na primeiríssima execução — ignorar.
+        }
+    }
+
+    // Corrige o prefixo antigo ('#R'/'Strike #') congelado nos snapshots em
+    // texto plano de punishments.report_id e reports.punishment pro novo
+    // ('#REP'/'Strike #ID' — pedido do dono, 2026-08-09). Guardas "NOT LIKE"
+    // tornam idempotente: só afeta linhas ainda não migradas.
+    migrateReportPunishmentIdPrefixes() {
+        try {
+            this.db.prepare(`
+                UPDATE punishments SET report_id = '#REP' || substr(report_id, 3)
+                WHERE report_id LIKE '#R%' AND report_id NOT LIKE '#REP%'
+            `).run();
+            this.db.prepare(`
+                UPDATE reports SET punishment = 'Strike #ID' || substr(punishment, 9)
+                WHERE punishment LIKE 'Strike #%' AND punishment NOT LIKE 'Strike #ID%'
+            `).run();
         } catch (err) {
             // Tabela ainda não existe na primeiríssima execução — ignorar.
         }

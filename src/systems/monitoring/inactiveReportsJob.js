@@ -31,7 +31,7 @@ function startInactiveReportsJob(client) {
                 
                 const ReportChatSystem = require('../moderation/reportChatSystem');
                 const reportSystem = new ReportChatSystem(client);
-                const reportId = `#R${report.report_number}`;
+                const reportId = `#REP${report.report_number}`;
                 await reportSystem.updateStatus(report.guild_id, reportId, 'inactive');
                 
                 console.log(`📌 Report ${reportId} marcado como inativo (24h sem mensagens)`);

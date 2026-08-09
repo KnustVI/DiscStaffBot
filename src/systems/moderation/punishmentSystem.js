@@ -207,7 +207,7 @@ const PunishmentSystem = {
                 const date = `<t:${Math.floor(p.created_at / 1000)}:d>`;
                 const severityIcon = this.severityIconFor({ levelSeverity: p.level_severity, severity: p.severity });
                 const strikeNum = p.strike_number || p.id;
-                builder.text(`${severityIcon} Strike #${strikeNum}${p.level_name ? ` (${p.level_name})` : ''} | ${date}`);
+                builder.text(`${severityIcon} Strike #ID${strikeNum}${p.level_name ? ` (${p.level_name})` : ''} | ${date}`);
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);
                 if (p.report_id) builder.text(`┃ Report: \`${p.report_id}\``);
                 if (p.status === 'revoked') builder.text(`┃ Status: ${EMOJIS.circlecheck || '✅'} Anulado`);
@@ -277,7 +277,7 @@ const PunishmentSystem = {
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
-        builder.text(`## ${EMOJIS.ban || '❌'} STRIKE | ***#${strikeNumber}***`, 1);
+        builder.text(`## ${EMOJIS.ban || '❌'} STRIKE | ***#ID${strikeNumber}***`, 1);
         if (levelSeverity) {
             builder.text(`${this.severityIconFor({ levelSeverity })} **Nível:** ${levelName} (${levelSeverity})`);
         } else {
@@ -334,7 +334,7 @@ const PunishmentSystem = {
             AdvancedContainerBuilder.thumbnail(targetAvatar),
         );
         builder.separator();
-        builder.text(`## ${EMOJIS.circlecheck || '✅'} STRIKE ANULADO | ***#${strikeNumber}***`, 1);
+        builder.text(`## ${EMOJIS.circlecheck || '✅'} STRIKE ANULADO | ***#ID${strikeNumber}***`, 1);
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             builder.text(`**${EMOJIS.doublearrowup || '✅'} Pontos restaurados:** +${pointsRestored}`);
             builder.text(`**${EMOJIS.star || '⭐'} Reputação:** ${newPoints - pointsRestored} → ${newPoints}`);
@@ -710,7 +710,7 @@ const PunishmentSystem = {
 
         if (requester) {
             await requester.send(
-                `${EMOJIS.circlecheck || '✅'} Seu pedido de punição severa contra ${result.targetUser?.tag || session.targetId} foi **aprovado** por ${interaction.user.tag} em **${guild.name}** e já foi aplicado (Strike #${result.strikeId}).`
+                `${EMOJIS.circlecheck || '✅'} Seu pedido de punição severa contra ${result.targetUser?.tag || session.targetId} foi **aprovado** por ${interaction.user.tag} em **${guild.name}** e já foi aplicado (Strike #ID${result.strikeId}).`
             ).catch(() => {});
         }
     },
@@ -781,12 +781,37 @@ const PunishmentSystem = {
         // ── Fecha o vínculo report ↔ punição: se o strike referenciou um
         // report (já validado no subcomando de /strike que chamou isto),
         // grava a punição aplicada de volta no próprio report para consulta
-        // futura. ──────────────────────────────────────────────────────────
+        // futura. Também resolve reportLink (pedido do dono, 2026-08-09:
+        // "Punição criada só anota o ID do reporte informado, ele deve
+        // informar o link que leva até a mensagem do report que esta no
+        // painel de logs") — generateStrikeUnifiedContainer já sabia
+        // renderizar reportId como link clicável (ver linha ~292), só
+        // nunca recebia um reportLink de verdade daqui (sempre `null`).
+        // Resolvido on-the-fly (canal de log ATUAL + log_message_id salvo
+        // em reports na abertura, ver reportChatSystem.openReport/
+        // openPunishmentReview) em vez de guardado junto à punição — mesmo
+        // padrão do link de thread em createBaseContainer, que também
+        // remonta a URL a partir do id salvo em vez de armazenar a URL
+        // pronta. Fica null (sem virar link) se o report não tiver
+        // log_message_id ainda ou se log_reports não estiver configurado —
+        // reportId continua aparecendo como texto puro nesses casos. ──────
+        let reportLink = null;
         if (reportId) {
-            const linkedReportNumber = parseInt(String(reportId).replace(/^#?R/i, ''));
+            // Aceita #REP (novo, pedido do dono 2026-08-09) e #R (antigo) —
+            // reportId aqui pode ter vindo de session.reportId, já sempre no
+            // formato novo (ver strike/index.js validateReport), mas mantém
+            // os dois por segurança/consistência com o resto do sistema.
+            const linkedReportNumber = parseInt(String(reportId).replace(/^#?(REP|R)/i, ''));
             if (!isNaN(linkedReportNumber)) {
                 db.prepare(`UPDATE reports SET punishment = ? WHERE guild_id = ? AND report_number = ?`)
-                    .run(`Strike #${strikeId}${levelName ? ` (${levelName})` : ''}`, guild.id, linkedReportNumber);
+                    .run(`Strike #ID${strikeId}${levelName ? ` (${levelName})` : ''}`, guild.id, linkedReportNumber);
+
+                const reportRow = db.prepare(`SELECT log_message_id FROM reports WHERE guild_id = ? AND report_number = ?`)
+                    .get(guild.id, linkedReportNumber);
+                const reportLogChannelId = ConfigSystem.getSetting(guild.id, 'log_reports');
+                if (reportRow?.log_message_id && reportLogChannelId) {
+                    reportLink = `https://discord.com/channels/${guild.id}/${reportLogChannelId}/${reportRow.log_message_id}`;
+                }
             }
         }
 
@@ -896,7 +921,7 @@ const PunishmentSystem = {
 
         const containerBuilder = await this.generateStrikeUnifiedContainer(
             guild.client, targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
-            pointsLost, newPoints, discordAct, discordActionResult, guild.name, null, guild.id,
+            pointsLost, newPoints, discordAct, discordActionResult, guild.name, reportLink, guild.id,
             jogoAct, ingameActionResult
         );
         const { components, flags, files: filesPayload } = containerBuilder.build();
@@ -953,7 +978,7 @@ const PunishmentSystem = {
                 : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação do strike.`;
 
         const lines = [
-            `${emojis.circlecheck || '✅'} **Strike #${result.strikeId} aplicado em ${result.targetUser.username}**`,
+            `${emojis.circlecheck || '✅'} **Strike #ID${result.strikeId} aplicado em ${result.targetUser.username}**`,
         ];
         if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
             lines.push(`${emojis.doublearrowdown || '📉'} ${result.pointsLost} pts perdidos`);
@@ -1020,12 +1045,12 @@ const PunishmentSystem = {
             const strikeRoleId = ConfigSystem.getSetting(guildId, 'strike_role');
             if (strikeRoleId && targetMember?.roles.cache.has(strikeRoleId)) {
                 try {
-                    await targetMember.roles.remove(strikeRoleId, `Punição #${punishmentId} anulada`);
+                    await targetMember.roles.remove(strikeRoleId, `Punição #ID${punishmentId} anulada`);
                 } catch (err) {}
             }
             if (targetMember?.communicationDisabledUntilTimestamp) {
                 try {
-                    await targetMember.timeout(null, `Punição #${punishmentId} anulada`);
+                    await targetMember.timeout(null, `Punição #ID${punishmentId} anulada`);
                 } catch (err) {}
             }
 
@@ -1113,7 +1138,7 @@ const PunishmentSystem = {
                 : `${emojis.circlealert || '❌'} O jogador tem as DM bloqueadas e não recebeu a notificação da anulação.`;
 
             const summaryLines = [
-                `${emojis.circlecheck || '✅'} **Strike #${punishmentId} anulado!**`,
+                `${emojis.circlecheck || '✅'} **Strike #ID${punishmentId} anulado!**`,
             ];
             if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
                 summaryLines.push(`${emojis.doublearrowup || '📈'} +${pointsRestored} pts | ${emojis.star || '⭐'} Reputação: ${newPoints}/100`);

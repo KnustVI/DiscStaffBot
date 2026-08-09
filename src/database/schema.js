@@ -78,7 +78,7 @@ const SCHEMA = {
         CREATE TABLE IF NOT EXISTS reports (
             guild_id TEXT NOT NULL,
             report_number INTEGER NOT NULL,
-            report_id TEXT GENERATED ALWAYS AS ('#R' || report_number) STORED,
+            report_id TEXT GENERATED ALWAYS AS ('#REP' || report_number) STORED,
             type TEXT NOT NULL DEFAULT 'report',
             punishment_id INTEGER,
             user_id TEXT NOT NULL,

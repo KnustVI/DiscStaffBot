@@ -1,0 +1,30 @@
+<%#
+  web/views/partials/premium-locked-overlay.ejs
+  Cartão "Premium ainda não está em uso" (pedido do dono, 2026-08-09:
+  "Trava os botões de premium por hora, informe por overlay que o premium
+  ainda não esta em uso durante a fase de testes") — mesma estrutura visual
+  de dev-overlay-card.ejs (ícone SVG cru + título + texto + botão), só que
+  fecha no lugar em vez de navegar (não faz sentido mandar pra "/" aqui).
+
+  Uso: include( partials/premium-locked-overlay ) — sem parâmetros. Quem
+  inclui é responsável pelo backdrop .dev-overlay + script de
+  abrir/fechar (ver hero.ejs, mesmo padrão do overlay de dashboard travado).
+
+  Ícone SVG inline (path do Lucide "flask-conical", copiado à mão) pelo
+  mesmo motivo de dev-overlay-card.ejs: hero.ejs não carrega o script do
+  lucide.
+%>
+<div class="dev-overlay-card">
+    <div class="dev-overlay-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 2v7.31"/>
+            <path d="M14 9.3V2"/>
+            <path d="M8.5 2h7"/>
+            <path d="M14 9.3a6.5 6.5 0 1 1-4 0"/>
+            <path d="M5.52 16h12.96"/>
+        </svg>
+    </div>
+    <h2 class="dev-overlay-title"><span data-i18n-pt>Premium ainda não está em uso</span><span data-i18n-en>Premium isn't active yet</span></h2>
+    <p class="dev-overlay-text"><span data-i18n-pt>O bot está em fase de testes e a aquisição de Premium está temporariamente pausada. Volte em breve — ou entre no servidor de suporte pra acompanhar as novidades.</span><span data-i18n-en>The bot is in testing phase and Premium purchases are temporarily paused. Check back soon — or join the support server to follow along.</span></p>
+    <button type="button" class="btn-primary" id="premiumLockedClose" style="min-width:0; padding:10px 32px;"><span data-i18n-pt>FECHAR</span><span data-i18n-en>CLOSE</span></button>
+</div>

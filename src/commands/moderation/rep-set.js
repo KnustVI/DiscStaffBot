@@ -52,7 +52,10 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Alvo').setRequired(true))
         .addIntegerOption(opt => opt.setName('pontos').setDescription('Nova pontuação (0-100)').setRequired(true).setMinValue(0).setMaxValue(100))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo do ajuste').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers), // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
+        // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js). Checagem real já dentro
+        // de execute().
+        .setDefaultMemberPermissions(null),
 
     async execute(interaction, client) {
         const startTime = Date.now();

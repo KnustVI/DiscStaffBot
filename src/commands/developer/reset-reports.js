@@ -177,7 +177,7 @@ module.exports = {
             successBuilder.text(`- Abertos: \`${statsBefore.openReports}\``);
             successBuilder.text(`- Fechados: \`${statsBefore.closedReports}\``);
             successBuilder.separator();
-            successBuilder.text(`**Contagem reiniciada:** O próximo report será **#R1**`);
+            successBuilder.text(`**Contagem reiniciada:** O próximo report será **#REP1**`);
             successBuilder.footer(targetGuild.name, `UUID: ${resetUuid.slice(0, 8)}`);
 
             const { components, flags } = successBuilder.build();

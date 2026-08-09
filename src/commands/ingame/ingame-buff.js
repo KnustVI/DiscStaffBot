@@ -212,7 +212,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('ingame-buff')
         .setDescription('🔒 Aplica um buff (preset de setattr) num jogador (plano Caçador).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js). Checagem real já
+        // dentro de execute() (memberHasAnyStaffRole).
+        .setDefaultMemberPermissions(null)
         .addSubcommand((sub) => sub
             .setName('aplicar')
             .setDescription('Aplica um buff configurado num jogador.')

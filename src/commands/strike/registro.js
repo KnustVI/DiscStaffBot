@@ -9,9 +9,18 @@
 // isso este caminho continua existindo à parte, preservando o que já era
 // documentado no Free (ver PREMIUM.txt, seção 1).
 //
-// Lê `usuario`/`motivo`/`duracao`/`report` direto de interaction.options —
-// são os MESMOS nomes de opção do comando único /strike agora (antes eram
-// opções do subcomando "registro" que dava nome a este arquivo).
+// Lê `usuario`/`motivo`/`report` direto de interaction.options — são os
+// MESMOS nomes de opção do comando único /strike agora (antes eram opções
+// do subcomando "registro" que dava nome a este arquivo).
+//
+// Duração (pedido do dono, 2026-08-07: "Remover parâmetro pedido de
+// duração do comando /strike, vamos sempre usar a duração configurada em
+// NÍVEL") — a opção `duracao` foi removida do schema do /strike inteiro
+// (ver strike/index.js), não só do caminho Rastreador+ (que já ignorava
+// esse valor antes). Como Free não tem nível nenhum pra puxar duração,
+// não sobrou nenhuma fonte de duração aqui — todo registro deste tier é
+// SEMPRE permanente agora (durationStr fica sempre null/vazio, que já
+// era o valor tratado como "permanente" no resto do fluxo).
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
@@ -23,7 +32,7 @@ module.exports = {
 
         const targetUser = options.getUser('usuario');
         const reason = options.getString('motivo');
-        const durationStr = options.getString('duracao') || null;
+        const durationStr = null; // sempre permanente — ver comentário no topo do arquivo
         let reportId = options.getString('report') || null;
 
         try {
@@ -32,16 +41,18 @@ module.exports = {
             }
 
             if (reportId) {
-                const match = reportId.trim().match(/^#?R?(\d+)$/i);
+                // Aceita o prefixo NOVO (#REP, pedido do dono 2026-08-09) e o
+                // ANTIGO (#R) — mesmo regex de strike/index.js validateReport().
+                const match = reportId.trim().match(/^#?(REP|R)?(\d+)$/i);
                 if (!match) {
-                    return await ResponseManager.error(interaction, 'ID de Report inválido. Use o formato #R5 (ou apenas 5).');
+                    return await ResponseManager.error(interaction, 'ID de Report inválido. Use o formato #REP5 (ou apenas 5).');
                 }
-                const reportNumber = parseInt(match[1]);
+                const reportNumber = parseInt(match[2]);
                 const reportExists = db.prepare(`SELECT 1 FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
                 if (!reportExists) {
-                    return await ResponseManager.error(interaction, `Report #R${reportNumber} não encontrado neste servidor.`);
+                    return await ResponseManager.error(interaction, `Report #REP${reportNumber} não encontrado neste servidor.`);
                 }
-                reportId = `#R${reportNumber}`;
+                reportId = `#REP${reportNumber}`;
             }
 
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);

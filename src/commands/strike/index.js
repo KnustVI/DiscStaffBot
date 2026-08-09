@@ -15,15 +15,24 @@
  * para free tier"), este comando detecta o tier e usa DOIS caminhos
  * internos:
  *   - Free: registro simples (sem nível/RCON/ação automática), só
- *     `usuario` + `motivo` (+ `duracao` opcional) — mesmo comportamento do
- *     antigo `/strike registro`, sem quebrar o que já era documentado no
- *     Free (ver PREMIUM.txt, seção 1).
+ *     `usuario` + `motivo` — mesmo comportamento do antigo
+ *     `/strike registro`, sem quebrar o que já era documentado no Free
+ *     (ver PREMIUM.txt, seção 1). SEMPRE permanente (ver duração abaixo).
  *   - Rastreador+: nível sempre obrigatório, a duração/pontos/ação em jogo
- *     vêm SEMPRE do nível escolhido (nunca de `duracao`, que nesse tier é
- *     ignorada) — mescla o que antes eram `/strike ingame` (aceita AGID
- *     não vinculado, alvo sintético) e `/strike personalizado` (aceita
- *     usuario OU agid, resolve o vínculo que faltar), sem o modo manual
- *     livre de nível (removido — todo strike agora usa um nível).
+ *     vêm SEMPRE do nível escolhido — mescla o que antes eram
+ *     `/strike ingame` (aceita AGID não vinculado, alvo sintético) e
+ *     `/strike personalizado` (aceita usuario OU agid, resolve o vínculo
+ *     que faltar), sem o modo manual livre de nível (removido — todo
+ *     strike agora usa um nível).
+ *
+ * Duração (pedido do dono, 2026-08-07: "Remover parâmetro pedido de
+ * duração do comando /strike, vamos sempre usar a duração configurada em
+ * NÍVEL") — a opção `duracao` foi REMOVIDA do comando inteiro, não só do
+ * caminho Rastreador+ (que já ignorava esse valor mesmo antes, sempre
+ * usando a duração do nível escolhido). Efeito colateral aceito no Free
+ * (não tem nível pra puxar duração nenhuma): todo strike registrado nesse
+ * tier agora é SEMPRE permanente — antes dava pra informar um valor
+ * manual tipo "10m"/"1h"/"3d", ver registro.js.
  *
  * Regras de identificação (Rastreador+, pedido literal do dono):
  *   - Nem usuario nem agid informados → erro exigindo pelo menos um.
@@ -47,12 +56,16 @@ let emojis = {};
 try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
 function validateReport(guildId, reportId) {
-    const match = reportId.trim().match(/^#?R?(\d+)$/i);
-    if (!match) return { error: 'ID de Report inválido. Use o formato #R5 (ou apenas 5).' };
-    const reportNumber = parseInt(match[1]);
+    // Aceita o prefixo NOVO (#REP, pedido do dono 2026-08-09: "Mudaremos o
+    // nome da identificação de reportes... #r(numero) para #REP(NUMERO)")
+    // e o ANTIGO (#R) — mantém compatibilidade com quem ainda digita do
+    // jeito antigo, sem quebrar nada.
+    const match = reportId.trim().match(/^#?(REP|R)?(\d+)$/i);
+    if (!match) return { error: 'ID de Report inválido. Use o formato #REP5 (ou apenas 5).' };
+    const reportNumber = parseInt(match[2]);
     const reportExists = db.prepare(`SELECT 1 FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
-    if (!reportExists) return { error: `Report #R${reportNumber} não encontrado neste servidor.` };
-    return { reportId: `#R${reportNumber}` };
+    if (!reportExists) return { error: `Report #REP${reportNumber} não encontrado neste servidor.` };
+    return { reportId: `#REP${reportNumber}` };
 }
 
 /**
@@ -162,7 +175,19 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('strike')
         .setDescription('⚖️ Aplica uma punição a um jogador.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers) // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
+        // null (não ModerateMembers): pedido do dono, 2026-08-07 — "Alguns
+        // cargos configurados não conseguem aplicar o strike e outros sim".
+        // ModerateMembers como default fazia o DISCORD bloquear a interação
+        // ANTES dela sequer chegar no bot, pra qualquer cargo configurado em
+        // /config roles que não tivesse TAMBÉM essa permissão nativa — sem
+        // relação nenhuma com quem o bot considera staff, e sem log nenhum
+        // do nosso lado (o bot nunca recebe o evento). Servidor que já tinha
+        // sobrescrito isso manualmente por Integrações continua igual; quem
+        // nunca mexeu lá passa a funcionar pra qualquer cargo Moderador/
+        // Supervisor configurado, sem precisar de setup adicional fora do
+        // bot. A checagem real (cargo configurado OU Administrador) já
+        // acontece dentro de execute(), então nada fica sem proteção.
+        .setDefaultMemberPermissions(null)
         // Discord exige que opções obrigatórias venham ANTES das opcionais
         // na lista (rejeitado com erro 50035/APPLICATION_COMMAND_OPTIONS_
         // REQUIRED_INVALID se não seguir essa ordem — usuario/agid vinham
@@ -176,7 +201,6 @@ module.exports = {
         .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator no Discord (informe este e/ou agid)').setRequired(false))
         .addStringOption(opt => opt.setName('agid').setDescription('Alderon ID do jogador (informe este e/ou usuario)').setRequired(false))
         .addStringOption(opt => opt.setName('nivel').setDescription('Nível de punição (obrigatório a partir do Rastreador — comece a digitar pra ver as opções)').setRequired(false).setAutocomplete(true))
-        .addStringOption(opt => opt.setName('duracao').setDescription('Tempo (só Free — Rastreador+ usa a do nível). Ex: 10m, 1h, 3d, vazio=permanente').setRequired(false))
         .addStringOption(opt => opt.setName('discord_act').setDescription('Ação imediata no Discord (precisa do jogador ter Discord vinculado)')
             .addChoices(
                 { name: 'Nenhuma', value: 'none' },
@@ -214,7 +238,6 @@ module.exports = {
         const agidOption = options.getString('agid')?.trim() || null;
         const reason = options.getString('motivo');
         const nivelOption = options.getString('nivel') || null;
-        const durationOption = options.getString('duracao') || null;
         const discordAct = options.getString('discord_act') || 'none';
         let reportId = options.getString('report') || null;
 
@@ -246,16 +269,18 @@ module.exports = {
 
             // ── Free: sem níveis disponíveis neste plano — mantém o registro
             // simples de sempre (sem RCON/nível/ação automática), só
-            // usuario+motivo(+duração opcional). agid/nivel/discord_act não
-            // se aplicam aqui (pedido explícito do dono). ──────────────────
+            // usuario+motivo, sempre permanente (ver duração no docblock do
+            // topo). agid/nivel/discord_act não se aplicam aqui (pedido
+            // explícito do dono). ────────────────────────────────────────
             if (!PremiumSystem.isGuildAtLeast(guildId, 'rastreador')) {
                 if (!targetUserOption) {
                     return await ResponseManager.error(interaction, 'No plano Free, informe `usuario` (Discord) — `agid` e níveis de punição exigem o plano Rastreador ou superior. Veja /premium.');
                 }
-                // registro.js lê `usuario`/`motivo`/`duracao`/`report` direto de
-                // interaction.options — são os MESMOS nomes de opção deste
-                // comando único agora (antes eram opções do subcomando
-                // "registro"), então nenhuma mudança foi necessária nele.
+                // registro.js lê `usuario`/`motivo`/`report` direto de
+                // interaction.options — mesmos nomes de opção deste comando
+                // único, então nenhuma mudança foi necessária nele além de
+                // `duracao` sempre vir ausente agora (opção removida do
+                // schema — ver docblock do topo).
                 const registroHandler = require('./registro');
                 return await registroHandler.execute(interaction, client);
             }
@@ -268,9 +293,16 @@ module.exports = {
             if (!nivelOption) {
                 return await ResponseManager.error(interaction, 'Informe o `nivel` de punição (obrigatório) — comece a digitar pra ver as opções.');
             }
-            const level = PunishmentLevels.getLevel(guildId, nivelOption);
+            // getLevelByIdOrName (não getLevel sozinha) — pedido do dono,
+            // 2026-08-07: "o comando não identifica o nível". O Discord não
+            // obriga o valor de uma opção de texto com autocomplete a ser
+            // uma das sugestões — um staff que digita o NOME do nível (ex:
+            // "Grave") em vez de clicar na sugestão manda esse texto como
+            // valor, não o ID esperado. Ver docblock de getLevelByIdOrName
+            // em punishmentLevels.js pro raciocínio completo.
+            const level = PunishmentLevels.getLevelByIdOrName(guildId, nivelOption);
             if (!level) {
-                return await ResponseManager.error(interaction, 'Este nível não existe (pode ter sido apagado) — selecione um da lista de autocomplete.');
+                return await ResponseManager.error(interaction, 'Este nível não existe (pode ter sido apagado ou o nome não bate exatamente) — selecione um da lista de autocomplete.');
             }
 
             await executeWithLevel(interaction, { targetUserOption, agidOption, reason, level, discordAct, reportId });

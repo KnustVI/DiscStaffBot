@@ -1,0 +1,54 @@
+<%#
+  web/views/partials/testing-phase-banner-standalone.ejs
+  Mesmo aviso "bot em fase de testes" de testing-phase-banner.ejs, mas
+  AUTOCONTIDO (CSS inline própria) pras páginas públicas que não linkam
+  web/public/css/style.css (hero.ejs, documentacao.ejs, termos.ejs,
+  portal.ejs — mesmo motivo/padrão de dev-overlay-card.ejs duplicar sua
+  própria <style> em vez de depender do style.css do dashboard).
+
+  Uso: include( partials/testing-phase-banner-standalone ) — sem parâmetros.
+%>
+<div class="testing-phase-chip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="testing-phase-chip-icon">
+        <path d="M10 2v7.31"/>
+        <path d="M14 9.3V2"/>
+        <path d="M8.5 2h7"/>
+        <path d="M14 9.3a6.5 6.5 0 1 1-4 0"/>
+        <path d="M5.52 16h12.96"/>
+    </svg>
+    <div class="testing-phase-chip-text">
+        <span class="testing-phase-chip-headline"><span data-i18n-pt>Bot em fase de testes</span><span data-i18n-en>Bot in testing phase</span></span>
+        <span class="testing-phase-chip-subtitle"><span data-i18n-pt>Estamos testando o Titan's Pass ativamente — alguns recursos podem mudar ou ficar temporariamente indisponíveis.</span><span data-i18n-en>We're actively testing Titan's Pass — some features may change or be temporarily unavailable.</span></span>
+    </div>
+</div>
+<style>
+    .testing-phase-chip {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 20px;
+        border: 1px solid #A5FFA1;
+        border-radius: 10px;
+        background: none;
+        max-width: 640px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    .testing-phase-chip-icon { width: 30px; height: 30px; flex: none; color: #F8DCC0; }
+    .testing-phase-chip-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .testing-phase-chip-headline {
+        font-family: 'Tilt Warp', cursive;
+        font-size: clamp(12px, 1.8vw, 16px);
+        line-height: 1.2;
+        color: #DCA15E;
+        text-transform: uppercase;
+    }
+    .testing-phase-chip-subtitle {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 12px;
+        color: #F8DCC0;
+        opacity: 0.85;
+    }
+</style>

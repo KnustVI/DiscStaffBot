@@ -9,7 +9,10 @@ const { STATS_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require
 const data = new SlashCommandBuilder()
     .setName('ingame-stats')
     .setDescription('🔒 Comandos in-game (RCON) de atributos/status do PoT (plano Caçador).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers); // checagem real do cargo Staff é feita dentro de executeRconSubcommand
+    // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+    // comentário completo em strike/index.js). Checagem real já dentro
+    // de executeRconSubcommand.
+    .setDefaultMemberPermissions(null);
 
 for (const entry of STATS_COMMANDS) {
     data.addSubcommand(sub => buildSubcommandOption(sub, entry));

@@ -147,7 +147,7 @@ class ReportChatSystem {
 
         const builder = new AdvancedContainerBuilder({ accentColor: color });
         if (audience === 'dm') builder.banner('title_report_chat');
-        const reportIdDisplay = `#R${reportNumber}`;
+        const reportIdDisplay = `#REP${reportNumber}`;
 
         // ==================== 1. TÍTULO ====================
         // No painel da staff (logs-reports), o título leva o avatar do servidor.
@@ -160,6 +160,14 @@ class ReportChatSystem {
             builder.text(`## ${typeLabel} | ${reportIdDisplay}`);
         }
         builder.separator();
+
+        // Menção de cargo — só quando o chamador passa options.mentionRoleId
+        // (hoje só openReport/openPunishmentReview, na abertura — ver
+        // config-roles:report-mention). Nunca no audience 'dm'.
+        if (audience === 'staff' && options.mentionRoleId) {
+            builder.text(`${EMOJIS.megaphone || '📢'} <@&${options.mentionRoleId}>`);
+            builder.separator();
+        }
 
         // ==================== 2. CARD DO JOGADOR (quem abriu) ====================
         builder.section(
@@ -460,7 +468,7 @@ class ReportChatSystem {
             }
 
             const reportNumber = this.getNextId(guild.id);
-            const reportId = `#R${reportNumber}`;
+            const reportId = `#REP${reportNumber}`;
             const threadName = `【${reportId}】report-${user.username}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
             
             const thread = await interaction.channel.threads.create({
@@ -550,8 +558,16 @@ class ReportChatSystem {
 
             // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
-            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
-            
+            // mentionRoleId (pedido do dono, 2026-08-09: "Bot precisa marcar
+            // um cargo especifico ao mandar reportes aberto nos logs de
+            // reports abertos" — ver /config roles e moderacao.ejs) só é
+            // passado AQUI, não nas reconstruções de joinReport/closeReport/
+            // updateStatus/rateReport (que chamam createBaseContainer sem
+            // essa opção) — a menção aparece uma vez, na abertura, sem se
+            // repetir em toda edição subsequente do mesmo painel.
+            const mentionRoleId = ConfigSystem.getSetting(guild.id, 'report_mention_role');
+            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
+
             const joinButton = new ButtonBuilder()
                 .setCustomId(`join:${reportId}`)
                 .setLabel('Entrar no Reporte')
@@ -631,7 +647,7 @@ class ReportChatSystem {
                 SELECT * FROM punishments WHERE guild_id = ? AND strike_number = ?
             `).get(guild.id, strikeNumber);
             if (!punishment) {
-                await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição #${strikeNumber} não encontrada.`, flags: [MessageFlags.Ephemeral] });
+                await interaction.editReply({ content: `${EMOJIS.circlealert || '❌'} Punição #ID${strikeNumber} não encontrada.`, flags: [MessageFlags.Ephemeral] });
                 return;
             }
 
@@ -648,7 +664,7 @@ class ReportChatSystem {
             }
 
             const reportNumber = this.getNextId(guild.id);
-            const reportId = `#R${reportNumber}`;
+            const reportId = `#REP${reportNumber}`;
             const threadName = `【${reportId}】revisao-strike-${strikeNumber}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
             const personalization = ConfigSystem.getPanelPersonalization(guild.id);
 
@@ -656,7 +672,7 @@ class ReportChatSystem {
                 name: threadName,
                 type: ChannelType.PrivateThread,
                 invitable: false,
-                reason: `Revisão do strike #${strikeNumber} solicitada por ${user.tag}`
+                reason: `Revisão do strike #ID${strikeNumber} solicitada por ${user.tag}`
             });
             await thread.members.add(user.id);
 
@@ -696,7 +712,7 @@ class ReportChatSystem {
             const moderator = await this.client.users.fetch(punishment.moderator_id).catch(() => null);
 
             const summaryBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
-            summaryBuilder.title(`${EMOJIS.gavel || '⚖️'} Resumo da Punição #${strikeNumber}`, 1);
+            summaryBuilder.title(`${EMOJIS.gavel || '⚖️'} Resumo da Punição #ID${strikeNumber}`, 1);
             summaryBuilder.separator();
             summaryBuilder.text(`**${EMOJIS.calendar || '📅'} Data:** <t:${Math.floor(punishment.created_at / 1000)}:F>`);
             summaryBuilder.text(`**${EMOJIS.shield || '🛡️'} Moderador:** ${moderator ? moderator.toString() : `\`${punishment.moderator_id}\``}`);
@@ -740,7 +756,9 @@ class ReportChatSystem {
 
             // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
-            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', []);
+            // Mesma menção de cargo do openReport() — ver comentário lá.
+            const mentionRoleId = ConfigSystem.getSetting(guild.id, 'report_mention_role');
+            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
 
             const joinButton = new ButtonBuilder()
                 .setCustomId(`join:${reportId}`)
@@ -793,7 +811,12 @@ class ReportChatSystem {
                 return;
             }
 
-            const reportNumber = parseInt(reportId.replace('#R', ''));
+            // Aceita tanto o prefixo NOVO (#REP, pedido do dono 2026-08-09) quanto
+        // o ANTIGO (#R) — customIds de botões já enviados em mensagens de log
+        // anteriores a essa troca continuam com "#R..." gravado dentro deles
+        // pra sempre (Discord não reescreve mensagens já enviadas), então o
+        // parse precisa continuar reconhecendo o formato antigo indefinidamente.
+        const reportNumber = parseInt(reportId.replace(/^#?(REP|R)/i, ''));
             const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guild.id, reportNumber);
             if (!report) {
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
@@ -870,12 +893,12 @@ class ReportChatSystem {
             `).get(targetGuildId, reportNumber);
             
             if (!report) {
-                const reportId = `#R${reportNumber}`;
+                const reportId = `#REP${reportNumber}`;
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
             
-            const reportId = `#R${reportNumber}`;
+            const reportId = `#REP${reportNumber}`;
             const guild = this.client.guilds.cache.get(report.guild_id);
             
             if (!guild) {
@@ -991,7 +1014,7 @@ class ReportChatSystem {
                 WHERE guild_id = ? AND report_number = ?
             `).run('Thread excluída - liberado automaticamente', Date.now(), report.guild_id, report.report_number);
 
-            this.updateStatus(report.guild_id, `#R${report.report_number}`, 'closed_no_reason').catch(() => {});
+            this.updateStatus(report.guild_id, `#REP${report.report_number}`, 'closed_no_reason').catch(() => {});
         }
 
         await this._logThreadDeleted(report, deletedBy);
@@ -1055,12 +1078,12 @@ class ReportChatSystem {
             `).get(targetGuildId, reportNumber, interaction.user.id);
             
             if (!report) {
-                const reportId = `#R${reportNumber}`;
+                const reportId = `#REP${reportNumber}`;
                 await this.sendTempReply(interaction, `Report ${reportId} não encontrado.`, false);
                 return;
             }
             
-            const reportId = `#R${reportNumber}`;
+            const reportId = `#REP${reportNumber}`;
             
             if (report.rating) {
                 await this.sendTempReply(interaction, `Este report já foi avaliado.`, false);
@@ -1129,7 +1152,12 @@ class ReportChatSystem {
     // ==================== ATUALIZAR STATUS ====================
     
     async updateStatus(guildId, reportId, newStatus) {
-        const reportNumber = parseInt(reportId.replace('#R', ''));
+        // Aceita tanto o prefixo NOVO (#REP, pedido do dono 2026-08-09) quanto
+        // o ANTIGO (#R) — customIds de botões já enviados em mensagens de log
+        // anteriores a essa troca continuam com "#R..." gravado dentro deles
+        // pra sempre (Discord não reescreve mensagens já enviadas), então o
+        // parse precisa continuar reconhecendo o formato antigo indefinidamente.
+        const reportNumber = parseInt(reportId.replace(/^#?(REP|R)/i, ''));
         const report = db.prepare(`SELECT * FROM reports WHERE guild_id = ? AND report_number = ?`).get(guildId, reportNumber);
         if (!report) return;
 

@@ -48,7 +48,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('staffonline')
         .setDescription('Mostra quais staffs (Moderador/Supervisor) estão online AGORA no jogo, e há quanto tempo.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers), // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
+        // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js). Checagem real já dentro
+        // de execute().
+        .setDefaultMemberPermissions(null),
 
     async execute(interaction, client) {
         const { guild, member } = interaction;

@@ -12,15 +12,24 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('unstrike')
         .setDescription('Anula uma punição e devolve os pontos ao usuário.')
-        .addIntegerOption(opt => opt.setName('id').setDescription('Número do Strike (o mesmo mostrado em "Strike #N")').setRequired(true))
+        // Renomeado de "id" pra "id_strike" (pedido do dono, 2026-08-07:
+        // "pedir só ID confundiu com AGID") — o nome curto "id" sozinho
+        // levava staff a digitar o Alderon ID do jogador por engano, em
+        // vez do número do strike. Descrição também reforça a diferença.
+        .addIntegerOption(opt => opt.setName('id_strike').setDescription('Número de ID do Strike a anular — NÃO é o Alderon ID/AGID. É o número mostrado em "Strike #IDN".').setRequired(true))
         .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da anulação').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers), // só sugestão de default no Discord — checagem real do cargo Moderador/Supervisor (ou Administrador) é feita dentro de execute()
+        // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js): ModerateMembers como
+        // default fazia o Discord bloquear cargos configurados em /config
+        // roles sem essa permissão nativa ANTES da interação chegar no bot,
+        // sem log nenhum. Checagem real já dentro de execute().
+        .setDefaultMemberPermissions(null),
 
     async execute(interaction, client) {
         const { guild, options, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
 
-        const punishmentId = options.getInteger('id');
+        const punishmentId = options.getInteger('id_strike');
         const reason = options.getString('motivo');
 
         let emojis = {};
@@ -40,7 +49,7 @@ module.exports = {
             db.ensureUser(staff.id, staff.username, staff.discriminator, staff.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-            // ── Busca por strike_number (o número mostrado como "Strike #N" em
+            // ── Busca por strike_number (o número mostrado como "Strike #IDN" em
             // todo o resto do sistema), não pela PK global `id` — `id` é um
             // auto-increment cross-guild, então bater com ele aqui podia
             // encontrar a punição errada assim que o bot atende 2+ servidores. ──
@@ -49,7 +58,7 @@ module.exports = {
             `).get(punishmentId, guildId);
 
             if (!punishment) {
-                return await ResponseManager.error(interaction, `Punição #${punishmentId} não encontrada ou já anulada.`);
+                return await ResponseManager.error(interaction, `Punição #ID${punishmentId} não encontrada ou já anulada.`);
             }
 
             let targetMember = null;
@@ -89,7 +98,7 @@ module.exports = {
             );
             builder.separator();
             const severityIcon = PunishmentSystem.severityIconFor({ levelSeverity: punishment.level_severity, severity: punishment.severity });
-            builder.text(`${severityIcon} **Strike:** #${punishmentId}${punishment.level_name ? ` (${punishment.level_name})` : ''}`);
+            builder.text(`${severityIcon} **Strike:** #ID${punishmentId}${punishment.level_name ? ` (${punishment.level_name})` : ''}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo original:** ${punishment.reason}`);
             builder.text(`**${emojis.messagesquare || '📝'} Motivo da anulação:** ${reason}`);
             builder.separator();

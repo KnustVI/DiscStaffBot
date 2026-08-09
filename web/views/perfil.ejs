@@ -239,6 +239,8 @@
             sido removido daqui por ser redundante com o perfil-hero logo
             abaixo.
         %>
+        <%- include('partials/testing-phase-banner') %>
+
         <%# text-shadow (só aqui, não no resto de .section-title) — este H1 é o único texto da página que pode ficar direto sobre o plano de fundo personalizado (ver style condicional no <main> acima), sem um .titan-card-premium opaco por baixo. %>
         <h1 class="section-title text-2xl" style="text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6), -2px -2px 6px rgba(0, 0, 0, 0.5);"><span data-i18n-pt>Bem vindo de volta,</span><span data-i18n-en>Welcome back,</span> <%= nickname %></h1>
 

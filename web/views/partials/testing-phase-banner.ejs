@@ -1,0 +1,22 @@
+<%#
+  web/views/partials/testing-phase-banner.ejs
+  Aviso "bot em fase de testes" (pedido do dono, 2026-08-09: "Informar em
+  todos os sites que o bot esta em faze de testes") pras páginas do
+  DASHBOARD (moderacao/reports/events/perfil/perfil-historico/
+  perfil-denuncias/loja/staff-perfil — todas linkam web/public/css/
+  style.css, que já tem .outline-chip pronto). Mesmo padrão visual do
+  aviso "Conversor em fase de testes" já existente em loja.ejs (ícone
+  flask-conical, cor neutra) — reaproveitado aqui em vez de inventar um
+  visual novo. Estático, sem botão de fechar, igual ao original.
+
+  Uso: include( partials/testing-phase-banner ) — sem parâmetros.
+  Para páginas SEM sidebar-v2/style.css (site público), ver
+  testing-phase-banner-standalone.ejs em vez deste.
+%>
+<div class="outline-chip">
+    <i data-lucide="flask-conical" class="outline-chip-icon" style="color:#F8DCC0;"></i>
+    <div class="outline-chip-text">
+        <span class="outline-chip-headline"><span data-i18n-pt>Bot em fase de testes</span><span data-i18n-en>Bot in testing phase</span></span>
+        <span class="outline-chip-subtitle"><span data-i18n-pt>Estamos testando o Titan's Pass ativamente — alguns recursos podem mudar ou ficar temporariamente indisponíveis. Encontrou algo estranho? Avise a staff.</span><span data-i18n-en>We're actively testing Titan's Pass — some features may change or be temporarily unavailable. Found something odd? Let staff know.</span></span>
+    </div>
+</div>

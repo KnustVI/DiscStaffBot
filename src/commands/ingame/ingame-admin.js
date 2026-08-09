@@ -11,7 +11,11 @@ const { ADMIN_COMMANDS, buildSubcommandOption, executeRconSubcommand } = require
 const data = new SlashCommandBuilder()
     .setName('ingame-admin')
     .setDescription('🔒 Comandos in-game (RCON) administrativos do PoT (plano Caçador).')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers); // checagem real do cargo Staff é feita dentro de executeRconSubcommand
+    // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+    // comentário completo em strike/index.js): default nativo bloqueava
+    // cargos configurados em /config roles sem essa permissão, sem log.
+    // Checagem real já dentro de executeRconSubcommand.
+    .setDefaultMemberPermissions(null);
 
 for (const entry of ADMIN_COMMANDS) {
     data.addSubcommand(sub => buildSubcommandOption(sub, entry));

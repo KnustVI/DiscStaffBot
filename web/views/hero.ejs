@@ -524,6 +524,7 @@
                 <span data-i18n-pt>Uma passagem dos titans da comunidade para a comunidade.</span>
                 <span data-i18n-en>A journey of the titans, made by the community, for the community.</span>
             </h1>
+            <%- include('partials/testing-phase-banner-standalone') %>
         </div>
     </section>
 
@@ -871,8 +872,8 @@
                     { percent: 85, hex: '#7EC47C', value: '85%' },
                 ],
                 rows: [
-                    { icon: 'chat', labelPt: 'Denúncia #R128', labelEn: 'Report #R128', subPt: 'aberta agora · aguardando staff', subEn: 'just opened · awaiting staff', pillPt: 'ABERTO', pillEn: 'OPEN', pillClass: 'is-red' },
-                    { icon: 'check', labelPt: 'Denúncia #R127', labelEn: 'Report #R127', subPt: 'fechada · staff validado por cargo', subEn: 'closed · staff validated by role', pillPt: 'FECHADO', pillEn: 'CLOSED', pillClass: 'is-green' },
+                    { icon: 'chat', labelPt: 'Denúncia #REP128', labelEn: 'Report #REP128', subPt: 'aberta agora · aguardando staff', subEn: 'just opened · awaiting staff', pillPt: 'ABERTO', pillEn: 'OPEN', pillClass: 'is-red' },
+                    { icon: 'check', labelPt: 'Denúncia #REP127', labelEn: 'Report #REP127', subPt: 'fechada · staff validado por cargo', subEn: 'closed · staff validated by role', pillPt: 'FECHADO', pillEn: 'CLOSED', pillClass: 'is-green' },
                 ],
             }),
         },
@@ -989,19 +990,28 @@
     // "Assinar" em cada card, um botão só (acquireSectionButton, abaixo)
     // cobre a seção inteira. Ko-fi (fora do Brasil) continua por card —
     // implementação separada, ainda não revisada.
+    // Botões de AQUISIÇÃO de Premium travados (pedido do dono, 2026-08-09:
+    // "Trava os botões de premium por hora, informe por overlay que o
+    // premium ainda não esta em uso durante a fase de testes") — Ko-fi e
+    // "Adquirir" ganham data-premium-locked em vez do link de verdade
+    // funcionar; o clique é interceptado (mesmo padrão do overlay de
+    // dashboard travado, ver script perto do fim do arquivo) e mostra o
+    // aviso de fase de testes em vez de sair do site/abrir o Ko-fi. Link
+    // continua no href (só decorativo enquanto JS não roda) pro botão
+    // continuar parecendo um link de verdade visualmente/semanticamente.
     function pricingCta(priceBR, priceIntl, color) {
         const moneyLine = `<p class="text-2xl font-bold my-2" style="font-family:'Tilt Warp',sans-serif; color:${color};">${isBrazil ? priceBR : priceIntl}<span class="text-sm opacity-70">/<span data-i18n-pt>mês</span><span data-i18n-en>mo</span></span></p>`;
         const ctaLine = isBrazil
-            ? `<p class="text-xs opacity-70 mb-3" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Pagamento manual via Pix — fale com a staff.</span><span data-i18n-en>Manual payment via Pix — talk to the staff.</span></p>`
-            : `<a href="https://ko-fi.com/knustvi" target="_blank" rel="noopener" class="btn-primary small" style="min-width:0; height:32px; font-size:13px; padding:5px 16px; margin-bottom:12px;"><span data-i18n-pt>Assinar via Ko-fi</span><span data-i18n-en>Subscribe via Ko-fi</span></a>`;
+            ? `<p class="text-xs opacity-70 mb-3" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Pagamento temporariamente pausado — bot em fase de testes.</span><span data-i18n-en>Payments temporarily paused — bot in testing phase.</span></p>`
+            : `<a href="https://ko-fi.com/knustvi" target="_blank" rel="noopener" data-premium-locked="true" class="btn-primary small" style="min-width:0; height:32px; font-size:13px; padding:5px 16px; margin-bottom:12px;"><span data-i18n-pt>Assinar via Ko-fi</span><span data-i18n-en>Subscribe via Ko-fi</span></a>`;
         return moneyLine + ctaLine;
     }
 
     // Botão único por seção (só BR — Ko-fi já resolve isso por card, um
-    // link por tier). Mesmo link de suporte usado em todo o resto do site.
+    // link por tier). Também travado — ver comentário de pricingCta acima.
     function acquireSectionButton(labelPt, labelEn) {
         if (!isBrazil) return '';
-        return `<a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="btn-primary small mb-6" style="min-width:0; height:32px; font-size:13px; padding:5px 18px;">💎 <span data-i18n-pt>${labelPt}</span><span data-i18n-en>${labelEn}</span></a>`;
+        return `<a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" data-premium-locked="true" class="btn-primary small mb-6" style="min-width:0; height:32px; font-size:13px; padding:5px 18px;">💎 <span data-i18n-pt>${labelPt}</span><span data-i18n-en>${labelEn}</span></a>`;
     }
     %>
     <%- acquireSectionButton('Adquirir Player Premium', 'Get Player Premium') %>
@@ -1221,6 +1231,18 @@
     <%- include('partials/dev-overlay-card') %>
 </div>
 
+<%#
+  Overlay de Premium travado (pedido do dono, 2026-08-09) — mesmo mecanismo
+  de interceptação de clique do overlay do Dashboard acima, aplicado a todo
+  link "[data-premium-locked]" (Ko-fi + botões "Adquirir ... Premium", ver
+  pricingCta()/acquireSectionButton()). Overlay próprio (não reaproveita
+  #devOverlay) porque os dois podem, em teoria, precisar abrir por motivos
+  diferentes na mesma página sem conflito de id.
+%>
+<div class="dev-overlay" id="premiumLockedOverlay" hidden>
+    <%- include('partials/premium-locked-overlay') %>
+</div>
+
 <script>
     (function () {
         var overlay = document.getElementById('devOverlay');
@@ -1238,6 +1260,29 @@
         overlay.addEventListener('click', function (e) {
             if (e.target === overlay) closeOverlay();
         });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeOverlay();
+        });
+    })();
+
+    (function () {
+        var overlay = document.getElementById('premiumLockedOverlay');
+        if (!overlay) return;
+
+        function openOverlay() { overlay.hidden = false; }
+        function closeOverlay() { overlay.hidden = true; }
+
+        document.querySelectorAll('[data-premium-locked]').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                openOverlay();
+            });
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeOverlay();
+        });
+        var closeBtn = document.getElementById('premiumLockedClose');
+        if (closeBtn) closeBtn.addEventListener('click', closeOverlay);
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeOverlay();
         });

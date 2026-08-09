@@ -74,7 +74,10 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('ingame-comandos')
         .setDescription('📖 Lista completa dos comandos in-game (RCON), por categoria.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        // null, não ModerateMembers — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js). Checagem real já
+        // dentro de execute() (memberHasAnyStaffRole).
+        .setDefaultMemberPermissions(null),
 
     async execute(interaction, client) {
         const ConfigSystem = require('../../systems/core/configSystem');

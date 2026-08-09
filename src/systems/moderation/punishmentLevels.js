@@ -43,6 +43,32 @@ function getLevel(guildId, levelId) {
     return db.prepare(`SELECT * FROM punishment_levels WHERE guild_id = ? AND id = ?`).get(guildId, levelId);
 }
 
+/**
+ * Mesma busca de getLevel, mas com um fallback por NOME (case-insensitive,
+ * exato) quando a busca por ID não acha nada — pedido do dono, 2026-08-07:
+ * "Alguns níveis de punição, configurado pelo site parece não funcionar ao
+ * usar comando de discord onde o comando não identifica o nível". Causa
+ * raiz: `nivel` no /strike usa autocomplete (StringOption), não um select
+ * menu de verdade — o Discord NÃO obriga o valor enviado a ser uma das
+ * sugestões do autocomplete pra opções de texto, então um staff que digita
+ * o NOME do nível (ex: "Grave") em vez de clicar na sugestão manda esse
+ * texto como valor, não o ID esperado — getLevel(guildId, "Grave") nunca
+ * bate contra a coluna `id` (numérica) e o comando erra "nível não existe"
+ * mesmo o nível existindo de verdade. Usado SÓ onde a entrada pode ter
+ * vindo de autocomplete não estritamente respeitado (ver strike/index.js)
+ * — getLevel() sozinha continua exclusiva por ID nos outros usos (painel
+ * web/Discord, que sempre trabalham com o ID já resolvido, nunca texto
+ * livre do usuário).
+ */
+function getLevelByIdOrName(guildId, value) {
+    const byId = getLevel(guildId, value);
+    if (byId) return byId;
+
+    const trimmed = String(value || '').trim().toLowerCase();
+    if (!trimmed) return null;
+    return getLevels(guildId).find((l) => l.name.toLowerCase() === trimmed) || null;
+}
+
 function countLevels(guildId) {
     const row = db.prepare(`SELECT COUNT(*) as count FROM punishment_levels WHERE guild_id = ?`).get(guildId);
     return row?.count || 0;
@@ -187,6 +213,7 @@ module.exports = {
     SEVERITY_ICONS,
     getLevels,
     getLevel,
+    getLevelByIdOrName,
     countLevels,
     getLevelLimit,
     canCreateLevel,

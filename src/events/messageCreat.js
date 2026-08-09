@@ -73,7 +73,7 @@ module.exports = {
         if (newStatus !== report.status) {
             const ReportChatSystem = require('../systems/moderation/reportChatSystem');
             const reportSystem = new ReportChatSystem(client);
-            const reportId = `#R${report.report_number}`;
+            const reportId = `#REP${report.report_number}`;
             await reportSystem.updateStatus(report.guild_id, reportId, newStatus);
             
             const replyType = isStaff ? 'staff' : 'usuário';

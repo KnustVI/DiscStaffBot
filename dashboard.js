@@ -557,14 +557,21 @@ function getPlayerHistoryData(userId, client) {
 // DASHBOARD_LOCKED_TO_OWNER abaixo).
 const DEVELOPER_ID = '203676076189286412';
 
-// Trava temporária (pedido do dono, 2026-08-02): enquanto o dashboard
-// ainda está em desenvolvimento, só quem loga com o DEVELOPER_ID acima
-// consegue de fato entrar — visitante não logado ainda vê o botão de
-// login normal (senão o próprio dono nunca provaria quem é), mas
-// qualquer OUTRA conta logada esbarra num aviso em vez do conteúdo real
-// (ver GET /dashboard e o gate em /moderacao, /reports, /events abaixo).
-// Pra reabrir o dashboard pro público, é só trocar pra false.
-const DASHBOARD_LOCKED_TO_OWNER = true;
+// Trava temporária (pedido do dono, 2026-08-02) DESATIVADA em 2026-08-07
+// ("Para administradores dos servidores libere a visualização e uso do
+// dashboard" / "sendo as informações sobre o server apenas para staffs e
+// adms do servidor, e o perfil para qualquer usuário") — auditado antes
+// de desligar: as 14 rotas por servidor (moderação/reports/eventos, GET
+// e POST/save, mais os 3 fragments de poll) já checavam
+// resolveAdminMember/isStaff/isAdmin de verdade, independente desta
+// trava — ela só bloqueava TODO MUNDO além do dono por cima disso, sem
+// motivo funcional depois desta revisão. As 8 rotas globais (/perfil e
+// afins, /loja e afins) ficam abertas pra qualquer usuário autenticado,
+// como pedido — nunca dependeram de permissão de servidor nenhuma.
+// /dev/image-pool continua exclusivo do dono (isOwnerSession própria,
+// nunca dependeu desta constante). Deixada como `false` (não removida)
+// pra poder travar de novo rápido se precisar, sem reescrever nada.
+const DASHBOARD_LOCKED_TO_OWNER = false;
 
 // ==================== PARSER DE TERMOS_DE_SERVICO.txt ====================
 // O .txt usa uma marcação própria (pensada pra ficar legível cru, sem
@@ -1960,6 +1967,11 @@ function loadDashboard(client) {
             if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
             if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
+            // Menção em Reports Abertos (pedido do dono, 2026-08-09) — mesmo
+            // padrão de strike_role/role_exemplar/role_problematico acima
+            // (select único, gravado como ID cru, não array — getRoleIds no
+            // lado Discord já lê isso transparentemente, ver configSystem.js).
+            if ('report_mention_role' in body) ConfigSystem.setSetting(guildID, 'report_mention_role', body.report_mention_role || null);
 
             // Divulgação do Servidor (pedido do dono, 2026-08-05; tier-gated
             // em 2026-08-06) NÃO é mais editada por aqui — a partir de
