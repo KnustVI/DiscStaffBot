@@ -629,12 +629,23 @@ const PunishmentSystem = {
 
         const personalization = this._resolvePersonalization(guild.id);
         const approvalBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
+        // targetUser pode vir null (fetch falhou — conta apagada, alvo só
+        // identificado por AGID sem Discord vinculado alcançável, etc.):
+        // um Section do Discord EXIGE um acessório (thumbnail OU botão),
+        // não existe "section sem acessório" de verdade na API, então
+        // passar `null` aqui derrubava o channel.send() inteiro com
+        // "ExpectedValidationError > s.instance" (ButtonBuilder/
+        // ThumbnailBuilder esperado, recebeu undefined) — sem nenhum aviso
+        // pro staff, o pedido de aprovação simplesmente nunca saía.
+        // Corrigido caindo no avatar padrão do Discord, mesmo fallback já
+        // usado pro resto dos targetUser possivelmente-null neste arquivo
+        // (ver linha ~458, buildStrikeConfirmPreview).
         approvalBuilder.section(
             [
                 '# APROVAÇÃO NECESSÁRIA: PUNIÇÃO SEVERA',
                 `${ConfigSystem.mentionRoles(guild.id, 'supervisor_role')} um Staff solicitou uma punição de nível **${severityLabel}**, que precisa de aprovação antes de ser aplicada.`,
             ].join('\n'),
-            targetUser ? AdvancedContainerBuilder.thumbnail(targetUser.displayAvatarURL({ size: 128 })) : null,
+            AdvancedContainerBuilder.thumbnail(targetUser?.displayAvatarURL({ size: 128 }) || 'https://cdn.discordapp.com/embed/avatars/0.png'),
         );
         approvalBuilder.separator();
         approvalBuilder.text(`**${EMOJIS.user || '👤'} Solicitado por:** ${staff.toString()}`);

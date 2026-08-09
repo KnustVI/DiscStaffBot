@@ -229,7 +229,7 @@ class AdvancedContainerBuilder {
     }
 
     /**
-     * Adiciona uma Section com texto e acessório opcional (thumbnail ou botão).
+     * Adiciona uma Section com texto e acessório (thumbnail ou botão).
      *
      * O acessório deve ser criado via os helpers estáticos:
      *   - AdvancedContainerBuilder.thumbnail(url)
@@ -239,10 +239,19 @@ class AdvancedContainerBuilder {
      *   - AdvancedContainerBuilder.successButton(customId, label)
      *   - AdvancedContainerBuilder.dangerButton(customId, label)
      *
-     * Ou pode ser passado null para uma section sem acessório.
+     * NUNCA passe null/undefined: ao contrário do que este parâmetro sugere
+     * ser opcional, o Discord EXIGE um acessório em toda Section — não
+     * existe "section sem acessório" na API real. Um acessório ausente
+     * passa despercebido aqui e só quebra bem mais tarde, dentro do SDK do
+     * Discord, quando a mensagem é finalmente enviada — build() abaixo
+     * agora valida e lança um erro claro na hora, em vez de deixar chegar
+     * lá (bug real de produção, 2026-08-09: ver
+     * punishmentSystem.requestSupervisorApproval, que passava null quando
+     * targetUser não era encontrado). Se realmente não houver nada pra
+     * mostrar como acessório, use text() em vez de section().
      *
-     * @param {string} text            - Texto da section (suporta markdown)
-     * @param {object|null} [accessory=null] - Acessório criado pelos helpers estáticos
+     * @param {string} text     - Texto da section (suporta markdown)
+     * @param {object} accessory - Acessório criado por um dos helpers estáticos acima (obrigatório)
      * @returns {this}
      */
     section(text, accessory = null) {
@@ -408,12 +417,26 @@ class AdvancedContainerBuilder {
                         );
 
                     const acc = entry.payload.accessory;
-                    if (acc !== null) {
-                        if (acc._accessoryType === ACCESSORY_TYPE.THUMBNAIL) {
-                            section.setThumbnailAccessory(acc._builder);
-                        } else if (acc._accessoryType === ACCESSORY_TYPE.BUTTON) {
-                            section.setButtonAccessory(acc._builder);
-                        }
+                    if (acc && acc._accessoryType === ACCESSORY_TYPE.THUMBNAIL) {
+                        section.setThumbnailAccessory(acc._builder);
+                    } else if (acc && acc._accessoryType === ACCESSORY_TYPE.BUTTON) {
+                        section.setButtonAccessory(acc._builder);
+                    } else {
+                        // O Discord EXIGE um acessório em toda Section (thumbnail
+                        // ou botão) — não existe "section sem acessório" na API
+                        // real, mesmo que section() pareça aceitar null. Sem esta
+                        // checagem, isso só quebrava bem mais tarde, dentro do
+                        // SDK do Discord (channel.send()/editReply()), com
+                        // "ExpectedValidationError > s.instance" sem NENHUMA
+                        // pista de qual texto/chamada causou — bug real de
+                        // produção, 2026-08-09 (ver
+                        // punishmentSystem.requestSupervisorApproval, que
+                        // passava null quando targetUser não era encontrado).
+                        // Falha AQUI, na hora do build(), com o texto da section
+                        // no erro, em vez de deixar chegar lá.
+                        throw new TypeError(
+                            `AdvancedContainerBuilder.section() recebeu um acessório ausente ou inválido — Section sempre precisa de thumbnail() ou um botão. Texto da section: "${String(entry.payload.text).slice(0, 80)}"`
+                        );
                     }
 
                     container.addSectionComponents(section);
