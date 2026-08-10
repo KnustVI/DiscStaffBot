@@ -568,7 +568,10 @@ class AnalyticsSystem {
         const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const sevenDaysAgoStr = this.getLocalDate(sevenDaysAgoDate);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.title(`${EMOJIS.circlecheck || '✅'} RELATÓRIO DO RAMHPY`, 1);
         builder.separator();
 
@@ -656,7 +659,11 @@ class AnalyticsSystem {
     static generateStaffHistoryContainer(guild, userId) {
         const row = this.getStaffHistoryTotals(guild.id, userId);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+        const ConfigSystem = require('../core/configSystem');
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.title(`${EMOJIS.medal || '📊'} Histórico de Staff`, 1);
         builder.separator();
 
@@ -688,7 +695,10 @@ class AnalyticsSystem {
                 return !member || ConfigSystem.memberHasModOrEventRole(guild.id, member);
             });
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.title(`${EMOJIS.trophy || '🏆'} Histórico de Staff`, 1);
         builder.separator();
 
@@ -729,7 +739,10 @@ class AnalyticsSystem {
             if (logChannelId) {
                 const channel = await guild.channels.fetch(logChannelId).catch(() => null);
                 if (channel) {
-                    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+                    // Cor de destaque personalizada do servidor (Caçador) —
+                    // pedido do dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+                    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+                    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
                     builder.title(`${EMOJIS.shieldban || '🛡️'} Staff perdeu o cargo`, 1);
                     builder.text(`${user} perdeu todos os cargos de staff configurados (Moderador/Supervisor/Equipe de Eventos) — o histórico abaixo foi apagado e não aparece mais no \`/historico staff\`.`);
                     builder.separator();

@@ -30,8 +30,8 @@ const CATEGORIES = [
     { command: '/ingame-message', label: 'Message', entries: RconCatalog.MESSAGE_COMMANDS },
 ];
 
-function buildCategoryPage(guild, category, isFirst) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+function buildCategoryPage(guild, category, isFirst, personalization) {
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
 
     if (isFirst) {
         builder.section(
@@ -85,9 +85,13 @@ module.exports = {
             return await ResponseManager.error(interaction, `${emojis.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
         }
 
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js. Buscada
+        // uma vez só aqui (não a cada página) e repassada pra buildCategoryPage.
+        const personalization = ConfigSystem.getPanelPersonalization(interaction.guildId);
         const pagination = new PaginationBuilder({ accentColor: COLORS.DEFAULT });
         CATEGORIES.forEach((category, index) => {
-            pagination.addPage(() => buildCategoryPage(interaction.guild, category, index === 0));
+            pagination.addPage(() => buildCategoryPage(interaction.guild, category, index === 0, personalization));
         });
 
         await pagination.start(interaction);

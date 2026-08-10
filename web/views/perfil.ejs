@@ -262,7 +262,11 @@
 
         <%- include('partials/save-result-overlay', { saved }) %>
 
-        <%# Novidades (gerais + servidores parceiros) migraram pra home em 2026-08-06 — ver web/views/hero.ejs. %>
+        <%# Novidades (gerais + servidores parceiros) migraram pra home em
+            2026-08-06 — ver web/views/hero.ejs. Carrossel COMPACTO de volta
+            aqui em 2026-08-10 (pedido do dono), só como prévia — o feed
+            completo com overlay de detalhe continua exclusivo da home. %>
+        <%- include('partials/partner-news-mini', { partnerNews }) %>
 
         <section class="titan-card-premium flex-col gap-5">
             <div class="perfil-hero">
@@ -306,9 +310,28 @@
                     "Caçadas", EN continua "Hunt" (nome original, sem
                     tradução).
                 %>
-                <div class="perfil-hunt-pill">
-                    <i data-lucide="coins"></i>
-                    <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><%= huntBalance %></strong></span>
+                <%#
+                    Ossos e XP (pedido do dono, 2026-08-10: "Adicionar
+                    todos os saldos de moedas no perfil" + "logo abaixo
+                    adicione o inventario de ossos" — "abaixo" do saldo de
+                    Caçadas acima) — mesma pill, empilhadas, cor de cada
+                    ícone batendo com loja.ejs (gem/dourado=Caçadas,
+                    bone/creme=Ossos, trending-up/verde=XP) pra manter o
+                    mesmo vocabulário visual entre as 2 páginas.
+                %>
+                <div class="flex flex-col gap-2 items-end">
+                    <div class="perfil-hunt-pill">
+                        <i data-lucide="coins"></i>
+                        <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><%= huntBalance %></strong></span>
+                    </div>
+                    <div class="perfil-hunt-pill" style="color:#F8DCC0;">
+                        <i data-lucide="bone"></i>
+                        <span><span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span>: <strong><%= bonesBalance %></strong></span>
+                    </div>
+                    <div class="perfil-hunt-pill" style="color:#A5FFA1;">
+                        <i data-lucide="trending-up"></i>
+                        <span>XP: <strong><%= xpBalance %></strong></span>
+                    </div>
                 </div>
             </div>
 
@@ -397,6 +420,33 @@
                                                 <span class="perfil-guild-chip-playtime"><i data-lucide="clock" class="w-3 h-3"></i> <%= pg.playtimeLabel %></span>
                                             <% } %>
                                         </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% } %>
+
+                    <%#
+                        Seus Itens (pedido do dono, 2026-08-10: "Adicionar
+                        itens de jogo no perfil do site") — inventário REAL
+                        de compras da Loja de Personalização (image_inventory,
+                        ver ImageShopSystem.getInventory em dashboard.js),
+                        só leitura. Diferente do card "Lista de Badges" (mais
+                        abaixo, ainda "em breve") — aquele é a VITRINE de
+                        emblemas disponíveis pra colecionar; este é só o que
+                        o jogador JÁ comprou, de qualquer tipo (avatar/fundo/
+                        emblema).
+                    %>
+                    <% if (ownedItems.length > 0) { %>
+                        <div>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Seus Itens</span><span data-i18n-en>Your Items</span></h3>
+                            <div class="perfil-guild-list">
+                                <% ownedItems.forEach(item => { %>
+                                    <div class="perfil-guild-chip" title="<%= item.label %>">
+                                        <% if (item.url) { %>
+                                            <img src="<%= item.url %>" alt="">
+                                        <% } %>
+                                        <span><%= item.label %></span>
                                     </div>
                                 <% }); %>
                             </div>

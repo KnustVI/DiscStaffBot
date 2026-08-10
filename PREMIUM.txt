@@ -567,12 +567,21 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   /perfil (as 12 numeradas + Free/Compy/Raptor, 16 opcoes no total - ver
   secao 1). Mensagem (so na aba Report-Chat): texto livre (modal), vazio =
   volta pro texto padrao. Cor (hex) e footer (texto livre, SUBSTITUI o
-  footer padrao por completo) aplicados em /strike, /unstrike, no painel
-  de report-chat e nos logs de Punicoes/Reports/Geral - NAO aplicado aos
-  ~90 outros paineis do bot (paineis internos do dono/developer, ver
-  secao 74). Se o servidor perder o Caçador, os paineis voltam sozinhos
-  pro padrao (a checagem de tier acontece na LEITURA, nao so na escrita -
-  nao precisa resetar nada manualmente).
+  footer padrao por completo) aplicados em QUASE TODOS os comandos do bot
+  (expandido 2026-08-10, ver secao 160) - /strike, /unstrike, /evento,
+  /eventos-agendados, /ingame-buff, /staffonline, /registrar, /premium, o
+  painel de report-chat (avaliacoes incluidas), os relatorios/rankings de
+  /historico staff, o relatorio diario de moderacao, avisos de
+  cargo-de-staff alterado/perdido, lembretes de evento e a explicacao de
+  TP de evento, entre outros - SEMPRE preservando a cor SEMANTICA (verde
+  sucesso/vermelho erro) quando ela existe, so trocando o cinza/dourado
+  PADRAO do bot pela cor do servidor. Fica de fora de proposito:
+  /config e /potserver (comandos de configuracao do bot em si), /ajuda,
+  /perfil e /perfil-edit, webhooks do jogo (PoT), e os ~40 paineis
+  internos do dono/developer sem nenhum servidor de cliente associado
+  (ver secao 74/160). Se o servidor perder o Caçador, os paineis voltam
+  sozinhos pro padrao (a checagem de tier acontece na LEITURA, nao so na
+  escrita - nao precisa resetar nada manualmente).
 - /premium mostra o catalogo completo (tiers, valores, como adquirir) e o
   tier atual do servidor e do jogador que rodou o comando, com 3 botoes de
   navegacao (Status, Server Premium, Player Premium) - o painel sempre
@@ -7923,3 +7932,197 @@ frente, nao so este relatorio):
   deploy, rodar `/potserver reset` (escopo "logs") de novo no servidor
   em questão — dessa vez limpa de verdade, e dá pra reconfigurar o
   webhook de mortes/combate separado normalmente.
+
+------------------------------------------------------------------
+160) CRÍTICO: Personalização de cor (Caçador) estendida de ~6 telas
+     pra ~30 pontos de comandos/sistemas do bot
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Personalização de cor deve alterar
+  todos os comandos e respostas de comando, menos webhooks e comandos
+  de configuração em geral e ajuda e perfil." Antes disso, a cor
+  personalizada (`ConfigSystem.getPanelPersonalization`) só valia pra
+  /strike, /unstrike, o painel de report-chat e os logs de Punições/
+  Reports/Geral — decisão registrada explicitamente no código (seção
+  74) por causa da escala (~110 pontos de construção de container em
+  ~90 painéis, boa parte deles sem NENHUM guildId em mãos — painéis
+  internos do dono/developer).
+- Mapeamento completo feito antes de qualquer edição (agente de
+  pesquisa dedicado): 154 chamadas de `new AdvancedContainerBuilder(`
+  em 46 arquivos, categorizadas em (a) cor fixa DEFAULT em comando de
+  nível superior, (b) cor fixa DEFAULT num helper de sistema interno,
+  (c) já personalizado, (d) sem guildId de verdade (paineis do
+  dono/developer/support — continuam de fora, não dá pra personalizar
+  o que não tem servidor associado), (e) cor SEMÂNTICA (SUCCESS/ERROR/
+  etc, nunca deve virar a cor do servidor) e (f) notificação de webhook
+  do jogo (excluída pelo próprio pedido).
+- Escopo final aplicado (24 pontos de cor DEFAULT em 17 arquivos):
+  `/evento` (mensagem de progresso + postagem no fórum), `/eventos-
+  agendados`, `/ingame-buff` (aplicar/listar + resultado parcial),
+  `/ingame-comandos`, `/staffonline`, `/unstrike` (tela de
+  confirmação — o `/strike` já vinha personalizado desde a seção 74,
+  exceto a própria tela de confirmação, agora corrigida),
+  `PunishmentSystem.buildStrikeConfirmPreview`/`generateHistoryContainer`,
+  `ReportChatSystem.createBaseContainer`/`rateReport` (canal de
+  avaliação), `/registrar` (painel + confirmação de código),
+  `AnalyticsSystem` (relatório diário, histórico de staff/ranking,
+  aviso de staff que perdeu o cargo), aviso de cargo de staff alterado
+  (`guildMemberUpdate.js`), explicação de TP de evento, lembrete de
+  evento em 30min, anúncio de criação/encerramento de evento (não o de
+  início, que é SUCCESS fixo) e as 3 abas de `/premium`.
+- Ficou de fora de propósito (mesmo espírito de "comandos de
+  configuração em geral", mesmo não vivendo na pasta `commands/
+  config/`): toda a família `/potserver` (setup/status/logs/reset —
+  configuração da integração PoT) e o painel de configuração de
+  webhooks (`potWebhookSystem.js`). Também de fora: `/feedback` (a
+  mensagem cai no canal de feedback do PRÓPRIO dono, não do servidor
+  que rodou o comando — personalizar não faria sentido), o suporte
+  interno (`supportChatSystem.js`, fixo a 1 servidor do dono) e o log
+  compacto de execução RCON (`potConfigSystem.js _logRconExecution` —
+  1 linha por comando, deliberadamente "não celebrativo" por volume
+  alto, ver comentário original no arquivo). 2 telas mapeadas
+  (`systemStatus.js`, `autoModeration.js handleComponent/handleModal`)
+  são código morto confirmado (nenhum botão no bot cria os customIds
+  que levariam até elas) — não vale editar código inalcançável.
+- Cuidado extra em 6 pontos "borderline": onde COLORS.DEFAULT era só
+  UM RAMO de um ternário com sinal semântico de verdade (ex:
+  `ingame-buff` sucesso parcial, reputação 30-70 no histórico, report
+  "ainda aberto" no painel principal, avaliação de 3 estrelas,
+  `/registrar` "ainda não vinculado", fases criado/encerrado do
+  anúncio de evento) — só o ramo que já era DEFAULT foi trocado pela
+  cor do servidor; os ramos SUCCESS/ERROR/sucesso-parcial continuam
+  fixos, nunca personalizados (perderiam o sinal que carregam).
+- Verificado: os 15 arquivos tocados carregam sem erro de require
+  circular (incluindo `premiumPanel.js`, que ganhou um novo require de
+  `ConfigSystem` no topo do arquivo); os 2 pontos de maior risco
+  (`generateHistoryContainer`, `createBaseContainer`) testados contra
+  um guild Caçador de teste com cor customizada — confirmado que
+  SUCCESS/ERROR continuam fixos e só o ramo neutro troca pela cor
+  configurada; varredura completa de TODOS os comandos/eventos do bot
+  (não só os tocados) sem nenhum erro de carregamento.
+
+------------------------------------------------------------------
+161) Saldos de moeda no /perfil (Discord + site) + itens de jogo e
+     "Seus Itens" no perfil do site
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicionar todos os saldos de moedas
+  no perfil, no discord e em jogo" + "Adicionar itens de jogo no
+  perfil do site."
+- `/perfil` no Discord ganha uma linha com os 3 saldos (Ossos/Caçadas/
+  XP, `PlayerRegistry.getBonesBalance/getHuntBalance/getXp`) pra quem
+  já tem vínculo — mesmos ícones já usados na Loja, pra manter o
+  vocabulário visual entre Discord e site.
+- `/perfil` no site ganha 2 pills novas no hero (Ossos/XP, ao lado da
+  já existente de Caçadas) e uma seção "Seus Itens" (inventário real
+  de compras da Loja de Personalização, `ImageShopSystem.getInventory`
+  resolvido com label+URL de cada item) logo abaixo dos servidores
+  jogados — só leitura, trocar o que está selecionado continua na aba
+  Personalização.
+
+------------------------------------------------------------------
+162) Loja: saldo de Ossos mais visível, conversor renomeado, botão de
+     compra menor + overlay (lightbox) de imagem nas 2 lojas
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Saldo de ossos no conversor mais
+  aparente. Alterar tido de conversos de moedas para conversos de
+  ossos" + "Diminuir um pouco o botão de compra, adicionar
+  visualização grande em overlay das imagem de compra nas lojas."
+- "CONVERSOR DE MOEDAS" virou "CONVERSOR DE OSSOS" (título + ícone), e
+  o saldo de Ossos ganhou uma pill própria e destacada acima do
+  formulário de conversão, em vez de só uma menção no texto de
+  descrição da taxa.
+- Botão de compra dos itens da Loja de Personalização encolhido
+  (padding/fonte/ícone menores).
+- Overlay de imagem (lightbox) clicando em qualquer thumbnail com
+  imagem de verdade (avatar/plano de fundo/emblema) nas duas lojas —
+  mostra a imagem grande + legenda, fecha clicando fora, no X ou Esc.
+  Placeholders de ícone da Loja de Jogo (ainda sem imagem real) não
+  ficam clicáveis.
+
+------------------------------------------------------------------
+163) "Pool de Imagens" virou "Controle Loja" + preço liberado pra
+     emblema também (não só avatar/plano de fundo)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "no gerenciamento de pool de imagens,
+  altere nome para Controle Loja, me de o controle de alterar valores
+  de todos os itens e se eles estão na loja ou não."
+- Renomeado em todo lugar visível ao dono (nav da sidebar, título da
+  página `/dev/image-pool`, botão de atalho no `/perfil`) — a URL
+  (`/dev/image-pool`) e o resto da mecânica não mudaram.
+- Formulário de preço/tier mínimo liberado também pra emblema (antes
+  só avatar/plano de fundo) — mas pra o preço ter efeito de verdade
+  (não só aparecer como controle decorativo), a SELEÇÃO de emblema
+  (Discord E site) agora respeita ownership: emblema sem preço
+  continua livre pra qualquer tier, como sempre foi; emblema COM
+  preço só entra na lista de quem já comprou na Loja e cujo tier atual
+  alcança o `shop_min_tier` configurado (`ConfigSystem.
+  getUsableBadgeOptions`, mesmo critério já usado pra foto/fundo do
+  tier Free comprando avulso). Banner e título ficaram de fora do
+  formulário de preço de propósito: banner é escolha de SERVIDOR
+  (Caçador), não item de inventário do jogador, e título ainda não
+  tem NENHUM jeito do jogador escolher um da pool pra usar (só texto
+  livre Raptor) — precificar os dois agora venderia algo que ninguém
+  consegue equipar depois.
+- Verificado com teste real contra o banco (usuário/itens
+  descartáveis, limpos depois): emblema sem preço sempre aparece;
+  emblema com preço some da lista sem compra; aparece depois de
+  comprado (inserção direta no inventário simulando a compra); some de
+  novo se o tier configurado for maior que o tier atual do comprador
+  mesmo já tendo comprado.
+
+------------------------------------------------------------------
+164) Botão "Emblema & Título" no /perfil do Discord — vê o que está
+     ATIVO no perfil sendo exibido, não um seletor
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Comando de perfil no discord deve ter
+  um botão de vizualização de embletas e titulos ativos no perfil pelo
+  player."
+- Botão novo (interativo, não Link) no `/perfil`, só quando o alvo tem
+  vínculo — mostra o emblema selecionado e o título salvo do jogador
+  sendo EXIBIDO no card (não de quem clicou — /perfil aceita ver o
+  perfil de qualquer um), sempre numa resposta efêmera pra não poluir
+  o card público do canal. Diferente do `/perfil-edit`, que é o
+  seletor/editor de verdade — este é só leitura.
+- Verificado com teste real contra o banco: sem vínculo mostra "Nenhum
+  emblema/título"; com emblema+título definidos mostra os dois
+  corretamente; emblema apontando pra um item já removido do pool
+  (órfão) não quebra, mostra aviso de "removido do pool" em vez de
+  lançar erro.
+
+------------------------------------------------------------------
+165) Anúncios de servidores parceiros: overlay maior na home,
+     carrossel horizontal com mais de 5, e prévia compacta no topo do
+     perfil/loja
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicione uma visualização em overlay
+  maior de anúncios de servidores parceiros no site principal" +
+  "Adicione um pequeno carrosseu desses anúncios de servers na parfina
+  de perfil e na pagina de loja, no topo" + "Na página principal vamos
+  sempre manter 1 anúncio por servidor mas se tiver mais de 5 anúncios
+  criar um carrossel horizontal."
+- Home (`hero.ejs`): clicar num card de anúncio abre um overlay maior
+  (mesmo backdrop já usado pros avisos de dashboard/premium travados)
+  com imagem, ícone+nome do servidor, título, texto completo e o
+  bônus de evento (se houver) — todo campo dinâmico preenchido via
+  `textContent`/atribuição de propriedade (nunca `innerHTML`), já que
+  nome/título/texto vêm de dados que o dono do servidor PARCEIRO
+  controla. JSON embutido no `<script>` tem todo caractere "menor que"
+  trocado pelo escape unicode equivalente (backslash-u-0-0-3-c) antes
+  de ir pro HTML, pra nenhum nome/texto de servidor conseguir fechar a
+  tag e injetar
+  outro script.
+- Home também ganha carrossel horizontal (com setas, scroll suave)
+  quando há mais de 5 anúncios — com 5 ou menos continua o grid que já
+  quebra linha, sem mudança. "1 anúncio por servidor" já era garantido
+  pela própria query (`getPartnerNews` agrupa por guild_id), nada a
+  mudar nisso.
+- `/perfil` e `/loja` no site ganham uma prévia compacta (tiras
+  horizontais, ícone+nome+título) no topo — partial novo e
+  reaproveitado nos 2 (`partials/partner-news-mini.ejs`), sem overlay
+  de detalhe (isso continua exclusivo da home): card com evento vira
+  link direto pro evento (nova aba), sem evento é só informativo.
+- Verificado: teste de render real (EJS) pros 3 arquivos cobrindo 0/3/
+  6 anúncios (grid vs. carrossel, prévia com/sem evento) e uma tentativa
+  de injeção `</script><script>...` no nome do servidor — confirmado
+  que o HTML final nunca contém a sequência crua (só a versão
+  escapada), e que o JSON gerado continua válido e recupera o valor
+  ORIGINAL do nome depois de avaliado como JS.

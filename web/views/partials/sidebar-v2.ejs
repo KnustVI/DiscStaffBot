@@ -120,9 +120,12 @@
         // não usa guildHref.
         { key: 'perfil', labelPt: 'Perfil', labelEn: 'Profile', icon: 'user', href: '/perfil' },
         // Só o dono do bot vê esse item (pedido do dono: controle de
-        // visibilidade do pool de imagens, ver dashboard.js /dev/image-pool)
-        // — página global, sem :guildID, por isso não usa guildHref.
-        ...(sbIsOwner ? [{ key: 'image-pool', labelPt: 'Pool de Imagens', labelEn: 'Image Pool', icon: 'images', href: '/dev/image-pool' }] : []),
+        // preço/visibilidade dos itens do pool de imagens, ver dashboard.js
+        // /dev/image-pool) — página global, sem :guildID, por isso não usa
+        // guildHref. Renomeado de "Pool de Imagens" pra "Controle Loja"
+        // (pedido do dono, 2026-08-10) — a rota/URL continuam as mesmas
+        // (/dev/image-pool), só o nome exibido mudou.
+        ...(sbIsOwner ? [{ key: 'image-pool', labelPt: 'Controle Loja', labelEn: 'Store Control', icon: 'images', href: '/dev/image-pool' }] : []),
         { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ];
     const activeKey = typeof active !== 'undefined' ? active : null;

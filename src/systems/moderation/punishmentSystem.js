@@ -162,7 +162,10 @@ const PunishmentSystem = {
      * Monta o container de uma única página do histórico.
      */
     generateHistoryContainer(target, history, guildName, guildId) {
-        let accentColor = COLORS.DEFAULT;
+        // SUCCESS/ERROR continuam fixos (refletem a reputação em si) — só o
+        // meio-termo (30-70, nem boa nem ruim) usa a cor personalizada do
+        // servidor no lugar do DEFAULT fixo, pedido do dono 2026-08-10.
+        let accentColor = this._resolvePersonalization(guildId).accentColor ?? COLORS.DEFAULT;
         if (history.reputation > 70) accentColor = COLORS.SUCCESS;
         else if (history.reputation < 30) accentColor = COLORS.ERROR;
 
@@ -433,7 +436,12 @@ const PunishmentSystem = {
         const durationLower = String(session.durationStr || '').toLowerCase();
         const isPermanent = durationLower === '' || durationLower === '0' || durationLower === 'perm';
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10: era o único passo do fluxo de /strike ainda sem
+        // personalização (o resultado final, generateStrikeUnifiedContainer
+        // abaixo, já usa isso desde antes).
+        const personalization = this._resolvePersonalization(guildId);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.title(`${EMOJIS.trianglealert || '⚠️'} Confirmar Aplicação de Strike`, 1);
         builder.separator();
         const targetFallback = isUnregisteredTarget

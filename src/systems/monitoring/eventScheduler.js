@@ -59,7 +59,10 @@ async function _sendDiscordEventReminder(guild, event, startAt) {
         if (!logChannel) return;
 
         const startTs = Math.floor(startAt / 1000);
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.text(`# ${EMOJIS.clockalert || '⏰'} EVENTO COMEÇANDO EM BREVE`);
         builder.text(`${ConfigSystem.mentionRoles(guild.id, 'event_role')} o evento **${event.name}** começa em cerca de 30 minutos!`);
         builder.separator();

@@ -167,7 +167,10 @@ async function _executeAplicar(interaction) {
         .setPlaceholder('Selecionar buff')
         .addOptions(buffs.slice(0, 25).map((b) => ({ label: b.name, value: String(b.id) })));
 
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    // Cor de destaque personalizada do servidor (Caçador) — pedido do
+    // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
     builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Escolha o buff pra aplicar em **${onlinePlayer.player_name || target}**:`);
     if (buffs.length > 25) {
         builder.text(`${EMOJIS.trianglealert || '⚠️'} Mostrando só os 25 primeiros buffs (limite do select do Discord).`);
@@ -188,7 +191,8 @@ async function _executeListar(interaction) {
     }
 
     const buffs = BuffSystem.getBuffs(guild.id);
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
     builder.title(`${EMOJIS.gauge || '📊'} Buffs Configurados`, 1);
     builder.separator();
 
@@ -280,8 +284,12 @@ module.exports = {
         const targetLabel = onlinePlayer.player_name || target;
         const logged = await _logBuffUsage(interaction, buff, targetLabel, results);
 
+        // SUCCESS/ERROR continuam fixos (sinal semântico) — só o meio-termo
+        // ("sucesso parcial", nem tudo nem nada) usa a cor personalizada do
+        // servidor no lugar do DEFAULT fixo, pedido do dono 2026-08-10.
+        const personalization = ConfigSystem.getPanelPersonalization(guildId);
         const builder = new AdvancedContainerBuilder({
-            accentColor: allSucceeded ? COLORS.SUCCESS : (anySucceeded ? COLORS.DEFAULT : COLORS.ERROR),
+            accentColor: allSucceeded ? COLORS.SUCCESS : (anySucceeded ? (personalization.accentColor ?? COLORS.DEFAULT) : COLORS.ERROR),
         });
         builder.text(`${allSucceeded ? (EMOJIS.circlecheck || '✅') : (EMOJIS.trianglealert || '⚠️')} Buff **${buff.name}** aplicado em **${targetLabel}**:`);
         for (const r of results) {

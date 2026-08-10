@@ -1274,6 +1274,12 @@ function loadDashboard(client) {
         // abaixo porque o selo .perfil-hunt-pill no topo do card aparece
         // pra QUALQUER usuário logado, vinculado ou não.
         const huntBalance = PlayerRegistry.getHuntBalance(userId);
+        // Ossos e XP (pedido do dono, 2026-08-10: "Adicionar todos os
+        // saldos de moedas no perfil, no discord e em jogo") — mesmo
+        // motivo/mesma garantia de segurança de huntBalance acima (funções
+        // já usadas em /loja, devolvem 0 sem player_links).
+        const bonesBalance = PlayerRegistry.getBonesBalance(userId);
+        const xpBalance = PlayerRegistry.getXp(userId);
         // Cargo(s) de staff configurado(s) (pedido do dono, 2026-08-07) —
         // não depende de `link` (é sobre a conta Discord, não sobre o
         // vínculo PoT), ver getStaffRoles acima.
@@ -1288,6 +1294,7 @@ function loadDashboard(client) {
         let backgroundOptions = [];
         let avatarPreviewUrl = null;
         let backgroundPreviewUrl = null;
+        let ownedItems = [];
 
         // Personalização exige vínculo (mesmo gate do /perfil-edit: sem
         // player_links não tem onde gravar a escolha) — só calcula/busca
@@ -1309,7 +1316,11 @@ function loadDashboard(client) {
                 kdStats = { kills: stats.kills, deaths: stats.deaths, kd: formatKD(stats.kills, stats.deaths) };
             }
             playedGuilds = getPlayedGuilds(link.alderon_id, client);
-            badgeOptions = ConfigSystem.getBadgeOptions();
+            // Livres + comprados/liberados por tier pra ESTE jogador (ver
+            // ConfigSystem._usableBadgeOptions) — alguns emblemas podem ter
+            // preço agora (Controle Loja), então não é mais "todo mundo vê
+            // tudo" como era antes dessa mudança.
+            badgeOptions = ConfigSystem.getUsableBadgeOptions(userId);
             if (isCompyPlus && !isRaptor) {
                 avatarOptions = ConfigSystem.getAvatarOptions();
                 backgroundOptions = ConfigSystem.getBackgroundOptions();
@@ -1325,6 +1336,26 @@ function loadDashboard(client) {
             }
             avatarPreviewUrl = await resolvePlayerImageUrl('avatar', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
             backgroundPreviewUrl = await resolvePlayerImageUrl('background', link.selected_background_key, isRaptor ? link.background_message_id : null);
+
+            // "Seus Itens" (pedido do dono, 2026-08-10: "Adicionar itens de
+            // jogo no perfil do site") — inventário REAL de compras da Loja
+            // de Personalização (image_inventory, ver imageShopSystem.js),
+            // não confundir com avatarOptions/backgroundOptions acima (que
+            // são as OPÇÕES disponíveis pra escolher, não o que já foi
+            // comprado). Resolve label+URL de cada item comprado pra exibir
+            // como galeria simples, só leitura (trocar o que está
+            // selecionado continua sendo só pela aba Personalização).
+            const inventoryRows = ImageShopSystem.getInventory(userId);
+            ownedItems = await Promise.all(inventoryRows.map(async (row) => {
+                const poolItem = ProfileImagePool.getByTypeAndId(row.pool_type, row.pool_id);
+                return {
+                    type: row.pool_type,
+                    id: row.pool_id,
+                    label: poolItem?.label || 'Item',
+                    url: poolItem ? await ProfileImagePool.resolveImageUrl(client, row.pool_type, row.pool_id) : null,
+                    purchasedAt: row.purchased_at,
+                };
+            }));
         }
 
         const otherGuilds = await getAdminGuildsWithBot(req);
@@ -1335,6 +1366,12 @@ function loadDashboard(client) {
         // VIVO somado quando online agora (ver getPlayedGuilds acima).
         const totalPlaytimeSeconds = playedGuilds.reduce((sum, pg) => sum + (pg.totalPlaytime || 0), 0);
         const totalPlaytimeLabel = totalPlaytimeSeconds > 0 ? StaffPresenceSystem.formatDuration(totalPlaytimeSeconds * 1000) : null;
+
+        // Carrossel pequeno de anúncios de servidores parceiros no topo
+        // (pedido do dono, 2026-08-10: "Adicione um pequeno carrosseu
+        // desses anúncios de servers na parfina de perfil e na pagina de
+        // loja, no topo") — mesma fonte da home (getPartnerNews).
+        const partnerNews = await getPartnerNews(client);
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
@@ -1351,6 +1388,9 @@ function loadDashboard(client) {
             mostPlayedDinosaur,
             kdStats,
             huntBalance,
+            bonesBalance,
+            xpBalance,
+            ownedItems,
             staffRoles,
             playedGuilds,
             totalPlaytimeLabel,
@@ -1359,6 +1399,7 @@ function loadDashboard(client) {
             backgroundOptions,
             avatarPreviewUrl,
             backgroundPreviewUrl,
+            partnerNews,
             saved: req.query.saved,
         });
     });
@@ -1448,6 +1489,9 @@ function loadDashboard(client) {
         const huntBalance = PlayerRegistry.getHuntBalance(req.user.id);
         const xpBalance = PlayerRegistry.getXp(req.user.id);
         const playedGuilds = link ? getPlayedGuilds(link.alderon_id, client) : [];
+        // Carrossel pequeno de anúncios de servidores parceiros no topo
+        // (pedido do dono, 2026-08-10) — mesma fonte da home/perfil.
+        const partnerNews = await getPartnerNews(client);
 
         res.render('loja', {
             nickname: req.user.global_name || req.user.username,
@@ -1463,6 +1507,7 @@ function loadDashboard(client) {
             xpBalance,
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
             playedGuilds,
+            partnerNews,
             convertResult: req.query.convertido || null,
             convertError: req.query.erro || null,
             convertAmount: req.query.valor || null,
@@ -1536,11 +1581,12 @@ function loadDashboard(client) {
             const files = req.files || {};
 
             try {
-                // Emblema — liberado em QUALQUER tier (mesma regra do
-                // /perfil-edit no Discord).
+                // Emblema — liberado em QUALQUER tier, mas emblemas com
+                // preço exigem compra prévia na Loja (mesma regra do
+                // /perfil-edit no Discord, ver ConfigSystem.getUsableBadgeOptions).
                 if ('badge_key' in body) {
                     const key = body.badge_key || null;
-                    const valid = !key || ConfigSystem.getBadgeOptions().some(opt => opt.value === key);
+                    const valid = !key || ConfigSystem.getUsableBadgeOptions(userId).some(opt => opt.value === key);
                     if (valid) PlayerRegistry.setSelectedBadgeKey(userId, key);
                 }
 

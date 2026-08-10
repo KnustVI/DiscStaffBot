@@ -99,7 +99,10 @@ module.exports = {
 
             const onlineCount = staffStatuses.filter(s => s.state === 'online').length;
 
-            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            // Cor de destaque personalizada do servidor (Caçador) — pedido
+            // do dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+            const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+            const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             builder.title(`${emojis.wifi || '📶'} Staff Online no Jogo`, 1);
             builder.separator();
 

@@ -56,7 +56,12 @@ function _removePost(scheduledEventId) {
 
 function _buildAnnouncement(guild, event, phase, threadUrl) {
     const meta = PHASES[phase];
-    const builder = new AdvancedContainerBuilder({ accentColor: meta.color });
+    // 'started' fica fixo (SUCCESS, sinal semântico de "começou") —
+    // 'created'/'ended' (ambos DEFAULT) usam a cor personalizada do
+    // servidor no lugar do DEFAULT fixo, pedido do dono 2026-08-10.
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const accentColor = meta.color === COLORS.DEFAULT ? (personalization.accentColor ?? COLORS.DEFAULT) : meta.color;
+    const builder = new AdvancedContainerBuilder({ accentColor });
     builder.text(`# ${EMOJIS[meta.icon] || meta.fallbackIcon} ${meta.title}`);
     builder.text(meta.text(event));
     if (threadUrl) builder.text(`${EMOJIS.wifi || '🔗'} Postagem: ${threadUrl}`);

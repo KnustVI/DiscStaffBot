@@ -44,7 +44,10 @@ async function logRoleChanges(guild, user, changes) {
             `${c.gained ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌')} ${user} ${c.gained ? 'ganhou' : 'perdeu'} o cargo **${ROLE_KEY_LABELS[c.key]}** (<@&${c.roleId}>)`
         );
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.title(`${EMOJIS.shield || '🛡️'} Cargo de Staff Alterado`, 1);
         builder.block(lines);
         builder.footer(guild);

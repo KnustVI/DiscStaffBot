@@ -110,6 +110,18 @@
         .loja-currency-balance.is-bones .loja-currency-balance-value { color: #F8DCC0; }
         .loja-currency-balance.is-xp .loja-currency-balance-value { color: #A5FFA1; }
 
+        /* Saldo de Ossos em destaque dentro do Conversor (pedido do dono,
+           2026-08-10) — mesma receita de pill já usada em perfil.ejs
+           .perfil-hunt-pill, cor de Ossos (#F8DCC0). */
+        .loja-converter-balance-pill {
+            box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px; border-radius: 147.5px; background: #131314;
+            border: 1px solid rgba(248, 220, 192, 0.35);
+            font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; color: #F8DCC0;
+            width: fit-content;
+        }
+        .loja-converter-balance-pill i { width: 16px; height: 16px; flex: none; }
+
         /* Grade de itens (personalização + jogo) — mesmo espírito de
            .pool-item já usado em dev-image-pool.ejs, adaptado pra
            catálogo de prévia (sem ações de CRUD, com selo "Em breve"). */
@@ -139,6 +151,11 @@
             justify-content: center;
         }
         .loja-item-thumb i { width: 28px; height: 28px; color: #803E30; }
+        /* Visualização em overlay maior (pedido do dono, 2026-08-10) —
+           só nas thumbs com imagem de verdade (Loja de Jogo ainda usa só
+           ícone de placeholder, sem imagem pra ampliar). */
+        .loja-item-thumb.is-zoomable { cursor: zoom-in; transition: filter 0.15s ease; }
+        .loja-item-thumb.is-zoomable:hover { filter: brightness(1.15); }
         .loja-item-label { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.8rem; color: #F8DCC0; }
         .loja-item-desc { font-family: 'Poppins', sans-serif; font-size: 0.7rem; opacity: 0.5; line-height: 1.4; }
         .loja-item-price {
@@ -186,9 +203,11 @@
         }
         .loja-item-owned-badge i { width: 13px; height: 13px; }
         .loja-item-buy-form { margin: 0; }
-        .loja-item-buy-form .btn-chip { width: 100%; justify-content: center; padding: 6px 10px; }
+        /* Botão um pouco menor (pedido do dono, 2026-08-10) — mesma
+           largura cheia do card, só reduzido padding/fonte. */
+        .loja-item-buy-form .btn-chip { width: 100%; justify-content: center; padding: 4px 8px; font-size: 11px; }
         .loja-item-buy-form .btn-chip:disabled { opacity: 0.4; cursor: not-allowed; }
-        .loja-item-buy-form .btn-chip i { width: 13px; height: 13px; }
+        .loja-item-buy-form .btn-chip i { width: 12px; height: 12px; }
         .loja-item-insufficient { font-family: 'Poppins', sans-serif; font-size: 0.62rem; color: #FF4E3B; }
 
         /* Formulários do Conversor de Moedas — mesma cápsula
@@ -217,6 +236,11 @@
         <p class="text-sm opacity-50 -mt-2"><span data-i18n-pt>A Loja de Personalização já permite comprar itens com Caçadas. O resto abaixo (Loja de Jogo) ainda é só uma prévia.</span><span data-i18n-en>The Customization Shop already lets you buy items with Hunt. Everything else below (Game Shop) is still just a preview.</span></p>
 
         <%- include('partials/testing-phase-banner') %>
+
+        <%# Carrossel compacto de anúncios de servidores parceiros (pedido
+            do dono, 2026-08-10) — feed completo com overlay de detalhe
+            continua exclusivo da home, ver web/views/hero.ejs. %>
+        <%- include('partials/partner-news-mini', { partnerNews }) %>
 
         <div class="outline-chip">
             <i data-lucide="construction" class="outline-chip-icon"></i>
@@ -339,7 +363,11 @@
                                     <% if (!img.shop_price) { %>
                                         <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
                                     <% } %>
-                                    <div class="loja-item-thumb" style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"></div>
+                                    <div
+                                        class="loja-item-thumb<%= img.url ? ' is-zoomable' : '' %>"
+                                        style="<%= img.url ? `background-image:url('${img.url}')` : '' %>"
+                                        <% if (img.url) { %>onclick="openImageLightbox('<%= img.url %>', '<%= (img.label || '').replace(/'/g, "\\'") %>')"<% } %>
+                                    ></div>
                                     <span class="loja-item-label"><%= img.label %></span>
                                     <% if (!img.shop_price) { %>
                                         <span class="loja-item-price is-hunt"><i data-lucide="gem"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
@@ -443,12 +471,23 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <i data-lucide="repeat" class="w-5 h-5" style="color:#F8DCC0;"></i>
-                    <span data-i18n-pt>CONVERSOR DE MOEDAS</span><span data-i18n-en>CURRENCY CONVERTER</span>
+                    <i data-lucide="bone" class="w-5 h-5" style="color:#F8DCC0;"></i>
+                    <span data-i18n-pt>CONVERSOR DE OSSOS</span><span data-i18n-en>BONES CONVERTER</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1">
-                    <span data-i18n-pt>Taxa: 1 Osso = <%= marksPerBone %> Marks, nos dois sentidos. Seu saldo atual: </span><span data-i18n-en>Rate: 1 Bone = <%= marksPerBone %> Marks, both ways. Your current balance: </span><strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong>.
+                    <span data-i18n-pt>Taxa: 1 Osso = <%= marksPerBone %> Marks, nos dois sentidos.</span><span data-i18n-en>Rate: 1 Bone = <%= marksPerBone %> Marks, both ways.</span>
                 </p>
+                <%#
+                    Saldo de Ossos MAIS APARENTE aqui dentro do conversor
+                    (pedido do dono, 2026-08-10) — antes era só um número
+                    dentro do texto corrido, fácil de passar batido; agora é
+                    uma pill própria, mesma linguagem visual das pills de
+                    saldo do topo do card de moeda (Ossos) acima.
+                %>
+                <div class="loja-converter-balance-pill">
+                    <i data-lucide="bone"></i>
+                    <span><span data-i18n-pt>Seu saldo:</span><span data-i18n-en>Your balance:</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
+                </div>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Você precisa estar online no servidor de jogo escolhido pra converter.</span><span data-i18n-en>You need to be online on the chosen game server to convert.</span></p>
             </div>
 
@@ -531,6 +570,57 @@
             </span>
         </footer>
     </main>
+
+    <%#
+        Overlay de visualização grande de imagem (pedido do dono,
+        2026-08-10: "adicionar visualização grande em overlay das imagem
+        de compra nas lojas") — 1 overlay compartilhado pra página
+        inteira, aberto via openImageLightbox() (ver onclick nas thumbs
+        acima). Vanilla JS simples, mesmo padrão sem framework/biblioteca
+        já usado no resto do dashboard (ex: troca de aba em perfil.ejs).
+    %>
+    <div id="image-lightbox" class="image-lightbox" onclick="closeImageLightbox()">
+        <button type="button" class="image-lightbox-close" onclick="closeImageLightbox()" aria-label="Fechar">
+            <i data-lucide="x"></i>
+        </button>
+        <figure class="image-lightbox-figure">
+            <img id="image-lightbox-img" src="" alt="">
+            <figcaption id="image-lightbox-caption"></figcaption>
+        </figure>
+    </div>
+    <style>
+        .image-lightbox {
+            display: none;
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(10, 9, 10, 0.92);
+            align-items: center; justify-content: center;
+            padding: 40px 20px;
+            cursor: zoom-out;
+        }
+        .image-lightbox.is-open { display: flex; }
+        .image-lightbox-figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: min(90vw, 560px); cursor: default; }
+        .image-lightbox-figure img { max-width: 100%; max-height: 75vh; border-radius: 14px; border: 1px solid rgba(217, 163, 98, 0.35); box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+        .image-lightbox-figure figcaption { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; color: #F8DCC0; text-align: center; }
+        .image-lightbox-close {
+            position: absolute; top: 20px; right: 20px;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.35); color: #F8DCC0;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .image-lightbox-close:hover { background: #2A2729; }
+    </style>
+    <script>
+        function openImageLightbox(url, label) {
+            const overlay = document.getElementById('image-lightbox');
+            document.getElementById('image-lightbox-img').src = url;
+            document.getElementById('image-lightbox-caption').textContent = label || '';
+            overlay.classList.add('is-open');
+        }
+        function closeImageLightbox() {
+            document.getElementById('image-lightbox').classList.remove('is-open');
+        }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImageLightbox(); });
+    </script>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>if (window.lucide) window.lucide.createIcons();</script>

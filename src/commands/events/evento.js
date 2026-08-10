@@ -88,6 +88,11 @@ module.exports = {
         const eventTier = PremiumSystem.getGuildLimits(guild.id).eventTier;
 
         const ConfigSystem = require('../../systems/core/configSystem');
+        // Cor de destaque personalizada do servidor (Caçador, ver
+        // ConfigSystem.getPanelPersonalization) — pedido do dono,
+        // 2026-08-10: aplicar personalização "em quase todos os comandos",
+        // mesmo padrão já usado em punishmentSystem.js/reportChatSystem.js.
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
 
         // ==================== PERMISSÃO: EQUIPE DE EVENTOS ====================
         const eventRoleIds = ConfigSystem.getRoleIds(guild.id, 'event_role');
@@ -180,7 +185,7 @@ module.exports = {
         }
 
         await interaction.editReply(
-            new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT })
+            new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT })
                 .text(`${EMOJIS.clockalert || '⏳'} Criando evento... isso envolve baixar a imagem${eventTier !== 'basic' ? ', criar o evento agendado do Discord' : ''} e publicar no fórum, pode levar alguns segundos.`)
                 .footer(guild)
                 .build()
@@ -226,7 +231,7 @@ module.exports = {
         // de eventos' — não disponível no Free.
         const notifyRoleIds = eventTier !== 'basic' ? ConfigSystem.getRoleIds(guild.id, 'event_notify_role') : [];
 
-        const postBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        const postBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         // ── Só a imagem enviada pelo autor aparece na postagem — sem avatar
         // do organizador nem qualquer outra imagem extra. Por isso título e
         // descrição vão como texto simples, não em section() (que exige um

@@ -21,7 +21,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pool de Imagens (Dev) | <%= bot.user.username %></title>
+    <title>Controle Loja (Dev) | <%= bot.user.username %></title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -215,8 +215,8 @@
 
         <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
-                <h1 class="section-title text-xl">Pool de Imagens</h1>
-                <p class="text-xs opacity-50 mt-1">Suba imagens novas, ative/desative sem remover (imagens privadas somem dos menus de escolha — avatar/plano de fundo/emblema/banner — mas continuam guardadas) ou apague de verdade. As mesmas ações também existem pelo <code>/perfil-pool</code> no Discord.</p>
+                <h1 class="section-title text-xl">Controle Loja</h1>
+                <p class="text-xs opacity-50 mt-1">Suba imagens novas, ative/desative sem remover (imagens privadas somem dos menus de escolha — avatar/plano de fundo/emblema/banner — mas continuam guardadas), apague de verdade, ou defina preço/tier mínimo pra vender na Loja (<code>/loja</code>). As mesmas ações de upload/visibilidade também existem pelo <code>/perfil-pool</code> no Discord.</p>
             </div>
             <a href="/dashboard" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar
@@ -257,17 +257,19 @@
                                 <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                                 <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
                                 <%
-                                    // Preço só faz sentido pra tipos com um caminho de USO ligado à
-                                    // compra (avatar/background — ver imageShopSystem.js#canUseImage
-                                    // e ConfigSystem.getOwnedUsableOptions, únicos consumidos pela
-                                    // seleção de /perfil-edit e /perfil web). Emblema já é livre em
-                                    // QUALQUER tier de propósito, então "comprar" um seria inútil;
-                                    // banner é escolha de SERVIDOR (Caçador), não do jogador; título
-                                    // ainda não tem NENHUM jeito do jogador escolher um da pool (só
-                                    // texto livre Raptor) — precificar esses 3 venderia algo que
-                                    // ninguém consegue usar depois. Escondido aqui de propósito.
+                                    // Preço liberado pra avatar/background (Loja de Personalização,
+                                    // ver imageShopSystem.js#canUseImage/ConfigSystem.getOwnedUsableOptions)
+                                    // e emblema (idem, ver ConfigSystem.getUsableBadgeOptions — pedido
+                                    // do dono, 2026-08-10: emblema com preço só entra na lista de quem
+                                    // já comprou, o resto continua livre em qualquer tier). Banner e
+                                    // título ficam de fora por ora: banner é escolha de SERVIDOR
+                                    // (Caçador), não item de inventário do jogador; título ainda não
+                                    // tem NENHUM jeito do jogador escolher um da pool pra usar (só
+                                    // texto livre Raptor) — precificar os dois agora venderia algo que
+                                    // ninguém consegue equipar depois. Visibilidade (público/privado)
+                                    // continua liberada pros 5 tipos, só o preço é que fica restrito.
                                 %>
-                                <% if (group.type === 'avatar' || group.type === 'background') { %>
+                                <% if (group.type === 'avatar' || group.type === 'background' || group.type === 'badge') { %>
                                     <div class="pool-price-form">
                                         <span class="pool-price-current">
                                             <% if (img.shop_price) { %>

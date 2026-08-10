@@ -175,7 +175,13 @@ class PlayerRegistrationSystem {
 
         const player = PlayerRegistry.getPlayerByDiscordId(userId);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : COLORS.DEFAULT });
+        // SUCCESS fica fixo (já vinculado) — só "ainda não vinculado" usa a
+        // cor personalizada do servidor no lugar do DEFAULT fixo, pedido do
+        // dono 2026-08-10. guild?.id porque /registrar pode, em teoria, não
+        // ter guild (getPanelPersonalization já trata guildId ausente).
+        const ConfigSystem = require('../core/configSystem');
+        const registerPersonalization = ConfigSystem.getPanelPersonalization(interaction.guild?.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: player ? COLORS.SUCCESS : (registerPersonalization.accentColor ?? COLORS.DEFAULT) });
         builder.text('# CADASTRO DE JOGADOR');
         builder.text('Vincula sua conta do Discord à sua conta do Path of Titans (Alderon ID) no nosso banco de dados, pra que o bot possa reconhecer você e liberar recursos exclusivos.');
         builder.text(`${EMOJIS.globo || '🌐'} **Esse vínculo é global** — funciona em qualquer servidor que tiver o bot, não precisa registrar de novo em cada comunidade.`);
@@ -516,6 +522,26 @@ class PlayerRegistrationSystem {
             builder.text(extraLines.join('\n'));
         }
 
+        // ── Saldos de moeda (pedido do dono, 2026-08-10: "Adicionar todos
+        // os saldos de moedas no perfil, no discord e em jogo") — GLOBAIS
+        // (mesma razão de registered_at acima: bones_balance/hunt_balance/xp
+        // não são por servidor), só aparece pra quem já vinculou conta (sem
+        // isso os 3 sempre seriam 0, informação sem sentido nenhum pra
+        // mostrar). Mesmos ícones já usados na Loja de Jogo/Personalização
+        // (gem pra Caçadas, ver loja.ejs) pra manter o mesmo vocabulário
+        // visual entre Discord e site.
+        if (player) {
+            const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id);
+            const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
+            const xpBalance = PlayerRegistry.getXp(targetUser.id);
+            addSeparatorIfNeeded();
+            builder.text([
+                `${EMOJIS.coins || '🪙'} **Ossos:** ${bonesBalance}`,
+                `${EMOJIS.gem || '💎'} **Caçadas:** ${huntBalance}`,
+                `${EMOJIS.flame || '⚡'} **XP:** ${xpBalance}`,
+            ].join(' | '));
+        }
+
         if (playerTier !== 'free') {
             addSeparatorIfNeeded();
             const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
@@ -526,6 +552,23 @@ class PlayerRegistrationSystem {
         // substitui o footer de texto ("Produzido por..."), não usado aqui. ──────
         addSeparatorIfNeeded();
         extraFiles.push(...this._appendFooterImage(builder, playerTier));
+
+        // Botão "Emblema & Título" — baseado no TARGET (o perfil sendo
+        // exibido), diferente dos botões de atalho abaixo. Mostra o que já
+        // está ATIVO (equipado), não um picker (isso continua sendo
+        // /perfil-edit) — pedido do dono, 2026-08-10: "Comando de perfil no
+        // discord deve ter um botão de vizualização de embletas e titulos
+        // ativos no perfil pelo player". Só entra com vínculo (sem
+        // player_links não há emblema/título pra mostrar, mesmo gate do
+        // bloco de saldo de moedas acima). Interativo de verdade (customId,
+        // roteado por ConfigSystem.handlePerfilViewBadgeTitle), não Link —
+        // por isso PODE refletir o target mesmo clicado por outra pessoa.
+        const profileActionButtons = [];
+        if (player) {
+            profileActionButtons.push(
+                new ButtonBuilder().setCustomId(`perfil-edit:view-badge-title:${targetUser.id}`).setLabel('Emblema & Título').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
+            );
+        }
 
         // Atalhos pro dashboard web — sempre baseados em QUEM RODOU o
         // comando (interaction.user), nunca em targetUser: /perfil aceita
@@ -540,7 +583,7 @@ class PlayerRegistrationSystem {
         const profileLinkButtons = [];
         if (interaction.user.id === DEVELOPER_ID) {
             profileLinkButtons.push(
-                new ButtonBuilder().setLabel('Pool de Imagens').setURL(`${DASHBOARD_BASE_URL}/dev/image-pool`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.imagem || '🖼️'),
+                new ButtonBuilder().setLabel('Controle Loja').setURL(`${DASHBOARD_BASE_URL}/dev/image-pool`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.imagem || '🖼️'),
             );
         }
         // Cache-only de propósito (mesmo risco aceito já documentado em
@@ -559,10 +602,15 @@ class PlayerRegistrationSystem {
             );
         }
 
+        // Mesma linha pros dois grupos (cabe até 5 por ActionRow, hoje no
+        // máximo 3: emblema/título + 2 atalhos) — mistura Secondary com Link
+        // sem problema nenhum, Discord permite os dois estilos juntos.
+        const allProfileButtons = [...profileActionButtons, ...profileLinkButtons];
+
         const payload = builder.build();
         payload.files = [...(payload.files || []), ...extraFiles];
-        if (profileLinkButtons.length > 0) {
-            payload.components = [...payload.components, new ActionRowBuilder().addComponents(...profileLinkButtons)];
+        if (allProfileButtons.length > 0) {
+            payload.components = [...payload.components, new ActionRowBuilder().addComponents(...allProfileButtons)];
         }
         // Pedido do dono: /perfil deixou de ser ephemeral — visível pra
         // qualquer um no canal, não só quem rodou o comando (era forçado
@@ -675,7 +723,9 @@ class PlayerRegistrationSystem {
             playerName, alderonId: alderonIdRaw, code,
         }, 10 * 60 * 1000);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        const ConfigSystem = require('../core/configSystem');
+        const modalPersonalization = ConfigSystem.getPanelPersonalization(guild.id);
+        const builder = new AdvancedContainerBuilder({ accentColor: modalPersonalization.accentColor ?? COLORS.DEFAULT });
         builder.text(`${EMOJIS.messagesquare || '📨'} **Código enviado!**`);
         builder.text(`Olhe o chat do jogo — mandamos um código de verificação pra \`${alderonIdRaw}\`. Clique no botão abaixo e digite o código pra concluir o cadastro.`);
         builder.text(`${EMOJIS.clockalert || '⏳'} O código expira em 10 minutos.`);

@@ -8,6 +8,7 @@
  */
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const PremiumSystem = require('./premiumSystem');
+const ConfigSystem = require('../core/configSystem');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const imageManager = require('../../utils/imageManager');
 
@@ -111,7 +112,12 @@ function actionRow(activeView = 'main') {
 // ==================== CONTAINER 1 — VISÃO GERAL ====================
 
 function buildMainContainer(guild, user) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    // Cor de destaque personalizada do servidor (Caçador) — pedido do
+    // dono, 2026-08-10, mesmo padrão de punishmentSystem.js. As 3 abas do
+    // /premium (main/server/player) usam a MESMA cor pra não piscar cor
+    // diferente ao navegar entre elas com os botões.
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
     const extraFiles = [];
 
     builder.text([
@@ -130,7 +136,9 @@ function buildMainContainer(guild, user) {
 // ==================== CONTAINER 2 — SERVER PREMIUM ====================
 
 function buildServerContainer(guild, user) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    // Cor de destaque personalizada do servidor (Caçador) — ver buildMainContainer.
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
     const extraFiles = [];
 
     builder.text([
@@ -159,7 +167,9 @@ function buildServerContainer(guild, user) {
 // ==================== CONTAINER 3 — PLAYER PREMIUM ====================
 
 function buildPlayerContainer(guild, user) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    // Cor de destaque personalizada do servidor (Caçador) — ver buildMainContainer.
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
     const extraFiles = [];
 
     builder.section(

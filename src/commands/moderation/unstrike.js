@@ -28,6 +28,7 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, options, user: staff, member: staffMember } = interaction;
         const guildId = guild.id;
+        const ConfigSystem = require('../../systems/core/configSystem');
 
         const punishmentId = options.getInteger('id_strike');
         const reason = options.getString('motivo');
@@ -89,7 +90,11 @@ module.exports = {
                 reason,
             }, 120000);
 
-            const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+            // Cor de destaque personalizada do servidor (Caçador) — pedido
+            // do dono, 2026-08-10, mesmo padrão do preview de /strike
+            // (punishmentSystem.js buildStrikeConfirmPreview).
+            const personalization = ConfigSystem.getPanelPersonalization(guildId);
+            const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             builder.title(`${emojis.trianglealert || '⚠️'} Confirmar Anulação de Strike`, 1);
             builder.separator();
             builder.section(

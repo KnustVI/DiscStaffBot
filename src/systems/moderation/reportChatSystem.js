@@ -184,14 +184,18 @@ class ReportChatSystem {
 
         const typeLabel = reportInfo?.type === 'punishment_review' ? 'REVISÃO DE PUNIÇÃO' : 'REPORTE';
 
-        // Determinar a cor baseada no status — paleta única do bot (3 tons)
+        // Determinar a cor baseada no status — paleta única do bot (3 tons).
+        // SUCCESS/ERROR continuam fixos (refletem o status em si) — só o
+        // "ainda aberto/aguardando" (nem fechado nem inativo) usa a cor
+        // personalizada do servidor no lugar do DEFAULT fixo, pedido do
+        // dono 2026-08-10.
         let color;
         if (status === 'closed_no_reason' || status === 'closed_with_reason' || status === 'responded') {
             color = COLORS.SUCCESS;
         } else if (status === 'inactive') {
             color = COLORS.ERROR;
         } else {
-            color = COLORS.DEFAULT;
+            color = ConfigSystem.getPanelPersonalization(guild.id).accentColor ?? COLORS.DEFAULT;
         }
 
         const builder = new AdvancedContainerBuilder({ accentColor: color });
@@ -1202,7 +1206,11 @@ class ReportChatSystem {
                         const feedbackChannel = await guild.channels.fetch(feedbackChannelId).catch(() => null);
                         if (feedbackChannel) {
                             const starEmoji = EMOJIS.starfull || '⭐';
-                            const feedbackBuilder = new AdvancedContainerBuilder({ accentColor: nota >= 4 ? COLORS.SUCCESS : (nota <= 2 ? COLORS.ERROR : COLORS.DEFAULT) });
+                            // SUCCESS/ERROR continuam fixos (refletem a nota em si) —
+                            // só a nota neutra (3 estrelas) usa a cor personalizada
+                            // do servidor, pedido do dono 2026-08-10.
+                            const feedbackAccent = nota >= 4 ? COLORS.SUCCESS : (nota <= 2 ? COLORS.ERROR : (ConfigSystem.getPanelPersonalization(guild.id).accentColor ?? COLORS.DEFAULT));
+                            const feedbackBuilder = new AdvancedContainerBuilder({ accentColor: feedbackAccent });
                             feedbackBuilder.text(`## ${starEmoji} Nova Avaliação de Atendimento | ${reportId}`);
                             feedbackBuilder.separator();
                             feedbackBuilder.text(`${EMOJIS.user || '👤'} **Jogador:** ${targetUser}`);

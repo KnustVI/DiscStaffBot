@@ -154,7 +154,10 @@ async function attachConfigButton(message, scheduledEventId) {
 }
 
 function _explanationBuilder(guild, config) {
-    const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+    // Cor de destaque personalizada do servidor (Caçador) — pedido do
+    // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+    const personalization = ConfigSystem.getPanelPersonalization(guild.id);
+    const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
     builder.text(`${EMOJIS.mappin || '📍'} **Configurar Teleporte do Evento**`);
     builder.text(
         `1. Vá até o local desejado **dentro do jogo** (ex: ponto de encontro dos herbívoros).\n` +

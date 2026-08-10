@@ -45,6 +45,10 @@ module.exports = {
 
     async execute(interaction, client) {
         const { guild } = interaction;
+        // Cor de destaque personalizada do servidor (Caçador) — pedido do
+        // dono, 2026-08-10, mesmo padrão de punishmentSystem.js.
+        const ConfigSystem = require('../../systems/core/configSystem');
+        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
 
         // Busca com withUserCount pra trazer "interessados" (event.userCount)
         // — mesmo padrão já usado em dashboard.js GET /events/:guildID. Pega
@@ -78,7 +82,7 @@ module.exports = {
             .filter(ev => ev.status === GuildScheduledEventStatus.Scheduled && ev.scheduledStartTimestamp && ev.scheduledStartTimestamp <= now + WINDOW_MS)
             .sort((a, b) => a.scheduledStartTimestamp - b.scheduledStartTimestamp);
 
-        const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
         builder.title(`${EMOJIS.calendardays || '📅'} EVENTOS DOS PRÓXIMOS 7 DIAS`, 1);
 
         if (happeningNow.length === 0 && upcoming.length === 0) {

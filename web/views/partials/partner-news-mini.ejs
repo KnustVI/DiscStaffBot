@@ -1,0 +1,116 @@
+<%#
+  web/views/partials/partner-news-mini.ejs
+  Carrossel horizontal COMPACTO de anúncios de servidores parceiros, pro
+  topo de /perfil e /loja (pedido do dono, 2026-08-10: "Adicione um
+  pequeno carrosseu desses anúncios de servers na parfina de perfil e na
+  pagina de loja, no topo"). O feed completo (card grande + overlay de
+  detalhe) continua exclusivo da home — ver web/views/hero.ejs
+  .partner-news-grid/#partnerNewsOverlay — aqui é só uma prévia rápida,
+  sem overlay de detalhe: cada card já é um link direto pro evento (Bônus
+  Caçador, getPartnerNews) quando existe; sem evento, é só informativo
+  (sem destino nenhum pra levar o clique).
+
+  Uso: include('partials/partner-news-mini', { partnerNews })
+    partnerNews — mesmo array de getPartnerNews (dashboard.js) usado pela
+    home: [{ guildId, guildName, iconUrl, title, text, imageUrl,
+    latestEvent }]. Nada renderiza se vier vazio.
+%>
+<% if (partnerNews && partnerNews.length > 0) { %>
+<div class="partner-news-mini-strip">
+    <% partnerNews.forEach(pn => { %>
+        <% if (pn.latestEvent) { %>
+            <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-mini-card">
+                <% if (pn.iconUrl) { %>
+                    <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
+                <% } else { %>
+                    <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
+                <% } %>
+                <div class="partner-news-mini-body">
+                    <span class="partner-news-mini-guild"><%= pn.guildName %></span>
+                    <span class="partner-news-mini-title"><%= pn.title %></span>
+                </div>
+                <i data-lucide="external-link" class="partner-news-mini-link-icon"></i>
+            </a>
+        <% } else { %>
+            <div class="partner-news-mini-card">
+                <% if (pn.iconUrl) { %>
+                    <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
+                <% } else { %>
+                    <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
+                <% } %>
+                <div class="partner-news-mini-body">
+                    <span class="partner-news-mini-guild"><%= pn.guildName %></span>
+                    <span class="partner-news-mini-title"><%= pn.title %></span>
+                </div>
+            </div>
+        <% } %>
+    <% }); %>
+</div>
+<style>
+    .partner-news-mini-strip {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 10px;
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+    .partner-news-mini-card {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: none;
+        width: 240px;
+        padding: 8px 10px;
+        background: #131314;
+        border: 1px solid rgba(217, 163, 98, 0.2);
+        border-radius: 10px;
+        text-decoration: none;
+        transition: border-color 0.15s ease;
+    }
+    a.partner-news-mini-card:hover { border-color: rgba(217, 163, 98, 0.5); }
+    .partner-news-mini-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+        flex: none;
+    }
+    .partner-news-mini-icon-fallback {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #4B2427;
+        color: #DCA15E;
+    }
+    .partner-news-mini-icon-fallback i { width: 14px; height: 14px; }
+    .partner-news-mini-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+        flex: 1;
+    }
+    .partner-news-mini-guild {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 10px;
+        opacity: 0.55;
+        color: #F8DCC0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .partner-news-mini-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 12px;
+        color: #F8DCC0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .partner-news-mini-link-icon { width: 14px; height: 14px; color: #DCA15E; flex: none; }
+</style>
+<% } %>

@@ -255,6 +255,25 @@ function _ownedUsableOptions(userId, poolType) {
 }
 
 /**
+ * Emblemas que ESTE jogador pode escolher agora: todo emblema sem preço
+ * (continua livre em qualquer tier, como sempre foi) MAIS os com preço que
+ * ele já comprou e cujo tier atual alcança o shop_min_tier (ver
+ * imageShopSystem.js#canUseImage). Diferente de foto/fundo (Free vê SÓ o
+ * que comprou, Compy+ vê o pool inteiro sem checagem nenhuma) — emblema
+ * nunca teve gate de tier, então aqui é uma lista ÚNICA misturando livre +
+ * comprado, pra todo mundo, pedido do dono 2026-08-10 ("me de o controle
+ * de alterar valores de todos os itens e se eles estão na loja ou não" —
+ * sem isso o preço de um emblema não teria efeito nenhum na escolha real).
+ */
+function _usableBadgeOptions(userId) {
+    const ImageShopSystem = require('../pot/imageShopSystem');
+    return ProfileImagePool.listImages('badge', { publicOnly: true })
+        .filter(row => !row.shop_price || ImageShopSystem.canUseImage(userId, 'badge', row.id))
+        .map(row => ({ value: ProfileImagePool.toPoolValue(row.id), label: row.label }))
+        .slice(0, 25);
+}
+
+/**
  * Opções de banner pro painel de /config reportchat (Caçador) — a primeira
  * ("Padrão do bot") reseta pra imagem original (única opção estática que
  * sobra: é a imagem oficial do bot, não um item de conteúdo trocável); as
@@ -313,6 +332,11 @@ const ConfigSystem = {
     // nome público pelo mesmo motivo das 3 de cima: dashboard.js
     // reaproveita em vez de duplicar (ver GET /perfil).
     getOwnedUsableOptions: _ownedUsableOptions,
+    // Emblemas que um jogador específico pode escolher agora (livres +
+    // comprados/liberados por tier, ver _usableBadgeOptions acima) —
+    // exportada pro dashboard.js reaproveitar no picker web (GET /perfil)
+    // e na validação do POST /perfil/save, mesmo motivo das outras.
+    getUsableBadgeOptions: _usableBadgeOptions,
 
     getSetting(guildId, key) {
         try {
@@ -555,6 +579,20 @@ const ConfigSystem = {
         try {
             const customId = interaction.customId;
 
+            // Botão do /perfil (não /perfil-edit — reaproveita o mesmo
+            // 'perfil-edit' como system key só por conveniência de roteamento,
+            // ver handlers.js) que mostra o emblema/título ATIVOS de quem está
+            // sendo exibido no card, pedido do dono 2026-08-10: "Comando de
+            // perfil no discord deve ter um botão de vizualização de embletas
+            // e titulos ativos no perfil pelo player". Precisa de um param
+            // dinâmico (targetUserId, pode ser diferente de quem clicou —
+            // /perfil aceita ver o perfil de qualquer um), por isso usa
+            // action/param já parseados em vez do match exato de customId
+            // usado nos outros branches acima/abaixo.
+            if (action === 'view-badge-title') {
+                await this.handlePerfilViewBadgeTitle(interaction, param);
+                return;
+            }
             if (customId === 'perfil-edit:background') {
                 await this.handlePlayerBackgroundSelect(interaction);
                 return;
@@ -2004,18 +2042,20 @@ const ConfigSystem = {
     // bot developer). Desenho do emblema escolhido em cima do card ainda
     // não implementado — esta tela já deixa a escolha/persistência
     // prontas, o desenho fica pra quando existirem assets reais cadastrados
-    // pra testar a composição contra.
+    // pra testar a composição contra. Alguns emblemas podem ter preço (ver
+    // imageShopSystem.js) — esses só entram na lista pra quem já comprou
+    // (ver _usableBadgeOptions), o resto continua livre pra qualquer um.
 
-    buildPlayerBadgePickerPayload(currentKey) {
+    buildPlayerBadgePickerPayload(currentKey, userId) {
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text([
             '# ESCOLHER EMBLEMA',
-            'Escolha um emblema para exibir no seu card de `/perfil` — disponível em qualquer tier.',
+            'Escolha um emblema para exibir no seu card de `/perfil` — disponível em qualquer tier (alguns podem exigir compra na Loja).',
         ].join('\n'));
 
-        const options = getBadgeOptions();
+        const options = _usableBadgeOptions(userId);
         if (options.length === 0) {
-            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhum emblema cadastrado — volte mais tarde.`);
+            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhum emblema disponível pra você — volte mais tarde ou confira a Loja (\`/loja\`).`);
             cb.footer('Emblema disponível em qualquer tier');
             return cb;
         }
@@ -2050,16 +2090,16 @@ const ConfigSystem = {
         }
 
         const chosenKey = interaction.values[0];
-        const options = getBadgeOptions();
+        const options = _usableBadgeOptions(interaction.user.id);
         const isValidOption = options.some(opt => opt.value === chosenKey);
         if (!isValidOption) {
-            return await ResponseManager.error(interaction, 'Emblema inválido.');
+            return await ResponseManager.error(interaction, 'Emblema inválido — ou você ainda não comprou esse emblema na Loja (`/loja`).');
         }
 
         PlayerRegistry.setSelectedBadgeKey(interaction.user.id, chosenKey);
         const label = options.find(opt => opt.value === chosenKey)?.label || chosenKey;
 
-        const payload = this.buildPlayerBadgePickerPayload(chosenKey).build();
+        const payload = this.buildPlayerBadgePickerPayload(chosenKey, interaction.user.id).build();
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply(payload);
         } else {
@@ -2212,9 +2252,47 @@ const ConfigSystem = {
         const builders = {
             photo: () => this.buildPlayerPhotoPickerPayload(link?.selected_photo_key, isFreeWithPurchase ? interaction.user.id : undefined),
             background: () => this.buildPlayerBackgroundPickerPayload(link?.selected_background_key, isFreeWithPurchase ? interaction.user.id : undefined),
-            badge: () => this.buildPlayerBadgePickerPayload(link?.selected_badge_key),
+            badge: () => this.buildPlayerBadgePickerPayload(link?.selected_badge_key, interaction.user.id),
         };
         const payload = builders[kind]().build();
+        await interaction.followUp({ ...payload, flags: (payload.flags | MessageFlags.Ephemeral) });
+    },
+
+    /**
+     * Botão "Emblema & Título" do /perfil — mostra o que está ATIVO (já
+     * equipado) no perfil sendo exibido, não um picker (isso é
+     * /perfil-edit). targetUserId vem do customId (perfil-edit:view-badge-
+     * title:<id>), sempre o dono do card sendo visto, nunca quem clicou —
+     * /perfil é público e mostra qualquer um, então o botão precisa
+     * responder sobre a pessoa CERTA independente de quem apertou. Resposta
+     * sempre efêmera (followUp, mesmo padrão de handlePerfilEditInfoButton
+     * acima) — só quem clicou vê, sem poluir o card público pro canal.
+     */
+    async handlePerfilViewBadgeTitle(interaction, targetUserId) {
+        const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const targetPlayer = targetUserId ? PlayerRegistry.getPlayerByDiscordId(targetUserId) : null;
+
+        const badgeLabel = targetPlayer?.selected_badge_key
+            ? (getBadgeOptions().find(opt => opt.value === targetPlayer.selected_badge_key)?.label
+                || `${EMOJIS.circlealert || '❌'} Emblema removido do pool`)
+            : 'Nenhum emblema equipado';
+        // profile_title é preenchido livremente só no tier Raptor (ver
+        // processTitleModal), mas NUNCA é apagado numa queda de tier
+        // (padrão do repo: downgrade nunca deleta dado já gravado) — por
+        // isso mostra o valor salvo pra qualquer tier atual, sem checar
+        // Raptor aqui (esta tela é só LEITURA, a checagem de tier é só na
+        // hora de EDITAR).
+        const titleLabel = targetPlayer?.profile_title || 'Nenhum título definido';
+
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        cb.text([
+            '# EMBLEMA & TÍTULO',
+            `${EMOJIS.badge || '🏅'} **Emblema ativo:** ${badgeLabel}`,
+            `${EMOJIS.sparkles || '✨'} **Título ativo:** ${titleLabel}`,
+        ].join('\n'));
+        cb.footer(`Perfil de <@${targetUserId}>`);
+
+        const payload = cb.build();
         await interaction.followUp({ ...payload, flags: (payload.flags | MessageFlags.Ephemeral) });
     },
 
