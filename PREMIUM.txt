@@ -7521,3 +7521,168 @@ frente, nao so este relatorio):
   funcionando; (c) 2 boots seguidos no mesmo arquivo confirmam
   idempotência sem erro. Autofix: não precisa de intervenção manual
   no banco de produção, corrige sozinho no próximo `pm2 restart`.
+
+------------------------------------------------------------------
+147) Rodapé padrão da marca virou "Equipe Titan's Pass"; rodapé
+     customizado do servidor (Caçador) passa a valer em praticamente
+     todo comando/resposta do bot, não só Strike/Unstrike/Report-Chat
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Alterar o footer padrão de todo o bot
+  para Equipe Titan's Pass" + "Footer personalizado do servidor deve
+  alterar em todos os comandos e repostas de comandos, com exceção de
+  logs de weebhook, todos os comandos de configuração, e comando de
+  perfil e ajuda."
+- FIX (marca): `BRAND_FOOTER` (`containerBuilder.js`) trocado de
+  "Produzido por KnustVI e T.Mach" pra "Equipe Titan's Pass" — 1 lugar
+  só, cascateia pra todo container que usa `footer()`.
+- FIX (rodapé customizado em todo lugar): antes, "se o servidor
+  configurou um rodapé próprio (/config personalizar, aba "Aparência
+  Geral", plano Caçador) usa ele" era um `if/else` manual DUPLICADO em
+  3 lugares (`punishmentSystem._applyFooter`, `reportChatSystem`
+  inline, `configSystem.logConfigChange`) e ausente em ~40 outros
+  arquivos que só chamavam `footer(guildName)` cru. Centralizado: o
+  próprio `AdvancedContainerBuilder.footer()` agora aceita o objeto
+  Guild (`{id, name}`) e resolve `ConfigSystem.getPanelPersonalization`
+  sozinho — se o servidor tem rodapé customizado, usa ele (via
+  `footerRaw` internamente); senão cai no padrão da marca, exatamente
+  como antes. `extra` (ex: "Página 2/5", "Solicitado por Fulano")
+  continua preservado nos dois casos, sempre na frente. Compatível com
+  chamadas antigas que só passam uma STRING (ex: `footer('Sistema')`,
+  `footer('Bot de Developer')`) — nesse caso não tem `id` pra buscar
+  personalização, cai direto no padrão da marca, sem quebrar nada.
+- Os 3 lugares com a lógica duplicada foram simplificados pra só
+  chamar `footer(guild)` (removido `_applyFooter`/checagem manual do
+  `personalization.footerText`, mantido só o uso de
+  `personalization.accentColor` onde existia).
+- ~35 arquivos trocaram `footer(guild.name)`/`footer(guildName)` pra
+  `footer(guild)` (ou `footer({id: guildId, name: guildName})` onde só
+  os dois campos separados estavam disponíveis) — cobre: `/evento`,
+  `/eventos-agendados`, `/divulgar`, `/ingame-buff`, `/ingame-comandos`
+  (e todo `/ingame-*` via `rconCommandCatalog.js`), `/rep-set`,
+  `/staffonline`, `/unstrike`, `/feedback` (resposta ao usuário — a
+  cópia interna pro canal de feedback do DONO ficou de fora de
+  propósito, ninguém do servidor vê aquela mensagem), `/botstatus`,
+  `/ping`, `/premium`, `/registrar` (todo o fluxo de vínculo/
+  verificação — `/perfil` em si, método `sendProfile`, não usa
+  `footer()` de texto, usa imagem de rodapé por tier, então não entra
+  aqui), `/strike` `/unstrike` (containers unificados e confirmação de
+  aprovação de Supervisor), `/historico`, relatório diário de staff,
+  report-chat inteiro (abertura, DM, log, thread, tópico apagado),
+  lembrete automático de evento (cron 30min), `/status`, log de cargo
+  de staff ganho/perdido (`log_staff`).
+- Deixados de FORA de propósito (lidos e classificados um por um, não
+  por padrão de nome de arquivo): `/ajuda` e `/perfil` (exceção
+  explícita do dono); todo comando de configuração — `/config *`
+  inteiro (`configSystem.js`), `/potserver *` (setup/reset/logs/status
+  — mesma família de `/config`, só com nome de comando diferente),
+  painéis de `/config buffs`/`/config filtro`
+  (`buffPanelSystem.js`/`chatFilterPanelSystem.js`), painel de
+  Auto Moderação (`autoModeration.js` — usa `ConfigSystem.
+  logConfigChange`, é config disfarçada de painel de settings) e o
+  painel de configuração de webhooks do PoT (`potWebhookSystem.js`,
+  customId `pot_webhook:*`); logs de webhook do PoT
+  (`webhookPayloads.js` — relatório de combate/mortes, `guild?.name`
+  ali é só o nome cru mesmo, não personalização); mensagens que só o
+  DONO do bot vê (`errorLogger.js`, `guildCreate.js`, `guildDelete.js`,
+  `ready.js`, bot de developer inteiro — nunca fazem sentido levar a
+  marca de um servidor específico).
+- Verificado: `node --check` nos 25 arquivos tocados (0 falhas), teste
+  real (não mock) do mecanismo novo contra `ConfigSystem.
+  getPanelPersonalization` com dado de verdade em `guild_premium`/
+  `settings` — string pura sem personalização, objeto Guild sem
+  personalização (cai no padrão), objeto Guild COM personalização
+  configurada (usa o texto customizado, marca ausente), e `extra`
+  preservado nos 3 casos —, e varredura completa de todos os ~56
+  arquivos de comando do bot (require() de cada um, 0 erros).
+
+------------------------------------------------------------------
+148) Cargo mencionado na abertura de reports não mencionava de
+     verdade — virava texto cru `<@&["123..."]>` (array JSON dentro
+     da menção, sintaxe inválida pro Discord)
+------------------------------------------------------------------
+- Reportado pelo dono (2026-08-10): "Cargo staff que é configurado
+  para ser mencionado na abertura de reports não esta sendo
+  mencionado."
+- Causa raiz: `report_mention_role` (seção 141) é salvo por dois
+  caminhos diferentes — Discord `/config roles` grava via `setRoles()`
+  genérico (o mesmo usado por staff_role/supervisor_role/etc.), que
+  SEMPRE serializa como array JSON (`ConfigSystem.setRoleIds`), mesmo
+  pra 1 cargo só; o dashboard web grava o ID cru direto (`<select>`
+  simples, sem array). `reportChatSystem.js` lia com
+  `ConfigSystem.getSetting()` cru, que devolve a string EXATA salva —
+  quando configurado pelo Discord, isso é literalmente
+  `["123456789012345678"]`, e `<@&${mentionRoleId}>` virava
+  `<@&["123456789012345678"]>`, sintaxe de menção inválida que o
+  Discord nunca resolve nem notifica (mas também não dá erro nenhum —
+  por isso passou despercebido até o dono reportar visualmente).
+- FIX: as 2 leituras trocadas pra `ConfigSystem.getRoleIds(guild.id,
+  'report_mention_role')[0]` — mesmo helper já usado por TODO resto do
+  arquivo pra ler cargo configurado, já trata os 2 formatos (array OU
+  ID cru) de forma transparente. Nenhuma mudança nos 2 caminhos de
+  escrita — o fix é só na leitura.
+- Verificado: reprodução real (não mock) contra `ConfigSystem` de
+  verdade — confirmado que `getSetting()` cru realmente devolvia
+  `["999888777666555444"]` pra uma role salva via `/config roles` e
+  que `getRoleIds()[0]` resolve certo pros 2 formatos de escrita
+  (Discord e dashboard) + ausência (retorna `null`, sem menção, igual
+  antes).
+
+------------------------------------------------------------------
+149) Nome do tópico de reports agora mostra o status (bolinha
+     colorida) direto na lista de canais: 🟠 aguardando staff / 🟢
+     respondido / ⚫ inativo 24h
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10, com imagem de referência): tópicos
+  nomeados "<bolinha> Rep<N> - <username>", a bolinha mudando de cor
+  conforme o status do report — dá pra escanear quais reports precisam
+  de atenção sem abrir cada um.
+- Nome de tópico do Discord NÃO interpreta emoji de aplicação custom
+  (`<:nome:id>`, o formato usado no resto do bot via `emojis.js`) — só
+  emoji Unicode renderiza ali, por isso as 3 bolinhas
+  (`ReportChatSystem.THREAD_STATUS_DOT`) são literais mesmo, não vêm
+  de `EMOJIS.*`. Formato antigo era
+  `【#REP<N>】report-<username>` forçado pra minúsculo/kebab-case
+  (tratamento pensado pra canal comum, desnecessário pra tópico —
+  tópico privado aceita maiúscula/minúscula, espaço e emoji sem
+  transformar nada).
+- FIX: novo `ReportChatSystem.buildThreadName(reportNumber, username,
+  status)` — usado na criação (`openReport`/`openPunishmentReview`,
+  sempre `waiting` no início) e em toda transição de status depois
+  (`updateStatus`, que já cuidava de atualizar o painel de log e a DM
+  — ganhou uma 3ª atualização independente, o rename do tópico, em
+  try/catch próprio: renomear canal tem rate limit do Discord de 2
+  trocas/10min, uma falha aí não pode derrubar a atualização do painel
+  de log/DM que já são a fonte de verdade real do status). Só os 3
+  estados "abertos" — fechado arquiva o tópico (`thread.setArchived`),
+  sem necessidade de bolinha num tópico já escondido da lista.
+- Verificado: teste real (não mock) de `buildThreadName` pros 4
+  estados (waiting/responded/inactive/closed_with_reason, este último
+  confirmando o fallback seguro pro padrão em vez de quebrar) — nomes
+  exatos `🟠 Rep13 - Username` / `🟢 Rep13 - Username` / `⚫ Rep13 -
+  Username`, batendo com a imagem de referência do dono.
+
+------------------------------------------------------------------
+150) Novo canal configurável em /config logs: "Avaliação de Reports"
+     — 1 mensagem por avaliação de atendimento (nota + comentário)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Feedback feito por reportes tambem
+  devem ser configurados para que apareçam em um canal especifico para
+  expor a avaliação de atendimento, em config logs."
+- Antes, a nota (1-5 estrelas + comentário opcional, ver
+  `ReportChatSystem.rateReport`) só editava o painel do PRÓPRIO report
+  em `log_reports` — pra acompanhar qualidade de atendimento era
+  preciso abrir report por report.
+- FIX: novo campo `log_report_feedback` em `LOG_FIELDS` (`/config
+  logs`, mesmo padrão de `log_rcon` da seção 145) + `rateReport` ganhou
+  um bloco best-effort (try/catch próprio, nunca quebra o fluxo
+  principal — a nota já foi salva no banco antes) que posta 1
+  container novo no canal configurado: jogador, staff responsável (1º
+  que participou), nota em estrelas, comentário (se houver). Cor do
+  container reflete a nota (verde ≥4, vermelho ≤2, padrão pro meio).
+  Sem canal configurado, nenhuma tentativa de envio é feita (mesmo
+  critério de log_rcon).
+- Verificado: reprodução real (não mock) do fluxo completo
+  `setLogChannel`->`getSetting`/`getLogChannel` com dado de verdade em
+  `settings`, confirmando que o customId novo
+  (`config-logs:report-feedback`) resolve pra `log_report_feedback` e
+  que a leitura (o caminho que `rateReport` realmente usa) bate.

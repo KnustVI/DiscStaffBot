@@ -185,6 +185,18 @@ const LOG_FIELDS = [
         desc: 'Recebe 1 linha por comando RCON executado pelo bot contra o servidor do jogo — disparado por /strike, /unstrike, /eventos, /ingame-buff, /ingame-*, /registrar e a Loja de Jogo. Trilha de auditoria bruta, independente de outros logs já configurados.',
         customId: 'config-logs:rcon',
     },
+    {
+        // Pedido do dono, 2026-08-10: "Feedback feito por reportes... para
+        // que apareçam em um canal especifico para expor a avaliação de
+        // atendimento" — a avaliação (nota 1-5 + comentário opcional, ver
+        // reportChatSystem.rateReport) já ficava salva no report/editava o
+        // painel de log_reports, mas sem nenhum canal dedicado só pra
+        // acompanhar qualidade de atendimento sem precisar vasculhar todos
+        // os reports individualmente.
+        key: 'log_report_feedback', icon: 'starfull', label: 'Avaliação de Reports',
+        desc: 'Recebe 1 mensagem por avaliação de atendimento (nota de 1 a 5 estrelas + comentário opcional) que um jogador deixa ao ser atendido num report — pra acompanhar a qualidade do atendimento sem precisar abrir cada report individualmente.',
+        customId: 'config-logs:report-feedback',
+    },
 ];
 
 /**
@@ -648,6 +660,10 @@ const ConfigSystem = {
             }
             if (customId === 'config-logs:rcon') {
                 await this.setLogChannel(interaction, 'log_rcon');
+                return;
+            }
+            if (customId === 'config-logs:report-feedback') {
+                await this.setLogChannel(interaction, 'log_report_feedback');
                 return;
             }
             if (customId === 'config-logs:criar') {
@@ -1595,6 +1611,7 @@ const ConfigSystem = {
             log_reports:      `${EMOJIS.ticket    || '🚩'} Canal de logs de reports`,
             log_staff:        `${EMOJIS.shield || '🛡️'} Canal de logs de staff`,
             log_rcon:         `${EMOJIS.rcon || '🔗'} Canal de logs de comandos RCON`,
+            log_report_feedback: `${EMOJIS.starfull || '⭐'} Canal de avaliação de reports`,
         };
 
         const oldChannelMention = oldChannelId ? `<#${oldChannelId}>` : '`não definido`';
@@ -1757,14 +1774,14 @@ const ConfigSystem = {
 
     /**
      * @param {string} guildId
-     * @param {'geral'|'punishments'|'automod'|'reports'|'staff'|'rcon'} type
+     * @param {'geral'|'punishments'|'automod'|'reports'|'staff'|'rcon'|'report-feedback'} type
      * ✅ UNIFICADO: 'automod' agora resolve para o mesmo canal de 'geral'.
      */
     getLogChannel(guildId, type) {
         if (type === 'geral' || type === 'automod') {
             return this.getUnifiedGeneralLogChannel(guildId);
         }
-        const channelMap = { punishments: 'log_punishments', reports: 'log_reports', staff: 'log_staff', rcon: 'log_rcon' };
+        const channelMap = { punishments: 'log_punishments', reports: 'log_reports', staff: 'log_staff', rcon: 'log_rcon', 'report-feedback': 'log_report_feedback' };
         const key = channelMap[type];
         if (!key) return null;
         return this.getSetting(guildId, key) || null;

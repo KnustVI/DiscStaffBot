@@ -118,7 +118,7 @@ module.exports = {
             responseBuilder.separator();
             responseBuilder.text(`${emojis.mensagem || '📝'} **Resumo da Mensagem:**\n\`\`\`text\n${mensagem.slice(0, 200)}${mensagem.length > 200 ? '...' : ''}\n\`\`\``);
             responseBuilder.text(`${emojis.idcard || '🆔'} **ID do Feedback:** \`${feedbackUuid.slice(0, 8)}...\``);
-            responseBuilder.footer(guild.name, `Obrigado por contribuir!`);
+            responseBuilder.footer(guild, `Obrigado por contribuir!`);
             
             const { components: responseComponents, flags: responseFlags } = responseBuilder.build();
             await interaction.editReply({
@@ -149,7 +149,7 @@ module.exports = {
             errorBuilder.separator();
             errorBuilder.text(`**Tipo:** ${tipo}`);
             errorBuilder.text(`**Código do Erro:** \`${error.message?.slice(0, 50) || 'Desconhecido'}\``);
-            errorBuilder.footer(guild?.name, 'Caso persista, contate um administrador.');
+            errorBuilder.footer(guild, 'Caso persista, contate um administrador.');
             
             const { components: errorComponents, flags: errorFlags } = errorBuilder.build();
             await interaction.editReply({

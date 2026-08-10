@@ -361,7 +361,7 @@ class AnalyticsSystem {
         builder.text(`${EMOJIS.ticket || '🎫'} **Reports Assumidos:** ${report.totals.reportsClaimed}`);
         builder.text(`${EMOJIS.circlecheck || '✅'} **Reports Fechados:** ${report.totals.reportsClosed}`);
         builder.text(`${EMOJIS.clock || '⏱️'} **Tempo Médio:** ${avgResponseText}`);
-        builder.footer(guildName, `${report.days} dias analisados`);
+        builder.footer({ id: guildId, name: guildName }, `${report.days} dias analisados`);
         
         return builder;
     }
@@ -636,7 +636,7 @@ class AnalyticsSystem {
             }
         }
 
-        builder.footer(guild.name, 'Relatório diário');
+        builder.footer(guild, 'Relatório diário');
         return builder;
     }
 
@@ -655,7 +655,7 @@ class AnalyticsSystem {
             builder.text(this._formatStaffBlock(row));
         }
 
-        builder.footer(guild.name, 'Soma de todo o histórico');
+        builder.footer(guild, 'Soma de todo o histórico');
         return builder;
     }
 
@@ -674,7 +674,7 @@ class AnalyticsSystem {
             for (const block of this._chunkStaffBlocks(rows)) builder.text(block);
         }
 
-        builder.footer(guild.name, 'Soma de todo o histórico');
+        builder.footer(guild, 'Soma de todo o histórico');
         return builder;
     }
 
@@ -710,7 +710,7 @@ class AnalyticsSystem {
                     builder.text(`${user} perdeu todos os cargos de staff configurados (Moderador/Supervisor/Equipe de Eventos) — o histórico abaixo foi apagado e não aparece mais no \`/historico staff\`.`);
                     builder.separator();
                     builder.text(this._formatStaffBlock(totals));
-                    builder.footer(guild.name, 'Registro final antes da exclusão dos dados');
+                    builder.footer(guild, 'Registro final antes da exclusão dos dados');
                     await channel.send(builder.build()).catch(() => {});
                 }
             }

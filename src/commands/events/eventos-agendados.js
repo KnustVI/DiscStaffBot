@@ -59,7 +59,7 @@ module.exports = {
             return await interaction.editReply(
                 new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
                     .text(`${EMOJIS.circlealert || '❌'} Não foi possível buscar os eventos agendados agora. Tente novamente em instantes.`)
-                    .footer(guild.name)
+                    .footer(guild)
                     .build()
             );
         }
@@ -84,7 +84,7 @@ module.exports = {
         if (happeningNow.length === 0 && upcoming.length === 0) {
             builder.separator();
             builder.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum evento acontecendo agora nem agendado para os próximos 7 dias.`);
-            builder.footer(guild.name);
+            builder.footer(guild);
             return await interaction.editReply(builder.build());
         }
 
@@ -106,7 +106,7 @@ module.exports = {
             });
         }
 
-        builder.footer(guild.name);
+        builder.footer(guild);
         await interaction.editReply(builder.build());
     },
 };

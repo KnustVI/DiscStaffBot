@@ -19,8 +19,10 @@ class PaginationBuilder {
      * @param {number} [options.accentColor=0xDCA15E] - Cor padrão do container
      * @param {number} [options.timeout=120000] - Tempo de expiração em ms (padrão: 2min)
      *
-     * Nota: o rodapé (com a assinatura padrão do bot) é responsabilidade de
-     * cada página — chame builder.footer(guildName) dentro da função que
+     * Nota: o rodapé (com a assinatura padrão do bot, ou o rodapé
+     * customizado do servidor se houver — ver containerBuilder.js) é
+     * responsabilidade de cada página — chame builder.footer(guild) dentro
+     * da função que
      * monta a página, igual a qualquer outro container. O número da página
      * já aparece no botão central de navegação, então a paginação não
      * precisa adicionar um rodapé próprio.

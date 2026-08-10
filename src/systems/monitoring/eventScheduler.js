@@ -65,7 +65,7 @@ async function _sendDiscordEventReminder(guild, event, startAt) {
         builder.separator();
         builder.text(`${EMOJIS.calendardays || '📅'} **Início:** <t:${startTs}:F> (<t:${startTs}:R>)`);
         builder.text(`${EMOJIS.wifi || '🔗'} **Evento:** ${event.url}`);
-        builder.footer(guild.name);
+        builder.footer(guild);
 
         await logChannel.send(builder.build());
         console.log(`⏰ [EventScheduler] Lembrete de 30min enviado: "${event.name}" (${guild.name})`);

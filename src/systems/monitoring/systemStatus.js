@@ -32,12 +32,12 @@ class SystemStatus {
                     // deferUpdate(), `content` sozinho é rejeitado pelo Discord
                     // (erro 50035), precisa ir como container.
                     await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                        .text(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`).footer(interaction.guild?.name).build());
+                        .text(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`).footer(interaction.guild).build());
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
             await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                .text(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`).footer(interaction.guild?.name).build());
+                .text(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`).footer(interaction.guild).build());
         }
     }
 
@@ -45,7 +45,7 @@ class SystemStatus {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
             return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).footer(interaction.guild?.name).build());
+                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).footer(interaction.guild).build());
         }
         
         const builder = this.generateStatusContainer(status, interaction.guild);
@@ -63,7 +63,7 @@ class SystemStatus {
         const status = this.getBotStatus(interaction.client, interaction.guildId);
         if (!status) {
             return await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
-                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).footer(interaction.guild?.name).build());
+                .text(`${EMOJIS.circlealert || '❌'} Erro ao obter status.`).footer(interaction.guild).build());
         }
         const builder = this.generateDetailedStatusContainer(status, interaction.client, interaction.guild);
         const { components, flags } = builder.build();
@@ -89,7 +89,7 @@ class SystemStatus {
         const nextRunText = status.nextAutoModTS ? `${EMOJIS.clockalert || '⏰'} Próxima: <t:${status.nextAutoModTS}:R>` : `${EMOJIS.circlealert || '❌'} N/A`;
         const lastRunText = status.lastRunTS ? `${EMOJIS.clock || '🕐'} Última: <t:${status.lastRunTS}:R>` : `${EMOJIS.circlealert || '❌'} Nunca`;
         builder.text(`**${EMOJIS.shieldcheck || '🛡️'} Auto Moderação**\n${nextRunText}\n${lastRunText}`);
-        builder.footer(guild?.name || status.guildName);
+        builder.footer(guild || status.guildName);
 
         return builder;
     }
@@ -140,7 +140,7 @@ class SystemStatus {
         }
         
         builder.text(`${healthEmoji} **Health Score: ${healthScore}/100**\n${healthMessage}`);
-        builder.footer(guild?.name || status.guildName);
+        builder.footer(guild || status.guildName);
 
         return builder;
     }

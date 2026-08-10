@@ -159,7 +159,7 @@ module.exports = {
         }
         builder.separator();
         builder.text(`${EMOJIS.trianglealert || '⚠️'} Só é possível publicar uma nova divulgação por semana — a próxima janela abre <t:${nextEligibleTs}:R>.`);
-        builder.footer(guild.name);
+        builder.footer(guild);
 
         await interaction.editReply(builder.build());
     },

@@ -106,6 +106,35 @@ class ReportChatSystem {
         return emojiMap[status] || (EMOJIS.ticket || '🎫');
     }
 
+    /**
+     * Bolinha de status no NOME do tópico (pedido do dono, 2026-08-10, ver
+     * imagem de referência: ⚫ inativo / 🟠 aguardando staff / 🟢
+     * respondido). Unicode LITERAL de propósito, não EMOJIS.* — nome de
+     * canal/tópico do Discord não interpreta emoji de aplicação custom
+     * (<:nome:id>, o formato usado em texto de mensagem/embed em todo o
+     * resto do bot), só emoji Unicode renderiza ali. Só os 3 estados
+     * "abertos": fechado arquiva o tópico (ver closeReport/
+     * thread.setArchived), sem necessidade de sinalizar status num tópico
+     * já arquivado e escondido da lista.
+     */
+    static THREAD_STATUS_DOT = {
+        waiting: '🟠',
+        responded: '🟢',
+        inactive: '⚫',
+    };
+
+    /**
+     * Nome padronizado do tópico: "<bolinha> Rep<N> - <username>". Chamado
+     * na criação (openReport/openPunishmentReview, sempre 'waiting') e em
+     * toda transição de status subsequente (updateStatus) — mantém o nome
+     * do tópico como um indicador de status escaneável na lista de canais,
+     * sem precisar abrir cada um pra saber se já foi respondido.
+     */
+    buildThreadName(reportNumber, username, status) {
+        const dot = ReportChatSystem.THREAD_STATUS_DOT[status] || ReportChatSystem.THREAD_STATUS_DOT.waiting;
+        return `${dot} Rep${reportNumber} - ${username}`;
+    }
+
     getStatusText(status, closedBy = null, closedReason = null, closedAt = null) {
         const statusMap = {
             waiting: `${EMOJIS.clockalert || '⏳'} Aguardando staff`,
@@ -312,9 +341,7 @@ class ReportChatSystem {
         // padrão=aguardando/respondido), sinal útil pra staff escanear o
         // canal de log, diferente da cor fixa usada em /strike, /unstrike e
         // nos outros paineis de report-chat.
-        const personalization = ConfigSystem.getPanelPersonalization(guild.id);
-        if (personalization.footerText) builder.footerRaw(personalization.footerText);
-        else builder.footer(guild.name);
+        builder.footer(guild);
 
         return builder;
     }
@@ -440,8 +467,7 @@ class ReportChatSystem {
             ``,
             `- **Revisar uma Punição**: Recebeu um strike e quer contestar? Use o botão "Revisar Punição" e informe o número do strike.`,
         ].join('\n'));
-        if (personalization.footerText) builder.footerRaw(personalization.footerText);
-        else builder.footer(guildName);
+        builder.footer({ id: guildId, name: guildName });
 
         // Botões do painel usando ButtonBuilder
         const reportButton = new ButtonBuilder()
@@ -501,8 +527,11 @@ class ReportChatSystem {
 
             const reportNumber = this.getNextId(guild.id);
             const reportId = `#REP${reportNumber}`;
-            const threadName = `【${reportId}】report-${user.username}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
-            
+            // Pedido do dono, 2026-08-10 (ver THREAD_STATUS_DOT/buildThreadName
+            // acima) — sempre 'waiting' na criação, updateStatus renomeia
+            // depois conforme o report evolui.
+            const threadName = this.buildThreadName(reportNumber, user.username, 'waiting');
+
             const thread = await interaction.channel.threads.create({
                 name: threadName,
                 type: ChannelType.PrivateThread,
@@ -529,8 +558,7 @@ class ReportChatSystem {
             else threadBuilder.banner(threadBanner.value);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REPORTE | ${reportId}`);
             threadBuilder.text(welcomeMessage || `Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
-            if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
-            else threadBuilder.footer(guild.name);
+            threadBuilder.footer(guild);
 
             const { components: threadComponents, flags: threadFlags, files: threadFiles } = threadBuilder.build();
             const threadMsg = await thread.send({
@@ -556,8 +584,7 @@ class ReportChatSystem {
             infoBuilder.text(`**${EMOJIS.mappin || '📍'} Local:** ${data.local || 'Não informado'}`);
             infoBuilder.text(`**${EMOJIS.DinoFootprint || '🦶'} Personagem perdido:** ${data.personagem || 'Não informado'}`);
             infoBuilder.text(`**${EMOJIS.descricao || '📋'} Descrição:** ${data.descricao}`);
-            if (personalization.footerText) infoBuilder.footerRaw(personalization.footerText);
-            else infoBuilder.footer(guild.name);
+            infoBuilder.footer(guild);
             
             const { components: infoComponents, flags: infoFlags } = infoBuilder.build();
             await thread.send({ 
@@ -585,7 +612,15 @@ class ReportChatSystem {
             // updateStatus/rateReport (que chamam createBaseContainer sem
             // essa opção) — a menção aparece uma vez, na abertura, sem se
             // repetir em toda edição subsequente do mesmo painel.
-            const mentionRoleId = ConfigSystem.getSetting(guild.id, 'report_mention_role');
+            // getRoleIds (não getSetting direto) — config-roles:report-mention
+            // salva pelo mesmo setRoles() genérico dos outros cargos de
+            // /config roles, que sempre grava como array JSON (mesmo pra 1
+            // cargo só, ver ConfigSystem.setRoleIds); ler com getSetting cru
+            // devolvia a string "[\"123...\"]" inteira dentro de <@&...>,
+            // uma menção inválida que o Discord nunca resolvia/notificava —
+            // bug real, 2026-08-10 (getRoleIds já trata os 2 formatos, cru
+            // OU array, mesmo helper usado por todo o resto do arquivo).
+            const mentionRoleId = ConfigSystem.getRoleIds(guild.id, 'report_mention_role')[0] || null;
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
             const { components: logComponents, flags: logFlags } = logBuilder.build();
             const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
@@ -669,7 +704,8 @@ class ReportChatSystem {
 
             const reportNumber = this.getNextId(guild.id);
             const reportId = `#REP${reportNumber}`;
-            const threadName = `【${reportId}】revisao-strike-${strikeNumber}`.toLowerCase().replace(/[^a-z0-9]/g, '-');
+            // Mesmo padrão de openReport() acima — ver buildThreadName.
+            const threadName = this.buildThreadName(reportNumber, user.username, 'waiting');
             const personalization = ConfigSystem.getPanelPersonalization(guild.id);
 
             const thread = await interaction.channel.threads.create({
@@ -692,8 +728,7 @@ class ReportChatSystem {
             else threadBuilder.banner(threadBanner.value);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
             threadBuilder.text(welcomeMessage || `Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
-            if (personalization.footerText) threadBuilder.footerRaw(personalization.footerText);
-            else threadBuilder.footer(guild.name);
+            threadBuilder.footer(guild);
 
             const { components: threadComponents, flags: threadFlags, files: threadFiles } = threadBuilder.build();
             const threadMsg = await thread.send({
@@ -727,8 +762,7 @@ class ReportChatSystem {
             summaryBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${punishment.reason}\n\`\`\``);
             if (punishment.report_id) summaryBuilder.text(`**${EMOJIS.ticket || '🎫'} Report original:** ${punishment.report_id}`);
             summaryBuilder.text(`**Status:** ${punishment.status === 'revoked' ? `${EMOJIS.circlecheck || '✅'} Já anulado` : `${EMOJIS.trianglealert || '⚠️'} Ativo`}`);
-            if (personalization.footerText) summaryBuilder.footerRaw(personalization.footerText);
-            else summaryBuilder.footer(guild.name);
+            summaryBuilder.footer(guild);
 
             const { components: summaryComponents, flags: summaryFlags } = summaryBuilder.build();
             await thread.send({
@@ -749,8 +783,9 @@ class ReportChatSystem {
 
             // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
-            // Mesma menção de cargo do openReport() — ver comentário lá.
-            const mentionRoleId = ConfigSystem.getSetting(guild.id, 'report_mention_role');
+            // Mesma menção de cargo do openReport() — ver comentário lá
+            // (getRoleIds, não getSetting direto — bug do array JSON cru).
+            const mentionRoleId = ConfigSystem.getRoleIds(guild.id, 'report_mention_role')[0] || null;
             const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
             const { components: logComponents, flags: logFlags } = logBuilder.build();
             const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
@@ -1082,8 +1117,7 @@ class ReportChatSystem {
             builder.text(`**Report:** ${EMOJIS.ticket || '🎫'} ${report.report_id}`);
             builder.text(`**Apagado por:** ${deletedBy ? `<@${deletedBy}>` : 'Não identificado (audit log não encontrou a exclusão)'}`);
             builder.separator();
-            if (personalization.footerText) builder.footerRaw(personalization.footerText);
-            else builder.footer(guild.name);
+            builder.footer(guild);
 
             const { components, flags } = builder.build();
             await channel.send({ components, flags: [flags] });
@@ -1144,12 +1178,48 @@ class ReportChatSystem {
                     if (logMessage) {
                         const updatedBuilder = this.createBaseContainer(guild, reportNumber, targetUser, report.status, staffs);
                         const { components: updatedComponents, flags: updatedFlags } = updatedBuilder.build();
-                        await logMessage.edit({ 
-                            components: updatedComponents, 
-                            flags: [updatedFlags] 
+                        await logMessage.edit({
+                            components: updatedComponents,
+                            flags: [updatedFlags]
                         });
                     }
                 } catch (err) {}
+            }
+
+            // Canal dedicado de avaliação de atendimento (pedido do dono,
+            // 2026-08-10: "Feedback feito por reportes... para que apareçam
+            // em um canal especifico para expor a avaliação de atendimento,
+            // em config logs") — SEPARADO de log_reports acima: aquele só
+            // edita o painel do report que já foi avaliado (precisa abrir
+            // report por report pra ver notas); este manda 1 mensagem nova
+            // por avaliação, pra acompanhar qualidade de atendimento sem
+            // vasculhar reports individualmente. Best-effort, nunca quebra
+            // o fluxo principal (a nota já foi salva no banco acima).
+            if (guild) {
+                try {
+                    const feedbackChannelId = ConfigSystem.getSetting(report.guild_id, 'log_report_feedback');
+                    if (feedbackChannelId) {
+                        const feedbackChannel = await guild.channels.fetch(feedbackChannelId).catch(() => null);
+                        if (feedbackChannel) {
+                            const starEmoji = EMOJIS.starfull || '⭐';
+                            const feedbackBuilder = new AdvancedContainerBuilder({ accentColor: nota >= 4 ? COLORS.SUCCESS : (nota <= 2 ? COLORS.ERROR : COLORS.DEFAULT) });
+                            feedbackBuilder.text(`## ${starEmoji} Nova Avaliação de Atendimento | ${reportId}`);
+                            feedbackBuilder.separator();
+                            feedbackBuilder.text(`${EMOJIS.user || '👤'} **Jogador:** ${targetUser}`);
+                            if (staffs.length > 0) {
+                                feedbackBuilder.text(`${EMOJIS.shieldcheck || '🛡️'} **Staff responsável:** <@${staffs[0].id}>`);
+                            }
+                            feedbackBuilder.text(`${starEmoji} **Nota:** ${starEmoji.repeat(nota)} (${nota}/5)`);
+                            if (comentario) {
+                                feedbackBuilder.text(`${EMOJIS.messagesquare || '📝'} **Comentário:**\n\`\`\`text\n${comentario}\n\`\`\``);
+                            }
+                            feedbackBuilder.footer(guild);
+                            await feedbackChannel.send(feedbackBuilder.build());
+                        }
+                    }
+                } catch (err) {
+                    console.error('❌ [ReportChatSystem] Erro ao postar avaliação no canal dedicado:', err);
+                }
             }
 
             await this.sendTempReply(interaction, `Avaliação registrada! Obrigado.`, true);
@@ -1211,6 +1281,25 @@ class ReportChatSystem {
         // quebrado se continuasse aparecendo).
         const isClosedStatus = newStatus === 'closed_no_reason' || newStatus === 'closed_with_reason';
         const normalizedReportId = `#REP${reportNumber}`;
+
+        // Nome do tópico também reflete o status (bolinha ⚫/🟠/🟢, pedido
+        // do dono 2026-08-10 — ver THREAD_STATUS_DOT/buildThreadName acima).
+        // Só nos 3 estados "abertos": closeReport já arquiva o tópico pros
+        // 2 status fechados, e o caso 'closed_no_reason' feito por AQUI
+        // (releaseReportByThreadId) só dispara depois do tópico já ter sido
+        // apagado — nada pra renomear. Try/catch próprio: renomear canal é
+        // best-effort (rate limit do Discord é 2 trocas de nome/10min por
+        // canal — uma falha aqui não pode derrubar a atualização do painel
+        // de log/DM abaixo, que continuam sendo a fonte de verdade real do
+        // status mesmo se o nome do tópico ficar defasado por causa disso).
+        if (!isClosedStatus && report.thread_id) {
+            try {
+                const thread = await guild.channels.fetch(report.thread_id);
+                if (thread) await thread.setName(this.buildThreadName(reportNumber, targetUser.username, newStatus));
+            } catch (err) {
+                console.error('❌ [ReportChatSystem] Erro ao renomear tópico em updateStatus:', err);
+            }
+        }
 
         // Log e DM em try/catch SEPARADOS + botões reconstruídos do zero
         // (nunca preservados via slice de mensagem já enviada) — mesmo

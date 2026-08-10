@@ -30,7 +30,7 @@ const CATEGORIES = [
     { command: '/ingame-message', label: 'Message', entries: RconCatalog.MESSAGE_COMMANDS },
 ];
 
-function buildCategoryPage(guildName, category, isFirst) {
+function buildCategoryPage(guild, category, isFirst) {
     const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
 
     if (isFirst) {
@@ -66,7 +66,7 @@ function buildCategoryPage(guildName, category, isFirst) {
         );
     }
 
-    builder.footer(guildName);
+    builder.footer(guild);
     return builder;
 }
 
@@ -85,10 +85,9 @@ module.exports = {
             return await ResponseManager.error(interaction, `${emojis.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
         }
 
-        const guildName = interaction.guild?.name || 'Servidor';
         const pagination = new PaginationBuilder({ accentColor: COLORS.DEFAULT });
         CATEGORIES.forEach((category, index) => {
-            pagination.addPage(() => buildCategoryPage(guildName, category, index === 0));
+            pagination.addPage(() => buildCategoryPage(interaction.guild, category, index === 0));
         });
 
         await pagination.start(interaction);

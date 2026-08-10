@@ -217,36 +217,22 @@ const PunishmentSystem = {
             builder.text(`\`\`\`\nNenhuma punição registrada.\n\`\`\``);
         }
         
-        builder.footer(guildName);
+        builder.footer({ id: guildId, name: guildName });
 
         return builder;
     },
 
     /**
-     * Cor de destaque e footer customizados (aba "Aparência Geral" de
-     * /config personalizar) — ver ConfigSystem.getPanelPersonalization.
-     * Usado nos painéis de /strike e /unstrike, e nos logs de punição
-     * abaixo. Sempre retorna `{ accentColor: null, footerText: null }`
-     * fora do Caçador (checagem já feita dentro de getPanelPersonalization).
+     * Cor de destaque customizada (aba "Aparência Geral" de /config
+     * personalizar) — ver ConfigSystem.getPanelPersonalization. O rodapé
+     * customizado (footerText) não precisa mais ser lido/aplicado à mão
+     * aqui: builder.footer(guild) já resolve isso sozinho (ver
+     * containerBuilder.js). Sempre retorna `{ accentColor: null, footerText:
+     * null }` fora do Caçador (checagem já dentro de getPanelPersonalization).
      */
     _resolvePersonalization(guildId) {
         const ConfigSystem = require('../core/configSystem');
         return ConfigSystem.getPanelPersonalization(guildId);
-    },
-
-    /**
-     * Aplica footer customizado (se houver) ou o padrão do bot. `extra` é
-     * um contexto específico do painel (ex: "Apenas o cargo Supervisor pode
-     * aprovar...") que precisa continuar aparecendo MESMO com footer
-     * customizado — só a parte de marca/nome do servidor é substituída,
-     * nunca informação funcional do próprio painel.
-     */
-    _applyFooter(builder, personalization, guildName, extra = null) {
-        if (personalization.footerText) {
-            builder.footerRaw(extra ? `${extra} • ${personalization.footerText}` : personalization.footerText);
-        } else {
-            builder.footer(guildName, extra);
-        }
     },
 
     async generateStrikeUnifiedContainer(client, target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
@@ -301,7 +287,7 @@ const PunishmentSystem = {
             }
         }
 
-        this._applyFooter(builder, personalization, guildName);
+        builder.footer({ id: guildId, name: guildName });
 
         return builder;
     },
@@ -345,7 +331,7 @@ const PunishmentSystem = {
         builder.separator();
         builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo da Anulação:**`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
-        this._applyFooter(builder, personalization, guildName);
+        builder.footer({ id: guildId, name: guildName });
 
         return builder;
     },
@@ -401,8 +387,8 @@ const PunishmentSystem = {
      * FIELDS_WITH_COMPONENTS_V2"). Por isso todo editReply de resultado/erro
      * aqui precisa passar por um container, não por `{ content }`.
      */
-    _simpleReply(text, color = COLORS.ERROR, guildName = null) {
-        return new AdvancedContainerBuilder({ accentColor: color }).text(text).footer(guildName).build();
+    _simpleReply(text, color = COLORS.ERROR, guild = null) {
+        return new AdvancedContainerBuilder({ accentColor: color }).text(text).footer(guild).build();
     },
 
     async handleComponent(interaction, action, param) {
@@ -422,11 +408,11 @@ const PunishmentSystem = {
                     await this.handleSupervisorApproval(interaction, param, false);
                     break;
                 default:
-                    await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, COLORS.ERROR, interaction.guild?.name));
+                    await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, COLORS.ERROR, interaction.guild));
             }
         } catch (error) {
             console.error('❌ Erro no handleComponent:', error);
-            await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, COLORS.ERROR, interaction.guild?.name));
+            await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ocorreu um erro.`, COLORS.ERROR, interaction.guild));
         }
     },
 
@@ -494,7 +480,7 @@ const PunishmentSystem = {
             );
         }
 
-        builder.footer(guild.name, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
+        builder.footer(guild, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('punishment:confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(EMOJIS.circlecheck || '✅'),
@@ -508,12 +494,12 @@ const PunishmentSystem = {
     async handleStrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
         if (!session) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, COLORS.ERROR, interaction.guild?.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /strike novamente.`, COLORS.ERROR, interaction.guild));
         }
 
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição cancelada.`, COLORS.ERROR, interaction.guild?.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição cancelada.`, COLORS.ERROR, interaction.guild));
         }
         
         if (action === 'confirm') {
@@ -535,10 +521,10 @@ const PunishmentSystem = {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'strike_pending', 'strike_pending');
 
             if (!result.success) {
-                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, interaction.guild?.name));
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, interaction.guild));
             }
 
-            await interaction.editReply(this._simpleReply(this._buildStrikeSummaryLines(result, guild.id).join('\n'), COLORS.SUCCESS, interaction.guild?.name));
+            await interaction.editReply(this._simpleReply(this._buildStrikeSummaryLines(result, guild.id).join('\n'), COLORS.SUCCESS, interaction.guild));
         }
     },
 
@@ -605,7 +591,7 @@ const PunishmentSystem = {
         if (supervisorRoleIds.length === 0 || !logChannelId) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Esta punição é severa e precisa de aprovação de um Supervisor, mas o cargo Supervisor e/ou o canal de log de punições ainda não foram configurados (${EMOJIS.gavel || '⚖️'} veja /config roles e /config logs). Peça a um administrador para configurar antes de tentar novamente.`,
-                COLORS.ERROR, guild.name,
+                COLORS.ERROR, guild,
             ));
         }
 
@@ -613,7 +599,7 @@ const PunishmentSystem = {
         if (!logChannel) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} O canal de log de punições configurado não foi encontrado. Peça a um administrador para reconfigurar em /config logs.`,
-                COLORS.ERROR, guild.name,
+                COLORS.ERROR, guild,
             ));
         }
 
@@ -658,7 +644,7 @@ const PunishmentSystem = {
         approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${!session.durationStr || session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
         approvalBuilder.separator();
         approvalBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${session.reason}\n\`\`\``);
-        this._applyFooter(approvalBuilder, personalization, guild.name, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
+        approvalBuilder.footer(guild, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`punishment:supervisor_approve:${approvalId}`).setLabel('Aprovar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),
@@ -670,7 +656,7 @@ const PunishmentSystem = {
 
         return await interaction.editReply(this._simpleReply(
             `${emojis.clockalert || '⏳'} Esta é uma punição **severa** (${severityLabel}). Como você não possui o cargo Supervisor, o pedido foi enviado para aprovação no canal de log de punições, marcando o cargo Supervisor. A punição só será aplicada depois que um Supervisor aprovar.`,
-            COLORS.DEFAULT, guild.name,
+            COLORS.DEFAULT, guild,
         ));
     },
 
@@ -682,12 +668,12 @@ const PunishmentSystem = {
         const guild = interaction.guild;
 
         if (!(await this.memberHasSupervisorRole(guild, interaction.member))) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Apenas o cargo Supervisor pode aprovar ou rejeitar punições severas.`, COLORS.ERROR, guild?.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Apenas o cargo Supervisor pode aprovar ou rejeitar punições severas.`, COLORS.ERROR, guild));
         }
 
         const session = SessionManager.get('approval', guild.id, 'strike_approval', approvalId);
         if (!session) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Este pedido de aprovação expirou ou já foi resolvido.`, COLORS.ERROR, guild?.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Este pedido de aprovação expirou ou já foi resolvido.`, COLORS.ERROR, guild));
         }
         SessionManager.delete('approval', guild.id, 'strike_approval', approvalId);
 
@@ -696,7 +682,7 @@ const PunishmentSystem = {
         if (!approved) {
             await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Punição severa **rejeitada** por ${interaction.user}. O pedido de ${session.requestedByTag || session.requestedBy} não foi aplicado.`,
-                COLORS.ERROR, guild.name,
+                COLORS.ERROR, guild,
             ));
             if (requester) {
                 await requester.send(
@@ -712,12 +698,12 @@ const PunishmentSystem = {
         const result = await this._executeStrike(guild, originalStaff, session);
 
         if (!result.success) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, guild.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, guild));
         }
 
         const summaryLines = this._buildStrikeSummaryLines(result, guild.id);
         summaryLines.unshift(`${EMOJIS.circlecheck || '✅'} **Aprovado por ${interaction.user.tag}**`);
-        await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, guild.name));
+        await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, guild));
 
         if (requester) {
             await requester.send(
@@ -1006,12 +992,12 @@ const PunishmentSystem = {
     async handleUnstrikeConfirmation(interaction, action) {
         const session = SessionManager.get(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
         if (!session) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`, COLORS.ERROR, interaction.guild?.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Sessão expirada. Use /unstrike novamente.`, COLORS.ERROR, interaction.guild));
         }
 
         if (action === 'cancel') {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Anulação cancelada.`, COLORS.ERROR, interaction.guild?.name));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Anulação cancelada.`, COLORS.ERROR, interaction.guild));
         }
 
         if (action === 'confirm') {
@@ -1031,7 +1017,7 @@ const PunishmentSystem = {
             const punishment = db.prepare(`SELECT * FROM punishments WHERE strike_number = ? AND guild_id = ? AND status = 'active'`).get(punishmentId, guildId);
             if (!punishment) {
                 SessionManager.delete(interaction.user.id, guildId, 'unstrike_pending', 'unstrike_pending');
-                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`, COLORS.ERROR, interaction.guild?.name));
+                return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Punição não encontrada ou já anulada.`, COLORS.ERROR, interaction.guild));
             }
 
             const targetMember = await guild.members.fetch(punishment.user_id).catch(() => null);
@@ -1159,7 +1145,7 @@ const PunishmentSystem = {
             if (!logSent) summaryLines.push(`${emojis.trianglealert || '⚠️'} A mensagem de log não foi enviada ao canal (verifique a configuração em /config logs).`);
 
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
-            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, interaction.guild?.name));
+            await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, interaction.guild));
         }
     },
 

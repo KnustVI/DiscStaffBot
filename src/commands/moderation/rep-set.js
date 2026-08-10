@@ -40,7 +40,7 @@ function buildRepSetContainer({ target, staff, reason, diffText, currentRep, new
     builder.separator();
     builder.text(`${titleIcon} **Mudança:** ${diffText} pts (${currentRep} → ${newPoints})`);
     builder.text(`${emojis.star || '⭐'} **Nova Reputação:** ${newPoints}/100`);
-    builder.footer(guildName);
+    builder.footer({ id: guildId, name: guildName });
 
     return builder;
 }

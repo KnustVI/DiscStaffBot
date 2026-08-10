@@ -47,7 +47,7 @@ async function logRoleChanges(guild, user, changes) {
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.shield || '🛡️'} Cargo de Staff Alterado`, 1);
         builder.block(lines);
-        builder.footer(guild.name);
+        builder.footer(guild);
         await channel.send(builder.build());
     } catch (err) {
         console.error('❌ [guildMemberUpdate] Erro ao enviar log de cargo:', err.message);

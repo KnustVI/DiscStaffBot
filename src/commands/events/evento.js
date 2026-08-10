@@ -182,7 +182,7 @@ module.exports = {
         await interaction.editReply(
             new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT })
                 .text(`${EMOJIS.clockalert || '⏳'} Criando evento... isso envolve baixar a imagem${eventTier !== 'basic' ? ', criar o evento agendado do Discord' : ''} e publicar no fórum, pode levar alguns segundos.`)
-                .footer(guild.name)
+                .footer(guild)
                 .build()
         );
 
@@ -194,7 +194,7 @@ module.exports = {
             imageBuffer = Buffer.from(await res.arrayBuffer());
         } catch (err) {
             console.error('❌ [Evento] Erro ao baixar imagem:', err);
-            return await interaction.editReply(this._errorPayload(guild.name, 'Não foi possível baixar a imagem enviada. Tente reenviar o comando com outra imagem.'));
+            return await interaction.editReply(this._errorPayload(guild, 'Não foi possível baixar a imagem enviada. Tente reenviar o comando com outra imagem.'));
         }
         const imageFileName = imagem.contentType === 'image/png' ? 'evento.png' : 'evento.jpg';
 
@@ -217,7 +217,7 @@ module.exports = {
                 });
             } catch (err) {
                 console.error('❌ [Evento] Erro ao criar evento agendado:', err);
-                return await interaction.editReply(this._errorPayload(guild.name, `Não foi possível criar o evento agendado no Discord: ${err.message}. Verifique se o bot tem a permissão "Gerenciar Eventos".`));
+                return await interaction.editReply(this._errorPayload(guild, `Não foi possível criar o evento agendado no Discord: ${err.message}. Verifique se o bot tem a permissão "Gerenciar Eventos".`));
             }
         }
 
@@ -243,7 +243,7 @@ module.exports = {
             postBuilder.separator();
             postBuilder.text(`${EMOJIS.megaphone || '📣'} ${notifyRoleIds.map(id => `<@&${id}>`).join(' ')}`);
         }
-        postBuilder.footer(guild.name);
+        postBuilder.footer(guild);
 
         const { components, flags } = postBuilder.build();
         const imageAttachment = new AttachmentBuilder(imageBuffer, { name: imageFileName });
@@ -261,7 +261,7 @@ module.exports = {
             // deixar esse estado inconsistente para o staff resolver na mão. ──
             if (scheduledEvent) await scheduledEvent.delete().catch(() => {});
             return await interaction.editReply(this._errorPayload(
-                guild.name,
+                guild,
                 `Não foi possível publicar no fórum selecionado${scheduledEvent ? ' (o evento agendado foi desfeito)' : ''}: ${err.message}. Verifique se o canal aceita novas postagens (tags obrigatórias, permissões do bot) e tente novamente.`,
             ));
         }
@@ -354,15 +354,15 @@ module.exports = {
         } else {
             summaryBuilder.text(`${EMOJIS.messagesquare || 'ℹ️'} Evento agendado do Discord e marcação de cargo exigem o plano Rastreador ou superior. Use \`/premium\` para saber mais.`);
         }
-        summaryBuilder.footer(guild.name);
+        summaryBuilder.footer(guild);
 
         await interaction.editReply(summaryBuilder.build());
     },
 
-    _errorPayload(guildName, message) {
+    _errorPayload(guild, message) {
         return new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
             .text(`${EMOJIS.circlealert || '❌'} ${message}`)
-            .footer(guildName)
+            .footer(guild)
             .build();
     },
 };

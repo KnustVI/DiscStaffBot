@@ -64,7 +64,7 @@ function _buildAnnouncement(guild, event, phase, threadUrl) {
         const mention = ConfigSystem.mentionRoles(guild.id, 'event_notify_role');
         if (mention !== 'nenhum cargo configurado') builder.text(mention);
     }
-    builder.footer(guild.name);
+    builder.footer(guild);
     return builder.build();
 }
 

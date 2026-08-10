@@ -207,7 +207,7 @@ async function handleComponent(interaction, action, param) {
     if (action !== 'view') {
         const unknownBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.ERROR })
             .text(`${EMOJIS.circlealert || '❌'} Ação desconhecida.`)
-            .footer(interaction.guild?.name);
+            .footer(interaction.guild);
         return await interaction.editReply(unknownBuilder.build()).catch(() => {});
     }
     const payload = payloadFor(param || 'main', interaction.guild, interaction.user);

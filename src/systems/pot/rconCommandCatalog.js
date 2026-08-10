@@ -692,7 +692,7 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
     } else {
         builder.text(`${EMOJIS.trianglealert || '⚠️'} ${rconResult?.error || 'Erro desconhecido ao executar o comando.'}`);
     }
-    builder.footer(guild.name);
+    builder.footer(guild);
     await ResponseManager.send(interaction, builder);
 }
 

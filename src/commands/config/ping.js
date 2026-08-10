@@ -44,7 +44,7 @@ module.exports = {
             builder.separator();
             builder.text(`${emojis.robo || '🤖'} **Bot:** ${client.user?.tag || 'Desconhecido'}`);
             builder.text(`${emojis.calendar || '📅'} **Uptime:** ${Math.floor(client.uptime / 1000 / 60)} minutos`);
-            builder.footer(interaction.guild?.name, `Solicitado por ${interaction.user.tag}`);
+            builder.footer(interaction.guild, `Solicitado por ${interaction.user.tag}`);
             
             const { components, flags } = builder.build();
             

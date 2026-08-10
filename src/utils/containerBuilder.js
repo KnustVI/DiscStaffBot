@@ -16,7 +16,7 @@
  *     .separator()
  *     .block(['🛡️ Moderador: Staff', '📉 Pontos: -10'])
  *     .separator()
- *     .footer(guild.name); // -# Produzido por KnustVI e T.Mach | Server: {guild.name}
+ *     .footer(guild); // -# Equipe Titan's Pass | Server: {guild.name} (ou o rodapé customizado do servidor, se houver — ver footer() abaixo)
  *
  *   const payload = builder.build();
  *   // payload = { components: [ContainerBuilder], flags: MessageFlags.IsComponentsV2, files: [] }
@@ -58,7 +58,9 @@ const COLORS = Object.freeze({
     ERROR: 0xFF4E3B,
 });
 
-const BRAND_FOOTER = 'Produzido por KnustVI e T.Mach';
+// Pedido do dono, 2026-08-10: "Alterar o footer padrão de todo o bot para
+// Equipe Titan's Pass" (era "Produzido por KnustVI e T.Mach").
+const BRAND_FOOTER = "Equipe Titan's Pass";
 
 // ---------------------------------------------------------------------------
 // Classe principal
@@ -334,16 +336,48 @@ class AdvancedContainerBuilder {
     }
 
     /**
-     * Adiciona o rodapé padrão do bot: sempre contém a assinatura
-     * "Produzido por KnustVI e T.Mach | Server: {guildName}". Um `extra`
-     * opcional (ex: "Página 2/5", "Solicitado por Fulano") é prefixado antes
-     * da assinatura, na mesma linha.
+     * Adiciona o rodapé padrão do bot: a assinatura da marca ("Equipe
+     * Titan's Pass | Server: {guildName}") OU, se o servidor configurou um
+     * rodapé próprio (aba "Aparência Geral" de /config personalizar,
+     * plano Caçador — ver ConfigSystem.getPanelPersonalization), o texto
+     * customizado dele no lugar (pedido do dono, 2026-08-10: "Footer
+     * personalizado do servidor deve alterar em todos os comandos e
+     * repostas de comandos"). Um `extra` opcional (ex: "Página 2/5",
+     * "Solicitado por Fulano") é sempre preservado, prefixado antes da
+     * assinatura/rodapé customizado — só a parte de marca/nome do servidor
+     * é substituída, nunca informação funcional do próprio painel.
      *
-     * @param {string} guildName - Nome do servidor onde o container foi gerado
+     * `guild` aceita um objeto Guild de verdade (`{ id, name }` — id é o
+     * que permite buscar o rodapé customizado) OU, por compatibilidade com
+     * chamadas que nunca tiveram uma guild real (logs internos com
+     * `footer('Sistema')`, bot de developer com `footer('Bot de
+     * Developer')`), uma STRING simples usada só como nome — nesse caso
+     * não há id pra buscar personalização, cai direto no padrão da marca.
+     * Comandos de configuração (todo /config, incluindo os painéis em
+     * buffPanelSystem.js/chatFilterPanelSystem.js), o próprio /ajuda,
+     * /perfil e qualquer log de webhook (webhookPayloads.js) continuam de
+     * propósito FORA da personalização — chamam footer() com o nome cru
+     * (string), não o objeto Guild, exatamente pra nunca resolver rodapé
+     * customizado nesses casos (pedido do dono, mesma mensagem acima).
+     *
+     * @param {import('discord.js').Guild|string} guild - Guild onde o container foi gerado, ou só o nome (sem personalização)
      * @param {string} [extra] - Contexto adicional específico deste container
      * @returns {this}
      */
-    footer(guildName, extra = null) {
+    footer(guild, extra = null) {
+        const guildId = (guild && typeof guild === 'object') ? guild.id : null;
+        const guildName = (guild && typeof guild === 'object') ? guild.name : guild;
+
+        // Lazy require (não no topo do arquivo) — configSystem.js importa
+        // AdvancedContainerBuilder pra montar seus próprios painéis, então
+        // um require de topo aqui criaria dependência circular. Mesmo
+        // padrão já usado por punishmentSystem.js._resolvePersonalization.
+        const footerText = guildId ? require('../systems/core/configSystem').getPanelPersonalization(guildId).footerText : null;
+
+        if (footerText) {
+            return this.footerRaw(extra ? `${extra} • ${footerText}` : footerText);
+        }
+
         const brand = `${BRAND_FOOTER} | Server: ${guildName || 'Servidor'}`;
         const text = extra ? `${extra} • ${brand}` : brand;
         this.components.push({

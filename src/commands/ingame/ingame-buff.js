@@ -90,7 +90,7 @@ async function _logBuffUsage(interaction, buff, targetLabel, results) {
     ];
     const builder = new AdvancedContainerBuilder({ accentColor: allSucceeded ? COLORS.SUCCESS : COLORS.ERROR });
     builder.block(lines);
-    builder.footer(interaction.guild.name);
+    builder.footer(interaction.guild);
     const payload = builder.build();
 
     try {
@@ -173,7 +173,7 @@ async function _executeAplicar(interaction) {
         builder.text(`${EMOJIS.trianglealert || '⚠️'} Mostrando só os 25 primeiros buffs (limite do select do Discord).`);
     }
     builder.selectMenu(select);
-    builder.footer(guild.name);
+    builder.footer(guild);
     await ResponseManager.send(interaction, builder);
 }
 
@@ -204,7 +204,7 @@ async function _executeListar(interaction) {
         }
     }
 
-    builder.footer(guild.name);
+    builder.footer(guild);
     await ResponseManager.send(interaction, builder);
 }
 
@@ -291,7 +291,7 @@ module.exports = {
             builder.separator();
             builder.text(`${EMOJIS.trianglealert || '⚠️'} Nenhum canal de log configurado (Admin Commands, Staff ou Geral) — configure um em \`/potserver logs\` ou \`/config logs\` pra registrar o uso deste comando.`);
         }
-        builder.footer(interaction.guild.name);
+        builder.footer(interaction.guild);
 
         const payload = builder.build();
         await interaction.followUp({ ...payload, flags: payload.flags | 64 });

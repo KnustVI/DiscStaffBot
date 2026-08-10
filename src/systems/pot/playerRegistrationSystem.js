@@ -580,7 +580,7 @@ class PlayerRegistrationSystem {
         if (!ALDERON_ID_REGEX.test(alderonIdRaw)) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Alderon ID inválido. Use o formato \`xxx-xxx-xxx\` (só números), exatamente como aparece no jogo. Você digitou: \`${alderonIdRaw}\`.`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, guild,
             ));
         }
 
@@ -590,7 +590,7 @@ class PlayerRegistrationSystem {
         if (takenBy && takenBy.user_id !== userId) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Esse Alderon ID já está vinculado a outra conta do Discord (o vínculo é global, vale em qualquer servidor). Se isso for um engano, peça para a staff verificar.`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, guild,
             ));
         }
 
@@ -604,7 +604,7 @@ class PlayerRegistrationSystem {
         if (!onlinePlayer) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} **Verificação em jogo obrigatória.** Não encontramos esse Alderon ID online no servidor de jogo configurado em **${guildName}** agora. Entre no jogo (nesse servidor) e tente \`/registrar\` de novo.`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, guild,
             ));
         }
         const gameUsername = onlinePlayer.player_name || playerName;
@@ -615,7 +615,7 @@ class PlayerRegistrationSystem {
         if (!rconResult?.success) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Não foi possível enviar o código de verificação para o jogo agora (${rconResult?.error || 'erro desconhecido'}). Tente novamente em instantes.`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, guild,
             ));
         }
 
@@ -627,7 +627,7 @@ class PlayerRegistrationSystem {
         builder.text(`${EMOJIS.messagesquare || '📨'} **Código enviado!**`);
         builder.text(`Olhe o chat do jogo — mandamos um código de verificação pra \`${alderonIdRaw}\`. Clique no botão abaixo e digite o código pra concluir o cadastro.`);
         builder.text(`${EMOJIS.clockalert || '⏳'} O código expira em 10 minutos.`);
-        builder.footer(guildName);
+        builder.footer(guild);
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -679,7 +679,7 @@ class PlayerRegistrationSystem {
         if (!session) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Sessão expirada. Use /registrar de novo pra gerar um código novo.`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, interaction.guild,
             ));
         }
 
@@ -687,7 +687,7 @@ class PlayerRegistrationSystem {
         if (submittedCode !== session.code) {
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} Código incorreto. Confira o chat do jogo e tente de novo (clique em "Confirmar código" na mensagem anterior).`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, interaction.guild,
             ));
         }
 
@@ -702,7 +702,7 @@ class PlayerRegistrationSystem {
             };
             return await interaction.editReply(this._simpleReply(
                 `${EMOJIS.circlealert || '❌'} ${messages[result.error] || 'Não foi possível concluir o cadastro.'}`,
-                COLORS.ERROR, guildName,
+                COLORS.ERROR, interaction.guild,
             ));
         }
 
@@ -717,13 +717,13 @@ class PlayerRegistrationSystem {
         builder.text(`${EMOJIS.user || '👤'} **Nome no jogo:** ${session.playerName}`);
         builder.text(`${EMOJIS.PotLogo || '🦖'} **Alderon ID:** \`${session.alderonId}\``);
         builder.text(`${EMOJIS.shieldcheck || '🛡️'} Verificado em jogo.`);
-        builder.footer(guildName);
+        builder.footer(interaction.guild);
 
         await interaction.editReply(builder.build());
     }
 
-    _simpleReply(text, color, guildName) {
-        return new AdvancedContainerBuilder({ accentColor: color }).text(text).footer(guildName).build();
+    _simpleReply(text, color, guild) {
+        return new AdvancedContainerBuilder({ accentColor: color }).text(text).footer(guild).build();
     }
 }
 

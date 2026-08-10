@@ -120,7 +120,7 @@ module.exports = {
                 builder.text(`${emojis.users || '👥'} ${onlineCount} de ${staffMembers.size} staff configurado${staffMembers.size === 1 ? '' : 's'} está${onlineCount === 1 ? '' : 'ão'} online no jogo agora.`);
             }
 
-            builder.footer(guild.name, 'Status e duração vêm da sessão atual no jogo (webhooks do Path of Titans) — staff sem /registrar aparece como "Não vinculado".');
+            builder.footer(guild, 'Status e duração vêm da sessão atual no jogo (webhooks do Path of Titans) — staff sem /registrar aparece como "Não vinculado".');
             await ResponseManager.send(interaction, builder);
         } catch (error) {
             console.error('❌ Erro no staffonline:', error);

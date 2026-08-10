@@ -153,7 +153,7 @@ async function attachConfigButton(message, scheduledEventId) {
     await _updatePostButtons(message, [_buildConfigButton(message.id, scheduledEventId, false)]);
 }
 
-function _explanationBuilder(guildName, config) {
+function _explanationBuilder(guild, config) {
     const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
     builder.text(`${EMOJIS.mappin || '📍'} **Configurar Teleporte do Evento**`);
     builder.text(
@@ -173,7 +173,7 @@ function _explanationBuilder(guildName, config) {
         if (config.herbivore_coords) builder.text(`${EMOJIS.Herbivore || '🌿'} Herbívoro: \`${config.herbivore_coords}\``);
         if (config.carnivore_coords) builder.text(`${EMOJIS.Carnivore || '🦖'} Carnívoro: \`${config.carnivore_coords}\``);
     }
-    builder.footer(guildName);
+    builder.footer(guild);
     return builder;
 }
 
@@ -211,7 +211,7 @@ module.exports = {
         }
 
         const config = getConfig(messageId);
-        const builder = _explanationBuilder(guild.name, config);
+        const builder = _explanationBuilder(guild, config);
         builder.buttons(
             AdvancedContainerBuilder.primaryButton(`event-tp:config-modal:${messageId}:${scheduledEventId}`, 'Configurar Coordenadas')
                 .setEmoji(EMOJIS.edit || '✏️'),
@@ -319,7 +319,7 @@ module.exports = {
         summary.text(`${EMOJIS.circlecheck || '✅'} **Teleporte configurado!**`);
         if (config.herbivore_coords) summary.text(`${EMOJIS.Herbivore || '🌿'} Herbívoro: \`${config.herbivore_coords}\``);
         if (config.carnivore_coords) summary.text(`${EMOJIS.Carnivore || '🦖'} Carnívoro: \`${config.carnivore_coords}\``);
-        summary.footer(guild.name);
+        summary.footer(guild);
         await interaction.editReply(summary.build());
     },
 

@@ -116,7 +116,7 @@ function buildStatusPage({ guild, emojis, status, dbStats, guildStats, lastLogLi
             .text(`${emojis.messagesquare || 'ℹ️'} Estatísticas do servidor (punições, reputação, AutoMod) são exclusivas do plano **Caçador**. Use \`/premium\` para ver o tier atual.`);
     }
 
-    builder.footer(guild.name);
+    builder.footer(guild);
 
     return builder;
 }

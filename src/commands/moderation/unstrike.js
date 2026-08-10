@@ -105,7 +105,7 @@ module.exports = {
             if (PremiumSystem.getGuildLimits(guildId).reputationEnabled) {
                 builder.text(`**${emojis.doublearrowup || '📈'} Pontos a restaurar:** +${pointsToRestore} (${currentRep} → ${previewPoints})`);
             }
-            builder.footer(guild.name, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
+            builder.footer(guild, 'Confirme ou cancele abaixo. Esta confirmação expira em 2 minutos.');
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('punishment:unstrike_confirm:confirm').setLabel('Confirmar').setStyle(ButtonStyle.Success).setEmoji(emojis.circlecheck || '✅'),
