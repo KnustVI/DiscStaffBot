@@ -7326,3 +7326,94 @@ frente, nao so este relatorio):
   (`requestSupervisorApproval` com `targetUser` null) agora produz um
   payload válido em vez de quebrar. Varredura completa dos comandos do
   bot (incluindo developer/) sem nenhuma falha de carregamento.
+
+------------------------------------------------------------------
+144) Separa logs de morte (PlayerKilled) do relatório de combate/dano
+     (PlayerDamagedPlayer) em canais/webhooks diferentes + reorganiza
+     o relatório de combate por IMPACTO em vez de ordem cronológica,
+     pra ficar legível em brigas com 3+ participantes
+------------------------------------------------------------------
+- Pedido do dono (2026-08-09): "Vamos separar as logs de morte e de
+  dano/relatorio de combate em canais diferentes. Logs de morte estão
+  apontando como log de combate mesmo quando não envolve outro
+  jogador. Relatorio de combate se tornaram tão grandes que esta
+  impossivel identificar o que ocorreu no mesmo, precisamos melhorar
+  o mesmo."
+- CAUSA (separação de canais): `EVENT_GROUPS` (`potConfigSystem.js`)
+  tinha `PlayerKilled` e `PlayerDamagedPlayer` no MESMO grupo
+  (`'combate'`), então os dois sempre usavam o mesmo webhook do
+  Discord — o aviso instantâneo de morte (`buildKillPanel`, inclusive
+  morte por ambiente sem nenhum outro jogador envolvido) sempre saía
+  no mesmo canal do relatório de combate agregado. Não havia nenhum
+  bug de "classificação errada" dentro do conteúdo (`buildKillPanel`
+  já distinguia corretamente "MORTE EM COMBATE" de "MORTE POR
+  AMBIENTE" no título) — era 100% roteamento de canal.
+- FIX: `EVENT_GROUPS` agora tem dois grupos — `'combate'`
+  (`PlayerDamagedPlayer` só, relatório agregado) e `'mortes'` (novo,
+  `PlayerKilled` só, aviso instantâneo). Cada grupo já ganha rota
+  Express (`/pot/<route>`), entrada no `Game.ini` gerado e
+  configuração de webhook próprios automaticamente (nenhum código de
+  paginação/rota é hardcoded por quantidade de grupos).
+- PEGADINHA REAL resolvida: o relatório AGREGADO (`buildDamageReportPayload`)
+  é acumulado num "encontro" em memória (`gatewayServer.js`,
+  `this.damageEncounters`) cujo `groupId` é fixado só na CRIAÇÃO do
+  encontro, nunca atualizado depois — se um encontro começasse com uma
+  morte (agora roteada por `'mortes'`) antes de qualquer dano
+  registrado, o relatório final sairia pelo webhook errado
+  (`'mortes'` em vez de `'combate'`). Corrigido com uma constante fixa
+  `DAMAGE_REPORT_GROUP_ID = 'combate'`, usada em TODA chamada que
+  cria/alimenta um encontro (`_recordKillIntoEncounter`/
+  `_bufferDamageEvent`), independente de qual rota disparou o evento
+  — o aviso instantâneo de morte usa o webhook da rota que recebeu o
+  evento (agora `'mortes'`), mas o relatório agregado sempre sai por
+  `'combate'`, decidido nesta constante, não mais implicitamente pela
+  ordem de chegada dos eventos.
+- ATENÇÃO — passo manual necessário por servidor PoT já configurado:
+  o `Game.ini` de servidores já em produção continua apontando
+  `PlayerKilled` pra rota antiga (`/pot/combate?...&evt=PlayerKilled`)
+  até o admin gerar um `Game.ini` NOVO (botão "Game.ini" em
+  `/potserver logs`) e atualizar o arquivo no servidor do jogo, E
+  configurar um webhook pro novo grupo "Mortes" (botão "Configurar
+  Webhook"). Sem isso, `PlayerKilled` continua chegando pela rota
+  antiga e nada muda na prática — o deploy do bot sozinho não separa
+  os canais de quem já tinha o Game.ini antigo instalado.
+- MELHORIA DE LEGIBILIDADE do relatório de combate
+  (`buildDamageReportPayload`) — problema: combates com 3+
+  participantes viravam uma lista de segmentos par-a-par (A→B, B→A,
+  A→C...) em ordem de PRIMEIRA APARIÇÃO na timeline, sem nenhum resumo
+  de quem fez o quê — exigia ler o relatório inteiro pra entender o
+  que realmente aconteceu. Duas mudanças, sem tocar nas 3 redes de
+  segurança de tamanho já existentes (limite por componente/por
+  mensagem/por container, ver seção 140):
+  1. **"JOGADORES ENVOLVIDOS" agora ordena por dano CAUSADO
+     (descendente)**, não por ordem de aparição — quem teve mais
+     participação real aparece primeiro. Cada card de participante
+     ganhou uma linha de estatísticas própria (`⚔️ N causado · ❤️ N
+     sofrido · 💀 N abates · 💀 morreu`, omitindo o que for zero) —
+     em vez de uma seção "resumo" separada (que deixaria o relatório
+     ainda maior), a estatística entra direto no card que já existia,
+     mantendo tudo sobre uma pessoa junto.
+  2. **"RELATÓRIO DE DANO" prioriza mortes no topo** (o fato mais
+     importante de qualquer combate) **e ordena as trocas de dano por
+     dano total decrescente**, não mais por ordem cronológica de
+     primeira aparição — quem bateu mais fica em cima. Múltiplas
+     mortes entre si mantêm a ordem cronológica original (sort
+     estável).
+  Branch de "RELATÓRIO DE DANO ISOLADO" (só dano próprio/ambiente, sem
+  outro jogador — sempre 1 participante só) não foi tocada, não
+  precisa de ordenação nenhuma.
+- Verificado: `node --check` nos 3 arquivos tocados
+  (`potConfigSystem.js`, `gatewayServer.js`, `webhookPayloads.js`),
+  varredura completa dos comandos do bot sem falhas, teste funcional
+  confirmando que um encontro iniciado por uma morte (rota "mortes")
+  guarda `groupId="combate"` (não "mortes") e que dano subsequente
+  entre os mesmos participantes reaproveita o mesmo encontro, teste do
+  painel `/potserver logs` renderizando os 2 grupos novos sem lançar,
+  teste do `Game.ini` gerado confirmando rotas separadas
+  (`/pot/mortes` para `PlayerKilled`, `/pot/combate` para
+  `PlayerDamagedPlayer`), teste funcional de uma briga sintética de 3
+  jogadores confirmando ordenação por impacto + morte priorizada no
+  topo mesmo acontecendo por último na timeline, e reexecução do teste
+  de estresse já usado na seção 140 (25 participantes, 165 eventos,
+  agora com mortes espalhadas) confirmando que nenhum dos 3 limites do
+  Discord voltou a estourar com a reordenação.

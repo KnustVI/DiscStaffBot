@@ -56,6 +56,20 @@ const DISABLED_EVENTS = new Set(['PlayerProfanity']);
 // limit) antes de desistir de vez — ver comentário lá.
 const WEBHOOK_RETRY_LIMIT = 3;
 
+// Grupo (EVENT_GROUPS, potConfigSystem.js) usado pro RELATÓRIO agregado de
+// combate (buildDamageReportPayload, disparado quando um "encontro" fecha
+// em _flushEncounter) — SEMPRE 'combate', fixo, independente de qual rota
+// (mortes ou combate) disparou o evento que criou/alimentou o encontro.
+// Pedido do dono, 2026-08-09: "separar as logs de morte e de dano/relatorio
+// de combate em canais diferentes" — PlayerKilled agora chega pela rota
+// 'mortes' (aviso instantâneo, ver buildKillPanel), mas continua alimentando
+// o MESMO encontro/relatório de combate de sempre, que sempre sai pelo
+// webhook de 'combate'. Sem esta constante, um encontro que começasse com
+// uma morte (antes de qualquer PlayerDamagedPlayer) herdaria groupId='mortes'
+// de _findOrCreateEncounter (fixado na criação, nunca corrigido depois) e o
+// relatório final sairia no canal errado.
+const DAMAGE_REPORT_GROUP_ID = 'combate';
+
 /**
  * Nome/ID do dinossauro (não confundir com AlderonId, que é do JOGADOR) e
  * dieta de um dos lados de um evento de combate (Source/Target/Killer/
@@ -531,7 +545,7 @@ class PoTGatewayServer {
                 // essa parte NÃO é bloqueada por tier, só a entrada no encontro
                 // (relatório de combate/dano em si é Rastreador+, ver abaixo).
                 if (PremiumSystem.getGuildLimits(guildId).damageReportEnabled) {
-                    this._recordKillIntoEncounter(guildId, groupId, data);
+                    this._recordKillIntoEncounter(guildId, DAMAGE_REPORT_GROUP_ID, data);
                 }
             }
 
@@ -561,7 +575,7 @@ class PoTGatewayServer {
             // ao contrário de PlayerKilled que também conta kills/deaths).
             if (potEvent === 'PlayerDamagedPlayer') {
                 if (!PremiumSystem.getGuildLimits(guildId).damageReportEnabled) return;
-                this._bufferDamageEvent(guildId, groupId, data);
+                this._bufferDamageEvent(guildId, DAMAGE_REPORT_GROUP_ID, data);
                 return;
             }
 

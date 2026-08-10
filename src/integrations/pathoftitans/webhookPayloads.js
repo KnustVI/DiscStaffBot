@@ -856,6 +856,22 @@ function buildDamageReportPayload(encounter, guild) {
     // vez de "Relatório de Combate", já que não houve combate de verdade.
     let hasOtherPlayerInvolved = false;
 
+    // Estatística por participante (pedido do dono, 2026-08-09: "Relatorio
+    // de combate se tornaram tão grandes que esta impossivel identificar o
+    // que ocorreu" — combates com 3+ participantes viravam uma lista de
+    // segmentos par-a-par em ordem cronológica de primeira aparição, sem
+    // nenhum resumo de quem fez o quê) — acumulada NO MESMO loop acima,
+    // sem passada extra. `dealt` não conta dano próprio (self-damage não é
+    // "causado a alguém"); `taken` conta, já que é dano sofrido de verdade
+    // independente da origem. Usado pra ordenar "JOGADORES ENVOLVIDOS" e os
+    // segmentos de "RELATÓRIO DE DANO" por quem teve mais participação
+    // real no combate, em vez de ordem cronológica arbitrária.
+    const stats = new Map();
+    const getStats = (key) => {
+        if (!stats.has(key)) stats.set(key, { dealt: 0, taken: 0, kills: 0, died: false });
+        return stats.get(key);
+    };
+
     for (const ev of encounter.events) {
         if (ev.type === 'kill') {
             killCounter += 1;
@@ -867,13 +883,20 @@ function buildDamageReportPayload(encounter, guild) {
             const text = ev.killerKey
                 ? `${e('Dead', '💀')} Morte\n**${participantLabelWithDiet(ev.victimKey)}** foi morto por **${participantLabelWithDiet(ev.killerKey)}**\nCausa: ${formatDamageType(ev.damageType)}`
                 : `${e('Dead', '💀')} Morte\n**${participantLabelWithDiet(ev.victimKey)}** morreu (sem assassino)\nCausa: ${formatDamageType(ev.damageType)}`;
-            if (ev.killerKey) hasOtherPlayerInvolved = true;
-            segments.set(`kill:${killCounter}`, { kind: 'kill', text });
+            if (ev.killerKey) {
+                hasOtherPlayerInvolved = true;
+                getStats(ev.killerKey).kills += 1;
+            }
+            getStats(ev.victimKey).died = true;
+            segments.set(`kill:${killCounter}`, { kind: 'kill', text, sortWeight: Infinity });
             continue;
         }
 
         const isSelf = ev.sourceKey === ev.targetKey;
         if (!isSelf) hasOtherPlayerInvolved = true;
+
+        if (!isSelf) getStats(ev.sourceKey).dealt += ev.damageAmount;
+        getStats(ev.targetKey).taken += ev.damageAmount;
 
         const segKey = `dmg:${ev.sourceKey}->${ev.targetKey}`;
         let seg = segments.get(segKey);
@@ -884,6 +907,7 @@ function buildDamageReportPayload(encounter, guild) {
                     ? `- ${participantLabelWithDiet(ev.targetKey)} — dano próprio/ambiente`
                     : `- ${participantLabelWithDiet(ev.sourceKey)} ${e('DoubleArrowRigth', '»')} ${participantLabelWithDiet(ev.targetKey)}`,
                 byType: new Map(),
+                sortWeight: 0,
             };
             segments.set(segKey, seg);
         }
@@ -892,7 +916,22 @@ function buildDamageReportPayload(encounter, guild) {
         typeEntry.sum += ev.damageAmount;
         typeEntry.hitTimes.push(ev.at);
         seg.byType.set(ev.damageType, typeEntry);
+        seg.sortWeight += ev.damageAmount;
     }
+
+    // Uma linha curta "⚔️ 450 causado · ❤️ 120 sofrido · 💀 2 abates" por
+    // participante que teve QUALQUER envolvimento — omite o que for zero
+    // (ex: quem só apanhou não mostra "causado"). Usada tanto na lista de
+    // "JOGADORES ENVOLVIDOS" quanto pra ordenar quem aparece primeiro.
+    const statsLine = (key) => {
+        const s = getStats(key);
+        const parts = [];
+        if (s.dealt > 0) parts.push(`${e('Atack', '⚔️')} ${s.dealt} causado`);
+        if (s.taken > 0) parts.push(`${e('heart', '❤️')} ${s.taken} sofrido`);
+        if (s.kills > 0) parts.push(`${e('Dead', '💀')} ${s.kills} abate${s.kills > 1 ? 's' : ''}`);
+        if (s.died) parts.push(`${e('Dead', '💀')} morreu`);
+        return parts.length > 0 ? parts.join(' · ') : null;
+    };
 
     // Cada linha de tipo de dano vira "Tipo | Nx | Y | horários" — <t:...:T>
     // deixa o Discord mostrar o horário já convertido pro fuso de quem está
@@ -989,11 +1028,23 @@ function buildDamageReportPayload(encounter, guild) {
         addSeparator();
 
         addTitle('JOGADORES ENVOLVIDOS', 2);
-        const participantItems = [...encounter.participants.keys()].map((key) => {
+        // Ordenado por quem causou mais dano (pedido do dono, 2026-08-09 —
+        // ver comentário de `stats`/`statsLine` acima): quem teve mais
+        // participação real no combate aparece primeiro, em vez da ordem
+        // de primeira aparição na timeline (que não diz nada sobre quem
+        // fez o quê). Cada card ganha uma linha extra com o resumo de
+        // dano causado/sofrido/abates DESTE participante, direto ali —
+        // evita precisar de uma seção "resumo" separada (deixaria o
+        // relatório ainda maior) e mantém tudo sobre uma pessoa junto.
+        const participantKeysSorted = [...encounter.participants.keys()]
+            .sort((a, b) => getStats(b).dealt - getStats(a).dealt);
+        const participantItems = participantKeysSorted.map((key) => {
             const p = participant(key);
             const lines = [`### ${nameWithMention(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
             const identityLine = participantDinoIdentityLine(p);
             if (identityLine) lines.push(identityLine);
+            const statsText = statsLine(key);
+            if (statsText) lines.push(statsText);
             return lines.join('\n');
         });
         addItemList(participantItems);
@@ -1011,9 +1062,19 @@ function buildDamageReportPayload(encounter, guild) {
         }
 
         addTitle('RELATÓRIO DE DANO', 2);
-        const segmentItems = [...segments.values()].map((seg) =>
-            seg.kind === 'kill' ? seg.text : [seg.header, ...typeLines(seg.byType)].join('\n')
-        );
+        // Mortes sempre primeiro (sortWeight=Infinity, ver loop acima — o
+        // fato mais importante do combate não deveria ficar perdido no
+        // meio de trocas de dano menores só por ordem cronológica), depois
+        // as trocas de dano por PAR em ordem decrescente de dano total —
+        // quem bateu mais fica em cima, em vez de "quem apareceu primeiro
+        // na timeline" (pedido do dono: combates grandes viravam uma lista
+        // difícil de saber o que realmente importou). Sort é estável, então
+        // múltiplas mortes entre si mantêm a ordem cronológica original.
+        const segmentItems = [...segments.values()]
+            .sort((a, b) => b.sortWeight - a.sortWeight)
+            .map((seg) =>
+                seg.kind === 'kill' ? seg.text : [seg.header, ...typeLines(seg.byType)].join('\n')
+            );
         addItemList(segmentItems);
     } else {
         // Encontro isolado: só existe UM participante possível (dano

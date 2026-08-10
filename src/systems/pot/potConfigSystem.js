@@ -38,13 +38,34 @@ const EVENT_GROUPS = [
         iniEvents: ['PlayerLogin', 'PlayerLogout', 'PlayerLeave']
     },
     {
+        // Pedido do dono, 2026-08-09: "Vamos separar as logs de morte e de
+        // dano/relatorio de combate em canais diferentes" — antes deste
+        // grupo cobria PlayerKilled + PlayerDamagedPlayer juntos, então
+        // toda morte (mesmo por ambiente, sem outro jogador envolvido)
+        // saía no mesmo canal do relatório de combate agregado. Agora só
+        // PlayerDamagedPlayer fica aqui; PlayerKilled tem grupo próprio
+        // (ver 'mortes' logo abaixo). O RELATÓRIO agregado
+        // (buildDamageReportPayload, disparado quando um "encontro" fecha)
+        // sempre usa este grupo pro webhook final, mesmo quando o encontro
+        // foi iniciado por uma morte (ver DAMAGE_REPORT_GROUP_ID em
+        // gatewayServer.js) — só o AVISO INSTANTÂNEO de morte
+        // (buildKillPanel) é que muda de canal.
         id: 'combate',
-        name: `${EMOJIS.swords || '💀'} Combate`,
+        name: `${EMOJIS.Atack || '⚔️'} Combate`,
         label: 'Combate',
-        emoji: EMOJIS.swords || '💀',
-        description: 'Mortes e dano entre jogadores. Só gera log no Discord por enquanto.',
+        emoji: EMOJIS.Atack || '⚔️',
+        description: 'Relatório de combate agregado (dano entre jogadores durante um encontro). Avisos de morte têm canal próprio, ver grupo "Mortes" abaixo.',
         route: 'combate',
-        iniEvents: ['PlayerKilled', 'PlayerDamagedPlayer']
+        iniEvents: ['PlayerDamagedPlayer']
+    },
+    {
+        id: 'mortes',
+        name: `${EMOJIS.Dead || '💀'} Mortes`,
+        label: 'Mortes',
+        emoji: EMOJIS.Dead || '💀',
+        description: 'Aviso instantâneo sempre que um jogador morre — em combate contra outro jogador ou por ambiente (queda, fome, afogamento). Separado do Combate pra não misturar mortes sem PvP com o relatório de combate.',
+        route: 'mortes',
+        iniEvents: ['PlayerKilled']
     },
     {
         id: 'quest',
