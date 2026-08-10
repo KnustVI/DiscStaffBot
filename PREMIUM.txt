@@ -8126,3 +8126,57 @@ frente, nao so este relatorio):
   que o HTML final nunca contém a sequência crua (só a versão
   escapada), e que o JSON gerado continua válido e recupera o valor
   ORIGINAL do nome depois de avaliado como JS.
+
+------------------------------------------------------------------
+166) Overlay "dashboard em desenvolvimento" removida da nav do site
+     inteiro — não bloqueava mais a rota de verdade desde 2026-08-07,
+     só o clique
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Libere a trava de todo o site para que
+  todos testem, remova a overlay de dashboard em desenvolvimento.
+  Lembrando para manter o acesso as configurações de server somente
+  para staffs e adms do discord. Perfil é aberto a todos."
+- Investigado antes de mexer: `DASHBOARD_LOCKED_TO_OWNER` (dashboard.js)
+  já estava `false` desde 2026-08-07 (seção histórica — "Para
+  administradores dos servidores libere a visualização e uso do
+  dashboard") — ou seja, a ROTA `/dashboard` (e todas as outras) já
+  não bloqueava ninguém. O problema era só no FRONT-END: os links
+  ".dashboard-link" em hero.ejs/portal.ejs/termos.ejs/documentacao.ejs
+  ganhavam `data-locked="true"` pra qualquer usuário que não fosse o
+  DEVELOPER_ID (não pelo estado real da trava), e em hero.ejs/
+  portal.ejs isso disparava um listener que interceptava o clique e
+  mostrava o cartão "dashboard em desenvolvimento" em vez de navegar —
+  mesmo a rota já estando destravada. Staff/admin comum via Portal só
+  na tela de espera, nunca chegava no dashboard de verdade clicando.
+- FIX: removido o atributo `data-locked` dos 6 links afetados (2 em
+  hero.ejs + 2 em portal.ejs + 1 em termos.ejs + 1 em documentacao.ejs)
+  e a interceptação de clique correspondente (div `#devOverlay` +
+  listener JS) em hero.ejs e portal.ejs — os links agora navegam
+  normal pra `/dashboard` pra qualquer usuário logado. `.dev-overlay`
+  (CSS) ficou porque outros overlays da página reaproveitam a mesma
+  classe (Premium travado, detalhe de anúncio de parceiro — seção
+  165); só `.dev-overlay-backdrop` (exclusiva do popup removido) saiu.
+- Deixado de propósito: `DASHBOARD_LOCKED_TO_OWNER`/`isDashboardLocked`
+  em dashboard.js (o kill switch de verdade, já `false`, sem efeito
+  algum agora) e o bloco `<% if (locked) %>` em portal.ejs que mostra
+  o cartão no lugar do corpo normal quando a rota está REALMENTE
+  travada — os dois continuam existindo, corretamente amarrados um no
+  outro, caso o dono precise travar tudo nervosamente de novo (rota +
+  conteúdo do Portal, sem reescrever nada). O que saiu foi só a trava
+  de CLIQUE redundante da nav, que nunca acompanhou esse flag direito.
+- Overlay de Premium travado (fase de testes, pedido separado do dono
+  em 2026-08-09) NÃO foi tocada — item explicitamente fora do pedido
+  desta vez, aquisição de Premium continua pausada de propósito.
+- Acesso por permissão CONFIRMADO intacto (nada nisso dependia da
+  trava removida): `/moderacao/:guildID`, `/reports/:guildID` e
+  `/events/:guildID` continuam checando `resolveAdminMember` (isStaff/
+  isAdmin de verdade) antes de mostrar qualquer coisa — quem não é
+  staff/admin do servidor sempre volta pro Portal, com ou sem a trava
+  de desenvolvimento. `/perfil` (Discord e site) continua só com
+  `checkAuth` (qualquer usuário logado), sem gate de cargo nenhum,
+  como já era.
+- Verificado: teste de render real (EJS) das 4 páginas com um usuário
+  logado que NÃO é o dono — confirmado que nenhuma delas emite
+  `data-locked` nem o overlay de nav travada, e que o `<% if (locked)
+  %>` de portal.ejs não quebra o render mesmo sem a variável `locked`
+  definida (guard `typeof` continua seguro).

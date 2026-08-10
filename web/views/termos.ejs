@@ -206,14 +206,14 @@
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <%# Portal (pedido do dono, 2026-08-06) — mesmo slot dinâmico de hero.ejs, ver comentário completo lá. %>
     <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %> style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
             <%= (user.nickname || user.global_name || user.username) %>
         </a>
     <% } %>
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link nav-btn" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
+        <a href="/dashboard" class="dashboard-link nav-btn"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
     <% } else { %>
         <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
     <% } %>

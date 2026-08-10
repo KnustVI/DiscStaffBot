@@ -72,9 +72,9 @@
             cursor: not-allowed;
             pointer-events: none;
         }
-        /* Backdrop do aviso "dashboard em desenvolvimento" (ver
-           partials/dev-overlay-card.ejs pro cartão em si) — some por cima
-           da página ao clicar num .dashboard-link[data-locked]. */
+        /* Backdrop fullscreen genérico, reaproveitado por qualquer overlay
+           da página (premium travado, detalhe de anúncio de parceiro —
+           ver #premiumLockedOverlay/#partnerNewsOverlay mais abaixo). */
         .dev-overlay {
             position: fixed;
             inset: 0;
@@ -522,20 +522,24 @@
         botões DASHBOARD+PERFIL viraram UM slot dinâmico na fileira
         (ENTRAR deslogado, PORTAL logado, mesmo /dashboard de sempre) +
         avatar/nome no canto só quando logado (deslogado, o ENTRAR da
-        fileira já cobre o login, sem duplicar no canto). Mesma classe
-        "dashboard-link"+data-locked de sempre (ver script de overlay no
-        fim do arquivo). /perfil não tem mais link direto aqui — se chega
-        lá pela "Toca" dentro do Portal (web/views/portal.ejs).
+        fileira já cobre o login, sem duplicar no canto). /perfil não tem
+        mais link direto aqui — se chega lá pela "Toca" dentro do Portal
+        (web/views/portal.ejs). Trava de "dashboard em desenvolvimento"
+        REMOVIDA (pedido do dono, 2026-08-10: "Libere a trava de todo o
+        site para que todos testem") — os links iam pra /dashboard direto
+        mesmo assim (a rota nunca chegou a travar de verdade, ver
+        DASHBOARD_LOCKED_TO_OWNER em dashboard.js), só o clique aqui na
+        nav ficava interceptado por engano pra quem não era o dono.
     %>
     <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %> style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
             <%= (user.nickname || user.global_name || user.username) %>
         </a>
     <% } %>
     <a href="/" class="nav-btn is-active"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link nav-btn" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
+        <a href="/dashboard" class="dashboard-link nav-btn"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
     <% } else { %>
         <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
     <% } %>
@@ -789,7 +793,7 @@
                     <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
                 </a>
                 <% if (user) { %>
-                    <a href="/dashboard" class="dashboard-link btn-primary" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>>
+                    <a href="/dashboard" class="dashboard-link btn-primary">
                         <span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span>
                     </a>
                 <% } else { %>
@@ -1321,7 +1325,7 @@
             <span data-i18n-pt>CONVIDE O BOT</span><span data-i18n-en>INVITE THE BOT</span>
         </a>
         <% if (user) { %>
-            <a href="/dashboard" class="dashboard-link btn-primary" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>>
+            <a href="/dashboard" class="dashboard-link btn-primary">
                 <span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span>
             </a>
         <% } else { %>
@@ -1358,26 +1362,13 @@
 </footer>
 
 <%#
-  Overlay do botão Dashboard travado (pedido do dono, 2026-08-02): enquanto
-  DASHBOARD_LOCKED_TO_OWNER estiver true (dashboard.js), todo link
-  ".dashboard-link" acima (canto, PORTAL da nav, PORTAL dos 2 CTAs) ganha
-  data-locked pra quem não é o dono — o
-  clique é interceptado (JS abaixo) e mostra isto por cima da página em
-  vez de navegar pra /dashboard (que aplicaria o MESMO bloqueio de novo,
-  só que depois de um reload inteiro). O dono continua navegando normal
-  (sem data-locked, sem listener, link funciona como sempre).
-%>
-<div class="dev-overlay" id="devOverlay" hidden>
-    <%- include('partials/dev-overlay-card') %>
-</div>
-
-<%#
-  Overlay de Premium travado (pedido do dono, 2026-08-09) — mesmo mecanismo
-  de interceptação de clique do overlay do Dashboard acima, aplicado a todo
+  Overlay de Premium travado (pedido do dono, 2026-08-09) — clique em todo
   link "[data-premium-locked]" (Ko-fi + botões "Adquirir ... Premium", ver
-  pricingCta()/acquireSectionButton()). Overlay próprio (não reaproveita
-  #devOverlay) porque os dois podem, em teoria, precisar abrir por motivos
-  diferentes na mesma página sem conflito de id.
+  pricingCta()/acquireSectionButton()) é interceptado (JS abaixo) e mostra
+  isto por cima da página em vez de navegar. Compra de Premium continua
+  travada de propósito (fase de testes) — diferente do Dashboard, que foi
+  destravado pra todo mundo em 2026-08-10 (ver comentário na nav, topo do
+  arquivo).
 %>
 <div class="dev-overlay" id="premiumLockedOverlay" hidden>
     <%- include('partials/premium-locked-overlay') %>
@@ -1412,27 +1403,6 @@
 </div>
 
 <script>
-    (function () {
-        var overlay = document.getElementById('devOverlay');
-        if (!overlay) return;
-
-        function openOverlay() { overlay.hidden = false; }
-        function closeOverlay() { overlay.hidden = true; }
-
-        document.querySelectorAll('.dashboard-link[data-locked]').forEach(function (link) {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                openOverlay();
-            });
-        });
-        overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) closeOverlay();
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeOverlay();
-        });
-    })();
-
     (function () {
         var overlay = document.getElementById('premiumLockedOverlay');
         if (!overlay) return;

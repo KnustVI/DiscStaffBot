@@ -258,24 +258,13 @@
         .portal-profile-link:hover { transform: scale(1.02); }
         .portal-profile-link img { display: block; transition: box-shadow 0.15s ease; }
         .portal-profile-link:hover img { box-shadow: -10px 20px 35px rgba(0, 0, 0, 0.6), 0 0 0 2px #DCA15E; }
+        /* Só usado enquanto DASHBOARD_LOCKED_TO_OWNER estiver true de novo
+           (dashboard.js) — mostra o cartão "em desenvolvimento" no lugar do
+           corpo normal do Portal (ver `locked` mais abaixo). Trava de
+           clique redundante na nav (interceptava .dashboard-link mesmo com
+           a rota já destravada) removida em 2026-08-10, pedido do dono:
+           "Libere a trava de todo o site para que todos testem". */
         .dev-overlay { display: flex; align-items: center; justify-content: center; width: 100%; }
-
-        /* Backdrop do aviso "dashboard em desenvolvimento" ao clicar num
-           .dashboard-link[data-locked] (mesmo padrão de hero.ejs) — aqui é
-           só o clique dentro da própria nav; server-side (locked=true) já
-           mostra o cartão direto no lugar do corpo normal, ver mais abaixo. */
-        .dev-overlay-backdrop {
-            position: fixed;
-            inset: 0;
-            z-index: 200;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: rgba(10, 9, 10, 0.85);
-            backdrop-filter: blur(4px);
-        }
-        .dev-overlay-backdrop[hidden] { display: none; }
     </style>
 </head>
 <body>
@@ -284,14 +273,14 @@
 <nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <%# Mesmo slot dinâmico Entrar/Portal de hero.ejs, ver comentário completo lá. %>
     <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %> style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
             <%= (user.nickname || user.global_name || user.username) %>
         </a>
     <% } %>
     <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
     <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link nav-btn is-active" <%- (typeof isOwner !== 'undefined' && isOwner) ? '' : 'data-locked="true"' %>><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
+        <a href="/dashboard" class="dashboard-link nav-btn is-active"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
     <% } else { %>
         <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
     <% } %>
@@ -488,33 +477,7 @@
     </div>
 </div>
 
-<%# Overlay do botão Portal travado, mesmo padrão de hero.ejs (ver DASHBOARD_LOCKED_TO_OWNER em dashboard.js). %>
-<div class="dev-overlay-backdrop" id="devOverlay" hidden>
-    <%- include('partials/dev-overlay-card') %>
-</div>
-
 <script>
-    (function () {
-        var overlay = document.getElementById('devOverlay');
-        if (!overlay) return;
-
-        function openOverlay() { overlay.hidden = false; }
-        function closeOverlay() { overlay.hidden = true; }
-
-        document.querySelectorAll('.dashboard-link[data-locked]').forEach(function (link) {
-            link.addEventListener('click', function (e) {
-                e.preventDefault();
-                openOverlay();
-            });
-        });
-        overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) closeOverlay();
-        });
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeOverlay();
-        });
-    })();
-
     (function () {
         const stored = localStorage.getItem('titanspass_lang') || 'pt';
         document.documentElement.setAttribute('data-lang', stored);
