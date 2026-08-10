@@ -291,11 +291,18 @@ class DatabaseManager {
             // é coluna GERADA (ver schema.js), e SQLite não tem ALTER COLUMN
             // pra trocar a expressão de uma GENERATED existente: a única
             // forma é DROP + ADD de novo (mesmo padrão de ensureColumn/
-            // dropColumnIfExists acima). Como é STORED, o próprio SQLite
-            // recalcula o valor pra TODAS as linhas (antigas e novas) na
-            // hora do ADD COLUMN — sem precisar de UPDATE manual aqui.
+            // dropColumnIfExists acima). VIRTUAL (não STORED): SQLite recusa
+            // "ALTER TABLE ADD COLUMN" pra coluna GENERATED...STORED em
+            // tabela já existente ("cannot add a STORED column") — erro
+            // engolido silenciosamente pelo catch antigo de ensureColumn,
+            // deixando reports.report_id ausente em produção pra sempre e
+            // quebrando /moderacao, /reports e todo o report-chat (bug real,
+            // 2026-08-09). VIRTUAL recalcula no SELECT em vez de gravar em
+            // disco (sem diferença prática pra uma concatenação simples) e
+            // pode sim ser adicionada via ALTER TABLE — schema.js usa o
+            // mesmo VIRTUAL pra CREATE TABLE não divergir do ALTER aqui.
             this.dropColumnIfExists('reports', 'report_id');
-            this.ensureColumn('reports', 'report_id', `TEXT GENERATED ALWAYS AS ('#REP' || report_number) STORED`);
+            this.ensureColumn('reports', 'report_id', `TEXT GENERATED ALWAYS AS ('#REP' || report_number) VIRTUAL`);
 
             // As duas linhas acima rodam em TODO boot (idempotentes, mas não
             // um no-op puro: recriam a coluna sempre) — aceitável pro
@@ -353,20 +360,30 @@ class DatabaseManager {
     }
 
     // Adiciona uma coluna a uma tabela existente se ela ainda não existir.
-    // Idempotente: chamar em toda inicialização é seguro.
+    // Idempotente: chamar em toda inicialização é seguro. Só engole os 2
+    // erros ESPERADOS de "já não precisa fazer nada" (coluna duplicada,
+    // tabela ainda não existe) — qualquer outro erro (ex: SQLite recusando
+    // "cannot add a STORED column" pra uma GENERATED column, visto em
+    // produção 2026-08-09, ver dropColumnIfExists('reports', 'report_id')
+    // acima) agora aparece no log em vez de desaparecer silenciosamente
+    // deixando a coluna ausente pra sempre sem nenhuma pista do motivo.
     ensureColumn(table, column, definition) {
         try {
             this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
             console.log(`   ✅ Coluna ${table}.${column} adicionada`);
         } catch (err) {
-            // Coluna já existe (ou tabela ainda não existe) — ignorar.
+            const expected = /duplicate column name|no such table/i.test(err.message);
+            if (!expected) {
+                console.error(`   ❌ Falha ao adicionar coluna ${table}.${column}:`, err.message);
+            }
         }
     }
 
     // Contrário de ensureColumn — remove uma coluna morta de uma tabela já
     // existente (schema.js sozinho só afeta bancos NOVOS, CREATE TABLE IF
     // NOT EXISTS não altera tabelas que já existem). Idempotente: se a
-    // coluna já não existir (ou a tabela ainda não existir), ignora.
+    // coluna já não existir (ou a tabela ainda não existir), ignora — mesmo
+    // critério de erro esperado vs. inesperado do ensureColumn acima.
     // Requer SQLite ≥3.35 (ALTER TABLE ... DROP COLUMN) — a versão
     // empacotada com better-sqlite3 já é bem mais nova que isso.
     dropColumnIfExists(table, column) {
@@ -374,7 +391,10 @@ class DatabaseManager {
             this.db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
             console.log(`   🗑️ Coluna ${table}.${column} removida (não usada em nenhum lugar do código)`);
         } catch (err) {
-            // Coluna já não existe (ou tabela ainda não existe) — ignorar.
+            const expected = /no such column|no such table/i.test(err.message);
+            if (!expected) {
+                console.error(`   ❌ Falha ao remover coluna ${table}.${column}:`, err.message);
+            }
         }
     }
 

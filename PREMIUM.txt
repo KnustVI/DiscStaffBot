@@ -7477,3 +7477,47 @@ frente, nao so este relatorio):
   uma guild ausente do cache do client não derruba a função
   (best-effort de verdade), e render real do painel `/config logs`
   mostrando o novo campo "Comandos RCON" com o customId certo.
+
+------------------------------------------------------------------
+146) CRÍTICO: /moderacao, /reports e /events do dashboard web
+     quebrados em produção (Internal Server Error cru) desde a
+     renomeação de IDs da seção 141 — reports.report_id ausente
+------------------------------------------------------------------
+- Reportado pelo dono (2026-08-09): "Site de dashboard dos servers
+  esta off, perfil, home e documentação funcionam normalmente."
+  Renderização de template descartada como causa (moderacao.ejs/
+  reports.ejs/events.ejs renderizam OK com mocks) — pm2 log real
+  (pedido ao dono) trouxe a causa: `SqliteError: no such column:
+  report_id` em `dashboard.js:1804` (query de reports abertos usada
+  na sidebar de Moderação).
+- Causa raiz: a migração da seção 141 (`#R` -> `#REP`) faz
+  `dropColumnIfExists('reports', 'report_id')` seguido de
+  `ensureColumn(..., "GENERATED ALWAYS AS (...) STORED")` pra trocar
+  a expressão da coluna gerada. SQLite recusa `ALTER TABLE ADD COLUMN`
+  pra coluna `GENERATED ALWAYS AS (...) STORED` ("cannot add a STORED
+  column") — só aceita isso em `CREATE TABLE`. `ensureColumn` engolia
+  QUALQUER erro no catch (comentário só previa "coluna já existe"),
+  então essa falha desaparecia sem log nenhum: a coluna antiga já
+  tinha sido dropada, a nova nunca era criada, e `reports` ficava sem
+  `report_id` pra sempre (reproduzido localmente com o mesmo erro
+  exato antes do fix). `/reports/:guildID` quebra pelo mesmo motivo
+  (mesma tabela); `/events/:guildID` não toca `reports` — o dono
+  generalizou "dashboard dos servers" a partir dos 2/3 que testou.
+- FIX: coluna gerada trocada de `STORED` pra `VIRTUAL` (SQLite aceita
+  `ALTER TABLE ADD COLUMN` pra `VIRTUAL`; recalcula no SELECT em vez
+  de gravar em disco — sem diferença prática pra uma concatenação de
+  string) em `schema.js` (CREATE TABLE, bancos novos) e na migração de
+  `index.js` (bancos existentes), pra não voltarem a divergir. Também
+  endurecido `ensureColumn`/`dropColumnIfExists`: só engolem os erros
+  ESPERADOS ("duplicate column name"/"no such column"/"no such table")
+  — qualquer outro erro agora aparece no log (`console.error`) em vez
+  de sumir, pra essa classe de bug não repetir invisível de novo.
+- Verificado: `node --check` nos 2 arquivos, e reprodução real (não
+  mock) contra arquivos SQLite de verdade via better-sqlite3 — 3
+  cenários: (a) banco no estado QUEBRADO atual de produção
+  (report_id ausente) sobe e a coluna volta corretamente com o
+  prefixo novo; (b) banco nunca migrado (ainda com `#R` antigo
+  STORED) confirma que a migração original #R->#REP continua
+  funcionando; (c) 2 boots seguidos no mesmo arquivo confirmam
+  idempotência sem erro. Autofix: não precisa de intervenção manual
+  no banco de produção, corrige sozinho no próximo `pm2 restart`.
