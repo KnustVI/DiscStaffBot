@@ -7882,3 +7882,44 @@ frente, nao so este relatorio):
   "ID5") e a descrição já diz "É o número mostrado em Strike #IDN" —
   já correto desde o rename original (seção 141). Nenhuma mudança de
   código necessária.
+
+------------------------------------------------------------------
+159) CRÍTICO: /potserver reset "logs" reportava sucesso mas não
+     apagava a configuração de webhook de verdade — impedia
+     reconfigurar depois do split combate/mortes da seção 144
+------------------------------------------------------------------
+- Reportado pelo dono (2026-08-10): "resetei um webhook em um servidor
+  para reconfigurar pois as logs de kill e de dano/combate não estavam
+  indo em canais separados. Mas a configuração de webhooks não
+  resetou."
+- Causa raiz: existiam 2 implementações PARALELAS da mesma lógica de
+  reset — `src/commands/pot/reset.js` executeReset (a que o botão de
+  confirmação REALMENTE chama, ver pot_reset_confirm_* em
+  interactionCreate.js) e `PoTConfigSystem.resetConfig` (escrita
+  depois, correta, mas sem NENHUM caller em lugar nenhum do bot — 100%
+  morta). Quando o formato de chave dos webhooks mudou de
+  `pot_webhook_<evento>` (legado, por evento individual) pra
+  `pot_group_webhook_<grupo>` (fluxo atual, por grupo —
+  combate/mortes/login/etc), só a cópia morta (`resetConfig`) foi
+  atualizada pro novo padrão; a cópia REALMENTE EXECUTADA
+  (`executeReset`) continuou apagando só `pot_webhook_%`, um padrão
+  que não bate com `pot_group_webhook_%` (prefixos diferentes) — logo,
+  não apagava NADA de verdade. O comando respondia "Webhooks
+  removidos" (sucesso) porque a query rodava sem erro, só que sobre 0
+  linhas.
+- FIX: `executeReset`'s escopo "logs" agora apaga os 2 padrões
+  (`pot_group_webhook_%` E `pot_webhook_%`, cobrindo servidor migrado
+  ou não). `PoTConfigSystem.resetConfig` (a cópia morta, causa da
+  divergência) removida — só resta 1 implementação de verdade agora,
+  eliminando a chance desse tipo de bug (2 cópias divergindo) se
+  repetir.
+- Verificado: reprodução real (não mock) — estado de settings com 3
+  webhooks de GRUPO + 1 legado, `executeReset(guildId, 'logs')` limpa
+  os 2 formatos corretamente, config de servidor e outras chaves fora
+  do escopo continuam intactas, reconfigurar um webhook novo depois do
+  reset funciona, e os escopos "server"/"all" continuam corretos como
+  antes (incluindo revogação de token no "all").
+- Como proceder AGORA (servidor já afetado pelo bug): depois do
+  deploy, rodar `/potserver reset` (escopo "logs") de novo no servidor
+  em questão — dessa vez limpa de verdade, e dá pra reconfigurar o
+  webhook de mortes/combate separado normalmente.

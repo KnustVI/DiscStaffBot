@@ -320,23 +320,18 @@ class PoTConfigSystem {
     }
 
     // ==================== RESET ====================
-
-    static resetConfig(guildId, scope) {
-        switch (scope) {
-            case 'server':
-                db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key = 'pot_server_config'`).run(guildId);
-                break;
-            case 'logs':
-                db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_group_webhook_%'`).run(guildId);
-                db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_webhook_%'`).run(guildId);
-                break;
-            case 'all':
-                this.clearAllConfigs(guildId);
-                break;
-            default:
-                throw new Error(`Escopo de reset inválido: ${scope}`);
-        }
-    }
+    // O reset de verdade (chamado pelo botão de confirmação, ver
+    // pot_reset_confirm_* em interactionCreate.js) mora em
+    // src/commands/pot/reset.js executeReset — não aqui. Um resetConfig()
+    // com essa mesma responsabilidade existiu aqui em paralelo, sem
+    // NENHUM caller em lugar nenhum do bot, e ficou pra trás quando o
+    // formato de chave dos webhooks mudou de 'pot_webhook_%' pra
+    // 'pot_group_webhook_%' (fluxo por grupo) — a cópia em reset.js NÃO
+    // foi atualizada junto, causando um bug real (reset de "logs"
+    // reportava sucesso sem apagar nada de verdade, ver seção 159 do
+    // PREMIUM.txt). Removida daqui de propósito: 2 cópias da mesma lógica
+    // é exatamente como esse tipo de bug nasce — só reset.js continua
+    // existindo agora, e já corrigido.
 
     static clearAllConfigs(guildId) {
         db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_%'`).run(guildId);

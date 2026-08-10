@@ -67,15 +67,27 @@ module.exports = {
                         message: `${emojis.tv || '🖥️'} Configuração removida (token mantido)`
                     };
 
-                case 'logs':
-                    require('../../database/index')
-                        .prepare(`DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_webhook_%'`)
-                        .run(guildId);
+                case 'logs': {
+                    // Webhooks de verdade ficam em 'pot_group_webhook_%'
+                    // (PoTConfigSystem.setWebhookForGroup, o fluxo ATUAL por
+                    // grupo — combate/mortes/etc). 'pot_webhook_%' sozinho
+                    // (sem "group") é só o formato LEGADO por evento
+                    // individual, que o bot não grava mais há tempos — bug
+                    // real reportado pelo dono (2026-08-10): resetar "logs"
+                    // reportava sucesso mas não apagava a configuração de
+                    // verdade, então reconfigurar o webhook novo de
+                    // mortes/combate (separados na seção 144) ficava
+                    // impossível. Apaga os 2 padrões pra cobrir servidor
+                    // migrado ou não.
+                    const db = require('../../database/index');
+                    db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_group_webhook_%'`).run(guildId);
+                    db.prepare(`DELETE FROM settings WHERE guild_id = ? AND key LIKE 'pot_webhook_%'`).run(guildId);
 
                     return {
                         success: true,
                         message: `${emojis.mensagem || '📨'} Webhooks removidos`
                     };
+                }
 
                 case 'all':
                     PoTConfigSystem.clearAllConfigs(guildId);
