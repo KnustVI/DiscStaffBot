@@ -70,11 +70,17 @@ function _resolveTarget(discordId, guildId) {
     return { alderonId: link.alderon_id };
 }
 
-async function _executeRcon(client, guildId, command) {
-    const { getInstance } = require('../../integrations/pathoftitans');
-    const potIntegration = getInstance(client);
-    if (!potIntegration) return { success: false, error: 'Integração com o jogo não inicializada.' };
-    return await potIntegration.executeCommand(guildId, command);
+// Antes chamava potIntegration.executeCommand(...) direto, pulando
+// PoTConfigSystem.executeRconCommand — único desvio do ponto único de RCON
+// do bot (corrigido a pedido do dono, 2026-08-09: "canal que vai receber
+// todas as logs relacionadas a comandos de rcon", ver
+// potConfigSystem.executeRconCommand/_logRconExecution). `client` não é
+// mais usado aqui (executeRconCommand resolve via global.client
+// internamente, mesmo padrão de todo o resto do bot) — mantido como
+// parâmetro só pra não quebrar as 2 chamadas existentes abaixo.
+async function _executeRcon(client, guildId, command, context) {
+    const PoTConfigSystem = require('./potConfigSystem');
+    return await PoTConfigSystem.executeRconCommand(guildId, command, context);
 }
 
 /**
@@ -102,7 +108,7 @@ async function convertBonesToMarks(client, discordId, guildId, bonesAmount) {
     }
 
     const marksAmount = bonesAmount * MARKS_PER_BONE;
-    const rconResult = await _executeRcon(client, guildId, `addmarks ${target.alderonId} ${marksAmount}`);
+    const rconResult = await _executeRcon(client, guildId, `addmarks ${target.alderonId} ${marksAmount}`, { actor: `<@${discordId}>`, source: 'Loja de Jogo (Ossos→Marks)' });
 
     if (!rconResult.success) {
         PlayerRegistry.addBones(discordId, bonesAmount);
@@ -136,7 +142,7 @@ async function convertMarksToBones(client, discordId, guildId, marksAmount) {
     const target = _resolveTarget(discordId, guildId);
     if (target.error) return { ok: false, error: target.error };
 
-    const rconResult = await _executeRcon(client, guildId, `removemarks ${target.alderonId} ${marksAmount}`);
+    const rconResult = await _executeRcon(client, guildId, `removemarks ${target.alderonId} ${marksAmount}`, { actor: `<@${discordId}>`, source: 'Loja de Jogo (Marks→Ossos)' });
     if (!rconResult.success) {
         return { ok: false, error: `Não foi possível remover os Marks no jogo (${rconResult.error || 'erro desconhecido'}).` };
     }

@@ -610,7 +610,7 @@ class PlayerRegistrationSystem {
         const gameUsername = onlinePlayer.player_name || playerName;
 
         const code = PlayerRegistry.generateVerificationCode();
-        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, `SystemMessage ${gameUsername} Seu codigo de verificacao Titan's Pass: ${code}`);
+        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, `SystemMessage ${gameUsername} Seu codigo de verificacao Titan's Pass: ${code}`, { actor: interaction.user.toString(), source: '/registrar' });
 
         if (!rconResult?.success) {
             return await interaction.editReply(this._simpleReply(

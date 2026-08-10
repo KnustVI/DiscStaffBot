@@ -7417,3 +7417,63 @@ frente, nao so este relatorio):
   de estresse já usado na seção 140 (25 participantes, 165 eventos,
   agora com mortes espalhadas) confirmando que nenhum dos 3 limites do
   Discord voltou a estourar com a reordenação.
+
+------------------------------------------------------------------
+145) Novo canal configurável em /config logs: "Comandos RCON" — recebe
+     1 linha por comando RCON disparado pelo bot (/strike, /unstrike,
+     /eventos, /ingame-buff, /ingame-*, /registrar, Loja de Jogo)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-09): "Permita que nas configurações de logs,
+  seja configurado um canal que vai receber todas as logs relacionadas
+  a comandos de rcon, isso deve incluir qualquer comando rcon que os
+  comandos /strike /eventos /buffs apliquem."
+- Investigado antes de implementar: `PoTConfigSystem.executeRconCommand
+  (guildId, command)` já era o ponto único por onde passa a imensa
+  maioria dos comandos RCON do bot — só UM desvio existia
+  (`currencySystem.js`, usado pela Loja de Jogo/conversor Ossos↔Marks
+  no dashboard web), chamando `potIntegration.executeCommand()`
+  direto, pulando esse ponto único. Corrigido primeiro (sem mudar
+  comportamento nenhum, só a rota interna) pra `executeRconCommand`
+  virar de fato o chokepoint de 100% dos comandos RCON, não só da
+  maioria.
+- FIX: novo campo `log_rcon` em `LOG_FIELDS` (`/config logs`, painel
+  Discord) + `executeRconCommand` ganhou um 3º parâmetro opcional
+  `context: { actor, source }` — usado só pra enriquecer o log (quem
+  disparou / qual comando do bot), nunca obrigatório. Loga com
+  `_logRconExecution` (novo, privado): 1 linha compacta por comando
+  (`✅/❌ <quem> (<origem>): \`comando\``, com o erro numa 2ª linha se
+  falhou) — de propósito compacto, não um Container grande, porque o
+  filtro de chat automático (`/config filtro`) pode disparar RCON em
+  sequência rápida sem cooldown nenhum (único ponto de risco real de
+  volume, ver investigação). Best-effort: nunca lança, uma falha ao
+  logar não pode derrubar o comando RCON que já rodou de verdade.
+- Contexto (`actor`/`source`) adicionado nos ~9 pontos que hoje
+  disparam RCON, sempre que estava disponível no escopo sem precisar
+  de mudança estrutural:
+  - `/strike` e `/unstrike` (`punishmentSystem.js`, incluindo os
+    comandos de reload de bans/mutes) — `actor` = staff que confirmou.
+  - `/ingame-*` (todos os ~57 subcomandos, via
+    `rconCommandCatalog.js`, executor genérico único) — `actor` =
+    quem rodou o comando.
+  - `/ingame-buff aplicar` — `buffSystem.applyBuffToPlayer` ganhou um
+    parâmetro novo opcional (`actorText`) pra receber
+    `interaction.user` de `ingame-buff.js` (antes não descia até lá).
+  - `/registrar` (código de verificação por SystemMessage) — `actor` =
+    o próprio jogador se cadastrando.
+  - Teleporte de evento (botão "Ir") — `actor` = o jogador que clicou.
+  - Loja de Jogo (conversor Ossos↔Marks, dashboard web) — `actor` =
+    menção do usuário logado.
+  - Lembrete automático de evento (cron, 30min antes) — sem `actor`
+    (não tem staff nenhum por trás), só `source`, cai no fallback
+    "Sistema" no log.
+- Verificado: `node --check` nos 10 arquivos tocados, varredura
+  completa dos comandos do bot sem falhas, teste funcional confirmando
+  o roteamento do novo customId `config-logs:rcon` até
+  `setLogChannel(interaction, 'log_rcon')`, `getLogChannel(guildId,
+  'rcon')` resolvendo a chave certa, `_logRconExecution` postando com
+  comando+origem+ator corretos tanto em sucesso quanto em falha (com a
+  mensagem de erro incluída), confirmação de que SEM `log_rcon`
+  configurado nenhuma tentativa de envio é feita, confirmação de que
+  uma guild ausente do cache do client não derruba a função
+  (best-effort de verdade), e render real do painel `/config logs`
+  mostrando o novo campo "Comandos RCON" com o customId certo.

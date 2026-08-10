@@ -892,7 +892,7 @@ const PunishmentSystem = {
                         if (!command) {
                             ingameActionResult = `Ação in-game "${jogoAct}" desconhecida.`;
                         } else {
-                            const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, command);
+                            const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, command, { actor: staff.toString(), source: '/strike' });
                             ingameActionResult = rconResult?.success
                                 ? 'Ação in-game executada.'
                                 : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
@@ -909,7 +909,7 @@ const PunishmentSystem = {
                             // o motivo/efeito completo realmente valha na hora. ──
                             if (rconResult?.success && (jogoAct === 'Ban' || jogoAct === 'ServerMute')) {
                                 const reloadCommand = jogoAct === 'Ban' ? 'ReloadBans' : 'ReloadMutes';
-                                const reloadResult = await PoTConfigSystem.executeRconCommand(guild.id, reloadCommand).catch((err) => ({ success: false, error: err.message }));
+                                const reloadResult = await PoTConfigSystem.executeRconCommand(guild.id, reloadCommand, { actor: staff.toString(), source: '/strike' }).catch((err) => ({ success: false, error: err.message }));
                                 if (!reloadResult?.success) {
                                     ingameActionResult += ` ${EMOJIS.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}) — o jogador pode não ver o motivo até o próximo restart do servidor.`;
                                 }
@@ -1092,13 +1092,13 @@ const PunishmentSystem = {
                             const PoTConfigSystem = require('../pot/potConfigSystem');
                             const isBan = punishment.level_action === 'Ban';
                             const undoCommand = isBan ? `unban ${alderonId}` : `ServerUnmute ${alderonId}`;
-                            const rconResult = await PoTConfigSystem.executeRconCommand(guildId, undoCommand);
+                            const rconResult = await PoTConfigSystem.executeRconCommand(guildId, undoCommand, { actor: staff.toString(), source: '/unstrike' });
                             ingameUndoResult = rconResult?.success
                                 ? 'Ação in-game desfeita.'
                                 : `Falha ao desfazer ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
                             if (rconResult?.success) {
                                 const reloadCommand = isBan ? 'ReloadBans' : 'ReloadMutes';
-                                const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand).catch((err) => ({ success: false, error: err.message }));
+                                const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand, { actor: staff.toString(), source: '/unstrike' }).catch((err) => ({ success: false, error: err.message }));
                                 if (!reloadResult?.success) {
                                     ingameUndoResult += ` ${emojis.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}).`;
                                 }

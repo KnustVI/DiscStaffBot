@@ -101,7 +101,7 @@ async function _sendIngameEventReminder(guild, event) {
         if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) return;
 
         const message = _formatIngameReminder(event);
-        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, `systemmessageall ${message}`);
+        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, `systemmessageall ${message}`, { source: 'Lembrete automático de evento' });
         if (rconResult?.success) {
             console.log(`⏰ [EventScheduler] Aviso em jogo enviado: "${event.name}" (${guild.name})`);
         } else {

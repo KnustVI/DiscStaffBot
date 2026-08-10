@@ -381,7 +381,7 @@ module.exports = {
         // alguém confirmar o contrário num servidor real.
         const targetName = onlinePlayer.player_name || link.player_name;
         const command = `teleport ${targetName} ${coords}`;
-        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, command).catch((err) => ({ success: false, error: err.message }));
+        const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, command, { actor: user.toString(), source: 'Teleporte de evento' }).catch((err) => ({ success: false, error: err.message }));
 
         if (!rconResult?.success) {
             _releaseUse(messageId, user.id);

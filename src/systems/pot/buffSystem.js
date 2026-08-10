@@ -69,14 +69,20 @@ function removeBuffStat(buffId, attribute) {
  * chegar aqui, pedido explícito do dono ("verifique se o jogador esta
  * online antes de aplicar").
  *
+ * @param {string} guildId
+ * @param {string} buffId
+ * @param {string} targetAlderonId
+ * @param {string} [actorText] - menção de quem aplicou (interaction.user.toString()),
+ *   só pra enriquecer o log central de RCON (ver PoTConfigSystem.executeRconCommand) —
+ *   opcional, cai no fallback "Sistema" se omitido.
  * @returns {Promise<Array<{attribute: string, value: string, success: boolean, error?: string}>>}
  */
-async function applyBuffToPlayer(guildId, buffId, targetAlderonId) {
+async function applyBuffToPlayer(guildId, buffId, targetAlderonId, actorText) {
     const stats = getBuffStats(buffId);
     const results = [];
     for (const stat of stats) {
         const command = `setattr ${targetAlderonId} ${stat.attribute} ${stat.value}`;
-        const rconResult = await PoTConfigSystem.executeRconCommand(guildId, command).catch((err) => ({ success: false, error: err.message }));
+        const rconResult = await PoTConfigSystem.executeRconCommand(guildId, command, { actor: actorText, source: '/ingame-buff' }).catch((err) => ({ success: false, error: err.message }));
         results.push({
             attribute: stat.attribute,
             value: stat.value,

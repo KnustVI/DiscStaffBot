@@ -670,7 +670,7 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
     }
 
     const command = entry.buildCommand(resolved);
-    const rconResult = await PoTConfigSystem.executeRconCommand(guildId, command);
+    const rconResult = await PoTConfigSystem.executeRconCommand(guildId, command, { actor: interaction.user.toString(), source: `/ingame-* (${categoryLabel})` });
 
     db.logActivity(guildId, interaction.user.id, 'rcon_command', null, {
         categoria: categoryLabel, subcomando: entry.name, comando: command, sucesso: !!rconResult?.success,

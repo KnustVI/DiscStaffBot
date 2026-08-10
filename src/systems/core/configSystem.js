@@ -171,6 +171,20 @@ const LOG_FIELDS = [
         desc: 'Recebe tudo relacionado à equipe: ganho/perda dos cargos de staff (Moderador/Supervisor/Equipe de Eventos), aviso quando um staff perde o histórico por ficar sem nenhum desses cargos, e a análise diária de staff (plano Caçador).',
         customId: 'config-logs:staff',
     },
+    {
+        // Pedido do dono, 2026-08-09: "canal que vai receber todas as logs
+        // relacionadas a comandos de rcon... /strike /eventos /buffs" —
+        // recebe TODO comando RCON disparado pelo bot (PoTConfigSystem.
+        // executeRconCommand é o ponto único por onde passa 100% deles,
+        // ver comentário lá), independente de já existir um log próprio
+        // pra aquele recurso específico (ex: /ingame-* já loga no grupo
+        // "admin" do /potserver logs) — este canal é a trilha de auditoria
+        // BRUTA, 1 linha por comando, útil mesmo quando o log "bonito" de
+        // cada feature está configurado em outro canal.
+        key: 'log_rcon', icon: 'rcon', label: 'Comandos RCON',
+        desc: 'Recebe 1 linha por comando RCON executado pelo bot contra o servidor do jogo — disparado por /strike, /unstrike, /eventos, /ingame-buff, /ingame-*, /registrar e a Loja de Jogo. Trilha de auditoria bruta, independente de outros logs já configurados.',
+        customId: 'config-logs:rcon',
+    },
 ];
 
 /**
@@ -630,6 +644,10 @@ const ConfigSystem = {
             }
             if (customId === 'config-logs:staff') {
                 await this.setLogChannel(interaction, 'log_staff');
+                return;
+            }
+            if (customId === 'config-logs:rcon') {
+                await this.setLogChannel(interaction, 'log_rcon');
                 return;
             }
             if (customId === 'config-logs:criar') {
@@ -1576,6 +1594,7 @@ const ConfigSystem = {
             log_punishments:  `${EMOJIS.gavel  || '⚖️'} Canal de logs de punições`,
             log_reports:      `${EMOJIS.ticket    || '🚩'} Canal de logs de reports`,
             log_staff:        `${EMOJIS.shield || '🛡️'} Canal de logs de staff`,
+            log_rcon:         `${EMOJIS.rcon || '🔗'} Canal de logs de comandos RCON`,
         };
 
         const oldChannelMention = oldChannelId ? `<#${oldChannelId}>` : '`não definido`';
@@ -1738,14 +1757,14 @@ const ConfigSystem = {
 
     /**
      * @param {string} guildId
-     * @param {'geral'|'punishments'|'automod'|'reports'} type
+     * @param {'geral'|'punishments'|'automod'|'reports'|'staff'|'rcon'} type
      * ✅ UNIFICADO: 'automod' agora resolve para o mesmo canal de 'geral'.
      */
     getLogChannel(guildId, type) {
         if (type === 'geral' || type === 'automod') {
             return this.getUnifiedGeneralLogChannel(guildId);
         }
-        const channelMap = { punishments: 'log_punishments', reports: 'log_reports', staff: 'log_staff' };
+        const channelMap = { punishments: 'log_punishments', reports: 'log_reports', staff: 'log_staff', rcon: 'log_rcon' };
         const key = channelMap[type];
         if (!key) return null;
         return this.getSetting(guildId, key) || null;

@@ -269,7 +269,7 @@ module.exports = {
             return await _ephemeralError(interaction, `${EMOJIS.circlealert || '❌'} Esse buff não tem nenhum atributo configurado ainda.`);
         }
 
-        const results = await BuffSystem.applyBuffToPlayer(guildId, buffId, target);
+        const results = await BuffSystem.applyBuffToPlayer(guildId, buffId, target, interaction.user.toString());
         const allSucceeded = results.every((r) => r.success);
         const anySucceeded = results.some((r) => r.success);
 

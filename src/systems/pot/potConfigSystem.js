@@ -248,11 +248,75 @@ class PoTConfigSystem {
 
     // ==================== RCON ====================
 
-    static async executeRconCommand(guildId, command) {
+    /**
+     * PONTO ÚNICO por onde passa TODO comando RCON disparado pelo bot —
+     * /strike, /unstrike, /ingame-*, /ingame-buff, /eventos (teleporte e
+     * lembrete automático), /registrar e a Loja de Jogo (dashboard web)
+     * chamam todos esta função, nunca a integração diretamente (ver
+     * PathOfTitansIntegration.executeCommand). Isso é o que permite logar
+     * TODO comando RCON num canal único (pedido do dono, 2026-08-09 —
+     * ver _logRconExecution), sem precisar espalhar chamada de log em
+     * cada um dos ~10 lugares que disparam RCON pelo bot.
+     *
+     * @param {string} guildId
+     * @param {string} command - comando RCON já montado (ex: "kick AGID123 motivo")
+     * @param {{actor?: string|null, source?: string}} [context] - opcional,
+     *   só pra enriquecer o log (quem disparou / qual comando do bot) —
+     *   nunca obrigatório, chamadores sem essa info (cron, automações) só
+     *   omitem e o log cai no fallback "Sistema".
+     */
+    static async executeRconCommand(guildId, command, context = {}) {
         const { getInstance } = require('../../integrations/pathoftitans');
         const potIntegration = getInstance(global.client);
         if (!potIntegration) return { success: false, error: 'Integração não inicializada' };
-        return await potIntegration.executeCommand(guildId, command);
+        const result = await potIntegration.executeCommand(guildId, command);
+        await this._logRconExecution(guildId, command, result, context);
+        return result;
+    }
+
+    /**
+     * Log compacto (1 linha, não um Container grande) de um comando RCON —
+     * ver executeRconCommand acima. Compacto de propósito: o filtro de
+     * chat automático (/config filtro) pode disparar isso em sequência
+     * rápida, sem cooldown nenhum, então o formato precisa aguentar volume
+     * sem virar um Container gigante por chamada. Best-effort: uma falha
+     * aqui NUNCA pode derrubar o comando RCON que já rodou de verdade
+     * (por isso o try/catch engole tudo, sem propagar).
+     *
+     * @param {string} guildId
+     * @param {string} command
+     * @param {{success: boolean, error?: string}} result
+     * @param {{actor?: string|null, source?: string}} context
+     */
+    static async _logRconExecution(guildId, command, result, context = {}) {
+        try {
+            const ConfigSystem = require('../core/configSystem');
+            const channelId = ConfigSystem.getSetting(guildId, 'log_rcon');
+            if (!channelId) return;
+
+            const client = global.client;
+            const guild = client?.guilds?.cache?.get(guildId);
+            if (!guild) return;
+            const channel = await guild.channels.fetch(channelId).catch(() => null);
+            if (!channel) return;
+
+            const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+            const statusIcon = result?.success ? (EMOJIS.circlecheck || '✅') : (EMOJIS.circlealert || '❌');
+            const actorText = context.actor || 'Sistema';
+            const sourceText = context.source ? ` (${context.source})` : '';
+
+            const builder = new AdvancedContainerBuilder({ accentColor: result?.success ? COLORS.DEFAULT : COLORS.ERROR });
+            let line = `${statusIcon} ${actorText}${sourceText}: \`${command}\``;
+            if (!result?.success && result?.error) {
+                line += `\n${EMOJIS.trianglealert || '⚠️'} ${result.error}`;
+            }
+            builder.text(line);
+
+            const { components, flags } = builder.build();
+            await channel.send({ components, flags: [flags] });
+        } catch (err) {
+            // Best-effort — nunca deixa uma falha de log derrubar o RCON.
+        }
     }
 
     // ==================== RESET ====================
