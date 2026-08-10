@@ -72,6 +72,33 @@ function startDevBot(mainClient) {
     });
 
     devClient.on('interactionCreate', async (interaction) => {
+        // Modal enviado por um comando com opensModal (ver broadcast.js) —
+        // customId sempre "<nomeDoComando>:<algo>" (mesma convenção
+        // system:action:param do resto do bot), então o próprio comando dá
+        // pra ser resolvido de volta a partir dele. Só comandos que
+        // exportam handleModalSubmit são aceitos aqui.
+        if (interaction.isModalSubmit()) {
+            const commandName = interaction.customId.split(':')[0];
+            const command = devClient.commands.get(commandName);
+            if (!command || typeof command.handleModalSubmit !== 'function') return;
+
+            try {
+                await command.handleModalSubmit(interaction, mainClient);
+                sendSystemLog(mainClient, (b) => {
+                    b.title('🛠️ Comando de Developer', 2);
+                    b.text(
+                        `**Comando:** \`/${commandName}\` (modal)\n` +
+                        `**Usuário:** ${interaction.user.tag} \`${interaction.user.id}\``
+                    );
+                    b.footer('Bot de Developer');
+                });
+            } catch (error) {
+                console.error(`❌ [DevBot] Erro ao processar modal de /${commandName}:`, error);
+                await ResponseManager.error(interaction, 'Ocorreu um erro ao executar este comando.').catch(() => {});
+            }
+            return;
+        }
+
         if (!interaction.isChatInputCommand()) return;
 
         const command = devClient.commands.get(interaction.commandName);
@@ -80,6 +107,16 @@ function startDevBot(mainClient) {
         }
 
         try {
+            if (command.opensModal) {
+                // showModal() só é aceito como resposta ORIGINAL da
+                // interação — sem deferReply antes (ver broadcast.js). O
+                // log de auditoria fica pro handleModalSubmit acima: abrir
+                // o modal ainda não é "a ação" de verdade, é só a tela de
+                // preenchimento.
+                await command.execute(interaction, mainClient);
+                return;
+            }
+
             // Sempre ephemeral — não existe versão "pública" de comando de
             // developer (mesmo padrão já usado pra estes 4 comandos no bot
             // principal antes desta separação).

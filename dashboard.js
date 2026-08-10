@@ -881,7 +881,16 @@ function loadDashboard(client) {
         const generalNews = await GeneralNewsSystem.getGeneralNews();
         const partnerNews = await getPartnerNews(client);
 
-        res.render('hero', { isBrazil, isOwner, regionOverride, generalNews, partnerNews });
+        // Números da home (pedido do dono, 2026-08-10: "Adicionar numero de
+        // players registrados e servidores que usam o bot na pagina
+        // inicial") — jogadores = player_links inteira (1 linha por
+        // vínculo /registrar, é GLOBAL, não por servidor); servidores =
+        // client.guilds.cache.size (contagem ao vivo, não precisa de
+        // query — o bot já sabe em quantos servidores está).
+        const registeredPlayersCount = db.prepare('SELECT COUNT(*) c FROM player_links').get().c;
+        const serversCount = client.guilds.cache.size;
+
+        res.render('hero', { isBrazil, isOwner, regionOverride, generalNews, partnerNews, registeredPlayersCount, serversCount });
     });
 
     // Termos de Serviço e Política de Privacidade — parseados direto de
@@ -1081,7 +1090,7 @@ function loadDashboard(client) {
     function getPlayedGuilds(alderonId, client) {
         if (!alderonId) return [];
         const rows = db.prepare(
-            `SELECT guild_id, last_seen, total_playtime FROM pot_players WHERE alderon_id = ? ORDER BY last_seen DESC`
+            `SELECT guild_id, last_seen, total_playtime, is_online, session_started_at FROM pot_players WHERE alderon_id = ? ORDER BY last_seen DESC`
         ).all(alderonId);
         return rows.map((row) => {
             const cachedGuild = client.guilds.cache.get(row.guild_id);
@@ -1089,7 +1098,24 @@ function loadDashboard(client) {
             const name = cachedGuild?.name || dbGuild?.name || 'Servidor desconhecido';
             const iconHash = cachedGuild?.icon || dbGuild?.icon || null;
             const iconUrl = iconHash ? `https://cdn.discordapp.com/icons/${row.guild_id}/${iconHash}.png` : null;
-            return { guildId: row.guild_id, name, iconUrl, lastSeen: row.last_seen, totalPlaytime: row.total_playtime };
+            // Tempo de jogo POR SERVIDOR (pedido do dono, 2026-08-10:
+            // "Adicione horas jogadas naquele servidor nas informações de
+            // perfil" — dado já existia calculado, só ficava escondido
+            // atrás de "Em breve" nos 2 lugares, ver comentário histórico
+            // mais abaixo neste arquivo/em playerRegistrationSystem.js).
+            // Soma o tempo AO VIVO da sessão atual quando online agora,
+            // igual getGuildPlayerStats (Discord /perfil) — mesmo número
+            // nos dois lugares em vez de ficar "parado" aqui enquanto
+            // jogando.
+            const liveSeconds = (row.is_online && row.session_started_at)
+                ? Math.max(0, Math.floor((Date.now() - row.session_started_at) / 1000))
+                : 0;
+            const totalPlaytime = (row.total_playtime || 0) + liveSeconds;
+            return {
+                guildId: row.guild_id, name, iconUrl, lastSeen: row.last_seen,
+                totalPlaytime,
+                playtimeLabel: totalPlaytime > 0 ? StaffPresenceSystem.formatDuration(totalPlaytime * 1000) : null,
+            };
         });
     }
 
@@ -1303,6 +1329,13 @@ function loadDashboard(client) {
 
         const otherGuilds = await getAdminGuildsWithBot(req);
 
+        // Tempo de jogo TOTAL (soma de todo servidor já jogado) — pedido do
+        // dono, 2026-08-10, ver comentário completo em perfil.ejs perto do
+        // card "Tempo de Jogo". Cada pg.totalPlaytime já vem com o tempo AO
+        // VIVO somado quando online agora (ver getPlayedGuilds acima).
+        const totalPlaytimeSeconds = playedGuilds.reduce((sum, pg) => sum + (pg.totalPlaytime || 0), 0);
+        const totalPlaytimeLabel = totalPlaytimeSeconds > 0 ? StaffPresenceSystem.formatDuration(totalPlaytimeSeconds * 1000) : null;
+
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
             role: 'Membro',
@@ -1320,6 +1353,7 @@ function loadDashboard(client) {
             huntBalance,
             staffRoles,
             playedGuilds,
+            totalPlaytimeLabel,
             badgeOptions,
             avatarOptions,
             backgroundOptions,

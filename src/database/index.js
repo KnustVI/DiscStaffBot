@@ -197,6 +197,18 @@ class DatabaseManager {
             // PREMIUM.txt seção 122). Global por jogador, igual toda a
             // economia do bot (Player Premium).
             this.ensureColumn('player_links', 'bones_balance', 'INTEGER NOT NULL DEFAULT 0');
+            // Limite diário do conversor Marks->Ossos (pedido do dono,
+            // 2026-08-10: "possivel converter apenas 100000 marks por
+            // dia") — soma quantos Marks o jogador já converteu HOJE
+            // (marks_converted_date, formato YYYY-MM-DD) contra o teto de
+            // CurrencySystem.DAILY_MARKS_TO_BONES_LIMIT; zera sozinho
+            // quando a data guardada não é mais hoje (ver
+            // potPlayerRegistry.js getMarksConvertedToday/
+            // addMarksConvertedToday). Só essa direção — Ossos->Marks
+            // continua sem limite (o bot controla o próprio saldo de
+            // Ossos, ver docblock no topo de currencySystem.js).
+            this.ensureColumn('player_links', 'marks_converted_today', 'INTEGER NOT NULL DEFAULT 0');
+            this.ensureColumn('player_links', 'marks_converted_date', 'TEXT');
             // Saldo de Caçadas (Hunt, moeda da Loja de Personalização) e XP
             // (sistema de nível) — pedido do dono, 2026-08-07: "Libere o
             // farm dos itens por hora jogada agora". As duas são creditadas
@@ -493,10 +505,19 @@ class DatabaseManager {
         const uuid = this.generateUUID();
 
         try {
+            // guild_id é NOT NULL no schema, mas várias chamadas legítimas
+            // não têm guild nenhuma (comandos de developer inerentemente
+            // globais — /broadcast, /perfil-pool — passam null de
+            // propósito, ver docblock deles). Sem esse fallback, TODA
+            // dessas chamadas falhava em silêncio (catch abaixo engolia o
+            // SqliteError de NOT NULL constraint) e nunca gravava nada —
+            // bug real encontrado 2026-08-10 testando o /broadcast
+            // reformulado. 'global' deixa essas linhas filtráveis/
+            // reconhecíveis em vez de inventar um guild_id falso.
             this.prepare(`
                 INSERT INTO activity_logs (uuid, guild_id, user_id, action, target_id, details, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).run(uuid, guildId, userId, action, targetId, details ? JSON.stringify(details) : null, Date.now());
+            `).run(uuid, guildId || 'global', userId, action, targetId, details ? JSON.stringify(details) : null, Date.now());
         } catch (err) {
             console.error('❌ Erro ao registrar atividade:', err.message);
         }

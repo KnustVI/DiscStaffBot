@@ -146,6 +146,17 @@
         .perfil-guild-chip:hover { border-color: #DCA15E; }
         .perfil-guild-chip img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
         .perfil-guild-chip span { font-family: 'Poppins', sans-serif; font-size: 13px; color: #F8DCC0; }
+        /* Chip de "servidores que você já jogou" ganhou uma 2ª linha (tempo
+           de jogo, pedido do dono 2026-08-10) — só essa lista usa a coluna
+           de texto; o chip de "servidores que administra" continua com
+           span solto (sem quebrar layout ali, .perfil-guild-chip span
+           acima segue valendo pros dois). */
+        .perfil-guild-chip-text { display: flex; flex-direction: column; gap: 1px; }
+        /* .perfil-guild-chip-text .perfil-guild-chip-playtime (2 classes)
+           de propósito, não só .perfil-guild-chip-playtime sozinho — precisa
+           bater a especificidade de ".perfil-guild-chip span" (1 classe + 1
+           elemento) acima sem depender de !important nem de ordem no CSS. */
+        .perfil-guild-chip-text .perfil-guild-chip-playtime { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #A89986; }
         .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
         .perfil-stars .is-filled { color: #DCA15E; }
         .perfil-stat-line { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.7; }
@@ -169,6 +180,11 @@
         .perfil-soon-card i { width: 32px; height: 32px; color: #803E30; }
         .perfil-soon-title { font-family: 'Tilt Warp', cursive; font-size: 16px; color: #F8DCC0; }
         .perfil-soon-text { font-family: 'Poppins', sans-serif; font-size: 12px; opacity: 0.5; max-width: 320px; }
+        /* Dado real (não placeholder "em breve") — mais destaque que o
+           texto padrão do card. .perfil-soon-text.perfil-playtime-total
+           (2 classes) de propósito, pra bater a especificidade do
+           .perfil-soon-text sozinho sem !important. */
+        .perfil-soon-text.perfil-playtime-total { font-size: 20px; font-weight: 600; opacity: 1; color: #DCA15E; }
 
         /* Abas Perfil/Personalização (pedido do dono, 2026-08-05) — só
            existem quando a conta está vinculada (sem link não tem stats
@@ -375,7 +391,12 @@
                                         <% } else { %>
                                             <img src="/images/guild-fallback-1.svg" alt="">
                                         <% } %>
-                                        <span><%= pg.name %></span>
+                                        <div class="perfil-guild-chip-text">
+                                            <span><%= pg.name %></span>
+                                            <% if (pg.playtimeLabel) { %>
+                                                <span class="perfil-guild-chip-playtime"><i data-lucide="clock" class="w-3 h-3"></i> <%= pg.playtimeLabel %></span>
+                                            <% } %>
+                                        </div>
                                     </div>
                                 <% }); %>
                             </div>
@@ -543,18 +564,14 @@
             picker com um segundo componente parcialmente funcional.
 
             Tempo de Jogo (pedido do dono, 2026-08-06: "prepare... mas
-            não comece a contar ainda") — reserva o espaço no perfil
-            igual aos outros 3, de propósito SEM mostrar nenhum número
-            ainda. O dado em si (por servidor) já existe e já é
-            calculado de verdade a partir de PlayerLogin/PlayerLogout
-            (pot_players.total_playtime, incrementado a cada logout com
-            sessão — ver potPlayerRegistry.js upsertPlayerFromEvent) e
-            já chega aqui pronto em playedGuilds[].totalPlaytime (ver
-            dashboard.js getPlayedGuilds) — só não é usado neste card de
-            propósito. Quando o dono pedir pra "ligar", é só trocar o
-            texto abaixo por algo como playedGuilds.reduce((sum, pg) =>
-            sum + (pg.totalPlaytime || 0), 0), formatado com o mesmo
-            formatPlaytime já usado no /perfil do Discord.
+            não comece a contar ainda"; LIGADO em 2026-08-10: "Adicione
+            horas jogadas... nas informações de perfil") — antes reservava
+            o espaço igual aos outros 3, sem mostrar número nenhum. Cada
+            chip de "Servidores que você já jogou" acima já mostra o tempo
+            POR SERVIDOR (pg.playtimeLabel); este card mostra a SOMA de
+            todos, exatamente como planejado (dashboard.js getPlayedGuilds
+            calcula pg.totalPlaytime, já com o tempo AO VIVO da sessão
+            atual somado se estiver jogando agora nalgum servidor).
         %>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[20px] lg:gap-[30px]">
             <section class="titan-card-premium perfil-soon-card">
@@ -575,7 +592,12 @@
             <section class="titan-card-premium perfil-soon-card">
                 <i data-lucide="clock"></i>
                 <span class="perfil-soon-title"><span data-i18n-pt>Tempo de Jogo</span><span data-i18n-en>Playtime</span></span>
-                <span class="perfil-soon-text"><span data-i18n-pt>Tempo jogado por servidor — em breve.</span><span data-i18n-en>Time played per server — coming soon.</span></span>
+                <% if (totalPlaytimeLabel) { %>
+                    <span class="perfil-soon-text perfil-playtime-total"><%= totalPlaytimeLabel %></span>
+                    <span class="perfil-soon-text"><span data-i18n-pt>Somado entre todos os servidores.</span><span data-i18n-en>Summed across every server.</span></span>
+                <% } else { %>
+                    <span class="perfil-soon-text"><span data-i18n-pt>Ainda sem tempo registrado — jogue em algum servidor com o bot.</span><span data-i18n-en>No playtime recorded yet — play on a server with the bot.</span></span>
+                <% } %>
             </section>
         </div>
 

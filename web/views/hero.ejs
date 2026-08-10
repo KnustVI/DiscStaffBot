@@ -424,6 +424,16 @@
            colada debaixo da nav e os cantos arredondados nunca apareciam. */
         .hero-section-padding { margin-top: calc(var(--nav-height, 130px) + 16px); padding: 40px 16px 80px; }
 
+        /* Números da home (pedido do dono, 2026-08-10) — mesma paleta
+           dourado/creme do resto do hero, número grande + rótulo pequeno
+           embaixo, separados por um traço vertical fino quando os 2
+           existem. */
+        .hero-stats-row { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; justify-content: center; }
+        .hero-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .hero-stat-value { font-family: 'Tilt Warp', cursive; font-size: clamp(24px, 3.4vw, 34px); color: #DCA15E; line-height: 1; }
+        .hero-stat-label { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: clamp(11px, 1.1vw, 13px); color: #F8DCC0; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.04em; }
+        .hero-stats-divider { width: 1px; height: 34px; background: #3E3D38; }
+
         /* Nav mais compacta em telas pequenas — menos padding/gap/fonte
            reduz quantas linhas ela quebra num celular. */
         @media (max-width: 640px) {
@@ -524,6 +534,27 @@
                 <span data-i18n-pt>Uma passagem dos titans da comunidade para a comunidade.</span>
                 <span data-i18n-en>A journey of the titans, made by the community, for the community.</span>
             </h1>
+            <%
+                // Números da home (pedido do dono, 2026-08-10: "Adicionar
+                // numero de players registrados e servidores que usam o bot
+                // na pagina inicial") — só mostra o par que tiver pelo menos
+                // 1 de cada, senão soa vazio/estranho num site novo.
+                const heroStats = [
+                    { value: registeredPlayersCount, labelPt: 'jogadores registrados', labelEn: 'registered players' },
+                    { value: serversCount, labelPt: 'servidores usando o bot', labelEn: 'servers using the bot' },
+                ].filter(s => s.value > 0);
+            %>
+            <% if (heroStats.length > 0) { %>
+                <div class="hero-stats-row">
+                    <% heroStats.forEach((stat, i) => { %>
+                        <% if (i > 0) { %><div class="hero-stats-divider"></div><% } %>
+                        <div class="hero-stat">
+                            <span class="hero-stat-value"><%= stat.value.toLocaleString('pt-BR') %></span>
+                            <span class="hero-stat-label"><span data-i18n-pt><%= stat.labelPt %></span><span data-i18n-en><%= stat.labelEn %></span></span>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
             <%- include('partials/testing-phase-banner-standalone') %>
         </div>
     </section>

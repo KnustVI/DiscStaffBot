@@ -817,6 +817,66 @@ function spendBones(discordId, amount) {
     }
 }
 
+// "Dia local" no formato YYYY-MM-DD — mesmo conceito/formato de
+// AnalyticsSystem.getLocalDate, copiado aqui em vez de importado pra não
+// criar dependência circular (analyticsSystem.js já importa este arquivo
+// em purgeStaffOnRoleLoss) — mesmo padrão de duplicação já usado pra
+// formatGrowth/formatPlaytime em outros arquivos deste projeto.
+function _todayLocalDate() {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Quantos Marks o jogador já converteu em Ossos HOJE (limite diário do
+ * conversor, ver CurrencySystem.DAILY_MARKS_TO_BONES_LIMIT/
+ * convertMarksToBones) — leitura pura, sem efeito colateral: se a data
+ * guardada não é mais hoje, o total EFETIVO já é 0 sem precisar escrever
+ * nada no banco agora (addMarksConvertedToday é quem grava o reset,
+ * na próxima conversão bem-sucedida).
+ * @param {string} discordId
+ * @returns {number}
+ */
+function getMarksConvertedToday(discordId) {
+    if (!discordId) return 0;
+    try {
+        const row = db.prepare(`SELECT marks_converted_today, marks_converted_date FROM player_links WHERE user_id = ?`).get(discordId);
+        if (!row) return 0;
+        return row.marks_converted_date === _todayLocalDate() ? (row.marks_converted_today || 0) : 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar Marks convertidos hoje:', error);
+        return 0;
+    }
+}
+
+/**
+ * Soma `amount` ao total de Marks convertidos HOJE — chamada só depois de
+ * uma conversão Marks->Ossos bem-sucedida de verdade (mesmo critério de
+ * addBones logo acima). Reseta sozinha pro novo dia: sempre GRAVA o total
+ * já recalculado por getMarksConvertedToday (que já zera se a data mudou)
+ * mais `amount`, nunca um `+ ?` cru no SQL, então não importa se a linha
+ * ainda tinha a data de ontem.
+ * @param {string} discordId
+ * @param {number} amount - inteiro positivo (quantidade de Marks desta conversão)
+ * @returns {boolean}
+ */
+function addMarksConvertedToday(discordId, amount) {
+    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+    try {
+        const newTotal = getMarksConvertedToday(discordId) + amount;
+        const result = db.prepare(`
+            UPDATE player_links SET marks_converted_today = ?, marks_converted_date = ?, updated_at = ? WHERE user_id = ?
+        `).run(newTotal, _todayLocalDate(), Math.floor(Date.now() / 1000), discordId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao registrar Marks convertidos hoje:', error);
+        return false;
+    }
+}
+
 /**
  * Saldo de Caçadas (Hunt, moeda da Loja de Personalização) — mesmo padrão
  * de getBonesBalance, ver docblock lá.
@@ -1140,6 +1200,9 @@ module.exports = {
     getBonesBalance,
     addBones,
     spendBones,
+    // Limite diário do conversor Marks->Ossos — ver currencySystem.js.
+    getMarksConvertedToday,
+    addMarksConvertedToday,
     // Saldo de Caçadas (Hunt) e XP — ganhos por hora de jogo, ver
     // _creditPlaytimeCurrency (chamada de dentro de upsertPlayerFromEvent)
     // e /loja.

@@ -552,8 +552,12 @@ class AnalyticsSystem {
                 .map((row) => row.user_id)
         );
 
+        // memberHasModOrEventRole (não memberHasAnyStaffRole) — pedido do
+        // dono, 2026-08-10: Supervisor não entra nas telas de análise de
+        // staff, só Moderador/Equipe de Eventos (ver docblock em
+        // configSystem.js).
         return guild.members.cache
-            .filter((member) => ConfigSystem.memberHasAnyStaffRole(guild.id, member) && !activeIds.has(member.id))
+            .filter((member) => ConfigSystem.memberHasModOrEventRole(guild.id, member) && !activeIds.has(member.id))
             .map((member) => member.id);
     }
 
@@ -599,7 +603,14 @@ class AnalyticsSystem {
             builder.separator();
             builder.title('Análise Staff (últimos 7 dias)', 2);
 
-            const rows = this._aggregateStaffTotals(guild.id, { sinceDate: sevenDaysAgoStr });
+            // Mesma exclusão de Supervisor-só do ranking/lista de inativos
+            // acima (memberHasModOrEventRole, não memberHasAnyStaffRole) —
+            // pedido do dono, 2026-08-10.
+            const rows = this._aggregateStaffTotals(guild.id, { sinceDate: sevenDaysAgoStr })
+                .filter((row) => {
+                    const member = guild.members.cache.get(row.user_id);
+                    return !member || ConfigSystem.memberHasModOrEventRole(guild.id, member);
+                });
 
             const topPunish = this._topStaffByMetric(rows, 'punishmentsApplied');
             builder.text([
@@ -662,7 +673,20 @@ class AnalyticsSystem {
     // Lista todos os staff com atividade registrada, soma de todo o
     // histórico — usado por /historico staff sem um usuário específico.
     static generateStaffHistoryRankingContainer(guild) {
-        const rows = this._sortByActivity(this.getAllStaffHistoryTotals(guild.id));
+        const ConfigSystem = require('../core/configSystem');
+        // Exclui quem só tem Supervisor (sem Moderador nem Equipe de
+        // Eventos) — pedido do dono, 2026-08-10: "Cargos de supervisão não
+        // devem aparecer na analise de staffs". Cache-only de propósito
+        // (mesmo risco aceito já documentado em várias checagens
+        // parecidas neste arquivo/dashboard.js): quem não estiver em
+        // cache (ex: saiu do servidor) continua aparecendo — sem cargo
+        // nenhum pra checar, não há base pra excluir especificamente por
+        // ser "só Supervisor".
+        const rows = this._sortByActivity(this.getAllStaffHistoryTotals(guild.id))
+            .filter((row) => {
+                const member = guild.members.cache.get(row.user_id);
+                return !member || ConfigSystem.memberHasModOrEventRole(guild.id, member);
+            });
 
         const builder = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         builder.title(`${EMOJIS.trophy || '🏆'} Histórico de Staff`, 1);

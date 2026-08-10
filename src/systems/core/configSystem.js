@@ -380,13 +380,36 @@ const ConfigSystem = {
     },
 
     /**
-     * True se o membro tem QUALQUER um dos 3 cargos que contam como staff
-     * pra fins de analytics (Moderador/Supervisor/Equipe de Eventos — ver
-     * STAFF_ROLE_KEYS). Usado pela checagem de horas de espectador e pelo
-     * gatilho de purge em guildMemberUpdate.js.
+     * True se o membro tem QUALQUER um dos 3 cargos "de staff" pro CICLO DE
+     * VIDA do dado (Moderador/Supervisor/Equipe de Eventos — ver
+     * STAFF_ROLE_KEYS): grava horas de espectador, e dispara o purge em
+     * guildMemberUpdate.js quando o membro fica sem NENHUM deles (perder só
+     * o Supervisor e continuar Moderador não apaga nada, por exemplo).
+     * NÃO é mais usada pra decidir quem APARECE nas telas de análise/ranking
+     * de staff — isso agora é memberHasModOrEventRole abaixo (pedido do
+     * dono, 2026-08-10: "Cargos de supervisão não devem aparecer na
+     * analise de staffs, as analises são voltadas apenas para moderação e
+     * para eventos").
      */
     memberHasAnyStaffRole(guildId, member) {
         return STAFF_ROLE_KEYS.some(key => this.memberHasConfiguredRole(guildId, member, key));
+    },
+
+    /**
+     * True se o membro tem o cargo Moderador OU Equipe de Eventos
+     * configurado — de propósito SEM Supervisor (diferente de
+     * memberHasAnyStaffRole acima e de memberHasModOrSupervisorRole
+     * abaixo). Usada só nas telas de ANÁLISE/histórico de staff
+     * (analyticsSystem.js: ranking em /historico staff e lista de staff
+     * inativo no relatório diário) — pedido do dono, 2026-08-10: quem só
+     * tem Supervisor (sem Moderador nem Equipe de Eventos) não deve
+     * aparecer nelas, já que essas análises são voltadas só pra moderação
+     * e eventos. Não afeta se o dado É GRAVADO (isso continua em
+     * memberHasAnyStaffRole) — só o que aparece na listagem.
+     */
+    memberHasModOrEventRole(guildId, member) {
+        return this.memberHasConfiguredRole(guildId, member, 'staff_role') ||
+            this.memberHasConfiguredRole(guildId, member, 'event_role');
     },
 
     /**
@@ -1409,7 +1432,13 @@ const ConfigSystem = {
                     const select = new ChannelSelectMenuBuilder()
                         .setCustomId(field.customId)
                         .setPlaceholder(`Selecionar canal: ${field.label}`)
-                        .addChannelTypes(ChannelType.GuildText)
+                        // GuildAnnouncement (canais de anúncios "seguíveis"
+                        // por outros servidores), não só GuildText — pedido
+                        // do dono, 2026-08-10: "não pode ser configurado em
+                        // um tipo de canal de anúncios do Discord". Bug
+                        // real: o select nem MOSTRAVA canais de anúncios
+                        // como opção, então não tinha como escolher um.
+                        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
                         .setMinValues(0)
                         .setMaxValues(1);
                     if (currentChannelId) select.setDefaultChannels(currentChannelId);

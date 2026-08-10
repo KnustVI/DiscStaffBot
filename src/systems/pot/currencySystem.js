@@ -39,11 +39,21 @@
  * jogando, nunca comprado, então o pior caso aqui é um jogador tentando
  * "roubar" Ossos do bot com um valor de Marks que não tem, não uma
  * brecha de conformidade com a Alderon).
+ *
+ * Teto diário (pedido do dono, 2026-08-10) só na direção Marks→Ossos —
+ * DAILY_MARKS_TO_BONES_LIMIT, ver convertMarksToBones e
+ * potPlayerRegistry.js getMarksConvertedToday/addMarksConvertedToday.
  */
 const PlayerRegistry = require('./potPlayerRegistry');
 const PremiumSystem = require('../premium/premiumSystem');
 
 const MARKS_PER_BONE = 100;
+
+// Teto diário SÓ pra Marks->Ossos (pedido do dono, 2026-08-10: "possivel
+// converter apenas 100000 marks por dia") — Ossos->Marks continua sem
+// limite, é a direção "segura" (ver docblock acima). Reseta sozinho a
+// cada dia novo, ver potPlayerRegistry.js getMarksConvertedToday.
+const DAILY_MARKS_TO_BONES_LIMIT = 100000;
 
 /**
  * Ambas as direções exigem: (1) jogador vinculado (/registrar — sem
@@ -142,6 +152,19 @@ async function convertMarksToBones(client, discordId, guildId, marksAmount) {
     const target = _resolveTarget(discordId, guildId);
     if (target.error) return { ok: false, error: target.error };
 
+    // Teto diário — checado ANTES do RCON (pedido do dono: nada de
+    // remover Marks no jogo pra depois recusar creditar Ossos).
+    const convertedToday = PlayerRegistry.getMarksConvertedToday(discordId);
+    if (convertedToday + marksAmount > DAILY_MARKS_TO_BONES_LIMIT) {
+        const remaining = Math.max(0, DAILY_MARKS_TO_BONES_LIMIT - convertedToday);
+        return {
+            ok: false,
+            error: remaining > 0
+                ? `Limite diário do conversor: ${DAILY_MARKS_TO_BONES_LIMIT.toLocaleString('pt-BR')} Marks. Você já converteu ${convertedToday.toLocaleString('pt-BR')} hoje — ainda pode converter até ${remaining.toLocaleString('pt-BR')} Marks. Tente de novo amanhã pra converter mais.`
+                : `Você já atingiu o limite diário do conversor (${DAILY_MARKS_TO_BONES_LIMIT.toLocaleString('pt-BR')} Marks). Tente de novo amanhã.`,
+        };
+    }
+
     const rconResult = await _executeRcon(client, guildId, `removemarks ${target.alderonId} ${marksAmount}`, { actor: `<@${discordId}>`, source: 'Loja de Jogo (Marks→Ossos)' });
     if (!rconResult.success) {
         return { ok: false, error: `Não foi possível remover os Marks no jogo (${rconResult.error || 'erro desconhecido'}).` };
@@ -149,7 +172,8 @@ async function convertMarksToBones(client, discordId, guildId, marksAmount) {
 
     const bonesAmount = marksAmount / MARKS_PER_BONE;
     PlayerRegistry.addBones(discordId, bonesAmount);
+    PlayerRegistry.addMarksConvertedToday(discordId, marksAmount);
     return { ok: true, bonesCredited: bonesAmount, rconResponse: rconResult.response || '' };
 }
 
-module.exports = { MARKS_PER_BONE, convertBonesToMarks, convertMarksToBones };
+module.exports = { MARKS_PER_BONE, DAILY_MARKS_TO_BONES_LIMIT, convertBonesToMarks, convertMarksToBones };

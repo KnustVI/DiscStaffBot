@@ -430,9 +430,10 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   no /divulgar, o card no feed da home mostra sozinho o PRÓXIMO evento
   agendado do servidor (o mais próximo no tempo), sem precisar configurar
   nada a mais.
-- Cargos de equipe: até 10 cargos em QUALQUER categoria (Moderador/
-  Supervisor/Equipe de Eventos/Notificação de Eventos) - dobro do
-  Rastreador (era 5, aumentado pra 10 - ver seção 115).
+- Cargos de equipe: até 5 cargos em QUALQUER categoria (Moderador/
+  Supervisor/Equipe de Eventos/Notificação de Eventos) - mais que o
+  Rastreador (3). Teto reduzido de 10 pra 5 em 2026-08-10 (era 5 antes
+  da seção 115, foi pra 10, voltou pra 5 - ver seção 151).
 - Integracao Path of Titans: catalogo COMPLETO de comandos RCON de admin do
   PoT via Discord (JA IMPLEMENTADO - ver secao 61, renomeados de /rcon-*
   pra /ingame-* na secao 66) - 7 comandos por categoria (/ingame-stats,
@@ -7686,3 +7687,198 @@ frente, nao so este relatorio):
   `settings`, confirmando que o customId novo
   (`config-logs:report-feedback`) resolve pra `log_report_feedback` e
   que a leitura (o caminho que `rateReport` realmente usa) bate.
+
+------------------------------------------------------------------
+151) Canal de Anúncios de Eventos (/config roles) agora aceita canal
+     de Anúncios do Discord, não só canal de texto comum
+------------------------------------------------------------------
+- Reportado pelo dono (2026-08-10): "o canal de anúncios... parece que
+  ele não pode ser configurado em um tipo de canal de anúncios do
+  discord". Causa raiz: o `ChannelSelectMenu` do campo (configSystem.js
+  `type: 'channel'`) só permitia `ChannelType.GuildText` —
+  `ChannelType.GuildAnnouncement` nunca aparecia como opção pra
+  escolher, então servidores que já tinham um canal de anúncios
+  "seguível" configurado como tal não conseguiam usá-lo aqui.
+- FIX: `addChannelTypes` passa a aceitar os 2 tipos. Canal de Anúncios
+  do Discord é totalmente compatível com `channel.send()` (mesma API
+  de qualquer canal de texto), então nenhuma outra mudança foi
+  necessária.
+- Teto de cargos de equipe (Ca(çador) reduzido de 10 pra 5 (pedido do
+  dono, 2026-08-10: "Alterar limites de configuração de cargos para
+  até 5 cargos por equipe") — Free (1) e Rastreador (3) sem mudança,
+  `PremiumSystem.GUILD_LIMITS.cacador.roleLimits`. Ver seções 1-2
+  atualizadas.
+
+------------------------------------------------------------------
+152) /perfil ganha 2 botões de atalho: Pool de Imagens (só o
+     desenvolvedor) e Dashboard (só quem administra algum servidor)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicionar botão de pool de imagens no
+  perfil para visualização do desenvolvedor" + "Adicionar botão
+  dashboard em perfil apenas para usuários que administram um
+  server".
+- FIX: `playerRegistrationSystem.sendProfile` ganha uma linha de
+  botões Link no fim do painel, calculada sempre a partir de QUEM RODOU
+  o comando (`interaction.user`), nunca de `targetUser` — `/perfil`
+  aceita ver o perfil de outra pessoa, e um botão Link leva quem CLICAR
+  pra própria conta, então mostrar o botão errado pra quem está vendo o
+  card de outra pessoa não faria sentido. Pool de Imagens só aparece
+  pro DEVELOPER_ID; Dashboard aparece pra quem tem Administrator OU
+  algum dos 3 cargos de staff configurados (`/config roles`) em
+  QUALQUER servidor que o bot atende (cache-only, mesmo risco aceito já
+  documentado em dashboard.js getStaffRoles).
+- Verificado: `node --check`, nenhum caminho de execução novo depende
+  de dado externo não coberto pelos testes já existentes desta sessão.
+
+------------------------------------------------------------------
+153) Cargos de Supervisor somem das telas de análise/histórico de
+     staff — ficam só Moderador e Equipe de Eventos
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Cargos de supervisão não devem
+  aparecer na analise de staffs, as analises são voltadas apenas para
+  moderação e para eventos."
+- Causa: `analyticsSystem.js` usava `ConfigSystem.memberHasAnyStaffRole`
+  (Moderador OU Supervisor OU Equipe de Eventos) em toda tela de
+  análise — ranking do `/historico staff`, lista de staff inativo e
+  "Análise Staff" do relatório diário —, então um membro só-Supervisor
+  aparecia nelas.
+- FIX: nova `ConfigSystem.memberHasModOrEventRole` (Moderador OU Equipe
+  de Eventos, SEM Supervisor) — usada nos 3 lugares acima. Não muda o
+  que É GRAVADO (`memberHasAnyStaffRole` continua sendo a fonte de
+  verdade pra saber se algo deve ser rastreado/purgado ao perder cargo,
+  ver docblock atualizado dela em configSystem.js) — só o que aparece
+  nas listagens. Quem tem Moderador OU Eventos E TAMBÉM Supervisor
+  continua aparecendo normalmente (a exclusão é só pra quem tem
+  SÓ Supervisor).
+- Verificado: reprodução real (não mock) com 3 membros fake (só
+  Supervisor / Moderador+Supervisor / só Eventos) contra
+  `staff_analytics` de verdade — confirmado que o ranking
+  (`generateStaffHistoryRankingContainer`) inclui os 2 primeiros
+  corretamente e exclui só o Supervisor puro.
+
+------------------------------------------------------------------
+154) Tempo de jogo por servidor LIGADO no /perfil (Discord e web) —
+     card "Em breve" reservado desde a seção 26 finalmente mostra o
+     número de verdade
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicione horas jogadas naquele
+  servidor nas informações de perfil." O dado (pot_players.
+  total_playtime, incrementado a cada logout com sessão) já existia e
+  já era calculado certo desde muito antes — só ficava atrás de "Em
+  breve" nos 2 lados, esperando esse pedido (ver comentários históricos
+  removidos em playerRegistrationSystem.js/perfil.ejs).
+- FIX Discord (`/perfil`): nova linha "Tempo de jogo neste servidor"
+  (formatPlaytime, já existia pronta) nos 3 estados do card (jogando
+  com dino ativo / na seleção / offline) — antes só aparecia (como "Em
+  breve") no primeiro estado.
+- FIX web (`/perfil`): cada chip de "Servidores que você já jogou"
+  ganha uma 2ª linha com o tempo NAQUELE servidor
+  (`getPlayedGuilds`, novo campo `playtimeLabel`); o card "Tempo de
+  Jogo" da vitrine "em breve" vira a SOMA de todos os servidores
+  (exatamente o que o comentário histórico já previa fazer). Os 2
+  somam o tempo AO VIVO da sessão atual quando o jogador está online
+  agora (mesmo cálculo de `getGuildPlayerStats`, usado pelo lado
+  Discord), pra não ficarem "parados" enquanto jogando.
+- Verificado: `ejs.renderFile` de perfil.ejs com mocks, `node --check`
+  em ambos os arquivos tocados.
+
+------------------------------------------------------------------
+155) Home mostra número de jogadores registrados e servidores usando
+     o bot
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicionar numero de players
+  registrados e servidores que usam o bot na pagina inicial."
+- FIX: `GET /` calcula `registeredPlayersCount` (COUNT de
+  player_links, global) e `serversCount` (client.guilds.cache.size, ao
+  vivo) e passa pra hero.ejs, que mostra os 2 como uma fileira de
+  números grandes logo abaixo do H1 principal — só aparece o que tiver
+  pelo menos 1 (evita soar vazio antes do bot ter alguma base real).
+- Verificado: `ejs.renderFile` com mocks nos 3 cenários (os 2 números,
+  só 1 dos 2, os 2 zerados/sem fileira nenhuma).
+
+------------------------------------------------------------------
+156) /broadcast reformulado: título/mensagem por MODAL, thumbnail
+     separado da imagem, resposta deixa de ser ephemeral — e bug real
+     encontrado no processo: logActivity(null, ...) sempre falhava
+     em silêncio pra todo comando global (guild_id é NOT NULL)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Comando dev broadcast... quero que
+  tenha preenchimento de mensagem por modal, e opção para adicionar
+  thumbnail alem da imagem. Comando broadcast não precisa ter resposta
+  de interação privada (ephemera)."
+- FIX (modal): `/broadcast` agora só tem 2 opções de anexo (imagem,
+  thumbnail — modal não aceita upload de arquivo, restrição da API do
+  Discord); título/mensagem/confirmação viraram campos de um
+  `ModalBuilder` aberto na hora. Isso exigiu ensinar devBot.js a lidar
+  com modal (nunca fazia antes — "só slash command", ver docblock
+  antigo do arquivo): novo marcador `opensModal: true` no comando pula
+  o `deferReply({flags:64})` automático (Discord só aceita
+  `showModal()` como resposta ORIGINAL da interação, nunca depois de
+  um defer) e um novo branch `interaction.isModalSubmit()` roteia pro
+  `handleModalSubmit` exportado pelo comando, resolvido a partir do
+  customId (`broadcast:submit`, mesma convenção `system:action` do
+  resto do bot). Imagem/thumbnail ficam parados no SessionManager entre
+  a abertura do modal e o envio (modal submit é uma interação NOVA,
+  sem acesso a `interaction.options` do comando original).
+- FIX (thumbnail): `buildAnnouncementPayload` ganha um 2º parâmetro —
+  com thumbnail, o texto vira uma `section()` com a imagem pequena ao
+  lado; sem thumbnail, continua texto solto como antes. Imagem grande
+  continua em `gallery()`, depois do texto, nos 2 casos.
+- FIX (não-ephemeral): resposta do broadcast (handleModalSubmit) chama
+  `deferReply()` sem `flags`, em vez de herdar o `flags:64` que
+  devBot.js força pra todo OUTRO comando de developer.
+- BUG REAL encontrado testando o fluxo acima (não introduzido por essa
+  mudança — já existia): `activity_logs.guild_id` é `NOT NULL` no
+  schema, mas `/broadcast` (e outros comandos "inerentemente globais",
+  ver docblock dele — `/perfil-pool` no mesmo caso) sempre chamava
+  `db.logActivity(null, ...)` de propósito, sem guild nenhuma. Toda
+  chamada dessas falhava com `SqliteError` engolido em silêncio pelo
+  try/catch de `logActivity` — a trilha de auditoria dessas ações
+  NUNCA foi gravada, desde que a tabela existe. FIX: `logActivity` usa
+  `guildId || 'global'` antes do INSERT — 1 linha, resolve pra
+  qualquer chamador com guildId nulo em todo o bot, não só broadcast.
+- Verificado: reprodução real (não mock) chamando `handleModalSubmit`
+  com um client/interação fake nas 4 combinações de imagem/thumbnail —
+  confirma que o payload nunca lança e que a entrega (canal ou DM) sai
+  certa — e confirmação visual de que o erro de `activity_logs` some
+  do log depois do fix.
+
+------------------------------------------------------------------
+157) Conversor Marks→Ossos ganha teto de 100.000 Marks por dia
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicionar limite de conversor de marks
+  para ossos, possivel converter apenas 100000 marks por dia." Só essa
+  direção — Ossos→Marks continua sem limite (é a direção "segura", o
+  bot controla o próprio saldo de Ossos, ver docblock no topo de
+  currencySystem.js).
+- FIX: 2 colunas novas em `player_links` (`marks_converted_today`,
+  `marks_converted_date`) + `PlayerRegistry.getMarksConvertedToday`/
+  `addMarksConvertedToday` (potPlayerRegistry.js) — leitura pura que já
+  considera resetado se a data guardada não é hoje, escrita que grava
+  o total já recalculado (nunca um `+` cru em cima de um valor
+  potencialmente de ontem). `convertMarksToBones` checa o teto ANTES
+  de disparar o RCON (nunca remove Marks no jogo só pra recusar
+  creditar Ossos depois) e só incrementa o contador em caso de sucesso
+  de verdade. Mensagem de erro informa quanto já foi convertido hoje e
+  quanto ainda cabe. Dashboard web (`/loja`) não precisou de nenhuma
+  mudança — já repassa `result.error` de qualquer falha pro banner de
+  erro genérico existente.
+- Verificado: reprodução real (não mock) — acúmulo dentro do mesmo
+  dia, reset automático simulando "ontem", rejeição de um pedido que
+  estouraria o teto SEM tocar no contador nem tentar RCON, pedido
+  exatamente na borda passando da checagem de limite (falha só no RCON
+  real indisponível, contador não incrementa em falha), e confirmação
+  de que a direção oposta (Ossos→Marks) nunca mexe nesse contador.
+
+------------------------------------------------------------------
+158) Verificado: /unstrike já pede só o NÚMERO do strike, não
+     "ID<número>" — nada pra corrigir
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Verifique comando unstrike se ele pede
+  na id o valor ID'numero' ou se ele pede só o 'numero' considerando
+  que alteramos o nome de identificação."
+- Conferido: a opção `id_strike` é `addIntegerOption` (Discord só
+  aceita dígitos nesse tipo, fisicamente impossível digitar
+  "ID5") e a descrição já diz "É o número mostrado em Strike #IDN" —
+  já correto desde o rename original (seção 141). Nenhuma mudança de
+  código necessária.

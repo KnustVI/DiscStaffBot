@@ -329,6 +329,8 @@ const SCHEMA = {
             selected_background_key TEXT,
             hide_kda INTEGER DEFAULT 0,
             bones_balance INTEGER NOT NULL DEFAULT 0,
+            marks_converted_today INTEGER NOT NULL DEFAULT 0,
+            marks_converted_date TEXT,
             hunt_balance INTEGER NOT NULL DEFAULT 0,
             xp INTEGER NOT NULL DEFAULT 0,
             playtime_credit_seconds INTEGER NOT NULL DEFAULT 0

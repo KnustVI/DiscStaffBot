@@ -80,7 +80,10 @@ const GUILD_LIMITS = {
         eventTier: 'full',
         maxPunishmentLevels: 10,
         damageReportEnabled: true,
-        roleLimits: { moderador: 10, supervisor: 10, event: 10, eventNotify: 10 },
+        // Teto reduzido de 10 pra 5 (pedido do dono, 2026-08-10: "Alterar
+        // limites de configuração de cargos para até 5 cargos por
+        // equipe") — Free (1) e Rastreador (3) continuam sem mudança.
+        roleLimits: { moderador: 5, supervisor: 5, event: 5, eventNotify: 5 },
         genericRconEnabled: true,
         customPunishmentApprovalEnabled: true,
     },
