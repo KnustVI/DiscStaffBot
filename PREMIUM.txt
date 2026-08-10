@@ -8180,3 +8180,100 @@ frente, nao so este relatorio):
   `data-locked` nem o overlay de nav travada, e que o `<% if (locked)
   %>` de portal.ejs não quebra o render mesmo sem a variável `locked`
   definida (guard `typeof` continua seguro).
+
+------------------------------------------------------------------
+167) Investigação de "recursos não funcionam" — 2 achados reais (Seus
+     Itens sumia com inventário vazio; Comprar exige item precificado)
+     + carrossel/overlay de anúncios reforçados
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10, testando o site ao vivo): itens de
+  inventário no perfil (site/Discord), botão de compra + lightbox nas
+  lojas, e overlay maior de anúncio na home pareciam não estar
+  funcionando — apesar de já estarem no código enviado nas seções
+  161/162/165.
+- Investigado item por item antes de reescrever qualquer coisa:
+  - "Seus Itens" (perfil web, seção 161): a seção inteira SUMIA quando
+    `ownedItems.length === 0` — pra quem nunca comprou nada na Loja
+    (caso mais provável num teste), parecia que o recurso não existia.
+    FIX: seção agora sempre aparece pra quem tem vínculo; vazio mostra
+    "Você ainda não comprou nenhum item" com link direto pra `/loja`
+    em vez de sumir.
+  - Botão "Comprar" (Loja, seção 162): só aparece quando o item tem
+    `shop_price` definido — sem NENHUM item precificado ainda em
+    Controle Loja, toda a Loja de Personalização mostra "Em breve" e
+    nenhum botão de compra existe pra testar. Não é bug — é dado
+    faltando (precifique pelo menos 1 item em Controle Loja pra ver o
+    botão de verdade).
+  - Saldo de moedas no /perfil do Discord (seção 161): só aparece com
+    vínculo (`/registrar`) — sem isso os 3 saldos sempre seriam 0,
+    informação sem sentido, gate intencional, não um bug.
+  - Overlay maior de anúncio (home, seção 165): revisado a fundo
+    (onclick/IDs únicos/ordem dos scripts/CSS `[hidden]`) sem achar
+    nenhum bug de verdade — estrutura bate exatamente com o pedido
+    original (clique no card abre, clique fora fecha).
+  - Conclusão prática: pelo menos os 2 primeiros achados (e
+    possivelmente os outros) têm mais cara de o site AO VIVO ainda não
+    ter recebido o deploy mais recente (git pull + restart do processo
+    na VPS) do que de bug de código — sinalizado ao dono pra conferir.
+- Mesmo sem achar bug funcional no overlay/carrossel, os dois foram
+  deixados mais VISUALMENTE óbvios a pedido do dono ("extremamente
+  pequeno... deixei mais visivel"):
+  - Carrossel compacto (`partials/partner-news-mini.ejs`, topo de
+    /perfil e /loja): card dobrou de largura (240px -> 280px), ganhou
+    miniatura de imagem de verdade (quando o anúncio tem uma, antes só
+    um ícone circular de 30px) e um cabeçalho próprio ("Novidades dos
+    Servidores Parceiros") pra não ficar solto/irreconhecível no meio
+    da página.
+  - Overlay maior (home): cartão cresceu de 480px pra 640px de
+    largura, título de 20px pra 26px, imagem com proporção mais
+    generosa.
+- Verificado: teste de render real (EJS) do perfil com inventário
+  vazio/preenchido, confirmando o novo estado vazio aparece só quando
+  esperado.
+
+------------------------------------------------------------------
+168) Histórico de Staff exposto no /perfil (Discord + site), staff-only,
+     com atividade de HOJE além da soma histórica
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Adicionar histórico de staff no perfil
+  de staffs apenas para vizualização de quem é parte da equipe do
+  servidor como staff, se perder o cargo apagar tudo e uma informação
+  a mais no histórico de staff sobre estatisticas diárias, no comando
+  do disscord e no site."
+- Atividade de HOJE — `staff_analytics` já gravava 1 linha POR DIA
+  (period='day', date=<dia>) desde sempre, só que `/historico staff`
+  e tudo mais só mostravam a SOMA de todo o histórico. Novo
+  `AnalyticsSystem.getStaffTodayStats(guildId, userId)` reaproveita o
+  filtro `date` que `_aggregateStaffTotals` já aceitava (usado pela
+  manutenção diária) — `/historico staff <usuário>` (Discord) ganhou
+  um bloco extra "Hoje (AAAA-MM-DD)" abaixo da soma histórica.
+- `/perfil` do Discord ganha um bloco "Histórico de Staff" com DOIS
+  gates separados, de propósito:
+  - QUEM APARECE (o alvo do /perfil): precisa ter Moderador OU Equipe
+    de Eventos (`ConfigSystem.memberHasModOrEventRole`) — Supervisor
+    puro fica de fora, mesma regra já usada em toda a análise de staff
+    desde a seção 153 ("análises são voltadas apenas pra moderação e
+    eventos").
+  - QUEM PODE VER (quem RODOU o /perfil): qualquer cargo de staff
+    (incluindo Supervisor) ou Administrador — mais largo de propósito,
+    Supervisor continua podendo acompanhar a equipe mesmo não entrando
+    na própria análise.
+- `/perfil` do site ganha a mesma informação, mas SEMPRE self-view
+  (a página web não tem como mostrar o perfil de outra pessoa) — 1
+  card por servidor onde o usuário logado é Moderador/Equipe de
+  Eventos, com soma histórica + atividade de hoje. Novo
+  `getStaffHistoryForProfile(userId, client)` em dashboard.js (mesmo
+  padrão de `getStaffRoles`, só filtrado por `memberHasModOrEventRole`
+  em vez do cargo genérico).
+- "Se perder o cargo apagar tudo" — JÁ EXISTIA desde antes
+  (`AnalyticsSystem.purgeStaffOnRoleLoss`, chamado por
+  `guildMemberUpdate.js` sempre que um membro fica sem NENHUM dos 3
+  cargos de staff) — confirmado ainda corretamente ligado, nenhuma
+  mudança necessária.
+- Verificado: teste real contra o banco (guild/usuário descartáveis) —
+  `getStaffTodayStats` retorna `null` sem nenhum registro no dia e os
+  números corretos depois de um registro simulado; `getStaffHistoryTotals`
+  bate com a mesma linha; o container do Discord inclui o bloco "Hoje"
+  no texto final. Teste de render real do perfil web cobrindo sem
+  histórico / com histórico e dado / com histórico sem nenhum registro
+  ainda — os 3 cenários renderizam certo.

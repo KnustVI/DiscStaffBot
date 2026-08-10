@@ -414,6 +414,16 @@ class AnalyticsSystem {
         return this._aggregateStaffTotals(guildId, {}).find(row => row.user_id === userId) || null;
     }
 
+    // Só o dia de HOJE (pedido do dono, 2026-08-10: "uma informação a mais
+    // no histórico de staff sobre estatisticas diárias") — mesma agregação
+    // de getStaffHistoryTotals, só filtrada por date=hoje em vez de somar
+    // tudo. _aggregateStaffTotals já aceita esse filtro (usado por outras
+    // partes do sistema de manutenção diária), só faltava expor um atalho
+    // aqui pro /historico staff e pro /perfil reaproveitarem.
+    static getStaffTodayStats(guildId, userId) {
+        return this._aggregateStaffTotals(guildId, { date: this.getLocalDate() }).find(row => row.user_id === userId) || null;
+    }
+
     // "3h 24min" / "45min" / "0min" — usado no tempo médio de resposta e no
     // total em modo espectador.
     static formatDuration(totalSeconds) {
@@ -671,10 +681,29 @@ class AnalyticsSystem {
             builder.text(`Nenhum registro de atividade encontrado para <@${userId}>.`);
         } else {
             builder.text(this._formatStaffBlock(row));
+
+            // Atividade de HOJE (pedido do dono, 2026-08-10) — bloco extra
+            // separado da soma histórica acima, mesmo critério "sem dado
+            // ainda hoje" tratado como zero em vez de escondido (staff que
+            // ainda não fez nada hoje continua vendo o resto do histórico
+            // normalmente).
+            const todayRow = this.getStaffTodayStats(guild.id, userId);
+            builder.separator();
+            builder.text([
+                `${EMOJIS.clockalert || '⏰'} **Hoje (${this.getLocalDate()}):**`,
+                todayRow ? this._formatStaffTodayLine(todayRow) : `${EMOJIS.messagesquare || 'ℹ️'} Nenhuma atividade registrada hoje ainda.`,
+            ].join('\n'));
         }
 
         builder.footer(guild, 'Soma de todo o histórico');
         return builder;
+    }
+
+    // Versão compacta (1 linha) de _formatStaffBlock, sem repetir a menção
+    // <@user> (já aparece no bloco de cima) — usada só pro bloco "Hoje".
+    static _formatStaffTodayLine(row) {
+        const avgResp = row.avgResponseSeconds !== null ? this.formatDuration(row.avgResponseSeconds) : 'sem dados';
+        return `${EMOJIS.gavel || '⚠️'} Punições: \`${row.punishmentsApplied}\` • ${EMOJIS.ticket || '🎫'} Reports entrados: \`${row.reportsJoined}\` fechados: \`${row.reportsClosed}\` • ${EMOJIS.messagesquare || '💬'} Mensagens: \`${row.reportMessages}\` (resp. média: \`${avgResp}\`) • ${EMOJIS.calendardays || '📅'} Eventos: \`${row.eventsCreated}\``;
     }
 
     // Lista todos os staff com atividade registrada, soma de todo o

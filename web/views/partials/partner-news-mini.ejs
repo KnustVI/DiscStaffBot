@@ -1,14 +1,22 @@
 <%#
   web/views/partials/partner-news-mini.ejs
-  Carrossel horizontal COMPACTO de anúncios de servidores parceiros, pro
-  topo de /perfil e /loja (pedido do dono, 2026-08-10: "Adicione um
-  pequeno carrosseu desses anúncios de servers na parfina de perfil e na
-  pagina de loja, no topo"). O feed completo (card grande + overlay de
-  detalhe) continua exclusivo da home — ver web/views/hero.ejs
-  .partner-news-grid/#partnerNewsOverlay — aqui é só uma prévia rápida,
-  sem overlay de detalhe: cada card já é um link direto pro evento (Bônus
+  Carrossel horizontal de anúncios de servidores parceiros, pro topo de
+  /perfil e /loja (pedido do dono, 2026-08-10: "Adicione um pequeno
+  carrosseu desses anúncios de servers na parfina de perfil e na pagina de
+  loja, no topo"). O feed completo (card grande + overlay de detalhe)
+  continua exclusivo da home — ver web/views/hero.ejs
+  .partner-news-grid/#partnerNewsOverlay — aqui é só uma prévia, sem
+  overlay de detalhe: cada card já é um link direto pro evento (Bônus
   Caçador, getPartnerNews) quando existe; sem evento, é só informativo
   (sem destino nenhum pra levar o clique).
+
+  Aumentado (pedido do dono, 2026-08-10, segunda rodada: "esta extremamente
+  pequeno como mostra na imagem, deixei mais visivel") — v1 (só ícone
+  circular 30px + 2 linhas de texto minúsculo) ficava quase invisível
+  contra o fundo escuro da página. v2: card mais alto com miniatura de
+  imagem de verdade (quando o anúncio tem uma), título/nome maiores, e um
+  cabeçalho próprio (ícone + rótulo) pra ancorar visualmente a seção em
+  vez de cair solta no meio da página.
 
   Uso: include('partials/partner-news-mini', { partnerNews })
     partnerNews — mesmo array de getPartnerNews (dashboard.js) usado pela
@@ -16,63 +24,109 @@
     latestEvent }]. Nada renderiza se vier vazio.
 %>
 <% if (partnerNews && partnerNews.length > 0) { %>
-<div class="partner-news-mini-strip">
-    <% partnerNews.forEach(pn => { %>
-        <% if (pn.latestEvent) { %>
-            <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-mini-card">
-                <% if (pn.iconUrl) { %>
-                    <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
-                <% } else { %>
-                    <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
-                <% } %>
-                <div class="partner-news-mini-body">
-                    <span class="partner-news-mini-guild"><%= pn.guildName %></span>
-                    <span class="partner-news-mini-title"><%= pn.title %></span>
+<div class="partner-news-mini-section">
+    <div class="partner-news-mini-heading">
+        <i data-lucide="megaphone" class="partner-news-mini-heading-icon"></i>
+        <span><span data-i18n-pt>Novidades dos Servidores Parceiros</span><span data-i18n-en>Partner Server Updates</span></span>
+    </div>
+    <div class="partner-news-mini-strip">
+        <% partnerNews.forEach(pn => { %>
+            <% if (pn.latestEvent) { %>
+                <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-mini-card">
+                    <% if (pn.imageUrl) { %>
+                        <div class="partner-news-mini-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
+                    <% } %>
+                    <div class="partner-news-mini-row">
+                        <% if (pn.iconUrl) { %>
+                            <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
+                        <% } else { %>
+                            <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
+                        <% } %>
+                        <div class="partner-news-mini-body">
+                            <span class="partner-news-mini-guild"><%= pn.guildName %></span>
+                            <span class="partner-news-mini-title"><%= pn.title %></span>
+                        </div>
+                        <i data-lucide="external-link" class="partner-news-mini-link-icon"></i>
+                    </div>
+                </a>
+            <% } else { %>
+                <div class="partner-news-mini-card">
+                    <% if (pn.imageUrl) { %>
+                        <div class="partner-news-mini-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
+                    <% } %>
+                    <div class="partner-news-mini-row">
+                        <% if (pn.iconUrl) { %>
+                            <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
+                        <% } else { %>
+                            <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
+                        <% } %>
+                        <div class="partner-news-mini-body">
+                            <span class="partner-news-mini-guild"><%= pn.guildName %></span>
+                            <span class="partner-news-mini-title"><%= pn.title %></span>
+                        </div>
+                    </div>
                 </div>
-                <i data-lucide="external-link" class="partner-news-mini-link-icon"></i>
-            </a>
-        <% } else { %>
-            <div class="partner-news-mini-card">
-                <% if (pn.iconUrl) { %>
-                    <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
-                <% } else { %>
-                    <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
-                <% } %>
-                <div class="partner-news-mini-body">
-                    <span class="partner-news-mini-guild"><%= pn.guildName %></span>
-                    <span class="partner-news-mini-title"><%= pn.title %></span>
-                </div>
-            </div>
-        <% } %>
-    <% }); %>
+            <% } %>
+        <% }); %>
+    </div>
 </div>
 <style>
+    .partner-news-mini-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+    .partner-news-mini-heading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 14px;
+        color: #F8DCC0;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .partner-news-mini-heading-icon { width: 18px; height: 18px; color: #DCA15E; flex: none; }
     .partner-news-mini-strip {
         display: flex;
         flex-wrap: nowrap;
-        gap: 10px;
+        gap: 14px;
         width: 100%;
         overflow-x: auto;
-        padding-bottom: 2px;
+        padding-bottom: 4px;
     }
     .partner-news-mini-card {
         box-sizing: border-box;
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
         flex: none;
-        width: 240px;
-        padding: 8px 10px;
+        width: 280px;
         background: #131314;
-        border: 1px solid rgba(217, 163, 98, 0.2);
-        border-radius: 10px;
+        border: 1px solid rgba(217, 163, 98, 0.35);
+        border-radius: 12px;
         text-decoration: none;
-        transition: border-color 0.15s ease;
+        overflow: hidden;
+        transition: border-color 0.15s ease, transform 0.15s ease;
     }
-    a.partner-news-mini-card:hover { border-color: rgba(217, 163, 98, 0.5); }
+    a.partner-news-mini-card:hover { border-color: #DCA15E; transform: translateY(-2px); }
+    .partner-news-mini-image {
+        width: 100%;
+        aspect-ratio: 280 / 110;
+        background-size: cover;
+        background-position: center;
+        flex: none;
+    }
+    .partner-news-mini-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+    }
     .partner-news-mini-icon {
-        width: 30px;
-        height: 30px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         object-fit: cover;
         flex: none;
@@ -84,19 +138,19 @@
         background: #4B2427;
         color: #DCA15E;
     }
-    .partner-news-mini-icon-fallback i { width: 14px; height: 14px; }
+    .partner-news-mini-icon-fallback i { width: 18px; height: 18px; }
     .partner-news-mini-body {
         display: flex;
         flex-direction: column;
-        gap: 1px;
+        gap: 2px;
         min-width: 0;
         flex: 1;
     }
     .partner-news-mini-guild {
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
-        font-size: 10px;
-        opacity: 0.55;
+        font-size: 11px;
+        opacity: 0.6;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
@@ -104,13 +158,13 @@
     }
     .partner-news-mini-title {
         font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 12px;
+        font-weight: 700;
+        font-size: 14px;
         color: #F8DCC0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .partner-news-mini-link-icon { width: 14px; height: 14px; color: #DCA15E; flex: none; }
+    .partner-news-mini-link-icon { width: 16px; height: 16px; color: #DCA15E; flex: none; }
 </style>
 <% } %>

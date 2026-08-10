@@ -342,6 +342,36 @@ function getStaffRoles(userId, client) {
     return roles;
 }
 
+// Histórico de Staff no /perfil web (pedido do dono, 2026-08-10: "Adicionar
+// histórico de staff no perfil de staffs... no comando do discord e no
+// site") — self-view sempre (web /perfil não tem como ver o de outra
+// pessoa), então não precisa do gate de "quem pode ver" que o Discord
+// precisa (lá dá pra ver o perfil de qualquer um). Servidores elegíveis são
+// os mesmos de getStaffRoles, MAS filtrados por memberHasModOrEventRole
+// (Moderador OU Equipe de Eventos) — Supervisor puro fica de fora, mesma
+// regra já usada em /historico staff (análises não cobrem Supervisor).
+// Dado já é apagado sozinho ao perder todos os cargos de staff
+// (AnalyticsSystem.purgeStaffOnRoleLoss) — nada a checar aqui além de ler.
+function getStaffHistoryForProfile(userId, client) {
+    const AnalyticsSystem = require('./src/systems/moderation/analyticsSystem');
+    const entries = [];
+    for (const guild of client.guilds.cache.values()) {
+        const member = guild.members.cache.get(userId);
+        if (!member || !ConfigSystem.memberHasModOrEventRole(guild.id, member)) continue;
+        const totals = AnalyticsSystem.getStaffHistoryTotals(guild.id, userId);
+        const today = AnalyticsSystem.getStaffTodayStats(guild.id, userId);
+        entries.push({
+            guildId: guild.id,
+            guildName: guild.name,
+            guildIconUrl: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null,
+            category: staffRoleCategoryLabel(guild.id, member),
+            totals,
+            today,
+        });
+    }
+    return entries;
+}
+
 // Pedido do dono: "reports pode virar uma lista enorme no futuro" — cada
 // seção (abertos/fechados) pagina em REPORTS_PAGE_SIZE (10) e aceita busca
 // por report_id (ex: "R123"/"123", bate por substring no '#R'||report_number
@@ -1284,6 +1314,9 @@ function loadDashboard(client) {
         // não depende de `link` (é sobre a conta Discord, não sobre o
         // vínculo PoT), ver getStaffRoles acima.
         const staffRoles = getStaffRoles(userId, client);
+        // Histórico de Staff (pedido do dono, 2026-08-10) — mesmo motivo de
+        // staffRoles acima (não depende de link), ver getStaffHistoryForProfile.
+        const staffHistory = getStaffHistoryForProfile(userId, client);
 
         let honorStars = null;
         let mostPlayedDinosaur = null;
@@ -1392,6 +1425,7 @@ function loadDashboard(client) {
             xpBalance,
             ownedItems,
             staffRoles,
+            staffHistory,
             playedGuilds,
             totalPlaytimeLabel,
             badgeOptions,

@@ -522,6 +522,41 @@ class PlayerRegistrationSystem {
             builder.text(extraLines.join('\n'));
         }
 
+        // ── Histórico de Staff (pedido do dono, 2026-08-10: "Adicionar
+        // histórico de staff no perfil de staffs apenas para vizualização
+        // de quem é parte da equipe do servidor como staff"). DOIS gates
+        // separados, de propósito:
+        //  - QUEM APARECE (targetMember): Moderador OU Equipe de Eventos —
+        //    Supervisor puro fica de fora (mesma regra já usada em
+        //    /historico staff e nos relatórios, ver
+        //    ConfigSystem.memberHasModOrEventRole — "análises são voltadas
+        //    apenas pra moderação e eventos").
+        //  - QUEM PODE VER (interaction.member, quem RODOU o comando):
+        //    qualquer cargo de staff (incluindo Supervisor) ou Admin — mais
+        //    largo de propósito, Supervisor continua podendo acompanhar a
+        //    equipe mesmo não entrando na própria análise.
+        // Dado já É apagado automaticamente ao perder TODOS os cargos de
+        // staff (AnalyticsSystem.purgeStaffOnRoleLoss, via
+        // guildMemberUpdate.js) — nada a fazer aqui além de ler.
+        const viewerMember = interaction.member;
+        const viewerIsStaff = viewerMember && (
+            ConfigSystem.memberHasAnyStaffRole(guild.id, viewerMember)
+            || viewerMember.permissions.has(PermissionFlagsBits.Administrator)
+        );
+        if (targetMember && viewerIsStaff && ConfigSystem.memberHasModOrEventRole(guild.id, targetMember)) {
+            const AnalyticsSystem = require('../moderation/analyticsSystem');
+            const staffTotals = AnalyticsSystem.getStaffHistoryTotals(guild.id, targetUser.id);
+            const staffToday = AnalyticsSystem.getStaffTodayStats(guild.id, targetUser.id);
+            addSeparatorIfNeeded();
+            builder.text([
+                `${EMOJIS.medal || '📊'} **Histórico de Staff** (${staffCategory}):`,
+                staffTotals
+                    ? `${EMOJIS.gavel || '⚠️'} Punições: \`${staffTotals.punishmentsApplied}\` • ${EMOJIS.ticket || '🎫'} Reports: \`${staffTotals.reportsJoined}\` entrados / \`${staffTotals.reportsClosed}\` fechados • ${EMOJIS.calendardays || '📅'} Eventos: \`${staffTotals.eventsCreated}\``
+                    : `${EMOJIS.messagesquare || 'ℹ️'} Nenhum registro de atividade ainda.`,
+                `-# Hoje: ${staffToday ? `\`${staffToday.punishmentsApplied}\` punições, \`${staffToday.reportsJoined}\` reports entrados` : 'nenhuma atividade ainda'} — use \`/historico staff\` pra mais detalhes.`,
+            ].join('\n'));
+        }
+
         // ── Saldos de moeda (pedido do dono, 2026-08-10: "Adicionar todos
         // os saldos de moedas no perfil, no discord e em jogo") — GLOBAIS
         // (mesma razão de registered_at acima: bones_balance/hunt_balance/xp

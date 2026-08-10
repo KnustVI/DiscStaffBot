@@ -160,6 +160,22 @@
         .perfil-stars { font-size: 20px; letter-spacing: 3px; color: #3E3D38; }
         .perfil-stars .is-filled { color: #DCA15E; }
         .perfil-stat-line { font-family: 'Poppins', sans-serif; font-size: 13px; opacity: 0.7; }
+        /* Histórico de Staff (pedido do dono, 2026-08-10) — 1 card por
+           servidor onde a pessoa é Moderador/Equipe de Eventos. */
+        .perfil-staff-history-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.25);
+            border-radius: 12px;
+        }
+        .perfil-staff-history-head { display: flex; align-items: center; gap: 8px; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; color: #F8DCC0; }
+        .perfil-staff-history-head img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: none; }
+        .perfil-staff-history-stats { display: flex; flex-wrap: wrap; gap: 14px; font-family: 'Poppins', sans-serif; font-size: 12px; color: #F8DCC0; opacity: 0.8; }
+        .perfil-staff-history-stats span { display: inline-flex; align-items: center; gap: 4px; }
+        .perfil-staff-history-today { font-family: 'Poppins', sans-serif; font-size: 11px; color: #DCA15E; opacity: 0.85; margin: 0; }
         .perfil-soon-card {
             display: flex;
             flex-direction: column;
@@ -349,6 +365,54 @@
                     </div>
                 </div>
             <% } %>
+
+            <%#
+                Histórico de Staff (pedido do dono, 2026-08-10: "Adicionar
+                histórico de staff no perfil de staffs apenas para
+                vizualização de quem é parte da equipe do servidor como
+                staff... no comando do discord e no site") — self-view
+                sempre (esta página é sempre a do PRÓPRIO usuário logado),
+                então não precisa do gate de "quem pode ver" que o /perfil
+                do Discord precisa (lá dá pra ver o perfil de qualquer um).
+                Um card por servidor onde a pessoa é Moderador/Equipe de
+                Eventos (Supervisor puro fica de fora, mesma regra de
+                /historico staff — ver getStaffHistoryForProfile em
+                dashboard.js). Dado já é apagado sozinho ao perder todos os
+                cargos de staff (AnalyticsSystem.purgeStaffOnRoleLoss).
+            %>
+            <% if (staffHistory.length > 0) { %>
+                <div>
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Histórico de Staff</span><span data-i18n-en>Staff History</span></h3>
+                    <div class="flex flex-col gap-3">
+                        <% staffHistory.forEach(sh => { %>
+                            <div class="perfil-staff-history-card">
+                                <div class="perfil-staff-history-head">
+                                    <% if (sh.guildIconUrl) { %><img src="<%= sh.guildIconUrl %>" alt=""><% } %>
+                                    <span><%= sh.guildName %></span>
+                                    <span class="opacity-50 text-xs">— <%= sh.category %></span>
+                                </div>
+                                <% if (sh.totals) { %>
+                                    <div class="perfil-staff-history-stats">
+                                        <span><i data-lucide="gavel" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Punições</span><span data-i18n-en>Punishments</span>: <strong><%= sh.totals.punishmentsApplied %></strong></span>
+                                        <span><i data-lucide="ticket" class="w-3.5 h-3.5"></i> Reports: <strong><%= sh.totals.reportsJoined %></strong> <span data-i18n-pt>entrados</span><span data-i18n-en>joined</span> / <strong><%= sh.totals.reportsClosed %></strong> <span data-i18n-pt>fechados</span><span data-i18n-en>closed</span></span>
+                                        <span><i data-lucide="calendar-days" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Eventos</span><span data-i18n-en>Events</span>: <strong><%= sh.totals.eventsCreated %></strong></span>
+                                    </div>
+                                <% } else { %>
+                                    <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum registro de atividade ainda.</span><span data-i18n-en>No activity recorded yet.</span></p>
+                                <% } %>
+                                <p class="perfil-staff-history-today">
+                                    <span data-i18n-pt>Hoje:</span><span data-i18n-en>Today:</span>
+                                    <% if (sh.today) { %>
+                                        <%= sh.today.punishmentsApplied %> <span data-i18n-pt>punições</span><span data-i18n-en>punishments</span>, <%= sh.today.reportsJoined %> reports
+                                    <% } else { %>
+                                        <span data-i18n-pt>nenhuma atividade ainda</span><span data-i18n-en>no activity yet</span>
+                                    <% } %>
+                                </p>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            <% } %>
         </section>
 
         <% if (!link) { %>
@@ -437,9 +501,19 @@
                         o jogador JÁ comprou, de qualquer tipo (avatar/fundo/
                         emblema).
                     %>
-                    <% if (ownedItems.length > 0) { %>
-                        <div>
-                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Seus Itens</span><span data-i18n-en>Your Items</span></h3>
+                    <%#
+                        Seção sempre visível pra quem tem vínculo (mesmo com
+                        0 itens) — antes sumia inteira com o inventário
+                        vazio, o que na prática parecia "o recurso não
+                        existe" pra quem nunca comprou nada na Loja
+                        (confirmado como confusão real, 2026-08-10: o dono
+                        reportou o inventário como "faltando" testando uma
+                        conta sem compra nenhuma). Estado vazio agora mostra
+                        uma dica com link direto pra /loja em vez de nada.
+                    %>
+                    <div>
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Seus Itens</span><span data-i18n-en>Your Items</span></h3>
+                        <% if (ownedItems.length > 0) { %>
                             <div class="perfil-guild-list">
                                 <% ownedItems.forEach(item => { %>
                                     <div class="perfil-guild-chip" title="<%= item.label %>">
@@ -450,8 +524,13 @@
                                     </div>
                                 <% }); %>
                             </div>
-                        </div>
-                    <% } %>
+                        <% } else { %>
+                            <p class="text-sm" style="font-family:'Poppins',sans-serif; opacity: 0.5;">
+                                <span data-i18n-pt>Você ainda não comprou nenhum item. Dê uma olhada na <a href="/loja" style="color:#DCA15E; text-decoration:underline;">Loja</a>.</span>
+                                <span data-i18n-en>You haven't bought any items yet. Check out the <a href="/loja" style="color:#DCA15E; text-decoration:underline;">Shop</a>.</span>
+                            </p>
+                        <% } %>
+                    </div>
                 </section>
             </div>
 
