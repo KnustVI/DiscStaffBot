@@ -87,6 +87,61 @@
             backdrop-filter: blur(4px);
         }
         .dev-overlay[hidden] { display: none; }
+        /* Cartão usado dentro do .dev-overlay acima (ver
+           partials/premium-locked-overlay.ejs) — antes vinha "de carona" do
+           <style> embutido em partials/dev-overlay-card.ejs, que esta
+           página incluía pro antigo overlay de "dashboard em
+           desenvolvimento". Removido esse include (trava do dashboard
+           liberada, 2026-08-10), o CSS sumiu junto e o cartão de premium
+           travado passou a renderizar sem nenhum estilo — full-width, sem
+           padding, texto gigante ("Aviso de premium bloqueado esta
+           extremamente grande na tela", pedido do dono, 2026-08-11).
+           Duplicado aqui (mesmo valor exato de dev-overlay-card.ejs) porque
+           hero.ejs é autocontida e não compartilha <style> com outras
+           páginas. */
+        .dev-overlay-card {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            text-align: center;
+            max-width: 420px;
+            width: 100%;
+            padding: 36px 28px;
+            background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+            border: 1px solid #3E3D38;
+            border-radius: 20px;
+            box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8);
+        }
+        .dev-overlay-icon {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            flex: none;
+            background: #2A2A2A;
+            border: 2px solid #803E30;
+            border-radius: 50%;
+            color: #DCA15E;
+        }
+        .dev-overlay-icon svg { width: 28px; height: 28px; }
+        .dev-overlay-title {
+            font-family: 'Tilt Warp', sans-serif;
+            font-size: clamp(17px, 2.2vw, 22px);
+            letter-spacing: 0.05em;
+            color: #F8DCC0;
+            text-transform: uppercase;
+        }
+        .dev-overlay-text {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #F8DCC0;
+            opacity: 0.85;
+        }
         .nav-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -365,6 +420,7 @@
             text-align: left;
             overflow: hidden;
         }
+        .partner-news-card:focus-visible { outline: 2px solid #DCA15E; outline-offset: 2px; }
         .partner-news-image {
             width: calc(100% + 32px);
             margin: -16px -16px 0;
@@ -708,7 +764,20 @@
                     <% } %>
                     <div class="<%= isPartnerNewsCarousel ? 'partner-news-carousel' : 'partner-news-grid' %>" <% if (isPartnerNewsCarousel) { %>id="partnerNewsCarousel"<% } %>>
                         <% partnerNews.forEach((pn, pnIdx) => { %>
-                            <div class="partner-news-card" onclick="openPartnerNewsOverlay(<%= pnIdx %>)">
+                            <%#
+                                Continua <div>, não <button> de verdade
+                                (pedido do dono, 2026-08-11: "faça o card ser
+                                um botão que mostra uma overlay") — o card às
+                                vezes tem um <a> aninhado dentro (bônus
+                                Caçador logo abaixo) e <a> dentro de <button>
+                                é HTML inválido que alguns navegadores tratam
+                                de forma inconsistente (clique do link
+                                aninhado pode simplesmente não disparar).
+                                role="button"+tabindex+onkeydown dão o mesmo
+                                comportamento de botão (foco, Enter/Espaço)
+                                sem esse risco.
+                            %>
+                            <div class="partner-news-card" role="button" tabindex="0" onclick="openPartnerNewsOverlay(<%= pnIdx %>)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPartnerNewsOverlay(<%= pnIdx %>); }">
                                 <% if (pn.imageUrl) { %>
                                     <div class="partner-news-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
                                 <% } %>

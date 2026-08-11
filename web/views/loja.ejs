@@ -584,7 +584,7 @@
             <i data-lucide="x"></i>
         </button>
         <figure class="image-lightbox-figure">
-            <img id="image-lightbox-img" src="" alt="">
+            <img id="image-lightbox-img" src="" alt="" onclick="toggleImageLightboxZoom(event)">
             <figcaption id="image-lightbox-caption"></figcaption>
         </figure>
     </div>
@@ -598,8 +598,17 @@
             cursor: zoom-out;
         }
         .image-lightbox.is-open { display: flex; }
-        .image-lightbox-figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: min(90vw, 560px); cursor: default; }
-        .image-lightbox-figure img { max-width: 100%; max-height: 75vh; border-radius: 14px; border: 1px solid rgba(217, 163, 98, 0.35); box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+        <%#
+            Tamanho base aumentado (560px -> 780px, 75vh -> 82vh) + clique na
+            própria imagem alterna pra um zoom maior ainda, quase tela cheia
+            (pedido do dono, 2026-08-11: "Vizualização de imagem maior na
+            loja pode ser um pouco maior, ou ter um zoom?" — os dois:
+            aumentou o tamanho padrão E ganhou zoom no clique).
+        %>
+        .image-lightbox-figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: min(92vw, 780px); cursor: default; transition: max-width 0.2s ease; }
+        .image-lightbox-figure img { max-width: 100%; max-height: 82vh; border-radius: 14px; border: 1px solid rgba(217, 163, 98, 0.35); box-shadow: 0 20px 60px rgba(0,0,0,0.6); cursor: zoom-in; transition: max-height 0.2s ease; }
+        .image-lightbox-figure.is-zoomed { max-width: 96vw; }
+        .image-lightbox-figure.is-zoomed img { max-height: 92vh; cursor: zoom-out; }
         .image-lightbox-figure figcaption { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px; color: #F8DCC0; text-align: center; }
         .image-lightbox-close {
             position: absolute; top: 20px; right: 20px;
@@ -614,10 +623,17 @@
             const overlay = document.getElementById('image-lightbox');
             document.getElementById('image-lightbox-img').src = url;
             document.getElementById('image-lightbox-caption').textContent = label || '';
+            document.querySelector('.image-lightbox-figure').classList.remove('is-zoomed');
             overlay.classList.add('is-open');
         }
         function closeImageLightbox() {
             document.getElementById('image-lightbox').classList.remove('is-open');
+        }
+        // Clique na própria imagem alterna um zoom maior, sem fechar o
+        // overlay (stopPropagation — o backdrop tem onclick de fechar).
+        function toggleImageLightboxZoom(event) {
+            event.stopPropagation();
+            document.querySelector('.image-lightbox-figure').classList.toggle('is-zoomed');
         }
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImageLightbox(); });
     </script>

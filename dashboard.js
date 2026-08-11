@@ -1229,7 +1229,28 @@ function loadDashboard(client) {
             }
         }
 
-        return { imageUrl, latestEvent };
+        // Link de convite pro servidor (pedido do dono, 2026-08-11: "No
+        // carrossel de novidades de servidores em perfil e loja, adicione
+        // um link para o servidor do discord") — vanityURLCode é só uma
+        // propriedade já em cache (sem chamada de API), preferida quando
+        // existe; senão tenta reaproveitar um convite já existente do
+        // servidor via guild.invites.fetch() (exige o bot ter Gerenciar
+        // Servidor — normalmente tem, já que o convite padrão do bot pede
+        // permissions=8/Administrator). Sem convite nenhum acessível
+        // (permissão faltando, nenhum convite ativo), fica null e o card
+        // simplesmente não mostra o link — não trava a divulgação.
+        let inviteUrl = item.guild.vanityURLCode ? `https://discord.gg/${item.guild.vanityURLCode}` : null;
+        if (!inviteUrl) {
+            try {
+                const invites = await item.guild.invites.fetch();
+                const firstInvite = invites.find((inv) => !inv.temporary) || invites.first();
+                if (firstInvite) inviteUrl = `https://discord.gg/${firstInvite.code}`;
+            } catch (error) {
+                inviteUrl = null;
+            }
+        }
+
+        return { imageUrl, latestEvent, inviteUrl };
     }
 
     // Cache curto (60s) do feed inteiro — pedido do dono, 2026-08-10:
@@ -1282,9 +1303,9 @@ function loadDashboard(client) {
             .filter(Boolean);
 
         return Promise.all(eligible.map(async (item) => {
-            const { imageUrl, latestEvent } = await resolvePartnerNewsMedia(client, item);
+            const { imageUrl, latestEvent, inviteUrl } = await resolvePartnerNewsMedia(client, item);
             const { guild, imageMessageId, eventId, ...rest } = item;
-            return { ...rest, imageUrl, latestEvent };
+            return { ...rest, imageUrl, latestEvent, inviteUrl };
         }));
     }
 

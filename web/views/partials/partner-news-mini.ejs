@@ -21,7 +21,15 @@
   Uso: include('partials/partner-news-mini', { partnerNews })
     partnerNews — mesmo array de getPartnerNews (dashboard.js) usado pela
     home: [{ guildId, guildName, iconUrl, title, text, imageUrl,
-    latestEvent }]. Nada renderiza se vier vazio.
+    latestEvent, inviteUrl }]. Nada renderiza se vier vazio.
+
+  Card virou sempre <div> (pedido do dono, 2026-08-11: "adicione um link
+  para o servidor do discord") — antes, com evento, o card INTEIRO já era
+  um <a> pro evento; colocar um 2º link (convite) dentro de um <a> seria
+  <a> aninhado em <a>, HTML inválido que navegadores tratam de forma
+  inconsistente (mesmo cuidado tomado em hero.ejs .partner-news-card).
+  Agora os links (evento/convite) são ações explícitas numa linha própria
+  no rodapé do card, nunca aninhadas numa área clicável maior.
 %>
 <% if (partnerNews && partnerNews.length > 0) { %>
 <div class="partner-news-mini-section">
@@ -31,42 +39,38 @@
     </div>
     <div class="partner-news-mini-strip">
         <% partnerNews.forEach(pn => { %>
-            <% if (pn.latestEvent) { %>
-                <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-mini-card">
-                    <% if (pn.imageUrl) { %>
-                        <div class="partner-news-mini-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
+            <div class="partner-news-mini-card">
+                <% if (pn.imageUrl) { %>
+                    <div class="partner-news-mini-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
+                <% } %>
+                <div class="partner-news-mini-row">
+                    <% if (pn.iconUrl) { %>
+                        <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
+                    <% } else { %>
+                        <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
                     <% } %>
-                    <div class="partner-news-mini-row">
-                        <% if (pn.iconUrl) { %>
-                            <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
-                        <% } else { %>
-                            <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
-                        <% } %>
-                        <div class="partner-news-mini-body">
-                            <span class="partner-news-mini-guild"><%= pn.guildName %></span>
-                            <span class="partner-news-mini-title"><%= pn.title %></span>
-                        </div>
-                        <i data-lucide="external-link" class="partner-news-mini-link-icon"></i>
-                    </div>
-                </a>
-            <% } else { %>
-                <div class="partner-news-mini-card">
-                    <% if (pn.imageUrl) { %>
-                        <div class="partner-news-mini-image" style="background-image:url('<%= pn.imageUrl %>')"></div>
-                    <% } %>
-                    <div class="partner-news-mini-row">
-                        <% if (pn.iconUrl) { %>
-                            <img src="<%= pn.iconUrl %>" alt="" class="partner-news-mini-icon">
-                        <% } else { %>
-                            <div class="partner-news-mini-icon partner-news-mini-icon-fallback"><i data-lucide="megaphone"></i></div>
-                        <% } %>
-                        <div class="partner-news-mini-body">
-                            <span class="partner-news-mini-guild"><%= pn.guildName %></span>
-                            <span class="partner-news-mini-title"><%= pn.title %></span>
-                        </div>
+                    <div class="partner-news-mini-body">
+                        <span class="partner-news-mini-guild"><%= pn.guildName %></span>
+                        <span class="partner-news-mini-title"><%= pn.title %></span>
                     </div>
                 </div>
-            <% } %>
+                <% if (pn.latestEvent || pn.inviteUrl) { %>
+                    <div class="partner-news-mini-actions">
+                        <% if (pn.latestEvent) { %>
+                            <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-mini-action">
+                                <i data-lucide="calendar-days"></i>
+                                <span data-i18n-pt>Evento</span><span data-i18n-en>Event</span>
+                            </a>
+                        <% } %>
+                        <% if (pn.inviteUrl) { %>
+                            <a href="<%= pn.inviteUrl %>" target="_blank" rel="noopener" class="partner-news-mini-action">
+                                <i data-lucide="external-link"></i>
+                                <span data-i18n-pt>Entrar no Discord</span><span data-i18n-en>Join Discord</span>
+                            </a>
+                        <% } %>
+                    </div>
+                <% } %>
+            </div>
         <% }); %>
     </div>
 </div>
@@ -106,11 +110,33 @@
         background: #131314;
         border: 1px solid rgba(217, 163, 98, 0.35);
         border-radius: 12px;
-        text-decoration: none;
         overflow: hidden;
-        transition: border-color 0.15s ease, transform 0.15s ease;
+        transition: border-color 0.15s ease;
     }
-    a.partner-news-mini-card:hover { border-color: #DCA15E; transform: translateY(-2px); }
+    .partner-news-mini-card:hover { border-color: #DCA15E; }
+    .partner-news-mini-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 12px 12px;
+    }
+    .partner-news-mini-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 20px;
+        background: rgba(220, 161, 94, 0.12);
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 11px;
+        color: #DCA15E;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background 0.15s ease;
+    }
+    .partner-news-mini-action:hover { background: rgba(220, 161, 94, 0.24); }
+    .partner-news-mini-action i { width: 13px; height: 13px; flex: none; }
     .partner-news-mini-image {
         width: 100%;
         aspect-ratio: 280 / 110;
@@ -165,6 +191,5 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .partner-news-mini-link-icon { width: 16px; height: 16px; color: #DCA15E; flex: none; }
 </style>
 <% } %>

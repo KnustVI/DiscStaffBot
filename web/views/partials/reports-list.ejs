@@ -130,9 +130,14 @@ function reportsHref(overrides) {
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                     </div>
                     <% if (r.thread_id && !r.threadDeletedByName) { %>
-                        <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
-                            <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
-                        </a>
+                        <div class="report-investigate-row mt-2">
+                            <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
+                                <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
+                            </a>
+                            <a href="discord://-/channels/<%= r.guild_id %>/<%= r.thread_id %>" class="report-app-link">
+                                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Abrir no app</span><span data-i18n-en>Open in app</span>
+                            </a>
+                        </div>
                     <% } else if (r.threadDeletedByName) { %>
                         <p class="text-xs" style="color:#FF4E3B;"><span data-i18n-pt>Tópico apagado por:</span><span data-i18n-en>Topic deleted by:</span> <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } %>
@@ -213,9 +218,14 @@ function reportsHref(overrides) {
                     <% if (r.threadDeletedByName) { %>
                         <p class="text-xs" style="color:#FF4E3B;"><span data-i18n-pt>Tópico apagado por:</span><span data-i18n-en>Topic deleted by:</span> <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } else if (r.thread_id) { %>
-                        <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2">
-                            <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
-                        </a>
+                        <div class="report-investigate-row mt-2">
+                            <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
+                                <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
+                            </a>
+                            <a href="discord://-/channels/<%= r.guild_id %>/<%= r.thread_id %>" class="report-app-link">
+                                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Abrir no app</span><span data-i18n-en>Open in app</span>
+                            </a>
+                        </div>
                     <% } %>
                 </div>
             <% }); %>

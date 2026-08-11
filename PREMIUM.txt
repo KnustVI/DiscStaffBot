@@ -8401,3 +8401,70 @@ frente, nao so este relatorio):
   simulados, sem tocar o Discord de verdade): sem cargo configurado,
   nem a thread nem o log mencionam nada; com cargo configurado, os
   dois containers (thread E log) incluem `<@&roleId>` corretamente.
+
+172) Lote de 5 correções/melhorias visuais no site (overlay de
+     premium, anúncios de parceiro, loja, carrossel de novidades,
+     link do app do Discord em reports)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "Aviso de premium bloqueado esta
+  extremamemnte grande na tela." / "Overlay de visualização maior não
+  funciona no card da pagina principal no card de anúncio de
+  servidor. Faça o card ser um botão que mostra uma overlay com a
+  imagem + texto postado." / "Vizualização de imagem maior na loja
+  pode ser um pouco maior, ou ter um zoom?" / "No carrossel de
+  novidades de servidores em perfil e loja, adicione um link para o
+  servidor do discord." / "Investigar report pelo site não pergunta
+  se quer abrir o discord pelo app."
+- CRÍTICO (item 1): a remoção da trava/overlay de "dashboard em
+  desenvolvimento" (seção 166) tirou o único `include` de
+  `partials/dev-overlay-card.ejs` que hero.ejs ainda tinha — o
+  `<style>` de `.dev-overlay-card`/`.dev-overlay-icon`/`.dev-overlay-
+  title`/`.dev-overlay-text` vem EMBUTIDO dentro daquele partial, não
+  de um CSS compartilhado. O cartão de "Premium ainda não está em
+  uso" (partials/premium-locked-overlay.ejs) reaproveita essas MESMAS
+  classes, então passou a renderizar 100% sem estilo (full-width, sem
+  padding, texto gigante) assim que aquele include sumiu. FIX:
+  duplicado o `<style>` direto no `<head>` de hero.ejs (mesma
+  convenção de página autocontida já usada no resto do arquivo).
+- Item 2: revisão completa do JS do overlay de anúncio de parceiro
+  (openPartnerNewsOverlay) não encontrou nenhum bug de lógica — o
+  clique já estava corretamente wireado desde a seção 168. Trocado de
+  `<div onclick>` pra `<div role="button" tabindex="0" onkeydown=...>`
+  (não um `<button>` de verdade: o card pode ter um `<a>` aninhado
+  dentro — bônus Caçador — e `<a>` dentro de `<button>` é HTML
+  inválido que alguns navegadores tratam de forma inconsistente).
+  Ganhou também um `:focus-visible` visível. Se o problema persistir
+  depois deste deploy, é sinal de cache de CDN/navegador servindo a
+  versão antiga da página, não bug de código.
+- Item 3: `.image-lightbox-figure` (loja.ejs) aumentado de
+  `min(90vw, 560px)` pra `min(92vw, 780px)` e a imagem de `75vh` pra
+  `82vh`. Clicar na própria imagem agora alterna um zoom maior ainda
+  (quase tela cheia, `96vw`/`92vh`) via `toggleImageLightboxZoom()`.
+- Item 4: `dashboard.js` `resolvePartnerNewsMedia` passou a resolver
+  também um link de convite (`inviteUrl`) por servidor parceiro —
+  `guild.vanityURLCode` quando existe (sem chamada de API extra),
+  senão `guild.invites.fetch()` (o bot normalmente tem Gerenciar
+  Servidor, já que o convite padrão pede Administrator) com fallback
+  silencioso pra `null` sem permissão/convite. Resolvido dentro do
+  mesmo cache de 60s de `getPartnerNews` (seção 167), sem chamada
+  nova por carregamento de página. `partials/partner-news-mini.ejs`
+  (carrossel de /perfil e /loja) ganhou uma linha de ações com botão
+  "Entrar no Discord" — o card deixou de ser um `<a>` só quando tinha
+  evento e virou sempre `<div>`, com os links (evento/convite) como
+  ações explícitas separadas, pelo mesmo motivo de HTML inválido do
+  item 2 (evita `<a>` aninhado em `<a>`).
+- Item 5: investigado o botão "Investigar" de reports-list.ejs — já
+  linkava pra `https://discord.com/channels/<guild>/<thread>`, que no
+  celular o próprio Discord intercepta via Universal/App Link quando
+  o app está instalado (comportamento do sistema operacional, fora do
+  nosso controle — não existe forma de "perguntar" isso via HTML/JS
+  puro). Adicionado um link secundário explícito "Abrir no app"
+  (esquema `discord://-/channels/<guild>/<thread>`, registrado pelo
+  app desktop/mobile do Discord) ao lado do botão existente, tanto em
+  reports abertos quanto fechados — dá a opção sem depender só do
+  comportamento automático do SO.
+- Verificado: `node --check` em dashboard.js; `ejs.renderFile()` real
+  de hero.ejs, partner-news-mini.ejs, reports-list.ejs e loja.ejs com
+  mocks (checando presença do CSS restaurado, `role="button"`, link
+  de convite renderizado, link `discord://` nos dois blocos de
+  reports, e o novo tamanho/zoom do lightbox).

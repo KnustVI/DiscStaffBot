@@ -1017,4 +1017,29 @@ body[data-view-only="true"] form[method="POST"] { opacity: 0.6; }
 }
 .report-page-btn:hover { background: rgba(217, 163, 98, 0.12); opacity: 1; }
 .report-page-btn.disabled { opacity: 0.3; pointer-events: none; }
+
+/* Linha "Investigar" + "Abrir no app" (pedido do dono, 2026-08-11:
+   "Investigar report pelo site não pergunta se quer abrir o discord pelo
+   app") — o botão "Investigar" já linkava pra
+   https://discord.com/channels/<guild>/<thread>, que no celular o próprio
+   Discord intercepta via Universal/App Link quando o app está instalado
+   (comportamento do sistema operacional, fora do nosso controle). Esse
+   link secundário usa o esquema discord:// (registrado pelo app desktop e
+   mobile do Discord) como uma alternativa explícita — se o app não
+   estiver instalado/registrado, o navegador só ignora o clique ou mostra
+   um aviso nativo do próprio SO, sem quebrar a página. */
+.report-investigate-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.report-app-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #F8DCC0;
+    opacity: 0.7;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(217, 163, 98, 0.3);
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+.report-app-link:hover { background: rgba(217, 163, 98, 0.12); opacity: 1; }
 .report-page-info { font-size: 0.7rem; opacity: 0.5; }
