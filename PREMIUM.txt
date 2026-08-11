@@ -8777,3 +8777,50 @@ frente, nao so este relatorio):
   repetir a habilitação de `[SourceQuery]` + porta UDP aberta nos
   demais servidores PoT que quiserem a correção automática (já
   confirmado funcionando no "ATLAS BRASIL SEMI-REALISMO").
+
+179) Local no mapa (POI + coordenadas) em todo log de webhook, quando o
+     jogo manda esse dado
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "Adicionar local do jogador no mapa
+  sendo 'POI name' e Coordenadas em todas as logs de webhooks quando
+  possível."
+- Investigado: gatewayServer.js já tinha `extractEventLocation`/
+  `extractKillLocation`, confirmados ao vivo (DEBUG_POT, Atlas
+  Brasil) — mas só alimentavam o LOCAL do relatório de combate
+  agregado (buildDamageReportPayload). Os ~20 formatters simples de
+  `formatMessage` (Quest/Respawn/Chat/Comando/Ninho/Grupo/Servidor)
+  nunca mostravam local nenhum; AdminSpectate e o painel instantâneo
+  de morte (buildKillPanel) já mostravam ALGO, mas com lógica ad-hoc
+  duplicada e incompleta (buildKillPanel só olhava o lado da VÍTIMA,
+  nunca o do matador; AdminSpectate não considerava MapName).
+- FIX: `webhookPayloads.js` ganhou `extractLocationParts(d, prefix)` +
+  `buildLocationLine(d, prefix, guild)` — mesmos campos já confirmados
+  em gatewayServer.js (MapName/Map, POI/POIName/LocationName,
+  Location em 2 formatos), duplicado aqui de propósito (mesmo padrão
+  de auto-contenção do resto do arquivo). String vazia sem nenhum
+  campo reconhecido — nunca força uma linha vazia nem quebra a
+  mensagem (PlayerDamagedPlayer, confirmado sem NENHUM campo de
+  local, simplesmente não ganha a linha).
+- Aplicado em 3 pontos: (1) o wrapper de `formatMessage` agora anexa
+  `buildLocationLine(d, '', guild)` ao resultado de QUALQUER
+  formatter, uma vez só, no fim da função — cobre todo o grupo de
+  ~20 eventos simples sem precisar editar cada formatter
+  individualmente; (2) `buildLoginEventPayload` (PlayerLogin/Logout/
+  Leave) ganhou a mesma linha — confirmado só em PlayerLeave, mas
+  chamada nos 3 (some sozinha nos outros 2); (3) `buildKillPanel`
+  trocou a lógica ad-hoc (só VictimPOI/VictimLocation) por
+  `buildLocationLine(d, 'Killer', guild) || buildLocationLine(d,
+  'Victim', guild)` — mesma prioridade "lado do matador primeiro,
+  mais preciso de onde o combate aconteceu" que o relatório agregado
+  já usava, agora também ganha MapName (antes só via no relatório).
+- AdminSpectate: removida a lógica de local PRÓPRIA (duplicada) — ao
+  vivo continua mostrando a mesma linha de sempre, só que agora vinda
+  do wrapper genérico, evitando qualquer risco de aparecer 2 vezes.
+- Verificado: `node --check`; teste funcional cobrindo (1) evento com
+  POI+Location no payload mostra a linha "Local:" com POI e
+  coordenadas certos, (2) evento sem nenhum campo de local (PlayerChat)
+  NÃO mostra a linha, (3) AdminSpectate mostra a linha exatamente 1 vez
+  (não duplicada), (4) buildLoginEventPayload (PlayerLeave) mostra a
+  linha, (5) buildKillPanel prioriza o local do matador quando os dois
+  lados têm dado, (6) buildKillPanel cai pro local da vítima quando não
+  há matador (morte por ambiente).

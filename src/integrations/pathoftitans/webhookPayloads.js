@@ -348,6 +348,12 @@ async function buildLoginEventPayload(client, guildId, potEvent, data) {
     builder.text(`${resolveEmoji(guild, 'tv', '🖥️')} **Servidor:** ${d.ServerName || 'Desconhecido'}`);
     builder.text(`${resolveEmoji(guild, 'shield', '🛡️')} **Admin:** ${d.bServerAdmin ? 'Sim' : 'Não'}`);
 
+    // Local no mapa (POI + coordenadas) — confirmado ao vivo só em
+    // PlayerLeave (ver buildLocationLine); em PlayerLogin/Logout a linha
+    // some sozinha (o jogador ainda não escolheu/tinha um dino ativo).
+    const loginLocationLine = buildLocationLine(d, '', guild);
+    if (loginLocationLine) builder.text(loginLocationLine);
+
     // Só o PlayerLeave traz esses dois campos (documentados oficialmente):
     // SafeLog (desconexão graciosa, pelo menu, vs. queda abrupta/crash) e
     // FromDeath (se saiu logo após morrer — relevante pra moderação).
@@ -504,19 +510,13 @@ async function formatMessage(potEvent, data, guild) {
                 : spectating === false
                     ? `Modo espectador: ${e('shieldban', '🚫')}`
                     : 'Modo espectador: Não definido';
-            // Local (pedido do dono, 2026-08-06: "se houver localização desse
-            // jogador... informar também junto as mensagens de logs de
-            // espectador") — mesmo formato/campos de buildKillPanel acima
-            // (POI + coords, "Local: X - Y"). Payloads REAIS de AdminSpectate
-            // nunca confirmaram trazer local nenhum, mas o registro SINTÉTICO
-            // criado por PlayerRespawn (ver gatewayServer.js, "saiu do modo
-            // espectador via respawn") sempre traz — formatLocationString
-            // devolve null sem quebrar quando o campo não vier, então esta
-            // linha some sozinha nos AdminSpectate reais de sempre.
-            const localParts = [d.POI || d.POIName || d.LocationName, formatLocationString(d.Location)].filter(Boolean);
-            const locationLine = localParts.length > 0 ? `${e('mappin', '📍')} Local: ${localParts.join(' - ')}` : '';
+            // Local (POI + coords) — pedido do dono, 2026-08-06: "se houver
+            // localização desse jogador... informar também junto as
+            // mensagens de logs de espectador". Não monta a linha aqui mais
+            // — o wrapper genérico de formatMessage (ver buildLocationLine)
+            // já cobre isso pra QUALQUER evento, incluindo este.
             const discordPart = await discordIdentitySuffix(guild, alderonId);
-            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}${locationLine ? `\n${locationLine}` : ''}`;
+            return `### ${e('shield', '🛡️')} ${role}\n- ${nameWithId(d.PlayerName || d.AdminName, alderonId)}${discordPart}: ${action}\n${spectatorLine}`;
         },
         // Campo confirmado ao vivo: AdminCommand usa AdminName/
         // AdminAlderonId de verdade (ao contrário do AdminSpectate acima,
@@ -554,7 +554,20 @@ async function formatMessage(potEvent, data, guild) {
         // de fato uma Promise, pra não forçar `async` em ~25 formatters que
         // não precisam disso.
         const result = fn();
-        return result instanceof Promise ? await result : result;
+        const text = result instanceof Promise ? await result : result;
+
+        // Local no mapa (POI + coordenadas) — pedido do dono, 2026-08-11:
+        // "Adicionar local do jogador no mapa... em todas as logs de
+        // webhooks quando possível". Aplicado genericamente aqui, pra TODO
+        // formatter acima, em vez de editar cada um: buildLocationLine
+        // devolve string vazia quando o payload do evento não tem nenhum
+        // campo de local reconhecido (ex: PlayerDamagedPlayer — mas esse
+        // evento nem passa por formatMessage, ver comentário no topo desta
+        // função — ou PlayerChat/PlayerCommand/Nest, nunca confirmados com
+        // local), então a linha só aparece quando o próprio jogo mandou
+        // esse dado de verdade.
+        const locationLine = buildLocationLine(d, '', guild);
+        return locationLine ? `${text}\n${locationLine}` : text;
     } catch (err) {
         return `${e('wifi', '📡')} Evento: \`${potEvent}\` (dados incompletos)`;
     }
@@ -588,6 +601,41 @@ function formatLocationString(raw) {
     const match = typeof raw === 'string' ? raw.match(KILL_LOCATION_RE) : null;
     if (!match) return null;
     return `(X=${Math.round(Number(match[1]))},Y=${Math.round(Number(match[2]))},Z=${Math.round(Number(match[3]))})`;
+}
+
+/**
+ * Extrai mapa/POI/coordenadas de um payload de webhook — aceita um
+ * prefixo opcional ("Victim"/"Killer" em PlayerKilled, que tem dois locais
+ * possíveis; vazio pros demais eventos, que têm um só). Mesmos campos já
+ * confirmados ao vivo em gatewayServer.js (extractEventLocation) —
+ * duplicado aqui de propósito, mesmo padrão de auto-contenção do resto do
+ * arquivo. Tudo null quando nenhum campo reconhecido vier no payload
+ * (ex: PlayerDamagedPlayer, confirmado sem nenhum campo de local) — quem
+ * chama decide se omite a linha.
+ */
+function extractLocationParts(d, prefix = '') {
+    const field = (name) => d[`${prefix}${name}`];
+    const mapName = field('MapName') || field('Map') || null;
+    const poiName = field('POI') || field('POIName') || field('LocationName') || null;
+    const coords = formatLocationString(field('Location'));
+    return { mapName, poiName, coords };
+}
+
+/**
+ * "📍 Local: Mapa - POI (X=..,Y=..,Z=..)" — pedido do dono, 2026-08-11:
+ * "Adicionar local do jogador no mapa sendo POI name e Coordenadas em
+ * todas as logs de webhooks quando possível". String vazia quando o
+ * payload não tem nenhum campo de local reconhecido — nunca quebra nem
+ * força uma linha vazia na mensagem. Usada tanto pelo wrapper genérico de
+ * formatMessage (todo evento simples) quanto pelos containers próprios
+ * (buildLoginEventPayload, buildKillPanel).
+ */
+function buildLocationLine(d, prefix, guild) {
+    const { mapName, poiName, coords } = extractLocationParts(d, prefix);
+    const namePart = [mapName, poiName].filter(Boolean).join(' - ');
+    const parts = [namePart, coords].filter(Boolean);
+    if (parts.length === 0) return '';
+    return `${resolveEmoji(guild, 'mappin', '📍')} Local: ${parts.join(' ')}`;
 }
 
 /**
@@ -632,10 +680,12 @@ function buildKillPanel(data, guild, receivedAt) {
     builder.text(`${e('clock', '🕐')} Horário da morte: <t:${Math.floor((receivedAt || Date.now()) / 1000)}:f>`);
     builder.text(`Dano: ${formatDamageType(d.DamageType)}`);
 
-    const localParts = [d.VictimPOI, formatLocationString(d.VictimLocation)].filter(Boolean);
-    if (localParts.length > 0) {
-        builder.text(`Local: ${localParts.join(' - ')}`);
-    }
+    // Prioriza o local do MATADOR quando disponível (mais preciso de onde
+    // o combate de fato aconteceu — mesma prioridade já usada no relatório
+    // de combate agregado, ver extractKillLocation em gatewayServer.js),
+    // cai pro da VÍTIMA senão (sempre existe, morte por ambiente inclusive).
+    const killLocationLine = buildLocationLine(d, 'Killer', guild) || buildLocationLine(d, 'Victim', guild);
+    if (killLocationLine) builder.text(killLocationLine);
     builder.separator();
 
     // Diet NÃO confirmado em PlayerKilled (nem VictimDiet nem KillerDiet
