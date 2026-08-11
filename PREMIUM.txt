@@ -8470,3 +8470,43 @@ frente, nao so este relatorio):
   mocks (checando presença do CSS restaurado, `role="button"`, link
   de convite renderizado, link `discord://` nos dois blocos de
   reports, e o novo tamanho/zoom do lightbox).
+
+173) Cargo mencionado em reports agora aceita até 3 cargos (Discord e site)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "Permita que cargo mencionado seja
+  configurado até 3 em reportes."
+- `report_mention_role` (config-roles:report-mention no Discord,
+  card "Menção em Reports Abertos" em moderacao.ejs) era limitado a 1
+  cargo só — sem `roleLimitKey` no field de ROLE_TABS, caía no
+  default `: 1` tanto no painel do Discord quanto ao gravar a seleção
+  (`setRoles`). Ganhou um novo `fixedLimit: 3` (não `roleLimitKey`:
+  diferente de Moderador/Supervisor/Eventos, este campo não escala
+  com o plano do servidor — é sempre até 3, em qualquer tier).
+- `reportChatSystem.js` (openReport/openPunishmentReview) mencionava
+  só `getRoleIds(...)[0]` (o primeiro cargo, ignorando os outros 2
+  configurados) — trocado por `mentionRoleIds` (array completo),
+  mencionando todos juntos numa linha só, tanto no tópico quanto no
+  log de reports (`createBaseContainer` recebe `mentionRoleIds` no
+  lugar do antigo `mentionRoleId` singular).
+- Dashboard web: o campo era um `<select>` simples gravado direto via
+  `setSetting` (ID cru, sem o encoding em array JSON que
+  `getRoleIds`/`setRoleIds` esperam). Trocado pro mesmo componente
+  `partials/role-picker.ejs` (chips + botão "+") já usado por
+  Moderador/Supervisor, com `limit: 3`. A gravação no POST
+  `/moderacao/:guildID/save` precisou entrar DENTRO do bloco
+  `roles_form_submitted` (não num `if ('report_mention_role' in
+  body)` solto) — em modo chips, remover todos os cargos não manda
+  nenhum campo no POST; fora desse marcador incondicional, salvar
+  QUALQUER outro form da mesma rota (Reputação/Personalização)
+  apagaria a menção pra vazio, mesmo bug original de
+  staff_role/supervisor_role (seção do lote de 10 correções).
+- Servidores com o valor antigo (ID cru, não-array) continuam
+  funcionando sem migração manual: `getRoleIds` já tinha fallback pra
+  tratar um valor não-JSON como array de 1 elemento; o próximo save
+  (Discord ou site) já regrava no formato array novo.
+- Verificado: `node --check` nos 3 arquivos JS tocados;
+  `ejs.renderFile()` real de moderacao.ejs com 2 cargos pré-selecionados
+  (chips + `data-limit="3"` renderizados corretamente); teste funcional
+  com banco SQLite real confirmando `setRoleIds`/`getRoleIds` round-trip
+  de 3 cargos, `ConfigSystem.mentionRoles()` e `createBaseContainer()`
+  produzindo a menção dos 3 cargos juntos no painel do log.

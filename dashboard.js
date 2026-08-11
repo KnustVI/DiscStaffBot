@@ -1984,13 +1984,17 @@ function loadDashboard(client) {
         const unstrikeCustomBannerUrl = await CustomBannerResolver.resolveBannerUrl(client, guildID, 'unstrike');
         const staffRoleIds = ConfigSystem.getRoleIds(guildID, 'staff_role');
         const supervisorRoleIds = ConfigSystem.getRoleIds(guildID, 'supervisor_role');
+        const reportMentionRoleIds = ConfigSystem.getRoleIds(guildID, 'report_mention_role');
         // Mesmo limite por tier já usado no painel /config roles do Discord
         // (ver configSystem.js ROLE_TABS.moderation.fields[*].roleLimitKey) —
         // decide se cada campo vira select simples ou chips+botão de
-        // adicionar em partials/role-picker.ejs.
+        // adicionar em partials/role-picker.ejs. reportMention é fixo em 3
+        // pra qualquer tier (fixedLimit, não roleLimitKey — pedido do dono,
+        // 2026-08-11: não escala com plano como os outros dois).
         const roleLimits = {
             moderador: PremiumSystem.getRoleLimit(guildID, 'moderador'),
             supervisor: PremiumSystem.getRoleLimit(guildID, 'supervisor'),
+            reportMention: 3,
         };
 
         // CONFIGURAÇÕES DE PUNIÇÕES/REPUTAÇÃO (moderacao.ejs) — porta o
@@ -2037,6 +2041,7 @@ function loadDashboard(client) {
             pulse,
             staffRoleIds,
             supervisorRoleIds,
+            reportMentionRoleIds,
             roleLimits,
             openReportsAlert,
             settings,
@@ -2120,15 +2125,23 @@ function loadDashboard(client) {
                     const limit = PremiumSystem.getRoleLimit(guildID, 'supervisor');
                     ConfigSystem.setRoleIds(guildID, 'supervisor_role', toArray(body.supervisor_role).filter(Boolean).slice(0, limit));
                 }
+                // Menção em Reports Abertos (pedido do dono, 2026-08-09;
+                // virou multi-cargo até 3 em 2026-08-11, ver fixedLimit em
+                // configSystem.js ROLE_TABS) — precisa estar DENTRO deste
+                // bloco `roles_form_submitted`, não num `if ('report_mention_role'
+                // in body)` solto: agora que é role-picker em modo chips
+                // (mesmo componente de staff_role/supervisor_role acima),
+                // remover todos os cargos não manda nenhum campo no POST —
+                // sem o marcador incondicional, salvar Reputação/
+                // Personalização (outros forms desta mesma rota) ficaria
+                // impossível de apagar depois de configurado uma vez, mesmo
+                // bug original de staff_role/supervisor_role (ver comentário
+                // completo em roles_form_submitted acima).
+                ConfigSystem.setRoleIds(guildID, 'report_mention_role', toArray(body.report_mention_role).filter(Boolean).slice(0, 3));
             }
             if ('strike_role' in body) ConfigSystem.setSetting(guildID, 'strike_role', body.strike_role || null);
             if ('role_exemplar' in body) ConfigSystem.setSetting(guildID, 'role_exemplar', body.role_exemplar || null);
             if ('role_problematico' in body) ConfigSystem.setSetting(guildID, 'role_problematico', body.role_problematico || null);
-            // Menção em Reports Abertos (pedido do dono, 2026-08-09) — mesmo
-            // padrão de strike_role/role_exemplar/role_problematico acima
-            // (select único, gravado como ID cru, não array — getRoleIds no
-            // lado Discord já lê isso transparentemente, ver configSystem.js).
-            if ('report_mention_role' in body) ConfigSystem.setSetting(guildID, 'report_mention_role', body.report_mention_role || null);
 
             // Divulgação do Servidor (pedido do dono, 2026-08-05; tier-gated
             // em 2026-08-06) NÃO é mais editada por aqui — a partir de

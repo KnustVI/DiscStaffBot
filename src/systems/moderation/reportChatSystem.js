@@ -232,11 +232,13 @@ class ReportChatSystem {
         builder.text(`## ${this.getStatusEmoji(status)} ${typeLabel} | ${reportIdDisplay}`);
         builder.separator();
 
-        // Menção de cargo — só quando o chamador passa options.mentionRoleId
-        // (hoje só openReport/openPunishmentReview, na abertura — ver
-        // config-roles:report-mention). Nunca no audience 'dm'.
-        if (audience === 'staff' && options.mentionRoleId) {
-            builder.text(`${EMOJIS.megaphone || '📢'} <@&${options.mentionRoleId}>`);
+        // Menção de cargo(s) — só quando o chamador passa
+        // options.mentionRoleIds (hoje só openReport/openPunishmentReview,
+        // na abertura — ver config-roles:report-mention). Até 3 cargos
+        // (pedido do dono, 2026-08-11), todos mencionados juntos na mesma
+        // linha. Nunca no audience 'dm'.
+        if (audience === 'staff' && options.mentionRoleIds && options.mentionRoleIds.length > 0) {
+            builder.text(`${EMOJIS.megaphone || '📢'} ${options.mentionRoleIds.map(id => `<@&${id}>`).join(' ')}`);
             builder.separator();
         }
 
@@ -570,23 +572,24 @@ class ReportChatSystem {
             // helper, ver _resolveThreadPersonalization acima).
             const { banner: threadBanner, welcomeMessage } = await this._resolveThreadPersonalization(guild.id);
 
-            // Menção de cargo (pedido do dono, 2026-08-10: "ele deve ser
+            // Menção de cargo(s) (pedido do dono, 2026-08-10: "ele deve ser
             // mencionado no canal de logs reportes, e nos tópicos que são
             // abertos pelos reportes" — antes só entrava no log, ver
-            // mentionRoleId mais abaixo). Resolvida aqui em cima porque a
-            // thread é criada ANTES do log — usada nos dois. Mencionar
-            // dentro da thread também garante que quem tem o cargo vire
-            // membro dela (Discord adiciona automaticamente quem é
-            // mencionado numa thread), então a staff é notificada mesmo
-            // sem abrir o canal de logs.
-            const mentionRoleId = ConfigSystem.getRoleIds(guild.id, 'report_mention_role')[0] || null;
+            // mentionRoleIds mais abaixo; 2026-08-11: até 3 cargos, não só
+            // 1, ver fixedLimit em ROLE_TABS/configSystem.js). Resolvida
+            // aqui em cima porque a thread é criada ANTES do log — usada
+            // nos dois. Mencionar dentro da thread também garante que quem
+            // tem o cargo vire membro dela (Discord adiciona
+            // automaticamente quem é mencionado numa thread), então a
+            // staff é notificada mesmo sem abrir o canal de logs.
+            const mentionRoleIds = ConfigSystem.getRoleIds(guild.id, 'report_mention_role');
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             if (threadBanner.type === 'buffer') threadBuilder.bannerFromBuffer(threadBanner.value);
             else threadBuilder.banner(threadBanner.value);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REPORTE | ${reportId}`);
-            if (mentionRoleId) threadBuilder.text(`${EMOJIS.megaphone || '📢'} <@&${mentionRoleId}>`);
+            if (mentionRoleIds.length > 0) threadBuilder.text(`${EMOJIS.megaphone || '📢'} ${mentionRoleIds.map(id => `<@&${id}>`).join(' ')}`);
             threadBuilder.text(welcomeMessage || `Obrigado por abrir o reporte. Um membro da staff irá te atender em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.footer(guild);
 
@@ -635,13 +638,13 @@ class ReportChatSystem {
 
             // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
-            // mentionRoleId já resolvido lá em cima (reaproveitado na
+            // mentionRoleIds já resolvido lá em cima (reaproveitado na
             // thread também agora) — só passado AQUI e na thread, não nas
             // reconstruções de joinReport/closeReport/updateStatus/
             // rateReport (que chamam createBaseContainer sem essa opção) —
             // a menção aparece uma vez, na abertura, sem se repetir em toda
             // edição subsequente do mesmo painel.
-            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
+            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleIds });
             const { components: logComponents, flags: logFlags } = logBuilder.build();
             const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
 
@@ -742,17 +745,18 @@ class ReportChatSystem {
             // tier já checado dentro do helper.
             const { banner: threadBanner, welcomeMessage } = await this._resolveThreadPersonalization(guild.id);
 
-            // Menção de cargo (pedido do dono, 2026-08-10 — ver openReport()
-            // acima pro comentário completo) — resolvida aqui em cima
-            // porque a thread é criada ANTES do log, reaproveitada nos dois.
-            const mentionRoleId = ConfigSystem.getRoleIds(guild.id, 'report_mention_role')[0] || null;
+            // Menção de cargo(s) (pedido do dono, 2026-08-10 — ver
+            // openReport() acima pro comentário completo; até 3, 2026-08-11)
+            // — resolvida aqui em cima porque a thread é criada ANTES do
+            // log, reaproveitada nos dois.
+            const mentionRoleIds = ConfigSystem.getRoleIds(guild.id, 'report_mention_role');
 
             // ==================== CONTAINER DA THREAD ====================
             const threadBuilder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.DEFAULT });
             if (threadBanner.type === 'buffer') threadBuilder.bannerFromBuffer(threadBanner.value);
             else threadBuilder.banner(threadBanner.value);
             threadBuilder.text(`## ${EMOJIS.ticket || '🗨️'} REVISÃO DE PUNIÇÃO | ${reportId}`);
-            if (mentionRoleId) threadBuilder.text(`${EMOJIS.megaphone || '📢'} <@&${mentionRoleId}>`);
+            if (mentionRoleIds.length > 0) threadBuilder.text(`${EMOJIS.megaphone || '📢'} ${mentionRoleIds.map(id => `<@&${id}>`).join(' ')}`);
             threadBuilder.text(welcomeMessage || `Obrigado por solicitar a revisão. Um membro da staff irá analisar o caso em breve.\n\nEnquanto aguarda, você pode adicionar mais informações ou provas neste chat.`);
             threadBuilder.footer(guild);
 
@@ -809,8 +813,8 @@ class ReportChatSystem {
 
             // ==================== LOG DA STAFF ====================
             const logChannel = await guild.channels.fetch(logChannelId);
-            // mentionRoleId já resolvido lá em cima (reaproveitado na thread também).
-            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleId });
+            // mentionRoleIds já resolvido lá em cima (reaproveitado na thread também).
+            const logBuilder = this.createBaseContainer(guild, reportNumber, user, 'waiting', [], { mentionRoleIds });
             const { components: logComponents, flags: logFlags } = logBuilder.build();
             const logRow = this._buildLogButtonRow(guild, reportNumber, reportId);
 

@@ -97,9 +97,16 @@ const ROLE_TABS = {
                 // openPunishmentReview) na mensagem de log postada no canal
                 // configurado em log_reports (/config logs), não aqui.
                 // Opcional: sem cargo configurado, nenhuma menção é feita.
+                // Limite fixo de 3 (pedido do dono, 2026-08-11: "Permita que
+                // cargo mencionado seja configurado até 3 em reportes") —
+                // fixedLimit, não roleLimitKey: diferente de
+                // staff_role/supervisor_role/event_role, este campo não
+                // escala com o plano do servidor, é sempre até 3 em
+                // qualquer tier.
                 key: 'report_mention_role', icon: 'megaphone', label: 'Menção em Reports Abertos',
-                desc: 'Cargo mencionado no log de reports (canal configurado em /config logs) sempre que um jogador abre um report ou pede revisão de punição. Deixe sem cargo pra não mencionar ninguém.',
+                desc: 'Cargo(s) mencionado(s) no log de reports (canal configurado em /config logs) e no tópico aberto sempre que um jogador abre um report ou pede revisão de punição. Até 3 cargos. Deixe sem nenhum pra não mencionar ninguém.',
                 customId: 'config-roles:report-mention',
+                fixedLimit: 3,
             },
         ],
     },
@@ -1489,7 +1496,7 @@ const ConfigSystem = {
             }
 
             const currentIds = this.getRoleIds(guildId, field.key);
-            const limit = field.roleLimitKey ? PremiumSystem.getRoleLimit(guildId, field.roleLimitKey) : 1;
+            const limit = field.roleLimitKey ? PremiumSystem.getRoleLimit(guildId, field.roleLimitKey) : (field.fixedLimit || 1);
             const maxValues = Math.max(1, Math.min(limit, 25)); // 25 = teto do próprio RoleSelectMenu do Discord
 
             const currentText = currentIds.length > 0 ? this.mentionRoles(guildId, field.key) : `${EMOJIS.circlealert || '❌'} Não definido`;
@@ -1545,7 +1552,7 @@ const ConfigSystem = {
         // o painel ser montado e o usuário confirmar a seleção.
         const PremiumSystem = require('../premium/premiumSystem');
         const field = Object.values(ROLE_TABS).flatMap(t => t.fields).find(f => f.key === roleKey);
-        const limit = field?.roleLimitKey ? PremiumSystem.getRoleLimit(interaction.guildId, field.roleLimitKey) : 1;
+        const limit = field?.roleLimitKey ? PremiumSystem.getRoleLimit(interaction.guildId, field.roleLimitKey) : (field?.fixedLimit || 1);
 
         const selectedIds = (interaction.values || []).slice(0, limit);
 
