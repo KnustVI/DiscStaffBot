@@ -566,6 +566,41 @@ function getOnlinePotPlayer(guildId, alderonId) {
 }
 
 /**
+ * Status "em jogo" de um jogador numa guild específica — SEMPRE devolve
+ * algo (isOnline: false quando offline/nunca visto), diferente de
+ * getOnlinePotPlayer acima (que só devolve linha quando ESTÁ online, null
+ * caso contrário). Fonte única pra "está online agora nesta guild + há
+ * quanto tempo + jogando qual dinossauro" (pedido do dono, 2026-08-11:
+ * "verificar se em todos os casos de verificação de player online podemos
+ * usar uma query") — antes /staffonline (Discord) e getServerPulse/rota de
+ * perfil avulso (dashboard.js) cada um escrevia a MESMA `SELECT is_online,
+ * session_started_at... FROM pot_players WHERE guild_id = ? AND
+ * alderon_id = ?` na mão, podendo divergir silenciosamente se um dos 3
+ * fosse ajustado sem lembrar dos outros 2.
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @returns {{ isOnline: boolean, sessionStartedAt: number|null, dinosaurType: string|null }}
+ */
+function getPlayerGameStatus(guildId, alderonId) {
+    const empty = { isOnline: false, sessionStartedAt: null, dinosaurType: null };
+    if (!guildId || !alderonId) return empty;
+    try {
+        const row = db.prepare(`
+            SELECT is_online, session_started_at, dinosaur_type FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        `).get(guildId, alderonId);
+        if (!row) return empty;
+        return {
+            isOnline: !!row.is_online,
+            sessionStartedAt: row.session_started_at || null,
+            dinosaurType: row.dinosaur_type || null,
+        };
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar status em jogo:', error);
+        return empty;
+    }
+}
+
+/**
  * Nome de exibição de um jogador só pelo Alderon ID, independente de estar
  * vinculado (/registrar) ou online — usado nos painéis de identificação de
  * /strike ingame/personalizado quando o alvo não tem conta Discord
@@ -1270,6 +1305,9 @@ module.exports = {
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,
+    // Status "em jogo" (online/há quanto tempo/dinossauro) por guild+jogador
+    // — fonte única, ver docblock completo acima (pedido do dono, 2026-08-11).
+    getPlayerGameStatus,
     getPlayerNameByAlderonId,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,

@@ -58,7 +58,8 @@
                     <div class="partner-news-mini-actions">
                         <% if (pn.latestEvent) { %>
                             <a href="<%= pn.latestEvent.url %>" target="_blank" rel="noopener" class="partner-news-mini-action">
-                                <i data-lucide="calendar-days"></i>
+                                <%# Estrela no lugar do calendário (pedido do dono, 2026-08-11). %>
+                                <i data-lucide="star"></i>
                                 <span data-i18n-pt>Evento</span><span data-i18n-en>Event</span>
                             </a>
                         <% } %>

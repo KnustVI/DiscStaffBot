@@ -8576,3 +8576,40 @@ frente, nao so este relatorio):
   `perfil.ejs` e `loja.ejs` confirmando o nível/barra de progresso
   renderizados corretamente a partir de XP=700 (Nível 6, igual ao
   exemplo do pedido).
+
+175) Título/subtítulo da home, estrela no lugar do calendário em
+     anúncios de parceiro, e fonte única pra status "online em jogo"
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): título do head da home trocado de "UM
+  APLICATIVO PARA FACILITAR A SUA SOBREVIVÊNCIA" pra "O APLICATIVO QUE
+  VAI SUBIR O NÍVEL DA SUA SOBREVIVÊNCIA" (referenciando o sistema de
+  Nível da seção anterior); subtítulo abaixo dele "esta separado em
+  muitas linhas... pode ter menos linhas e ficar um pouco mais largo"
+  — `max-width` do parágrafo aumentado de 680px pra 900px, mesmo
+  texto, menos quebras de linha.
+- "Cards de anúncio de servidor onde as vezes mostra evento, coloque o
+  emoji de estrela ao invez do emoji de calendário" — ícone de
+  calendário (lucide `calendar`, raw SVG) trocado por estrela nos 3
+  lugares onde o "Bônus Caçador" (próximo evento agendado) aparece:
+  card da home (`hero.ejs` .partner-news-card), overlay de detalhe da
+  home, e carrossel de /perfil e /loja (`partner-news-mini.ejs`,
+  ícone lucide `star`).
+- "Verificar se em todos os casos de verificação de player online
+  podemos usar uma query" — achei 3 lugares com a MESMA query SQL
+  escrita na mão (`SELECT is_online, session_started_at[, dinosaur_type]
+  FROM pot_players WHERE guild_id = ? AND alderon_id = ?`): `/staffonline`
+  (Discord), `getServerPulse` (dashboard.js, dentro do `.map()` do
+  roster de staff) e a rota de perfil de staff avulso (dashboard.js).
+  Consolidados em `PlayerRegistry.getPlayerGameStatus(guildId,
+  alderonId)` (novo, `potPlayerRegistry.js`) — sempre devolve
+  `{isOnline, sessionStartedAt, dinosaurType}` com defaults seguros
+  mesmo pra Alderon ID nunca visto, diferente do `getOnlinePotPlayer`
+  já existente (que devolve `null` quando offline — usado pelo
+  fluxo de código de verificação via RCON, mantido intacto).
+  `currencySystem.js` já usava `getOnlinePotPlayer` corretamente, não
+  precisou de mudança.
+- Verificado: `node --check` nos 3 arquivos JS tocados; `ejs.renderFile()`
+  real de hero.ejs (título/subtítulo/ícones de estrela) e
+  partner-news-mini.ejs (ícone de estrela); teste funcional com SQLite
+  real cobrindo jogador online, offline e nunca visto (defaults seguros,
+  sem exceção) pra `getPlayerGameStatus`.

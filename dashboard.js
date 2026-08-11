@@ -213,16 +213,17 @@ async function getServerPulse(guildId, guild, category) {
 
     const roster = staffMembers.map(m => {
         const link = db.prepare('SELECT alderon_id, player_name FROM player_links WHERE user_id = ?').get(m.id);
-        const potPlayer = link
-            ? db.prepare('SELECT is_online, session_started_at, dinosaur_type FROM pot_players WHERE guild_id = ? AND alderon_id = ?').get(guildId, link.alderon_id)
-            : null;
-        const online = !!potPlayer?.is_online;
+        // Status em jogo — fonte única (PlayerRegistry.getPlayerGameStatus,
+        // pedido do dono 2026-08-11), antes uma query SQL escrita na mão
+        // aqui, em /staffonline e na rota de perfil de staff avulso.
+        const gameStatusRow = link ? PlayerRegistry.getPlayerGameStatus(guildId, link.alderon_id) : null;
+        const online = !!gameStatusRow?.isOnline;
         const spectating = online && !!link && spectatingAlderonIds.has(link.alderon_id);
         const gameStatus = computeGameStatus({
             online,
             spectating,
-            dinosaurType: potPlayer?.dinosaur_type,
-            sessionStartedAt: potPlayer?.session_started_at,
+            dinosaurType: gameStatusRow?.dinosaurType,
+            sessionStartedAt: gameStatusRow?.sessionStartedAt,
         });
 
         return {
@@ -1890,18 +1891,18 @@ function loadDashboard(client) {
             // Status em jogo NESTE servidor — mesma regra/mesma função de
             // getServerPulse (computeGameStatus), só que buscada avulsa (1
             // membro, não o roster inteiro) já que aqui é sempre 1 pessoa só.
-            const potPlayer = db.prepare(
-                'SELECT is_online, session_started_at, dinosaur_type FROM pot_players WHERE guild_id = ? AND alderon_id = ?'
-            ).get(guildID, link.alderon_id);
-            const online = !!potPlayer?.is_online;
+            // Fonte da query: PlayerRegistry.getPlayerGameStatus (ver
+            // docblock completo em potPlayerRegistry.js).
+            const gameStatusRow = PlayerRegistry.getPlayerGameStatus(guildID, link.alderon_id);
+            const online = !!gameStatusRow?.isOnline;
             const spectating = online && !!db.prepare(
                 'SELECT 1 FROM pot_spectator_sessions WHERE guild_id = ? AND alderon_id = ?'
             ).get(guildID, link.alderon_id);
             gameStatus = computeGameStatus({
                 online,
                 spectating,
-                dinosaurType: potPlayer?.dinosaur_type,
-                sessionStartedAt: potPlayer?.session_started_at,
+                dinosaurType: gameStatusRow?.dinosaurType,
+                sessionStartedAt: gameStatusRow?.sessionStartedAt,
             });
         }
 

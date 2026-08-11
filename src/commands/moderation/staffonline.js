@@ -28,7 +28,6 @@ const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuild
 const ConfigSystem = require('../../systems/core/configSystem');
 const StaffPresenceSystem = require('../../systems/moderation/staffPresenceSystem');
 const PlayerRegistry = require('../../systems/pot/potPlayerRegistry');
-const db = require('../../database/index');
 
 let emojis = {};
 try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -81,12 +80,13 @@ module.exports = {
                 const link = PlayerRegistry.getPlayerByDiscordId(m.id);
                 if (!link) return { userId: m.id, state: 'unlinked', startedAt: null };
 
-                const potPlayer = db.prepare(`
-                    SELECT is_online, session_started_at FROM pot_players WHERE guild_id = ? AND alderon_id = ?
-                `).get(guild.id, link.alderon_id);
+                // Fonte única de "está online agora nesta guild" (pedido do
+                // dono, 2026-08-11) — antes uma query escrita na mão aqui,
+                // repetida (quase idêntica) em dashboard.js.
+                const gameStatus = PlayerRegistry.getPlayerGameStatus(guild.id, link.alderon_id);
 
-                return potPlayer?.is_online
-                    ? { userId: m.id, state: 'online', startedAt: potPlayer.session_started_at }
+                return gameStatus.isOnline
+                    ? { userId: m.id, state: 'online', startedAt: gameStatus.sessionStartedAt }
                     : { userId: m.id, state: 'offline', startedAt: null };
             });
 
