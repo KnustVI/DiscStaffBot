@@ -8371,3 +8371,33 @@ frente, nao so este relatorio):
   a partir de qualquer estado NÃO chamam `thread.setName` (0
   chamadas); `updateStatus('inactive')` chama exatamente 1 vez; nome
   de criação (`buildThreadName(..., 'open')`) começa com 🟢.
+
+------------------------------------------------------------------
+171) Cargo de menção de reports (report_mention_role) agora também
+     menciona dentro do tópico aberto, não só no canal de logs
+------------------------------------------------------------------
+- Reportado pelo dono (2026-08-10): "O cargo configurado para menção
+  em reportes não esta sendo mencionado, ele deve ser mencionado no
+  canal de logs reportes, e nos tópicos que são abertos pelos
+  reportes."
+- Investigado: a menção (`<@&roleId>`, `getRoleIds` — mesmo padrão já
+  corrigido antes pro bug do array JSON cru, ver seção histórica sobre
+  o assunto) já era passada corretamente pro container do CANAL DE
+  LOGS em `openReport`/`openPunishmentReview` (`createBaseContainer`
+  com `options.mentionRoleId`, só quando `audience === 'staff'`). O
+  TÓPICO, porém, nunca teve esse caminho — é montado por um
+  `AdvancedContainerBuilder` próprio (banner + boas-vindas), sem
+  nenhuma linha de menção, desde que a bolinha de status no nome do
+  tópico foi introduzida (seção 149).
+- FIX: `mentionRoleId` resolvido uma vez só, ANTES de montar o
+  container da thread (que é criada antes do log) — reaproveitado nos
+  dois lugares agora, sem duplicar a leitura de `getRoleIds`. Sem
+  cargo configurado, nenhum dos dois menciona nada, como já era.
+  Mencionar dentro da própria thread tem um efeito colateral bom: o
+  Discord adiciona automaticamente quem for mencionado como membro da
+  thread, então a staff é notificada mesmo sem abrir/ter acesso ao
+  canal de logs.
+- Verificado com teste real (interação/thread/canal de log
+  simulados, sem tocar o Discord de verdade): sem cargo configurado,
+  nem a thread nem o log mencionam nada; com cargo configurado, os
+  dois containers (thread E log) incluem `<@&roleId>` corretamente.
