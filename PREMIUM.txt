@@ -8639,3 +8639,45 @@ frente, nao so este relatorio):
   `/reportchat` de novo em outro canal) + teste end-to-end chamando
   `ajuda.execute()` de verdade com um canal configurado, confirmando
   que o payload renderizado contém a menção `<#canal>`.
+
+177) CORREÇÃO: /unstrike não desfazia ban/mute em jogo quando o alvo
+     não tinha /registrar (usuario + agid informados à mão no /strike)
+------------------------------------------------------------------
+- Relato do dono (2026-08-11): "Unstrike não esta removendo ban ou
+  mute em jogo."
+- CAUSA RAIZ: a tabela `punishments` nunca guardava o Alderon ID
+  realmente usado na ação em jogo do strike — só `user_id` (Discord).
+  `handleUnstrikeConfirmation` tinha que RE-DESCOBRIR esse AGID na
+  hora de desfazer via `getPlayerByDiscordId(punishment.user_id)`, que
+  busca o vínculo GLOBAL ATUAL (`/registrar`), não o AGID que foi de
+  fato banido/mutado no momento do strike. Isso funciona quando o
+  strike usou só `usuario` (o AGID vem do próprio vínculo, que
+  normalmente não muda) — mas quebra sempre que o staff informa
+  `usuario` E `agid` à mão no `/strike` (fluxo comum pra jogador sem
+  `/registrar` — staff pega o AGID manualmente e informa os dois):
+  nesse caso `getPlayerByDiscordId` não acha vínculo NENHUM pro
+  Discord ID, `alderonId` fica `undefined`, e o `/unstrike` cai direto
+  em "Jogador não vinculado ao Path of Titans — ação in-game não
+  desfeita" — a punição é corretamente marcada como anulada no banco/
+  Discord, mas o ban/mute em jogo nunca é revertido.
+- FIX: nova coluna `punishments.alderon_id` (ensureColumn, database/
+  index.js) grava o AGID EXATO usado na ação em jogo no momento do
+  strike (`_executeStrike` passa `session.alderonId` — sempre presente
+  em qualquer strike Rastreador+, já que é obrigatório pra resolver o
+  alvo antes mesmo de chegar em `proceedWithLevel`). `applyPunishment`
+  ganhou um parâmetro opcional `alderonId` pra persistir isso.
+  `handleUnstrikeConfirmation` agora prioriza `punishment.alderon_id`
+  sobre o relookup antigo — só cai no melhor-esforço de antes
+  (`getPlayerByDiscordId`/prefixo `agid:` sintético) pra punições
+  aplicadas ANTES desta coluna existir (`alderon_id` null nelas).
+- Sintaxe RCON do `unban`/`ServerUnmute` em si CONFIRMADA contra a doc
+  oficial (hosting.pathoftitans.wiki/guide/chat-commands): `unban
+  <Username/AGID>` e `ServerUnmute <Username/AGID>` — igual ao que já
+  estava implementado, não era a causa do bug.
+- Verificado: `node --check` nos 2 arquivos tocados; teste funcional
+  com SQLite real confirmando (1) a coluna é criada pela migração, (2)
+  `applyPunishment` grava o alderon_id informado, (3) o trecho de
+  resolução do `/unstrike` reconstrói o AGID exato via
+  `punishment.alderon_id` mesmo sem NENHUM vínculo Discord pro alvo
+  (reproduz e corrige o cenário exato do bug), (4) punição legada
+  (`alderon_id` null) continua caindo no fallback antigo sem quebrar.

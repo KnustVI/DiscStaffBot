@@ -236,6 +236,22 @@ class DatabaseManager {
             this.ensureColumn('punishments', 'level_severity', 'TEXT');
             this.ensureColumn('punishments', 'level_action', 'TEXT');
             this.ensureColumn('punishments', 'duration_str', 'TEXT');
+            // Alderon ID de fato usado na ação em jogo (RCON) no momento do
+            // strike (ver punishmentSystem._executeStrike) — pedido do dono,
+            // 2026-08-11: "unstrike não está removendo ban ou mute em jogo".
+            // Causa raiz: punishments nunca guardava o Alderon ID punido; o
+            // /unstrike tinha que RE-DESCOBRIR esse valor via
+            // getPlayerByDiscordId(punishment.user_id) na hora de desfazer —
+            // que busca o vínculo GLOBAL ATUAL, não o AGID realmente banido.
+            // Quando o staff informa `usuario` E `agid` explicitamente no
+            // /strike (alvo sem /registrar, AGID passado à mão), esse
+            // relookup não encontra vínculo nenhum e o unban/ServerUnmute
+            // simplesmente não dispara — mesmo com a punição corretamente
+            // marcada como anulada no banco. Null em punições aplicadas
+            // antes desta coluna existir — handleUnstrikeConfirmation cai de
+            // volta no relookup antigo nesse caso (melhor esforço, mesmo
+            // comportamento de antes).
+            this.ensureColumn('punishments', 'alderon_id', 'TEXT');
             // Exigência de aprovação de Supervisor configurável por nível
             // (plano Caçador) — ver punishmentLevels.js/premiumSystem.js
             // GUILD_LIMITS.customPunishmentApprovalEnabled.

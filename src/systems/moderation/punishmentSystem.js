@@ -778,7 +778,7 @@ const PunishmentSystem = {
         }
 
         const levelSnapshot = levelId ? { id: levelId, name: levelName, severity: levelSeverity, action: levelAction, durationStr } : null;
-        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, levelSnapshot, reportId || null, pointsLost);
+        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, levelSnapshot, reportId || null, pointsLost, alderonId || null);
         if (!strikeId) {
             return { success: false, error: 'Erro ao aplicar punição no banco de dados.' };
         }
@@ -1072,13 +1072,22 @@ const PunishmentSystem = {
                 if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
                     ingameUndoResult = 'Ação in-game requer o plano Rastreador — não desfeita automaticamente.';
                 } else {
-                    // Alvo sem vínculo Discord (ver _executeStrike/convenção
+                    // Prioridade 1: o AGID gravado NA PRÓPRIA punição (coluna
+                    // alderon_id, ver ensureColumn em database/index.js) — o
+                    // valor EXATO usado na ação em jogo original, sempre
+                    // presente em punições aplicadas a partir desta revisão.
+                    // Sem isso (punição legada, coluna null), cai no
+                    // melhor-esforço antigo: alvo sem vínculo Discord (ver
                     // UNREGISTERED_TARGET_PREFIX) guarda o AGID direto no
-                    // user_id — usa ele sem tentar resolver por Discord, que
-                    // nunca vai bater.
-                    const alderonId = this._isUnregisteredTargetId(punishment.user_id)
-                        ? punishment.user_id.slice(UNREGISTERED_TARGET_PREFIX.length)
-                        : getPlayerByDiscordId(punishment.user_id)?.alderon_id;
+                    // user_id; alvo normal tenta o vínculo GLOBAL ATUAL — que
+                    // pode já não bater com o AGID realmente punido (causa
+                    // raiz original do bug "unstrike não remove ban/mute",
+                    // pedido do dono 2026-08-11), mas é o único dado que
+                    // ainda existe pra punições antigas.
+                    const alderonId = punishment.alderon_id
+                        || (this._isUnregisteredTargetId(punishment.user_id)
+                            ? punishment.user_id.slice(UNREGISTERED_TARGET_PREFIX.length)
+                            : getPlayerByDiscordId(punishment.user_id)?.alderon_id);
                     if (!alderonId) {
                         ingameUndoResult = 'Jogador não vinculado ao Path of Titans — ação in-game não desfeita.';
                     } else {
@@ -1234,8 +1243,11 @@ const PunishmentSystem = {
      *   sem conceito de nível). Congelado no momento do strike — editar o nível depois não reescreve
      *   punições já aplicadas (ver punishment_levels em schema.js). `severity` (coluna numérica antiga)
      *   sempre grava 0 (sentinela) em linhas novas; o texto vive em level_severity.
+     * @param {string|null} [alderonId] - Alderon ID de fato usado na ação em jogo (RCON) deste strike,
+     *   se houver (ver docblock de ensureColumn('punishments','alderon_id') em database/index.js) —
+     *   permite ao /unstrike desfazer a ação exata que foi aplicada, sem precisar re-adivinhar o AGID.
      */
-    applyPunishment(guildId, targetId, moderatorId, reason, levelSnapshot, reportId, points) {
+    applyPunishment(guildId, targetId, moderatorId, reason, levelSnapshot, reportId, points, alderonId = null) {
         try {
             const trans = db.transaction(() => {
                 const maxStrike = db.prepare(`
@@ -1246,12 +1258,12 @@ const PunishmentSystem = {
                 const uuid = require('../../database/index').generateUUID();
 
                 db.prepare(`
-                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status, level_id, level_name, level_severity, level_action, duration_str)
-                    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status, level_id, level_name, level_severity, level_action, duration_str, alderon_id)
+                    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(
                     uuid, guildId, strikeNumber, targetId, moderatorId, reason, points, reportId, Date.now(), 'active',
                     levelSnapshot?.id || null, levelSnapshot?.name || null, levelSnapshot?.severity || null,
-                    levelSnapshot?.action || null, levelSnapshot?.durationStr || null,
+                    levelSnapshot?.action || null, levelSnapshot?.durationStr || null, alderonId || null,
                 );
 
                 // Sistema de pontos de reputação é recurso Pegada+ — em
