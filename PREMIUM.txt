@@ -8322,3 +8322,52 @@ frente, nao so este relatorio):
 - Verificado: sintaxe OK, os 3 call sites de `getPartnerNews`
   continuam chamando exatamente igual (mudança 100% transparente pra
   quem chama).
+
+------------------------------------------------------------------
+170) CRÍTICO: nome do tópico de report renomeava em TODA mensagem
+     trocada, estourava o rate limit de canal do Discord e travava o
+     fechamento junto — reduzido a só 2 renomeações por report
+------------------------------------------------------------------
+- Reportado pelo dono (2026-08-10): "Reportes não estão sendo
+  fechados e o nome dos tópicos esta sendo alterado com muita
+  frequencia, vamos manter apenas o nome de indicação aberto com
+  icone verde e o de inativo após 24 horas. assim não espama
+  alteração de nome."
+- Causa raiz encontrada (seção 149 introduziu a bolinha de status no
+  nome do tópico ⚫/🟠/🟢, este dia mais cedo): `messageCreate.js`
+  chama `updateStatus` em TODA mensagem trocada dentro de um report
+  aberto — staff responde -> 'responded', QUALQUER mensagem do usuário
+  depois disso volta pra 'waiting' de novo, mesmo já tendo sido
+  respondido. Uma conversa normal de ida-e-volta (staff/usuário se
+  alternando) rodava `thread.setName()` a cada mensagem, e o rate
+  limit de renomear canal do Discord é de só 2 trocas/10min POR CANAL.
+  `closeReport` usa `thread.setLocked`/`setArchived` no MESMO tópico —
+  como essas chamadas competem pelo mesmo bucket de rate limit do
+  canal (todas são PATCH /channels/{id}), o spam de renomeação
+  enfileirava/atrasava o lock+archive do fechamento atrás dele, dando
+  a impressão de reports "não fechando" mesmo com o registro no banco
+  já batendo certo.
+- FIX: `THREAD_STATUS_DOT` reduzido na PRÁTICA a 2 gatilhos de
+  renomeação (dicionário continua com 'waiting'/'responded' de
+  referência, só não são mais usados pra nome de tópico):
+  - `openReport`/`openPunishmentReview` (criação) sempre usam 'open'
+    (🟢) agora, em vez de 'waiting' (🟠) — o tópico já nasce marcado
+    como "aberto", sem precisar de uma 2ª renomeação no primeiro
+    "respondido".
+  - `updateStatus` só chama `thread.setName()` quando `newStatus ===
+    'inactive'` — nenhuma outra transição ('waiting'<->'responded')
+    renomeia mais o tópico. 'inactive' já vinha de um cron diário
+    (`inactiveReportsJob.js`, 00:05 America/Sao_Paulo), nunca de
+    mensagem trocada, então continua bem dentro do rate limit.
+  - `closeReport` nunca renomeava (só lock+archive) — intocado, mas
+    agora sem fila de renomeações concorrentes competindo pelo mesmo
+    canal, o que deve resolver o "não fechando" reportado junto.
+  - Cor/texto do PAINEL (container de log/DM, `getStatusText`/
+    `createBaseContainer`) continuam refletindo o status real
+    (waiting/responded/inactive/fechado) normalmente — só o NOME do
+    TÓPICO parou de acompanhar cada transição intermediária.
+- Verificado com teste real contra o banco (guild/usuário/report
+  descartáveis): `updateStatus('responded')` e `updateStatus('waiting')`
+  a partir de qualquer estado NÃO chamam `thread.setName` (0
+  chamadas); `updateStatus('inactive')` chama exatamente 1 vez; nome
+  de criação (`buildThreadName(..., 'open')`) começa com 🟢.

@@ -107,17 +107,31 @@ class ReportChatSystem {
     }
 
     /**
-     * Bolinha de status no NOME do tópico (pedido do dono, 2026-08-10, ver
-     * imagem de referência: ⚫ inativo / 🟠 aguardando staff / 🟢
-     * respondido). Unicode LITERAL de propósito, não EMOJIS.* — nome de
-     * canal/tópico do Discord não interpreta emoji de aplicação custom
-     * (<:nome:id>, o formato usado em texto de mensagem/embed em todo o
-     * resto do bot), só emoji Unicode renderiza ali. Só os 3 estados
-     * "abertos": fechado arquiva o tópico (ver closeReport/
-     * thread.setArchived), sem necessidade de sinalizar status num tópico
-     * já arquivado e escondido da lista.
+     * Bolinha de status no NOME do tópico. Reduzido a SÓ 2 estados (pedido
+     * do dono, 2026-08-10: "Reportes não estão sendo fechados e o nome dos
+     * tópicos esta sendo alterado com muita frequencia... vamos manter
+     * apenas o nome de indicação aberto com icone verde e o de inativo
+     * após 24 horas") — a versão original (⚫ inativo / 🟠 aguardando staff
+     * / 🟢 respondido) renomeava o tópico em TODA mensagem trocada dentro
+     * dele (ver messageCreate.js: staff responde -> 'responded', usuário
+     * responde -> 'waiting' de novo, mesmo já tendo sido respondido antes)
+     * — uma conversa normal de ida-e-volta estourava o rate limit do
+     * Discord pra renomear canal (2 trocas/10min) em poucas mensagens.
+     * Como setName/setLocked/setArchived (usado por closeReport) competem
+     * pelo MESMO bucket de rate limit do canal, o spam de renomeação
+     * também travava o fechamento do report — a causa provável do "não
+     * estão sendo fechados" relatado junto. Unicode LITERAL de propósito,
+     * não EMOJIS.* — nome de canal/tópico do Discord não interpreta emoji
+     * de aplicação custom (<:nome:id>, o formato usado em texto de
+     * mensagem/embed em todo o resto do bot), só emoji Unicode renderiza
+     * ali. 'waiting'/'responded' (não usados mais pra nome de tópico,
+     * `getStatusText`/`createBaseContainer` continuam usando o status real
+     * pra cor/texto do painel — só o NOME do tópico parou de acompanhar
+     * cada transição) ficam de referência só pra não quebrar nada que já
+     * dependa do formato do objeto.
      */
     static THREAD_STATUS_DOT = {
+        open: '🟢',
         waiting: '🟠',
         responded: '🟢',
         inactive: '⚫',
@@ -125,13 +139,13 @@ class ReportChatSystem {
 
     /**
      * Nome padronizado do tópico: "<bolinha> Rep<N> - <username>". Chamado
-     * na criação (openReport/openPunishmentReview, sempre 'waiting') e em
-     * toda transição de status subsequente (updateStatus) — mantém o nome
-     * do tópico como um indicador de status escaneável na lista de canais,
-     * sem precisar abrir cada um pra saber se já foi respondido.
+     * na criação (openReport/openPunishmentReview, sempre 'open' — verde,
+     * ver THREAD_STATUS_DOT acima) e por updateStatus só quando o novo
+     * status é 'inactive' — nenhuma outra transição renomeia mais o
+     * tópico, pra não estourar o rate limit de renomear canal do Discord.
      */
     buildThreadName(reportNumber, username, status) {
-        const dot = ReportChatSystem.THREAD_STATUS_DOT[status] || ReportChatSystem.THREAD_STATUS_DOT.waiting;
+        const dot = ReportChatSystem.THREAD_STATUS_DOT[status] || ReportChatSystem.THREAD_STATUS_DOT.open;
         return `${dot} Rep${reportNumber} - ${username}`;
     }
 
@@ -532,9 +546,9 @@ class ReportChatSystem {
             const reportNumber = this.getNextId(guild.id);
             const reportId = `#REP${reportNumber}`;
             // Pedido do dono, 2026-08-10 (ver THREAD_STATUS_DOT/buildThreadName
-            // acima) — sempre 'waiting' na criação, updateStatus renomeia
-            // depois conforme o report evolui.
-            const threadName = this.buildThreadName(reportNumber, user.username, 'waiting');
+            // acima) — sempre 'open' (verde) na criação; só volta a mudar
+            // se o report ficar inativo (updateStatus), nunca a cada mensagem.
+            const threadName = this.buildThreadName(reportNumber, user.username, 'open');
 
             const thread = await interaction.channel.threads.create({
                 name: threadName,
@@ -709,7 +723,7 @@ class ReportChatSystem {
             const reportNumber = this.getNextId(guild.id);
             const reportId = `#REP${reportNumber}`;
             // Mesmo padrão de openReport() acima — ver buildThreadName.
-            const threadName = this.buildThreadName(reportNumber, user.username, 'waiting');
+            const threadName = this.buildThreadName(reportNumber, user.username, 'open');
             const personalization = ConfigSystem.getPanelPersonalization(guild.id);
 
             const thread = await interaction.channel.threads.create({
@@ -1290,17 +1304,17 @@ class ReportChatSystem {
         const isClosedStatus = newStatus === 'closed_no_reason' || newStatus === 'closed_with_reason';
         const normalizedReportId = `#REP${reportNumber}`;
 
-        // Nome do tópico também reflete o status (bolinha ⚫/🟠/🟢, pedido
-        // do dono 2026-08-10 — ver THREAD_STATUS_DOT/buildThreadName acima).
-        // Só nos 3 estados "abertos": closeReport já arquiva o tópico pros
-        // 2 status fechados, e o caso 'closed_no_reason' feito por AQUI
-        // (releaseReportByThreadId) só dispara depois do tópico já ter sido
-        // apagado — nada pra renomear. Try/catch próprio: renomear canal é
-        // best-effort (rate limit do Discord é 2 trocas de nome/10min por
-        // canal — uma falha aqui não pode derrubar a atualização do painel
-        // de log/DM abaixo, que continuam sendo a fonte de verdade real do
-        // status mesmo se o nome do tópico ficar defasado por causa disso).
-        if (!isClosedStatus && report.thread_id) {
+        // Nome do tópico só muda MAIS UMA VEZ, quando o report vira
+        // 'inactive' (pedido do dono, 2026-08-10 — ver THREAD_STATUS_DOT/
+        // buildThreadName acima: renomear em toda transição de status
+        // estourava o rate limit de renomear canal do Discord e travava o
+        // fechamento junto, porque setName/setLocked/setArchived competem
+        // pelo mesmo bucket). 'waiting'/'responded' NÃO renomeiam mais —
+        // o tópico fica com o nome verde ("aberto") de quando foi criado
+        // até virar inativo ou ser fechado (closeReport arquiva, não
+        // renomeia). Try/catch: renomear continua best-effort, uma falha
+        // aqui não pode derrubar a atualização do painel de log/DM abaixo.
+        if (newStatus === 'inactive' && report.thread_id) {
             try {
                 const thread = await guild.channels.fetch(report.thread_id);
                 if (thread) await thread.setName(this.buildThreadName(reportNumber, targetUser.username, newStatus));
