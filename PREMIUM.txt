@@ -8453,16 +8453,18 @@ frente, nao so este relatorio):
   evento e virou sempre `<div>`, com os links (evento/convite) como
   ações explícitas separadas, pelo mesmo motivo de HTML inválido do
   item 2 (evita `<a>` aninhado em `<a>`).
-- Item 5: investigado o botão "Investigar" de reports-list.ejs — já
-  linkava pra `https://discord.com/channels/<guild>/<thread>`, que no
-  celular o próprio Discord intercepta via Universal/App Link quando
-  o app está instalado (comportamento do sistema operacional, fora do
-  nosso controle — não existe forma de "perguntar" isso via HTML/JS
-  puro). Adicionado um link secundário explícito "Abrir no app"
-  (esquema `discord://-/channels/<guild>/<thread>`, registrado pelo
-  app desktop/mobile do Discord) ao lado do botão existente, tanto em
-  reports abertos quanto fechados — dá a opção sem depender só do
-  comportamento automático do SO.
+- Item 5: primeira tentativa adicionou um 2º botão "Abrir no app" ao
+  lado de "Investigar" — rejeitado pelo dono ("Não adicione outro
+  botão para entrar no app, remova o botão, no botão investigar
+  sempre peça para abrir o app"). Corrigido pro botão único de
+  sempre: `onclick="openInDiscordApp(...)"` tenta navegar pro esquema
+  `discord://-/channels/<guild>/<thread>` (registrado pelo app
+  desktop/mobile do Discord); se a aba perder o foco logo em seguida
+  (o app abriu de verdade), cancela o fallback; senão, depois de
+  ~900ms sem perder o foco, abre a versão web (mesmo destino que já
+  era o href original) numa aba nova — padrão clássico de "custom
+  protocol com fallback". Função definida uma vez só, no fim do
+  parcial reports-list.ejs.
 - Verificado: `node --check` em dashboard.js; `ejs.renderFile()` real
   de hero.ejs, partner-news-mini.ejs, reports-list.ejs e loja.ejs com
   mocks (checando presença do CSS restaurado, `role="button"`, link

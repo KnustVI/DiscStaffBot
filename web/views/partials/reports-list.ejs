@@ -130,14 +130,9 @@ function reportsHref(overrides) {
                         <span><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <%= new Date(r.created_at).toLocaleString('pt-BR') %></span>
                     </div>
                     <% if (r.thread_id && !r.threadDeletedByName) { %>
-                        <div class="report-investigate-row mt-2">
-                            <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
-                                <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
-                            </a>
-                            <a href="discord://-/channels/<%= r.guild_id %>/<%= r.thread_id %>" class="report-app-link">
-                                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Abrir no app</span><span data-i18n-en>Open in app</span>
-                            </a>
-                        </div>
+                        <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2" onclick="return openInDiscordApp(event, '<%= r.guild_id %>', '<%= r.thread_id %>')">
+                            <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
+                        </a>
                     <% } else if (r.threadDeletedByName) { %>
                         <p class="text-xs" style="color:#FF4E3B;"><span data-i18n-pt>Tópico apagado por:</span><span data-i18n-en>Topic deleted by:</span> <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } %>
@@ -218,14 +213,9 @@ function reportsHref(overrides) {
                     <% if (r.threadDeletedByName) { %>
                         <p class="text-xs" style="color:#FF4E3B;"><span data-i18n-pt>Tópico apagado por:</span><span data-i18n-en>Topic deleted by:</span> <%= r.threadDeletedByName %> (<%= r.threadDeletedByRoleLabel %>)</p>
                     <% } else if (r.thread_id) { %>
-                        <div class="report-investigate-row mt-2">
-                            <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start">
-                                <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
-                            </a>
-                            <a href="discord://-/channels/<%= r.guild_id %>/<%= r.thread_id %>" class="report-app-link">
-                                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> <span data-i18n-pt>Abrir no app</span><span data-i18n-en>Open in app</span>
-                            </a>
-                        </div>
+                        <a href="https://discord.com/channels/<%= r.guild_id %>/<%= r.thread_id %>" target="_blank" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm self-start mt-2" onclick="return openInDiscordApp(event, '<%= r.guild_id %>', '<%= r.thread_id %>')">
+                            <i data-lucide="telescope" class="w-4 h-4"></i> <span data-i18n-pt>Investigar</span><span data-i18n-en>Investigate</span>
+                        </a>
                     <% } %>
                 </div>
             <% }); %>
@@ -247,3 +237,39 @@ function reportsHref(overrides) {
         <% } %>
     <% } %>
 </section>
+
+<%#
+  "Investigar" tenta abrir direto no app do Discord antes de cair pro
+  navegador (pedido do dono, 2026-08-11: "no botão investigar sempre peça
+  para abrir o app" — depois de rejeitar um 2º botão "Abrir no app"
+  separado, ver correção anterior nesta mesma sessão). Padrão clássico de
+  "custom protocol com fallback": tenta navegar pro esquema discord://
+  (registrado pelo app desktop/mobile); se a aba perder o foco logo em
+  seguida, o app abriu de verdade e o fallback é cancelado; senão, depois
+  de ~900ms sem perder o foco (nenhum app registrado pra interceptar),
+  abre a versão web (mesma URL que já era o href original) numa aba nova.
+  Só existe UM único script no fim do arquivo mesmo com N cards na lista
+  (delegado por card via onclick, não duplicado). Script roda normalmente
+  no carregamento inicial da página (include normal do EJS); se este
+  fragmento for re-substituído depois via poll-fragment.js (inserido via
+  innerHTML), o <script> não re-executa — sem problema, a função já fica
+  definida globalmente desde o primeiro carregamento.
+%>
+<script>
+    function openInDiscordApp(event, guildId, threadId) {
+        event.preventDefault();
+        const appUrl = 'discord://-/channels/' + guildId + '/' + threadId;
+        const webUrl = 'https://discord.com/channels/' + guildId + '/' + threadId;
+
+        const fallback = setTimeout(function () {
+            window.open(webUrl, '_blank');
+        }, 900);
+        window.addEventListener('blur', function onBlur() {
+            clearTimeout(fallback);
+            window.removeEventListener('blur', onBlur);
+        });
+
+        window.location.href = appUrl;
+        return false;
+    }
+</script>
