@@ -8277,3 +8277,48 @@ frente, nao so este relatorio):
   no texto final. Teste de render real do perfil web cobrindo sem
   histórico / com histórico e dado / com histórico sem nenhum registro
   ainda — os 3 cenários renderizam certo.
+
+------------------------------------------------------------------
+169) Remove o botão "Controle Loja" do /perfil do Discord (pedido do
+     dono: não deveria estar ali) + CRÍTICO: cache de 60s no feed de
+     anúncios de parceiros (causa provável de "site com dificuldade
+     pra carregar")
+------------------------------------------------------------------
+- Pedido do dono (2026-08-10): "Controle de loja aparece como botão
+  no /perfil não é para ser isso, remova." — botão de atalho (só
+  visível pro dono, ver seção 152) removido de `sendProfile`
+  (playerRegistrationSystem.js). A página `/dev/image-pool` (Controle
+  Loja) continua acessível normalmente pela sidebar do dashboard, só
+  não pelo `/perfil` mais. `DEVELOPER_ID` ficou sem nenhum outro uso
+  no arquivo depois da remoção — removida a constante também (dead
+  code).
+- Pedido do dono, mesma mensagem: "Site parece ter difiguldade para
+  carregar as paginas o que pode ser?" — investigado antes de
+  responder. Causa mais provável encontrada: `getPartnerNews`
+  (dashboard.js) faz fetch de VERDADE contra a API do Discord (canal +
+  mensagem da imagem de cada anúncio, e `scheduledEvents` do servidor
+  pro bônus Caçador) SEM CACHE NENHUM, uma vez por anúncio elegível,
+  toda vez que a função roda. Até a seção 165 (2026-08-10, mais cedo
+  no mesmo dia) essa função só rodava na home (`GET /`); a seção 165
+  passou a chamá-la TAMBÉM em `/perfil` e `/loja` (carrossel compacto)
+  — triplicando de quantas páginas esse custo dispara, sem cache
+  nenhum pra absorver a repetição de alguém só navegando entre as 3
+  páginas.
+- FIX: `getPartnerNews` virou um wrapper com cache de 60s (`_
+  fetchPartnerNews` faz o trabalho de verdade, chamado só quando o
+  cache expira) — os 3 call sites (`/`, `/perfil`, `/loja`)
+  continuam idênticos, não precisaram mudar nada. TTL curto o
+  suficiente pra uma divulgação nova (`/divulgar`) aparecer rápido
+  (até 60s de atraso), longo o suficiente pra cortar a esmagadora
+  maioria das chamadas repetidas de navegação normal entre as páginas.
+  Sem invalidação manual no `/divulgar` de propósito — o TTL curto já
+  resolve, e mexer no fluxo de escrita levaria risco desnecessário pra
+  um ganho pequeno.
+- Descartado como causa depois de investigar: `getStaffHistoryForProfile`
+  (seção 168, também novo) só faz consultas SQLite locais (com índice
+  em `staff_analytics(guild_id, user_id)` e `(date)`, confirmado no
+  schema) — rápido mesmo iterando todo servidor que o bot atende, bem
+  diferente de round-trips de rede pra API do Discord.
+- Verificado: sintaxe OK, os 3 call sites de `getPartnerNews`
+  continuam chamando exatamente igual (mudança 100% transparente pra
+  quem chama).

@@ -1232,7 +1232,29 @@ function loadDashboard(client) {
         return { imageUrl, latestEvent };
     }
 
+    // Cache curto (60s) do feed inteiro — pedido do dono, 2026-08-10:
+    // "Site parece ter dificuldade para carregar as páginas". Causa raiz:
+    // getPartnerNews virou parte de /, /perfil E /loja (antes só da home) —
+    // cada carregamento faz de verdade fetch de canal+mensagem (imagem) e
+    // scheduledEvents (bônus Caçador) do Discord POR anúncio elegível, sem
+    // cache nenhum; com >1 anúncio publicado isso já passa de 1 chamada
+    // REST só pra montar o feed, multiplicado por 3 páginas diferentes toda
+    // vez que alguém navega entre elas. TTL curto o bastante pra uma
+    // divulgação nova (/divulgar) aparecer rápido, longo o bastante pra
+    // cortar a imensa maioria das chamadas repetidas de navegação normal.
+    let _partnerNewsCache = null; // { data, expiresAt }
+    const PARTNER_NEWS_CACHE_TTL_MS = 60 * 1000;
+
     async function getPartnerNews(client) {
+        if (_partnerNewsCache && _partnerNewsCache.expiresAt > Date.now()) {
+            return _partnerNewsCache.data;
+        }
+        const data = await _fetchPartnerNews(client);
+        _partnerNewsCache = { data, expiresAt: Date.now() + PARTNER_NEWS_CACHE_TTL_MS };
+        return data;
+    }
+
+    async function _fetchPartnerNews(client) {
         const rows = db.prepare(`
             SELECT t.guild_id, t.value AS title, x.value AS text, u.value AS updated_at,
                    img.value AS image_message_id, ev.value AS event_id

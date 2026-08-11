@@ -69,12 +69,6 @@ try {
 
 const ALDERON_ID_REGEX = /^\d{3}-\d{3}-\d{3}$/;
 
-// Mesmo ID hardcoded já duplicado em ~10 arquivos (dashboard.js,
-// developer/*.js, botstatus.js, supportChatSystem.js) — não vale a pena
-// um módulo de constantes compartilhado só por isso, mesmo padrão de
-// duplicação proposital já estabelecido no projeto.
-const DEVELOPER_ID = '203676076189286412';
-
 // Mesmo domínio do dashboard web (dashboard.titansvisit.win — ver
 // premiumPanel.js SITE_PREMIUM_URL pro mesmo padrão de link fixo).
 const DASHBOARD_BASE_URL = 'https://dashboard.titansvisit.win';
@@ -612,15 +606,12 @@ class PlayerRegistrationSystem {
         // qualquer um que clicar entra com a PRÓPRIA conta do Discord,
         // então mostrar teria que refletir os acessos de quem vai clicar,
         // não de quem está sendo exibido no card. Pedido do dono,
-        // 2026-08-10: "Adicionar botão de pool de imagens no perfil para
-        // visualização do desenvolvedor" + "Adicionar botão dashboard em
-        // perfil apenas para usuários que administram um server".
+        // 2026-08-10: "Adicionar botão dashboard em perfil apenas para
+        // usuários que administram um server". Botão de atalho pro
+        // Controle Loja (só pro dono) removido em 2026-08-10 — pedido do
+        // dono: "não é para ser isso" — a página continua acessível pela
+        // sidebar do dashboard (/dev/image-pool), só não pelo /perfil.
         const profileLinkButtons = [];
-        if (interaction.user.id === DEVELOPER_ID) {
-            profileLinkButtons.push(
-                new ButtonBuilder().setLabel('Controle Loja').setURL(`${DASHBOARD_BASE_URL}/dev/image-pool`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.imagem || '🖼️'),
-            );
-        }
         // Cache-only de propósito (mesmo risco aceito já documentado em
         // dashboard.js getStaffRoles/resolveStaffRoleLabel): iterar E
         // buscar (fetch) o membro em TODO servidor que o bot atende seria
