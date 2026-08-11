@@ -8613,3 +8613,29 @@ frente, nao so este relatorio):
   partner-news-mini.ejs (ícone de estrela); teste funcional com SQLite
   real cobrindo jogador online, offline e nunca visto (defaults seguros,
   sem exceção) pra `getPlayerGameStatus`.
+
+176) /ajuda (tópico de membro comum) agora linka o canal do painel de
+     reports
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "No comando ajuda para pusuários onde
+  fala sobre o reportchat, consegue linkar o canal que esta
+  configurado para atender reportes?"
+- Investigado: `/reportchat` nunca guardava em lugar nenhum QUAL canal
+  recebeu o painel — só mandava a mensagem e esquecia (`interaction.
+  channel.send(panel)`, sem persistir nada). Sem essa informação,
+  `/ajuda` não tinha como saber onde apontar.
+- FIX: `/reportchat` agora grava `report_panel_channel_id` (settings,
+  `ConfigSystem.setSetting`) toda vez que publica o painel — sobrescrito
+  se o comando for rodado de novo em outro canal, o "painel atual"
+  sempre reflete a última publicação. `/ajuda` (tópico "Início" pra
+  membros comuns, `buildPageUserSimple`) lê essa configuração e linka
+  `<#canal>` na linha do ReportChat quando o canal ainda existe; sem
+  configuração ainda (servidor nunca rodou `/reportchat`) ou canal
+  apagado depois, cai de volta no texto genérico de sempre — nunca
+  mostra uma menção de canal quebrada.
+- Verificado: `node --check` nos 2 arquivos tocados; teste funcional
+  com SQLite real cobrindo os 4 cenários (nunca configurado, canal
+  existente, canal apagado depois de configurado, sobrescrita ao rodar
+  `/reportchat` de novo em outro canal) + teste end-to-end chamando
+  `ajuda.execute()` de verdade com um canal configurado, confirmando
+  que o payload renderizado contém a menção `<#canal>`.

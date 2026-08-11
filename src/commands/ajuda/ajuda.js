@@ -7,6 +7,7 @@ const {
 } = require('discord.js');
 const db = require('../../database/index');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const ConfigSystem = require('../../systems/core/configSystem');
 
 // ---------------------------------------------------------------------------
 // Fábrica de tópicos — /ajuda funciona como um guia do bot, navegado por um
@@ -147,7 +148,7 @@ function buildPageSystems(guildName, emojis) {
 
 // ==================== TÓPICO — MEMBROS COMUNS ====================
 
-function buildPageUserSimple(displayName, guildName, emojis) {
+function buildPageUserSimple(displayName, guildName, emojis, guild) {
     const builder = newPage(emojis);
     pageHeader(
         builder,
@@ -155,9 +156,20 @@ function buildPageUserSimple(displayName, guildName, emojis) {
         `Olá **${displayName}**! Sou o sistema de gestão de **${guildName}**. Aqui vai um resumo rápido do que você pode fazer:`
     );
 
+    // Canal do painel de reports (pedido do dono, 2026-08-11: "consegue
+    // linkar o canal que esta configurado para atender reportes?") —
+    // ConfigSystem.getSetting lê o que /reportchat gravou (ver
+    // reportchat.js). Confere se o canal ainda existe (pode ter sido
+    // apagado, ou o servidor nunca rodou /reportchat) antes de linkar —
+    // sem isso, uma menção de canal apagado aparece quebrada pro usuário.
+    const reportPanelChannelId = ConfigSystem.getSetting(guild.id, 'report_panel_channel_id');
+    const reportPanelChannelExists = reportPanelChannelId && guild.channels.cache.has(reportPanelChannelId);
+
     builder.title(`${emojis.ticket || '🎫'} ReportChat`, 2);
     builder.block([
-        '• Use o painel de reports para abrir uma denúncia.',
+        reportPanelChannelExists
+            ? `• Use o painel de reports em <#${reportPanelChannelId}> para abrir uma denúncia.`
+            : '• Use o painel de reports para abrir uma denúncia.',
         '• A staff vai atender e analisar o caso numa thread privada.',
         '• Você pode avaliar o atendimento ao final.',
     ]);
@@ -219,7 +231,7 @@ function buildPageHelp(guildName, emojis) {
 // ---------------------------------------------------------------------------
 
 function getTopics(isAdmin, ctx) {
-    const { displayName, guildName, emojis } = ctx;
+    const { displayName, guildName, emojis, guild } = ctx;
 
     if (isAdmin) {
         return [
@@ -231,7 +243,7 @@ function getTopics(isAdmin, ctx) {
     }
 
     return [
-        { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis) },
+        { key: 'welcome', label: 'Início', emoji: emojis.clipboardlist || '📋', build: () => buildPageUserSimple(displayName, guildName, emojis, guild) },
         { key: 'help', label: 'Ajuda & Suporte', emoji: emojis.compass || '💡', build: () => buildPageHelp(guildName, emojis) },
     ];
 }
@@ -285,7 +297,7 @@ module.exports = {
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
             const isAdmin = member.permissions.has('Administrator');
-            const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
+            const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis, guild });
 
             const payload = renderTopicPayload(topics, 'welcome', user.id);
             await interaction.editReply(payload);
@@ -342,7 +354,7 @@ module.exports = {
 
         const { guild, member } = interaction;
         const isAdmin = member.permissions.has('Administrator');
-        const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis });
+        const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis, guild });
 
         const topicKey = interaction.values?.[0] || 'welcome';
         const payload = renderTopicPayload(topics, topicKey, invokerId);
