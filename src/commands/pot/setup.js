@@ -18,6 +18,7 @@ module.exports = {
         const rconPassword = interaction.options.getString('rcon_password');
         const rconPort = interaction.options.getInteger('rcon_port');
         const serverName = interaction.options.getString('nome');
+        const gamePort = interaction.options.getInteger('game_port');
 
         const guildName = interaction.guild?.name || 'Servidor';
 
@@ -28,6 +29,11 @@ module.exports = {
                 server_ip: ip,
                 rcon_password: rconPassword,
                 rcon_port: rconPort,
+                // Porta do JOGO (Source Query, [SourceQuery] no Game.ini) —
+                // SEPARADA da porta RCON. Opcional: sem isso, o bot
+                // simplesmente não tenta reconciliar status online via
+                // Source Query pra esta guild (ver onlineStatusWorker.js).
+                game_port: gamePort || null,
                 webhook_port: 8080,
                 configured_at: Date.now(),
                 configured_by: interaction.user.id
@@ -66,6 +72,9 @@ module.exports = {
                 .text(serverName ? `${emojis.circleuser || '🏷️'} Nome: ${serverName}` : `${emojis.circleuser || '🏷️'} Nome: (não informado)`)
                 .text(`${emojis.wifi || '📡'} IP: ${ip}`)
                 .text(`${emojis.tomada || '🔌'} Porta RCON: ${rconPort}`)
+                .text(gamePort
+                    ? `${emojis.wifi || '📡'} Porta do Jogo (Source Query): ${gamePort} — usada pra corrigir status online automaticamente. Confirme que \`[SourceQuery] bEnabled=true\` está no Game.ini e a porta UDP está aberta (veja \`/potserver status\` pra testar a conexão).`
+                    : `${emojis.messagesquare || 'ℹ️'} Porta do Jogo (Source Query) não informada — a correção automática de status online (\`is_online\`) fica desativada pra este servidor. Habilite \`[SourceQuery]\` no Game.ini (hosting.pathoftitans.wiki/setup/source-query) e rode \`/potserver setup\` de novo informando \`game_port\`.`)
                 .text(`${emojis.vpnkey || '🔑'} Token: \`${token}\``)
                 .text(`-# O token autentica as requisições do SEU servidor de jogo com o bot — ele já vem embutido nas URLs do Game.ini (\`/potserver logs\`). Não compartilhe: quem tiver o token pode enviar eventos falsos como se fossem do seu servidor.`)
                 .separator()

@@ -35,6 +35,11 @@ module.exports = {
                 .setDescription('Nome do servidor de jogo (ex: Atlas Brasil)')
                 .setRequired(false)
             )
+            .addIntegerOption(opt => opt
+                .setName('game_port')
+                .setDescription('Porta do JOGO (não a de RCON) — só se você habilitou [SourceQuery] no Game.ini, ver /ajuda')
+                .setRequired(false)
+            )
         )
         .addSubcommand(sub => sub
             .setName('logs')

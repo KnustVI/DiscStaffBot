@@ -1,6 +1,7 @@
 const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
 const PoTTokenManager = require('../../integrations/pathoftitans/tokenManager');
 const { getInstance } = require('../../integrations/pathoftitans');
+const SourceQueryClient = require('../../integrations/pathoftitans/sourceQueryClient');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const { MessageFlags } = require('discord.js'); // ✅ FIX
 
@@ -104,6 +105,20 @@ module.exports = {
                 rconText = `${emojis.circlealert || '❌'} Falhou: ${rconResult.error || 'sem resposta do servidor'} — verifique IP/porta/senha RCON`;
             }
             builder.text(`${emojis.rcon || '🔗'} **RCON:** ${rconText}`);
+
+            // Source Query (A2S) — correção automática de status online (ver
+            // onlineStatusWorker.js). Só testa se game_port foi configurado;
+            // opcional, então "não configurado" não é tratado como erro.
+            let sourceQueryText;
+            if (!config?.game_port) {
+                sourceQueryText = `${emojis.thumbsup || '⚪'} Não configurado (\`game_port\` ausente em \`/potserver setup\`) — status online só via webhooks.`;
+            } else {
+                const queryResult = await SourceQueryClient.queryInfo(config.server_ip, config.game_port, 4000);
+                sourceQueryText = queryResult.success
+                    ? `${emojis.circlecheck || '✅'} Conectado (testado agora) — ${queryResult.players}/${queryResult.maxPlayers} jogadores`
+                    : `${emojis.circlealert || '❌'} Falhou: ${queryResult.error} — confirme \`[SourceQuery] bEnabled=true\` no Game.ini e a porta UDP ${config.game_port} aberta.`;
+            }
+            builder.text(`${emojis.wifi || '📡'} **Source Query:** ${sourceQueryText}`);
 
             if (process.env.POT_PUBLIC_URL) {
                 builder.text(`${emojis.globo || '🌐'} **URL Pública:** \`${process.env.POT_PUBLIC_URL}\``);

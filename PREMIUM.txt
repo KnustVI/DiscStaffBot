@@ -8681,3 +8681,83 @@ frente, nao so este relatorio):
   `punishment.alderon_id` mesmo sem NENHUM vínculo Discord pro alvo
   (reproduz e corrige o cenário exato do bug), (4) punição legada
   (`alderon_id` null) continua caindo no fallback antigo sem quebrar.
+
+178) Reconciliação automática de status online via Source Query (A2S) —
+     corrige "identificar jogador online" travado
+------------------------------------------------------------------
+- Relato do dono (2026-08-11): "E vários relatos de problema de
+  identificar o jogador online, para registro, para ver staff online.
+  Verificou sobre a query para ver jogadores online?"
+- Investigado: a query em si (`PlayerRegistry.getPlayerGameStatus`,
+  consolidada na sessão anterior — ver seção 175) está correta e é
+  usada em todo lugar que precisa saber "está online agora". O
+  problema real é a FONTE do dado: `pot_players.is_online` só muda
+  através dos webhooks PlayerLogin/PlayerLogout/PlayerLeave. Numa
+  queda ABRUPTA (crash do jogo, banimento, perda de conexão, servidor
+  reiniciando) o PlayerLogout/PlayerLeave nunca dispara — o registro
+  fica preso "online" pra sempre, sem nada que corrija isso sozinho.
+  Mais raro, um PlayerLogin perdido (gateway fora do ar naquele
+  instante exato) deixa alguém realmente online aparecendo como
+  offline.
+- Descoberto (pergunta do dono): Path of Titans expõe opcionalmente o
+  protocolo "Source Query" (A2S, o mesmo do navegador de servidores da
+  Steam) — SEPARADO do RCON, sem senha, na porta do jogo + 4 por
+  padrão, precisa de `[SourceQuery] bEnabled=true` no Game.ini (ver
+  hosting.pathoftitans.wiki/setup/source-query). Dá a lista REAL de
+  quem está conectado agora, direto do servidor de jogo — fonte
+  confiável pra corrigir o desvio dos webhooks.
+- FIX: `src/integrations/pathoftitans/sourceQueryClient.js` — cliente
+  A2S implementado do zero (protocolo público/estável, sem lib
+  externa; usa `dgram` nativo) com `queryInfo` (A2S_INFO — contagem)
+  e `queryPlayers` (A2S_PLAYER — nomes + duração da sessão, fluxo de
+  challenge). `PlayerRegistry.reconcileOnlineStatus(guildId,
+  liveNames)` (potPlayerRegistry.js) casa a lista viva com
+  `pot_players` POR NOME (A2S não expõe Alderon ID): quem o banco diz
+  online mas não está na lista vira offline (fechando a sessão com o
+  MESMO efeito colateral de um logout normal — soma total_playtime,
+  credita moeda, limpa session_started_at); quem está na lista mas o
+  banco diz offline vira online (só jogadores JÁ conhecidos na guild).
+  Bounded por design — nunca varre a tabela inteira.
+  `src/systems/pot/onlineStatusWorker.js` roda isso a cada 5 minutos
+  (node-cron) pra toda guild com `game_port` configurado, best-effort
+  por guild (falha numa nunca trava as outras). Novo worker registrado
+  em `events/ready.js`.
+- `/potserver setup` ganhou a opção opcional `game_port` (porta do
+  JOGO, diferente da porta RCON) — sem ela, a guild é pulada
+  silenciosamente pelo worker, nenhuma mudança de comportamento pra
+  quem não configurar. `/potserver status` ganhou uma linha "Source
+  Query" testando a conexão ao vivo (mesmo padrão da linha de RCON já
+  existente).
+- BÔNUS (achado incidental nesta investigação): `PunishmentSystem.
+  initWorker` (remoção automática do cargo temporário de Strike ao
+  expirar, ver `temporary_roles`) existia desde sempre mas NUNCA era
+  chamado de lugar nenhum — o cargo temporário só saía se alguém
+  removesse manualmente. Corrigido junto: chamado agora em
+  `events/ready.js` no boot.
+- IMPORTANTE (mesma ressalva de sempre pras integrações PoT deste
+  projeto): o protocolo A2S em si é público, aberto e estável (~20
+  anos sem mudança, usado por milhares de jogos Source/Steam) — mas
+  esta implementação NUNCA foi validada contra um servidor Path of
+  Titans real. Testada com rigor possível sem produção: um servidor
+  UDP local simulando respostas A2S_INFO/A2S_PLAYER reais (incluindo o
+  fluxo de challenge de 2 idas e voltas) confirma que o parsing está
+  correto byte a byte contra o formato oficial do protocolo — falta
+  só a confirmação de que o Path of Titans realmente responde nesse
+  formato quando `[SourceQuery]` está habilitado. Não decodifica
+  respostas fragmentadas em múltiplos pacotes UDP (servidor com MUITOS
+  jogadores simultâneos) — degrada como falha limpa nesse caso, nunca
+  como dado incorreto (a reconciliação simplesmente pula aquele ciclo).
+- Verificado: `node --check` em todos os arquivos tocados; teste com
+  servidor UDP local real cobrindo (1) parsing de A2S_INFO
+  (contagem/nome/mapa), (2) fluxo completo de challenge + parsing de
+  A2S_PLAYER (múltiplos jogadores, nomes e durações corretos), (3)
+  timeout/erro limpo sem travar quando não há resposta; teste com
+  SQLite real de `reconcileOnlineStatus` cobrindo as duas direções
+  (online travado → offline, com total_playtime somado corretamente;
+  offline com login perdido → online) e confirmando que quem já está
+  com o status certo não é mexido.
+- Pendente (ambiente do dono, fora deste código): `node deploy.js` no
+  host pra registrar a opção nova (`game_port`) em `/potserver setup`;
+  habilitar `[SourceQuery]` no Game.ini de cada servidor PoT que quiser
+  usar a correção automática, e abrir a porta UDP correspondente no
+  firewall.

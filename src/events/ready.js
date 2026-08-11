@@ -30,6 +30,30 @@ module.exports = {
         
         startInactiveReportsJob(client);
         startEventSchedulerWorker(client);
+
+        // Remoção automática do cargo temporário de Strike ao expirar (ver
+        // temporary_roles em punishmentSystem.applyTemporaryRole) — achado
+        // incidental nesta sessão: initWorker existia desde sempre mas
+        // nunca era chamado de lugar nenhum, então o cargo temporário só
+        // saía se alguém removesse manualmente.
+        try {
+            const PunishmentSystem = require('../systems/moderation/punishmentSystem');
+            PunishmentSystem.initWorker(client);
+        } catch (error) {
+            console.error('❌ [PunishmentSystem] Erro ao iniciar worker de cargos temporários:', error);
+        }
+
+        // Reconciliação periódica de status online via Source Query (ver
+        // src/systems/pot/onlineStatusWorker.js) — pedido do dono,
+        // 2026-08-11: "vários relatos de problema de identificar o
+        // jogador online". Opcional por guild (só age em quem configurou
+        // game_port em /potserver setup), nunca bloqueia o boot.
+        try {
+            const { startOnlineStatusWorker } = require('../systems/pot/onlineStatusWorker');
+            startOnlineStatusWorker();
+        } catch (error) {
+            console.error('❌ [OnlineStatusWorker] Erro ao iniciar:', error.message);
+        }
         // Análise diária de staff unificada com a Manutenção Diária (pedido
         // do dono, 2026-08-06) — não roda mais num cron próprio (00:05),
         // agora é parte do relatório único enviado pelo cron das 12:00 em

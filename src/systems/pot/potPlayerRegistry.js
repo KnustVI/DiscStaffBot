@@ -601,6 +601,85 @@ function getPlayerGameStatus(guildId, alderonId) {
 }
 
 /**
+ * Reconcilia `is_online` com uma lista de nomes REALMENTE conectados agora,
+ * vinda de uma fonte externa confiável (Source Query A2S_PLAYER, ver
+ * sourceQueryClient.js / onlineStatusWorker.js) — corrige o desvio que os
+ * webhooks sozinhos não cobrem: PlayerLogout/PlayerLeave nunca dispara numa
+ * queda abrupta (crash, ban, perda de conexão), então o registro fica preso
+ * "online" pra sempre; mais raro, um PlayerLogin perdido (gateway fora do
+ * ar num instante exato) deixa alguém realmente online aparecendo como
+ * offline. Pedido do dono, 2026-08-11: "vários relatos de problema de
+ * identificar o jogador online, pra registro, pra ver staff online".
+ *
+ * Casamento por NOME (não Alderon ID — A2S_PLAYER não expõe isso, só o
+ * nome em jogo) — correção de MELHOR ESFORÇO por cima dos webhooks, que
+ * continuam sendo a fonte PRIMÁRIA; nomes duplicados entre jogadores
+ * diferentes (raro) podem confundir a correção, aceito como limitação.
+ *
+ * Direção OFFLINE (banco diz online, lista viva não tem o jogador): fecha
+ * a sessão com o MESMO efeito colateral de um logout normal (soma o tempo
+ * decorrido em total_playtime, credita moeda por hora jogada, limpa
+ * session_started_at) — só assim o /perfil e a economia não perdem o tempo
+ * dessa sessão só porque o evento de saída nunca chegou.
+ *
+ * Direção ONLINE (banco diz offline, lista viva TEM o jogador): só
+ * corrige jogadores JÁ CONHECIDOS nesta guild — sem Alderon ID vindo do
+ * A2S, não dá pra criar um cadastro novo só a partir do nome.
+ *
+ * Bounded por design: nunca varre a tabela inteira — só as linhas
+ * atualmente `is_online = 1` (tende a ser pequeno) e uma busca pontual por
+ * nome pra cada jogador da lista viva (tende a ser pequeno também).
+ *
+ * @param {string} guildId
+ * @param {string[]} liveNames - nomes em jogo retornados pelo Source Query agora
+ * @returns {{ correctedOffline: number, correctedOnline: number }}
+ */
+function reconcileOnlineStatus(guildId, liveNames) {
+    const result = { correctedOffline: 0, correctedOnline: 0 };
+    if (!guildId || !Array.isArray(liveNames)) return result;
+
+    const liveNamesTrimmed = liveNames.map((n) => String(n || '').trim()).filter(Boolean);
+    const liveSet = new Set(liveNamesTrimmed.map((n) => n.toLowerCase()));
+    const now = Date.now();
+
+    try {
+        const staleOnline = db.prepare(`SELECT * FROM pot_players WHERE guild_id = ? AND is_online = 1`).all(guildId);
+        for (const player of staleOnline) {
+            if (liveSet.has(String(player.player_name || '').trim().toLowerCase())) continue;
+
+            const sessionSeconds = player.session_started_at
+                ? Math.max(0, Math.floor((now - player.session_started_at) / 1000))
+                : 0;
+            const newTotalPlaytime = sessionSeconds ? (player.total_playtime || 0) + sessionSeconds : player.total_playtime;
+
+            db.prepare(`
+                UPDATE pot_players SET is_online = 0, session_started_at = NULL, total_playtime = ?, updated_at = ?
+                WHERE guild_id = ? AND alderon_id = ?
+            `).run(newTotalPlaytime, Math.floor(now / 1000), guildId, player.alderon_id);
+
+            if (sessionSeconds) _creditPlaytimeCurrency(player.alderon_id, sessionSeconds);
+            result.correctedOffline++;
+        }
+
+        for (const name of liveNamesTrimmed) {
+            const row = db.prepare(`
+                SELECT alderon_id FROM pot_players WHERE guild_id = ? AND player_name = ? COLLATE NOCASE AND is_online = 0
+            `).get(guildId, name);
+            if (!row) continue;
+
+            db.prepare(`
+                UPDATE pot_players SET is_online = 1, session_started_at = ?, updated_at = ? WHERE guild_id = ? AND alderon_id = ?
+            `).run(now, Math.floor(now / 1000), guildId, row.alderon_id);
+            result.correctedOnline++;
+        }
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao reconciliar status online:', error);
+    }
+
+    return result;
+}
+
+/**
  * Nome de exibição de um jogador só pelo Alderon ID, independente de estar
  * vinculado (/registrar) ou online — usado nos painéis de identificação de
  * /strike ingame/personalizado quando o alvo não tem conta Discord
@@ -1309,6 +1388,10 @@ module.exports = {
     // — fonte única, ver docblock completo acima (pedido do dono, 2026-08-11).
     getPlayerGameStatus,
     getPlayerNameByAlderonId,
+    // Reconciliação de status online via Source Query (A2S) — corrige o
+    // desvio que webhooks sozinhos não cobrem (queda abrupta sem logout,
+    // login perdido). Ver docblock completo acima e onlineStatusWorker.js.
+    reconcileOnlineStatus,
     // Exportados para uso em testes ou composição futura do Gateway:
     normalizeEvent,
     sanitizeDinosaurType,
