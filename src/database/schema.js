@@ -337,6 +337,26 @@ const SCHEMA = {
         )
     `,
 
+    // ==================== EVENTOS DE LEVEL UP ====================
+    // Histórico de cada vez que um jogador sobe de Nível (sistema de
+    // progressão infinita baseado em XP, ver src/systems/pot/levelSystem.js)
+    // — pedido do dono: "Ao subir de nível, registrar um evento de level
+    // up." Global (sem guild_id, mesmo motivo de player_links.xp — Nível é
+    // uma progressão da CONTA, não por servidor), por isso não reaproveita
+    // activity_logs (guild_id é NOT NULL lá). Uma linha por NÍVEL alcançado
+    // (não por crédito de XP) — um crédito grande o bastante pra pular mais
+    // de 1 nível de uma vez grava uma linha pra cada nível intermediário
+    // também, não só o final.
+    player_level_ups: `
+        CREATE TABLE IF NOT EXISTS player_level_ups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            level INTEGER NOT NULL,
+            xp_total INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    `,
+
     // ==================== POOL DE IMAGENS DE PERFIL (avatar/fundo/emblema) ====================
     // Entradas adicionadas dinamicamente pelo dono via /perfil-pool (bot
     // developer) — complementa os pools estáticos hardcoded em
@@ -593,6 +613,9 @@ const INDEXES = [
     
     // Temporary Roles
     `CREATE INDEX IF NOT EXISTS idx_temporary_roles_expires ON temporary_roles(expires_at)`,
+
+    // Player Level Ups
+    `CREATE INDEX IF NOT EXISTS idx_player_level_ups_user ON player_level_ups(user_id)`,
     
     // Feedbacks
     `CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks(status)`,

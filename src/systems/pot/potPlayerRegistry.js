@@ -44,6 +44,7 @@
 'use strict';
 
 const db = require('../../database/index');
+const LevelSystem = require('./levelSystem');
 
 // ---------------------------------------------------------------------------
 // Eventos suportados e de onde tiramos "está online" / "tempo de jogo"
@@ -936,10 +937,11 @@ function spendHunt(discordId, amount) {
 }
 
 /**
- * XP acumulado (sistema de Nível, ver PREMIUM.txt) — sempre cresce, sem
- * conceito de "gastar" (diferente de Ossos/Caçadas, que são moeda de
- * verdade). Cálculo de qual NÍVEL isso representa fica pra quem exibe
- * (ver web/views/loja.ejs) — este arquivo só guarda o total bruto.
+ * XP acumulado (sistema de Nível, ver src/systems/pot/levelSystem.js) —
+ * sempre cresce, sem conceito de "gastar" (diferente de Ossos/Caçadas, que
+ * são moeda de verdade). Este arquivo só guarda o total bruto; Nível/XP
+ * dentro do nível/percentual de progresso são sempre CALCULADOS a partir
+ * dele (nunca armazenados) — ver getLevelProgress abaixo.
  * @param {string} discordId
  * @returns {number}
  */
@@ -955,7 +957,52 @@ function getXp(discordId) {
 }
 
 /**
- * Credita XP ao jogador — mesmo padrão de addBones/addHunt.
+ * Progressão de Nível completa do jogador (nível atual, XP dentro do
+ * nível, XP necessária pro próximo nível, percentual) — ver
+ * levelSystem.getLevelProgress pro formato exato do retorno. Wrapper de
+ * conveniência: quem já teria que chamar getXp(discordId) primeiro só pra
+ * passar pro LevelSystem usa isto direto.
+ * @param {string} discordId
+ * @returns {object}
+ */
+function getLevelProgress(discordId) {
+    return LevelSystem.getLevelProgress(getXp(discordId));
+}
+
+/**
+ * Registra 1 linha em player_level_ups pra cada nível efetivamente cruzado
+ * entre xpBefore e xpAfter (pedido do dono: "Ao subir de nível, registrar
+ * um evento de level up") — um crédito grande o bastante pra pular mais de
+ * 1 nível de uma vez (ex: catch-up depois de um tempo offline) grava uma
+ * linha por nível intermediário, não só a final. Chamada por addXp() e
+ * _creditPlaytimeCurrency() — as 2 únicas formas de creditar XP hoje.
+ * @param {string} discordId
+ * @param {number} xpBefore
+ * @param {number} xpAfter
+ */
+function _recordLevelUpsIfAny(discordId, xpBefore, xpAfter) {
+    const levelBefore = LevelSystem.getLevelForXp(xpBefore);
+    const levelAfter = LevelSystem.getLevelForXp(xpAfter);
+    if (levelAfter <= levelBefore) return;
+    try {
+        const insert = db.prepare(`
+            INSERT INTO player_level_ups (user_id, level, xp_total, created_at) VALUES (?, ?, ?, ?)
+        `);
+        const now = Math.floor(Date.now() / 1000);
+        for (let level = levelBefore + 1; level <= levelAfter; level++) {
+            insert.run(discordId, level, xpAfter, now);
+        }
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao registrar evento de level up:', error);
+    }
+}
+
+/**
+ * Credita XP ao jogador — mesmo padrão de addBones/addHunt. Fonte
+ * pretendida pra XP de missões (quando existir) — soma no MESMO campo
+ * player_links.xp que já recebe XP de hora jogada (ver
+ * _creditPlaytimeCurrency), então os dois sempre entram na mesma
+ * progressão de Nível, nunca contam separado.
  * @param {string} discordId
  * @param {number} amount - inteiro positivo
  * @returns {boolean}
@@ -963,9 +1010,11 @@ function getXp(discordId) {
 function addXp(discordId, amount) {
     if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
     try {
+        const xpBefore = getXp(discordId);
         const result = db.prepare(`
             UPDATE player_links SET xp = xp + ?, updated_at = ? WHERE user_id = ?
         `).run(amount, Math.floor(Date.now() / 1000), discordId);
+        if (result.changes > 0) _recordLevelUpsIfAny(discordId, xpBefore, xpBefore + amount);
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao creditar XP:', error);
@@ -1004,7 +1053,10 @@ function _creditPlaytimeCurrency(alderonId, sessionSeconds) {
         const link = getPlayerByAlderonId(alderonId);
         if (!link) return; // sem vínculo Discord — nada a creditar ainda
 
-        const row = db.prepare(`SELECT playtime_credit_seconds FROM player_links WHERE user_id = ?`).get(link.user_id);
+        // xp incluído aqui (não só playtime_credit_seconds) pra ter o total
+        // ANTES do crédito à mão — necessário pra _recordLevelUpsIfAny
+        // abaixo saber se essa hora cruzou a fronteira de algum Nível.
+        const row = db.prepare(`SELECT playtime_credit_seconds, xp FROM player_links WHERE user_id = ?`).get(link.user_id);
         const carrySeconds = (row?.playtime_credit_seconds || 0) + Math.floor(sessionSeconds);
         const hoursEarned = Math.floor(carrySeconds / 3600);
         const remainderSeconds = carrySeconds % 3600;
@@ -1019,6 +1071,7 @@ function _creditPlaytimeCurrency(alderonId, sessionSeconds) {
                     updated_at = ?
                 WHERE user_id = ?
             `).run(hoursEarned, hoursEarned * 5, hoursEarned, remainderSeconds, Math.floor(Date.now() / 1000), link.user_id);
+            _recordLevelUpsIfAny(link.user_id, row?.xp || 0, (row?.xp || 0) + hoursEarned);
         } else {
             db.prepare(`
                 UPDATE player_links SET playtime_credit_seconds = ?, updated_at = ? WHERE user_id = ?
@@ -1211,6 +1264,9 @@ module.exports = {
     spendHunt,
     getXp,
     addXp,
+    // Progressão de Nível (infinita, ver levelSystem.js) — calculada
+    // dinamicamente a partir de getXp, nunca armazenada separadamente.
+    getLevelProgress,
     // Verificação em jogo (RCON) — ativa, ver /registrar.
     generateVerificationCode,
     getOnlinePotPlayer,

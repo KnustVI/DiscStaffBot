@@ -94,10 +94,15 @@ seção 122, antes mesmo do ganho por hora. Ganho por missão continua
 
 NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
 jogo = 1 XP. O ACÚMULO de XP em si JÁ ESTÁ IMPLEMENTADO (2026-08-07, ver
-seção 135) e visível no saldo mostrado em /loja - o que ainda falta é o
-badge "Nível" do card de /perfil (hoje fixo em "Nível 1", ver Seção "O
-que já funciona hoje") passar a refletir esse XP acumulado numa fórmula
-de nível; esse cálculo continua "vindo em breve".
+seção 135) e o cálculo de Nível a partir desse XP também JÁ ESTÁ
+IMPLEMENTADO (2026-08-11, ver seção mais recente do changelog): fórmula
+XP_Total = 10 × Nível^2.2, progressão infinita sem teto de nível, Nível/
+XP-pro-próximo-nível/percentual sempre calculados dinamicamente (nunca
+armazenados). Visível no badge "Nível" do card de /perfil (Discord e
+site) e no card "NÍVEL — Experiência" de /loja. XP de missões continua
+"vindo em breve" (as missões em si ainda não existem), mas quando
+existirem já somam no mesmo XP total/fórmula - nenhuma mudança adicional
+necessária nesse dia.
 
 FREE
 - Perfil sincronizado com o Discord (/perfil, /registrar) - PUBLICO desde a
@@ -196,10 +201,9 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
     - TITULO (badge superior) - PLACEHOLDER fixo ("Em breve (missoes)") pra
       Free/Compy; Raptor pode substituir por texto livre via /perfil-edit
       (JA IMPLEMENTADO, ver secao Raptor acima). NIVEL (badge do meio) -
-      ainda PLACEHOLDER fixo ("Nivel 1") em todo tier - o ACUMULO de XP por
-      hora jogada por tras disso ja e real desde 2026-08-07 (ver secao
-      135), so falta a formula que converte esse XP num numero de nivel
-      pra mostrar aqui;
+      JA REAL desde 2026-08-11 em todo tier: XP acumulado (hora jogada,
+      1h = 1 XP, real desde 2026-08-07/secao 135) convertido em Nivel pela
+      formula XP_Total = 10 x Nivel^2.2, progressao infinita sem teto;
     - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
       liberada em QUALQUER tier (JA IMPLEMENTADA), lista de opcoes
       alimentada pelo dono via /perfil-pool add badge (ver secao 97), mas o
@@ -8510,3 +8514,65 @@ frente, nao so este relatorio):
   com banco SQLite real confirmando `setRoleIds`/`getRoleIds` round-trip
   de 3 cargos, `ConfigSystem.mentionRoles()` e `createBaseContainer()`
   produzindo a menção dos 3 cargos juntos no painel do log.
+
+174) Sistema de progressão de Nível infinito baseado em XP (fórmula
+     matemática + evento de level up)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "Implemente um sistema de progressão de
+  níveis infinito baseado em horas jogadas. O sistema já possui uma
+  variável que registra as horas totais jogadas pelo usuário e cada hora
+  equivale a 1 XP... XP_Total = 10 × Nível^2.2... Nível = floor((XP_Total
+  ÷ 10)^(1 ÷ 2.2))." Requisitos: níveis infinitos, cada nível exige mais
+  XP que o anterior, XP de missões soma com XP de horas jogadas, só o XP
+  total é armazenado (nível/progresso sempre calculados), funciona pra
+  valores muito altos de XP, evento de level up ao subir de nível.
+- Contexto: 1 hora jogada = 1 XP já era creditado de verdade desde
+  2026-08-07 (seção 135, `_creditPlaytimeCurrency` em
+  potPlayerRegistry.js) — o que faltava era só a fórmula que converte
+  esse XP acumulado num número de Nível; até aqui, TODO lugar que exibia
+  "Nível" mostrava um placeholder fixo "Nível 1" (card de perfil
+  Discord, `/perfil` no site, card "NÍVEL — Experiência" em `/loja`).
+- Novo `src/systems/pot/levelSystem.js` — matemática pura, sem
+  dependência de banco: `getXpForLevel(level)` (XP mínimo pra alcançar
+  um nível, `Math.ceil(10 × nível^2.2)`), `getLevelForXp(xpTotal)`
+  (fórmula inversa com uma rede de segurança contra imprecisão de ponto
+  flutuante — `Math.pow` com expoente fracionário pode devolver algo
+  como `5.999999999998` quando o valor exato é 6, ainda mais provável em
+  XP muito alto; a função corrige isso conferindo o resultado contra
+  `getXpForLevel`, sempre 0-1 iterações na prática) e
+  `getLevelProgress(xpTotal)` (nível atual + XP dentro do nível + XP
+  necessária pro próximo nível + percentual, tudo calculado
+  dinamicamente, nunca armazenado). Testado o exemplo do próprio pedido
+  (500h + 200 XP de missão = 700 XP → Nível 6) e magnitudes de XP até
+  1e15, todas corretas. A tabela de referência do pedido foi marcada como
+  "aproximada" pelo próprio dono — a fórmula literal (confirmada pelo
+  exemplo numérico) foi seguida à risca, não a tabela.
+- Nova tabela `player_level_ups` (schema.js + INDEXES + registrada em
+  `createAllTables`) — 1 linha por Nível efetivamente alcançado (não por
+  crédito de XP: um crédito grande o bastante pra pular vários níveis de
+  uma vez, ex. catch-up depois de horas offline, grava uma linha por
+  nível intermediário). GLOBAL (sem guild_id — Nível é progressão da
+  CONTA, não por servidor, mesmo motivo de `player_links.xp`), por isso
+  não reaproveita `activity_logs` (`guild_id` é `NOT NULL` lá).
+- `potPlayerRegistry.js`: novo `getLevelProgress(discordId)` (wrapper de
+  conveniência sobre `getXp` + `LevelSystem.getLevelProgress`) e
+  `_recordLevelUpsIfAny(discordId, xpBefore, xpAfter)` (grava o(s)
+  evento(s) de level up) chamada tanto por `addXp()` (fonte pretendida
+  pra XP de missões, quando existirem — soma no MESMO campo
+  `player_links.xp`, nunca separado) quanto por
+  `_creditPlaytimeCurrency()` (fonte já ativa, hora jogada).
+- Placeholders substituídos pelo valor real calculado: card de perfil no
+  Discord (`levelLabel`) e linha de XP no texto (`⚡ XP: N (Nível X)`,
+  `playerRegistrationSystem.js`); `/perfil` no site (linha "Nível:" com
+  XP restante pro próximo nível + percentual); card "NÍVEL — Experiência"
+  em `/loja` (número do nível + barra de progresso visual + XP restante).
+- Verificado: `node --check` em todos os arquivos JS tocados; teste
+  isolado de `levelSystem.js` (exemplo do pedido, monotonicidade e
+  correção de fronteira entre níveis 0-500, magnitudes de XP até 1e15);
+  teste funcional com SQLite real confirmando a tabela `player_level_ups`
+  é criada, `addXp` credita e registra 1 linha por nível cruzado (inclui
+  pulo de 10 níveis numa única chamada), e créditos que não cruzam
+  fronteira de nível não geram linha nenhuma; `ejs.renderFile()` real de
+  `perfil.ejs` e `loja.ejs` confirmando o nível/barra de progresso
+  renderizados corretamente a partir de XP=700 (Nível 6, igual ao
+  exemplo do pedido).

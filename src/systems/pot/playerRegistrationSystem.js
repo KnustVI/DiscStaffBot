@@ -406,7 +406,12 @@ class PlayerRegistrationSystem {
                     // Texto livre do jogador (Raptor, ver /perfil-edit) — sem
                     // um definido, mantém o placeholder de sempre.
                     titleLabel: player.profile_title || 'Em breve (missões)',
-                    levelLabel: 'Nível 1',
+                    // Nível real (pedido do dono, 2026-08-11: "Implemente um
+                    // sistema de progressão de níveis infinito baseado em
+                    // horas jogadas") — antes fixo em "Nível 1"; calculado
+                    // dinamicamente a partir do XP total, ver
+                    // PlayerRegistry.getLevelProgress/levelSystem.js.
+                    levelLabel: `Nível ${PlayerRegistry.getLevelProgress(targetUser.id).level}`,
                     // Espécie MAIS jogada (por nº de vezes escolhida), não a
                     // última — essa continua só no painel "Offline" abaixo,
                     // vinda de stats.dinosaurType (getGlobalPlayerStats).
@@ -562,12 +567,15 @@ class PlayerRegistrationSystem {
         if (player) {
             const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id);
             const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
-            const xpBalance = PlayerRegistry.getXp(targetUser.id);
+            const levelProgress = PlayerRegistry.getLevelProgress(targetUser.id);
             addSeparatorIfNeeded();
             builder.text([
                 `${EMOJIS.coins || '🪙'} **Ossos:** ${bonesBalance}`,
                 `${EMOJIS.gem || '💎'} **Caçadas:** ${huntBalance}`,
-                `${EMOJIS.flame || '⚡'} **XP:** ${xpBalance}`,
+                // Nível real ao lado do XP bruto (pedido do dono,
+                // 2026-08-11 — ver comentário completo em levelLabel do
+                // card de perfil, acima nesta mesma função).
+                `${EMOJIS.flame || '⚡'} **XP:** ${levelProgress.xpTotal} (Nível ${levelProgress.level})`,
             ].join(' | '));
         }
 

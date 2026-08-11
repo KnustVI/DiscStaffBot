@@ -1353,6 +1353,11 @@ function loadDashboard(client) {
         // já usadas em /loja, devolvem 0 sem player_links).
         const bonesBalance = PlayerRegistry.getBonesBalance(userId);
         const xpBalance = PlayerRegistry.getXp(userId);
+        // Progressão de Nível (pedido do dono, 2026-08-11: "Implemente um
+        // sistema de progressão de níveis infinito baseado em horas
+        // jogadas") — nível/percentual sempre calculados a partir do XP
+        // total, nunca armazenados (ver levelSystem.js).
+        const levelProgress = PlayerRegistry.getLevelProgress(userId);
         // Cargo(s) de staff configurado(s) (pedido do dono, 2026-08-07) —
         // não depende de `link` (é sobre a conta Discord, não sobre o
         // vínculo PoT), ver getStaffRoles acima.
@@ -1466,6 +1471,7 @@ function loadDashboard(client) {
             huntBalance,
             bonesBalance,
             xpBalance,
+            levelProgress,
             ownedItems,
             staffRoles,
             staffHistory,
@@ -1565,6 +1571,9 @@ function loadDashboard(client) {
         const bonesBalance = PlayerRegistry.getBonesBalance(req.user.id);
         const huntBalance = PlayerRegistry.getHuntBalance(req.user.id);
         const xpBalance = PlayerRegistry.getXp(req.user.id);
+        // Progressão de Nível (pedido do dono, 2026-08-11), ver comentário
+        // completo na rota /perfil acima.
+        const levelProgress = PlayerRegistry.getLevelProgress(req.user.id);
         const playedGuilds = link ? getPlayedGuilds(link.alderon_id, client) : [];
         // Carrossel pequeno de anúncios de servidores parceiros no topo
         // (pedido do dono, 2026-08-10) — mesma fonte da home/perfil.
@@ -1582,6 +1591,7 @@ function loadDashboard(client) {
             bonesBalance,
             huntBalance,
             xpBalance,
+            levelProgress,
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
             playedGuilds,
             partnerNews,
