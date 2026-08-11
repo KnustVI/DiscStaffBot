@@ -8734,30 +8734,46 @@ frente, nao so este relatorio):
   chamado de lugar nenhum — o cargo temporário só saía se alguém
   removesse manualmente. Corrigido junto: chamado agora em
   `events/ready.js` no boot.
-- IMPORTANTE (mesma ressalva de sempre pras integrações PoT deste
-  projeto): o protocolo A2S em si é público, aberto e estável (~20
-  anos sem mudança, usado por milhares de jogos Source/Steam) — mas
-  esta implementação NUNCA foi validada contra um servidor Path of
-  Titans real. Testada com rigor possível sem produção: um servidor
-  UDP local simulando respostas A2S_INFO/A2S_PLAYER reais (incluindo o
-  fluxo de challenge de 2 idas e voltas) confirma que o parsing está
-  correto byte a byte contra o formato oficial do protocolo — falta
-  só a confirmação de que o Path of Titans realmente responde nesse
-  formato quando `[SourceQuery]` está habilitado. Não decodifica
-  respostas fragmentadas em múltiplos pacotes UDP (servidor com MUITOS
-  jogadores simultâneos) — degrada como falha limpa nesse caso, nunca
-  como dado incorreto (a reconciliação simplesmente pula aquele ciclo).
-- Verificado: `node --check` em todos os arquivos tocados; teste com
-  servidor UDP local real cobrindo (1) parsing de A2S_INFO
-  (contagem/nome/mapa), (2) fluxo completo de challenge + parsing de
-  A2S_PLAYER (múltiplos jogadores, nomes e durações corretos), (3)
-  timeout/erro limpo sem travar quando não há resposta; teste com
-  SQLite real de `reconcileOnlineStatus` cobrindo as duas direções
-  (online travado → offline, com total_playtime somado corretamente;
-  offline com login perdido → online) e confirmando que quem já está
-  com o status certo não é mexido.
+- VALIDADO AO VIVO (2026-08-11), diferente de quase toda outra
+  integração PoT deste projeto: o dono habilitou `[SourceQuery]` no
+  servidor real dele ("ATLAS BRASIL SEMI-REALISMO", BisectHosting,
+  ~77 jogadores online) e testamos `queryInfo`/`queryPlayers` direto
+  contra IP:porta reais. 3 comportamentos do protocolo só apareceram
+  nesse teste real, nenhum estava na doc oficial nem era óbvio pela
+  especificação genérica do A2S — os 3 corrigidos na hora:
+  1. O servidor exige CHALLENGE também pro `A2S_INFO` (não só
+     `A2S_PLAYER`) — atualização anti-DDoS do protocolo Source
+     (~2020) que a doc do PoT não menciona. `queryInfo` agora trata
+     os dois casos (resposta direta OU challenge + reenvio).
+  2. Os 2 pedidos de uma troca de challenge (pedido inicial + reenvio
+     com o challenge) têm que sair da MESMA porta de origem UDP — a
+     primeira versão abria um socket novo por chamada, então o
+     servidor tratava o reenvio como sessão nova e mandava outro
+     challenge em loop, nunca a resposta final. Corrigido reutilizando
+     um único socket por consulta (`_query`, antes `_send`/`_roundTrip`).
+  3. A resposta de `A2S_PLAYER` de um servidor com só ~77 jogadores JÁ
+     vem fragmentada em múltiplos pacotes UDP (cabeçalho `0xFEFFFFFF`)
+     — o caso "servidor com MUITOS jogadores" que a v1 deixava como
+     falha limpa acabou sendo o caso COMUM, não raro. Implementada a
+     remontagem completa (agrupa fragmentos pelo request ID, ordena
+     pelo número do pacote, concatena o payload) — testada tanto ao
+     vivo quanto com um servidor UDP local simulando 2 fragmentos.
+  Detalhe observado (sem impacto): o campo de duração por jogador
+  (`durationSeconds`) sempre veio `0` no servidor real — provavelmente
+  o motor do PoT não popula esse campo de verdade. Sem problema porque
+  `reconcileOnlineStatus` só usa o NOME de cada jogador, nunca a
+  duração.
+- Verificado: `node --check` em todos os arquivos tocados; suite local
+  contra um servidor UDP simulado cobrindo INFO direto, INFO com
+  challenge, PLAYER fragmentado em 2 pacotes (60 jogadores sintéticos,
+  remontagem confirmada nome a nome) e timeout limpo; teste com SQLite
+  real de `reconcileOnlineStatus` cobrindo as duas direções (online
+  travado → offline, com total_playtime somado corretamente; offline
+  com login perdido → online); E o teste ao vivo contra produção acima,
+  com `queryInfo` e `queryPlayers` batendo na mesma contagem de
+  jogadores (77) em execuções separadas.
 - Pendente (ambiente do dono, fora deste código): `node deploy.js` no
   host pra registrar a opção nova (`game_port`) em `/potserver setup`;
-  habilitar `[SourceQuery]` no Game.ini de cada servidor PoT que quiser
-  usar a correção automática, e abrir a porta UDP correspondente no
-  firewall.
+  repetir a habilitação de `[SourceQuery]` + porta UDP aberta nos
+  demais servidores PoT que quiserem a correção automática (já
+  confirmado funcionando no "ATLAS BRASIL SEMI-REALISMO").

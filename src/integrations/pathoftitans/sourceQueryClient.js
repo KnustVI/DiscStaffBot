@@ -15,15 +15,22 @@
  * pra sempre sem isso. A2S_PLAYER dá a lista REAL de quem está conectado
  * agora, direto do servidor, pra corrigir esse desvio periodicamente.
  *
- * IMPORTANTE: o protocolo A2S em si é público/estável (praticamente
- * inalterado há ~20 anos, usado por milhares de jogos Source/Steam) — mas
- * esta implementação nunca foi validada contra um servidor Path of Titans
- * real (mesma ressalva de sempre pras integrações PoT deste projeto).
- * Testado apenas contra um servidor UDP local simulado (ver script de
- * teste temporário usado na implementação). NÃO decodifica respostas
- * fragmentadas em múltiplos pacotes UDP (servidor com MUITOS jogadores
- * simultâneos pode ultrapassar 1 datagrama) — degrada como falha limpa
- * (error), nunca como dado incorreto.
+ * VALIDADO AO VIVO (2026-08-11) contra um servidor Path of Titans real
+ * (BisectHosting, "ATLAS BRASIL SEMI-REALISMO", ~76 jogadores) — 3
+ * comportamentos do protocolo só foram descobertos nesse teste real, não
+ * estavam documentados na doc oficial do PoT nem eram óbvios a partir da
+ * especificação genérica do A2S:
+ *   1. O servidor exige CHALLENGE também pro A2S_INFO (não só A2S_PLAYER)
+ *      — atualização anti-DDoS do protocolo Source (~2020).
+ *   2. Os 2 pedidos de um challenge-response (o pedido inicial e o reenvio
+ *      com o challenge) PRECISAM sair da MESMA porta de origem UDP — um
+ *      socket novo por pedido faz o servidor tratar como sessão nova e
+ *      mandar outro challenge em vez da resposta final.
+ *   3. A resposta de A2S_PLAYER de um servidor com muitos jogadores online
+ *      vem FRAGMENTADA em múltiplos pacotes UDP (cabeçalho 0xFEFFFFFF, com
+ *      request ID + total de pacotes + número do pacote + tamanho máximo
+ *      do pacote antes do payload) — chegou a acontecer com apenas ~76
+ *      jogadores, então é o caso comum, não a exceção.
  */
 'use strict';
 
@@ -41,28 +48,86 @@ function _readCString(buf, offset) {
     return { value: buf.toString('utf8', offset, end), next: end + 1 };
 }
 
-function _send(host, port, requestBuffer, timeoutMs) {
+/**
+ * Envia UM pedido nesta porta de origem e monta a resposta LÓGICA completa
+ * — ou o pacote único (cabeçalho 0xFFFFFFFF), ou a remontagem de todos os
+ * fragmentos de uma resposta dividida (cabeçalho 0xFEFFFFFF por fragmento,
+ * ver docblock do arquivo). Reutiliza o MESMO socket entre chamadas
+ * sucessivas do chamador (challenge → reenvio) — challenge-response exige
+ * a mesma porta de origem (confirmado ao vivo, ver docblock do arquivo).
+ *
+ * @returns {Promise<Buffer>} a resposta reconstruída, no MESMO formato de
+ *   uma resposta de pacote único (sempre começa com 0xFFFFFFFF + tipo).
+ */
+function _query(socket, host, port, requestBuffer, timeoutMs) {
     return new Promise((resolve, reject) => {
-        const socket = dgram.createSocket('udp4');
         let settled = false;
+        const fragments = new Map();
+        let expectedTotal = null;
+        let expectedRequestId = null;
+
         const timer = setTimeout(() => finish(new Error('Timeout na consulta Source Query.')), timeoutMs);
 
         function finish(err, data) {
             if (settled) return;
             settled = true;
             clearTimeout(timer);
-            try { socket.close(); } catch (_) {}
+            socket.removeListener('message', onMessage);
+            socket.removeListener('error', onError);
             if (err) reject(err); else resolve(data);
         }
 
-        socket.once('error', (err) => finish(err));
-        socket.once('message', (msg) => finish(null, msg));
+        function onMessage(msg) {
+            if (msg.length < 4) return;
+            const header = msg.readInt32LE(0);
+
+            if (header === -1) {
+                // Pacote único, sem fragmentação — resposta completa já.
+                finish(null, msg);
+                return;
+            }
+
+            if (header !== -2) return; // nem 0xFFFFFFFF nem 0xFEFFFFFF — não é nossa resposta, ignora
+            if (msg.length < 12) return; // fragmento malformado/curto demais — ignora
+
+            const requestId = msg.readInt32LE(4);
+            if (requestId & 0x80000000) {
+                finish(new Error('Resposta comprimida (bzip2) — não suportada.'));
+                return;
+            }
+            if (expectedRequestId === null) expectedRequestId = requestId;
+            if (requestId !== expectedRequestId) return; // fragmento de outra troca sobreposta — ignora
+
+            const total = msg.readUInt8(8);
+            const number = msg.readUInt8(9);
+            if (expectedTotal === null) expectedTotal = total;
+            // bytes[10:12] = tamanho máximo do pacote (não usado aqui) —
+            // presente em todo fragmento observado ao vivo (ver docblock).
+            fragments.set(number, msg.subarray(12));
+
+            if (fragments.size >= expectedTotal) {
+                const ordered = [];
+                for (let i = 0; i < expectedTotal; i++) {
+                    if (!fragments.has(i)) { finish(new Error('Fragmento faltando na remontagem da resposta.')); return; }
+                    ordered.push(fragments.get(i));
+                }
+                finish(null, Buffer.concat(ordered));
+            }
+        }
+        function onError(err) { finish(err); }
+
+        socket.on('message', onMessage);
+        socket.once('error', onError);
         socket.send(requestBuffer, port, host, (err) => { if (err) finish(err); });
     });
 }
 
 /**
  * A2S_INFO — contagem de jogadores/nome do servidor/mapa em tempo real.
+ * Sempre trata os dois casos possíveis de resposta inicial: direta (tipo
+ * 0x49) ou challenge (tipo 0x41, ver docblock do arquivo) seguida de um
+ * reenvio com os 4 bytes do challenge anexados ao fim do payload original.
+ *
  * @param {string} host
  * @param {number} port
  * @param {number} [timeoutMs=3000]
@@ -70,8 +135,14 @@ function _send(host, port, requestBuffer, timeoutMs) {
  */
 async function queryInfo(host, port, timeoutMs = 3000) {
     if (!host || !port) return { success: false, error: 'Host/porta não configurados.' };
+    const socket = dgram.createSocket('udp4');
     try {
-        const response = await _send(host, port, A2S_INFO_REQUEST, timeoutMs);
+        let response = await _query(socket, host, port, A2S_INFO_REQUEST, timeoutMs);
+        if (response.length >= 9 && response.readInt32LE(0) === -1 && response[4] === 0x41) {
+            const challenge = response.subarray(5, 9);
+            const retryRequest = Buffer.concat([A2S_INFO_REQUEST, challenge]);
+            response = await _query(socket, host, port, retryRequest, timeoutMs);
+        }
         if (response.length < 7 || response.readInt32LE(0) !== -1 || response[4] !== 0x49) {
             return { success: false, error: 'Resposta A2S_INFO inesperada (formato não reconhecido).' };
         }
@@ -87,15 +158,18 @@ async function queryInfo(host, port, timeoutMs = 3000) {
         return { success: true, players, maxPlayers, name: nameRead.value, map: mapRead.value };
     } catch (error) {
         return { success: false, error: error.message };
+    } finally {
+        try { socket.close(); } catch (_) {}
     }
 }
 
 /**
  * A2S_PLAYER — lista de jogadores conectados agora (nome + duração da
- * sessão em segundos). Fluxo padrão de 2 idas e voltas (challenge), com
- * fallback pra servidores que respondem a lista direto sem exigir
- * challenge. Casamento com pot_players é por NOME (o protocolo não expõe
- * Alderon ID) — ver reconcileOnlineStatus.
+ * sessão em segundos). Fluxo de challenge (2 idas e voltas), com a
+ * resposta final possivelmente fragmentada em múltiplos pacotes UDP —
+ * ambos os casos tratados por `_query` (ver seu docblock). Casamento com
+ * pot_players é por NOME (o protocolo não expõe Alderon ID) — ver
+ * reconcileOnlineStatus.
  * @param {string} host
  * @param {number} port
  * @param {number} [timeoutMs=3000]
@@ -103,8 +177,9 @@ async function queryInfo(host, port, timeoutMs = 3000) {
  */
 async function queryPlayers(host, port, timeoutMs = 3000) {
     if (!host || !port) return { success: false, error: 'Host/porta não configurados.' };
+    const socket = dgram.createSocket('udp4');
     try {
-        const first = await _send(host, port, A2S_PLAYER_CHALLENGE_REQUEST, timeoutMs);
+        const first = await _query(socket, host, port, A2S_PLAYER_CHALLENGE_REQUEST, timeoutMs);
         if (first.length < 5 || first.readInt32LE(0) !== -1) {
             return { success: false, error: 'Resposta A2S_PLAYER inesperada (cabeçalho inválido).' };
         }
@@ -116,13 +191,13 @@ async function queryPlayers(host, port, timeoutMs = 3000) {
         } else if (first[4] === 0x41 && first.length >= 9) {
             const challenge = first.subarray(5, 9);
             const playerRequest = Buffer.concat([Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, 0x55]), challenge]);
-            const second = await _send(host, port, playerRequest, timeoutMs);
+            const second = await _query(socket, host, port, playerRequest, timeoutMs);
             if (second.length < 6 || second.readInt32LE(0) !== -1 || second[4] !== 0x44) {
                 return { success: false, error: 'Resposta A2S_PLAYER inesperada (após challenge).' };
             }
             playerListBuffer = second;
         } else {
-            return { success: false, error: 'Resposta A2S_PLAYER inesperada (tipo de pacote desconhecido — possível fragmentação, não suportada).' };
+            return { success: false, error: 'Resposta A2S_PLAYER inesperada (tipo de pacote desconhecido).' };
         }
 
         let offset = 5; // header(4) + type(1)
@@ -140,6 +215,8 @@ async function queryPlayers(host, port, timeoutMs = 3000) {
         return { success: true, players };
     } catch (error) {
         return { success: false, error: error.message };
+    } finally {
+        try { socket.close(); } catch (_) {}
     }
 }
 
