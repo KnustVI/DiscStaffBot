@@ -826,9 +826,15 @@
 
     <script>
         // JSON do partnerNews pro overlay maior (ver openPartnerNewsOverlay
-        // no script do fim do arquivo) — < no lugar de "<" evita que um
-        // nome/texto de servidor contendo "</script>" feche esta tag antes
-        // da hora (mesmo risco de qualquer JSON cru dentro de <script>).
+        // no script do fim do arquivo) — < no lugar do caractere de abrir
+        // tag evita que um nome/texto de servidor contendo a sequência de
+        // fechamento de script feche esta tag HTML antes da hora. IMPORTANTE:
+        // por causa disso, NUNCA escreva essa sequência de fechamento por
+        // extenso neste comentário (nem dentro de aspas) — o parser de HTML
+        // procura esse texto cru, sem entender que está dentro de um
+        // comentário JS, e cortaria o <script> bem aqui (bug real que já
+        // aconteceu nesta mesma linha, pedido do dono 2026-08-11: overlay de
+        // anúncio de parceiro não abria — a causa era este comentário).
         // Só os campos usados pelo overlay, nunca o objeto `guild` inteiro.
         const partnerNewsData = <%- JSON.stringify(partnerNews.map(pn => ({
             guildName: pn.guildName,
