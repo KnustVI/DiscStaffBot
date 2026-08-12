@@ -44,10 +44,10 @@
   ImageShopSystem/CurrencySystem.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
-    avatars, backgrounds, badges, isLinked, bonesBalance, huntBalance,
+    personalizacao, badges, isLinked, bonesBalance, huntBalance,
     xpBalance, marksPerBone, playedGuilds, gameShopCatalogs, convertResult,
     convertError, convertAmount, convertRconResponse, purchaseResult,
-    gameShopPurchaseResult }) — as 3 listas de imagens são o mesmo pool
+    gameShopPurchaseResult }) — as 2 listas de imagens são o mesmo pool
     dinâmico do /perfil-edit (só as PÚBLICAS), cada uma já vindo com
     shop_price/shop_min_tier/owned (ver dashboard.js GET /loja e
     ImageShopSystem.ownsImage). purchaseResult é o label do item de
@@ -387,9 +387,12 @@
             <% } %>
 
             <%
+                // Foto de perfil e plano de fundo foram unificados num tipo
+                // só (personalizacao, reforma 2026-08-12) — uma imagem
+                // comprada aqui pode ser usada como qualquer um dos dois,
+                // então é UM grupo só na loja agora, não mais dois.
                 const lojaPersonalizacaoGroups = [
-                    { key: 'avatar', labelPt: 'Avatares', labelEn: 'Avatars', items: avatars },
-                    { key: 'background', labelPt: 'Planos de Fundo', labelEn: 'Backgrounds', items: backgrounds },
+                    { key: 'personalizacao', labelPt: 'Fotos e Planos de Fundo', labelEn: 'Photos and Backgrounds', items: personalizacao },
                     { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges },
                 ];
                 // Label de exibição do tier mínimo pra USAR o item depois

@@ -1426,20 +1426,23 @@ function loadDashboard(client) {
             // tudo" como era antes dessa mudança.
             badgeOptions = ConfigSystem.getUsableBadgeOptions(userId);
             if (isCompyPlus && !isRaptor) {
-                avatarOptions = ConfigSystem.getAvatarOptions();
-                backgroundOptions = ConfigSystem.getBackgroundOptions();
+                avatarOptions = ConfigSystem.getPersonalizationOptions();
+                backgroundOptions = avatarOptions;
             } else if (!isCompyPlus) {
-                // Free tier pode ter comprado uma foto/plano de fundo
-                // ESPECÍFICO na Loja (pedido do dono, 2026-08-07: "a loja
-                // vai ser permitida a qualquer jogador, para comprar e
-                // adicionar ao seu inventario imagens de personalização")
-                // — mesma fonte usada pelo /perfil-edit do Discord, ver
+                // Free tier pode ter comprado uma imagem ESPECÍFICA na Loja
+                // (pedido do dono, 2026-08-07: "a loja vai ser permitida a
+                // qualquer jogador, para comprar e adicionar ao seu
+                // inventario imagens de personalização") — mesma fonte
+                // usada pelo /perfil-edit do Discord, ver
                 // ConfigSystem.getOwnedUsableOptions/imageShopSystem.js.
-                avatarOptions = ConfigSystem.getOwnedUsableOptions(userId, 'avatar');
-                backgroundOptions = ConfigSystem.getOwnedUsableOptions(userId, 'background');
+                // Foto e plano de fundo unificados num tipo só
+                // (personalizacao, reforma 2026-08-12) — a mesma imagem
+                // comprada aparece nos dois seletores.
+                avatarOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
+                backgroundOptions = avatarOptions;
             }
-            avatarPreviewUrl = await resolvePlayerImageUrl('avatar', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
-            backgroundPreviewUrl = await resolvePlayerImageUrl('background', link.selected_background_key, isRaptor ? link.background_message_id : null);
+            avatarPreviewUrl = await resolvePlayerImageUrl('personalizacao', link.selected_photo_key, isRaptor ? link.banner_message_id : null);
+            backgroundPreviewUrl = await resolvePlayerImageUrl('personalizacao', link.selected_background_key, isRaptor ? link.background_message_id : null);
 
             // "Seus Itens" (pedido do dono, 2026-08-10: "Adicionar itens de
             // jogo no perfil do site") — inventário REAL de compras da Loja
@@ -1584,9 +1587,12 @@ function loadDashboard(client) {
                 owned: ImageShopSystem.ownsImage(req.user.id, type, row.id),
             })));
         };
-        const [avatars, backgrounds, badges] = await Promise.all([
-            resolvePublicGroup('avatar'),
-            resolvePublicGroup('background'),
+        // Foto de perfil e plano de fundo unificados num grupo só
+        // (personalizacao, reforma das lojas 2026-08-12) — a mesma imagem
+        // comprada serve pras duas coisas, então não faz mais sentido
+        // mostrar o mesmo item 2x sob headers diferentes (ver loja.ejs).
+        const [personalizacao, badges] = await Promise.all([
+            resolvePublicGroup('personalizacao'),
             resolvePublicGroup('badge'),
         ]);
 
@@ -1621,8 +1627,7 @@ function loadDashboard(client) {
             role: 'Membro',
             isOwner: isOwnerSession(req),
             otherGuilds: await getAdminGuildsWithBot(req),
-            avatars,
-            backgrounds,
+            personalizacao,
             badges,
             isLinked: !!link,
             bonesBalance,
@@ -1761,12 +1766,12 @@ function loadDashboard(client) {
                             PlayerRegistry.setSelectedBackgroundKey(userId, null);
                         } else if ('background_key' in body) {
                             const key = body.background_key || null;
-                            const valid = !key || ConfigSystem.getBackgroundOptions().some(opt => opt.value === key);
+                            const valid = !key || ConfigSystem.getPersonalizationOptions().some(opt => opt.value === key);
                             if (valid) PlayerRegistry.setSelectedBackgroundKey(userId, key);
                         }
                         if ('photo_key' in body) {
                             const key = body.photo_key || null;
-                            const valid = !key || ConfigSystem.getAvatarOptions().some(opt => opt.value === key);
+                            const valid = !key || ConfigSystem.getPersonalizationOptions().some(opt => opt.value === key);
                             if (valid) PlayerRegistry.setSelectedPhotoKey(userId, key);
                         }
                     }
@@ -1777,8 +1782,8 @@ function loadDashboard(client) {
                     // jogador, para comprar e adicionar ao seu inventario
                     // imagens de personalização") — mesma fonte usada pelo
                     // /perfil-edit do Discord, ver imageShopSystem.js.
-                    const ownedPhotoOptions = ConfigSystem.getOwnedUsableOptions(userId, 'avatar');
-                    const ownedBackgroundOptions = ConfigSystem.getOwnedUsableOptions(userId, 'background');
+                    const ownedPhotoOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
+                    const ownedBackgroundOptions = ownedPhotoOptions;
                     if (body.remove_background === 'on') {
                         PlayerRegistry.setSelectedBackgroundKey(userId, null);
                     } else if ('background_key' in body) {

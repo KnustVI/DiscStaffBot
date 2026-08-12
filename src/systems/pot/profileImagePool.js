@@ -1,22 +1,24 @@
 // src/systems/pot/profileImagePool.js
 /**
- * Pool de imagens (avatar/plano de fundo/emblema/banner) usado pelos 3
- * pickers de /perfil-edit E pela galeria de banner de /config personalizar
- * (Strike/Unstrike/Report-Chat, Discord + dashboard) — alimentado pelo dono
- * via /perfil-pool (bot developer), sem precisar editar código/redeployar a
- * cada imagem nova. Unificado (pedido do dono): a galeria de banner usava
- * um array estático à parte (PLAYER_PHOTO_OPTIONS em configSystem.js,
- * resolvido via imageManager/assets/images) até essa mudança — agora os 4
- * tipos vêm 100% daqui. "Padrão do bot" de cada banner continua sendo a
- * única exceção estática (é a imagem oficial do bot, não um item do pool).
+ * Pool de imagens (personalização/emblema/banner) usado pelos pickers de
+ * /perfil-edit E pela galeria de banner de /config personalizar (Strike/
+ * Unstrike/Report-Chat, Discord + dashboard) — alimentado pelo dono via
+ * /dev/lojas no dashboard, sem precisar editar código/redeployar a cada
+ * imagem nova. "Padrão do bot" de cada banner continua sendo a única
+ * exceção estática (é a imagem oficial do bot, não um item do pool).
+ *
+ * type 'avatar'/'background' foram UNIFICADOS em 'personalizacao' (reforma
+ * das lojas, 2026-08-12 — "Qualquer imagem da loja, se adiquirido, agora
+ * pode ser usada como plano de fundo ou como perfil, não vamos dividir o
+ * uso das mesmas") — quem possui uma imagem pode usá-la como foto OU plano
+ * de fundo, independentemente, ver configSystem.js getPersonalizationOptions.
  *
  * Cada imagem pode ser marcada pública ou privada (is_public, ver
- * setPublic() abaixo) — controle exclusivo do dono, pela página
- * /dev/image-pool do dashboard, pra esconder uma imagem do menu de escolha
- * sem precisar removê-la de verdade (preparação pro pool ficar mais aberto
- * no futuro). listImages(type, {publicOnly:true}) é o que os pickers
- * voltados ao usuário comum usam; sem esse filtro (developer command
- * /perfil-pool listar, e a própria página /dev/image-pool) o dono vê tudo.
+ * setPublic() abaixo) — controle exclusivo do dono, pela página /dev/lojas
+ * do dashboard, pra esconder uma imagem do menu de escolha sem precisar
+ * removê-la de verdade. listImages(type, {publicOnly:true}) é o que os
+ * pickers voltados ao usuário comum usam; sem esse filtro (só /dev/lojas)
+ * o dono vê tudo, inclusive pendentes de aprovação (ver pending_review).
  *
  * Mesmo padrão de armazenamento já usado pro upload próprio do Raptor
  * (banner_message_id/background_message_id em player_links): a imagem em si
@@ -40,7 +42,7 @@ const db = require('../../database/index');
 // TEXTO DO TÍTULO em si, e `message_id` é gravado como string vazia ''
 // (nunca null — a coluna é TEXT NOT NULL) porque não existe mensagem/anexo
 // pra resolver. Ver addImage() e o guard em resolveImageUrl/Buffer abaixo.
-const VALID_TYPES = ['avatar', 'background', 'badge', 'banner', 'titulo'];
+const VALID_TYPES = ['personalizacao', 'badge', 'banner', 'titulo'];
 const POOL_PREFIX = 'pool:';
 
 function toPoolValue(id) {

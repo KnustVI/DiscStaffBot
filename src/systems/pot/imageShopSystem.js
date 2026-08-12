@@ -1,12 +1,12 @@
 // src/systems/pot/imageShopSystem.js
 /**
- * Loja de Personalização — compra de imagens do pool (avatar/plano de
- * fundo/badge/titulo) com Caçadas, guardadas no inventário do jogador.
- * Pedido do dono, 2026-08-07: "a loja vai ser permitida a qualquer
- * jogador, para comprar e adicionar ao seu inventario imagens de
- * personalização... na pool de imagens quero que adicione uma
- * configuração para permitir que eu gerencie as imagens como itens da
- * loja, e quem pode usar ou só comprar para o inventário."
+ * Loja de Personalização — compra de imagens do pool (tipo 'personalizacao'
+ * — foto de perfil e plano de fundo unificados, reforma 2026-08-12) com
+ * Caçadas, guardadas no inventário do jogador. Pedido original do dono,
+ * 2026-08-07: "a loja vai ser permitida a qualquer jogador, para comprar e
+ * adicionar ao seu inventario imagens de personalização... quero que
+ * adicione uma configuração para permitir que eu gerencie as imagens como
+ * itens da loja, e quem pode usar ou só comprar para o inventário."
  *
  * Duas coisas SEPARADAS, de propósito:
  *  - QUEM PODE COMPRAR: qualquer jogador, em qualquer tier, contanto que
@@ -15,12 +15,16 @@
  *    item (profile_image_pool.shop_min_tier) — quem não atinge esse tier
  *    ainda fica com o item só no inventário, sem poder selecioná-lo.
  *
- * Isso é DIFERENTE do acesso "de graça" que Compy+/Raptor já tinham a
- * TODO o pool (ver configSystem.js getAvatarOptions/getBackgroundOptions)
- * — esse acesso continua existindo do jeito que já era, sem depender de
- * compra nenhuma. Esta loja é um caminho ADICIONAL: qualquer tier pode
- * comprar um item ESPECÍFICO com Caçadas em vez de precisar do plano
- * Compy pra ter acesso ao pool inteiro.
+ * Isso é DIFERENTE do acesso "de graça" que Compy+/Raptor já tinham a TODO
+ * o pool (ver configSystem.js getPersonalizationOptions) — esse acesso
+ * continua existindo do jeito que já era, sem depender de compra nenhuma.
+ * Esta loja é um caminho ADICIONAL: qualquer tier pode comprar um item
+ * ESPECÍFICO com Caçadas em vez de precisar do plano Compy pra ter acesso
+ * ao pool inteiro.
+ *
+ * setShopConfig só aceita tipo 'personalizacao' (reforma 2026-08-12) —
+ * badge/titulo deixaram de ser compráveis direto, viram resgate por
+ * requisito cumprido (ver `requirement` na tabela e checkRequirementMet).
  *
  * Item sem shop_price definido (NULL) simplesmente não está à venda —
  * continua só acessível pelo caminho antigo (tier), esta loja não se
@@ -29,6 +33,17 @@
  * arquivo, no call site (configSystem.js/dashboard.js), que já faz isso
  * há tempos; misturar as duas regras aqui seria fácil de acabar
  * liberando acesso indevido por engano.
+ *
+ * MARKETPLACE de imagens enviadas por jogador (reforma 2026-08-12, pedido
+ * do dono: jogador paga Caçadas pra enviar uma imagem, dono aprova/reprova
+ * em /dev/lojas — ver dashboard.js POST /loja/enviar-imagem). Item com
+ * `submitted_by` preenchido é DIFERENTE de um item curado pelo dono:
+ *  - Repasse: 10% do valor de CADA venda vai pro `submitted_by` em Caçadas
+ *    (purchaseImage abaixo).
+ *  - Preço por popularidade: sobe POPULARITY_PRICE_STEP (5%, arredondado
+ *    pra cima) a cada compra, nunca desce sozinho — só o dono pode editar
+ *    manualmente pra baixo se quiser, via setShopConfig. Itens curados
+ *    pelo dono (submitted_by NULL) NUNCA são repreçados automaticamente.
  */
 'use strict';
 
@@ -37,18 +52,29 @@ const ProfileImagePool = require('./profileImagePool');
 
 const VALID_SHOP_TIERS = ['free', 'compy', 'raptor'];
 
+// Repasse pro autor de um item de marketplace (submitted_by preenchido) a
+// cada venda, e o quanto o preço sobe por popularidade a cada venda —
+// pedido do dono, 2026-08-12: "recebe 10% do valor da imagem em modas de
+// caçada" + "quanto mais pessoas comprarem maior vai ficando o preço" —
+// 5% (não os 15% sugeridos por mim inicialmente: "acho que 15% é muito
+// alto, tente fazer esse crescimento ser um pouco lento").
+const CREATOR_REVENUE_SHARE = 0.10;
+const POPULARITY_PRICE_STEP = 0.05;
+
 /**
- * Define (ou remove) o preço/tier mínimo de uso de um item do pool.
- * price <= 0/null/undefined remove o item da loja (shop_price volta a
- * NULL) — o item continua existindo no pool normalmente, só não é mais
- * comprável. minTier inválido/ausente cai em 'free' (qualquer um que
- * comprar já pode usar imediatamente).
+ * Define (ou remove) o preço/tier mínimo de uso de um item do pool. Só
+ * aceita tipo 'personalizacao' (badge/titulo usam `requirement`, não
+ * preço — ver docblock do arquivo). price <= 0/null/undefined remove o
+ * item da loja (shop_price volta a NULL) — o item continua existindo no
+ * pool normalmente, só não é mais comprável. minTier inválido/ausente cai
+ * em 'free' (qualquer um que comprar já pode usar imediatamente).
  * @param {string} type
  * @param {number} id
  * @param {{ price?: number|null, minTier?: string }} config
  * @returns {boolean} true se o item existe e foi atualizado
  */
 function setShopConfig(type, id, { price, minTier } = {}) {
+    if (type !== 'personalizacao') return false;
     const row = ProfileImagePool.getByTypeAndId(type, id);
     if (!row) return false;
 
@@ -72,7 +98,7 @@ function setShopConfig(type, id, { price, minTier } = {}) {
 function getShopItems(type, opts = {}) {
     const rows = db.prepare(`
         SELECT * FROM profile_image_pool
-        WHERE type = ? AND shop_price IS NOT NULL AND is_public = 1
+        WHERE type = ? AND shop_price IS NOT NULL AND is_public = 1 AND pending_review = 0
         ORDER BY shop_price ASC, label ASC
     `).all(type);
 
@@ -131,6 +157,13 @@ function canUseImage(userId, type, id) {
  * (erro inesperado), devolve a Caçada gasta na hora, igual já é feito no
  * conversor Ossos<->Marks pra nunca fazer o jogador perder moeda por uma
  * falha do lado do bot.
+ *
+ * Se o item for de marketplace (submitted_by preenchido — ver docblock do
+ * arquivo), a compra bem-sucedida também credita 10% do preço em Caçadas
+ * pro autor e sobe o preço em 5% (arredondado pra cima, nunca desce
+ * sozinho) — os dois passos rodam DEPOIS do inventário já gravado com
+ * sucesso, best-effort (uma falha aqui não desfaz a compra em si, já
+ * concluída — só loga o erro).
  * @param {string} userId
  * @param {string} type
  * @param {number} id
@@ -140,7 +173,7 @@ function purchaseImage(userId, type, id) {
     if (!userId) return { ok: false, error: 'Vincule sua conta com /registrar primeiro.' };
 
     const row = ProfileImagePool.getByTypeAndId(type, id);
-    if (!row || !row.is_public) return { ok: false, error: 'Item não encontrado.' };
+    if (!row || !row.is_public || row.pending_review) return { ok: false, error: 'Item não encontrado.' };
     if (!row.shop_price) return { ok: false, error: 'Este item não está à venda.' };
     if (ownsImage(userId, type, id)) return { ok: false, error: 'Você já tem este item no seu inventário.' };
 
@@ -153,16 +186,31 @@ function purchaseImage(userId, type, id) {
             INSERT INTO image_inventory (user_id, pool_type, pool_id, purchased_at)
             VALUES (?, ?, ?, ?)
         `).run(userId, type, id, Date.now());
-        return { ok: true };
     } catch (error) {
         PlayerRegistry.addHunt(userId, row.shop_price);
         console.error('❌ [ImageShop] Erro ao registrar compra (Caçadas devolvidas):', error);
         return { ok: false, error: 'Erro ao registrar a compra — suas Caçadas foram devolvidas.' };
     }
+
+    if (row.submitted_by && row.submitted_by !== userId) {
+        try {
+            const creatorShare = Math.round(row.shop_price * CREATOR_REVENUE_SHARE);
+            if (creatorShare > 0) PlayerRegistry.addHunt(row.submitted_by, creatorShare);
+
+            const newPrice = row.shop_price + Math.max(1, Math.ceil(row.shop_price * POPULARITY_PRICE_STEP));
+            db.prepare(`UPDATE profile_image_pool SET shop_price = ? WHERE type = ? AND id = ?`).run(newPrice, type, id);
+        } catch (error) {
+            console.error('❌ [ImageShop] Erro ao aplicar repasse/reprecificação de item de marketplace:', error);
+        }
+    }
+
+    return { ok: true };
 }
 
 module.exports = {
     VALID_SHOP_TIERS,
+    CREATOR_REVENUE_SHARE,
+    POPULARITY_PRICE_STEP,
     setShopConfig,
     getShopItems,
     getInventory,

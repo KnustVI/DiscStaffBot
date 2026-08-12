@@ -230,11 +230,20 @@ function _poolOptions(poolType) {
         label: row.label,
     })).slice(0, 25);
 }
-function getAvatarOptions() {
-    return _poolOptions('avatar');
-}
-function getBackgroundOptions() {
-    return _poolOptions('background');
+/**
+ * Foto de perfil e plano de fundo foram UNIFICADOS num único tipo de pool
+ * ('personalizacao', reforma das lojas 2026-08-12: "Qualquer imagem da
+ * loja, se adiquirido, agora pode ser usada como plano de fundo ou como
+ * perfil, não vamos dividir o uso das mesmas") — mesma lista de opções
+ * alimenta os dois seletores (buildPlayerPhotoPickerPayload E
+ * buildPlayerBackgroundPickerPayload), cada um só grava a escolha em
+ * player_links.selected_photo_key/selected_background_key
+ * independentemente um do outro. Migração dos tipos antigos 'avatar'/
+ * 'background' já rodou em database/index.js
+ * (migratePersonalizationShopUnification).
+ */
+function getPersonalizationOptions() {
+    return _poolOptions('personalizacao');
 }
 function getBadgeOptions() {
     return _poolOptions('badge');
@@ -327,12 +336,13 @@ const ConfigSystem = {
     getUnstrikeBannerOptions,
     getReportChatBannerOptions,
     // Mesmo motivo acima — a página web /perfil (dashboard) reaproveita
-    // estas 3 como fonte única de verdade com o painel /perfil-edit do
+    // esta como fonte única de verdade com o painel /perfil-edit do
     // Discord (ver buildPerfilEditPanelPayload/buildPlayerPhotoPickerPayload
-    // acima) em vez de duplicar a lista de opções de avatar/plano de
-    // fundo/emblema lá.
-    getAvatarOptions,
-    getBackgroundOptions,
+    // acima) em vez de duplicar a lista de opções de foto/plano de fundo/
+    // emblema lá. Foto e plano de fundo unificados numa função só
+    // (getPersonalizationOptions, reforma das lojas 2026-08-12) — mesma
+    // lista alimenta os dois seletores, ver comentário da função.
+    getPersonalizationOptions,
     getBadgeOptions,
     // Opções de avatar/plano de fundo compradas na Loja e já usáveis por
     // um jogador Free (ver _ownedUsableOptions acima) — exportada com
@@ -1910,10 +1920,11 @@ const ConfigSystem = {
     },
 
     // ==================== PLAYER PREMIUM — FOTO DE PERFIL (COMPY) ====================
-    // Compy escolhe entre as fotos do pool de avatar (getAvatarOptions —
-    // 100% dinâmico, alimentado via /perfil-pool add avatar no bot
-    // developer) via menu; Raptor continua com upload próprio (/perfil-edit,
-    // banner_message_id). Ver playerRegistrationSystem.js.
+    // Compy escolhe entre as fotos do pool de personalização
+    // (getPersonalizationOptions — 100% dinâmico, alimentado via
+    // /dev/lojas no dashboard) via menu; Raptor continua com upload
+    // próprio (/perfil-edit, banner_message_id). Ver
+    // playerRegistrationSystem.js.
     // _resolveCardPhotoBuffer pra onde essa escolha é lida na hora de montar
     // o card do /perfil.
 
@@ -1934,7 +1945,7 @@ const ConfigSystem = {
                 : 'Escolha uma das fotos abaixo para usar de fundo no seu card (`/perfil`) — recurso do Player Premium Compy.',
         ].join('\n'));
 
-        const options = isOwnedOnly ? _ownedUsableOptions(ownedOnlyUserId, 'avatar') : getAvatarOptions();
+        const options = isOwnedOnly ? _ownedUsableOptions(ownedOnlyUserId, 'personalizacao') : getPersonalizationOptions();
         if (options.length === 0) {
             cb.text(isOwnedOnly
                 ? `${EMOJIS.circlealert || '❌'} Você ainda não comprou nenhuma foto na Loja (\`/loja\`).`
@@ -1977,7 +1988,7 @@ const ConfigSystem = {
         // Compy+ escolhe do pool inteiro (acesso livre, como sempre foi);
         // Free só pode escolher entre o que comprou na Loja e já pode usar
         // (ver imageShopSystem.js#canUseImage) — pedido do dono, 2026-08-07.
-        const options = isCompyPlus ? getAvatarOptions() : _ownedUsableOptions(interaction.user.id, 'avatar');
+        const options = isCompyPlus ? getPersonalizationOptions() : _ownedUsableOptions(interaction.user.id, 'personalizacao');
         if (!isCompyPlus && options.length === 0) {
             return await ResponseManager.error(interaction, 'Escolher foto de perfil é um recurso do Player Premium Compy ou superior — ou compre uma foto específica na Loja (`/loja`) com Caçadas.');
         }
@@ -2019,7 +2030,7 @@ const ConfigSystem = {
                 : 'Escolha uma das imagens abaixo para usar de plano de fundo no seu `/perfil` — recurso do Player Premium Compy.',
         ].join('\n'));
 
-        const options = isOwnedOnly ? _ownedUsableOptions(ownedOnlyUserId, 'background') : getBackgroundOptions();
+        const options = isOwnedOnly ? _ownedUsableOptions(ownedOnlyUserId, 'personalizacao') : getPersonalizationOptions();
         if (options.length === 0) {
             cb.text(isOwnedOnly
                 ? `${EMOJIS.circlealert || '❌'} Você ainda não comprou nenhum plano de fundo na Loja (\`/loja\`).`
@@ -2059,7 +2070,7 @@ const ConfigSystem = {
         }
 
         const chosenKey = interaction.values[0];
-        const options = isCompyPlus ? getBackgroundOptions() : _ownedUsableOptions(interaction.user.id, 'background');
+        const options = isCompyPlus ? getPersonalizationOptions() : _ownedUsableOptions(interaction.user.id, 'personalizacao');
         if (!isCompyPlus && options.length === 0) {
             return await ResponseManager.error(interaction, 'Escolher plano de fundo é um recurso do Player Premium Compy ou superior — ou compre um específico na Loja (`/loja`) com Caçadas.');
         }
@@ -2173,8 +2184,8 @@ const ConfigSystem = {
         // permitir que eu gerencie as imagens como itens da loja") — nesse
         // caso os botões também aparecem pra ele, restritos ao que
         // comprou. Ver imageShopSystem.js/_ownedUsableOptions.
-        const freeOwnsPhoto = isFree && !!link?.user_id && _ownedUsableOptions(link.user_id, 'avatar').length > 0;
-        const freeOwnsBackground = isFree && !!link?.user_id && _ownedUsableOptions(link.user_id, 'background').length > 0;
+        const freeOwnsPhoto = isFree && !!link?.user_id && _ownedUsableOptions(link.user_id, 'personalizacao').length > 0;
+        const freeOwnsBackground = isFree && !!link?.user_id && _ownedUsableOptions(link.user_id, 'personalizacao').length > 0;
         const showPhotoButton = isCompyPlus || freeOwnsPhoto;
         const showBackgroundButton = isCompyPlus || freeOwnsBackground;
 
@@ -2194,20 +2205,20 @@ const ConfigSystem = {
         if (isCompyPlus) {
             const photoStatus = isRaptor
                 ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou banner do Discord)')
-                : (link?.selected_photo_key ? getAvatarOptions().find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
+                : (link?.selected_photo_key ? getPersonalizationOptions().find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
             const backgroundStatus = isRaptor
                 ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (sem plano de fundo)')
-                : (link?.selected_background_key ? getBackgroundOptions().find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
+                : (link?.selected_background_key ? getPersonalizationOptions().find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
             const kdaStatus = link?.hide_kda ? `${EMOJIS.circlealert || '❌'} Escondido` : `${EMOJIS.circlecheck || '✅'} Visível`;
             statusLines.push(`**Foto de perfil:** ${photoStatus}`, `**Plano de fundo:** ${backgroundStatus}`, `**Kills/Deaths/K-D:** ${kdaStatus}`);
             if (isRaptor) statusLines.push(`**Título:** ${link?.profile_title || 'Padrão ("Em breve (missões)")'}`);
         } else {
             statusLines.push(`${EMOJIS.messagesquare || 'ℹ️'} Foto de perfil, plano de fundo e esconder KDA são recursos do Player Premium Compy ou superior — ou compre itens específicos na Loja (\`/loja\`) com Caçadas.`);
             if (freeOwnsPhoto) {
-                statusLines.push(`**Foto de perfil:** ${link?.selected_photo_key ? (getAvatarOptions().find(o => o.value === link.selected_photo_key)?.label || 'Comprada na Loja') : 'Comprada — ainda não escolhida'}`);
+                statusLines.push(`**Foto de perfil:** ${link?.selected_photo_key ? (getPersonalizationOptions().find(o => o.value === link.selected_photo_key)?.label || 'Comprada na Loja') : 'Comprada — ainda não escolhida'}`);
             }
             if (freeOwnsBackground) {
-                statusLines.push(`**Plano de fundo:** ${link?.selected_background_key ? (getBackgroundOptions().find(o => o.value === link.selected_background_key)?.label || 'Comprado na Loja') : 'Comprado — ainda não escolhido'}`);
+                statusLines.push(`**Plano de fundo:** ${link?.selected_background_key ? (getPersonalizationOptions().find(o => o.value === link.selected_background_key)?.label || 'Comprado na Loja') : 'Comprado — ainda não escolhido'}`);
             }
         }
         cb.text(statusLines.join('\n'));
@@ -2271,8 +2282,7 @@ const ConfigSystem = {
             const PremiumSystem = require('../premium/premiumSystem');
             const tier = PremiumSystem.getPlayerTier(interaction.user.id);
             if (tier === 'free') {
-                const poolType = kind === 'photo' ? 'avatar' : 'background';
-                isFreeWithPurchase = _ownedUsableOptions(interaction.user.id, poolType).length > 0;
+                isFreeWithPurchase = _ownedUsableOptions(interaction.user.id, 'personalizacao').length > 0;
                 if (!isFreeWithPurchase) {
                     return await interaction.followUp({
                         content: `${EMOJIS.circlealert || '❌'} ${kind === 'photo' ? 'Foto de perfil' : 'Plano de fundo'} é um recurso do Player Premium Compy ou superior — ou compre uma imagem específica na Loja (\`/loja\`) com Caçadas.`,

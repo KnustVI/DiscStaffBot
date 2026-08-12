@@ -268,10 +268,10 @@ class PlayerRegistrationSystem {
         if (player?.selected_photo_key && ProfileImagePool.isPoolValue(player.selected_photo_key)) {
             const poolId = ProfileImagePool.poolIdFromValue(player.selected_photo_key);
             const allowed = playerTier === 'compy'
-                || (playerTier === 'free' && require('./imageShopSystem').canUseImage(player.user_id, 'avatar', poolId));
+                || (playerTier === 'free' && require('./imageShopSystem').canUseImage(player.user_id, 'personalizacao', poolId));
             if (allowed) {
                 try {
-                    const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'avatar', poolId);
+                    const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'personalizacao', poolId);
                     if (buffer) return buffer;
                 } catch (err) {
                     // segue pro fallback padrão do tier
@@ -323,9 +323,9 @@ class PlayerRegistrationSystem {
         if (player?.selected_background_key && ProfileImagePool.isPoolValue(player.selected_background_key)) {
             const poolId = ProfileImagePool.poolIdFromValue(player.selected_background_key);
             const allowed = playerTier === 'compy'
-                || (playerTier === 'free' && require('./imageShopSystem').canUseImage(player.user_id, 'background', poolId));
+                || (playerTier === 'free' && require('./imageShopSystem').canUseImage(player.user_id, 'personalizacao', poolId));
             if (allowed) {
-                const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'background', poolId);
+                const buffer = await ProfileImagePool.resolveImageBuffer(interaction.client, 'personalizacao', poolId);
                 if (buffer) return buffer;
             }
         } else if (playerTier === 'compy' && player?.selected_background_key && imageManager.hasImage(player.selected_background_key)) {
