@@ -109,8 +109,8 @@ function setPublic(type, id, isPublic) {
  * @param {string} type
  * @param {{publicOnly?: boolean}} [opts] - publicOnly:true filtra só
  *   is_public=1 (pickers voltados ao usuário comum); sem isso, devolve TUDO
- *   (developer command /perfil-pool listar e a página /dev/image-pool do
- *   dono, que precisam ver as imagens escondidas também).
+ *   (a página /dev/lojas do dono, que precisa ver as imagens escondidas
+ *   também).
  */
 function listImages(type, opts = {}) {
     const { publicOnly = false } = opts;

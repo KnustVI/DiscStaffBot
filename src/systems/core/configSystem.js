@@ -207,14 +207,15 @@ const LOG_FIELDS = [
 ];
 
 /**
- * Opções de avatar/plano de fundo/emblema/banner pro /perfil-edit E pro
+ * Opções de personalização/emblema/banner pro /perfil-edit E pro
  * /config personalizar (banner de Strike/Unstrike/Report-Chat) — 100%
- * vindas do pool DINÂMICO (profile_image_pool, alimentado via /perfil-pool
- * no bot developer ou pela página /dev/image-pool do dashboard — ver
- * profileImagePool.js), sem nenhum pool estático hardcoded por trás. A
- * galeria de banner era um array separado (PLAYER_PHOTO_OPTIONS, resolvido
- * via imageManager/assets/images) até essa unificação (pedido do dono) —
- * removido, os 4 tipos usam a mesma fonte agora.
+ * vindas do pool DINÂMICO (profile_image_pool, alimentado pela página
+ * /dev/lojas do dashboard — ver profileImagePool.js; o antigo comando
+ * /perfil-pool do bot developer foi removido na reforma das lojas,
+ * 2026-08-12), sem nenhum pool estático hardcoded por trás. A galeria de
+ * banner era um array separado (PLAYER_PHOTO_OPTIONS, resolvido via
+ * imageManager/assets/images) até uma unificação anterior (pedido do
+ * dono) — removido, todos os tipos usam a mesma fonte agora.
  *
  * Cada entrada usa "pool:<id>" como value (distingue de uma chave estática
  * do imageManager, ex: "title_strike" — ainda válida em configs SALVAS
@@ -2102,8 +2103,8 @@ const ConfigSystem = {
     // ==================== EMBLEMA (QUALQUER TIER) ====================
     // Sempre "escolher de uma lista", nunca upload próprio — liberado em
     // QUALQUER tier (diferente de foto/fundo, exclusivos Compy+/Raptor).
-    // Pool 100% dinâmico (getBadgeOptions — ver /perfil-pool add badge no
-    // bot developer). Desenho do emblema escolhido em cima do card ainda
+    // Pool 100% dinâmico (getBadgeOptions — ver /dev/lojas no dashboard).
+    // Desenho do emblema escolhido em cima do card ainda
     // não implementado — esta tela já deixa a escolha/persistência
     // prontas, o desenho fica pra quando existirem assets reais cadastrados
     // pra testar a composição contra. Alguns emblemas podem ter preço (ver
