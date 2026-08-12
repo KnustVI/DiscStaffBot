@@ -35,6 +35,24 @@ function getFilters(guildId) {
     return db.prepare(`SELECT * FROM pot_chat_filters WHERE guild_id = ? ORDER BY word ASC`).all(guildId);
 }
 
+// Cache dos filtros JÁ com o RegExp compilado, por guild — checkMessage
+// roda em TODO PlayerChat recebido do webhook (pode ser bem frequente num
+// servidor movimentado), e antes disso recompilava um RegExp por filtro E
+// refazia a query no SQLite a cada mensagem, mesmo os filtros só mudando
+// quando a staff adiciona/remove um (addFilter/removeFilter, que invalidam
+// abaixo). Mesmo padrão do cache de template do card de perfil
+// (achado numa auditoria de uso de RAM/CPU, 2026-08-12). Bounded pelo
+// número de guilds do bot — mesmo raciocínio já aceito pro cache de
+// settings em configSystem.js.
+const filterCache = new Map();
+function _getCompiledFilters(guildId) {
+    if (!filterCache.has(guildId)) {
+        const compiled = getFilters(guildId).map((filter) => ({ ...filter, _regex: _buildWordRegex(filter.word) }));
+        filterCache.set(guildId, compiled);
+    }
+    return filterCache.get(guildId);
+}
+
 function getFilter(guildId, filterId) {
     return db.prepare(`SELECT * FROM pot_chat_filters WHERE guild_id = ? AND id = ?`).get(guildId, filterId);
 }
@@ -53,6 +71,7 @@ function addFilter(guildId, word, levelId, createdBy) {
         ON CONFLICT(guild_id, word) DO UPDATE SET level_id = excluded.level_id, created_at = excluded.created_at, created_by = excluded.created_by
     `).run(guildId, normalized, levelId, now, createdBy);
     const filter = db.prepare(`SELECT * FROM pot_chat_filters WHERE guild_id = ? AND word = ?`).get(guildId, normalized);
+    filterCache.delete(guildId);
     return { isNew: !existing, filter };
 }
 
@@ -60,6 +79,7 @@ function removeFilter(guildId, filterId) {
     const filter = getFilter(guildId, filterId);
     if (!filter) return null;
     db.prepare(`DELETE FROM pot_chat_filters WHERE guild_id = ? AND id = ?`).run(guildId, filterId);
+    filterCache.delete(guildId);
     return filter;
 }
 
@@ -73,7 +93,7 @@ function removeFilter(guildId, filterId) {
  */
 function checkMessage(guildId, message) {
     if (!message) return null;
-    const filters = getFilters(guildId);
+    const filters = _getCompiledFilters(guildId);
     if (filters.length === 0) return null;
 
     // Preenchido com espaço nas pontas: garante uma fronteira "não-letra"
@@ -81,7 +101,7 @@ function checkMessage(guildId, message) {
     // sem precisar de tratamento especial pros casos de âncora ^/$.
     const padded = ` ${message.toLowerCase()} `;
     for (const filter of filters) {
-        if (_buildWordRegex(filter.word).test(padded)) return filter;
+        if (filter._regex.test(padded)) return filter;
     }
     return null;
 }

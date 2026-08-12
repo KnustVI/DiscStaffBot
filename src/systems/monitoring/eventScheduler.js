@@ -45,7 +45,10 @@ const REMINDER_LEAD_MS = 30 * 60 * 1000; // 30min
 // IDs de evento já avisados nesta execução do bot — evita reenviar o aviso
 // a cada minuto enquanto o evento continua dentro da janela de 30min. É só
 // em memória de propósito: se o bot reiniciar bem nesse intervalo, o pior
-// caso é um aviso repetido, não um dado perdido.
+// caso é um aviso repetido, não um dado perdido. Entradas são removidas
+// assim que o evento sai do status Agendado (ver checkGuildEvents) — sem
+// isso o Set crescia pra sempre, um ID a mais por evento avisado, nunca
+// removido (achado numa auditoria de uso de RAM, 2026-08-12).
 const remindedEvents = new Set();
 
 async function _sendDiscordEventReminder(guild, event, startAt) {
@@ -140,7 +143,14 @@ async function checkGuildEvents(guild) {
     const now = Date.now();
 
     for (const event of events.values()) {
-        if (event.status !== GuildScheduledEventStatus.Scheduled) continue;
+        if (event.status !== GuildScheduledEventStatus.Scheduled) {
+            // Saiu de Agendado (iniciado manualmente pela staff, cancelado,
+            // ou iniciado por este mesmo worker abaixo) — o ID não vai mais
+            // aparecer com status Scheduled de novo, então não tem mais
+            // motivo pra ocupar espaço em remindedEvents.
+            remindedEvents.delete(event.id);
+            continue;
+        }
 
         const startAt = event.scheduledStartTimestamp;
         if (!startAt) continue;
@@ -156,6 +166,10 @@ async function checkGuildEvents(guild) {
         if (now > abandonDeadline) {
             try {
                 await event.delete();
+                // Deletado de verdade — não vai mais aparecer num fetch
+                // futuro pra cair no cleanup do topo do loop, então precisa
+                // limpar aqui mesmo.
+                remindedEvents.delete(event.id);
                 console.log(`🗑️ [EventScheduler] Evento agendado nunca iniciado, removido: "${event.name}" (${guild.name})`);
             } catch (err) {
                 console.error(`❌ [EventScheduler] Erro ao remover evento expirado "${event.name}":`, err.message);
