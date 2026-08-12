@@ -303,7 +303,7 @@
         %>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-[20px]">
             <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-hunt"><img src="/images/icons/hunt.png" alt=""></div>
+                <div class="loja-currency-icon is-hunt"><img src="/images/icons/hunt.webp" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>CAÇADAS — Personalização</span><span data-i18n-en>HUNT — Customization</span></span>
                 <div class="loja-currency-balance is-hunt">
                     <span class="loja-currency-balance-value"><%= huntBalance %></span>
@@ -312,7 +312,7 @@
                 <p class="loja-currency-text"><span data-i18n-pt>Ganhe 1 Caçada por hora jogada (ou em missões, em breve). Só troca por itens de personalização de perfil e não pode ser convertida em nenhuma outra moeda da loja.</span><span data-i18n-en>Earn 1 Hunt per hour played (or from quests, coming soon). Only spent on profile customization, and can't be converted into any other shop currency.</span></p>
             </section>
             <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-bones"><img src="/images/icons/bone.png" alt=""></div>
+                <div class="loja-currency-icon is-bones"><img src="/images/icons/bone.webp" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>OSSOS — Loja de Jogo</span><span data-i18n-en>BONES — Game Shop</span></span>
                 <div class="loja-currency-balance is-bones">
                     <span class="loja-currency-balance-value"><%= bonesBalance %></span>
@@ -329,7 +329,7 @@
                 × Nível^2.2, sem teto de nível).
             %>
             <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-xp"><img src="/images/icons/DinoFootprint.png" alt=""></div>
+                <div class="loja-currency-icon is-xp"><img src="/images/icons/DinoFootprint.webp" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>NÍVEL — Experiência</span><span data-i18n-en>LEVEL — Experience</span></span>
                 <div class="loja-currency-balance is-xp">
                     <span class="loja-currency-balance-value"><span data-i18n-pt>Nível <%= levelProgress.level %></span><span data-i18n-en>Level <%= levelProgress.level %></span></span>
@@ -355,7 +355,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <img src="/images/icons/hunt.png" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
+                    <img src="/images/icons/hunt.webp" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE PERSONALIZAÇÃO</span><span data-i18n-en>CUSTOMIZATION SHOP</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Caçadas. Só imagens de perfil — nada que mude qualquer coisa dentro do jogo.</span><span data-i18n-en>Paid with Hunt. Only profile images — nothing that changes anything in-game.</span></p>
@@ -407,9 +407,9 @@
                                     ></div>
                                     <span class="loja-item-label"><%= img.label %></span>
                                     <% if (!img.shop_price) { %>
-                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.png" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
                                     <% } else { %>
-                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.png" alt=""> <%= img.shop_price %></span>
+                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.webp" alt=""> <%= img.shop_price %></span>
                                         <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
                                             <span class="loja-item-tier-note">
                                                 <span data-i18n-pt>Requer plano <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ pra usar depois de comprado</span>
@@ -449,7 +449,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <img src="/images/icons/bone.png" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
+                    <img src="/images/icons/bone.webp" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Bônus aplicados DENTRO do Path of Titans, via comando do servidor.</span><span data-i18n-en>Paid with Bones. Bonuses applied INSIDE Path of Titans, via server command.</span></p>
@@ -479,7 +479,7 @@
                         <% if (item.descPt) { %>
                             <span class="loja-item-desc"><span data-i18n-pt><%= item.descPt %></span><span data-i18n-en><%= item.descEn %></span></span>
                         <% } %>
-                        <span class="loja-item-price is-bones"><img src="/images/icons/bone.png" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+                        <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
                     </div>
                 <% }); %>
             </div>
@@ -508,7 +508,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <img src="/images/icons/bone.png" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
+                    <img src="/images/icons/bone.webp" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>CONVERSOR DE OSSOS</span><span data-i18n-en>BONES CONVERTER</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1">
@@ -522,7 +522,7 @@
                     saldo do topo do card de moeda (Ossos) acima.
                 %>
                 <div class="loja-converter-balance-pill">
-                    <img src="/images/icons/bone.png" alt="">
+                    <img src="/images/icons/bone.webp" alt="">
                     <span><span data-i18n-pt>Seu saldo:</span><span data-i18n-en>Your balance:</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
                 </div>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Você precisa estar online no servidor de jogo escolhido pra converter.</span><span data-i18n-en>You need to be online on the chosen game server to convert.</span></p>
