@@ -461,6 +461,37 @@ const ConfigSystem = {
     },
 
     /**
+     * True se o membro tem o cargo Administrativo do Dashboard configurado
+     * (chave 'admin_role', ver página web "Game Server" — /config geral do
+     * servidor). Pedido do dono, 2026-08-11: um cargo que "vai adicionar
+     * cargos administrativos, cargos que vão ser permitidos alterar
+     * qualquer configuração no dashboard, e usar todos os comandos (menos
+     * potserver configuration), sem necessariamente ter o admin no
+     * discord". Uso isolado raro fora de memberIsGuildAdmin abaixo — a
+     * maioria dos chamadores quer ESSA combinada com Administrator nativo.
+     */
+    memberHasAdminRole(guildId, member) {
+        return this.memberHasConfiguredRole(guildId, member, 'admin_role');
+    },
+
+    /**
+     * "É administrador de verdade" — Administrator nativo do Discord OU o
+     * cargo Administrativo do Dashboard configurado (memberHasAdminRole
+     * acima). Ponto ÚNICO a partir de agora pra qualquer checagem no bot
+     * (comandos) e no dashboard web que hoje só aceitava Administrator
+     * nativo — substitui `member.permissions.has(PermissionFlagsBits.
+     * Administrator)` em TODO lugar, EXCETO `/potserver` (config do
+     * servidor de JOGO em si): pedido explícito do dono pra esse único
+     * comando continuar exigindo Administrator nativo de verdade, mesmo
+     * pra quem tem o cargo administrativo do dashboard.
+     */
+    memberIsGuildAdmin(guildId, member) {
+        if (!member) return false;
+        const { PermissionFlagsBits } = require('discord.js');
+        return member.permissions.has(PermissionFlagsBits.Administrator) || this.memberHasAdminRole(guildId, member);
+    },
+
+    /**
      * Cargo de staff de MAIOR posição no Discord que um membro possui,
      * entre os 3 cargos configurados em /config roles (staff_role/
      * supervisor_role/event_role) — mesma lógica que já existia SÓ dentro

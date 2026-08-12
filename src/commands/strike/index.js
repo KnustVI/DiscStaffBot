@@ -44,7 +44,7 @@
  *     já com `agid`, orientando o jogador a rodar /registrar (a ação em
  *     jogo do nível PRECISA de um Alderon ID real pra funcionar).
  */
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
@@ -253,7 +253,7 @@ module.exports = {
             // Administrador de verdade do servidor — mesmo padrão já usado
             // pelos comandos /ingame-*. ──────────────────────────────────
             const ConfigSystem = require('../../systems/core/configSystem');
-            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, member) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, member) && !ConfigSystem.memberIsGuildAdmin(guildId, member)) {
                 return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
             }
 

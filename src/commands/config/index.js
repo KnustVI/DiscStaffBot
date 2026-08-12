@@ -7,7 +7,7 @@
  * comando e despacha pro handler do subcomando; a lógica de verdade
  * continua em src/systems/core/configSystem.js, sem nenhuma mudança.
  */
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 
 let emojis = {};
 try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -16,7 +16,14 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('config')
         .setDescription('⚙️ Configurações do servidor (cargos, canais de log, punições).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        // null, não Administrator — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js): default nativo bloqueava
+        // quem tem só o cargo Administrativo do Dashboard (ver /config
+        // geral do servidor, "Game Server") sem Administrator de verdade,
+        // ANTES da interação sequer chegar no bot. Cada subcomando já checa
+        // ConfigSystem.memberIsGuildAdmin no próprio execute() (roles.js/
+        // logs.js/punishments.js/personalizar.js/buffs.js/filtro.js).
+        .setDefaultMemberPermissions(null)
         .addSubcommand(sub => sub
             .setName('roles')
             .setDescription('🎭 Configura os cargos do sistema.'))

@@ -9,7 +9,7 @@
  * motivo" (igual ao botão "Fechar"); com motivo, fecha "com motivo" (igual
  * ao modal do botão "Fechar com Motivo").
  */
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
 const ConfigSystem = require('../../systems/core/configSystem');
 const ResponseManager = require('../../utils/responseManager');
@@ -30,7 +30,7 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, member, options } = interaction;
 
-        if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member) && !ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
             return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
         }
 

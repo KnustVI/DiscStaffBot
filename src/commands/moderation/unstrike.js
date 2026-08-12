@@ -1,5 +1,5 @@
 // /home/ubuntu/DiscStaffBot/src/commands/moderation/unstrike.js
-const { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../../database/index');
 const sessionManager = require('../../utils/sessionManager');
 const ResponseManager = require('../../utils/responseManager');
@@ -43,7 +43,7 @@ module.exports = {
             // mesmo raciocínio do /strike: exige o cargo Moderador ou
             // Supervisor configurado, ou Administrador de verdade. ────────
             const ConfigSystem = require('../../systems/core/configSystem');
-            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, staffMember) && !staffMember.permissions.has(PermissionFlagsBits.Administrator)) {
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guildId, staffMember) && !ConfigSystem.memberIsGuildAdmin(guildId, staffMember)) {
                 return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
             }
 

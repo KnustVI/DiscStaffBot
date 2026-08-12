@@ -1,10 +1,11 @@
 // /home/ubuntu/DiscStaffBot/src/commands/utility/botstatus.js
-const { SlashCommandBuilder, PermissionFlagsBits, version } = require('discord.js');
+const { SlashCommandBuilder, version } = require('discord.js');
 const db = require('../../database/index');
 const SystemStatus = require('../../systems/monitoring/systemStatus');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
+const ConfigSystem = require('../../systems/core/configSystem');
 
 const DEVELOPER_ID = '203676076189286412';
 
@@ -129,13 +130,23 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('botstatus')
         .setDescription('Verifica o estado de saúde do bot e do AutoMod.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        // null, não Administrator — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js): default nativo bloqueava
+        // quem tem só o cargo Administrativo do Dashboard (ver /config
+        // geral do servidor, "Game Server") sem Administrator de verdade,
+        // ANTES da interação sequer chegar no bot, sem log nenhum.
+        // Checagem real já dentro de execute().
+        .setDefaultMemberPermissions(null),
 
     async execute(interaction, client) {
         const startTime = Date.now();
-        const { guild, user } = interaction;
+        const { guild, user, member } = interaction;
         const guildId = guild.id;
         const isDeveloper = user.id === DEVELOPER_ID;
+
+        if (!ConfigSystem.memberIsGuildAdmin(guildId, member)) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito a Administradores (ou ao cargo Administrativo do Dashboard, ver /config geral do servidor).');
+        }
 
         let emojis = {};
         try {
@@ -146,7 +157,6 @@ module.exports = {
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-            const ConfigSystem = require('../../systems/core/configSystem');
             const status = SystemStatus.getBotStatus(client, guildId);
 
             if (!status) {

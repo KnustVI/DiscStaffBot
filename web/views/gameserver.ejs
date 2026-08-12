@@ -1,0 +1,162 @@
+<%#
+  web/views/gameserver.ejs
+  Página "Game Server" (pedido do dono, 2026-08-11) — configuração geral
+  do servidor Path of Titans (tudo que não está em Moderação/Eventos):
+  conexão (IP/porta RCON/senha/porta de Query do Source Query) — mesmos
+  campos de /potserver setup no Discord, PoTConfigSystem.getServerConfig/
+  setServerConfig (um blob JSON em settings, não colunas soltas) — e o
+  Cargo Administrativo do Dashboard (admin_role), novo: quem tiver esse
+  cargo consegue editar QUALQUER configuração do dashboard e usar TODOS os
+  comandos do bot, EXCETO justamente esta conexão do servidor de jogo, sem
+  precisar de Administrator nativo do Discord (ver ConfigSystem.
+  memberIsGuildAdmin).
+
+  NÃO inclui o painel de webhooks/logs por grupo de evento (/potserver
+  logs, 11 grupos com canal+regeneração de webhook cada) nem o teste de
+  conexão ao vivo (/potserver status já cobre os dois) — fora do escopo
+  desta página por ora.
+
+  Uso: res.render('gameserver', { ... }) — ver dashboard.js GET
+  /gameserver/:guildID pra lista completa de locals.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Server | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
+        <%- include('partials/sidebar-v2', { active: 'gameserver', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false, showAvatarHint: typeof showAvatarHint !== 'undefined' ? showAvatarHint : false }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
+
+        <%- include('partials/page-header', { guild, pageLabel: 'GAME SERVER', pageLabelEn: 'GAME SERVER', pageRoute, otherGuilds }) %>
+
+        <%- include('partials/save-result-overlay', { saved }) %>
+
+        <%- include('partials/view-only-banner', { isAdmin, role }) %>
+
+        <%#
+            CONEXÃO DO SERVIDOR — mesmos campos de /potserver setup.
+            server_ip_form_submitted distingue este form do de Cargo
+            Administrativo abaixo (mesma razão de roles_form_submitted em
+            moderacao.ejs — os dois postam pra /gameserver/:guildID/save).
+        %>
+        <form action="/gameserver/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+            <input type="hidden" name="server_ip_form_submitted" value="1">
+            <h2 class="section-title text-lg"><span data-i18n-pt>CONEXÃO DO SERVIDOR</span><span data-i18n-en>SERVER CONNECTION</span></h2>
+            <p class="text-[13px] opacity-50"><span data-i18n-pt>Dados do seu servidor de jogo Path of Titans — os mesmos configurados por</span><span data-i18n-en>Your Path of Titans game server details — the same ones configured via</span> <code>/potserver setup</code> <span data-i18n-pt>no Discord. Alterar aqui atualiza a mesma configuração usada pelo bot.</span><span data-i18n-en>on Discord. Editing here updates the same configuration used by the bot.</span></p>
+
+            <div class="flex flex-col gap-8">
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Nome do servidor (opcional)</span><span data-i18n-en>Server name (optional)</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="tag"></i></div>
+                        <input type="text" class="input-premium-field" name="server_name" maxlength="80" placeholder="Ex: Atlas Brasil" value="<%= potConfig.server_name || '' %>">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>IP do servidor</span><span data-i18n-en>Server IP</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="server"></i></div>
+                        <input type="text" class="input-premium-field" name="server_ip" maxlength="100" placeholder="Ex: 192.168.1.100" value="<%= potConfig.server_ip || '' %>">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Porta RCON</span><span data-i18n-en>RCON port</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="plug"></i></div>
+                        <input type="number" class="input-premium-field" name="rcon_port" min="1" max="65535" placeholder="Ex: 25567" value="<%= potConfig.rcon_port || '' %>">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Senha RCON</span><span data-i18n-en>RCON password</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="key-round"></i></div>
+                        <input type="password" class="input-premium-field" name="rcon_password" autocomplete="new-password" placeholder="<%= hasRconPassword ? '•••••• (deixe em branco pra manter a atual)' : 'Nenhuma senha definida ainda' %>">
+                    </div>
+                    <p class="text-[13px] opacity-40 mt-1"><span data-i18n-pt>Por segurança, a senha nunca é mostrada aqui — deixe o campo em branco pra manter a senha já salva, ou digite uma nova pra substituí-la.</span><span data-i18n-en>For security, the password is never shown here — leave it blank to keep the saved password, or type a new one to replace it.</span></p>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Porta de Query (opcional — Source Query)</span><span data-i18n-en>Query port (optional — Source Query)</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="radio"></i></div>
+                        <input type="number" class="input-premium-field" name="game_port" min="1" max="65535" placeholder="Ex: 25569" value="<%= potConfig.game_port || '' %>">
+                    </div>
+                    <p class="text-[13px] opacity-40 mt-1"><span data-i18n-pt>Só necessário se você habilitou</span><span data-i18n-en>Only needed if you've enabled</span> <code>[SourceQuery]</code> <span data-i18n-pt>no Game.ini do seu servidor — usado pra corrigir automaticamente quem aparece como online (staff online, registro de jogo) quando a saída de um jogador não é detectada a tempo. Deixe em branco se não usar isso.</span><span data-i18n-en>in your server's Game.ini — used to automatically correct who shows up as online (staff online, game record) when a player's disconnect isn't detected in time. Leave blank if you don't use this.</span></p>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
+        </form>
+
+        <%#
+            CARGO ADMINISTRATIVO DO DASHBOARD — pedido do dono, 2026-08-11,
+            com ênfase em deixar bem claro o que este cargo faz. admin_role_
+            form_submitted é o marcador deste form (mesma razão de sempre).
+        %>
+        <form action="/gameserver/<%= guild.id %>/save" method="POST" class="titan-card-premium flex-col gap-6">
+            <input type="hidden" name="admin_role_form_submitted" value="1">
+            <h2 class="section-title text-lg"><span data-i18n-pt>CARGO ADMINISTRATIVO DO DASHBOARD</span><span data-i18n-en>DASHBOARD ADMINISTRATIVE ROLE</span></h2>
+
+            <div class="outline-chip is-lg is-bad">
+                <i data-lucide="triangle-alert" class="outline-chip-icon"></i>
+                <div class="outline-chip-text">
+                    <span class="outline-chip-headline"><span data-i18n-pt>Leia antes de configurar</span><span data-i18n-en>Read before configuring</span></span>
+                    <span class="outline-chip-subtitle">
+                        <span data-i18n-pt>Quem tiver QUALQUER um dos cargos abaixo passa a poder alterar TODA configuração deste dashboard (Moderação, Eventos, Denúncias, e esta própria página Game Server) e usar TODOS os comandos do bot no Discord — inclusive comandos de administrador, como</span>
+                        <span data-i18n-en>Whoever has ANY of the roles below gains the ability to change EVERY setting in this dashboard (Moderation, Events, Reports, and this Game Server page itself) and use EVERY bot command on Discord — including administrator-only commands, like</span>
+                        <code>/config</code>, <code>/strike</code>, <code>/divulgar</code>
+                        <span data-i18n-pt>— SEM precisar ter a permissão nativa "Administrador" no Discord. A ÚNICA exceção é a "Conexão do Servidor" acima (IP/RCON/porta de Query): mudar isso continua exigindo Administrador de verdade, mesmo pra quem tem este cargo. Só adicione cargos aqui em quem você confia com o mesmo nível de acesso de um Administrador do servidor.</span>
+                        <span data-i18n-en>— WITHOUT needing the native "Administrator" Discord permission. The ONLY exception is "Server Connection" above (IP/RCON/Query port): changing that still requires a real Administrator, even for holders of this role. Only add roles here for people you trust with the same access level as a server Administrator.</span>
+                    </span>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-[13px] opacity-40 mb-2"><span data-i18n-pt>Até</span><span data-i18n-en>Up to</span> <%= adminRoleLimit %> <span data-i18n-pt>cargos. Deixe sem nenhum pra que só quem tem Administrador nativo do Discord possa administrar o bot.</span><span data-i18n-en>roles. Leave empty so only native Discord Administrators can administer the bot.</span></p>
+                <%- include('partials/role-picker', { id: 'admin-role', name: 'admin_role', roles, selectedIds: adminRoleIds, limit: adminRoleLimit, icon: 'shield-alert' }) %>
+            </div>
+
+            <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
+        </form>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script src="/js/role-picker.js"></script>
+    <script src="/js/dashboard-view-only-lock.js"></script>
+</body>
+</html>

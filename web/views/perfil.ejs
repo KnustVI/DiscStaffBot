@@ -260,8 +260,6 @@
             const pfAvatarUrl = discordUser.avatar
                 ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
                 : `https://cdn.discordapp.com/embed/avatars/${discordUser.id % 5}.png`;
-            const pfTierColors = { free: '#F8DCC0', compy: '#DCA15E', raptor: '#FF4E3B' };
-            const pfTierLabels = { free: 'Free', compy: 'Compy', raptor: 'Raptor' };
         %>
         <%#
             Cabeçalho novo (pedido do dono, 2026-08-05: "lembra a head que
@@ -291,11 +289,17 @@
                     <div class="flex flex-col gap-3 items-start">
                         <span class="perfil-hero-name"><%= discordUser.global_name || discordUser.username %></span>
                         <span class="perfil-hero-id">Discord ID: <%= discordUser.id %></span>
-                        <span class="perfil-tier-pill" style="--pt-color: <%= pfTierColors[playerTier] %>">
-                            <i data-lucide="badge" class="w-4 h-4"></i> <span data-i18n-pt>Player Premium:</span><span data-i18n-en>Player Premium:</span> <%= pfTierLabels[playerTier] %>
-                            <% if (playerTier !== 'free' && premiumInfo.expires_at) { %> — <span data-i18n-pt>expira em</span><span data-i18n-en>expires on</span> <%= new Date(premiumInfo.expires_at).toLocaleDateString('pt-BR') %><% } %>
-                            <% if (playerTier !== 'free' && !premiumInfo.expires_at) { %> — <span data-i18n-pt>vitalício</span><span data-i18n-en>lifetime</span><% } %>
-                        </span>
+                        <%#
+                            Pill de texto "Player Premium: X" removida
+                            (pedido do dono, 2026-08-11: "Não precisamos
+                            dessa informação de premium nos perfis
+                            considerando que já temos a imagem e cor
+                            ilustrativa do mesmo") — o tier já aparece pelo
+                            plano de fundo (backgroundPreviewUrl, padrão do
+                            tier quando não há upload próprio) e por
+                            --pt-color, ainda usado no resto da página (ver
+                            pill de Staff logo abaixo).
+                        %>
                         <%#
                             Cargo(s) de staff (pedido do dono, 2026-08-07:
                             "quando um usuário tiver o cargo staff

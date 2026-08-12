@@ -22,7 +22,7 @@
  * online/offline/não vinculado é informação só pra staff, não pro
  * canal inteiro.
  */
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const ConfigSystem = require('../../systems/core/configSystem');
@@ -55,7 +55,7 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, member } = interaction;
         try {
-            if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member) && !member.permissions.has(PermissionFlagsBits.Administrator)) {
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member) && !ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
                 return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Moderador ou Supervisor, ver /config roles) ou a Administradores.');
             }
 

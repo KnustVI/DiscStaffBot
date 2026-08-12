@@ -111,6 +111,11 @@
         { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ] : [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        // Config geral do servidor Path of Titans (conexão + Cargo
+        // Administrativo do Dashboard) — pedido do dono, 2026-08-11: botão
+        // no topo da lista, logo abaixo de Premium. Nome sempre em inglês
+        // ("Game Server"), mesmo nos dois idiomas — pedido explícito.
+        { key: 'gameserver', labelPt: 'Game Server', labelEn: 'Game Server', icon: 'server', href: guildHref('gameserver') },
         { key: 'moderacao', labelPt: 'Moderação', labelEn: 'Moderation', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', labelPt: 'Eventos', labelEn: 'Events', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', labelPt: 'Denúncias', labelEn: 'Reports', icon: 'message-square-warning', href: guildHref('reports') },

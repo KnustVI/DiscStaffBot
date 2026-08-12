@@ -1,6 +1,7 @@
 // /home/ubuntu/DiscStaffBot/src/commands/report/reportchat.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder } = require('discord.js');
 const ReportChatSystem = require('../../systems/moderation/reportChatSystem');
+const ResponseManager = require('../../utils/responseManager');
 const ConfigSystem = require('../../systems/core/configSystem');
 
 let emojis = {};
@@ -14,10 +15,18 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('reportchat')
         .setDescription('🎫 Cria o painel de ReportChat')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+        // null, não Administrator — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js). Checagem real já dentro
+        // de execute() (nunca tinha uma antes — o comando dependia SÓ do
+        // default nativo do Discord, que bloqueava até quem tem o cargo
+        // Administrativo do Dashboard sem Administrator de verdade).
+        .setDefaultMemberPermissions(null),
 
     async execute(interaction, client) {
-        
+        if (!ConfigSystem.memberIsGuildAdmin(interaction.guild.id, interaction.member)) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito a Administradores (ou ao cargo Administrativo do Dashboard, ver /config geral do servidor).');
+        }
+
         const reportSystem = new ReportChatSystem(client);
         const panel = await reportSystem.getPanel(interaction.guild.name, interaction.guild.iconURL(), interaction.guild.id);
         

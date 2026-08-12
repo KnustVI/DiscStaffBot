@@ -22,6 +22,7 @@ const StaffPresenceSystem = require('./src/systems/moderation/staffPresenceSyste
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
 const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSystem');
 const { renderProfileCard } = require('./src/utils/profileCardRenderer');
+const PoTConfigSystem = require('./src/systems/pot/potConfigSystem');
 
 const app = express();
 
@@ -800,7 +801,7 @@ function loadDashboard(client) {
         const resolved = await Promise.all(candidates.map(async (guild) => {
             try {
                 const member = await guild.members.fetch(req.user.id);
-                const hasAccess = member.permissions.has('Administrator') || ConfigSystem.memberHasAnyStaffRole(guild.id, member);
+                const hasAccess = ConfigSystem.memberIsGuildAdmin(guild.id, member) || ConfigSystem.memberHasAnyStaffRole(guild.id, member);
                 return hasAccess ? { id: guild.id, name: guild.name, icon: guild.icon } : null;
             } catch (err) {
                 return null;
@@ -841,7 +842,15 @@ function loadDashboard(client) {
     async function resolveAdminMember(guild, userId) {
         try {
             const member = await guild.members.fetch(userId);
-            const isAdmin = member.permissions.has('Administrator');
+            // memberIsGuildAdmin (ver configSystem.js) = Administrator nativo
+            // do Discord OU o cargo Administrativo do Dashboard configurado
+            // na página "Game Server" (pedido do dono, 2026-08-11: cargo que
+            // "vai ser permitido alterar qualquer configuração no dashboard...
+            // sem necessariamente ter o admin no discord"). Ponto ÚNICO onde
+            // isso entra no dashboard — toda rota de POST/edição já usa
+            // isAdmin daqui, então o bypass vale pra Moderação/Reports/
+            // Eventos/Game Server automaticamente, sem tocar em cada rota.
+            const isAdmin = ConfigSystem.memberIsGuildAdmin(guild.id, member);
             const isStaff = isAdmin || ConfigSystem.memberHasAnyStaffRole(guild.id, member);
             return { member, isAdmin, isStaff, apiError: null };
         } catch (apiError) {
@@ -1942,6 +1951,112 @@ function loadDashboard(client) {
         const state = parseReportsQueryState(req.query);
         const { openReports, openPagination, closedReports, closedPagination } = getReportsData(guildID, client, state);
         res.render('partials/reports-list', { basePath: '/reports/' + guildID, openReports, openPagination, closedReports, closedPagination });
+    });
+
+    // ==================== GAME SERVER (config geral do servidor Path of Titans) ====================
+    // Pedido do dono, 2026-08-11: "Adicione uma pagina de configuração
+    // geral do servidor onde vai adicionar todas as configurações de
+    // potserver (tudo que não temos nas categorias de moderação e de
+    // eventos)". Espelha a config de /potserver setup (server_ip/rcon_port/
+    // rcon_password/game_port/server_name — ver PoTConfigSystem.
+    // getServerConfig/setServerConfig, um blob JSON em settings, não
+    // colunas soltas) + a NOVA config de Cargo Administrativo do Dashboard
+    // (admin_role — ver ConfigSystem.memberIsGuildAdmin). NÃO inclui o
+    // painel de webhooks/logs por grupo de evento (/potserver logs) — é uma
+    // UI própria grande (11 grupos, cada um com canal+regeneração de
+    // webhook), fora do escopo desta página por ora, continua só no Discord.
+    const ADMIN_ROLE_LIMIT = 5;
+
+    app.get('/gameserver/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.redirect('/dashboard');
+        const { member, isAdmin, isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isStaff) return res.redirect('/dashboard');
+
+        const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
+        const potConfig = PoTConfigSystem.getServerConfig(guildID) || {};
+        const roles = [...guild.roles.cache.values()].filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position);
+        const adminRoleIds = ConfigSystem.getRoleIds(guildID, 'admin_role');
+        const role = isAdmin ? 'Administrador' : (highestStaffRoleName(guildID, member) || 'Staff');
+
+        res.render('gameserver', {
+            guild,
+            nickname: member.nickname || member.user.username,
+            role,
+            isAdmin,
+            isOwner: isOwnerSession(req),
+            pageRoute: 'gameserver',
+            otherGuilds: await getAdminGuildsWithBot(req),
+            showAvatarHint,
+            potConfig,
+            roles,
+            adminRoleIds,
+            adminRoleLimit: ADMIN_ROLE_LIMIT,
+            hasRconPassword: !!potConfig.rcon_password,
+            saved: req.query.saved,
+        });
+    });
+
+    app.post('/gameserver/:guildID/save', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
+
+        const body = req.body;
+        const toArray = (val) => Array.isArray(val) ? val : (val ? [val] : []);
+
+        try {
+            // Cargo Administrativo do Dashboard — form PRÓPRIO (marcador
+            // 'admin_role_form_submitted', mesma razão de 'roles_form_submitted'
+            // em moderacao.ejs: precisa gravar mesmo com 0 cargos selecionados,
+            // sem apagar o campo ao salvar o outro card desta mesma página).
+            if ('admin_role_form_submitted' in body) {
+                ConfigSystem.setRoleIds(guildID, 'admin_role', toArray(body.admin_role).filter(Boolean).slice(0, ADMIN_ROLE_LIMIT));
+            }
+
+            // Conexão do servidor de jogo — mesmos campos de /potserver setup.
+            if ('server_ip_form_submitted' in body) {
+                const existing = PoTConfigSystem.getServerConfig(guildID) || {};
+                const rconPortParsed = parseInt(body.rcon_port, 10);
+                const gamePortParsed = body.game_port ? parseInt(body.game_port, 10) : NaN;
+                const updatedConfig = {
+                    ...existing,
+                    enabled: true,
+                    server_name: body.server_name || null,
+                    server_ip: body.server_ip || null,
+                    rcon_port: !isNaN(rconPortParsed) ? rconPortParsed : (existing.rcon_port || null),
+                    // Campo write-only (nunca pré-preenchido no form, ver
+                    // gameserver.ejs) — em branco = mantém a senha já salva,
+                    // só troca se algo de fato foi digitado.
+                    rcon_password: body.rcon_password ? body.rcon_password : (existing.rcon_password || null),
+                    // Diferente de rcon_password: game_port É mostrado no
+                    // form (não é segredo), então em branco aqui significa
+                    // "remover" de verdade, não "manter" — semântica normal
+                    // de formulário.
+                    game_port: !isNaN(gamePortParsed) ? gamePortParsed : null,
+                    webhook_port: existing.webhook_port || 8080,
+                };
+                PoTConfigSystem.setServerConfig(guildID, updatedConfig, req.user.id);
+            }
+
+            res.redirect(`/gameserver/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao salvar configurações do Game Server:', error);
+            res.redirect(`/gameserver/${guildID}?saved=error`);
+        }
     });
 
     // ==================== MODERAÇÃO ====================

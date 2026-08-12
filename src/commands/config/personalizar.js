@@ -11,11 +11,11 @@
  * 'custom_upload' na chave de banner correspondente — a resolução na hora
  * de mostrar o banner de verdade fica em src/utils/customBannerResolver.js.
  */
-const { PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const { uploadAndStoreImage } = require('../../utils/imageStorage');
+const ConfigSystem = require('../../systems/core/configSystem');
 
 let EMOJIS = {};
 try { EMOJIS = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -33,7 +33,7 @@ module.exports = {
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
 
-        if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
             return await ResponseManager.error(interaction, 'Apenas administradores podem configurar o sistema.');
         }
 
@@ -43,8 +43,6 @@ module.exports = {
 
         db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
         db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
-
-        const ConfigSystem = require('../../systems/core/configSystem');
 
         const uploads = BANNER_UPLOAD_FIELDS
             .map(field => ({ field, attachment: interaction.options.getAttachment(field.option) }))

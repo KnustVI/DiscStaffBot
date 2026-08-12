@@ -8824,3 +8824,110 @@ frente, nao so este relatorio):
   linha, (5) buildKillPanel prioriza o local do matador quando os dois
   lados têm dado, (6) buildKillPanel cai pro local da vítima quando não
   há matador (morte por ambiente).
+
+180) Página "Game Server" no dashboard + Cargo Administrativo do
+     Dashboard (bypassa Administrator nativo em quase tudo, exceto
+     /potserver) + remoção da pill "Player Premium" dos perfis
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "Adicione uma pagina de configuração
+  geral do servidor onde vai adicionar todas as configurações de
+  potsever (tudo que não temos nas categorias de moderação e de
+  eventos) Nela e uma configuração que adicione cargos
+  adminsitrativos, cargos que vão ser permitidos alterar qualquer
+  configuração no dashboard, e usar todos os comandos (menos potserver
+  configuration), sem necessariamente ter o admin no discord. (Deixe
+  isso bem claro na configuração desse cago). O botão dessa pagina vai
+  estar no topo da lsita da sidebar, abaixo de premium, no dashboard
+  server. Nome do botão Game server. Não precisamos dessa informação
+  de premium nos perfis considerando que já temos a imagen e cor
+  ilustrativa do mesmo."
+- FIX/FEATURE 1 — Cargo Administrativo do Dashboard (ponto central,
+  usado em tudo mais abaixo): `ConfigSystem.memberHasAdminRole(guildId,
+  member)` (nova chave genérica `admin_role`, via getRoleIds/setRoleIds
+  — não faz parte do ROLE_TABS do painel /config roles do Discord, só
+  existe na página web nova) + `ConfigSystem.memberIsGuildAdmin(guildId,
+  member)` = Administrator nativo do Discord OU esse cargo. Substituído
+  em TODO lugar do bot que antes só aceitava
+  `member.permissions.has(PermissionFlagsBits.Administrator)`,
+  EXCETO `/potserver` (pedido explícito do dono — conexão do servidor
+  de jogo continua exigindo Administrator de verdade):
+  `dashboard.js` (resolveAdminMember — ponto único que gate toda edição
+  de Moderação/Reports/Eventos/Game Server no dashboard web —, e
+  getAdminGuildsWithBot, o seletor de "outros servidores"); nos
+  comandos `/ajuda` (isAdmin, decide o conteúdo do guia), `/unstrike`,
+  `/staffonline`, `/rep-set`, `/strike`, `/report-fechar` (todos:
+  "Moderador/Supervisor OU Administrador" — agora "...OU cargo
+  administrativo"); `/config roles|logs|punishments|personalizar|
+  filtro|buffs` (todos Administrator-only, agora aceitam o cargo
+  também). 4 comandos (`/botstatus`, `/reportchat`, `/divulgar`,
+  `/config` — o pai dos 6 subcomandos acima) dependiam SÓ do
+  `.setDefaultMemberPermissions(PermissionFlagsBits.Administrator)`
+  nativo do Discord, sem checagem nenhuma em código — mesmo footgun já
+  documentado em `/strike`/`/staffonline` (o Discord bloqueia a
+  interação ANTES dela chegar no bot, sem log nenhum, pra quem não tem
+  a permissão nativa, mesmo que o bot aceitasse o cargo). Corrigido
+  igual às correções anteriores: `setDefaultMemberPermissions(null)` +
+  checagem `ConfigSystem.memberIsGuildAdmin` adicionada dentro de
+  `execute()` (`/reportchat` e `/divulgar` nunca tinham NENHUMA
+  checagem própria antes, só o default nativo — corrigido no mesmo
+  passo).
+- FIX/FEATURE 2 — página `/gameserver/:guildID` (view
+  `web/views/gameserver.ejs`, rotas GET+POST em `dashboard.js`): 2
+  cards independentes, cada um seu próprio `<form>` (mesmo padrão de
+  marcador oculto — `server_ip_form_submitted`/
+  `admin_role_form_submitted` — já usado em moderacao.ejs pra distinguir
+  forms que postam pra mesma rota, ver seção 173/177 desta lista).
+  "Conexão do Servidor": mesmos campos de `/potserver setup`
+  (nome/IP/porta RCON/senha RCON/porta de Query) — lidos/gravados via
+  `PoTConfigSystem.getServerConfig/setServerConfig` (o mesmo blob JSON
+  usado pelo comando Discord, não uma cópia separada). Senha RCON é
+  campo WRITE-ONLY (nunca pré-preenchido no HTML, nem mascarado com
+  o valor real — em branco no submit = mantém a senha já salva, só
+  troca se algo for digitado) — nunca exposta em texto puro na tela,
+  mesmo pra quem tem acesso de visualização. "Cargo Administrativo do
+  Dashboard": `partials/role-picker` (até 5 cargos) com um aviso bem
+  explícito acima (pedido do dono: "Deixe isso bem claro") explicando
+  exatamente o que o cargo concede e a exceção do `/potserver`.
+  NÃO inclui o painel de webhooks/logs por grupo de evento (`/potserver
+  logs`, 11 grupos com canal+regeneração de webhook cada — UI própria
+  grande, fora do escopo desta tarefa) nem teste de conexão ao vivo
+  (`/potserver status` já cobre os dois) — continuam só no Discord.
+  Acesso: `isStaff` (Moderador/Supervisor/Equipe de Eventos) pode
+  VISUALIZAR a página (formulários travados, mesmo `data-view-only`/
+  `dashboard-view-only-lock.js` já usado em Moderação/Reports/Eventos);
+  só `isAdmin` (Administrator nativo OU o cargo administrativo) pode
+  salvar — mesmo padrão de sempre, sem página nova de permissão.
+- FIX/FEATURE 3 — botão "Game Server" (mesmo nome em PT/EN, pedido
+  explícito) adicionado em `partials/sidebar-v2.ejs`, logo abaixo de
+  Premium e acima de Moderação (topo da lista, pedido do dono), ícone
+  `server`.
+- FIX/FEATURE 4 — pill de texto "Player Premium: Free/Compy/Raptor"
+  removida de `web/views/perfil.ejs` (perfil do jogador no dashboard) e
+  da linha equivalente em `playerRegistrationSystem.js` (`/perfil` do
+  Discord) — pedido do dono: informação redundante, já que os dois
+  lugares já mostram o tier visualmente (perfil.ejs: imagem de fundo
+  padrão do tier + `--pt-color` usado no resto da página;
+  playerRegistrationSystem: imagem de rodapé por tier, footer_free/
+  compy/raptor, já mandada logo abaixo do texto removido). Variáveis
+  órfãs (`pfTierColors`/`pfTierLabels` em perfil.ejs) removidas junto.
+  `staff-perfil.ejs` (staff revisando o perfil de OUTRO jogador) e
+  `premiumPanel.js` (`/premium`, cujo propósito é literalmente mostrar
+  o status premium) ficaram de fora de propósito — nenhum dos dois tem
+  uma imagem/cor ilustrativa equivalente já mostrando o tier, e
+  `/premium` é sobre premium por definição.
+- Verificado: `node --check` em todos os ~20 arquivos tocados; teste
+  funcional de `memberIsGuildAdmin` cobrindo Administrator nativo,
+  cargo configurado (sem nativo), isolamento entre guilds diferentes,
+  ausência de configuração, e `member` null/undefined; teste de render
+  de `gameserver.ejs` cobrindo (1) sem config ainda, (2) com config e
+  senha já salva (confirmando que a senha NUNCA aparece pré-preenchida
+  no HTML), (3) modo view-only pra staff sem admin; teste de render de
+  `sidebar-v2.ejs` confirmando a ordem Premium → Game Server →
+  Moderação e o link certo; confirmação de que a pill "Player Premium"
+  saiu de `perfil.ejs` sem deixar variável órfã nem quebrar a sintaxe
+  EJS.
+- Pendente (ambiente do dono, fora deste código): `node deploy.js` no
+  host pra registrar os `setDefaultMemberPermissions` novos
+  (`/botstatus`, `/reportchat`, `/divulgar`, `/config`) — mudança de
+  permissão default de um comando só é aplicada de novo com o comando
+  re-registrado no Discord.

@@ -16,7 +16,7 @@
  * dashboard web não reimplementa nenhuma dessas duas regras, evitando um
  * atalho que ignorasse as duas).
  */
-const { SlashCommandBuilder, PermissionFlagsBits, GuildScheduledEventStatus } = require('discord.js');
+const { SlashCommandBuilder, GuildScheduledEventStatus } = require('discord.js');
 const ConfigSystem = require('../../systems/core/configSystem');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const ResponseManager = require('../../utils/responseManager');
@@ -42,7 +42,12 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('divulgar')
         .setDescription('📣 Publica a divulgação do seu servidor na home do site (1x por semana, imagem obrigatória).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        // null, não Administrator — mesmo raciocínio do /strike (ver
+        // comentário completo em strike/index.js). Checagem real já dentro
+        // de execute() (nunca tinha uma antes — o comando dependia SÓ do
+        // default nativo do Discord, que bloqueava até quem tem o cargo
+        // Administrativo do Dashboard sem Administrator de verdade).
+        .setDefaultMemberPermissions(null)
         .addStringOption(opt => opt.setName('titulo')
             .setDescription('Título da divulgação')
             .setMaxLength(80)
@@ -89,7 +94,11 @@ module.exports = {
     },
 
     async execute(interaction, client) {
-        const { guild } = interaction;
+        const { guild, member } = interaction;
+
+        if (!ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito a Administradores (ou ao cargo Administrativo do Dashboard, ver /config geral do servidor).');
+        }
 
         if (!PremiumSystem.isGuildAtLeast(guild.id, 'rastreador')) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));

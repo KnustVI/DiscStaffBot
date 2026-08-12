@@ -579,12 +579,11 @@ class PlayerRegistrationSystem {
             ].join(' | '));
         }
 
-        if (playerTier !== 'free') {
-            addSeparatorIfNeeded();
-            const tierLabel = playerTier === 'raptor' ? 'Raptor' : 'Compy';
-            builder.text(`${EMOJIS.badge || '🏅'} **Player Premium:** ${tierLabel}`);
-        }
-
+        // Linha de texto "Player Premium: X" removida (pedido do dono,
+        // 2026-08-11: "Não precisamos dessa informação de premium nos
+        // perfis considerando que já temos a imagem e cor ilustrativa do
+        // mesmo") — o tier já aparece pela imagem de rodapé por tier logo
+        // abaixo (footer_free/compy/raptor).
         // ── Imagem de rodapé, também por tier (assets footer_free/compy/raptor) —
         // substitui o footer de texto ("Produzido por..."), não usado aqui. ──────
         addSeparatorIfNeeded();

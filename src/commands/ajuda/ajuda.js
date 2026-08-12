@@ -296,7 +296,7 @@ module.exports = {
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
 
-            const isAdmin = member.permissions.has('Administrator');
+            const isAdmin = ConfigSystem.memberIsGuildAdmin(guild.id, member);
             const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis, guild });
 
             const payload = renderTopicPayload(topics, 'welcome', user.id);
@@ -353,7 +353,7 @@ module.exports = {
         } catch { /* sem emojis */ }
 
         const { guild, member } = interaction;
-        const isAdmin = member.permissions.has('Administrator');
+        const isAdmin = ConfigSystem.memberIsGuildAdmin(guild.id, member);
         const topics = getTopics(isAdmin, { displayName: member.displayName, guildName: guild.name, emojis, guild });
 
         const topicKey = interaction.values?.[0] || 'welcome';

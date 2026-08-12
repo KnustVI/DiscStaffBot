@@ -1,15 +1,15 @@
 // src/commands/config/buffs.js — subcomando /config buffs
-const { PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const ResponseManager = require('../../utils/responseManager');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
 const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
+const ConfigSystem = require('../../systems/core/configSystem');
 
 module.exports = {
     async execute(interaction, client) {
         const { guild, user, member } = interaction;
 
-        if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
+        if (!ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
             return await ResponseManager.error(interaction, 'Apenas administradores podem configurar o sistema.');
         }
 
