@@ -81,8 +81,8 @@ module.exports = {
 
     async execute(interaction, client) {
         const ConfigSystem = require('../../systems/core/configSystem');
-        if (!ConfigSystem.memberHasAnyStaffRole(interaction.guildId, interaction.member)) {
-            return await ResponseManager.error(interaction, `${emojis.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+        if (!ConfigSystem.memberHasAnyStaffRole(interaction.guildId, interaction.member) && !ConfigSystem.memberIsGuildAdmin(interaction.guildId, interaction.member)) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).');
         }
 
         // Cor de destaque personalizada do servidor (Caçador) — pedido do

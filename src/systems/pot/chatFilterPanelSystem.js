@@ -258,15 +258,15 @@ module.exports = {
         if (action === 'create-submit') {
             const word = interaction.fields.getTextInputValue('word').trim();
             if (!word) {
-                return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Informe uma palavra ou frase.`);
+                return await ResponseManager.error(interaction, 'Informe uma palavra ou frase.');
             }
             if (PunishmentLevels.getLevels(guildId).length === 0) {
-                return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Nenhum nível de punição configurado ainda — crie um em \`/config punishments\` primeiro.`);
+                return await ResponseManager.error(interaction, 'Nenhum nível de punição configurado ainda — crie um em `/config punishments` primeiro.');
             }
             SessionManager.set(interaction.user.id, guildId, STAGING_CATEGORY, STAGING_CATEGORY, { word }, 120000);
             return await refreshFilterPanel(interaction, null, guildName, { screen: 'pick-level', word });
         }
 
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Modal desconhecido.`);
+        return await ResponseManager.error(interaction, 'Modal desconhecido.');
     },
 };

@@ -49,7 +49,7 @@ module.exports = {
             // apesar de /config roles e /ajuda já descreverem /historico
             // como restrito à staff.
             const ConfigSystem = require('../../systems/core/configSystem');
-            if (!ConfigSystem.memberHasAnyStaffRole(guild.id, interaction.member)) {
+            if (!ConfigSystem.memberHasAnyStaffRole(guild.id, interaction.member) && !ConfigSystem.memberIsGuildAdmin(guild.id, interaction.member)) {
                 return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).');
             }
 
