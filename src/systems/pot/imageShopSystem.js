@@ -150,6 +150,65 @@ function canUseImage(userId, type, id) {
 }
 
 /**
+ * Emblemas/títulos com requisito CUMPRIDO agora e ainda não possuídos —
+ * reforma 2026-08-12: badge/titulo saem do preço direto, viram resgate
+ * por requisito (ver AchievementSystem). Usado pra montar o menu
+ * "Resgatar" do /perfil (bot e site).
+ * @param {string} userId
+ * @returns {Array<{type: string, id: number, label: string, requirement: object}>}
+ */
+function getRedeemableItems(userId) {
+    if (!userId) return [];
+    const AchievementSystem = require('./achievementSystem');
+    const results = [];
+    for (const type of ['badge', 'titulo']) {
+        for (const row of ProfileImagePool.listImages(type, { publicOnly: true })) {
+            if (!row.requirement || ownsImage(userId, type, row.id)) continue;
+            const requirement = AchievementSystem.parseRequirement(row);
+            if (requirement && AchievementSystem.checkRequirementMet(userId, requirement)) {
+                results.push({ type, id: row.id, label: row.label, requirement });
+            }
+        }
+    }
+    return results;
+}
+
+/**
+ * Resgata um emblema/título cujo requisito já foi cumprido — sem gastar
+ * moeda, grava em image_inventory com source='redeemed' (auditoria,
+ * distingue de 'purchase'). Reconfere elegibilidade AQUI (nunca confia só
+ * na lista já mostrada ao jogador, que pode ter ficado desatualizada
+ * entre a interação abrir e o clique de verdade).
+ * @param {string} userId
+ * @param {string} type - 'badge'|'titulo'
+ * @param {number} id
+ * @returns {{ok: boolean, error?: string, label?: string}}
+ */
+function redeemItem(userId, type, id) {
+    if (!userId) return { ok: false, error: 'Vincule sua conta com /registrar primeiro.' };
+    const row = ProfileImagePool.getByTypeAndId(type, id);
+    if (!row || !row.is_public) return { ok: false, error: 'Item não encontrado.' };
+    if (ownsImage(userId, type, id)) return { ok: false, error: 'Você já possui este item.' };
+
+    const AchievementSystem = require('./achievementSystem');
+    const requirement = AchievementSystem.parseRequirement(row);
+    if (!requirement || !AchievementSystem.checkRequirementMet(userId, requirement)) {
+        return { ok: false, error: 'Você ainda não cumpre o requisito pra resgatar este item.' };
+    }
+
+    try {
+        db.prepare(`
+            INSERT INTO image_inventory (user_id, pool_type, pool_id, purchased_at, source)
+            VALUES (?, ?, ?, ?, 'redeemed')
+        `).run(userId, type, id, Date.now());
+        return { ok: true, label: row.label };
+    } catch (error) {
+        console.error('❌ [ImageShop] Erro ao registrar resgate:', error);
+        return { ok: false, error: 'Erro ao registrar o resgate — tente novamente.' };
+    }
+}
+
+/**
  * Compra um item — debita Caçadas e grava no inventário. Debita ANTES de
  * inserir (mesmo raciocínio do resto da economia: nunca deixar duas
  * chamadas simultâneas do mesmo jogador comprarem além do saldo, ver
@@ -287,6 +346,8 @@ module.exports = {
     getInventory,
     ownsImage,
     canUseImage,
+    getRedeemableItems,
+    redeemItem,
     purchaseImage,
     getPersonalizationShopConfig,
     setPersonalizationShopConfig,

@@ -271,20 +271,23 @@ function _ownedUsableOptions(userId, poolType) {
 }
 
 /**
- * Emblemas que ESTE jogador pode escolher agora: todo emblema sem preço
- * (continua livre em qualquer tier, como sempre foi) MAIS os com preço que
- * ele já comprou e cujo tier atual alcança o shop_min_tier (ver
- * imageShopSystem.js#canUseImage). Diferente de foto/fundo (Free vê SÓ o
- * que comprou, Compy+ vê o pool inteiro sem checagem nenhuma) — emblema
- * nunca teve gate de tier, então aqui é uma lista ÚNICA misturando livre +
- * comprado, pra todo mundo, pedido do dono 2026-08-10 ("me de o controle
- * de alterar valores de todos os itens e se eles estão na loja ou não" —
- * sem isso o preço de um emblema não teria efeito nenhum na escolha real).
+ * Emblemas que ESTE jogador pode escolher agora: todo emblema SEM
+ * requisito (continua livre pra qualquer um, como sempre foi pros
+ * emblemas nunca gateados) MAIS os COM requisito que ele já possui —
+ * comprado antes da reforma (legado, image_inventory source='purchase')
+ * ou resgatado depois de cumprir o requisito (ImageShopSystem.redeemItem,
+ * source='redeemed'). Reforma das lojas 2026-08-12: emblema deixou de ter
+ * preço direto (setShopConfig só aceita 'personalizacao' agora) — o gate
+ * antigo "tem preço?" virou "tem requisito?" (ver `requirement` na
+ * tabela/AchievementSystem). Badge que já foi priceado antes da migração
+ * mas ainda não ganhou um requisito novo do dono fica temporariamente
+ * livre pra qualquer um (mesmo comportamento que um emblema sempre-livre
+ * já tinha) até o dono configurar um requisito em /dev/lojas.
  */
 function _usableBadgeOptions(userId) {
     const ImageShopSystem = require('../pot/imageShopSystem');
     return ProfileImagePool.listImages('badge', { publicOnly: true })
-        .filter(row => !row.shop_price || ImageShopSystem.canUseImage(userId, 'badge', row.id))
+        .filter(row => !row.requirement || ImageShopSystem.ownsImage(userId, 'badge', row.id))
         .map(row => ({ value: ProfileImagePool.toPoolValue(row.id), label: row.label }))
         .slice(0, 25);
 }
@@ -647,6 +650,10 @@ const ConfigSystem = {
             }
             if (action === 'inventory') {
                 await this.handlePerfilInventory(interaction, param);
+                return;
+            }
+            if (action === 'redeem') {
+                await this.handlePerfilRedeemSelect(interaction, param);
                 return;
             }
             if (customId === 'perfil-edit:background') {
@@ -2107,12 +2114,12 @@ const ConfigSystem = {
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text([
             '# ESCOLHER EMBLEMA',
-            'Escolha um emblema para exibir no seu card de `/perfil` — disponível em qualquer tier (alguns podem exigir compra na Loja).',
+            'Escolha um emblema para exibir no seu card de `/perfil` — disponível em qualquer tier (alguns exigem resgatar um requisito primeiro, veja o botão "Emblema & Título" no `/perfil`).',
         ].join('\n'));
 
         const options = _usableBadgeOptions(userId);
         if (options.length === 0) {
-            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhum emblema disponível pra você — volte mais tarde ou confira a Loja (\`/loja\`).`);
+            cb.text(`${EMOJIS.circlealert || '❌'} Ainda não há nenhum emblema disponível pra você — cumpra o requisito de algum emblema (ver botão "Emblema & Título" no \`/perfil\`) pra desbloquear.`);
             cb.footer('Emblema disponível em qualquer tier');
             return cb;
         }
@@ -2361,20 +2368,76 @@ const ConfigSystem = {
         const titleLabel = targetPlayer?.profile_title || 'Nenhum título definido';
 
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
-        cb.text([
+        const lines = [
             '# EMBLEMA & TÍTULO',
             `${EMOJIS.badge || '🏅'} **Emblema ativo:** ${badgeLabel}`,
             `${EMOJIS.sparkles || '✨'} **Título ativo:** ${titleLabel}`,
-            '-# Histórico completo de conquistas ainda não é rastreado — mostrando o que está equipado agora.',
-        ].join('\n'));
+        ];
+
+        // Resgate por requisito (reforma das lojas, 2026-08-12) — só faz
+        // sentido pra quem está vendo o PRÓPRIO perfil (targetUserId pode
+        // ser outra pessoa, via /perfil usuario:@alguém — resgatar é uma
+        // ação sobre a PRÓPRIA conta, não sobre a de quem está sendo
+        // exibido). Reconfere elegibilidade em cima de dados ao vivo, ver
+        // ImageShopSystem.getRedeemableItems/AchievementSystem.
+        const ImageShopSystem = require('../pot/imageShopSystem');
+        const AchievementSystem = require('../pot/achievementSystem');
+        const isOwnProfile = targetUserId === interaction.user.id;
+        const redeemable = isOwnProfile ? ImageShopSystem.getRedeemableItems(interaction.user.id) : [];
+        let redeemSelect = null;
+        if (isOwnProfile) {
+            if (redeemable.length > 0) {
+                lines.push(`\n${EMOJIS.gift || '🎁'} **Disponível pra resgatar:** ${redeemable.map(r => r.label).join(', ')}`);
+                redeemSelect = new StringSelectMenuBuilder()
+                    .setCustomId(`perfil-edit:redeem:${targetUserId}`)
+                    .setPlaceholder('Resgatar um item...')
+                    .addOptions(redeemable.slice(0, 25).map(r => new StringSelectMenuOptionBuilder()
+                        .setLabel(r.label)
+                        .setValue(ProfileImagePool.toPoolValue(r.id) + ':' + r.type)
+                        .setDescription(AchievementSystem.describeRequirement(r.requirement) || 'Requisito cumprido')
+                    ));
+            } else {
+                lines.push('-# Nenhum emblema/título disponível pra resgatar agora — cumpra o requisito definido pelo dono pra desbloquear.');
+            }
+        } else {
+            lines.push('-# Histórico completo de conquistas ainda não é rastreado — mostrando o que está equipado agora.');
+        }
+
+        cb.text(lines.join('\n'));
         cb.footer(`Perfil de <@${targetUserId}>`);
 
-        const backRow = new ActionRowBuilder().addComponents(
+        const rows = [];
+        if (redeemSelect) rows.push(new ActionRowBuilder().addComponents(redeemSelect));
+        rows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`perfil-edit:back-to-profile:${targetUserId}`).setLabel('Voltar ao Perfil').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.arrowleft || '⬅️'),
-        );
+        ));
 
         const payload = cb.build();
-        await interaction.editReply({ ...payload, components: [...payload.components, backRow] });
+        await interaction.editReply({ ...payload, components: [...payload.components, ...rows] });
+    },
+
+    /**
+     * Menu "Resgatar" da tela Emblema & Título acima — reconfere
+     * elegibilidade em ImageShopSystem.redeemItem (nunca confia só na
+     * lista já montada, que pode ter ficado desatualizada entre abrir a
+     * tela e o clique de verdade) e recarrega a mesma tela com o
+     * resultado.
+     */
+    async handlePerfilRedeemSelect(interaction, targetUserId) {
+        if (!interaction.isStringSelectMenu()) {
+            return await ResponseManager.error(interaction, 'Esta ação só pode ser feita pelo menu de seleção.');
+        }
+        const [poolValue, type] = interaction.values[0].split(':');
+        const id = ProfileImagePool.poolIdFromValue(poolValue);
+        const ImageShopSystem = require('../pot/imageShopSystem');
+        const result = ImageShopSystem.redeemItem(interaction.user.id, type, id);
+
+        await this.handlePerfilViewBadgeTitle(interaction, targetUserId);
+        if (result.ok) {
+            await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **Resgatado:** ${result.label}. Use \`/perfil-edit\` pra equipar.`);
+        } else {
+            await this.sendFeedback(interaction, `${EMOJIS.circlealert || '❌'} ${result.error}`);
+        }
     },
 
     /**
@@ -2411,7 +2474,7 @@ const ConfigSystem = {
 
         const items = targetUserId ? ImageShopSystem.getInventory(targetUserId) : [];
 
-        const TYPE_LABELS = { avatar: 'Foto de Perfil', background: 'Plano de Fundo', badge: 'Emblema', banner: 'Banner', titulo: 'Título' };
+        const TYPE_LABELS = { personalizacao: 'Foto de Perfil / Plano de Fundo', badge: 'Emblema', banner: 'Banner', titulo: 'Título' };
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text(`# ${EMOJIS.gift || '🎒'} INVENTÁRIO`);
 

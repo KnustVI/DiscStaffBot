@@ -1480,6 +1480,7 @@ function loadDashboard(client) {
         let kdStats = null;
         let playedGuilds = [];
         let badgeOptions = [];
+        let redeemableItems = [];
         let avatarOptions = [];
         let backgroundOptions = [];
         let avatarPreviewUrl = null;
@@ -1506,11 +1507,13 @@ function loadDashboard(client) {
                 kdStats = { kills: stats.kills, deaths: stats.deaths, kd: formatKD(stats.kills, stats.deaths) };
             }
             playedGuilds = getPlayedGuilds(link.alderon_id, client);
-            // Livres + comprados/liberados por tier pra ESTE jogador (ver
-            // ConfigSystem._usableBadgeOptions) — alguns emblemas podem ter
-            // preço agora (Controle Loja), então não é mais "todo mundo vê
-            // tudo" como era antes dessa mudança.
+            // Livres + possuídos (comprado antes da reforma ou resgatado
+            // por requisito) pra ESTE jogador — ver ConfigSystem.
+            // _usableBadgeOptions. Emblema com requisito não cumprido nem
+            // resgatado ainda não entra na lista de EQUIPAR (redeemableItems
+            // abaixo é a lista separada de "ainda dá pra resgatar").
             badgeOptions = ConfigSystem.getUsableBadgeOptions(userId);
+            redeemableItems = ImageShopSystem.getRedeemableItems(userId);
             if (isCompyPlus && !isRaptor) {
                 avatarOptions = ConfigSystem.getPersonalizationOptions();
                 backgroundOptions = avatarOptions;
@@ -1590,6 +1593,7 @@ function loadDashboard(client) {
             playedGuilds,
             totalPlaytimeLabel,
             badgeOptions,
+            redeemableItems,
             avatarOptions,
             backgroundOptions,
             avatarPreviewUrl,
@@ -1947,6 +1951,20 @@ function loadDashboard(client) {
             }
         }
     );
+
+    // Resgata um emblema/título cujo requisito já foi cumprido (reforma
+    // das lojas, 2026-08-12) — mesmo par type:id usado no menu Resgatar
+    // do Discord (ver ConfigSystem.handlePerfilRedeemSelect), aqui vindo
+    // de um <select> do form web. Reconfere elegibilidade no
+    // ImageShopSystem.redeemItem, nunca confia só na lista já renderizada.
+    app.post('/perfil/resgatar', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const [type, idStr] = (req.body.item || '').split(':');
+        const id = Number(idStr);
+        if (!type || !id) return res.redirect('/perfil?saved=error');
+        const result = ImageShopSystem.redeemItem(req.user.id, type, id);
+        res.redirect(`/perfil?saved=${result.ok ? 'success' : 'error'}`);
+    });
 
     // Portal (pedido do dono, 2026-08-06) — era "Seleção de Servidores"
     // (index.ejs, renomeado pra portal.ejs), agora a entrada única de

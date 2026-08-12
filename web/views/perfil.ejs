@@ -570,6 +570,21 @@
                     <h2 class="section-title text-lg"><span data-i18n-pt>PERSONALIZAR PERFIL</span><span data-i18n-en>CUSTOMIZE PROFILE</span></h2>
                     <p class="text-[13px] opacity-50"><span data-i18n-pt>Ajuste como seu perfil aparece pros outros no</span><span data-i18n-en>Adjust how your profile appears to others in</span> <code>/perfil</code> <span data-i18n-pt>— título e emblema incluídos.</span><span data-i18n-en>— title and badge included.</span></p>
 
+                    <% if (redeemableItems.length > 0) { %>
+                        <div>
+                            <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Disponível para Resgatar</span><span data-i18n-en>Available to Redeem</span></h3>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Você cumpriu o requisito — resgate sem gastar moeda nenhuma.</span><span data-i18n-en>You met the requirement — redeem it for free.</span></p>
+                            <div class="flex flex-wrap gap-2">
+                                <% redeemableItems.forEach(item => { %>
+                                    <form action="/perfil/resgatar" method="POST">
+                                        <input type="hidden" name="item" value="<%= item.type %>:<%= item.id %>">
+                                        <button type="submit" class="btn-chip btn-chip-success"><i data-lucide="gift"></i> <%= item.label %></button>
+                                    </form>
+                                <% }); %>
+                            </div>
+                        </div>
+                    <% } %>
+
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Emblema</span><span data-i18n-en>Badge</span></h3>
                         <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Disponível em qualquer plano.</span><span data-i18n-en>Available on any plan.</span></p>

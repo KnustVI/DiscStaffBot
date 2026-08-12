@@ -624,31 +624,29 @@ class PlayerRegistrationSystem {
         extraFiles.push(...this._appendFooterImage(builder, playerTier));
 
         // Botão "Emblema & Título" — baseado no TARGET (o perfil sendo
-        // exibido), diferente dos botões de atalho abaixo. Pedido do dono,
-        // 2026-08-11: em vez de um followUp efêmero mostrando só o que está
-        // ATIVO, agora navega pra uma "página" nova DENTRO da mesma
-        // mensagem (mesmo padrão de /ajuda — editReply troca o conteúdo,
-        // com um botão Voltar pra página de perfil original) mostrando os
-        // últimos emblemas/títulos conquistados — ver handlePerfilViewBadgeTitle
-        // em configSystem.js. DESATIVADO por pedido do dono ("por hora
-        // desative os botões de emblemas e titulo") — a navegação já está
-        // pronta, só falta uma fonte de dados real de "conquistado" (hoje
-        // só existe o que está EQUIPADO, não um histórico de aquisição —
-        // ver comentário completo em handlePerfilViewBadgeTitle). Só entra
-        // com vínculo (sem player_links não há emblema/título pra mostrar).
+        // exibido), diferente dos botões de atalho abaixo. Navega pra uma
+        // "página" nova DENTRO da mesma mensagem (mesmo padrão de /ajuda —
+        // editReply troca o conteúdo, com um botão Voltar pra página de
+        // perfil original) mostrando o equipado + o que dá pra resgatar
+        // agora — ver handlePerfilViewBadgeTitle em configSystem.js.
+        // Reabilitado na reforma das lojas (2026-08-12): estava desativado
+        // ("por hora desative os botões de emblemas e titulo") esperando
+        // uma fonte real de "conquistado" — agora existe (image_inventory.
+        // source='redeemed' via AchievementSystem.checkRequirementMet).
+        // Só entra com vínculo (sem player_links não há emblema/título pra
+        // mostrar).
         const profileActionButtons = [];
         if (player) {
             profileActionButtons.push(
-                new ButtonBuilder().setCustomId(`perfil-edit:view-badge-title:${targetUser.id}`).setLabel('Emblema & Título').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅').setDisabled(true),
+                new ButtonBuilder().setCustomId(`perfil-edit:view-badge-title:${targetUser.id}`).setLabel('Emblema & Título').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
             );
-            // Inventário — pedido do dono, 2026-08-11: "botão de inventário
-            // do jogador... manda uma mensagem ephemeral do inventario dele
-            // no discord". Handler já funcional (ver handlePerfilInventory
-            // em configSystem.js, lista image_inventory/imageShopSystem —
-            // itens de personalização comprados na Loja), mas DESATIVADO
-            // por pedido explícito ("Desative por hora o botão inventario").
+            // Inventário — "botão de inventário do jogador... manda uma
+            // mensagem ephemeral do inventario dele no discord" (ver
+            // handlePerfilInventory em configSystem.js, lista
+            // image_inventory/imageShopSystem — itens comprados/resgatados).
+            // Reabilitado junto com o botão acima (reforma 2026-08-12).
             profileActionButtons.push(
-                new ButtonBuilder().setCustomId(`perfil-edit:inventory:${targetUser.id}`).setLabel('Inventário').setStyle(ButtonStyle.Secondary).setEmoji('🎒').setDisabled(true),
+                new ButtonBuilder().setCustomId(`perfil-edit:inventory:${targetUser.id}`).setLabel('Inventário').setStyle(ButtonStyle.Secondary).setEmoji('🎒'),
             );
         }
 
