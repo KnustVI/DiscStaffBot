@@ -38,11 +38,28 @@
  *   - Nem usuario nem agid informados → erro exigindo pelo menos um.
  *   - Só agid, sem conta Discord vinculada → segue como alvo sintético
  *     "só em jogo" (ver PunishmentSystem._unregisteredTargetId): registra
- *     a punição e aplica a ação em jogo do nível normalmente, IGNORANDO
- *     qualquer discord_act informado (não existe conta pra aplicar nela).
+ *     a punição e aplica a ação em jogo do nível normalmente.
  *   - Só usuario, sem AGID vinculado → erro pedindo pra refazer o comando
  *     já com `agid`, orientando o jogador a rodar /registrar (a ação em
  *     jogo do nível PRECISA de um Alderon ID real pra funcionar).
+ *
+ * Ação no Discord REMOVIDA (pedido do dono, 2026-08-11: "Vamos remover o
+ * discord act e deixar o bot apenas para a interação com o jogo mesmo") —
+ * a opção `discord_act` (timeout/kick/ban NATIVO do Discord, vinda da
+ * seção 75 do PREMIUM.txt) foi removida por completo do schema e de todo
+ * o fluxo (ver punishmentSystem.js). O bot não aplica mais NENHUMA ação
+ * automática no Discord via /strike — só a ação em jogo (RCON) do nível
+ * escolhido. `applyTemporaryRole` (cargo de Strike configurável em
+ * /config roles) continua existindo — é uma feature própria, não fazia
+ * parte de `discord_act`.
+ *
+ * Motivo × Observações (pedido do dono, 2026-08-11): `motivo` (sempre
+ * obrigatório) é o texto que o JOGADOR vê em jogo — vai pro RCON como o
+ * "Motivo_Jogador" da sintaxe oficial de /ban do PoT (ver
+ * punishmentSystem._executeStrike pro motivo completo da sintaxe de dois
+ * motivos entre aspas). `observacoes` (opcional, novo) é uma nota INTERNA
+ * da staff — nunca sai pro RCON nem é mostrada ao jogador, só fica salva
+ * no registro da punição (coluna `notes`).
  */
 const { SlashCommandBuilder } = require('discord.js');
 const db = require('../../database/index');
@@ -74,7 +91,7 @@ function validateReport(guildId, reportId) {
  * sempre (PunishmentSystem.buildStrikeConfirmPreview). Duração/pontos/ação
  * em jogo vêm sempre do nível, nunca de um valor manual.
  */
-async function proceedWithLevel(interaction, { targetId, alderonId, targetPlayerName, reason, level, discordAct, reportId, noteText }) {
+async function proceedWithLevel(interaction, { targetId, alderonId, targetPlayerName, reason, level, reportId, noteText, notes }) {
     const { guild, user: staff, member: staffMember } = interaction;
     const guildId = guild.id;
     const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
@@ -109,10 +126,10 @@ async function proceedWithLevel(interaction, { targetId, alderonId, targetPlayer
         levelAction: level.action || 'none',
         pointsLost: level.points,
         durationStr: level.duration_str || '',
-        discordAct: discordAct || 'none',
         jogoAct: level.action || 'none',
         levelRequiresApproval: !!level.requires_supervisor_approval,
         noteText: noteText || null,
+        notes: notes || null,
     };
 
     sessionManager.set(staff.id, guildId, 'strike_pending', 'strike_pending', session, 120000);
@@ -125,14 +142,14 @@ async function proceedWithLevel(interaction, { targetId, alderonId, targetPlayer
  * topo do arquivo, e chama proceedWithLevel assim que (ou se) a identidade
  * ficar completa o bastante pra prosseguir.
  */
-async function executeWithLevel(interaction, { targetUserOption, agidOption, reason, level, discordAct, reportId }) {
+async function executeWithLevel(interaction, { targetUserOption, agidOption, reason, level, reportId, notes }) {
     const guildId = interaction.guildId;
 
     // Caso 1: usuario E agid informados — identidade já completa, nenhuma busca necessária.
     if (targetUserOption && agidOption) {
         return await proceedWithLevel(interaction, {
             targetId: targetUserOption.id, alderonId: agidOption, targetPlayerName: null,
-            reason, level, discordAct, reportId,
+            reason, level, reportId, notes,
         });
     }
 
@@ -142,20 +159,20 @@ async function executeWithLevel(interaction, { targetUserOption, agidOption, rea
         if (link) {
             return await proceedWithLevel(interaction, {
                 targetId: link.user_id, alderonId: agidOption, targetPlayerName: link.player_name || null,
-                reason, level, discordAct, reportId,
+                reason, level, reportId, notes,
             });
         }
 
         // Não encontrado: alvo sintético "só em jogo" — a própria prévia de
         // confirmação (JOGADOR sem Discord vinculado) já deixa isso claro
-        // antes do staff confirmar; discord_act é ignorado (sem conta pra
-        // aplicar), a ação em jogo do nível segue normalmente.
+        // antes do staff confirmar; a ação em jogo do nível segue normalmente
+        // (o bot não tenta mais nenhuma ação no Discord, ver docblock do topo).
         const playerName = getPlayerNameByAlderonId(guildId, agidOption) || null;
         const PunishmentSystem = require('../../systems/moderation/punishmentSystem');
         return await proceedWithLevel(interaction, {
             targetId: PunishmentSystem._unregisteredTargetId(agidOption), alderonId: agidOption, targetPlayerName: playerName,
-            reason, level, discordAct: 'none', reportId,
-            noteText: `AGID \`${agidOption}\` não está vinculado a nenhuma conta Discord — a punição será registrada e a ação em jogo do nível (se houver) aplicada normalmente; nenhuma ação no Discord será executada.`,
+            reason, level, reportId, notes,
+            noteText: `AGID \`${agidOption}\` não está vinculado a nenhuma conta Discord — a punição será registrada e a ação em jogo do nível (se houver) aplicada normalmente.`,
         });
     }
 
@@ -167,7 +184,7 @@ async function executeWithLevel(interaction, { targetUserOption, agidOption, rea
     }
     return await proceedWithLevel(interaction, {
         targetId: targetUserOption.id, alderonId: link.alderon_id, targetPlayerName: null,
-        reason, level, discordAct, reportId,
+        reason, level, reportId, notes,
     });
 }
 
@@ -197,18 +214,23 @@ module.exports = {
         // do Discord (usuario/agid são opcionais no schema mesmo sendo "pelo
         // menos um dos dois" na prática — isso é validado em código, não dá
         // pra expressar "um OU outro" na API do Discord).
-        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo da punição').setRequired(true))
+        // Motivo: pedido do dono, 2026-08-11 — este texto é o que o JOGADOR
+        // vê em jogo (banner de ban/mute), não uma anotação interna da
+        // staff (isso é `observacoes`, abaixo). setMaxLength(120): trava de
+        // segurança no próprio Discord (recusa o envio antes de chegar no
+        // bot) — texto maior que isso estoura a UI do menu principal do PoT
+        // e é cortado (limite sugerido pelo dono: 100-120 caracteres). Uma
+        // sanitização adicional roda em punishmentSystem.js antes de ir pro
+        // RCON (aspas/quebra de linha quebram o comando no console do PoT).
+        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo — texto que o JOGADOR vê em jogo (banido/silenciado). Seja claro e direto, máx. 120 caracteres.').setRequired(true).setMaxLength(120))
         .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator no Discord (informe este e/ou agid)').setRequired(false))
         .addStringOption(opt => opt.setName('agid').setDescription('Alderon ID do jogador (informe este e/ou usuario)').setRequired(false))
         .addStringOption(opt => opt.setName('nivel').setDescription('Nível de punição (obrigatório a partir do Rastreador — comece a digitar pra ver as opções)').setRequired(false).setAutocomplete(true))
-        .addStringOption(opt => opt.setName('discord_act').setDescription('Ação imediata no Discord (precisa do jogador ter Discord vinculado)')
-            .addChoices(
-                { name: 'Nenhuma', value: 'none' },
-                { name: 'Mute (Timeout)', value: 'timeout' },
-                { name: 'Expulsar (Kick)', value: 'kick' },
-                { name: 'Banir (Ban)', value: 'ban' },
-            ))
-        .addStringOption(opt => opt.setName('report').setDescription('ID do Report (Opcional)').setRequired(false)),
+        .addStringOption(opt => opt.setName('report').setDescription('ID do Report a vincular (opcional) — digite só o número (ex: 5) ou #REP5, exatamente como aparece no painel de logs de denúncias.').setRequired(false))
+        // Observações: pedido do dono, 2026-08-11 — nota INTERNA da staff,
+        // nunca enviada ao RCON/jogo nem mostrada ao jogador, só gravada no
+        // registro da punição (coluna `notes`, já existia sem uso).
+        .addStringOption(opt => opt.setName('observacoes').setDescription('Observações internas da staff (opcional) — NÃO vai pro jogo nem aparece pro jogador, só fica no registro da punição.').setRequired(false).setMaxLength(500)),
 
     async autocomplete(interaction) {
         const focused = interaction.options.getFocused(true);
@@ -238,7 +260,7 @@ module.exports = {
         const agidOption = options.getString('agid')?.trim() || null;
         const reason = options.getString('motivo');
         const nivelOption = options.getString('nivel') || null;
-        const discordAct = options.getString('discord_act') || 'none';
+        const notes = options.getString('observacoes')?.trim() || null;
         let reportId = options.getString('report') || null;
 
         try {
@@ -269,8 +291,8 @@ module.exports = {
 
             // ── Free: sem níveis disponíveis neste plano — mantém o registro
             // simples de sempre (sem RCON/nível/ação automática), só
-            // usuario+motivo, sempre permanente (ver duração no docblock do
-            // topo). agid/nivel/discord_act não se aplicam aqui (pedido
+            // usuario+motivo(+observacoes), sempre permanente (ver duração
+            // no docblock do topo). agid/nivel não se aplicam aqui (pedido
             // explícito do dono). ────────────────────────────────────────
             if (!PremiumSystem.isGuildAtLeast(guildId, 'rastreador')) {
                 if (!targetUserOption) {
@@ -305,7 +327,7 @@ module.exports = {
                 return await ResponseManager.error(interaction, 'Este nível não existe (pode ter sido apagado ou o nome não bate exatamente) — selecione um da lista de autocomplete.');
             }
 
-            await executeWithLevel(interaction, { targetUserOption, agidOption, reason, level, discordAct, reportId });
+            await executeWithLevel(interaction, { targetUserOption, agidOption, reason, level, reportId, notes });
         } catch (error) {
             console.error('❌ Erro no /strike:', error);
             const ErrorLogger = require('../../systems/core/errorLogger');

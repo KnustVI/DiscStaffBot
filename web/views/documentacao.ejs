@@ -635,12 +635,12 @@ const toc = [
                     notePt: 'Aceita usuário e/ou Alderon ID — só AGID sem vínculo Discord registra um "alvo sintético" (punição só em jogo). Não é possível punir alguém com cargo igual ou superior ao seu.',
                     noteEn: 'Accepts a Discord user and/or Alderon ID — an AGID alone with no Discord link registers a "synthetic target" (in-game-only punishment). You cannot punish someone with a role equal to or higher than yours.',
                     opts: [
-                        { name: 'motivo', type: 'Texto', req: true, descPt: 'Motivo da punição.', descEn: 'Reason for the punishment.' },
+                        { name: 'motivo', type: 'Texto (máx. 120)', req: true, descPt: 'Motivo — texto que o JOGADOR vê em jogo (banido/silenciado).', descEn: 'Reason — the text the PLAYER sees in-game (banned/muted).' },
                         { name: 'usuario', type: 'Usuário', req: false, descPt: 'Use este e/ou agid.', descEn: 'Use this and/or agid.' },
                         { name: 'agid', type: 'Texto', req: false, descPt: 'Alderon ID do jogador.', descEn: "The player's Alderon ID." },
                         { name: 'nivel', type: 'Texto (autocomplete)', req: false, descPt: 'Obrigatório a partir do Rastreador. Vem de /config punishments.', descEn: 'Required from Tracker onward. Comes from /config punishments.' },
-                        { name: 'discord_act', type: 'Escolha', req: false, descPt: 'Nenhuma / Mute / Expulsar / Banir.', descEn: 'None / Mute / Kick / Ban.' },
-                        { name: 'report', type: 'Texto', req: false, descPt: 'ID de uma denúncia existente (ex: #REP5) pra vincular a punição a ela.', descEn: 'ID of an existing report (e.g. #REP5) to link the punishment to it.' },
+                        { name: 'report', type: 'Texto', req: false, descPt: 'ID da denúncia a vincular — digite só o número (ex: 5) ou #REP5.', descEn: 'ID of the report to link — type just the number (e.g. 5) or #REP5.' },
+                        { name: 'observacoes', type: 'Texto (máx. 500)', req: false, descPt: 'Nota interna da staff — NÃO vai pro jogo nem aparece pro jogador.', descEn: "Internal staff note — does NOT go in-game or show to the player." },
                     ],
                 }) %>
                 <%- cmdCard({

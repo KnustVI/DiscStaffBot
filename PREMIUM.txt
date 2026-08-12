@@ -326,23 +326,19 @@ RASTREADOR - R$25/mes (Brasil, Pix manual) ou US$14/mes (fora do Brasil, via Ko-
   de um valor manual (JA IMPLEMENTADO - ver secao 106, que unificou o
   comando). Aceita `usuario` e/ou `agid` (pelo menos um dos dois,
   obrigatorio): informar so `agid` sem conta Discord vinculada pune so em
-  jogo (registra a punicao e aplica a acao em jogo do nivel normalmente,
-  IGNORA `discord_act` - sem conta pra aplicar nele); informar so
-  `usuario` sem Alderon ID vinculado pede pra refazer o comando com
-  `agid`, orientando o jogador a rodar /registrar (a acao em jogo do
-  nivel precisa de um AGID de verdade). Acao em jogo via RCON JA ATIVA
-  aqui (antes so no Cacador). Acao automatica no Discord (timeout/kick/
-  ban) TAMBEM JA ATIVA aqui (JA IMPLEMENTADO - ver secao 75) - opcao
-  `discord_act` opcional no comando, aplicada junto da acao em jogo
-  quando o alvo tiver conta Discord vinculada. O flag
-  `discordActionsEnabled` (premiumSystem.js) ja era true neste tier desde
-  antes; faltava só o comando expor a opcao, o que a secao 75 corrigiu.
+  jogo (registra a punicao e aplica a acao em jogo do nivel normalmente);
+  informar so `usuario` sem Alderon ID vinculado pede pra refazer o
+  comando com `agid`, orientando o jogador a rodar /registrar (a acao em
+  jogo do nivel precisa de um AGID de verdade). Acao em jogo via RCON JA
+  ATIVA aqui (antes so no Cacador). Acao automatica NO DISCORD
+  (timeout/kick/ban nativo) esteve disponivel aqui entre as secoes 75 e
+  181 e foi REMOVIDA por completo na secao 182 (pedido do dono) - o bot
+  so age em jogo agora, nunca mais no Discord via /strike.
   Recuperacao diaria de reputacao JA ATIVA aqui, mas FIXA em 1 ponto/dia
   (nao editavel neste tier - editar a quantidade e exclusivo do Cacador).
   Aprovacao de Supervisor exigida pra niveis de severidade Grave/Severa OU
   duracao >72h/permanente (mesma regra do Free, so que aqui os niveis
-  tambem contam) - independente de `discord_act` ter sido escolhido ou
-  nao (o gatilho de aprovacao e sempre a severidade/duracao do NIVEL).
+  tambem contam).
 - Eventos: /evento passa a criar TAMBEM o evento agendado do Discord e
   marcar automaticamente o cargo de notificacao configurado (alem da
   postagem no forum). Aviso automatico EM JOGO (systemmessageall via RCON)
@@ -400,9 +396,9 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   totalmente customizaveis (JA IMPLEMENTADO - mesmo sistema do Rastreador,
   so que com o dobro do limite de niveis), cargos de reputacao automaticos
   (Exemplar/Problematico) - o resto de /strike (nivel obrigatorio,
-  discord_act, resolucao de usuario/agid) ja vem desde o Rastreador (ver
-  secao Rastreador acima), aqui so ganha os cargos automaticos de
-  reputacao e a analise de staff.
+  resolucao de usuario/agid) ja vem desde o Rastreador (ver secao
+  Rastreador acima), aqui so ganha os cargos automaticos de reputacao e a
+  analise de staff.
   Automod diario (recuperacao de reputacao + cargos automaticos) com a
   QUANTIDADE de pontos recuperados por dia configuravel em /config
   punishments (padrao: 1 ponto/dia). Aprovacao de Supervisor por nivel de
@@ -507,13 +503,14 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   (Free 1+1, Rastreador 3+3, Cacador ilimitado) + cooldown de abertura
   (Free 6h, Rastreador/Cacador sem cooldown).
 - Sistema de reputacao ligado a partir do Rastreador (Free = desligado).
-- Acoes automaticas no Discord via /strike (timeout/kick/ban) a partir do
-  Rastreador (JA IMPLEMENTADO - ver secao 75; antes so no Cacador, e antes
-  disso o flag ficou pronto mas sem nenhum comando expor a opcao) - opcao
-  `discord_act` opcional, aplicada junto da acao em jogo do nivel
-  escolhido. No Free a punicao continua so registrada, sem aplicar nenhuma
-  acao (avisado na propria tela de confirmacao do /strike).
-- Acao em jogo (RCON) a partir do Rastreador - antes so no Cacador.
+- /strike NAO tem mais nenhuma acao automatica no Discord (sem
+  timeout/kick/ban nativo) - existiu entre as secoes 75 e 181, REMOVIDA na
+  182 a pedido do dono ("deixar o bot apenas para a interacao com o jogo
+  mesmo"). O bot so age em jogo (RCON) agora.
+- Acao em jogo (RCON) a partir do Rastreador - antes so no Cacador. Sintaxe
+  de /ban do PoT usa dois motivos entre aspas (Motivo_Admin interno +
+  Motivo_Jogador, este ultimo = o `motivo` digitado no comando, sanitizado
+  e limitado a 120 caracteres) - ver secao 182.
 - Aprovacao de Supervisor por severidade (niveis Grave/Severa) OU duracao
   (>72h ou permanente), em qualquer tier.
 - Niveis de punicao TOTALMENTE customizaveis (nome, severidade, pontos,
@@ -525,16 +522,20 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
 - /strike virou 1 comando UNICO, SEM subcomandos (JA IMPLEMENTADO - ver
   secao 106) - o antigo modo manual (`/strike personalizado`, sem nivel,
   exclusivo Cacador) foi REMOVIDO por completo: toda punicao a partir do
-  Rastreador agora usa um nivel, sem excecao. Campos: `usuario` (opcional),
-  `agid` (opcional, pelo menos um dos dois e obrigatorio), `motivo`
-  (sempre obrigatorio), `nivel` (por autocomplete, OBRIGATORIO a partir do
-  Rastreador - Free nao tem niveis, entao nao se aplica), `duracao` (so
-  usada no Free - Rastreador+ usa sempre a duracao do nivel escolhido) e
-  `discord_act` (opcional). No Free, o comando funciona como o antigo
-  "registro": so `usuario`+`motivo`(+`duracao`), sem nivel/RCON/acao
-  automatica. No Rastreador+: `agid` sem vinculo Discord pune so em jogo
-  (ignora `discord_act`); `usuario` sem AGID vinculado pede pra refazer o
-  comando com `agid`.
+  Rastreador agora usa um nivel, sem excecao. Campos atuais (secao 182):
+  `usuario` (opcional), `agid` (opcional, pelo menos um dos dois e
+  obrigatorio), `motivo` (sempre obrigatorio, max. 120 caracteres - e o
+  texto que o JOGADOR ve em jogo), `nivel` (por autocomplete, OBRIGATORIO
+  a partir do Rastreador - Free nao tem niveis, entao nao se aplica),
+  `report` (opcional, ID de denuncia a vincular) e `observacoes`
+  (opcional, nota interna da staff - nunca vai pro RCON nem aparece pro
+  jogador). Sem `duracao` (removida na secao 106, sempre vem do nivel
+  escolhido) e sem `discord_act` (removida na secao 182 - /strike nao tem
+  mais nenhuma acao no Discord). No Free, o comando funciona como o antigo
+  "registro": so `usuario`+`motivo`(+`observacoes`), sempre permanente,
+  sem nivel/RCON. No Rastreador+: `agid` sem vinculo Discord pune so em
+  jogo; `usuario` sem AGID vinculado pede pra refazer o comando com
+  `agid`.
 - /historico liberado a partir do Rastreador (nao e mais exclusivo do
   Cacador - mudou de tier nesta revisao, pra bater com o planejamento
   atual de features). /historico staff (sub-comando, so Cacador de
@@ -9011,3 +9012,105 @@ frente, nao so este relatorio):
   schema de comando desta vez (só troca de URL/lógica de handler) —
   `git pull && pm2 restart discord-bot` já é suficiente, sem
   `node deploy.js`.
+
+182) /strike: sintaxe de RCON com dois motivos entre aspas (Motivo_Admin +
+     Motivo_Jogador), sanitização contra caracteres que quebram o console,
+     `observacoes` interna nova, remoção total da ação no Discord, e
+     "Aprovado por" gravado no registro da punição
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11): "Pra o comando /strike tenho receio de como
+  aparece um ban em jogo... O comando no discord no campo motivo deve ser
+  categorizado como motivo que aparece em jogo para o jogador, coloque
+  isso da descrição do parametro que o staff preenche e mantenha isso no
+  registro da punição... [sintaxe oficial fornecida:] /ban <Jogador/AGID>
+  <Duração> \"<Motivo_Admin>\" \"<Motivo_Jogador>\"... trava de segurança
+  de 100 a 120 caracteres para o campo <Motivo_Jogador>... Impeça o uso de
+  caracteres especiais complexos ou quebras de linha... Configure o bot
+  para buscar e banir preferencialmente pela Alderon Games ID (AGID)...
+  Adicione um parametro não obrigatório 'Observações' que não deve ir ate
+  o comando do rcon e só registrar na punição. Vamos remover o discord act
+  e deixar o bot apenas para a interação com o jogo mesmo. No parametro de
+  report onde ele precisa informar a ID, deixe claro como ele precisa
+  digitar essa ID para que o bot reconheça o report. Punições aprovadas
+  por supervisores devem indicar no registro quem aprovou. Tente evitar
+  falhas por erro de preenchimento."
+- FIX 1 — `motivo` recategorizado: sempre foi o texto gravado em
+  `punishments.reason`, mas agora é EXPLICITAMENTE documentado (descrição
+  do parâmetro no Discord + docblock de `strike/index.js`) como o texto
+  que o JOGADOR vê em jogo (banner de ban/mute), não uma nota interna.
+  `setMaxLength(120)` no próprio schema do Discord — trava de segurança no
+  nível da UI, antes de qualquer validação em código (o dono sugeriu
+  100-120, usado o teto).
+- FIX 2 — sintaxe real do RCON de Ban/ServerMute mudou de
+  `ban <agid> <duração> <motivo> <motivo>` (SEM aspas — se o motivo tivesse
+  espaço, os parâmetros do console ficavam ambíguos) para
+  `ban <agid> <duração> "<Motivo_Admin>" "<Motivo_Jogador>"` (COM aspas,
+  dois motivos distintos), batendo com a sintaxe oficial informada pelo
+  dono. `Motivo_Jogador` = o `motivo` sanitizado (ver FIX 3). `Motivo_Admin`
+  é gerado automaticamente (nível + tag do staff + report, se houver) via
+  `buildAdminReasonLabel` — não existe (nem foi pedido) um campo separado
+  pra staff digitar isso à mão; só aparece no console/log do servidor,
+  nunca pro jogador. Kick/SystemMessage também passaram a ir entre aspas
+  (mesmo risco de quebrar o comando com motivo de várias palavras), mas
+  continuam com um motivo só (a sintaxe oficial de dois motivos foi só
+  confirmada pra /ban).
+- FIX 3 — `sanitizeForRcon(text, maxLen)` novo em `punishmentSystem.js`:
+  remove aspas duplas, barra invertida e quebras de linha/tab (os
+  caracteres que o dono apontou como capazes de quebrar o comando no
+  console do PoT — sem sintaxe de escape documentada, a aposta mais
+  segura é remover em vez de tentar escapar), colapsa espaços múltiplos e
+  trunca no limite pedido. Roda só na CÓPIA que viaja pro RCON — o valor
+  gravado no banco (`reason`/`notes`) continua exatamente o que o staff
+  digitou, sem essa sanitização (auditoria fiel ao que foi preenchido).
+- FIX 4 — Uso de AGID pra banir já era o padrão de fato (RCON sempre usava
+  `link.alderon_id`, nunca nome de personagem) — nenhuma mudança de código
+  necessária aqui, só confirmado que já seguia o pedido do dono.
+- FEATURE 5 — parâmetro `observacoes` novo em `/strike` (opcional, máx.
+  500 caracteres) — nota INTERNA da staff, nunca entra no comando RCON nem
+  aparece pro jogador (nem na DM nem no log unificado), só é gravada na
+  coluna `notes` da punição (coluna já existia no schema, sem uso até
+  agora) e mostrada em `/historico` (staff-facing). Disponível nos dois
+  caminhos do comando (Free via `registro.js` e Rastreador+ via
+  `index.js`/`punishmentSystem.js`).
+- FEATURE 6 — ação automática no Discord REMOVIDA por completo: opção
+  `discord_act` apagada do schema do `/strike`, todo o bloco de
+  timeout/kick/ban nativo removido de `_executeStrike`, linhas de
+  "Ação no Discord" removidas da prévia de confirmação e do pedido de
+  aprovação de Supervisor, `getPunishmentActions`/
+  `generateStrikeUnifiedContainer` simplificados pra só falar de ação em
+  jogo. Flag `discordActionsEnabled` (premiumSystem.js), agora morta em
+  todo o código, removida dos 3 tiers (`GUILD_LIMITS`) — nada mais lê
+  esse valor. `applyTemporaryRole` (cargo de Strike configurável em
+  /config roles) NÃO foi tocado — é uma feature própria, nunca fez parte
+  de `discord_act`.
+- FIX 7 — descrição do parâmetro `report` reescrita pra deixar claro o
+  formato aceito: "digite só o número (ex: 5) ou #REP5, exatamente como
+  aparece no painel de logs de denúncias" — a validação em código (aceita
+  `#REP5`/`#R5`/`5`) não mudou, só a descrição que o staff vê ao preencher.
+- FEATURE 8 — "Aprovado por" gravado no REGISTRO da punição, não só na
+  resposta efêmera de quem clicou Aprovar (que já existia antes). Coluna
+  `punishments.approved_by` nova (TEXT, via `ensureColumn`). Fluxo:
+  `handleSupervisorApproval` passa `{ approvedById, approvedByTag }` pra
+  `_executeStrike`, que repassa pro novo parâmetro `approvedBy` de
+  `applyPunishment` (grava a coluna) e pro novo parâmetro `approvedByTag`
+  de `generateStrikeUnifiedContainer` (mostra "Aprovado por: X" no
+  log/DM, só quando aplicável). `generateHistoryContainer` (`/historico`)
+  também passou a mostrar "Aprovado por" e "Observações" por punição,
+  quando presentes.
+- Verificado: `node --check` em todos os arquivos tocados
+  (`strike/index.js`, `strike/registro.js`, `punishmentSystem.js`,
+  `chatFilterSystem.js`, `premiumSystem.js`, `database/index.js`) —
+  passou em todos. Teste funcional direto contra o SQLite real (script
+  temporário, apagado depois): `sanitizeForRcon` remove aspas/quebra de
+  linha e trunca em 120; comando de Ban montado bate exatamente com a
+  sintaxe `ban <agid> <duração> "<admin>" "<jogador>"`; `applyPunishment`
+  grava `notes`/`approved_by` corretamente; `getPunishmentActions` não
+  quebra sem os parâmetros de Discord removidos.
+- Pendente (ambiente do dono, fora deste código): schema do comando
+  MUDOU (opção `discord_act` removida, `observacoes` nova, `motivo` ganhou
+  `setMaxLength`) — precisa de `node deploy.js` (por servidor, ver
+  `GUILD_IDS` em `deploy.js`) além do `git pull && pm2 restart
+  discord-bot` de sempre. Teste em produção contra um servidor PoT real
+  ainda pendente (sem acesso a servidor real neste ambiente) — validar
+  principalmente se o console do PoT aceita mesmo o formato com aspas
+  duplas pros dois motivos.

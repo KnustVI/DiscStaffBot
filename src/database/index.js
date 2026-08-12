@@ -252,6 +252,13 @@ class DatabaseManager {
             // volta no relookup antigo nesse caso (melhor esforço, mesmo
             // comportamento de antes).
             this.ensureColumn('punishments', 'alderon_id', 'TEXT');
+            // Quem aprovou (Supervisor), quando a punição exigiu aprovação —
+            // pedido do dono, 2026-08-11: "Punições aprovadas por
+            // supervisores devem indicar no registro quem aprovou". Antes só
+            // aparecia na resposta efêmera de handleSupervisorApproval, nunca
+            // gravado na punição em si. Null pra punições que não exigiram
+            // aprovação nenhuma (a maioria).
+            this.ensureColumn('punishments', 'approved_by', 'TEXT');
             // Exigência de aprovação de Supervisor configurável por nível
             // (plano Caçador) — ver punishmentLevels.js/premiumSystem.js
             // GUILD_LIMITS.customPunishmentApprovalEnabled.

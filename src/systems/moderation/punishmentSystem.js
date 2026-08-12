@@ -30,6 +30,40 @@ function _unregisteredTargetId(alderonId) {
     return `${UNREGISTERED_TARGET_PREFIX}${alderonId}`;
 }
 
+// ── Sanitização de texto pra RCON (pedido do dono, 2026-08-11) — o console
+// do Path of Titans quebra o comando ao meio se receber aspas duplas
+// (fecham a string do parâmetro antes da hora) ou quebras de linha
+// (interpretadas como fim da linha de comando). Remove esses caracteres
+// (e outros de controle) em vez de tentar escapá-los — o PoT não documenta
+// nenhuma sintaxe de escape confiável, então a aposta mais segura é não
+// deixar o caractere perigoso chegar no console de jeito nenhum. Trunca no
+// limite pedido (120 pro texto que o jogador vê — a UI do menu principal
+// do jogo estoura acima disso). Não mexe no valor gravado no banco
+// (`reason`/`notes` guardam exatamente o que o staff digitou) — só a cópia
+// que de fato viaja pro RCON passa por aqui.
+function sanitizeForRcon(text, maxLen = null) {
+    if (!text) return '';
+    let clean = String(text)
+        .replace(/[\r\n\t]+/g, ' ')
+        .replace(/["\\]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (maxLen && clean.length > maxLen) clean = clean.slice(0, maxLen).trim();
+    return clean;
+}
+
+// ── "Motivo_Admin" da sintaxe oficial de /ban do PoT (visível só no
+// console/log do servidor, nunca pro jogador) — construído automaticamente
+// a partir do nível/staff/report, já que não existe (nem foi pedido) um
+// campo separado pra staff digitar isso à mão. Serve de referência rápida
+// pra quem olhar o log do servidor sem precisar abrir o Discord.
+function buildAdminReasonLabel({ levelName, staffTag, reportId }) {
+    const parts = [levelName || 'Registro manual'];
+    if (staffTag) parts.push(`Staff: ${staffTag}`);
+    if (reportId) parts.push(reportId);
+    return sanitizeForRcon(parts.join(' - '), 150);
+}
+
 const PunishmentSystem = {
     _isUnregisteredTargetId,
     _unregisteredTargetId,
@@ -213,6 +247,8 @@ const PunishmentSystem = {
                 builder.text(`${severityIcon} Strike #ID${strikeNum}${p.level_name ? ` (${p.level_name})` : ''} | ${date}`);
                 builder.text(`┃ Moderador: <@${p.moderator_id}>`);
                 if (p.report_id) builder.text(`┃ Report: \`${p.report_id}\``);
+                if (p.approved_by) builder.text(`┃ Aprovado por: <@${p.approved_by}>`);
+                if (p.notes) builder.text(`┃ Observações: ${p.notes}`);
                 if (p.status === 'revoked') builder.text(`┃ Status: ${EMOJIS.circlecheck || '✅'} Anulado`);
                 builder.separator();
             }
@@ -238,7 +274,7 @@ const PunishmentSystem = {
         return ConfigSystem.getPanelPersonalization(guildId);
     },
 
-    async generateStrikeUnifiedContainer(client, target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, discordAct, discordActionResult, guildName, reportLink, guildId, jogoAct, ingameActionResult) {
+    async generateStrikeUnifiedContainer(client, target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, guildName, reportLink, guildId, jogoAct, ingameActionResult, approvedByTag = null) {
         const personalization = this._resolvePersonalization(guildId);
         const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.ERROR });
         // Banner padrão do bot / pool de fotos / imagem própria enviada via
@@ -280,8 +316,14 @@ const PunishmentSystem = {
         builder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**`);
         if (reportId) builder.text(`**Report:** ${reportLink ? `[${reportId}](${reportLink})` : reportId}`);
         builder.text(`\`\`\`text\n${reason}\n\`\`\``);
+        // "Aprovado por": pedido do dono, 2026-08-11 — punição severa exigiu
+        // aprovação de Supervisor, então quem aprovou fica visível no
+        // próprio registro (não só na resposta efêmera de handleSupervisorApproval).
+        if (approvedByTag) {
+            builder.text(`**${EMOJIS.shieldban || '🛡️'} Aprovado por:** ${approvedByTag}`);
+        }
 
-        const actions = this.getPunishmentActions(jogoAct, ingameActionResult, discordAct, discordActionResult);
+        const actions = this.getPunishmentActions(jogoAct, ingameActionResult);
         if (actions && actions !== `- ${EMOJIS.messagesquare || '📝'} **Apenas Registro:** Nenhuma ação automática aplicada`) {
             builder.separator();
             builder.text(`**${EMOJIS.trianglealert || '⚠️'} Ações Aplicadas:**`);
@@ -341,12 +383,14 @@ const PunishmentSystem = {
     
     /**
      * Monta o texto de "Ações Aplicadas" a partir do que foi REALMENTE
-     * executado (jogoAct/discordAct + os resultados de fato retornados por
+     * executado (jogoAct + o resultado de fato retornado por
      * _executeStrike) — antes esse texto era inferido só a partir da
      * severidade numérica, de forma cosmética e desconectada da ação real
-     * escolhida (bug corrigido nesta revisão).
+     * escolhida (bug corrigido em revisão anterior). Ação automática no
+     * Discord (timeout/kick/ban nativo) foi REMOVIDA do /strike por pedido
+     * do dono, 2026-08-11 — o bot só age em jogo agora.
      */
-    getPunishmentActions(jogoAct, ingameActionResult, discordAct, discordActionResult) {
+    getPunishmentActions(jogoAct, ingameActionResult) {
         const actions = [];
 
         if (jogoAct && jogoAct !== 'none') {
@@ -355,21 +399,6 @@ const PunishmentSystem = {
                 actions.push(`- ${icon} **Ação em jogo (${jogoAct}):** ${ingameActionResult}`);
             } else if (ingameActionResult) {
                 actions.push(`- ${EMOJIS.circlealert || '❌'} **Ação em jogo (${jogoAct}):** ${ingameActionResult}`);
-            }
-        }
-
-        if (discordAct && discordAct !== 'none') {
-            const actIcons = { timeout: EMOJIS.micoff || '🔇', kick: EMOJIS.userx || '👢', ban: EMOJIS.ban || '🚫' };
-            const actNames = { timeout: 'Timeout (Silenciamento)', kick: 'Expulsão do Servidor', ban: 'Banimento do Servidor' };
-            const icon = actIcons[discordAct] || EMOJIS.raio || '⚡';
-            const name = actNames[discordAct] || discordAct;
-
-            if (discordActionResult && !discordActionResult.includes('Erro')) {
-                actions.push(`- ${icon} **${name}:** ${discordActionResult}`);
-            } else if (discordActionResult && discordActionResult.includes('Erro')) {
-                actions.push(`- ${EMOJIS.circlealert || '❌'} **${name}:** ${discordActionResult}`);
-            } else {
-                actions.push(`- ${icon} **${name}:** Aplicado com sucesso`);
             }
         }
 
@@ -471,13 +500,14 @@ const PunishmentSystem = {
         if (session.noteText) {
             builder.text(`${EMOJIS.trianglealert || '⚠️'} ${session.noteText}`);
         }
-        builder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
-        if (session.discordAct && session.discordAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).discordActionsEnabled) {
-            builder.text(`${EMOJIS.trianglealert || '⚠️'} Ações automáticas no Discord (timeout/kick/ban) exigem o plano Rastreador ou superior — a ação escolhida não será aplicada, só o registro da punição.`);
-        }
         builder.text(`**${EMOJIS.game || '🎮'} Ação In-Game:** ${session.jogoAct === 'none' || !session.jogoAct ? 'Nenhuma' : session.jogoAct}`);
         if (session.jogoAct && session.jogoAct !== 'none' && !PremiumSystem.getGuildLimits(guildId).autoRcon) {
             builder.text(`${EMOJIS.trianglealert || '⚠️'} Ação em jogo (RCON) exige o plano Rastreador — a ação escolhida não será aplicada, só o registro da punição.`);
+        }
+        // Observações: visível só nesta prévia (staff) e no histórico — nunca
+        // vai pro RCON nem aparece pro jogador (ver docblock de /strike).
+        if (session.notes) {
+            builder.text(`**${EMOJIS.messagesquare || '📝'} Observações (internas):** ${session.notes}`);
         }
 
         if (this.requiresSupervisorApproval(session, guild.id) && !(await this.memberHasSupervisorRole(guild, staffMember))) {
@@ -648,10 +678,10 @@ const PunishmentSystem = {
         if (PremiumSystem.getGuildLimits(guild.id).reputationEnabled) {
             approvalBuilder.text(`**${EMOJIS.doublearrowdown || '📉'} Pontos a perder:** -${session.pointsLost}`);
         }
-        approvalBuilder.text(`**${EMOJIS.raio || '⚡'} Ação no Discord:** ${session.discordAct === 'none' || !session.discordAct ? 'Nenhuma' : session.discordAct}`);
         approvalBuilder.text(`**${EMOJIS.clockalert || '⏳'} Duração:** ${!session.durationStr || session.durationStr === '0' || session.durationStr?.toLowerCase() === 'perm' ? 'Permanente' : session.durationStr}`);
         approvalBuilder.separator();
         approvalBuilder.text(`**${EMOJIS.messagesquare || '📝'} Motivo:**\n\`\`\`text\n${session.reason}\n\`\`\``);
+        if (session.notes) approvalBuilder.text(`**${EMOJIS.messagesquare || '📝'} Observações (internas):** ${session.notes}`);
         approvalBuilder.footer(guild, 'Apenas o cargo Supervisor pode aprovar ou rejeitar este pedido.');
 
         const row = new ActionRowBuilder().addComponents(
@@ -702,8 +732,12 @@ const PunishmentSystem = {
 
         // Aplica a punição com o staff original como responsável (moderator_id),
         // já que ele decidiu o caso — o supervisor só autorizou a execução.
+        // approvedBy: pedido do dono, 2026-08-11 — "Punições aprovadas por
+        // supervisores devem indicar no registro quem aprovou". Persistido
+        // na própria punição (coluna approved_by), não só nesta resposta
+        // efêmera.
         const originalStaff = requester || interaction.user;
-        const result = await this._executeStrike(guild, originalStaff, session);
+        const result = await this._executeStrike(guild, originalStaff, session, { approvedById: interaction.user.id, approvedByTag: interaction.user.tag });
 
         if (!result.success) {
             return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} ${result.error}`, COLORS.ERROR, guild));
@@ -730,17 +764,18 @@ const PunishmentSystem = {
      *
      * @param {import('discord.js').Guild} guild
      * @param {import('discord.js').User} staff - Creditado como moderator_id
-     * @param {object} session - { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId }
+     * @param {object} session - { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, jogoAct, pointsLost, alderonId, notes }
+     * @param {{ approvedById?: string, approvedByTag?: string }} [approvalInfo] - preenchido só quando esta execução veio de uma aprovação de Supervisor (ver handleSupervisorApproval)
      * @returns {Promise<object>} resultado com { success, error } ou os dados usados no resumo
      */
-    async _executeStrike(guild, staff, session) {
+    async _executeStrike(guild, staff, session, approvalInfo = null) {
         const ConfigSystem = require('../core/configSystem');
         const AnalyticsSystem = require('./analyticsSystem');
 
         let emojis = {};
         try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
 
-        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, discordAct, jogoAct, pointsLost, alderonId, targetPlayerName, noteText } = session;
+        const { targetId, reason, levelId, levelName, levelSeverity, levelAction, durationStr, reportId, jogoAct, pointsLost, alderonId, targetPlayerName, noteText, notes } = session;
 
         // Alvo sem conta Discord conhecida (ver UNREGISTERED_TARGET_PREFIX) —
         // não tem User/Member real pra buscar, monta um "usuário" sintético só
@@ -778,7 +813,7 @@ const PunishmentSystem = {
         }
 
         const levelSnapshot = levelId ? { id: levelId, name: levelName, severity: levelSeverity, action: levelAction, durationStr } : null;
-        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, levelSnapshot, reportId || null, pointsLost, alderonId || null);
+        const strikeId = this.applyPunishment(guild.id, targetId, staff.id, reason, levelSnapshot, reportId || null, pointsLost, alderonId || null, notes || null, approvalInfo?.approvedById || null);
         if (!strikeId) {
             return { success: false, error: 'Erro ao aplicar punição no banco de dados.' };
         }
@@ -820,47 +855,23 @@ const PunishmentSystem = {
             }
         }
 
-        // ── Ações automáticas no Discord (timeout/kick/ban) via strike só
-        // a partir do plano Rastreador — repetida aqui (defesa em
-        // profundidade) já que este método também é chamado direto pela
-        // aprovação de Supervisor. ──────────────────────────────────────
-        let discordActionResult = null;
-        if (discordAct && discordAct !== 'none' && !PremiumSystem.getGuildLimits(guild.id).discordActionsEnabled) {
-            discordActionResult = `${EMOJIS.trianglealert || '⚠️'} Ação no Discord requer o plano Rastreador ou superior.`;
-        } else if (discordAct && discordAct !== 'none' && targetMember) {
-            try {
-                switch (discordAct) {
-                    case 'timeout':
-                        await targetMember.timeout(durationMs > 0 ? durationMs : 60000, reason);
-                        discordActionResult = `Timeout de ${durationStr || '1 minuto'} aplicado`;
-                        break;
-                    case 'kick':
-                        await targetMember.kick(reason);
-                        discordActionResult = 'Expulsão aplicada';
-                        break;
-                    case 'ban':
-                        await targetMember.ban({ reason });
-                        discordActionResult = 'Banimento aplicado';
-                        break;
-                }
-            } catch (err) {
-                discordActionResult = `${EMOJIS.circlealert || '❌'} Erro: ${err.message}`;
-            }
-        } else if (discordAct && discordAct !== 'none' && !targetMember) {
-            // Sem membro (alvo sem conta Discord vinculada, ou vinculada mas
-            // fora deste servidor) — sem isso, getPunishmentActions cairia no
-            // fallback "Aplicado com sucesso" mesmo sem nada ter rodado.
-            discordActionResult = `${EMOJIS.circlealert || '❌'} Não aplicada: jogador sem conta Discord vinculada ou fora deste servidor.`;
-        }
-
         const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
 
         // ── Ação in-game automática via RCON — a partir do Rastreador (ver
-        // premiumSystem.js, GUILD_LIMITS.autoRcon). Sintaxe real dos comandos
-        // do Path of Titans (docs oficiais: chat-commands/source-rcon) — o
-        // formato exato do campo de duração/tempo NÃO está confirmado pelas
-        // docs, precisa ser validado contra um servidor real antes de
-        // confiar 100% em produção. ──────────────────────────────────────────
+        // premiumSystem.js, GUILD_LIMITS.autoRcon). Sintaxe oficial de /ban
+        // do PoT confirmada pelo dono, 2026-08-11:
+        //   /ban <Jogador/AGID> <Duração> "<Motivo_Admin>" "<Motivo_Jogador>"
+        // (aspas duplas obrigatórias quando o motivo tem espaço). Aplicado
+        // aqui também pra ServerMute, por analogia (mesmo formato
+        // alvo+duração+dois motivos). `playerReason` é o `motivo` digitado
+        // pelo staff — sempre o texto que o JOGADOR vê — sanitizado (sem
+        // aspas/quebra de linha, que quebram o comando no console) e limitado
+        // a 120 caracteres (trava sugerida: acima disso a UI do menu
+        // principal do jogo corta o texto). `adminReason` é gerado
+        // automaticamente (nível + staff + report), só aparece no
+        // log/console do servidor. Kick/SystemMessage não têm duração nem
+        // motivo duplo na sintaxe oficial, mas ainda assim entre aspas —
+        // evita quebrar o comando se o motivo tiver espaço. ────────────────
         let ingameActionResult = null;
         if (jogoAct && jogoAct !== 'none') {
             if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) {
@@ -876,11 +887,13 @@ const PunishmentSystem = {
                         // reconhecido pelo servidor, o comando ficava sem efeito nenhum (nem
                         // erro, só silenciosamente ignorado).
                         const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? '0' : durationStr;
+                        const playerReason = sanitizeForRcon(reason, 120);
+                        const adminReason = buildAdminReasonLabel({ levelName, staffTag: staff.tag, reportId });
                         const rconCommands = {
-                            SystemMessage: `SystemMessage ${link.alderon_id} ${reason}`,
-                            Kick: `kick ${link.alderon_id} ${reason}`,
-                            Ban: `ban ${link.alderon_id} ${durationToken} ${reason} ${reason}`,
-                            ServerMute: `ServerMute ${link.alderon_id} ${durationToken} ${reason} ${reason}`,
+                            SystemMessage: `SystemMessage ${link.alderon_id} "${playerReason}"`,
+                            Kick: `kick ${link.alderon_id} "${playerReason}"`,
+                            Ban: `ban ${link.alderon_id} ${durationToken} "${adminReason}" "${playerReason}"`,
+                            ServerMute: `ServerMute ${link.alderon_id} ${durationToken} "${adminReason}" "${playerReason}"`,
                         };
                         const command = rconCommands[jogoAct];
                         if (!command) {
@@ -918,16 +931,16 @@ const PunishmentSystem = {
 
         db.logActivity(guild.id, staff.id, 'strike', targetId, {
             command: 'strike', punishmentId: strikeId, levelName, levelSeverity, pointsLost,
-            oldPoints: currentRep, newPoints, reason, duration: durationStr, discordAct, jogoAct,
-            temporaryRoleApplied: roleResult.applied, ingameActionResult
+            oldPoints: currentRep, newPoints, reason, duration: durationStr, jogoAct,
+            temporaryRoleApplied: roleResult.applied, ingameActionResult, approvedBy: approvalInfo?.approvedById || null,
         });
 
         await AnalyticsSystem.updateStaffAnalytics(guild.id, staff.id);
 
         const containerBuilder = await this.generateStrikeUnifiedContainer(
             guild.client, targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
-            pointsLost, newPoints, discordAct, discordActionResult, guild.name, reportLink, guild.id,
-            jogoAct, ingameActionResult
+            pointsLost, newPoints, guild.name, reportLink, guild.id,
+            jogoAct, ingameActionResult, approvalInfo?.approvedByTag || null
         );
         const { components, flags, files: filesPayload } = containerBuilder.build();
 
@@ -1174,7 +1187,7 @@ const PunishmentSystem = {
      * tabela temporary_roles para remoção automática pelo worker (initWorker).
      * Recurso do plano Rastreador+ (ver PremiumSystem.GUILD_LIMITS.
      * temporaryRoleEnabled) — em Free não aplica, mas ainda avisa o motivo
-     * (mesmo padrão de discordAct/jogoAct, que também avisam "requer plano X"
+     * (mesmo padrão de jogoAct, que também avisa "requer plano X"
      * em vez de falhar silenciosamente).
      *
      * Se durationMs <= 0 (punição permanente / "0" / "perm"), o cargo NÃO é
@@ -1247,7 +1260,7 @@ const PunishmentSystem = {
      *   se houver (ver docblock de ensureColumn('punishments','alderon_id') em database/index.js) —
      *   permite ao /unstrike desfazer a ação exata que foi aplicada, sem precisar re-adivinhar o AGID.
      */
-    applyPunishment(guildId, targetId, moderatorId, reason, levelSnapshot, reportId, points, alderonId = null) {
+    applyPunishment(guildId, targetId, moderatorId, reason, levelSnapshot, reportId, points, alderonId = null, notes = null, approvedBy = null) {
         try {
             const trans = db.transaction(() => {
                 const maxStrike = db.prepare(`
@@ -1258,12 +1271,13 @@ const PunishmentSystem = {
                 const uuid = require('../../database/index').generateUUID();
 
                 db.prepare(`
-                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status, level_id, level_name, level_severity, level_action, duration_str, alderon_id)
-                    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO punishments (uuid, guild_id, strike_number, user_id, moderator_id, reason, severity, points_deducted, report_id, created_at, status, level_id, level_name, level_severity, level_action, duration_str, alderon_id, notes, approved_by)
+                    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(
                     uuid, guildId, strikeNumber, targetId, moderatorId, reason, points, reportId, Date.now(), 'active',
                     levelSnapshot?.id || null, levelSnapshot?.name || null, levelSnapshot?.severity || null,
                     levelSnapshot?.action || null, levelSnapshot?.durationStr || null, alderonId || null,
+                    notes || null, approvedBy || null,
                 );
 
                 // Sistema de pontos de reputação é recurso Pegada+ — em

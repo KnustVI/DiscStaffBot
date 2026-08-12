@@ -26,7 +26,8 @@ const GUILD_TIER_DISPLAY = { free: 'Free', rastreador: 'Rastreador', cacador: 'C
 
 // Limites concretos por tier de servidor — única fonte da verdade consultada
 // pelo reportChatSystem (limite de chats/revisões + cooldown), punishmentSystem
-// (reputação, ações no Discord via strike, RCON automático), historico.js
+// (reputação, RCON automático — /strike não tem mais nenhuma ação no Discord,
+// removida a pedido do dono em 2026-08-11), historico.js
 // (histórico de jogador), evento.js (nível do sistema de eventos) e
 // autoModeration.js (manutenção diária de reputação/cargos automáticos —
 // "automod" só roda de verdade no Caçador). Espelha o planejamento de
@@ -35,7 +36,7 @@ const GUILD_TIER_DISPLAY = { free: 'Free', rastreador: 'Rastreador', cacador: 'C
 const GUILD_LIMITS = {
     free: {
         maxOpenReports: 1, maxOpenReviews: 1, chatCooldownMs: 21600000,
-        discordActionsEnabled: false, autoRcon: false,
+        autoRcon: false,
         reputationEnabled: false, automodEnabled: false, historyEnabled: false,
         analyticsEnabled: false, temporaryRoleEnabled: false,
         eventTier: 'basic',
@@ -62,7 +63,7 @@ const GUILD_LIMITS = {
     },
     rastreador: {
         maxOpenReports: 3, maxOpenReviews: 3, chatCooldownMs: 0,
-        discordActionsEnabled: true, autoRcon: true,
+        autoRcon: true,
         reputationEnabled: true, automodEnabled: false, historyEnabled: true,
         analyticsEnabled: false, temporaryRoleEnabled: true,
         eventTier: 'medium',
@@ -74,7 +75,7 @@ const GUILD_LIMITS = {
     },
     cacador: {
         maxOpenReports: Infinity, maxOpenReviews: Infinity, chatCooldownMs: 0,
-        discordActionsEnabled: true, autoRcon: true,
+        autoRcon: true,
         reputationEnabled: true, automodEnabled: true, historyEnabled: true,
         analyticsEnabled: true, temporaryRoleEnabled: true,
         eventTier: 'full',

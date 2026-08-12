@@ -9,9 +9,9 @@
 // isso este caminho continua existindo à parte, preservando o que já era
 // documentado no Free (ver PREMIUM.txt, seção 1).
 //
-// Lê `usuario`/`motivo`/`report` direto de interaction.options — são os
-// MESMOS nomes de opção do comando único /strike agora (antes eram opções
-// do subcomando "registro" que dava nome a este arquivo).
+// Lê `usuario`/`motivo`/`report`/`observacoes` direto de interaction.options
+// — são os MESMOS nomes de opção do comando único /strike agora (antes eram
+// opções do subcomando "registro" que dava nome a este arquivo).
 //
 // Duração (pedido do dono, 2026-08-07: "Remover parâmetro pedido de
 // duração do comando /strike, vamos sempre usar a duração configurada em
@@ -32,6 +32,7 @@ module.exports = {
 
         const targetUser = options.getUser('usuario');
         const reason = options.getString('motivo');
+        const notes = options.getString('observacoes')?.trim() || null;
         const durationStr = null; // sempre permanente — ver comentário no topo do arquivo
         let reportId = options.getString('report') || null;
 
@@ -81,9 +82,9 @@ module.exports = {
                 levelAction: null,
                 pointsLost: 0,
                 durationStr,
-                discordAct: 'none',
                 jogoAct: 'none',
                 alderonId: null,
+                notes,
             };
             sessionManager.set(staff.id, guildId, 'strike_pending', 'strike_pending', session, 120000);
 

@@ -102,8 +102,9 @@ function checkMessage(guildId, message) {
  *
  * "Moderador" creditado é o próprio bot (client.user) — é uma punição
  * automática, não tem staff nenhum clicando em nada. Só a ação EM JOGO do
- * nível é aplicada (discordAct fica 'none') — a violação aconteceu no chat
- * do jogo, não no Discord.
+ * nível é aplicada (o bot não tem nenhuma ação no Discord, ver
+ * punishmentSystem.js) — a violação aconteceu no chat do jogo, não no
+ * Discord.
  *
  * @returns {Promise<object>} o mesmo formato de retorno de _executeStrike
  *   ({success, error} ou {success, strikeId, ...}).
@@ -136,7 +137,6 @@ async function applyFilterPunishment(client, guildId, filter, alderonId, playerN
         levelAction: level.action || 'none',
         pointsLost: level.points,
         durationStr: level.duration_str || '',
-        discordAct: 'none',
         jogoAct: level.action || 'none',
         alderonId,
         targetPlayerName: playerName || alderonId,
