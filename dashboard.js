@@ -1730,6 +1730,8 @@ function loadDashboard(client) {
             convertRconResponse: req.query.resposta || null,
             purchaseResult: req.query.comprado || null,
             gameShopPurchaseResult: req.query.jogoComprado || null,
+            personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
+            submissionSent: req.query.enviado === '1',
         });
     });
 
@@ -1795,6 +1797,60 @@ function loadDashboard(client) {
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });
+
+    // Envio de imagem própria pra venda no marketplace (reforma das lojas,
+    // 2026-08-12: "um jogador pode pagar hunst para criar um item a
+    // venda, e enviar uma imagem com limite de proporção 800 x 427, toda
+    // imagem subida deve virar webp"). Checa saldo/config ANTES de subir
+    // (evita gastar o custo de upload+webp se o jogador nem tem Caçadas
+    // suficientes ou o marketplace está fechado); a proporção é validada
+    // com sharp().metadata() no buffer CRU (webp/resize de
+    // storeImageBuffer só roda depois, se passar). Fica pendente até o
+    // dono aprovar/reprovar em /dev/lojas — ver ImageShopSystem.submitImageForSale.
+    app.post(
+        '/loja/enviar-imagem',
+        checkAuth,
+        safeUpload(upload.single('imagem'), '/loja?erro=' + encodeURIComponent('Erro ao processar o arquivo.')),
+        async (req, res) => {
+            if (isDashboardLocked(req)) return res.redirect('/dashboard');
+            const label = (req.body.label || '').trim();
+            const file = req.file;
+            if (!label || !file) {
+                return res.redirect(`/loja?erro=${encodeURIComponent('Informe um nome e escolha uma imagem.')}`);
+            }
+
+            const config = ImageShopSystem.getPersonalizationShopConfig();
+            if (!config.accepting_submissions) {
+                return res.redirect(`/loja?erro=${encodeURIComponent('O envio de imagens pra venda está temporariamente fechado.')}`);
+            }
+            if (PlayerRegistry.getHuntBalance(req.user.id) < config.submission_fee) {
+                return res.redirect(`/loja?erro=${encodeURIComponent('Saldo de Caçadas insuficiente pra pagar a taxa de envio.')}`);
+            }
+
+            try {
+                const sharp = require('sharp');
+                const metadata = await sharp(file.buffer).metadata();
+                const targetRatio = 800 / 427;
+                const actualRatio = (metadata.width || 0) / (metadata.height || 1);
+                if (!metadata.width || !metadata.height || Math.abs(actualRatio - targetRatio) / targetRatio > 0.02) {
+                    return res.redirect(`/loja?erro=${encodeURIComponent('A imagem precisa ter proporção 800x427 (aprox. 1.87:1).')}`);
+                }
+            } catch (error) {
+                return res.redirect(`/loja?erro=${encodeURIComponent('Não foi possível processar essa imagem.')}`);
+            }
+
+            const stored = await storeImageBuffer(client, file.buffer, `Envio de \`${req.user.username}\` (\`${req.user.id}\`) pra venda na Loja — "${label}"`);
+            if (!stored.ok) {
+                return res.redirect(`/loja?erro=${encodeURIComponent('Erro ao processar a imagem — tente novamente.')}`);
+            }
+
+            const result = ImageShopSystem.submitImageForSale(req.user.id, label, stored.messageId);
+            if (!result.ok) {
+                return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+            }
+            return res.redirect('/loja?enviado=1');
+        }
+    );
 
     app.post(
         '/perfil/save',

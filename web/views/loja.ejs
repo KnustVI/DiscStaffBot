@@ -47,7 +47,10 @@
     personalizacao, badges, isLinked, bonesBalance, huntBalance,
     xpBalance, marksPerBone, playedGuilds, gameShopCatalogs, convertResult,
     convertError, convertAmount, convertRconResponse, purchaseResult,
-    gameShopPurchaseResult }) — as 2 listas de imagens são o mesmo pool
+    gameShopPurchaseResult, personalizationConfig, submissionSent }) —
+    personalizationConfig/submissionSent alimentam o card "Enviar imagem
+    para venda" (marketplace, POST /loja/enviar-imagem — ver
+    ImageShopSystem.submitImageForSale). As 2 listas de imagens são o mesmo pool
     dinâmico do /perfil-edit (só as PÚBLICAS), cada uma já vindo com
     shop_price/shop_min_tier/owned (ver dashboard.js GET /loja e
     ImageShopSystem.ownsImage). purchaseResult é o label do item de
@@ -385,6 +388,49 @@
                     </div>
                 </div>
             <% } %>
+
+            <%#
+                MARKETPLACE — jogador paga Caçadas pra enviar uma imagem
+                própria pra venda (reforma 2026-08-12). Fica pendente até o
+                dono aprovar/reprovar em /dev/lojas; se aprovada, quem
+                comprar credita 10% pro autor em Caçadas e o preço sobe
+                5%/venda (nunca desce sozinho). Card fixo no topo da seção,
+                antes da galeria — mesmo padrão do "Em breve" que ele
+                substitui em destaque.
+            %>
+            <div class="loja-converter-form">
+                <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Enviar imagem para venda</span><span data-i18n-en>Submit image for sale</span></h3>
+                <p class="text-[13px] opacity-50 mt-1 mb-3">
+                    <span data-i18n-pt>Taxa de envio: <%= personalizationConfig.submission_fee %> Caçadas. Proporção obrigatória: 800×427. Fica pendente até o dono aprovar — se aprovada, você recebe 10% de Caçadas a cada venda.</span>
+                    <span data-i18n-en>Submission fee: <%= personalizationConfig.submission_fee %> Hunt. Required ratio: 800×427. Stays pending until the owner approves — once approved, you get 10% in Hunt on every sale.</span>
+                </p>
+                <% if (submissionSent) { %>
+                    <div class="outline-chip mb-3">
+                        <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                        <div class="outline-chip-text">
+                            <span class="outline-chip-headline"><span data-i18n-pt>Enviado</span><span data-i18n-en>Submitted</span></span>
+                            <span class="outline-chip-subtitle"><span data-i18n-pt>Sua imagem foi enviada e está aguardando aprovação.</span><span data-i18n-en>Your image was submitted and is awaiting approval.</span></span>
+                        </div>
+                    </div>
+                <% } %>
+                <% if (!personalizationConfig.accepting_submissions) { %>
+                    <p class="text-sm opacity-50"><span data-i18n-pt>Envios estão temporariamente fechados.</span><span data-i18n-en>Submissions are temporarily closed.</span></p>
+                <% } else if (!isLinked) { %>
+                    <p class="text-sm opacity-50"><span data-i18n-pt>Vincule sua conta com</span><span data-i18n-en>Link your account with</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra poder enviar.</span><span data-i18n-en>on Discord to be able to submit.</span></p>
+                <% } else { %>
+                    <form action="/loja/enviar-imagem" method="POST" enctype="multipart/form-data" class="flex flex-col gap-3">
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="tag"></i></div>
+                            <input type="text" name="label" class="input-premium-field" maxlength="80" required placeholder="Nome de exibição">
+                        </div>
+                        <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required class="text-[13px]">
+                        <button type="submit" class="btn-salvar-final self-start"<%= huntBalance < personalizationConfig.submission_fee ? ' disabled' : '' %>><span data-i18n-pt>Enviar</span><span data-i18n-en>Submit</span></button>
+                        <% if (huntBalance < personalizationConfig.submission_fee) { %>
+                            <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                        <% } %>
+                    </form>
+                <% } %>
+            </div>
 
             <%
                 // Foto de perfil e plano de fundo foram unificados num tipo
