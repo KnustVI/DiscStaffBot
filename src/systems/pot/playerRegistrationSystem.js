@@ -348,6 +348,27 @@ class PlayerRegistrationSystem {
      * @param {import('discord.js').CommandInteraction} interaction
      * @param {import('discord.js').User} targetUser
      */
+    /**
+     * Mensagem de espera de um estágio — pedido do dono, 2026-08-12: "podemos
+     * adicionar uma mensagem de espera onde ele informa o que está
+     * carregando?". A interação já chega deferida (ver handlers.js), então
+     * dá pra trocar o conteúdo via editReply antes da resposta final — só
+     * usado nos trechos de /perfil que realmente envolvem trabalho
+     * perceptível (geração do card, com fetch de imagem + renderização);
+     * o resto do comando é leitura direta do SQLite (better-sqlite3,
+     * síncrono, na casa dos microssegundos) e não justificaria o custo de
+     * uma ida-e-volta extra à API do Discord só pra mostrar um texto que
+     * ninguém teria tempo de ler. Melhor esforço: uma falha aqui nunca pode
+     * derrubar o carregamento do perfil de verdade.
+     */
+    async _sendLoadingStage(interaction, text) {
+        try {
+            await interaction.editReply(new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT }).text(text).build());
+        } catch (err) {
+            // melhor esforço — segue pro resto do carregamento normalmente
+        }
+    }
+
     async sendProfile(interaction, targetUser) {
         const guild = interaction.guild;
         const player = PlayerRegistry.getPlayerByDiscordId(targetUser.id);
@@ -383,19 +404,28 @@ class PlayerRegistrationSystem {
         let cardRendered = false;
         let stats = null;
         if (player) {
+            await this._sendLoadingStage(interaction, `${EMOJIS.imagem || '🖼️'} Carregando suas imagens...`);
             try {
                 // Por SERVIDOR (não mais global/somado entre servidores) —
                 // o /perfil virou público, mostrar um total que soma outros
                 // servidores que o bot atende confundiria a comunidade daqui
                 // (ver aviso perto do KDA abaixo). Ver getGuildPlayerStats.
                 stats = PlayerRegistry.getGuildPlayerStats(guild.id, player.alderon_id);
-                const photoBuffer = await this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier);
-                let backgroundBuffer = null;
-                try {
-                    backgroundBuffer = await this._resolveBackgroundBuffer(interaction, player, playerTier);
-                } catch (error) {
-                    console.error('❌ [PlayerRegistration] Erro ao resolver plano de fundo:', error);
-                }
+                // Foto e plano de fundo são totalmente independentes (nenhum
+                // usa o resultado do outro) — rodavam em sequência antes
+                // (pedido do dono, 2026-08-12: "o comando perfil demora um
+                // pouquinho"), cada um podendo envolver 1-2 idas e voltas de
+                // rede (canal de storage + CDN). Em paralelo agora; erro no
+                // plano de fundo continua isolado (.catch cai pra null, sem
+                // derrubar a foto nem o card inteiro — mesmo comportamento
+                // de antes, só concorrente).
+                const [photoBuffer, backgroundBuffer] = await Promise.all([
+                    this._resolveCardPhotoBuffer(interaction, targetUser, player, playerTier),
+                    this._resolveBackgroundBuffer(interaction, player, playerTier).catch((error) => {
+                        console.error('❌ [PlayerRegistration] Erro ao resolver plano de fundo:', error);
+                        return null;
+                    }),
+                ]);
                 const cardBuffer = await renderProfileCard({
                     tier: playerTier,
                     photoBuffer,
@@ -565,6 +595,7 @@ class PlayerRegistrationSystem {
         // (gem pra Caçadas, ver loja.ejs) pra manter o mesmo vocabulário
         // visual entre Discord e site.
         if (player) {
+            await this._sendLoadingStage(interaction, `${EMOJIS.coins || '🪙'} Contando seus Ossos e Caçadas...`);
             const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id);
             const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
             const levelProgress = PlayerRegistry.getLevelProgress(targetUser.id);

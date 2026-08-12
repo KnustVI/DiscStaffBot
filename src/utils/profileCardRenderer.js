@@ -183,6 +183,40 @@ async function stripMissionIcons(svg, viewW, viewH) {
     return result;
 }
 
+// ==================== template por tier — pré-processado uma vez ====================
+
+// extractCardMeta + as 3 remoções (estrelas/textos vetorizados/ícones de
+// missão) são uma função PURA do SVG estático de cada tier — nunca mudam
+// entre chamadas do mesmo tier, só o card final varia (foto/nome/badges).
+// Antes isso rodava DE NOVO em TODO /perfil (pedido do dono, 2026-08-12:
+// "o comando perfil demora um pouquinho") — cada chamada fazia ~10-15
+// rasterizações via sharp só pra extrair bounding boxes que já tinham sido
+// calculadas na chamada anterior — provavelmente o gargalo real do
+// comando, já que a VPS de produção roda com pouca RAM. Cacheado por tier
+// (só 3 valores possíveis) pelo tempo de vida do processo — os SVGs em
+// assets/cards/ só mudam num deploy, que já reinicia o processo (pm2
+// restart) de qualquer forma.
+const cardTemplateCache = new Map();
+function loadCardTemplate(tier) {
+    const key = TIER_FILES[tier] ? tier : 'free';
+    if (!cardTemplateCache.has(key)) {
+        const promise = (async () => {
+            const svgPath = path.join(CARDS_DIR, TIER_FILES[key]);
+            let svg = fs.readFileSync(svgPath, 'utf8');
+            const meta = await extractCardMeta(svg);
+            for (let i = 1; i <= 5; i++) svg = stripStarGroup(svg, i);
+            for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
+            svg = await stripMissionIcons(svg, meta.viewW, meta.viewH);
+            return { meta, strippedSvg: svg };
+        })();
+        // Se falhar, não deixa o erro "grudado" no cache pro resto da vida do
+        // processo — tira a entrada pra tentar de novo na próxima chamada.
+        promise.catch(() => cardTemplateCache.delete(key));
+        cardTemplateCache.set(key, promise);
+    }
+    return cardTemplateCache.get(key);
+}
+
 // ==================== render principal ====================
 
 /**
@@ -208,13 +242,8 @@ async function stripMissionIcons(svg, viewW, viewH) {
  * @returns {Promise<Buffer>} PNG pronto (card, ou card+plano de fundo compostos)
  */
 async function renderProfileCard({ tier, photoBuffer, backgroundBuffer, nickname, alderonId, discordUsername, titleLabel, levelLabel, speciesLabel, honorStars }) {
-    const svgPath = path.join(CARDS_DIR, TIER_FILES[tier] || TIER_FILES.free);
-    let svg = fs.readFileSync(svgPath, 'utf8');
-    const meta = await extractCardMeta(svg);
-
-    for (let i = 1; i <= 5; i++) svg = stripStarGroup(svg, i);
-    for (const p of meta.solidPaths) svg = stripPathByPrefix(svg, p[1].slice(0, 60));
-    svg = await stripMissionIcons(svg, meta.viewW, meta.viewH);
+    const { meta, strippedSvg } = await loadCardTemplate(tier);
+    let svg = strippedSvg;
 
     // .rotate() sem argumento = auto-orienta pela tag EXIF antes de virar PNG
     // — defesa extra além da já aplicada no upload (imageStorage.js): fotos
