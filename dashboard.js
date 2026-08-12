@@ -1602,6 +1602,20 @@ function loadDashboard(client) {
         // (pedido do dono, 2026-08-10) — mesma fonte da home/perfil.
         const partnerNews = await getPartnerNews(client);
 
+        // Loja de Jogo (reforma 2026-08-12) — um catálogo POR servidor já
+        // jogado (mesma lista de playedGuilds do conversor de moedas
+        // acima), só com os itens que o admin daquele servidor de fato
+        // ligou (enabled=true) e, no caso da Missão, já tem o nome
+        // configurado (sem isso a compra falharia mesmo aparecendo aqui —
+        // melhor nem mostrar do que mostrar um item que sempre erra).
+        const gameShopCatalogs = playedGuilds.map((pg) => {
+            const shopConfig = GameShopSystem.getGuildShopConfig(pg.guildId);
+            const availableItems = Object.keys(GameShopSystem.GAME_SHOP_ITEMS)
+                .map((key) => ({ key, ...GameShopSystem.GAME_SHOP_ITEMS[key], config: shopConfig[key] }))
+                .filter((item) => item.config.enabled && item.config.price > 0 && (!item.needsMission || item.config.missionName));
+            return { guildId: pg.guildId, name: pg.name, items: availableItems };
+        }).filter((catalog) => catalog.items.length > 0);
+
         res.render('loja', {
             nickname: req.user.global_name || req.user.username,
             role: 'Membro',
@@ -1617,12 +1631,14 @@ function loadDashboard(client) {
             levelProgress,
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
             playedGuilds,
+            gameShopCatalogs,
             partnerNews,
             convertResult: req.query.convertido || null,
             convertError: req.query.erro || null,
             convertAmount: req.query.valor || null,
             convertRconResponse: req.query.resposta || null,
             purchaseResult: req.query.comprado || null,
+            gameShopPurchaseResult: req.query.jogoComprado || null,
         });
     });
 
@@ -1669,6 +1685,22 @@ function loadDashboard(client) {
         if (result.ok) {
             const row = ProfileImagePool.getByTypeAndId(poolType, id);
             return res.redirect(`/loja?comprado=${encodeURIComponent(row ? row.label : '')}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+    });
+
+    // Compra de item da Loja de Jogo (Growth/Skipshed/Missão, pago em
+    // Ossos, dispara RCON de verdade — ver gameShopSystem.js). Mesmo
+    // padrão de feedback das outras 2 rotas de /loja acima: ?erro=
+    // reaproveita o banner já existente, sucesso usa ?jogoComprado=<label>
+    // (texto próprio, "aplicado no jogo" em vez de "adicionado ao
+    // inventário" — não faz sentido pra um bônus in-game).
+    app.post('/loja/comprar-jogo', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildId, itemKey } = req.body;
+        const result = await GameShopSystem.purchaseGameShopItem(guildId, req.user.id, itemKey);
+        if (result.ok) {
+            return res.redirect(`/loja?jogoComprado=${encodeURIComponent(result.label)}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });

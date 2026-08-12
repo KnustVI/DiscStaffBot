@@ -31,22 +31,32 @@
   definido pelo dono (via ferramenta interna, fora deste template) vira
   comprável com Caçadas por QUALQUER tier de jogador; shop_min_tier
   controla só quem pode EQUIPAR o item depois de comprado, não quem pode
-  comprá-lo. Item sem shop_price continua exatamente como antes (selo
-  "Em breve"). O que continua só prévia é a Loja de Jogo (bônus dentro
-  do Path of Titans).
+  comprá-lo.
+
+  LOJA DE JOGO também virou FUNCIONAL DE VERDADE (reforma das lojas,
+  2026-08-12) — deixou de ser prévia estática. Cada servidor configura
+  seu próprio catálogo (Growth ×4/Skipshed/Missão, preço/disponibilidade/
+  espécie liberada) no painel de admin `/lojajogo/:guildId` — ver
+  gameShopSystem.js. Aqui só mostra, por servidor já jogado, os itens
+  que aquele servidor de fato ligou (gameShopCatalogs, ver dashboard.js
+  GET /loja); compra dispara RCON de verdade contra o servidor
+  escolhido, mesmo padrão débito-antes-devolve-se-falhar de
+  ImageShopSystem/CurrencySystem.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
     avatars, backgrounds, badges, isLinked, bonesBalance, huntBalance,
-    xpBalance, marksPerBone, playedGuilds, convertResult, convertError,
-    convertAmount, convertRconResponse, purchaseResult }) — as 3 listas
-    de imagens são o mesmo pool dinâmico do /perfil-edit (só as
-    PÚBLICAS), cada uma já vindo com shop_price/shop_min_tier/owned
-    (ver dashboard.js GET /loja e ImageShopSystem.ownsImage).
-    purchaseResult é o label do item comprado com sucesso na última
-    ação (?comprado=), preenchido pelo redirect de POST /loja/comprar;
-    erros de compra reaproveitam o MESMO convertError/?erro= do
-    conversor de moedas (banner único no topo da página, ver comentário
-    mais abaixo).
+    xpBalance, marksPerBone, playedGuilds, gameShopCatalogs, convertResult,
+    convertError, convertAmount, convertRconResponse, purchaseResult,
+    gameShopPurchaseResult }) — as 3 listas de imagens são o mesmo pool
+    dinâmico do /perfil-edit (só as PÚBLICAS), cada uma já vindo com
+    shop_price/shop_min_tier/owned (ver dashboard.js GET /loja e
+    ImageShopSystem.ownsImage). purchaseResult é o label do item de
+    personalização comprado com sucesso na última ação (?comprado=),
+    preenchido pelo redirect de POST /loja/comprar; gameShopPurchaseResult
+    é o mesmo pro item da Loja de Jogo (?jogoComprado=), preenchido por
+    POST /loja/comprar-jogo. Erros das 3 compras/conversões reaproveitam
+    o MESMO convertError/?erro= (banner único no topo da página, ver
+    comentário mais abaixo).
 
   Regras confirmadas pelo dono 2026-08-07 (ver PREMIUM.txt seção 123):
   jogador precisa estar ONLINE no servidor de jogo pras 2 direções
@@ -440,11 +450,14 @@
         </section>
 
         <%#
-            LOJA DE JOGO — bônus DENTRO do Path of Titans via RCON
-            (pedido do dono: catálogo listado até agora). Sem preço em
-            Ossos inventado pra nenhum item (o dono não deu valores,
-            exceto a conversão pra Marks) — mostra "Em breve" no lugar
-            de um número chutado.
+            LOJA DE JOGO — bônus DENTRO do Path of Titans via RCON.
+            Reforma 2026-08-12: cada servidor configura seu PRÓPRIO
+            catálogo (preço/disponibilidade/espécie liberada) no painel de
+            admin (/lojajogo/:guildId) — aqui só mostra, por servidor já
+            jogado (gameShopCatalogs, ver dashboard.js GET /loja), os
+            itens que aquele servidor de fato ligou. Nada de "Em breve"
+            genérico mais — ou o item está à venda de verdade, ou nem
+            aparece.
         %>
         <section class="titan-card-premium flex-col gap-4">
             <div>
@@ -452,37 +465,55 @@
                     <img src="/images/icons/bone.webp" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span>
                 </h2>
-                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Bônus aplicados DENTRO do Path of Titans, via comando do servidor.</span><span data-i18n-en>Paid with Bones. Bonuses applied INSIDE Path of Titans, via server command.</span></p>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Bônus aplicados DENTRO do Path of Titans, via comando do servidor. Precisa estar online no servidor pra comprar.</span><span data-i18n-en>Paid with Bones. Bonuses applied INSIDE Path of Titans, via server command. You need to be online on the server to buy.</span></p>
             </div>
 
+            <% if (gameShopPurchaseResult) { %>
+                <div class="outline-chip">
+                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Aplicado no jogo</span><span data-i18n-en>Applied in-game</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopPurchaseResult %> aplicado com sucesso.</span><span data-i18n-en><%= gameShopPurchaseResult %> successfully applied.</span></span>
+                    </div>
+                </div>
+            <% } %>
+
             <%
-                // Valores de Growth confirmados pelo dono (2026-08-06):
-                // 0 Filhote / 0.25 Juvenil / 0.50 Adolescente / 0.75
-                // Subadulto / 1 Adulto — só os 4 estágios COMPRÁVEIS entram
-                // no catálogo (Filhote é o ponto de partida de todo
-                // dinossauro, não um item de loja).
-                const lojaJogoItems = [
-                    { icon: 'sprout', labelPt: 'Growth: Juvenil', labelEn: 'Growth: Juvenile', descPt: 'Define Growth em 0.25.', descEn: 'Sets Growth to 0.25.' },
-                    { icon: 'sprout', labelPt: 'Growth: Adolescente', labelEn: 'Growth: Adolescent', descPt: 'Define Growth em 0.50.', descEn: 'Sets Growth to 0.50.' },
-                    { icon: 'sprout', labelPt: 'Growth: Subadulto', labelEn: 'Growth: Sub-Adult', descPt: 'Define Growth em 0.75.', descEn: 'Sets Growth to 0.75.' },
-                    { icon: 'sprout', labelPt: 'Growth: Adulto', labelEn: 'Growth: Adult', descPt: 'Define Growth em 1.0.', descEn: 'Sets Growth to 1.0.' },
-                    { icon: 'refresh-cw', labelPt: 'Skipshed', labelEn: 'Skipshed', descPt: 'Pula a muda (troca de pele).', descEn: 'Skips the molt (skin shed).' },
-                    { icon: 'scroll-text', labelPt: 'Missão de Marks', labelEn: 'Marks Quest', descPt: 'Concede uma missão em jogo que recompensa Marks.', descEn: 'Grants an in-game quest that rewards Marks.' },
-                ];
+                const lojaJogoIcons = { growth_juvenil: 'sprout', growth_adolescente: 'sprout', growth_subadulto: 'sprout', growth_adulto: 'sprout', skipshed: 'refresh-cw', quest: 'scroll-text' };
             %>
-            <div class="loja-grid">
-                <% lojaJogoItems.forEach(item => { %>
-                    <div class="loja-item">
-                        <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
-                        <div class="loja-item-thumb"><i data-lucide="<%= item.icon %>"></i></div>
-                        <span class="loja-item-label"><span data-i18n-pt><%= item.labelPt %></span><span data-i18n-en><%= item.labelEn %></span></span>
-                        <% if (item.descPt) { %>
-                            <span class="loja-item-desc"><span data-i18n-pt><%= item.descPt %></span><span data-i18n-en><%= item.descEn %></span></span>
-                        <% } %>
-                        <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+            <% if (!isLinked) { %>
+                <p class="text-sm opacity-50"><span data-i18n-pt>Vincule sua conta com</span><span data-i18n-en>Link your account with</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra poder comprar.</span><span data-i18n-en>on Discord to be able to buy.</span></p>
+            <% } else if (gameShopCatalogs.length === 0) { %>
+                <p class="text-sm opacity-50"><span data-i18n-pt>Nenhum servidor que você já jogou tem itens à venda na Loja de Jogo ainda.</span><span data-i18n-en>No server you've played on has Game Shop items on sale yet.</span></p>
+            <% } else { %>
+                <% gameShopCatalogs.forEach(catalog => { %>
+                    <div class="flex flex-col gap-3">
+                        <h3 class="text-titan-gold text-sm uppercase tracking-widest"><%= catalog.name %></h3>
+                        <div class="loja-grid">
+                            <% catalog.items.forEach(item => { %>
+                                <div class="loja-item">
+                                    <div class="loja-item-thumb"><i data-lucide="<%= lojaJogoIcons[item.key] || 'store' %>"></i></div>
+                                    <span class="loja-item-label"><%= item.label %></span>
+                                    <% if (item.speciesRestrictable && item.config.species && item.config.species.length > 0) { %>
+                                        <span class="loja-item-desc"><span data-i18n-pt>Restrito a:</span><span data-i18n-en>Restricted to:</span> <%= item.config.species.join(', ') %></span>
+                                    <% } %>
+                                    <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <%= item.config.price %></span>
+                                    <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form">
+                                        <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
+                                        <input type="hidden" name="itemKey" value="<%= item.key %>">
+                                        <button type="submit" class="btn-chip btn-chip-success"<%= bonesBalance < item.config.price ? ' disabled' : '' %>>
+                                            <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                        </button>
+                                    </form>
+                                    <% if (bonesBalance < item.config.price) { %>
+                                        <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                                    <% } %>
+                                </div>
+                            <% }); %>
+                        </div>
                     </div>
                 <% }); %>
-            </div>
+            <% } %>
         </section>
 
         <%#
