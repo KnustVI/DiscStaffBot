@@ -42,9 +42,12 @@ do bot, sem NENHUM efeito dentro do jogo Path of Titans em si - não
 altera taxa de farm, crescimento, atributos, progresso ou qualquer outro
 aspecto do jogo. Ganha-se Caçadas jogando/completando missões (gatilho
 exato varia por tier, ver bullets abaixo) e elas só podem ser trocadas
-por: (1) personalização de perfil na loja do bot (avatar/plano de
-fundo/badge/título) e (2), futuramente, recursos de criação de clã
-dentro da comunidade - APENAS isso. Caçadas NUNCA podem ser trocadas por
+por: (1) personalização de perfil na loja do bot (foto de perfil/plano de
+fundo - reforma 2026-08-12, ver seção 183: os dois viraram um tipo só de
+imagem comprável, emblema/título deixaram de ser compráveis direto, agora
+são resgatados de graça ao cumprir um requisito) e (2), futuramente,
+recursos de criação de clã dentro da comunidade - APENAS isso. Caçadas
+NUNCA podem ser trocadas por
 Marks, dinheiro real ou virtual, nem qualquer benefício ou vantagem
 dentro do jogo, incluindo skins - conformidade com o Server Hosting
 Agreement da Alderon Games (proíbe oferecer skins/conteúdo do jogo como
@@ -90,7 +93,11 @@ IMPLEMENTADO (2026-08-07, ver seção 135), mesmo estágio que as Caçadas -
 o que ainda falta é o CATÁLOGO da loja de jogo em si (bônus RCON tipo
 Growth/Skipshed); o CONVERSOR Ossos<->Marks já era funcional desde a
 seção 122, antes mesmo do ganho por hora. Ganho por missão continua
-"vindo em breve".
+"vindo em breve". O CATÁLOGO da loja de jogo (Growth/Skipshed/Missão de
+Marks) já é FUNCIONAL DE VERDADE desde 2026-08-12 (ver seção 183) - cada
+servidor liga/desliga cada item e define o próprio preço em Bones (painel
+`/lojajogo` no site, admin do servidor); Growth também pode ser restrito
+a espécies específicas de dinossauro, por etapa.
 
 NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
 jogo = 1 XP. O ACÚMULO de XP em si JÁ ESTÁ IMPLEMENTADO (2026-08-07, ver
@@ -117,11 +124,16 @@ FREE
 - EMBLEMA libera aqui tambem (correcao do dono - ver secao 96): e o UNICO
   item de personalizacao disponivel em QUALQUER tier, escolhido de uma
   lista via /perfil-edit. Selecao/persistencia JA IMPLEMENTADA. A lista de
-  opcoes agora pode ser alimentada pelo dono a qualquer momento via
-  /perfil-pool add badge (bot developer, ver secao 97) - sem precisar editar
-  codigo/redeployar a cada emblema novo. O DESENHO do emblema escolhido em
-  cima do card ainda NAO esta implementado (precisa de assets reais
-  cadastrados antes de acertar a composicao - ver secao Compy abaixo).
+  opcoes e alimentada pelo dono a qualquer momento via o painel /dev/lojas
+  no site (antes era /perfil-pool no bot developer, removido na reforma
+  das lojas - ver secao 183) - sem precisar editar codigo/redeployar a
+  cada emblema novo. MUDANCA 2026-08-12 (secao 183): emblema (e titulo)
+  deixaram de ser compraveis com Cacadas - agora sao RESGATADOS de graca
+  quando o jogador cumpre um requisito definido pelo dono (kills, tempo de
+  jogo, nivel, especie mais jogada), botao "Resgatar" no /perfil (bot e
+  site). O DESENHO do emblema escolhido em cima do card ainda NAO esta
+  implementado (precisa de assets reais cadastrados antes de acertar a
+  composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
 - Ganha Caçadas E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
@@ -137,24 +149,22 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
 - Footer de perfil padrao do tier Compy.
 - /perfil-edit libera aqui o resto da personalizacao, sempre por MENU (sem
   upload proprio - isso e exclusivo do Raptor, ver abaixo):
-    - Foto de fundo do CARD (avatar) escolhida num menu de fotos - pool
-      100% dinamico, alimentado pelo dono via /perfil-pool add avatar (bot
-      developer, ver secao 97/98). Comeca VAZIO ate o dono cadastrar as
-      primeiras fotos (as 12 genericas antigas viraram plano de fundo, ver
-      abaixo - correcao do dono, secao 98) - menu mostra aviso de "nenhuma
-      opcao ainda" nesse meio tempo. JA IMPLEMENTADO.
-    - Plano de fundo (banner atras da mensagem INTEIRA do /perfil, distinto
-      da foto de dentro do card) escolhido num menu - pool 100% dinamico
-      (mesmo mecanismo do avatar), ja SEEDED com as 12 fotos genericas que
-      antes eram compartilhadas com o avatar (migradas via script unico,
-      ver secao 98) + qualquer imagem nova adicionada via /perfil-pool add
-      fundo. JA IMPLEMENTADO E FUNCIONAL.
+    - Foto de fundo do CARD (avatar) e Plano de fundo (banner atras da
+      mensagem INTEIRA do /perfil, distinto da foto de dentro do card)
+      escolhidos num menu - MUDANCA 2026-08-12 (secao 183): os dois viraram
+      um UNICO tipo de imagem ("personalizacao") no pool - qualquer imagem
+      que o jogador possua (livre por tier, comprada na Loja, ou enviada
+      por ele mesmo e aprovada, ver Loja de Personalizacao mais abaixo)
+      pode ser usada como foto OU como plano de fundo, sem distincao.
+      Alimentado pelo dono via /dev/lojas no site (antes /perfil-pool add
+      avatar/fundo no bot developer, removido - ver secao 183). JA
+      IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
   abaixo), nao existe versao "banco de titulos prontos" pra texto livre.
-- Perfil personalizavel pela loja (badge/titulo exclusivos) - loja em si
-  ainda "vindo em breve" (ver topo desta seção). Completar missoes
+- Perfil personalizavel pela Loja de Personalizacao - JA IMPLEMENTADA E
+  FUNCIONAL (ver Loja de Personalizacao mais abaixo). Completar missoes
   recompensa com Caçadas, alem do ganho por hora de jogo do Free (esse
   JÁ IMPLEMENTADO pra qualquer tier, ver bullet Free acima e seção 135) -
   ver moeda Caçadas no topo desta seção. Ganho por MISSÃO especificamente
@@ -206,8 +216,9 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
       formula XP_Total = 10 x Nivel^2.2, progressao infinita sem teto;
     - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
       liberada em QUALQUER tier (JA IMPLEMENTADA), lista de opcoes
-      alimentada pelo dono via /perfil-pool add badge (ver secao 97), mas o
-      DESENHO do emblema escolhido em cima do card ainda NAO implementado;
+      alimentada pelo dono via /dev/lojas no site (antes /perfil-pool add
+      badge, removido - ver secao 183), mas o DESENHO do emblema escolhido
+      em cima do card ainda NAO implementado;
     - nome do jogador e identificacao (Alderon ID + usuario do Discord) -
       desenhados dentro do proprio card (nao repete essas informacoes fora
       dele, no bloco de baixo).
@@ -224,56 +235,49 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   Guarda so o ID da mensagem, nao a URL - links de anexo do Discord expiram
   em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
   toda vez que o /perfil e exibido.
-- Foto escolhida por menu (Compy) via /perfil-edit - sem upload do jogador,
-  so seleciona entre as imagens que o dono ja tiver adicionado ao pool via
-  /perfil-pool add avatar/fundo (bot developer, ver secao 97/98) - pool
-  100% dinamico, nao depende mais de nenhuma foto fixa em assets/images.
-  Guarda so a CHAVE "pool:<id>" (player_links.selected_photo_key/
-  selected_background_key), nunca um arquivo proprio do jogador.
-- Pool dinamico de imagens (avatar/plano de fundo/emblema) via /perfil-pool
-  (bot developer, ver secao 97/98) - o dono adiciona/remove/lista imagens
-  sem precisar editar codigo ou redeployar. Mesmo padrao de armazenamento
-  do upload proprio do Raptor (guarda so o ID da mensagem no canal fixo
-  BANNER_STORAGE_CHANNEL_ID, URL resolvida de novo a cada /perfil). As 12
-  fotos genericas que antes eram hardcoded (PLAYER_PHOTO_OPTIONS) foram
-  migradas pro pool dinamico de PLANO DE FUNDO (ver secao 98) - o pool de
-  AVATAR comeca vazio ate o dono cadastrar fotos novas via /perfil-pool add
-  avatar.
-- Loja (trocar Caçadas por fotos/badges/titulos/recursos de cla) e so a
-  FUNDACAO (o sistema de tier), ainda NAO tem loja implementada de fato -
-  a foto por menu do Compy (acima) e um recurso PROPRIO, nao depende da
-  loja.
-- Serão DUAS lojas separadas (pedido do dono, 2026-08-06, ver seção 117):
-  Loja de Personalização (moeda Caçadas, só imagens de perfil - avatar/
-  plano de fundo/badge, mesmo pool dinâmico já usado no /perfil-edit) e
-  Loja de Jogo (moeda Bones, bônus DENTRO do Path of Titans via RCON -
-  ver catálogo completo e ressalva de conformidade na seção 117). Uma
-  prévia visual das duas (`/loja`) JÁ IMPLEMENTADA - ver seção 117. O
-  catálogo de bônus (Growth/Skipshed/Missão de Marks) continua só
-  prévia, mas o CONVERSOR Ossos<->Marks dentro da Loja de Jogo já é
-  FUNCIONAL DE VERDADE (saldo real + RCON de verdade, taxa 1 Osso = 100
-  Marks nos 2 sentidos) - ver seção 122. O FARM por hora jogada (Caçadas/
-  Ossos/XP) também já é real desde 2026-08-07 (ver seção 135) - os 3
-  cards de moeda em `/loja` mostram o saldo/XP atual do jogador, não só a
-  descrição de como cada moeda funciona; o que continua só prévia é
-  GASTAR essas moedas (compras em si, incluindo o catálogo de bônus).
+- Foto/plano de fundo escolhidos por menu (Compy) via /perfil-edit - sem
+  upload do jogador, so seleciona entre as imagens que o dono ja tiver
+  adicionado ao pool via /dev/lojas no site (antes /perfil-pool add
+  avatar/fundo, removido - ver secao 183) - pool 100% dinamico, nao
+  depende mais de nenhuma foto fixa em assets/images. Guarda so a CHAVE
+  "pool:<id>" (player_links.selected_photo_key/selected_background_key),
+  nunca um arquivo proprio do jogador. MUDANCA 2026-08-12 (secao 183):
+  foto e plano de fundo viraram um UNICO tipo de imagem no pool
+  ("personalizacao") - a mesma imagem serve pras duas coisas.
+- Pool dinamico de imagens (personalizacao/emblema/banner/titulo) via
+  /dev/lojas no site (antes /perfil-pool no bot developer, removido - ver
+  secao 183) - o dono adiciona/remove/lista imagens sem precisar editar
+  codigo ou redeployar. Mesmo padrao de armazenamento do upload proprio
+  do Raptor (guarda so o ID da mensagem no canal fixo
+  BANNER_STORAGE_CHANNEL_ID, URL resolvida de novo a cada /perfil).
+- Loja de Jogo (Growth/Skipshed/Missao, moeda Bones) e Loja de
+  Personalizacao (fotos/planos de fundo, moeda Cacadas) - as DUAS ja sao
+  FUNCIONAIS DE VERDADE desde a reforma das lojas (2026-08-12, ver secao
+  183). A Loja de Jogo passou de "so previa visual + conversor" pra um
+  catalogo real, configuravel POR SERVIDOR pelo proprio admin (`/lojajogo`
+  no site): cada item liga/desliga e tem seu proprio preco em Bones,
+  Growth pode ser restrito por especie de dinossauro (lista por etapa). O
+  CONVERSOR Ossos<->Marks continua funcional do mesmo jeito (taxa 1 Osso =
+  100 Marks nos 2 sentidos - ver secao 122). O FARM por hora jogada
+  (Cacadas/Ossos/XP) tambem ja e real desde 2026-08-07 (ver secao 135).
 
 A LOJA DE PERSONALIZAÇÃO já é FUNCIONAL DE VERDADE desde 2026-08-07 (ver
-seção 138) - pedido do dono, implementado logo depois de ter sido
-anotado como pendente aqui mesmo: QUALQUER jogador (qualquer tier) pode
-comprar um item do pool com Caçadas e ele entra no INVENTÁRIO pessoal.
-Compy+ continua com acesso LIVRE a todo o pool de avatar/plano de fundo
-(como já era, sem precisar comprar nada) - a loja é um caminho
-ADICIONAL, não uma restrição nova. Por item, o dono define (via
-`/perfil-pool preco` no Discord ou `/dev/image-pool` no site): preço em
-Caçadas e o tier mínimo pra USAR o item depois de comprado
-(shop_min_tier) - COMPRAR nunca depende de tier, só de ter Caçadas
-suficientes; quem compra um item acima do próprio tier fica com ele no
-inventário até (se) fizer upgrade. Preço só existe pra avatar/plano de
-fundo (únicos com um caminho de seleção ligado à compra) - emblema
-(já livre em qualquer tier), banner (escolha de SERVIDOR, não de
-jogador) e título (ainda sem pool de seleção pro jogador) ficam de fora
-do formulário de preço de propósito, pra não vender algo sem uso depois.
+seção 138), e ganhou uma REFORMA GRANDE em 2026-08-12 (ver seção 183):
+QUALQUER jogador (qualquer tier) pode comprar uma imagem do pool com
+Caçadas e ela entra no INVENTÁRIO pessoal, usável como foto OU plano de
+fundo (unificados, sem distinção de compra). Compy+ continua com acesso
+LIVRE a todo o pool (como já era, sem precisar comprar nada) - a loja é
+um caminho ADICIONAL, não uma restrição nova. Por item, o dono define
+(painel `/dev/lojas` no site): preço em Caçadas e o tier mínimo pra USAR
+o item depois de comprado (shop_min_tier) - COMPRAR nunca depende de
+tier, só de ter Caçadas suficientes. NOVO em 2026-08-12: qualquer jogador
+também pode ENVIAR uma imagem própria pra venda (paga uma taxa em
+Caçadas, imagem precisa ter proporção 800×427, fica pendente até o dono
+aprovar em `/dev/lojas`) - se aprovada, o autor recebe 10% de Caçadas a
+cada venda e o preço sobe 5% por venda (nunca desce sozinho, popularidade
+determina o preço). Emblema e título SAÍRAM do formulário de preço por
+completo (não são mais compráveis direto) - viraram resgate por
+requisito, ver bullet Emblema/Free acima.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -474,6 +478,15 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   aplicar e logado (canal de Admin Commands -> log de Staff -> log Geral,
   nessa ordem de preferencia; sem nenhum configurado, avisa o staff a
   configurar um em vez de logar em silencio).
+- Loja de Jogo (Growth/Skipshed/Missao, moeda Bones) FUNCIONAL DE VERDADE
+  aqui - JA IMPLEMENTADO (reforma das lojas, 2026-08-12, ver secao 183):
+  o admin configura preco/liga-desliga de cada item no painel `/lojajogo`
+  do site (mesma flag `genericRconEnabled` do catalogo RCON acima - o
+  PAINEL de configuracao fica aberto pra qualquer tier pre-configurar,
+  mas a COMPRA em si (POST /loja/comprar-jogo) so funciona com o Caçador
+  ativo, mesmo criterio ja usado no filtro de chat abaixo). Growth pode
+  ser restrito a especies de dinossauro especificas, lista separada por
+  etapa (Juvenil/Adolescente/Subadulto/Adulto).
 - Filtro de palavras do chat em jogo, JA IMPLEMENTADO (ver secoes 93 e 94)
   - /config filtro cadastra palavras/frases que, ao serem escritas no chat
   Global ou de Grupo (NUNCA em sussurro), aplicam automaticamente um nivel
@@ -9114,3 +9127,146 @@ frente, nao so este relatorio):
   ainda pendente (sem acesso a servidor real neste ambiente) — validar
   principalmente se o console do PoT aceita mesmo o formato com aspas
   duplas pros dois motivos.
+
+183) Reforma das lojas: Loja de Jogo por servidor, unificação foto/plano
+     de fundo, emblema/título viram resgate por requisito, marketplace de
+     imagens enviadas por jogador
+------------------------------------------------------------------
+- Pedido do dono (2026-08-12), pontos principais: "Controle da loja que é
+  um acesso só do desenvolvedor, deve ser um painel de configuração
+  completa de todas as lojas... Administradores poderão controlar o
+  preço apenas da loja de jogo e os itens disponiveis (não vamos incluir
+  a loja de personalização aqui)... Emblemas e titulos não vão ser itens
+  compraveis apenas itens recompensaveis por missões, onde só o
+  desenvolvedor pode colocar na loja com requisitos para o player
+  resgatar... A loja em jogo deve permitir ser configuravel growths,
+  skipshed, quest de jogo, e os growhts podem configurados para ser
+  limitados a certos dinossauros... A loja de personalização... vamos
+  adicionar um item fixo no topo dela onde um jogador pode pagar hunst
+  para criar um item a venda, e enviar uma imagem com limite de
+  proporção 800 x 427... Qualquer imagem da loja, se adiquirido, agora
+  pode ser usada como plano de fundo ou como perfil, não vamos dividir o
+  uso das mesmas... quando um usúario subir uma imagem para venda, eu
+  posso aprovar ela ou não... se aprovar a imegem sobe com o username do
+  usuário e sempre que alguem comprar aquela imagem ele recebe 10% do
+  valor da imagem em modas de caçada. O valor da imagem será estipulado
+  por popularidade, quanto mais pessoas comprarem maior vai ficando o
+  preço, e não pode abaixar o preço."
+- Pergunta de viabilidade (RAM) respondida antes de implementar: bot
+  atende só 2 servidores hoje (`deploy.js` GUILD_IDS); config de loja por
+  servidor é um JSON de poucos KB na tabela `settings` já existente —
+  catálogo de TODOS os servidores no painel do dev não representa risco
+  de RAM na escala atual nem projetável.
+- FEATURE 1 — LOJA DE JOGO real, por servidor (`src/systems/pot/
+  gameShopSystem.js`, novo): 6 itens fixos (Growth ×4 etapas via
+  `rewardgrowth`, Skipshed via `SkipShed`, Missão via `GiveQuest` — todos
+  reaproveitando comandos já catalogados em `rconCommandCatalog.js`),
+  cada um com enabled/price configurável POR SERVIDOR (chave
+  `pot_game_shop_config` na tabela `settings`, mesmo padrão de
+  `PoTConfigSystem.setServerConfig`). Growth ganha restrição de espécie
+  SEPARADA POR ETAPA (lista vazia = sem restrição), decisão confirmada
+  com o dono depois de eu sugerir uma lista única — ele preferiu por
+  etapa. Catálogo de espécies conhecidas não precisou de tabela nova:
+  deriva de `pot_dinosaur_picks` (já grava toda espécie que um jogador já
+  spawnou por servidor) via `potPlayerRegistry.getKnownSpecies(guildId)`.
+  Compra (`purchaseGameShopItem`) segue o mesmo padrão débito-antes-
+  devolve-se-falhar de `currencySystem.convertBonesToMarks`: confere
+  online + espécie permitida (se aplicável) → `spendBones` → RCON via
+  `PoTConfigSystem.executeRconCommand` → `addBones` de volta se o RCON
+  falhar. Painel de admin novo `/lojajogo/:guildId` (GET exige `isStaff`
+  — view-only pra quem não é admin, mesmo padrão de `/gameserver`; POST
+  exige `isAdmin`), com seletor de espécie alimentado por
+  `getKnownSpecies`. O dono (`isOwnerSession`) tem bypass na mesma rota
+  pra configurar QUALQUER servidor onde o bot está, mesmo sem ser membro
+  — cobre o pedido "para casos que eu precise dar suporte em outros
+  servidores". `/loja` (site) ganha a seção real de compra, um catálogo
+  por servidor já jogado (só itens que o admin ligou), substituindo o
+  "Em breve" estático de antes.
+- FEATURE 2 — UNIFICAÇÃO foto de perfil / plano de fundo: os dois tipos
+  de pool ('avatar'/'background') viram um só ('personalizacao') —
+  migração idempotente em `database/index.js`
+  (`migratePersonalizationShopUnification`, roda em todo boot) atualiza
+  `profile_image_pool.type` e `image_inventory.pool_type` das linhas já
+  existentes. `configSystem.getAvatarOptions`/`getBackgroundOptions`
+  viram uma função só (`getPersonalizationOptions`) usada pelos dois
+  seletores (foto E plano de fundo) — qualquer imagem possuída serve
+  pras duas coisas agora, sem distinção de compra.
+- FEATURE 3 — EMBLEMA/TÍTULO deixam de ter preço direto: `setShopConfig`
+  (imageShopSystem.js) só aceita tipo 'personalizacao' daqui pra frente;
+  a migração limpa `shop_price`/`shop_min_tier` das linhas badge/titulo
+  que ainda tinham (quem já possuía continua possuindo — audit trail
+  intocado). Novo módulo `achievementSystem.js`: requisito (JSON na
+  coluna nova `profile_image_pool.requirement` — tipo `kills`/
+  `playtime_hours`/`level`/`species_picks`, valor, espécie quando
+  aplicável) verificado ao vivo contra dados JÁ rastreados (nenhuma
+  tabela nova) — `checkRequirementMet`. Dev define o requisito por item
+  no painel `/dev/lojas`; jogador vê o item elegível e resgata (grátis,
+  `image_inventory.source='redeemed'`, coluna nova só pra auditoria) via
+  um menu "Resgatar" novo na tela "Emblema & Título" do `/perfil`
+  (Discord, reabilitada — estava com `.setDisabled(true)` esperando
+  exatamente essa fonte de dados) e via `POST /perfil/resgatar` no site.
+  Botões "Emblema & Título" e "Inventário" do `/perfil` REABILITADOS
+  (removido o `.setDisabled(true)` dos dois). CORREÇÃO durante a
+  implementação: o filtro que decidia quais emblemas um jogador podia
+  EQUIPAR (`_usableBadgeOptions`) checava "tem preço?" — com todo
+  emblema perdendo o preço na migração, isso teria virado "todo emblema
+  liberado pra todo mundo" por engano; trocado pra "tem requisito?" (sem
+  requisito = livre, como emblemas sempre-livres já eram; com requisito
+  = só quem possui, comprado antes ou resgatado agora).
+- FEATURE 4 — MARKETPLACE de imagens enviadas por jogador, na Loja de
+  Personalização: card fixo "Enviar imagem para venda" no topo de `/loja`
+  (taxa em Caçadas, configurável pelo dono em `/dev/lojas`, tabela nova
+  `personalization_shop_config`, 1 linha global). `POST
+  /loja/enviar-imagem` valida proporção 800×427 no arquivo CRU via
+  `sharp().metadata()` (tolerância ~2%) ANTES de subir/converter pra webp
+  (evita gastar o custo do upload num arquivo que ia ser rejeitado
+  mesmo), cobra a taxa, cria a entrada como `pending_review=1`/
+  `is_public=0` (`ProfileImagePool.addSubmittedImage`, novo) — invisível
+  na loja até o dono decidir. Painel `/dev/lojas` ganha uma fila de
+  aprovação: Aprovar (`is_public=1`/`pending_review=0`, aparece com o
+  username de quem enviou) ou Reprovar (devolve a taxa via `addHunt`,
+  apaga a linha por completo — "removemos tudo sobre o item", pedido
+  literal do dono). Item aprovado, ao ser comprado
+  (`imageShopSystem.purchaseImage`), credita 10% do preço em Caçadas pro
+  autor (`CREATOR_REVENUE_SHARE`) e sobe o preço 5% por venda,
+  arredondado pra cima, nunca desce sozinho (`POPULARITY_PRICE_STEP`) —
+  o dono pediu 15% inicialmente sugerido por mim, mas achou "muito alto"
+  e pediu um crescimento mais lento, resultando nos 5%. Itens curados
+  pelo próprio dono (sem `submitted_by`) nunca são repreçados
+  automaticamente — preço deles continua 100% manual.
+- FEATURE 5 — painel `/dev/lojas` (novo, `web/views/dev-lojas.ejs`)
+  substitui por completo a antiga `/dev/image-pool`: catálogo de TODOS os
+  servidores (link direto pra `/lojajogo/:guildId` de cada um), pool de
+  Personalização/Banner/Título (upload/preço/visibilidade, mesmo padrão
+  de antes), fila de aprovação do marketplace, editor de requisito de
+  emblema, e config da taxa de envio — tudo numa página só, ainda
+  restrita ao dono (`isOwnerSession`, nunca abre pra outros admins).
+- FEATURE 6 — comando Discord `/perfil-pool` (dev-only) REMOVIDO por
+  completo, junto com a view antiga `web/views/dev-image-pool.ejs` — o
+  site (`/dev/lojas`) já cobre tudo que os dois faziam, e mais. Pedido
+  explícito do dono: "não precisamos dos comandos de dev pool imagens".
+- Verificado: `node --check` em todos os ~15 arquivos tocados/criados
+  (gameShopSystem.js, achievementSystem.js, imageShopSystem.js,
+  profileImagePool.js, configSystem.js, playerRegistrationSystem.js,
+  potPlayerRegistry.js, database/index.js, database/schema.js,
+  dashboard.js) — passou em todos. `ejs.renderFile` com mocks em toda
+  view nova/alterada (lojajogo.ejs, dev-lojas.ejs, loja.ejs, perfil.ejs),
+  cobrindo os estados vazio/preenchido/erro de cada uma. Testes
+  funcionais diretos contra o SQLite real (scripts temporários, apagados
+  depois): migração de unificação idempotente (rodada 2x sem duplicar/
+  perder linha); ciclo completo do marketplace (enviar → reprovar com
+  reembolso → reenviar → aprovar → comprar por um segundo usuário →
+  repasse de 10% e reprecificação de 5% conferidos nos valores exatos);
+  ciclo completo de resgate (requisito não cumprido bloqueia, cumprido
+  libera, resgate grava `source='redeemed'`, resgate duplicado é
+  rejeitado); gate de emblema livre-vs-com-requisito confirmado nos 2
+  sentidos (livre sempre aparece; com requisito só aparece pra quem
+  possui, seja de compra legada ou resgate novo).
+- Pendente (ambiente do dono, fora deste código): a compra de Growth/
+  Skipshed/Missão dispara RCON de verdade — não dá pra testar contra um
+  servidor Path of Titans real neste ambiente, mesma ressalva de sempre
+  pra qualquer feature de RCON desta revisão. Preços/taxa de envio
+  padrão (500 Caçadas, seedados na migração) valem revisão do dono antes
+  de considerar a loja "no ar" pros jogadores de verdade — nenhum item
+  da Loja de Jogo vem ligado por padrão (`enabled: false`), então nada
+  fica comprável sem o admin do servidor configurar de propósito.
