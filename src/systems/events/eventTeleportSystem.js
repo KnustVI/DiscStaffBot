@@ -278,14 +278,14 @@ module.exports = {
      */
     async handleModal(interaction, action) {
         if (action !== 'config-submit') {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Modal desconhecido.`);
+            return await ResponseManager.error(interaction, 'Modal desconhecido.');
         }
 
         const [, , messageId, scheduledEventId] = interaction.customId.split(':');
         const { guild, member, user } = interaction;
 
         if (!ConfigSystem.memberHasConfiguredRole(guild.id, member, 'event_role')) {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Só a Equipe de Eventos pode configurar o teleporte.`);
+            return await ResponseManager.error(interaction, 'Só a Equipe de Eventos pode configurar o teleporte.');
         }
         if (!_isEnabled(guild.id)) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
@@ -295,7 +295,7 @@ module.exports = {
         const carnivoreCoords = interaction.fields.getTextInputValue('carnivoro').trim();
 
         if (!herbivoreCoords && !carnivoreCoords) {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Preencha pelo menos uma das duas coordenadas.`);
+            return await ResponseManager.error(interaction, 'Preencha pelo menos uma das duas coordenadas.');
         }
 
         saveConfig({
@@ -315,7 +315,7 @@ module.exports = {
             await _updatePostButtons(message, _buildLiveRow(messageId, scheduledEventId, config));
         } catch (err) {
             console.error('❌ [EventTeleport] Erro ao atualizar botões da postagem:', err.message);
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Coordenadas salvas, mas não consegui atualizar os botões na postagem (${err.message}). Tente de novo em instantes.`);
+            return await ResponseManager.error(interaction, `Coordenadas salvas, mas não consegui atualizar os botões na postagem (${err.message}). Tente de novo em instantes.`);
         }
 
         const summary = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });

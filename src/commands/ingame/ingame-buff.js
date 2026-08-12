@@ -140,13 +140,13 @@ async function _executeAplicar(interaction) {
     if (!_isEnabled(guild.id)) {
         return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
     }
-    if (!ConfigSystem.memberHasAnyStaffRole(guild.id, member)) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+    if (!ConfigSystem.memberHasAnyStaffRole(guild.id, member) && !ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
+        return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).');
     }
 
     const target = resolveTarget(interaction);
     if (!target) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Informe \`usuario\` ou \`agid\` pra usar este comando.`);
+        return await ResponseManager.error(interaction, 'Informe `usuario` ou `agid` pra usar este comando.');
     }
 
     // Checagem pedida pelo dono: sem isso, o RCON "funciona" mas não tem
@@ -154,12 +154,12 @@ async function _executeAplicar(interaction) {
     // whisper/systemmessage (ver PREMIUM.txt seção 83).
     const onlinePlayer = PlayerRegistry.getOnlinePotPlayer(guild.id, target);
     if (!onlinePlayer) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Esse jogador não está online no servidor de jogo agora — não é possível aplicar um buff.`);
+        return await ResponseManager.error(interaction, 'Esse jogador não está online no servidor de jogo agora — não é possível aplicar um buff.');
     }
 
     const buffs = BuffSystem.getBuffs(guild.id);
     if (buffs.length === 0) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Nenhum buff configurado neste servidor ainda. Use \`/config buffs\` pra criar um.`);
+        return await ResponseManager.error(interaction, 'Nenhum buff configurado neste servidor ainda. Use `/config buffs` pra criar um.');
     }
 
     const select = new StringSelectMenuBuilder()
@@ -186,8 +186,8 @@ async function _executeListar(interaction) {
     if (!_isEnabled(guild.id)) {
         return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
     }
-    if (!ConfigSystem.memberHasAnyStaffRole(guild.id, member)) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+    if (!ConfigSystem.memberHasAnyStaffRole(guild.id, member) && !ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
+        return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).');
     }
 
     const buffs = BuffSystem.getBuffs(guild.id);
@@ -252,7 +252,7 @@ module.exports = {
         if (!_isEnabled(guildId)) {
             return await _ephemeralError(interaction, PremiumSystem.getGuildDenialMessage(guildId));
         }
-        if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member)) {
+        if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member) && !ConfigSystem.memberIsGuildAdmin(guildId, interaction.member)) {
             return await _ephemeralError(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
         }
 

@@ -376,7 +376,7 @@ module.exports = {
         if (action === 'create-submit') {
             const name = interaction.fields.getTextInputValue('name').trim();
             if (!name) {
-                return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Informe um nome pro buff.`);
+                return await ResponseManager.error(interaction, 'Informe um nome pro buff.');
             }
             const buff = BuffSystem.createBuff(guildId, name, interaction.user.id);
             return await refreshBuffPanel(interaction, `${EMOJIS.circlecheck || '✅'} Buff **${buff.name}** criado! Adicione os atributos abaixo.`, guildName, { screen: 'edit', buffId: buff.id });
@@ -386,12 +386,12 @@ module.exports = {
             const [, , buffId, attribute] = interaction.customId.split(':');
             const value = interaction.fields.getTextInputValue('value').trim();
             if (!value) {
-                return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Informe um valor pro atributo.`);
+                return await ResponseManager.error(interaction, 'Informe um valor pro atributo.');
             }
             BuffSystem.upsertBuffStat(buffId, attribute, value);
             return await refreshBuffPanel(interaction, `${EMOJIS.circlecheck || '✅'} **${attribute}** definido como \`${value}\`.`, guildName, { screen: 'edit', buffId });
         }
 
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Modal desconhecido.`);
+        return await ResponseManager.error(interaction, 'Modal desconhecido.');
     },
 };

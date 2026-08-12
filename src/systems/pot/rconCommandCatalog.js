@@ -652,21 +652,22 @@ async function executeRconSubcommand(interaction, entry, categoryLabel) {
     // servidor pode usar, não só Staff.
     if (!entry.publicAccess) {
         const ConfigSystem = require('../core/configSystem');
-        if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member)) {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).`);
+        if (!ConfigSystem.memberHasAnyStaffRole(guildId, interaction.member) && !ConfigSystem.memberIsGuildAdmin(guildId, interaction.member)) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).');
         }
     }
 
     if (entry.supervisorOnly) {
+        const ConfigSystem = require('../core/configSystem');
         const PunishmentSystem = require('../moderation/punishmentSystem');
-        if (!(await PunishmentSystem.memberHasSupervisorRole(guild, interaction.member))) {
-            return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Este comando é restrito ao cargo Supervisor (ver /config roles).`);
+        if (!(await PunishmentSystem.memberHasSupervisorRole(guild, interaction.member)) && !ConfigSystem.memberIsGuildAdmin(guildId, interaction.member)) {
+            return await ResponseManager.error(interaction, 'Este comando é restrito ao cargo Supervisor (ver /config roles).');
         }
     }
 
     const resolved = resolveOptionValues(interaction, entry);
     if (entry.requiresTarget && !resolved.target) {
-        return await ResponseManager.error(interaction, `${EMOJIS.circlealert || '❌'} Informe \`usuario\` ou \`agid\` pra usar este comando.`);
+        return await ResponseManager.error(interaction, 'Informe `usuario` ou `agid` pra usar este comando.');
     }
 
     const command = entry.buildCommand(resolved);
