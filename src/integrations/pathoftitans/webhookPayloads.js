@@ -34,6 +34,18 @@ function resolveEmoji(guild, key, fallback) {
     return found ? found.toString() : fallback;
 }
 
+// Nome do servidor configurado em /potserver setup (pot_servers.server_name)
+// — usado só nas mensagens do grupo "Servidor" (start/restart/erro/alerta/
+// performance/moderação automática), pedido do dono 2026-08-12: identificar
+// QUAL servidor gerou o log, útil pra quem administra mais de um. Sem nome
+// configurado, cai no texto genérico "Servidor" de sempre (null aqui) — não
+// muda nada pra quem nunca preencheu esse campo.
+function serverNameLabel(guild) {
+    if (!guild?.id) return null;
+    const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
+    return PoTConfigSystem.getServerConfig(guild.id)?.server_name || null;
+}
+
 // Os 10 tipos de dano documentados oficialmente pelo PoT (PlayerKilled/
 // PlayerDamagedPlayer) — ver https://hosting.pathoftitans.wiki/guide/webhooks.
 const DAMAGE_TYPE_LABELS = {
@@ -458,20 +470,43 @@ async function formatMessage(potEvent, data, guild) {
         PlayerJoinedGroup: () => `${e('users', '👥')} **${nameWithId(d.Player, d.PlayerAlderonId)}** entrou no grupo de **${nameWithId(d.Leader, d.LeaderAlderonId)}**`,
         PlayerLeftGroup:   () => `${e('users', '👥')} **${nameWithId(d.Player, d.PlayerAlderonId)}** saiu do grupo`,
 
-        // ── Servidor ──
-        ServerStart:             () => `🟢 Servidor **iniciou** | Mapa: \`${d.Map || 'desconhecido'}\``,
-        ServerRestart:           () => `${e('refreshccw', '🔄')} Servidor **reiniciando**...`,
+        // ── Servidor ── (todas usam serverNameLabel quando configurado em
+        // /potserver setup — pedido do dono 2026-08-12; sem nome configurado,
+        // cai no texto genérico "Servidor"/sem sujeito de sempre)
+        ServerStart: () => {
+            const name = serverNameLabel(guild);
+            return `🟢 ${name ? `**${name}**` : 'Servidor'} **iniciou** | Mapa: \`${d.Map || 'desconhecido'}\``;
+        },
+        ServerRestart: () => {
+            const name = serverNameLabel(guild);
+            return `${e('refreshccw', '🔄')} ${name ? `**${name}**` : 'Servidor'} **reiniciando**...`;
+        },
         // Campo confirmado na doc oficial: RestartTimeRemaining (inteiro,
         // segundos) — "CountdownTime" usado antes aqui nunca existiu no
         // payload real, por isso a contagem sempre aparecia como "?s".
         // Mantido como fallback só por segurança, nunca visto na prática.
-        ServerRestartCountdown:  () => `${e('clockalert', '⏳')} Servidor reinicia em **${d.RestartTimeRemaining ?? d.CountdownTime ?? '?'}s**`,
+        ServerRestartCountdown: () => {
+            const name = serverNameLabel(guild);
+            return `${e('clockalert', '⏳')} ${name ? `**${name}**` : 'Servidor'} reinicia em **${d.RestartTimeRemaining ?? d.CountdownTime ?? '?'}s**`;
+        },
         // ServerModerate não traz PlayerName no payload oficial (só
         // AlderonId) — mostra o ID puro, é a única identificação disponível.
-        ServerModerate:          () => `${e('shieldcheck', '🛡️')} Moderação automática: \`${d.AlderonId || 'Desconhecido'}\` — ${d.Type || d.Action || 'ação'} — ${d.AdminReason || d.UserReason || 'sem motivo'}`,
-        ServerError:             () => `${e('filewarning', '⚠️')} **ERRO:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`,
-        SecurityAlert:           () => `${e('siren', '🚨')} **ALERTA DE SEGURANÇA:** ${d.SecurityAlert || 'suspeita detectada'}`,
-        BadAverageTick:          () => `${e('trendingdown', '📉')} **PERFORMANCE:** Tick médio baixo (${d.AverageTick || '?'})`,
+        ServerModerate: () => {
+            const name = serverNameLabel(guild);
+            return `${e('shieldcheck', '🛡️')} Moderação automática${name ? ` em **${name}**` : ''}: \`${d.AlderonId || 'Desconhecido'}\` — ${d.Type || d.Action || 'ação'} — ${d.AdminReason || d.UserReason || 'sem motivo'}`;
+        },
+        ServerError: () => {
+            const name = serverNameLabel(guild);
+            return `${e('filewarning', '⚠️')} **ERRO${name ? ` em ${name}` : ''}:** ${d.ErrorMessage || d.ErrorMesssage || 'desconhecido'}`;
+        },
+        SecurityAlert: () => {
+            const name = serverNameLabel(guild);
+            return `${e('siren', '🚨')} **ALERTA DE SEGURANÇA${name ? ` em ${name}` : ''}:** ${d.SecurityAlert || 'suspeita detectada'}`;
+        },
+        BadAverageTick: () => {
+            const name = serverNameLabel(guild);
+            return `${e('trendingdown', '📉')} **PERFORMANCE${name ? ` em ${name}` : ''}:** Tick médio baixo (${d.AverageTick || '?'})`;
+        },
 
         // ── Admin ──
         // Campo confirmado ao vivo pra "Enabled/Disabled Nametags":
