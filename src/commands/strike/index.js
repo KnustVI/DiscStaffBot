@@ -222,15 +222,24 @@ module.exports = {
         // e é cortado (limite sugerido pelo dono: 100-120 caracteres). Uma
         // sanitização adicional roda em punishmentSystem.js antes de ir pro
         // RCON (aspas/quebra de linha quebram o comando no console do PoT).
-        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo — texto que o JOGADOR vê em jogo (banido/silenciado). Seja claro e direto, máx. 120 caracteres.').setRequired(true).setMaxLength(120))
+        // Descrição da OPÇÃO (não o texto em si) tem que caber em 100
+        // caracteres — limite real do Discord pra descrição de qualquer
+        // option; passar disso faz o SlashCommandBuilder falhar já no
+        // deploy.js com "Invalid string length" (bug real encontrado
+        // 2026-08-11: a validação do discord.js não dá um erro claro de
+        // "descrição longa demais", só estoura numa string gigante — sem
+        // relação nenhuma com maxLength do VALOR do campo, que é outro
+        // limite, esse sim de 120). Todas as descrições abaixo foram
+        // contadas e ficam ≤100.
+        .addStringOption(opt => opt.setName('motivo').setDescription('Motivo — texto que o JOGADOR vê em jogo (banido/silenciado). Seja claro e direto.').setRequired(true).setMaxLength(120))
         .addUserOption(opt => opt.setName('usuario').setDescription('Membro infrator no Discord (informe este e/ou agid)').setRequired(false))
         .addStringOption(opt => opt.setName('agid').setDescription('Alderon ID do jogador (informe este e/ou usuario)').setRequired(false))
         .addStringOption(opt => opt.setName('nivel').setDescription('Nível de punição (obrigatório a partir do Rastreador — comece a digitar pra ver as opções)').setRequired(false).setAutocomplete(true))
-        .addStringOption(opt => opt.setName('report').setDescription('ID do Report a vincular (opcional) — digite só o número (ex: 5) ou #REP5, exatamente como aparece no painel de logs de denúncias.').setRequired(false))
+        .addStringOption(opt => opt.setName('report').setDescription('ID do Report a vincular (opcional) — digite só o número (ex: 5) ou #REP5.').setRequired(false))
         // Observações: pedido do dono, 2026-08-11 — nota INTERNA da staff,
         // nunca enviada ao RCON/jogo nem mostrada ao jogador, só gravada no
         // registro da punição (coluna `notes`, já existia sem uso).
-        .addStringOption(opt => opt.setName('observacoes').setDescription('Observações internas da staff (opcional) — NÃO vai pro jogo nem aparece pro jogador, só fica no registro da punição.').setRequired(false).setMaxLength(500)),
+        .addStringOption(opt => opt.setName('observacoes').setDescription('Nota interna da staff (opcional) — NÃO vai pro jogo nem aparece pro jogador, só fica no registro.').setRequired(false).setMaxLength(500)),
 
     async autocomplete(interaction) {
         const focused = interaction.options.getFocused(true);
