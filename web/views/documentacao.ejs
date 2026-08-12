@@ -593,8 +593,8 @@ const toc = [
                 }) %>
                 <%- cmdCard({
                     id: 'perfil', name: 'perfil', permPt: 'Todos', permEn: 'Everyone',
-                    descPt: 'Mostra o cartão de perfil (Discord + vínculo com Path of Titans) — o seu, ou o de outra pessoa/Alderon ID.',
-                    descEn: "Shows the profile card (Discord + Path of Titans link) — yours, or someone else's/an Alderon ID.",
+                    descPt: 'Mostra o cartão de perfil (Discord + vínculo com Path of Titans) — o seu, ou o de outra pessoa/Alderon ID. Inclui tempo de jogo no servidor, data de registro, cargo de staff (quando configurado) e o saldo de Ossos/Caçadas. Quem é Moderador ou Equipe de Eventos também vê o próprio histórico de atividade (total e o de hoje).',
+                    descEn: "Shows the profile card (Discord + Path of Titans link) — yours, or someone else's/an Alderon ID. Includes playtime on the server, registration date, staff role (when configured), and the Bones/Hunt balance. Moderators and Event Staff also see their own activity history (running total and today's)." ,
                     opts: [
                         { name: 'usuario', type: 'Usuário', req: false, descPt: 'Padrão: você mesmo. Use este OU alderon_id, não os dois.', descEn: 'Default: yourself. Use this OR alderon_id, not both.' },
                         { name: 'alderon_id', type: 'Texto', req: false, descPt: 'Consulta pelo ID do jogo em vez de uma conta Discord.', descEn: 'Looks up by the in-game ID instead of a Discord account.' },

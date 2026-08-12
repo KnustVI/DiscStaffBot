@@ -975,21 +975,57 @@
     // docblock da .mockup-panel no <style>.
     const features = [
         {
+            // Atualizado (pedido do dono, 2026-08-11: "mais informações sobre
+            // o perfil") pra refletir o que o /perfil (Discord) e o /perfil
+            // do site já mostram de verdade hoje — tempo de jogo, data de
+            // registro, cargo de staff, histórico de atividade de staff
+            // (total + hoje) e o saldo das 2 moedas (Ossos/Caçadas). Ver
+            // playerRegistrationSystem.js:sendProfile e dashboard.js
+            // (rota /perfil) pros dados reais por trás de cada frase — nada
+            // aqui é "vindo em breve".
             img: 'screenshot-perfil', titlePt: 'PERFIL PRÉ-HISTÓRICO', titleEn: 'PREHISTORIC PROFILE',
-            leadPt: 'Todos nossos usuários podem desfrutar de um perfil com títulos e badges de sua caminhada no jogo.',
-            leadEn: 'Every user gets to enjoy a profile with titles and badges tracking their journey in the game.',
+            leadPt: 'Todos nossos usuários podem desfrutar de um perfil com títulos, badges e o histórico da sua caminhada no jogo.',
+            leadEn: "Every user gets to enjoy a profile with titles, badges, and a record of their journey in the game.",
             subPt: 'PERFIL ACESSÁVEL EM QUALQUER SERVIDOR QUE USE O BOT.', subEn: 'A PROFILE AVAILABLE ON ANY SERVER RUNNING THE BOT.',
-            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e badges. Complete missões em qualquer servidor que utilize o bot para desbloquear recompensas que registram sua jornada e conquistas. Alguns servidores também poderão oferecer missões exclusivas com prêmios únicos.',
-            bodyEn: 'Fully customizable profiles with images, titles, and badges. Complete missions on any server running the bot to unlock rewards that track your journey and achievements. Some servers may also offer exclusive missions with unique prizes.',
-            // Subtópico "Hunt" — mesmo tratamento visual de AUTOSUPERVISÃO
-            // (bloco Análise/Staff abaixo): um <h3> junto de mais parágrafos,
-            // dentro do MESMO card, não uma feature nova. <strong> só aqui
-            // porque body2 é renderizado sem escape (ver loop de features).
-            body2HeadingPt: 'PONTOS DE CAÇADA!', body2HeadingEn: 'HUNT POINTS!',
-            body2Pt: 'Em breve, o bot terá sua própria moeda: <strong>Caçadas</strong>. No plano Free, você ganha Caçadas jogando em qualquer servidor integrado ao sistema. Nos planos Compy e Raptor, completar missões também recompensa com Caçadas.',
-            body2En: 'Coming soon, the bot will have its own currency: <strong>Hunt</strong>. On the Free tier, you earn Hunt by playing on any server integrated with the system. On the Compy and Raptor tiers, completing missions also rewards you with Hunt.',
-            body3Pt: 'As Caçadas poderão ser trocadas apenas por personalização de perfil na loja (incluindo imagens criadas e enviadas pela comunidade, sempre com os devidos créditos) e, futuramente, por recursos de criação de clã dentro da comunidade — nunca por Marks, dinheiro real ou virtual, ou qualquer benefício ou vantagem dentro do jogo, skins incluídas.',
-            body3En: 'Hunt can only be exchanged for profile customization in the shop (including images created and submitted by the community, always credited to their creators) and, in the future, for community clan-creation features — never for Marks, real or virtual currency, or any in-game benefit or advantage, skins included.',
+            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e badges. O cartão mostra tempo de jogo no servidor, data de registro e o cargo de staff (quando configurado) — quem é Moderador ou Equipe de Eventos ainda vê seu próprio histórico de atividade, com o total e o que já rolou hoje. Complete missões em qualquer servidor que utilize o bot para desbloquear recompensas que registram sua jornada e conquistas. Alguns servidores também poderão oferecer missões exclusivas com prêmios únicos.',
+            bodyEn: "Fully customizable profiles with images, titles, and badges. The card shows your playtime on the server, registration date, and staff role (when configured) — Moderators and Event Staff also see their own activity history, both the running total and what happened today. Complete missions on any server running the bot to unlock rewards that track your journey and achievements. Some servers may also offer exclusive missions with unique prizes.",
+            // Subtópico "Ossos & Caçadas" — mesmo tratamento visual de
+            // AUTOSUPERVISÃO (bloco Análise/Staff abaixo): um <h3> junto de
+            // mais parágrafos, dentro do MESMO card, não uma feature nova.
+            // <strong> só aqui porque body2 é renderizado sem escape (ver
+            // loop de features). Reescrito (pedido do dono, 2026-08-11): o
+            // farm de moeda por hora jogada já é REAL agora, não é mais
+            // "em breve" — a frase antiga prometia algo que já existe.
+            body2HeadingPt: 'OSSOS & CAÇADAS!', body2HeadingEn: 'BONES & HUNT!',
+            body2Pt: 'O bot já tem suas próprias moedas: <strong>Ossos</strong> e <strong>Caçadas</strong>. Você ganha Ossos e Caçadas só por jogar em qualquer servidor integrado ao sistema, e o saldo das duas aparece direto no seu /perfil — tanto no Discord quanto no site.',
+            body2En: 'The bot already has its own currencies: <strong>Bones</strong> and <strong>Hunt</strong>. You earn Bones and Hunt just by playing on any server integrated with the system, and both balances show up right on your /perfil — on Discord and on the site.',
+            body3Pt: 'Ossos e Caçadas dão acesso a uma prévia do que está por vir logo abaixo — a Loja.',
+            body3En: 'Bones and Hunt unlock a preview of what\'s coming next — the Shop.',
+        },
+        {
+            // Novo (pedido do dono, 2026-08-11: "abaixo sobe a loja, que
+            // ainda não está ativa") — a Loja de Personalização já funciona
+            // por trás (ver web/views/loja.ejs, dashboard.js rotas /loja),
+            // mas ainda não foi lançada publicamente, então este card é
+            // tratado como prévia (mesmo espírito do selo "Em breve" já
+            // usado dentro do próprio loja.ejs) — sem link/CTA pra /loja
+            // ainda, e sem mockup real (mesmo motivo de Automoderação/
+            // Integração PoT/Dashboard Web acima, ver docblock da
+            // .mockup-panel no <style>).
+            titlePt: 'A LOJA', titleEn: 'THE SHOP',
+            leadPt: 'Troque Ossos e Caçadas por personalização de perfil de verdade — em breve, aberta pra todo mundo.',
+            leadEn: 'Trade Bones and Hunt for real profile customization — coming soon, open to everyone.',
+            subPt: 'EM BREVE PARA TODOS OS SERVIDORES.', subEn: 'COMING SOON FOR EVERY SERVER.',
+            bodyPt: 'Foto de perfil, plano de fundo e emblema comprados com Caçadas, guardados no seu inventário pra usar quando quiser — incluindo imagens criadas e enviadas pela própria comunidade, sempre com os devidos créditos. Ossos também poderão virar bônus dentro do próprio jogo. A Loja já está pronta por trás dos panos, mas ainda estamos em fase de testes antes de abrir pra todo mundo.',
+            bodyEn: "Profile picture, background, and badge purchased with Hunt, saved to your inventory to use whenever you want — including images created and submitted by the community itself, always credited to their creators. Bones will also unlock in-game bonuses. The Shop is already built behind the scenes, but we're still testing before opening it up to everyone.",
+            mockup: mockupPanel({
+                topbarPt: 'LOJA', topbarEn: 'SHOP',
+                rows: [
+                    { icon: 'lock', labelPt: 'Foto de perfil exclusiva', labelEn: 'Exclusive profile picture', subPt: 'compre com Caçadas', subEn: 'buy with Hunt', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                    { icon: 'lock', labelPt: 'Plano de fundo e emblema', labelEn: 'Background & badge', subPt: 'fica salvo no seu inventário', subEn: 'saved to your inventory', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                    { icon: 'lock', labelPt: 'Bônus dentro do jogo', labelEn: 'In-game bonuses', subPt: 'trocando Ossos', subEn: 'by trading Bones', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                ],
+            }),
         },
         {
             titlePt: 'SISTEMA DE REPORTE', titleEn: 'REPORT SYSTEM',
@@ -1146,12 +1182,15 @@
     <!-- Análise e Histórico de Atividade Staff — dois mockups empilhados + texto
          (pedido do dono, 2026-08-03: mesmo estilo .mockup-panel usado em
          AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima).
-         lg:flex-row-reverse (pedido do dono, mesmo dia): a seção Dashboard
-         Web logo acima já é mockup-esquerda/texto-direita (índice par no
-         array features) — sem o reverse aqui, as duas seguidas ficavam com
-         o mockup do MESMO lado, quebrando o zigue-zague que o resto da
-         página mantém (Perfil/Reporte/Punição etc. alternam a cada seção). -->
-    <div class="w-full flex flex-col lg:flex-row-reverse items-center gap-10" style="max-width: 1100px;">
+         lg:flex-row (SEM reverse — pedido do dono, 2026-08-11: inserir o
+         novo card "A LOJA" logo após Perfil no array `features` empurrou
+         Dashboard Web de índice par pra ÍMPAR, então agora ELE já vem com o
+         mockup do lado DIREITO — sem tirar o reverse daqui, as duas seguidas
+         ficariam com o mockup do MESMO lado, quebrando o zigue-zague que o
+         resto da página mantém (Perfil/Loja/Reporte/Punição etc. alternam a
+         cada seção). Se o array `features` ganhar/perder itens de novo,
+         reconferir a paridade do último índice antes de mexer aqui. -->
+    <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
         <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
             <%- mockupPanel({
                 topbarPt: 'REPUTAÇÃO', topbarEn: 'REPUTATION', stacked: true,
