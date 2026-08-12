@@ -32,11 +32,15 @@
 const PoTConfigSystem = require('./potConfigSystem');
 
 // Formato pedido pelo dono, símbolos exatos (letras em negrito matemático,
-// não é só "ON"/"OFF" em caixa alta comum — e o "|" é obrigatório).
+// não é só "ON"/"OFF" em caixa alta comum). O separador NÃO é o pipe ASCII
+// "|" — confirmado ao vivo (2026-08-12) que o Discord remove esse
+// caractere de nome de canal. Usa "┃" (BOX DRAWINGS HEAVY VERTICAL,
+// U+2503) no lugar — mesmo caractere que o dono já usa em canais reais do
+// próprio servidor (ex: "📣┃Anúncios"), confirmado que sobrevive.
 const OFFLINE_NAME = '🔴𝐎𝐅𝐅';
 const RESTARTING_NAME = '🟠reiniciando...';
 function formatOnlineName(playerCount) {
-    return `🟢𝐎𝐍 |${playerCount}-jogadores`;
+    return `🟢𝐎𝐍┃${playerCount}-jogadores`;
 }
 function formatMapTopic(mapName) {
     return `🗺️ Mapa atual: ${mapName || 'desconhecido'}`;
