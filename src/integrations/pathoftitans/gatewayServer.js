@@ -457,6 +457,36 @@ class PoTGatewayServer {
                 }
             }
 
+            // 1e. Nome do canal do webhook "Servidor" reflete restart real
+            // (pedido do dono, 2026-08-12) — só no ServerRestart de verdade,
+            // não no ServerRestartCountdown (esse é só o AVISO antes, o
+            // servidor ainda está de pé e jogável). ServerStart limpa a
+            // marca "reiniciando" e já consulta o Source Query na hora pra
+            // mostrar a contagem real assim que o servidor volta, em vez de
+            // esperar até 5min pelo próximo ciclo do onlineStatusWorker.
+            if (potEvent === 'ServerRestart') {
+                const ServerStatusChannel = require('../../systems/pot/serverStatusChannel');
+                ServerStatusChannel.markRestarting(guildId);
+                await ServerStatusChannel.setStatusChannelName(this.client, guildId, ServerStatusChannel.RESTARTING_NAME);
+            }
+            if (potEvent === 'ServerStart') {
+                const ServerStatusChannel = require('../../systems/pot/serverStatusChannel');
+                ServerStatusChannel.clearRestarting(guildId);
+                try {
+                    const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
+                    const SourceQueryClient = require('./sourceQueryClient');
+                    const config = PoTConfigSystem.getServerConfig(guildId);
+                    if (config?.server_ip && config?.game_port) {
+                        const result = await SourceQueryClient.queryPlayers(config.server_ip, config.game_port, 4000);
+                        if (result.success) {
+                            await ServerStatusChannel.setStatusChannelName(this.client, guildId, ServerStatusChannel.formatOnlineName(result.players.length));
+                        }
+                    }
+                } catch (err) {
+                    console.warn('⚠️ [Gateway] Falha ao atualizar nome do canal após ServerStart:', err.message);
+                }
+            }
+
             // 1d. PlayerRespawn = o admin voltou a jogar um dinossauro, ou
             // seja, saiu do modo espectador — fecha a sessão aberta em 1c (se
             // houver) e soma o tempo decorrido na analytics do staff. Gatilho

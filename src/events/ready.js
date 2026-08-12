@@ -50,7 +50,7 @@ module.exports = {
         // game_port em /potserver setup), nunca bloqueia o boot.
         try {
             const { startOnlineStatusWorker } = require('../systems/pot/onlineStatusWorker');
-            startOnlineStatusWorker();
+            startOnlineStatusWorker(client);
         } catch (error) {
             console.error('❌ [OnlineStatusWorker] Erro ao iniciar:', error.message);
         }
