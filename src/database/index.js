@@ -78,6 +78,7 @@ class DatabaseManager {
                 'player_level_ups',
                 'profile_image_pool',
                 'image_inventory',
+                'personalization_shop_config',
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',
@@ -296,6 +297,26 @@ class DatabaseManager {
             this.ensureColumn('profile_image_pool', 'shop_price', 'INTEGER');
             this.ensureColumn('profile_image_pool', 'shop_min_tier', 'TEXT');
 
+            // Reforma das lojas (pedido do dono, 2026-08-12): marketplace de
+            // imagens enviadas por jogador na Loja de Personalização —
+            // submitted_by (Discord ID de quem enviou, NULL = curado pelo
+            // dono), pending_review (aguardando aprovação, some do
+            // catálogo até o dono aprovar/reprovar) e submission_fee
+            // (Caçadas pagas no envio, guardado pra reembolso se reprovado).
+            // requirement (JSON) é o requisito de resgate automático de
+            // badge/titulo, que substitui a compra direta desses 2 tipos —
+            // ver imageShopSystem.js/checkRequirementMet.
+            this.ensureColumn('profile_image_pool', 'submitted_by', 'TEXT');
+            this.ensureColumn('profile_image_pool', 'pending_review', 'INTEGER NOT NULL DEFAULT 0');
+            this.ensureColumn('profile_image_pool', 'submission_fee', 'INTEGER');
+            this.ensureColumn('profile_image_pool', 'requirement', 'TEXT');
+
+            // Origem de cada item no inventário — 'purchase' (comprado com
+            // Caçadas) ou 'redeemed' (badge/titulo resgatado por requisito
+            // cumprido, sem custo). Só telemetria/auditoria por enquanto,
+            // nada depende disso pra funcionar.
+            this.ensureColumn('image_inventory', 'source', "TEXT NOT NULL DEFAULT 'purchase'");
+
             // Conta quantas vezes o usuário já viu o avatar da sidebar do
             // dashboard web (pedido do dono, 2026-08-06: animação de
             // indicação no avatar só nos 3 primeiros acessos, mostrando que
@@ -320,6 +341,12 @@ class DatabaseManager {
             // ver PremiumSystem.GUILD_TIERS). Idempotente: depois da primeira
             // execução não sobra nenhuma linha 'pegada'/'fossil' pra migrar.
             this.migrateGuildPremiumTierNames();
+
+            // Reforma das lojas (pedido do dono, 2026-08-12): unifica
+            // avatar/background num tipo só (personalizacao) e tira preço
+            // de badge/titulo (viram resgate por requisito, não compra
+            // direta). Idempotente — ver comentário da função.
+            this.migratePersonalizationShopUnification();
 
             // Renomeia o prefixo de identificação de reports (pedido do
             // dono, 2026-08-09: "Mudaremos o nome da identificação de
@@ -371,6 +398,26 @@ class DatabaseManager {
         try {
             this.db.prepare(`UPDATE guild_premium SET tier = 'rastreador' WHERE tier = 'pegada'`).run();
             this.db.prepare(`UPDATE guild_premium SET tier = 'cacador' WHERE tier = 'fossil'`).run();
+        } catch (err) {
+            // Tabela ainda não existe na primeiríssima execução — ignorar.
+        }
+    }
+
+    // Reforma das lojas (pedido do dono, 2026-08-12: "Qualquer imagem da
+    // loja, se adiquirido, agora pode ser usada como plano de fundo ou como
+    // perfil, não vamos dividir o uso das mesmas" + "Emblemas e titulos não
+    // vão ser itens compraveis"). Idempotente: depois da primeira execução
+    // não sobra nenhuma linha 'avatar'/'background' nem shop_price em
+    // badge/titulo pra migrar. Também garante a linha única (id=1) de
+    // personalization_shop_config, pra getSubmissionFee/etc sempre
+    // encontrarem uma config em vez de precisar de fallback espalhado pelo
+    // código.
+    migratePersonalizationShopUnification() {
+        try {
+            this.db.prepare(`UPDATE profile_image_pool SET type = 'personalizacao' WHERE type IN ('avatar', 'background')`).run();
+            this.db.prepare(`UPDATE image_inventory SET pool_type = 'personalizacao' WHERE pool_type IN ('avatar', 'background')`).run();
+            this.db.prepare(`UPDATE profile_image_pool SET shop_price = NULL, shop_min_tier = NULL WHERE type IN ('badge', 'titulo') AND shop_price IS NOT NULL`).run();
+            this.db.prepare(`INSERT OR IGNORE INTO personalization_shop_config (id, submission_fee, accepting_submissions) VALUES (1, 500, 1)`).run();
         } catch (err) {
             // Tabela ainda não existe na primeiríssima execução — ignorar.
         }

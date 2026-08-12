@@ -1,0 +1,162 @@
+<%#
+  web/views/lojajogo.ejs
+  Loja de Jogo (reforma das lojas, pedido do dono 2026-08-12) — Growth (4
+  etapas, cada uma com sua própria restrição de espécie)/Skipshed/Missão,
+  pagos em Ossos, configurados POR SERVIDOR pelo próprio admin
+  (GameShopSystem — settings.pot_game_shop_config). Diferente da Loja de
+  Personalização (Caçadas, global, só o dono mexe — ver /dev/lojas).
+
+  GET exige isStaff (view-only pra quem não é admin, mesmo padrão de
+  gameserver.ejs); POST exige isAdmin. O dono acessa QUALQUER servidor via
+  bypass em dashboard.js (isOwnerSession), mesmo sem ser membro lá.
+
+  Uso: res.render('lojajogo', { ... }) — ver dashboard.js GET
+  /lojajogo/:guildID pra lista completa de locals.
+%>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loja de Jogo | <%= bot.user.username %></title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'titan-bg': '#0D0D0D',
+                        'titan-accent': '#803E30',
+                        'titan-cream': '#F8DCC0',
+                        'titan-gold': '#D9A362',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .lj-species-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(128, 62, 48, 0.4);
+            border-radius: 12px;
+        }
+        .lj-species-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #2A2A2A;
+            border: 1px solid #803E30;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .lj-species-chip input { accent-color: #DCA15E; }
+        .lj-species-chip:has(input:checked) { background: #4B2427; border-color: #DCA15E; }
+        .lj-item-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .lj-item-toggle input { width: 20px; height: 20px; accent-color: #DCA15E; }
+    </style>
+</head>
+<body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
+
+    <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
+        <%- include('partials/sidebar-v2', { active: 'lojajogo', guild, nickname, role, isOwner, showAvatarHint }) %>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
+
+        <%- include('partials/page-header', { guild, pageLabel: 'LOJA DE JOGO', pageLabelEn: 'GAME SHOP', pageRoute, otherGuilds }) %>
+
+        <%- include('partials/save-result-overlay', { saved }) %>
+
+        <%- include('partials/view-only-banner', { isAdmin, role }) %>
+
+        <form action="/lojajogo/<%= guild.id %>/save" method="POST" class="flex flex-col gap-[20px] lg:gap-[30px]">
+
+            <div class="titan-card-premium flex-col gap-4">
+                <h2 class="section-title text-lg"><span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span></h2>
+                <p class="text-[13px] opacity-50">
+                    <span data-i18n-pt>Preço e disponibilidade dos itens de Growth/Skipshed/Missão comprados com Ossos, só neste servidor. Um item continua indisponível na loja (`/loja`) enquanto estiver desligado ou sem preço definido.</span>
+                    <span data-i18n-en>Price and availability of the Growth/Skipshed/Mission items bought with Bones, only on this server. An item stays unavailable in the shop (`/loja`) while it's off or has no price set.</span>
+                </p>
+            </div>
+
+            <% Object.keys(items).forEach(key => { const item = items[key]; const cfg = shopConfig[key]; %>
+                <div class="titan-card-premium flex-col gap-6">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <h3 class="section-title text-base"><%= item.label %></h3>
+                        <label class="lj-item-toggle">
+                            <input type="checkbox" name="<%= key %>_enabled" value="1" <%= cfg.enabled ? 'checked' : '' %>>
+                            <span class="text-[13px]"><span data-i18n-pt>À venda</span><span data-i18n-en>On sale</span></span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Preço (Ossos)</span><span data-i18n-en>Price (Bones)</span></label>
+                        <div class="input-container-premium">
+                            <div class="icon-box"><i data-lucide="bone"></i></div>
+                            <input type="number" class="input-premium-field" name="<%= key %>_price" min="1" step="1" value="<%= cfg.price || '' %>" placeholder="Ex: 100">
+                        </div>
+                    </div>
+
+                    <% if (item.needsMission) { %>
+                        <div>
+                            <label class="text-[13px] opacity-60"><span data-i18n-pt>Nome exato da missão em jogo</span><span data-i18n-en>Exact in-game mission name</span></label>
+                            <div class="input-container-premium">
+                                <div class="icon-box"><i data-lucide="scroll-text"></i></div>
+                                <input type="text" class="input-premium-field" name="<%= key %>_mission" maxlength="100" value="<%= cfg.missionName || '' %>" placeholder="Ex: Collect Mushrooms">
+                            </div>
+                            <p class="text-[13px] opacity-40 mt-1"><span data-i18n-pt>Precisa bater exatamente com o nome da missão configurada no servidor — o comando enviado é `GiveQuest`.</span><span data-i18n-en>Must match exactly the mission name configured on the server — the command sent is `GiveQuest`.</span></p>
+                        </div>
+                    <% } %>
+
+                    <% if (item.speciesRestrictable) { %>
+                        <div>
+                            <label class="text-[13px] opacity-60 mb-2 block"><span data-i18n-pt>Espécies liberadas (nenhuma marcada = todas liberadas)</span><span data-i18n-en>Allowed species (none checked = all allowed)</span></label>
+                            <% if (knownSpecies.length === 0) { %>
+                                <p class="text-[13px] opacity-40"><span data-i18n-pt>Nenhuma espécie registrada ainda neste servidor — assim que um jogador entrar no jogo com um dinossauro, ele aparece aqui.</span><span data-i18n-en>No species registered on this server yet — as soon as a player spawns as one, it shows up here.</span></p>
+                            <% } else { %>
+                                <div class="lj-species-grid">
+                                    <% knownSpecies.forEach(species => { %>
+                                        <label class="lj-species-chip">
+                                            <input type="checkbox" name="<%= key %>_species" value="<%= species %>" <%= (cfg.species || []).includes(species) ? 'checked' : '' %>>
+                                            <%= species %>
+                                        </label>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% } %>
+                </div>
+            <% }); %>
+
+            <button type="submit" class="btn-salvar-final self-start"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
+        </form>
+
+        <footer class="flex justify-end pb-2">
+            <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
+                BY: KNUST SEIER VI
+            </span>
+        </footer>
+    </main>
+
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script src="/js/dashboard-view-only-lock.js"></script>
+</body>
+</html>

@@ -357,16 +357,27 @@ const SCHEMA = {
         )
     `,
 
-    // ==================== POOL DE IMAGENS DE PERFIL (avatar/fundo/emblema) ====================
-    // Entradas adicionadas dinamicamente pelo dono via /perfil-pool (bot
-    // developer) — complementa os pools estáticos hardcoded em
-    // configSystem.js (PLAYER_PHOTO_OPTIONS etc, vindos de assets/images/ via
-    // imageManager) sem precisar editar código/redeployar a cada imagem
-    // nova. message_id segue o mesmo padrão já usado pro upload próprio do
-    // Raptor (banner_message_id/background_message_id): a imagem em si mora
-    // como anexo de uma mensagem no canal fixo BANNER_STORAGE_CHANNEL_ID, só
-    // o ID é guardado (URL do anexo expira em ~24h, resolvida de novo a cada
-    // uso — ver src/systems/pot/profileImagePool.js).
+    // ==================== POOL DE IMAGENS DE PERFIL (personalizacao/emblema/titulo/banner) ====================
+    // Entradas adicionadas via painel /dev/lojas (dashboard) ou, pra
+    // personalizacao, enviadas pelo próprio jogador (ver submitted_by
+    // abaixo) — complementa os pools estáticos hardcoded em configSystem.js
+    // (PLAYER_PHOTO_OPTIONS etc, vindos de assets/images/ via imageManager)
+    // sem precisar editar código/redeployar a cada imagem nova. message_id
+    // segue o mesmo padrão já usado pro upload próprio do Raptor
+    // (banner_message_id/background_message_id): a imagem em si mora como
+    // anexo de uma mensagem no canal fixo BANNER_STORAGE_CHANNEL_ID, só o ID
+    // é guardado (URL do anexo expira em ~24h, resolvida de novo a cada uso
+    // — ver src/systems/pot/profileImagePool.js).
+    // type 'avatar'/'background' foram UNIFICADOS em 'personalizacao'
+    // (reforma 2026-08-12, migrado por migratePersonalizationShopUnification
+    // em database/index.js): qualquer imagem comprada/possuída pode ser
+    // usada como foto OU plano de fundo, sem distinção — ver
+    // configSystem.getPersonalizationOptions. 'banner'/'titulo' continuam
+    // tipos separados. submitted_by/pending_review/submission_fee (via
+    // ensureColumn, ver index.js) suportam o marketplace de imagens
+    // enviadas por jogador; requirement (JSON) é só pra badge/titulo —
+    // define o requisito de resgate automático (ver imageShopSystem.js),
+    // que substituiu a compra direta desses 2 tipos.
     profile_image_pool: `
         CREATE TABLE IF NOT EXISTS profile_image_pool (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -393,6 +404,21 @@ const SCHEMA = {
             pool_id INTEGER NOT NULL,
             purchased_at INTEGER NOT NULL,
             UNIQUE(user_id, pool_type, pool_id)
+        )
+    `,
+
+    // Configuração GLOBAL (única linha, id=1) da Loja de Personalização —
+    // reforma pedida pelo dono 2026-08-12: qualquer jogador pode pagar
+    // Caçadas pra enviar uma imagem própria e colocá-la à venda (sujeita a
+    // aprovação do dono). submission_fee é o preço dessa ação em si
+    // (editável no painel /dev/lojas); accepting_submissions liga/desliga
+    // o recebimento de novos envios sem mexer no preço. Ver
+    // src/systems/pot/imageShopSystem.js.
+    personalization_shop_config: `
+        CREATE TABLE IF NOT EXISTS personalization_shop_config (
+            id INTEGER PRIMARY KEY,
+            submission_fee INTEGER NOT NULL DEFAULT 500,
+            accepting_submissions INTEGER NOT NULL DEFAULT 1
         )
     `,
 

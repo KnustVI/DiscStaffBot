@@ -116,6 +116,13 @@
         // no topo da lista, logo abaixo de Premium. Nome sempre em inglês
         // ("Game Server"), mesmo nos dois idiomas — pedido explícito.
         { key: 'gameserver', labelPt: 'Game Server', labelEn: 'Game Server', icon: 'server', href: guildHref('gameserver') },
+        // Loja de Jogo (Growth/Skipshed/Missão, pago em Ossos) — reforma
+        // das lojas pedida pelo dono, 2026-08-12: preço/itens à venda
+        // configurados POR SERVIDOR pelo próprio admin (ver
+        // gameShopSystem.js). Visível pra todo staff (view-only pra quem
+        // não é admin, mesmo padrão de Game Server acima) — a checagem de
+        // quem pode EDITAR fica na própria rota, não em esconder o botão.
+        { key: 'lojajogo', labelPt: 'Loja de Jogo', labelEn: 'Game Shop', icon: 'shopping-cart', href: guildHref('lojajogo') },
         { key: 'moderacao', labelPt: 'Moderação', labelEn: 'Moderation', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', labelPt: 'Eventos', labelEn: 'Events', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', labelPt: 'Denúncias', labelEn: 'Reports', icon: 'message-square-warning', href: guildHref('reports') },

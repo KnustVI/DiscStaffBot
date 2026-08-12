@@ -17,6 +17,7 @@ const ImageShopSystem = require('./src/systems/pot/imageShopSystem');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
 const CurrencySystem = require('./src/systems/pot/currencySystem');
+const GameShopSystem = require('./src/systems/pot/gameShopSystem');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
 const StaffPresenceSystem = require('./src/systems/moderation/staffPresenceSystem');
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
@@ -2068,6 +2069,103 @@ function loadDashboard(client) {
         } catch (error) {
             console.error('❌ Erro ao salvar configurações do Game Server:', error);
             res.redirect(`/gameserver/${guildID}?saved=error`);
+        }
+    });
+
+    // ==================== LOJA DE JOGO (por servidor) ====================
+    // Reforma das lojas (pedido do dono, 2026-08-12) — Growth (4 etapas,
+    // cada uma com sua própria restrição de espécie)/Skipshed/Missão, pago
+    // em Ossos, configurado POR SERVIDOR pelo próprio admin (GameShopSystem
+    // — não confundir com a Loja de Personalização, que é global e só o
+    // dono mexe, ver /dev/lojas). GET exige isStaff (visualização, mesmo
+    // padrão de /gameserver), POST exige isAdmin (edição). O dono
+    // (isOwnerSession) ignora o vínculo de membership/cargo com o servidor
+    // — consegue configurar a Loja de Jogo de QUALQUER servidor onde o bot
+    // está, mesmo sem ser membro lá (pedido: "para casos que eu precise
+    // dar suporte em outros servidores").
+    app.get('/lojajogo/:guildID', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.redirect('/dashboard');
+
+        const owner = isOwnerSession(req);
+        let member, isAdmin, isStaff;
+        if (owner) {
+            member = await guild.members.fetch(req.user.id).catch(() => null);
+            isAdmin = true;
+            isStaff = true;
+        } else {
+            const resolved = await resolveAdminMember(guild, req.user.id);
+            if (resolved.apiError) {
+                console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, resolved.apiError);
+                return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+            }
+            if (!resolved.isStaff) return res.redirect('/dashboard');
+            member = resolved.member; isAdmin = resolved.isAdmin; isStaff = resolved.isStaff;
+        }
+
+        const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
+        const shopConfig = GameShopSystem.getGuildShopConfig(guildID);
+        const knownSpecies = PlayerRegistry.getKnownSpecies(guildID);
+        const role = isAdmin ? 'Administrador' : (highestStaffRoleName(guildID, member) || 'Staff');
+
+        res.render('lojajogo', {
+            guild,
+            nickname: member?.nickname || member?.user?.username || (owner ? 'Desenvolvedor' : 'Staff'),
+            role,
+            isAdmin,
+            isOwner: owner,
+            pageRoute: 'lojajogo',
+            otherGuilds: await getAdminGuildsWithBot(req),
+            showAvatarHint,
+            items: GameShopSystem.GAME_SHOP_ITEMS,
+            shopConfig,
+            knownSpecies,
+            saved: req.query.saved,
+        });
+    });
+
+    app.post('/lojajogo/:guildID/save', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+
+        const owner = isOwnerSession(req);
+        if (!owner) {
+            const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+            if (apiError) {
+                console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+                return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+            }
+            if (!isAdmin) return res.status(403).send('Acesso negado.');
+        }
+
+        try {
+            const body = req.body;
+            const config = {};
+            for (const key of Object.keys(GameShopSystem.GAME_SHOP_ITEMS)) {
+                const item = GameShopSystem.GAME_SHOP_ITEMS[key];
+                const priceParsed = parseInt(body[`${key}_price`], 10);
+                const entry = {
+                    enabled: body[`${key}_enabled`] === '1',
+                    price: !isNaN(priceParsed) && priceParsed > 0 ? priceParsed : 0,
+                };
+                if (item.speciesRestrictable) {
+                    const raw = body[`${key}_species`];
+                    entry.species = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).filter(Boolean);
+                }
+                if (item.needsMission) {
+                    entry.missionName = (body[`${key}_mission`] || '').trim().slice(0, 100);
+                }
+                config[key] = entry;
+            }
+            GameShopSystem.setGuildShopConfig(guildID, config, req.user.id);
+            res.redirect(`/lojajogo/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao salvar Loja de Jogo:', error);
+            res.redirect(`/lojajogo/${guildID}?saved=error`);
         }
     });
 

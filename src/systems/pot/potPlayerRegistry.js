@@ -427,6 +427,33 @@ function getMostPlayedDinosaur(alderonId) {
 }
 
 /**
+ * Catálogo de espécies já vistas neste servidor — deriva de
+ * pot_dinosaur_picks (já grava toda espécie que algum jogador spawnou,
+ * incrementado em _recordDinosaurPick acima a cada PlayerRespawn), sem
+ * precisar de tabela nova. Usado pelo seletor de espécies do painel de
+ * admin da Loja de Jogo (restrição por espécie dos itens de Growth) — ver
+ * src/systems/pot/gameShopSystem.js.
+ *
+ * @param {string} guildId
+ * @returns {string[]}
+ */
+function getKnownSpecies(guildId) {
+    if (!guildId) return [];
+    try {
+        const rows = db.prepare(`
+            SELECT DISTINCT dinosaur_type
+            FROM pot_dinosaur_picks
+            WHERE guild_id = ? AND dinosaur_type IS NOT NULL AND dinosaur_type != ''
+            ORDER BY dinosaur_type COLLATE NOCASE
+        `).all(guildId);
+        return rows.map(r => r.dinosaur_type);
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar catálogo de espécies:', error);
+        return [];
+    }
+}
+
+/**
  * Cadastro/vínculo MANUAL — usado pelo comando /registrar (painel + modal).
  *
  * GLOBAL: o vínculo Discord<->Alderon ID vale em qualquer servidor com o bot,
@@ -1374,6 +1401,7 @@ module.exports = {
     getGlobalPlayerStats,
     getGuildPlayerStats,
     getMostPlayedDinosaur,
+    getKnownSpecies,
     recordKillEvent,
     registerPlayerManually,
     setBannerMessageId,
