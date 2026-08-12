@@ -1,24 +1,33 @@
 // src/systems/pot/serverStatusChannel.js
 /**
- * Nome do canal configurado pro webhook "Servidor" (/potserver logs)
- * refletindo o status ao vivo do servidor de jogo — pedido do dono,
+ * Nome e tópico do canal configurado pro webhook "Servidor" (/potserver
+ * logs) refletindo o status ao vivo do servidor de jogo — pedido do dono,
  * 2026-08-12: "consegue configurar para que o nome do canal mude de
  * acordo com os avisos enviados nesse canal? ... Status online, offline e
- * numero de players."
+ * numero de players" + "quero que crie um tópico ... para colocar o nome
+ * do mapa atual, tambem alterando quando o servidor é iniciado com outro
+ * mapa".
  *
- * O Discord só permite renomear um canal 2 vezes a cada 10 minutos (limite
- * da própria API, não dá pra contornar) — por isso a atualização de
- * online/offline/contagem roda só no ciclo de 5min que já existe
- * (onlineStatusWorker.js), nunca por evento avulso. O único evento que
- * dispara uma renomeação FORA desse ciclo é o restart de verdade
- * (ServerRestart/ServerStart em gatewayServer.js), que é raro o bastante
- * (poucas vezes por dia) pra nunca esbarrar no limite mesmo somado ao
- * ciclo de 5min.
+ * O Discord só permite alterar nome/tópico de um canal 2 vezes a cada 10
+ * minutos (limite da própria API, compartilhado entre os dois campos — não
+ * dá pra contornar). Por isso:
+ *  - o NOME (online/offline/contagem) só é escrito de fato pelo ciclo
+ *    LENTO de 5min (ver onlineStatusWorker.js) — a precisão do dado em si
+ *    (reconciliação online/offline + tempo de jogo) roda num ciclo RÁPIDO
+ *    separado (1min, pedido do dono: "o mais preciso possível"), que só
+ *    grava o resultado aqui via `reportLiveStatus` — nunca chama a API do
+ *    Discord diretamente, só o ciclo de 5min lê esse valor e decide se
+ *    renomeia (`getLiveStatus`);
+ *  - o TÓPICO (mapa atual) só muda no `ServerStart` (raro, poucas vezes
+ *    por dia) — e quando isso coincide com uma mudança de nome (o caso
+ *    normal, já que ServerStart também atualiza o nome pro estado online
+ *    real), os dois campos vão num ÚNICO `channel.edit()` (ver
+ *    `updateStatusChannel`), gastando só 1 das 2 vagas do limite, não 2.
  *
- * `restartingGuilds` evita que os dois gatilhos (worker de 5min x evento de
- * restart) briguem pelo nome do canal: enquanto uma guild está marcada como
- * "reiniciando", o worker de 5min pula a renomeação por completo (ver
- * onlineStatusWorker.js) até o ServerStart limpar essa marca.
+ * `restartingGuilds` evita que os dois gatilhos de NOME (ciclo de 5min x
+ * evento de restart) briguem entre si: enquanto uma guild está marcada
+ * como "reiniciando", o ciclo de 5min pula a atualização de nome por
+ * completo até o ServerStart limpar essa marca.
  */
 const PoTConfigSystem = require('./potConfigSystem');
 
@@ -28,6 +37,24 @@ const OFFLINE_NAME = '🔴𝐎𝐅𝐅';
 const RESTARTING_NAME = '🟠reiniciando...';
 function formatOnlineName(playerCount) {
     return `🟢𝐎𝐍 |${playerCount}-jogadores`;
+}
+function formatMapTopic(mapName) {
+    return `🗺️ Mapa atual: ${mapName || 'desconhecido'}`;
+}
+
+// Último status conhecido por guild (online + contagem), em memória —
+// pedido do dono, 2026-08-12: "mantenha o intervalo de 5 min para alterar
+// o nome do canal" enquanto a PRECISÃO do online/offline/tempo de jogo
+// roda num ciclo mais rápido à parte (ver onlineStatusWorker.js). O ciclo
+// rápido grava aqui a cada rodada; o ciclo de 5min só LÊ esse valor e
+// decide se renomeia — nunca faz sua própria consulta Source Query, pra
+// não consultar o servidor 2x pela mesma informação.
+const lastKnownStatus = new Map();
+function reportLiveStatus(guildId, { online, playerCount }) {
+    lastKnownStatus.set(guildId, { online, playerCount });
+}
+function getLiveStatus(guildId) {
+    return lastKnownStatus.get(guildId) || null;
 }
 
 // URL do webhook "servidor" -> channel_id, em memória. Se a URL mudar
@@ -77,14 +104,22 @@ async function _resolveChannelId(webhookUrl) {
 }
 
 /**
- * Renomeia o canal do webhook "Servidor" da guild pro texto informado — só
- * chama a API do Discord de verdade se o nome já não estiver certo (evita
- * gastar as 2 renomeações/10min à toa quando nada mudou, que é o caso
- * comum na maioria dos ciclos). Sem o grupo "Servidor" configurado, ou sem
- * permissão de Gerenciar Canais no canal, falha em silêncio (best-effort —
- * nunca pode derrubar o processamento do evento/worker que chamou isso).
+ * Atualiza nome e/ou tópico do canal do webhook "Servidor" da guild — os
+ * dois campos passados NUM SÓ pedido à API (channel.edit) quando ambos
+ * precisam mudar ao mesmo tempo (ex: ServerStart, que mexe nos dois),
+ * porque nome e tópico competem pelo MESMO limite de 2 alterações/10min
+ * do Discord (confirmado ao vivo com o bug de renomeação de tópico de
+ * report, ver reportChatSystem.js) — um pedido só gasta uma "vaga" desse
+ * limite, dois pedidos separados gastariam duas. Só chama a API de
+ * verdade pros campos que realmente mudaram (evita gastar a cota à toa
+ * quando nada mudou, o caso comum na maioria dos ciclos). Sem o grupo
+ * "Servidor" configurado, ou sem permissão de Gerenciar Canais, falha em
+ * silêncio (best-effort — nunca pode derrubar o processamento do evento/
+ * worker que chamou isso).
+ *
+ * @param {{name?: string, topic?: string}} fields
  */
-async function setStatusChannelName(client, guildId, name) {
+async function updateStatusChannel(client, guildId, fields = {}) {
     try {
         const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildId, 'servidor');
         if (!webhookUrl) return;
@@ -92,17 +127,31 @@ async function setStatusChannelName(client, guildId, name) {
         if (!channelId) return;
         const channel = await client.channels.fetch(channelId).catch(() => null);
         if (!channel) return;
-        if (channel.name === name) return;
-        await channel.setName(name, 'Status automático do servidor Path of Titans');
+
+        const payload = {};
+        if (fields.name !== undefined && channel.name !== fields.name) payload.name = fields.name;
+        if (fields.topic !== undefined && channel.topic !== fields.topic) payload.topic = fields.topic;
+        if (Object.keys(payload).length === 0) return;
+
+        await channel.edit(payload, 'Status automático do servidor Path of Titans');
     } catch (err) {
-        console.warn(`⚠️ [ServerStatusChannel] Não foi possível renomear o canal da guild ${guildId}: ${err.message}`);
+        console.warn(`⚠️ [ServerStatusChannel] Não foi possível atualizar o canal da guild ${guildId}: ${err.message}`);
     }
+}
+
+/** Atalho pra quando só o nome precisa mudar (worker de 5min, restart). */
+function setStatusChannelName(client, guildId, name) {
+    return updateStatusChannel(client, guildId, { name });
 }
 
 module.exports = {
     OFFLINE_NAME,
     RESTARTING_NAME,
     formatOnlineName,
+    formatMapTopic,
+    reportLiveStatus,
+    getLiveStatus,
+    updateStatusChannel,
     setStatusChannelName,
     markRestarting,
     clearRestarting,

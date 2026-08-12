@@ -630,16 +630,34 @@ function getPlayerGameStatus(guildId, alderonId) {
  * atualmente `is_online = 1` (tende a ser pequeno) e uma busca pontual por
  * nome pra cada jogador da lista viva (tende a ser pequeno também).
  *
+ * Precisão do tempo de jogo (pedido do dono, 2026-08-12: "deixar o mais
+ * preciso possível o tempo de jogo") — na direção ONLINE, `durationSeconds`
+ * (quando o chamador tiver essa informação, ver A2S_PLAYER em
+ * sourceQueryClient.js) é usado pra calcular o INÍCIO real da sessão
+ * (`agora - duração`), em vez de assumir que a sessão começou agora. Sem
+ * isso, um jogador só detectado como online numa reconciliação (webhook de
+ * PlayerLogin perdido) tinha o tempo de sessão SUBESTIMADO em até o
+ * intervalo entre execuções do worker — o servidor de jogo já sabe a
+ * duração real da conexão, não precisa ser um palpite nosso. Na direção
+ * OFFLINE não tem o que corrigir da mesma forma: uma vez que o jogador
+ * desconecta, ele simplesmente some da próxima resposta do Source Query,
+ * sem informar quando isso aconteceu de verdade.
+ *
  * @param {string} guildId
- * @param {string[]} liveNames - nomes em jogo retornados pelo Source Query agora
+ * @param {{name: string, durationSeconds?: number}[]} livePlayers - jogadores
+ *   em jogo retornados pelo Source Query agora (formato de queryPlayers, ver
+ *   sourceQueryClient.js) — durationSeconds ausente/inválido cai no
+ *   comportamento antigo (sessão começando agora).
  * @returns {{ correctedOffline: number, correctedOnline: number }}
  */
-function reconcileOnlineStatus(guildId, liveNames) {
+function reconcileOnlineStatus(guildId, livePlayers) {
     const result = { correctedOffline: 0, correctedOnline: 0 };
-    if (!guildId || !Array.isArray(liveNames)) return result;
+    if (!guildId || !Array.isArray(livePlayers)) return result;
 
-    const liveNamesTrimmed = liveNames.map((n) => String(n || '').trim()).filter(Boolean);
-    const liveSet = new Set(liveNamesTrimmed.map((n) => n.toLowerCase()));
+    const liveEntries = livePlayers
+        .map((p) => ({ name: String(p?.name || '').trim(), durationSeconds: Number.isFinite(p?.durationSeconds) ? p.durationSeconds : null }))
+        .filter((p) => p.name);
+    const liveSet = new Set(liveEntries.map((p) => p.name.toLowerCase()));
     const now = Date.now();
 
     try {
@@ -661,15 +679,17 @@ function reconcileOnlineStatus(guildId, liveNames) {
             result.correctedOffline++;
         }
 
-        for (const name of liveNamesTrimmed) {
+        for (const { name, durationSeconds } of liveEntries) {
             const row = db.prepare(`
                 SELECT alderon_id FROM pot_players WHERE guild_id = ? AND player_name = ? COLLATE NOCASE AND is_online = 0
             `).get(guildId, name);
             if (!row) continue;
 
+            const sessionStartedAt = durationSeconds !== null ? now - (durationSeconds * 1000) : now;
+
             db.prepare(`
                 UPDATE pot_players SET is_online = 1, session_started_at = ?, updated_at = ? WHERE guild_id = ? AND alderon_id = ?
-            `).run(now, Math.floor(now / 1000), guildId, row.alderon_id);
+            `).run(sessionStartedAt, Math.floor(now / 1000), guildId, row.alderon_id);
             result.correctedOnline++;
         }
     } catch (error) {

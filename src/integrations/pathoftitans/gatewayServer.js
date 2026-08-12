@@ -52,6 +52,17 @@ const CONTAINER_EVENTS = new Set(['PlayerLogin', 'PlayerLogout', 'PlayerLeave'])
 // enquanto. Pra reativar, é só tirar o evento daqui.
 const DISABLED_EVENTS = new Set(['PlayerProfanity']);
 
+// Diferente de DISABLED_EVENTS acima: aqui a PERSISTÊNCIA em pot_logs
+// continua rodando normalmente (ver PERSISTED_EVENTS abaixo) — só a
+// mensagem no canal do Discord é suprimida. Pedido do dono, 2026-08-12:
+// "trave por enquanto as respostas nesse canal sobre moderação
+// automática" — ainda estamos confirmando o que o payload real do
+// ServerModerate traz (ver diagnostico_moderacao_automatica.js) antes de
+// decidir o texto final da mensagem; os dados continuam sendo gravados
+// pra consulta enquanto isso. Pra reativar a mensagem, é só tirar o
+// evento daqui.
+const DISABLED_FOR_DISCORD_ONLY = new Set(['ServerModerate']);
+
 // Quantas vezes _postRawToWebhook tenta de novo depois de um 429 (rate
 // limit) antes de desistir de vez — ver comentário lá.
 const WEBHOOK_RETRY_LIMIT = 3;
@@ -397,6 +408,11 @@ class PoTGatewayServer {
                 }
             }
 
+            // 0d. Ver DISABLED_FOR_DISCORD_ONLY acima — persistência já
+            // rodou em 0c, só a postagem no Discord fica suprimida daqui
+            // pra baixo.
+            if (DISABLED_FOR_DISCORD_ONLY.has(potEvent)) return;
+
             // 1. Registro automático do jogador nos eventos relevantes
             // PlayerRespawn carrega DinosaurType/DinosaurGrowth (espécie/growth
             // atuais, mostrados no card do /perfil) — sem isso na lista, esses
@@ -472,18 +488,34 @@ class PoTGatewayServer {
             if (potEvent === 'ServerStart') {
                 const ServerStatusChannel = require('../../systems/pot/serverStatusChannel');
                 ServerStatusChannel.clearRestarting(guildId);
+                // Nome (online + contagem) e tópico (mapa atual, pedido do
+                // dono 2026-08-12: "quero que crie um tópico... para colocar
+                // o nome do mapa atual, tambem alterando quando o servidor é
+                // iniciado com outro mapa") vão JUNTOS num único
+                // channel.edit() — os dois campos competem pelo mesmo limite
+                // de 2 alterações/10min do Discord, então combinar economiza
+                // metade da cota nesse momento (ver docblock de
+                // updateStatusChannel em serverStatusChannel.js).
                 try {
+                    const fields = { topic: ServerStatusChannel.formatMapTopic(data.Map) };
                     const PoTConfigSystem = require('../../systems/pot/potConfigSystem');
                     const SourceQueryClient = require('./sourceQueryClient');
                     const config = PoTConfigSystem.getServerConfig(guildId);
                     if (config?.server_ip && config?.game_port) {
                         const result = await SourceQueryClient.queryPlayers(config.server_ip, config.game_port, 4000);
                         if (result.success) {
-                            await ServerStatusChannel.setStatusChannelName(this.client, guildId, ServerStatusChannel.formatOnlineName(result.players.length));
+                            fields.name = ServerStatusChannel.formatOnlineName(result.players.length);
+                            // Também alimenta o ciclo rápido do onlineStatusWorker —
+                            // sem isso, o próximo ciclo de 5min do NOME não teria
+                            // status nenhum anotado até a reconciliação de 1min
+                            // rodar de novo, e sobrescreveria essa contagem fresca
+                            // por nada por até 1 minuto.
+                            ServerStatusChannel.reportLiveStatus(guildId, { online: true, playerCount: result.players.length });
                         }
                     }
+                    await ServerStatusChannel.updateStatusChannel(this.client, guildId, fields);
                 } catch (err) {
-                    console.warn('⚠️ [Gateway] Falha ao atualizar nome do canal após ServerStart:', err.message);
+                    console.warn('⚠️ [Gateway] Falha ao atualizar canal de status após ServerStart:', err.message);
                 }
             }
 
