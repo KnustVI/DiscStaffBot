@@ -927,10 +927,16 @@
     }
     // Uma "linha de lista" do mockup — ícone + label/sub bilíngues + pill de
     // status colorida (mesmo padrão data-i18n-pt/en do resto da página,
-    // mesmo sendo conteúdo decorativo).
+    // mesmo sendo conteúdo decorativo). icon aceita "img:<nome>" (pedido do
+    // dono, 2026-08-12: "adicione os icones da moeda" no card da Loja) pra
+    // usar um ícone de verdade (assets/icons/<nome>.webp, já usado em
+    // perfil.ejs/loja.ejs) em vez de um dos 8 SVGs genéricos de mockupIcons.
     function mockupRow({ icon, labelPt, labelEn, subPt, subEn, pillPt, pillEn, pillClass }) {
+        const iconHtml = icon?.startsWith('img:')
+            ? `<img src="/images/icons/${icon.slice(4)}.webp" alt="" style="width:16px; height:16px; border-radius:4px; object-fit:cover;">`
+            : (mockupIcons[icon] || mockupIcons.check);
         return `<div class="mockup-row">
-            <span class="mockup-row-icon">${mockupIcons[icon] || mockupIcons.check}</span>
+            <span class="mockup-row-icon">${iconHtml}</span>
             <span class="mockup-row-text">
                 <span class="mockup-row-label"><span data-i18n-pt>${labelPt}</span><span data-i18n-en>${labelEn}</span></span>
                 <span class="mockup-row-sub"><span data-i18n-pt>${subPt}</span><span data-i18n-en>${subEn}</span></span>
@@ -975,55 +981,46 @@
     // docblock da .mockup-panel no <style>.
     const features = [
         {
-            // Atualizado (pedido do dono, 2026-08-11: "mais informações sobre
-            // o perfil") pra refletir o que o /perfil (Discord) e o /perfil
-            // do site já mostram de verdade hoje — tempo de jogo, data de
-            // registro, cargo de staff, histórico de atividade de staff
-            // (total + hoje) e o saldo das 2 moedas (Ossos/Caçadas). Ver
-            // playerRegistrationSystem.js:sendProfile e dashboard.js
-            // (rota /perfil) pros dados reais por trás de cada frase — nada
-            // aqui é "vindo em breve".
+            // Atualizado (pedido do dono, 2026-08-12: "Remova o texto sobre
+            // Ossos & Caçadas" + "Foque em falar sobre o perfil e que ele
+            // pode ser customizavel pela loja ou com uma conta premium
+            // raptor") — o subtópico de moeda saiu, o foco agora é
+            // personalização: a Loja (aberta a qualquer jogador) e o Player
+            // Premium Raptor (upload de imagem própria) como os 2 caminhos
+            // reais pra customizar o perfil. Print atualizado no mesmo dia
+            // pra refletir o card de verdade (saldo de moedas com os ícones
+            // novos, tier Raptor, histórico de staff).
             img: 'screenshot-perfil', titlePt: 'PERFIL PRÉ-HISTÓRICO', titleEn: 'PREHISTORIC PROFILE',
             leadPt: 'Todos nossos usuários podem desfrutar de um perfil com títulos, badges e o histórico da sua caminhada no jogo.',
             leadEn: "Every user gets to enjoy a profile with titles, badges, and a record of their journey in the game.",
             subPt: 'PERFIL ACESSÁVEL EM QUALQUER SERVIDOR QUE USE O BOT.', subEn: 'A PROFILE AVAILABLE ON ANY SERVER RUNNING THE BOT.',
-            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e badges. O cartão mostra tempo de jogo no servidor, data de registro e o cargo de staff (quando configurado) — quem é Moderador ou Equipe de Eventos ainda vê seu próprio histórico de atividade, com o total e o que já rolou hoje. Complete missões em qualquer servidor que utilize o bot para desbloquear recompensas que registram sua jornada e conquistas. Alguns servidores também poderão oferecer missões exclusivas com prêmios únicos.',
-            bodyEn: "Fully customizable profiles with images, titles, and badges. The card shows your playtime on the server, registration date, and staff role (when configured) — Moderators and Event Staff also see their own activity history, both the running total and what happened today. Complete missions on any server running the bot to unlock rewards that track your journey and achievements. Some servers may also offer exclusive missions with unique prizes.",
-            // Subtópico "Ossos & Caçadas" — mesmo tratamento visual de
-            // AUTOSUPERVISÃO (bloco Análise/Staff abaixo): um <h3> junto de
-            // mais parágrafos, dentro do MESMO card, não uma feature nova.
-            // <strong> só aqui porque body2 é renderizado sem escape (ver
-            // loop de features). Reescrito (pedido do dono, 2026-08-11): o
-            // farm de moeda por hora jogada já é REAL agora, não é mais
-            // "em breve" — a frase antiga prometia algo que já existe.
-            body2HeadingPt: 'OSSOS & CAÇADAS!', body2HeadingEn: 'BONES & HUNT!',
-            body2Pt: 'O bot já tem suas próprias moedas: <strong>Ossos</strong> e <strong>Caçadas</strong>. Você ganha Ossos e Caçadas só por jogar em qualquer servidor integrado ao sistema, e o saldo das duas aparece direto no seu /perfil — tanto no Discord quanto no site.',
-            body2En: 'The bot already has its own currencies: <strong>Bones</strong> and <strong>Hunt</strong>. You earn Bones and Hunt just by playing on any server integrated with the system, and both balances show up right on your /perfil — on Discord and on the site.',
-            body3Pt: 'Ossos e Caçadas dão acesso a uma prévia do que está por vir logo abaixo — a Loja.',
-            body3En: 'Bones and Hunt unlock a preview of what\'s coming next — the Shop.',
+            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e emblemas. O cartão mostra tempo de jogo no servidor, data de registro e o cargo de staff (quando configurado) — quem é Moderador ou Equipe de Eventos ainda vê seu próprio histórico de atividade, com o total e o que já rolou hoje. Personalize sua foto de perfil, plano de fundo e emblema comprando na Loja (aberta a qualquer jogador) ou desbloqueie o upload de imagens 100% suas com o Player Premium Raptor.',
+            bodyEn: "Fully customizable profiles with images, titles, and badges. The card shows your playtime on the server, registration date, and staff role (when configured) — Moderators and Event Staff also see their own activity history, both the running total and what happened today. Customize your profile picture, background, and badge by buying them in the Shop (open to every player) or unlock uploading your own images with Player Premium Raptor.",
         },
         {
-            // Novo (pedido do dono, 2026-08-11: "abaixo sobe a loja, que
-            // ainda não está ativa") — a Loja de Personalização já funciona
+            // Explicação completa de como a Loja funciona (pedido do dono,
+            // 2026-08-12: "explique como funciona nossa loja em um todo" +
+            // "adicione os icones da moeda") — mockup HTML de ilustração
+            // mantido de propósito (pedido do dono: "permanece com o card
+            // de imagem que já fez em html"), só as 2 primeiras linhas
+            // ganharam os ícones reais das moedas (icon: 'img:hunt'/
+            // 'img:bone', ver mockupRow acima) no lugar do cadeado
+            // genérico. Continua tratado como prévia — a Loja já funciona
             // por trás (ver web/views/loja.ejs, dashboard.js rotas /loja),
-            // mas ainda não foi lançada publicamente, então este card é
-            // tratado como prévia (mesmo espírito do selo "Em breve" já
-            // usado dentro do próprio loja.ejs) — sem link/CTA pra /loja
-            // ainda, e sem mockup real (mesmo motivo de Automoderação/
-            // Integração PoT/Dashboard Web acima, ver docblock da
-            // .mockup-panel no <style>).
+            // mas ainda não foi lançada publicamente (ver seção 181 do
+            // PREMIUM.txt), então sem link/CTA pra /loja ainda.
             titlePt: 'A LOJA', titleEn: 'THE SHOP',
-            leadPt: 'Troque Ossos e Caçadas por personalização de perfil de verdade — em breve, aberta pra todo mundo.',
-            leadEn: 'Trade Bones and Hunt for real profile customization — coming soon, open to everyone.',
+            leadPt: 'Duas moedas, ganhas só por jogar, trocadas por personalização de perfil de verdade — em breve, aberta pra todo mundo.',
+            leadEn: 'Two currencies, earned just by playing, traded for real profile customization — coming soon, open to everyone.',
             subPt: 'EM BREVE PARA TODOS OS SERVIDORES.', subEn: 'COMING SOON FOR EVERY SERVER.',
-            bodyPt: 'Foto de perfil, plano de fundo e emblema comprados com Caçadas, guardados no seu inventário pra usar quando quiser — incluindo imagens criadas e enviadas pela própria comunidade, sempre com os devidos créditos. Ossos também poderão virar bônus dentro do próprio jogo. A Loja já está pronta por trás dos panos, mas ainda estamos em fase de testes antes de abrir pra todo mundo.',
-            bodyEn: "Profile picture, background, and badge purchased with Hunt, saved to your inventory to use whenever you want — including images created and submitted by the community itself, always credited to their creators. Bones will also unlock in-game bonuses. The Shop is already built behind the scenes, but we're still testing before opening it up to everyone.",
+            bodyPt: 'A Loja funciona com 2 moedas que você ganha automaticamente jogando em qualquer servidor integrado ao sistema: Caçadas e Ossos. Caçadas são gastas na Loja de Personalização — fotos de perfil, planos de fundo e emblemas, incluindo criações enviadas pela própria comunidade (sempre com os devidos créditos) — guardados no seu inventário pra usar quando quiser. Ossos são a moeda da Loja de Jogo, com bônus aplicados direto dentro do Path of Titans, ou podem ser convertidos em Marks. A Loja já está pronta por trás dos panos, mas ainda estamos em fase de testes antes de abrir pra todo mundo.',
+            bodyEn: "The Shop runs on 2 currencies you earn automatically just by playing on any server integrated with the system: Hunt and Bones. Hunt is spent in the Customization Shop — profile pictures, backgrounds, and badges, including creations submitted by the community itself (always credited) — saved to your inventory to use whenever you want. Bones are the Game Shop's currency, powering bonuses applied straight inside Path of Titans, or they can be converted into Marks. The Shop is already built behind the scenes, but we're still testing before opening it up to everyone.",
             mockup: mockupPanel({
                 topbarPt: 'LOJA', topbarEn: 'SHOP',
                 rows: [
-                    { icon: 'lock', labelPt: 'Foto de perfil exclusiva', labelEn: 'Exclusive profile picture', subPt: 'compre com Caçadas', subEn: 'buy with Hunt', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
-                    { icon: 'lock', labelPt: 'Plano de fundo e emblema', labelEn: 'Background & badge', subPt: 'fica salvo no seu inventário', subEn: 'saved to your inventory', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
-                    { icon: 'lock', labelPt: 'Bônus dentro do jogo', labelEn: 'In-game bonuses', subPt: 'trocando Ossos', subEn: 'by trading Bones', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                    { icon: 'img:hunt', labelPt: 'Caçadas → Personalização', labelEn: 'Hunt → Customization', subPt: 'foto de perfil, fundo e emblema', subEn: 'profile picture, background & badge', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                    { icon: 'img:bone', labelPt: 'Ossos → Loja de Jogo ou Marks', labelEn: 'Bones → Game Shop or Marks', subPt: 'bônus em jogo, ou conversão', subEn: 'in-game bonuses, or conversion', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                    { icon: 'lock', labelPt: 'Fica no seu inventário', labelEn: 'Stays in your inventory', subPt: 'use quando quiser, pra sempre', subEn: 'use whenever you want, forever', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
                 ],
             }),
         },
