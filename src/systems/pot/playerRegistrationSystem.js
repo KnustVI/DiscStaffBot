@@ -591,22 +591,25 @@ class PlayerRegistrationSystem {
         // (mesma razão de registered_at acima: bones_balance/hunt_balance/xp
         // não são por servidor), só aparece pra quem já vinculou conta (sem
         // isso os 3 sempre seriam 0, informação sem sentido nenhum pra
-        // mostrar). Mesmos ícones já usados na Loja de Jogo/Personalização
-        // (gem pra Caçadas, ver loja.ejs) pra manter o mesmo vocabulário
-        // visual entre Discord e site.
+        // mostrar). Ícones dedicados (pedido do dono, 2026-08-12: "foram
+        // adicionados icones para representar as moedas") — EMOJIS.hunt/
+        // EMOJIS.bone são os emoji de aplicação sincronizados via `npm run
+        // sync-emojis`, mesmo vocabulário visual da Loja (ver loja.ejs).
+        // XP usa DinoFootprint (já existia, reaproveitado por pedido
+        // explícito em vez de um ícone novo só pra isso).
         if (player) {
-            await this._sendLoadingStage(interaction, `${EMOJIS.coins || '🪙'} Contando seus Ossos e Caçadas...`);
+            await this._sendLoadingStage(interaction, `${EMOJIS.bone || '🦴'} Contando seus Ossos e Caçadas...`);
             const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id);
             const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
             const levelProgress = PlayerRegistry.getLevelProgress(targetUser.id);
             addSeparatorIfNeeded();
             builder.text([
-                `${EMOJIS.coins || '🪙'} **Ossos:** ${bonesBalance}`,
-                `${EMOJIS.gem || '💎'} **Caçadas:** ${huntBalance}`,
+                `${EMOJIS.bone || '🦴'} **Ossos:** ${bonesBalance}`,
+                `${EMOJIS.hunt || '💎'} **Caçadas:** ${huntBalance}`,
                 // Nível real ao lado do XP bruto (pedido do dono,
                 // 2026-08-11 — ver comentário completo em levelLabel do
                 // card de perfil, acima nesta mesma função).
-                `${EMOJIS.flame || '⚡'} **XP:** ${levelProgress.xpTotal} (Nível ${levelProgress.level})`,
+                `${EMOJIS.DinoFootprint || '🦶'} **XP:** ${levelProgress.xpTotal} (Nível ${levelProgress.level})`,
             ].join(' | '));
         }
 

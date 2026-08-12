@@ -131,6 +131,14 @@
             color: #DCA15E;
         }
         .perfil-hunt-pill i { width: 16px; height: 16px; flex: none; }
+        .perfil-hunt-pill img { width: 18px; height: 18px; flex: none; border-radius: 4px; object-fit: cover; }
+        <%# Cor por moeda (pedido do dono, 2026-08-12): Caçadas sempre vermelho,
+            Ossos sempre amarelo, XP a cor "quase branca" padrão do bot — mesmas
+            classes/valores usados em loja.ejs (is-hunt/is-bones/is-xp) pra manter
+            o mesmo vocabulário visual entre as 2 páginas. %>
+        .perfil-hunt-pill.is-hunt { border-color: rgba(255, 78, 59, 0.35); color: #FF4E3B; }
+        .perfil-hunt-pill.is-bones { border-color: rgba(255, 204, 0, 0.35); color: #FFCC00; }
+        .perfil-hunt-pill.is-xp { border-color: rgba(248, 220, 192, 0.35); color: #F8DCC0; }
         .perfil-guild-list { display: flex; flex-wrap: wrap; gap: 10px; }
         .perfil-guild-chip {
             display: flex;
@@ -330,22 +338,23 @@
                     Ossos e XP (pedido do dono, 2026-08-10: "Adicionar
                     todos os saldos de moedas no perfil" + "logo abaixo
                     adicione o inventario de ossos" — "abaixo" do saldo de
-                    Caçadas acima) — mesma pill, empilhadas, cor de cada
-                    ícone batendo com loja.ejs (gem/dourado=Caçadas,
-                    bone/creme=Ossos, trending-up/verde=XP) pra manter o
-                    mesmo vocabulário visual entre as 2 páginas.
+                    Caçadas acima) — mesma pill, empilhadas. Ícones dedicados
+                    e cores fixas por moeda (pedido do dono, 2026-08-12):
+                    Caçadas sempre vermelho, Ossos sempre amarelo, XP a cor
+                    "quase branca" padrão do bot — mesmo vocabulário visual
+                    de loja.ejs (classes is-hunt/is-bones/is-xp).
                 %>
                 <div class="flex flex-col gap-2 items-end">
-                    <div class="perfil-hunt-pill">
-                        <i data-lucide="coins"></i>
+                    <div class="perfil-hunt-pill is-hunt">
+                        <img src="/images/icons/hunt.png" alt="">
                         <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><%= huntBalance %></strong></span>
                     </div>
-                    <div class="perfil-hunt-pill" style="color:#F8DCC0;">
-                        <i data-lucide="bone"></i>
+                    <div class="perfil-hunt-pill is-bones">
+                        <img src="/images/icons/bone.png" alt="">
                         <span><span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span>: <strong><%= bonesBalance %></strong></span>
                     </div>
-                    <div class="perfil-hunt-pill" style="color:#A5FFA1;">
-                        <i data-lucide="trending-up"></i>
+                    <div class="perfil-hunt-pill is-xp">
+                        <img src="/images/icons/DinoFootprint.png" alt="">
                         <span>XP: <strong><%= xpBalance %></strong></span>
                     </div>
                 </div>

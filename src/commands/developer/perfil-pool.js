@@ -205,7 +205,7 @@ module.exports = {
                         .text([
                             `# PREÇO ATUALIZADO — ${tipoLabel.toUpperCase()}`,
                             `**ID:** \`${item.id}\` — **Nome:** ${item.label}`,
-                            `${EMOJIS.coins || '💰'} **Preço:** ${preco} Caçadas`,
+                            `${EMOJIS.hunt || '💎'} **Preço:** ${preco} Caçadas`,
                             `**Tier mínimo pra usar:** ${tierLabel}`,
                             'Já disponível na Loja de Personalização pra qualquer jogador comprar.',
                         ].join('\n'));
@@ -219,7 +219,7 @@ module.exports = {
             } else {
                 const lines = rows.map(r => {
                     const priceNote = r.shop_price
-                        ? ` — ${EMOJIS.coins || '💰'} ${r.shop_price} Caçadas (mín. ${TIER_LABELS[r.shop_min_tier] || 'Free'})`
+                        ? ` — ${EMOJIS.hunt || '💎'} ${r.shop_price} Caçadas (mín. ${TIER_LABELS[r.shop_min_tier] || 'Free'})`
                         : '';
                     return `\`${r.id}\` — ${r.label} (adicionado <t:${Math.floor(r.created_at / 1000)}:R>)${priceNote}`;
                 });

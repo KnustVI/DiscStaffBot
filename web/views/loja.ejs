@@ -92,10 +92,14 @@
             display: flex; align-items: center; justify-content: center;
             flex: none;
         }
-        .loja-currency-icon.is-hunt { background: rgba(220, 161, 94, 0.15); color: #DCA15E; }
-        .loja-currency-icon.is-bones { background: rgba(248, 220, 192, 0.12); color: #F8DCC0; }
-        .loja-currency-icon.is-xp { background: rgba(165, 255, 161, 0.12); color: #A5FFA1; }
+        <%# Cor fixa por moeda (pedido do dono, 2026-08-12): Caçadas sempre
+            vermelho, Ossos sempre amarelo, XP a cor "quase branca" padrão
+            do bot — mesmas classes/valores usados em perfil.ejs. %>
+        .loja-currency-icon.is-hunt { background: rgba(255, 78, 59, 0.15); color: #FF4E3B; }
+        .loja-currency-icon.is-bones { background: rgba(255, 204, 0, 0.15); color: #FFCC00; }
+        .loja-currency-icon.is-xp { background: rgba(248, 220, 192, 0.12); color: #F8DCC0; }
         .loja-currency-icon i { width: 22px; height: 22px; }
+        .loja-currency-icon img { width: 26px; height: 26px; border-radius: 6px; object-fit: cover; }
         .loja-currency-title { font-family: 'Tilt Warp', cursive; font-size: 15px; color: #F8DCC0; }
         .loja-currency-text { font-family: 'Poppins', sans-serif; font-size: 12.5px; opacity: 0.6; line-height: 1.5; }
         .loja-currency-balance {
@@ -106,38 +110,39 @@
         }
         .loja-currency-balance-value { font-size: 22px; font-weight: 700; }
         .loja-currency-balance-label { font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; }
-        .loja-currency-balance.is-hunt .loja-currency-balance-value { color: #DCA15E; }
-        .loja-currency-balance.is-bones .loja-currency-balance-value { color: #F8DCC0; }
-        .loja-currency-balance.is-xp .loja-currency-balance-value { color: #A5FFA1; }
+        .loja-currency-balance.is-hunt .loja-currency-balance-value { color: #FF4E3B; }
+        .loja-currency-balance.is-bones .loja-currency-balance-value { color: #FFCC00; }
+        .loja-currency-balance.is-xp .loja-currency-balance-value { color: #F8DCC0; }
 
         /* Barra de progresso até o próximo Nível (pedido do dono,
-           2026-08-11) — mesma cor verde do card de XP (#A5FFA1),
+           2026-08-11) — cor de XP (quase branco, pedido do dono 2026-08-12),
            width em % vem direto de levelProgress.percent (server-side). */
         .loja-level-progress-track {
             width: 100%;
             height: 6px;
             border-radius: 4px;
-            background: rgba(165, 255, 161, 0.12);
+            background: rgba(248, 220, 192, 0.12);
             overflow: hidden;
         }
         .loja-level-progress-fill {
             height: 100%;
             border-radius: 4px;
-            background: #A5FFA1;
+            background: #F8DCC0;
             transition: width 0.3s ease;
         }
 
         /* Saldo de Ossos em destaque dentro do Conversor (pedido do dono,
            2026-08-10) — mesma receita de pill já usada em perfil.ejs
-           .perfil-hunt-pill, cor de Ossos (#F8DCC0). */
+           .perfil-hunt-pill, cor de Ossos = amarelo (pedido do dono 2026-08-12). */
         .loja-converter-balance-pill {
             box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px;
             padding: 6px 16px; border-radius: 147.5px; background: #131314;
-            border: 1px solid rgba(248, 220, 192, 0.35);
-            font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; color: #F8DCC0;
+            border: 1px solid rgba(255, 204, 0, 0.35);
+            font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13px; color: #FFCC00;
             width: fit-content;
         }
         .loja-converter-balance-pill i { width: 16px; height: 16px; flex: none; }
+        .loja-converter-balance-pill img { width: 18px; height: 18px; flex: none; border-radius: 4px; object-fit: cover; }
 
         /* Grade de itens (personalização + jogo) — mesmo espírito de
            .pool-item já usado em dev-image-pool.ejs, adaptado pra
@@ -184,9 +189,10 @@
             font-weight: 600;
             font-size: 0.72rem;
         }
-        .loja-item-price.is-hunt { color: #DCA15E; }
-        .loja-item-price.is-bones { color: #F8DCC0; }
+        .loja-item-price.is-hunt { color: #FF4E3B; }
+        .loja-item-price.is-bones { color: #FFCC00; }
         .loja-item-price i { width: 13px; height: 13px; }
+        .loja-item-price img { width: 14px; height: 14px; border-radius: 3px; object-fit: cover; }
         .loja-soon-ribbon {
             position: absolute;
             top: 8px;
@@ -297,7 +303,7 @@
         %>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-[20px]">
             <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-hunt"><i data-lucide="gem"></i></div>
+                <div class="loja-currency-icon is-hunt"><img src="/images/icons/hunt.png" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>CAÇADAS — Personalização</span><span data-i18n-en>HUNT — Customization</span></span>
                 <div class="loja-currency-balance is-hunt">
                     <span class="loja-currency-balance-value"><%= huntBalance %></span>
@@ -306,7 +312,7 @@
                 <p class="loja-currency-text"><span data-i18n-pt>Ganhe 1 Caçada por hora jogada (ou em missões, em breve). Só troca por itens de personalização de perfil e não pode ser convertida em nenhuma outra moeda da loja.</span><span data-i18n-en>Earn 1 Hunt per hour played (or from quests, coming soon). Only spent on profile customization, and can't be converted into any other shop currency.</span></p>
             </section>
             <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-bones"><i data-lucide="bone"></i></div>
+                <div class="loja-currency-icon is-bones"><img src="/images/icons/bone.png" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>OSSOS — Loja de Jogo</span><span data-i18n-en>BONES — Game Shop</span></span>
                 <div class="loja-currency-balance is-bones">
                     <span class="loja-currency-balance-value"><%= bonesBalance %></span>
@@ -323,7 +329,7 @@
                 × Nível^2.2, sem teto de nível).
             %>
             <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-xp"><i data-lucide="trending-up"></i></div>
+                <div class="loja-currency-icon is-xp"><img src="/images/icons/DinoFootprint.png" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>NÍVEL — Experiência</span><span data-i18n-en>LEVEL — Experience</span></span>
                 <div class="loja-currency-balance is-xp">
                     <span class="loja-currency-balance-value"><span data-i18n-pt>Nível <%= levelProgress.level %></span><span data-i18n-en>Level <%= levelProgress.level %></span></span>
@@ -349,7 +355,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <i data-lucide="gem" class="w-5 h-5" style="color:#DCA15E;"></i>
+                    <img src="/images/icons/hunt.png" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE PERSONALIZAÇÃO</span><span data-i18n-en>CUSTOMIZATION SHOP</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Caçadas. Só imagens de perfil — nada que mude qualquer coisa dentro do jogo.</span><span data-i18n-en>Paid with Hunt. Only profile images — nothing that changes anything in-game.</span></p>
@@ -401,9 +407,9 @@
                                     ></div>
                                     <span class="loja-item-label"><%= img.label %></span>
                                     <% if (!img.shop_price) { %>
-                                        <span class="loja-item-price is-hunt"><i data-lucide="gem"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.png" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
                                     <% } else { %>
-                                        <span class="loja-item-price is-hunt"><i data-lucide="gem"></i> <%= img.shop_price %></span>
+                                        <span class="loja-item-price is-hunt"><img src="/images/icons/hunt.png" alt=""> <%= img.shop_price %></span>
                                         <% if (img.shop_min_tier && img.shop_min_tier !== 'free') { %>
                                             <span class="loja-item-tier-note">
                                                 <span data-i18n-pt>Requer plano <%= lojaShopTierLabels[img.shop_min_tier] || img.shop_min_tier %>+ pra usar depois de comprado</span>
@@ -443,7 +449,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <i data-lucide="bone" class="w-5 h-5" style="color:#F8DCC0;"></i>
+                    <img src="/images/icons/bone.png" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Bônus aplicados DENTRO do Path of Titans, via comando do servidor.</span><span data-i18n-en>Paid with Bones. Bonuses applied INSIDE Path of Titans, via server command.</span></p>
@@ -473,7 +479,7 @@
                         <% if (item.descPt) { %>
                             <span class="loja-item-desc"><span data-i18n-pt><%= item.descPt %></span><span data-i18n-en><%= item.descEn %></span></span>
                         <% } %>
-                        <span class="loja-item-price is-bones"><i data-lucide="bone"></i> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
+                        <span class="loja-item-price is-bones"><img src="/images/icons/bone.png" alt=""> <span data-i18n-pt>Preço a definir</span><span data-i18n-en>Price TBD</span></span>
                     </div>
                 <% }); %>
             </div>
@@ -502,7 +508,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <div>
                 <h2 class="section-title text-lg flex items-center gap-2">
-                    <i data-lucide="bone" class="w-5 h-5" style="color:#F8DCC0;"></i>
+                    <img src="/images/icons/bone.png" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>CONVERSOR DE OSSOS</span><span data-i18n-en>BONES CONVERTER</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1">
@@ -516,7 +522,7 @@
                     saldo do topo do card de moeda (Ossos) acima.
                 %>
                 <div class="loja-converter-balance-pill">
-                    <i data-lucide="bone"></i>
+                    <img src="/images/icons/bone.png" alt="">
                     <span><span data-i18n-pt>Seu saldo:</span><span data-i18n-en>Your balance:</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
                 </div>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Você precisa estar online no servidor de jogo escolhido pra converter.</span><span data-i18n-en>You need to be online on the chosen game server to convert.</span></p>
