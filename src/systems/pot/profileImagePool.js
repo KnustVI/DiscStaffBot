@@ -3,7 +3,7 @@
  * Pool de imagens (personalização/emblema/banner) usado pelos pickers de
  * /perfil-edit E pela galeria de banner de /config personalizar (Strike/
  * Unstrike/Report-Chat, Discord + dashboard) — alimentado pelo dono via
- * /dev/lojas no dashboard, sem precisar editar código/redeployar a cada
+ * /dev/image-pool no dashboard, sem precisar editar código/redeployar a cada
  * imagem nova. "Padrão do bot" de cada banner continua sendo a única
  * exceção estática (é a imagem oficial do bot, não um item do pool).
  *
@@ -14,10 +14,10 @@
  * de fundo, independentemente, ver configSystem.js getPersonalizationOptions.
  *
  * Cada imagem pode ser marcada pública ou privada (is_public, ver
- * setPublic() abaixo) — controle exclusivo do dono, pela página /dev/lojas
+ * setPublic() abaixo) — controle exclusivo do dono, pela página /dev/image-pool
  * do dashboard, pra esconder uma imagem do menu de escolha sem precisar
  * removê-la de verdade. listImages(type, {publicOnly:true}) é o que os
- * pickers voltados ao usuário comum usam; sem esse filtro (só /dev/lojas)
+ * pickers voltados ao usuário comum usam; sem esse filtro (só /dev/image-pool)
  * o dono vê tudo, inclusive pendentes de aprovação (ver pending_review).
  *
  * Mesmo padrão de armazenamento já usado pro upload próprio do Raptor
@@ -109,7 +109,7 @@ function setPublic(type, id, isPublic) {
  * @param {string} type
  * @param {{publicOnly?: boolean}} [opts] - publicOnly:true filtra só
  *   is_public=1 (pickers voltados ao usuário comum); sem isso, devolve TUDO
- *   (a página /dev/lojas do dono, que precisa ver as imagens escondidas
+ *   (a página /dev/image-pool do dono, que precisa ver as imagens escondidas
  *   também).
  */
 function listImages(type, opts = {}) {
@@ -163,7 +163,7 @@ async function resolveImageBuffer(client, type, id) {
 /**
  * Cria uma entrada 'personalizacao' enviada por um JOGADOR (marketplace,
  * reforma 2026-08-12) — sempre pending_review=1/is_public=0 (não aparece
- * na loja pra ninguém até o dono aprovar em /dev/lojas), com o valor pago
+ * na loja pra ninguém até o dono aprovar em /dev/image-pool), com o valor pago
  * no envio guardado em submission_fee (pra reembolso se reprovado). Ver
  * imageShopSystem.js pro repasse/reprecificação que acontece a cada venda
  * DEPOIS de aprovado.

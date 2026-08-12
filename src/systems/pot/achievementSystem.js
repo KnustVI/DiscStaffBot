@@ -5,7 +5,7 @@
  * recompensaveis por missões, onde só o desenvolvedor pode colocar na
  * loja com requisitos para o player resgatar." O dono define o requisito
  * (tipo + valor, ver `requirement` em profile_image_pool/
- * ProfileImagePool.setRequirement) no painel /dev/lojas; o sistema
+ * ProfileImagePool.setRequirement) no painel /dev/image-pool; o sistema
  * verifica automaticamente se um jogador já cumpre e libera um botão
  * "Resgatar" (ver playerRegistrationSystem.js/configSystem.js) — sem
  * conceder nada sozinho, o jogador precisa clicar.

@@ -134,10 +134,14 @@
         // Só o dono do bot vê esse item — painel completo de todas as
         // lojas (Loja de Jogo de cada servidor + pool de Personalização/
         // Emblema/Título + fila de aprovação do marketplace, ver
-        // dashboard.js GET /dev/lojas). Substitui a antiga /dev/image-pool
-        // (reforma das lojas, 2026-08-12) — página global, sem :guildID,
-        // por isso não usa guildHref.
-        ...(sbIsOwner ? [{ key: 'lojas-dev', labelPt: 'Controle Loja', labelEn: 'Store Control', icon: 'images', href: '/dev/lojas' }] : []),
+        // dashboard.js GET /dev/image-pool). Renomeado de "Controle Loja"
+        // pra "Controle de Lojas" (pedido do dono, 2026-08-12: "altere o
+        // nome da pagina tambem") — a URL/rota continua /dev/image-pool
+        // de propósito (o dono já tem esse link salvo/em uso), só o
+        // CONTEÚDO por trás dela virou o painel novo (reforma das lojas)
+        // e o nome exibido passou a refletir isso. Página global, sem
+        // :guildID, por isso não usa guildHref.
+        ...(sbIsOwner ? [{ key: 'lojas-dev', labelPt: 'Controle de Lojas', labelEn: 'Shops Control', icon: 'store', href: '/dev/image-pool' }] : []),
         { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ];
     const activeKey = typeof active !== 'undefined' ? active : null;

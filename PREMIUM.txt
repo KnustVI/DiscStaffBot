@@ -126,7 +126,7 @@ FREE
 - EMBLEMA libera aqui tambem (correcao do dono - ver secao 96): e o UNICO
   item de personalizacao disponivel em QUALQUER tier, escolhido de uma
   lista via /perfil-edit. Selecao/persistencia JA IMPLEMENTADA. A lista de
-  opcoes e alimentada pelo dono a qualquer momento via o painel /dev/lojas
+  opcoes e alimentada pelo dono a qualquer momento via o painel /dev/image-pool
   no site (antes era /perfil-pool no bot developer, removido na reforma
   das lojas - ver secao 183) - sem precisar editar codigo/redeployar a
   cada emblema novo. MUDANCA 2026-08-12 (secao 183): emblema (e titulo)
@@ -158,7 +158,7 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
       que o jogador possua (livre por tier, comprada na Loja, ou enviada
       por ele mesmo e aprovada, ver Loja de Personalizacao mais abaixo)
       pode ser usada como foto OU como plano de fundo, sem distincao.
-      Alimentado pelo dono via /dev/lojas no site (antes /perfil-pool add
+      Alimentado pelo dono via /dev/image-pool no site (antes /perfil-pool add
       avatar/fundo no bot developer, removido - ver secao 183). JA
       IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
@@ -218,7 +218,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
       formula XP_Total = 10 x Nivel^2.2, progressao infinita sem teto;
     - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
       liberada em QUALQUER tier (JA IMPLEMENTADA), lista de opcoes
-      alimentada pelo dono via /dev/lojas no site (antes /perfil-pool add
+      alimentada pelo dono via /dev/image-pool no site (antes /perfil-pool add
       badge, removido - ver secao 183), mas o DESENHO do emblema escolhido
       em cima do card ainda NAO implementado;
     - nome do jogador e identificacao (Alderon ID + usuario do Discord) -
@@ -239,7 +239,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   toda vez que o /perfil e exibido.
 - Foto/plano de fundo escolhidos por menu (Compy) via /perfil-edit - sem
   upload do jogador, so seleciona entre as imagens que o dono ja tiver
-  adicionado ao pool via /dev/lojas no site (antes /perfil-pool add
+  adicionado ao pool via /dev/image-pool no site (antes /perfil-pool add
   avatar/fundo, removido - ver secao 183) - pool 100% dinamico, nao
   depende mais de nenhuma foto fixa em assets/images. Guarda so a CHAVE
   "pool:<id>" (player_links.selected_photo_key/selected_background_key),
@@ -247,7 +247,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   foto e plano de fundo viraram um UNICO tipo de imagem no pool
   ("personalizacao") - a mesma imagem serve pras duas coisas.
 - Pool dinamico de imagens (personalizacao/emblema/banner/titulo) via
-  /dev/lojas no site (antes /perfil-pool no bot developer, removido - ver
+  /dev/image-pool no site (antes /perfil-pool no bot developer, removido - ver
   secao 183) - o dono adiciona/remove/lista imagens sem precisar editar
   codigo ou redeployar. Mesmo padrao de armazenamento do upload proprio
   do Raptor (guarda so o ID da mensagem no canal fixo
@@ -278,12 +278,12 @@ Caçadas e ela entra no INVENTÁRIO pessoal, usável como foto OU plano de
 fundo (unificados, sem distinção de compra). Compy+ continua com acesso
 LIVRE a todo o pool (como já era, sem precisar comprar nada) - a loja é
 um caminho ADICIONAL, não uma restrição nova. Por item, o dono define
-(painel `/dev/lojas` no site): preço em Caçadas e o tier mínimo pra USAR
+(painel `/dev/image-pool` no site): preço em Caçadas e o tier mínimo pra USAR
 o item depois de comprado (shop_min_tier) - COMPRAR nunca depende de
 tier, só de ter Caçadas suficientes. NOVO em 2026-08-12: qualquer jogador
 também pode ENVIAR uma imagem própria pra venda (paga uma taxa em
 Caçadas, imagem precisa ter proporção 800×427, fica pendente até o dono
-aprovar em `/dev/lojas`) - se aprovada, o autor recebe 10% de Caçadas a
+aprovar em `/dev/image-pool`) - se aprovada, o autor recebe 10% de Caçadas a
 cada venda e o preço sobe 5% por venda (nunca desce sozinho, popularidade
 determina o preço). Emblema e título SAÍRAM do formulário de preço por
 completo (não são mais compráveis direto) - viraram resgate por
@@ -9210,7 +9210,7 @@ frente, nao so este relatorio):
   `playtime_hours`/`level`/`species_picks`, valor, espécie quando
   aplicável) verificado ao vivo contra dados JÁ rastreados (nenhuma
   tabela nova) — `checkRequirementMet`. Dev define o requisito por item
-  no painel `/dev/lojas`; jogador vê o item elegível e resgata (grátis,
+  no painel `/dev/image-pool`; jogador vê o item elegível e resgata (grátis,
   `image_inventory.source='redeemed'`, coluna nova só pra auditoria) via
   um menu "Resgatar" novo na tela "Emblema & Título" do `/perfil`
   (Discord, reabilitada — estava com `.setDisabled(true)` esperando
@@ -9225,14 +9225,14 @@ frente, nao so este relatorio):
   = só quem possui, comprado antes ou resgatado agora).
 - FEATURE 4 — MARKETPLACE de imagens enviadas por jogador, na Loja de
   Personalização: card fixo "Enviar imagem para venda" no topo de `/loja`
-  (taxa em Caçadas, configurável pelo dono em `/dev/lojas`, tabela nova
+  (taxa em Caçadas, configurável pelo dono em `/dev/image-pool`, tabela nova
   `personalization_shop_config`, 1 linha global). `POST
   /loja/enviar-imagem` valida proporção 800×427 no arquivo CRU via
   `sharp().metadata()` (tolerância ~2%) ANTES de subir/converter pra webp
   (evita gastar o custo do upload num arquivo que ia ser rejeitado
   mesmo), cobra a taxa, cria a entrada como `pending_review=1`/
   `is_public=0` (`ProfileImagePool.addSubmittedImage`, novo) — invisível
-  na loja até o dono decidir. Painel `/dev/lojas` ganha uma fila de
+  na loja até o dono decidir. Painel `/dev/image-pool` ganha uma fila de
   aprovação: Aprovar (`is_public=1`/`pending_review=0`, aparece com o
   username de quem enviou) ou Reprovar (devolve a taxa via `addHunt`,
   apaga a linha por completo — "removemos tudo sobre o item", pedido
@@ -9244,7 +9244,7 @@ frente, nao so este relatorio):
   e pediu um crescimento mais lento, resultando nos 5%. Itens curados
   pelo próprio dono (sem `submitted_by`) nunca são repreçados
   automaticamente — preço deles continua 100% manual.
-- FEATURE 5 — painel `/dev/lojas` (novo, `web/views/dev-lojas.ejs`)
+- FEATURE 5 — painel `/dev/image-pool` (novo, `web/views/dev-lojas.ejs`)
   substitui por completo a antiga `/dev/image-pool`: catálogo de TODOS os
   servidores (link direto pra `/lojajogo/:guildId` de cada um), pool de
   Personalização/Banner/Título (upload/preço/visibilidade, mesmo padrão
@@ -9253,7 +9253,7 @@ frente, nao so este relatorio):
   restrita ao dono (`isOwnerSession`, nunca abre pra outros admins).
 - FEATURE 6 — comando Discord `/perfil-pool` (dev-only) REMOVIDO por
   completo, junto com a view antiga `web/views/dev-image-pool.ejs` — o
-  site (`/dev/lojas`) já cobre tudo que os dois faziam, e mais. Pedido
+  site (`/dev/image-pool`) já cobre tudo que os dois faziam, e mais. Pedido
   explícito do dono: "não precisamos dos comandos de dev pool imagens".
 - Verificado: `node --check` em todos os ~15 arquivos tocados/criados
   (gameShopSystem.js, achievementSystem.js, imageShopSystem.js,
@@ -9342,3 +9342,39 @@ frente, nao so este relatorio):
 - Pendente (ambiente do dono, fora deste código): mesma ressalva de
   sempre — usar um item de verdade dispara RCON contra o servidor, só
   confirmável contra um Path of Titans real depois do deploy.
+
+185) Painel de controle de loja volta pra URL /dev/image-pool (nome novo,
+     conteúdo novo, rota antiga)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-12, mesmo dia das seções 183/184), reportando
+  que https://dashboard.titansvisit.win/dev/image-pool "permanece do
+  mesmo geito sem as alterações da loja": "altere o nome da pagina
+  tambem, o controle da loja que fizemos tem de ser nessa pagina."
+- DIAGNÓSTICO: não era um bug de código — a seção 183 tinha criado o
+  painel novo numa URL NOVA (`/dev/lojas`), deixando `/dev/image-pool`
+  de vez (rota removida). O relato do dono confirma que o VPS de
+  produção ainda não recebeu NENHUM commit da reforma das lojas
+  (seções 183/184 incluídas) — visitar a URL antiga mostrava o código
+  antigo de verdade, exatamente como estava antes de tudo isso começar.
+  `git pull && pm2 restart discord-bot` (rotina de sempre) ainda
+  pendente do lado do dono pra qualquer parte desta reforma aparecer no
+  ar.
+- FIX — `/dev/lojas` renomeada de volta pra `/dev/image-pool` em TODO
+  lugar que referenciava a rota (dashboard.js — rota GET + as 9 POST de
+  ação —, o link da sidebar, e os `action` dos formulários dentro de
+  `dev-lojas.ejs`) — o dono já tinha esse link salvo/em uso, preferiu
+  manter em vez de aprender uma URL nova. O arquivo de view continua se
+  chamando `dev-lojas.ejs` (nome de arquivo e path da rota não precisam
+  bater no Express/EJS) — só o `res.render('dev-lojas', ...)` interno.
+- FEATURE — nome exibido da página TROCADO (pedido explícito): título da
+  aba e H1 viram "Controle de Lojas" (antes "Controle Loja", tanto no
+  nome quanto no plural — reflete que a página cobre VÁRIAS lojas agora,
+  não só o pool de imagens de antes); item da sidebar também renomeado
+  ("Controle de Lojas"/"Shops Control"), ícone trocado de `images` pra
+  `store` (mais alinhado com o que a página realmente é agora).
+- Verificado: `node --check` em todos os arquivos `.js` tocados. Busca
+  por `/dev/lojas` em todo o repositório (código E `PREMIUM.txt`) depois
+  da mudança — zero ocorrências restantes. `ejs.renderFile` de
+  `dev-lojas.ejs` e `lojajogo.ejs` (que inclui a sidebar) confirmando o
+  título/heading/nav novos e as URLs de formulário já apontando pra
+  `/dev/image-pool`.

@@ -1,29 +1,36 @@
 <%#
   web/views/dev-lojas.ejs
   Página GLOBAL (sem :guildID), restrita ao dono do bot (isOwnerSession,
-  ver dashboard.js GET /dev/lojas) — substitui a antiga /dev/image-pool
-  (reforma das lojas, pedido do dono 2026-08-12: "Controle da loja...
-  deve ser um painel de configuração completa de todas as lojas").
+  ver dashboard.js GET /dev/image-pool) — CONTEÚDO substituído por
+  completo na reforma das lojas (pedido do dono 2026-08-12: "Controle da
+  loja... deve ser um painel de configuração completa de todas as
+  lojas"), mas a URL/rota `/dev/image-pool` foi MANTIDA de propósito
+  (pedido do dono, mesmo dia: "altere o nome da pagina tambem, o
+  controle da loja que fizemos tem de ser nessa pagina" — o dono já tem
+  esse link salvo/em uso, só o conteúdo e o nome exibido (nav/heading)
+  precisavam virar o painel novo). Nome do arquivo (dev-lojas.ejs)
+  continua diferente do nome da rota — Express/EJS não exigem que
+  bata, o `res.render('dev-lojas', ...)` é só uma referência interna.
 
   5 seções: (1) Loja de Jogo de CADA servidor onde o bot está (link pra
   /lojajogo/:guildId, mesma página do admin — o dono tem bypass lá pra
   configurar/dar suporte em qualquer servidor mesmo sem ser membro); (2)
   config global da Loja de Personalização (taxa de envio do marketplace);
   (3) fila de aprovação de imagens enviadas por jogador; (4) pool de
-  Personalização/Banner/Título (upload/visibilidade/preço, mesmo padrão
-  da antiga /dev/image-pool); (5) Emblemas, com editor de requisito de
-  resgate no lugar do preço (ver src/systems/pot/achievementSystem.js).
+  Personalização/Banner/Título (upload/visibilidade/preço); (5) Emblemas,
+  com editor de requisito de resgate no lugar do preço (ver
+  src/systems/pot/achievementSystem.js).
 
   Uso: res.render('dev-lojas', { groups, badges, pendingSubmissions,
     allGuilds, requirementTypes, personalizationConfig, saved }) — ver
-    dashboard.js GET /dev/lojas pro shape completo de cada local.
+    dashboard.js GET /dev/image-pool pro shape completo de cada local.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle Loja (Dev) | <%= bot.user.username %></title>
+    <title>Controle de Lojas (Dev) | <%= bot.user.username %></title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Tilt+Warp&family=Bebas+Neue&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -243,7 +250,7 @@
 
         <div class="flex items-center justify-between flex-wrap gap-3">
             <div>
-                <h1 class="section-title text-xl">Controle Loja</h1>
+                <h1 class="section-title text-xl">Controle de Lojas</h1>
                 <p class="text-xs opacity-50 mt-1">Loja de Jogo de todos os servidores, pool de Personalização/Banner/Título/Emblema, fila de aprovação do marketplace de imagem de jogador e configuração da taxa de envio.</p>
             </div>
             <a href="/dashboard" class="btn-primary !min-w-0 !h-auto !py-2 !px-4 !text-sm">
@@ -273,7 +280,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <h2 class="section-title text-lg">Marketplace de Imagens — Configuração</h2>
             <p class="text-xs opacity-50">Taxa (em Caçadas) que um jogador paga pra enviar uma imagem própria pra venda na Loja de Personalização — precisa da sua aprovação antes de aparecer pra qualquer um comprar.</p>
-            <form action="/dev/lojas/config" method="POST" class="pool-price-row" style="max-width: 420px;">
+            <form action="/dev/image-pool/config" method="POST" class="pool-price-row" style="max-width: 420px;">
                 <input type="number" name="submission_fee" min="1" step="1" value="<%= personalizationConfig.submission_fee %>" placeholder="Taxa de envio">
                 <select name="accepting_submissions">
                     <option value="1" <%= personalizationConfig.accepting_submissions ? 'selected' : '' %>>Aceitando envios</option>
@@ -297,10 +304,10 @@
                                 <span class="pool-item-label"><%= sub.label %></span>
                                 <span class="pool-item-meta">Enviado por <%= sub.submitterName %> — taxa paga: <%= sub.submission_fee %> Caçadas</span>
                                 <div class="lojas-pending-actions">
-                                    <form action="/dev/lojas/pendente/<%= sub.id %>/aprovar" method="POST">
+                                    <form action="/dev/image-pool/pendente/<%= sub.id %>/aprovar" method="POST">
                                         <button type="submit" class="pool-approve-btn">Aprovar</button>
                                     </form>
-                                    <form action="/dev/lojas/pendente/<%= sub.id %>/reprovar" method="POST" onsubmit="return confirm('Reprovar? A taxa de envio é devolvida e o item é apagado por completo.');">
+                                    <form action="/dev/image-pool/pendente/<%= sub.id %>/reprovar" method="POST" onsubmit="return confirm('Reprovar? A taxa de envio é devolvida e o item é apagado por completo.');">
                                         <button type="submit" class="pool-reject-btn">Reprovar</button>
                                     </form>
                                 </div>
@@ -318,12 +325,12 @@
                 <h2 class="section-title text-lg"><%= group.label %> (<%= group.images.length %>)</h2>
 
                 <% if (group.type === 'titulo') { %>
-                    <form class="pool-upload-form" action="/dev/lojas/titulo/add" method="POST">
+                    <form class="pool-upload-form" action="/dev/image-pool/titulo/add" method="POST">
                         <input type="text" name="titulo" placeholder="Texto do título" maxlength="80" required>
                         <button type="submit" class="pool-upload-submit">Adicionar</button>
                     </form>
                 <% } else { %>
-                    <form class="pool-upload-form" action="/dev/lojas/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
+                    <form class="pool-upload-form" action="/dev/image-pool/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
                         <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
                         <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
                         <button type="submit" class="pool-upload-submit">Adicionar</button>
@@ -355,7 +362,7 @@
                                                 Não está à venda
                                             <% } %>
                                         </span>
-                                        <form action="/dev/lojas/<%= group.type %>/<%= img.id %>/preco" method="POST">
+                                        <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/preco" method="POST">
                                             <div class="pool-price-row">
                                                 <input type="number" name="preco" min="0" step="1" placeholder="Preço" value="<%= img.shop_price || '' %>">
                                                 <select name="tier_minimo">
@@ -369,10 +376,10 @@
                                     </div>
                                 <% } %>
                                 <div class="pool-item-actions">
-                                    <form action="/dev/lojas/<%= group.type %>/<%= img.id %>/toggle" method="POST">
+                                    <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/toggle" method="POST">
                                         <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
                                     </form>
-                                    <form action="/dev/lojas/<%= group.type %>/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
+                                    <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
                                         <button type="submit" class="pool-delete-btn">Excluir</button>
                                     </form>
                                 </div>
@@ -387,7 +394,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <h2 class="section-title text-lg">Emblemas (<%= badges.length %>)</h2>
             <p class="text-xs opacity-50">Emblemas não são mais compráveis direto — defina um requisito e o jogador vê o botão "Resgatar" assim que cumprir, sem gastar moeda nenhuma.</p>
-            <form class="pool-upload-form" action="/dev/lojas/badge/upload" method="POST" enctype="multipart/form-data">
+            <form class="pool-upload-form" action="/dev/image-pool/badge/upload" method="POST" enctype="multipart/form-data">
                 <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
                 <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
                 <button type="submit" class="pool-upload-submit">Adicionar</button>
@@ -405,7 +412,7 @@
                             <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
                             <div class="pool-requirement-form">
                                 <span class="pool-price-current"><%= img.requirementLabel || 'Sem requisito (só concessão manual)' %></span>
-                                <form action="/dev/lojas/badge/<%= img.id %>/requisito" method="POST">
+                                <form action="/dev/image-pool/badge/<%= img.id %>/requisito" method="POST">
                                     <div class="pool-price-row">
                                         <select name="requirement_type">
                                             <option value="">Nenhum</option>
@@ -420,10 +427,10 @@
                                 </form>
                             </div>
                             <div class="pool-item-actions">
-                                <form action="/dev/lojas/badge/<%= img.id %>/toggle" method="POST">
+                                <form action="/dev/image-pool/badge/<%= img.id %>/toggle" method="POST">
                                     <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
                                 </form>
-                                <form action="/dev/lojas/badge/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
+                                <form action="/dev/image-pool/badge/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
                                     <button type="submit" class="pool-delete-btn">Excluir</button>
                                 </form>
                             </div>
