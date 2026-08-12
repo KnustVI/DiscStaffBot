@@ -422,6 +422,36 @@ const SCHEMA = {
         )
     `,
 
+    // Inventário da Loja de Jogo — pedido do dono, 2026-08-12: "A compra
+    // dos itens deve ficar no inventario do jogador, itens usaveis em
+    // jogo devem ter botão para usar no inventário deles pelo site."
+    // Compra (gameShopSystem.purchaseGameShopItem) só debita Ossos e
+    // grava uma linha aqui — NENHUM RCON dispara na hora da compra mais
+    // (antes disparava direto). O RCON só roda quando o jogador clica
+    // "Usar" (gameShopSystem.useGameShopItem), e só ENTÃO se valida
+    // online/espécie (checagem que antes rodava na compra). used_at NULL
+    // = ainda no inventário, disponível pra usar; preenchido = consumido.
+    // guild_id é obrigatório (não guild-less como image_inventory) porque
+    // o RCON de uso precisa saber EM QUAL servidor aplicar — um item
+    // comprado no servidor A não pode ser usado no B. mission_name
+    // congela o nome da missão configurada NA HORA DA COMPRA (só usado
+    // por item_key='quest') — se o admin trocar a missão configurada
+    // depois, o jogador ainda recebe a missão que pagou por, não uma
+    // trocada por baixo. Sem UNIQUE (diferente de image_inventory): o
+    // mesmo item pode ser comprado várias vezes, cada compra é uma linha
+    // independente.
+    game_shop_inventory: `
+        CREATE TABLE IF NOT EXISTS game_shop_inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            guild_id TEXT NOT NULL,
+            item_key TEXT NOT NULL,
+            mission_name TEXT,
+            purchased_at INTEGER NOT NULL,
+            used_at INTEGER
+        )
+    `,
+
     // ==================== PREMIUM ====================
     player_premium: `
         CREATE TABLE IF NOT EXISTS player_premium (

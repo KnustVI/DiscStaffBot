@@ -1712,6 +1712,19 @@ function loadDashboard(client) {
             return { guildId: pg.guildId, name: pg.name, items: availableItems };
         }).filter((catalog) => catalog.items.length > 0);
 
+        // Inventário da Loja de Jogo (reforma 2026-08-12, pedido do dono:
+        // "A compra dos itens deve ficar no inventario do jogador, itens
+        // usaveis em jogo devem ter botão para usar no inventário deles
+        // pelo site") — itens já comprados e ainda não usados, com botão
+        // "Usar" por linha (ver POST /loja/usar-jogo). Nome do servidor
+        // resolvido via client.guilds.cache (guildId sozinho não basta
+        // pra exibição) — fallback pro próprio ID se o bot não estiver
+        // mais nesse servidor.
+        const gameShopInventory = GameShopSystem.getInventory(req.user.id).map((item) => ({
+            ...item,
+            guildName: client.guilds.cache.get(item.guildId)?.name || item.guildId,
+        }));
+
         res.render('loja', {
             nickname: req.user.global_name || req.user.username,
             role: 'Membro',
@@ -1727,6 +1740,7 @@ function loadDashboard(client) {
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
             playedGuilds,
             gameShopCatalogs,
+            gameShopInventory,
             partnerNews,
             convertResult: req.query.convertido || null,
             convertError: req.query.erro || null,
@@ -1734,6 +1748,7 @@ function loadDashboard(client) {
             convertRconResponse: req.query.resposta || null,
             purchaseResult: req.query.comprado || null,
             gameShopPurchaseResult: req.query.jogoComprado || null,
+            gameShopUseResult: req.query.jogoUsado || null,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
             submissionSent: req.query.enviado === '1',
         });
@@ -1787,17 +1802,33 @@ function loadDashboard(client) {
     });
 
     // Compra de item da Loja de Jogo (Growth/Skipshed/Missão, pago em
-    // Ossos, dispara RCON de verdade — ver gameShopSystem.js). Mesmo
-    // padrão de feedback das outras 2 rotas de /loja acima: ?erro=
-    // reaproveita o banner já existente, sucesso usa ?jogoComprado=<label>
-    // (texto próprio, "aplicado no jogo" em vez de "adicionado ao
-    // inventário" — não faz sentido pra um bônus in-game).
+    // Ossos) — reforma 2026-08-12: NÃO dispara RCON mais na hora da
+    // compra, só debita e grava no inventário (ver gameShopSystem.js
+    // purchaseGameShopItem) — o RCON de verdade só roda quando o jogador
+    // clica "Usar" no inventário (POST /loja/usar-jogo, logo abaixo).
+    // Mesmo padrão de feedback das outras rotas de /loja: ?erro=
+    // reaproveita o banner já existente, sucesso usa ?jogoComprado=<label>.
     app.post('/loja/comprar-jogo', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
         const { guildId, itemKey } = req.body;
         const result = await GameShopSystem.purchaseGameShopItem(guildId, req.user.id, itemKey);
         if (result.ok) {
             return res.redirect(`/loja?jogoComprado=${encodeURIComponent(result.label)}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+    });
+
+    // Usa um item já comprado da Loja de Jogo — aqui, sim, dispara o RCON
+    // de verdade (ver gameShopSystem.js useGameShopItem), checando
+    // online/espécie NESTE momento (não no momento da compra). Sucesso
+    // usa ?jogoUsado=<label> (banner próprio, distinto de ?jogoComprado=
+    // — "aplicado no jogo" faz mais sentido aqui do que "comprado").
+    app.post('/loja/usar-jogo', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const inventoryId = Number(req.body.inventoryId);
+        const result = await GameShopSystem.useGameShopItem(inventoryId, req.user.id);
+        if (result.ok) {
+            return res.redirect(`/loja?jogoUsado=${encodeURIComponent(result.label)}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });

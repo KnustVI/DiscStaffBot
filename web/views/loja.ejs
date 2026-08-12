@@ -39,15 +39,23 @@
   espécie liberada) no painel de admin `/lojajogo/:guildId` — ver
   gameShopSystem.js. Aqui só mostra, por servidor já jogado, os itens
   que aquele servidor de fato ligou (gameShopCatalogs, ver dashboard.js
-  GET /loja); compra dispara RCON de verdade contra o servidor
-  escolhido, mesmo padrão débito-antes-devolve-se-falhar de
-  ImageShopSystem/CurrencySystem.
+  GET /loja).
+
+  COMPRA vs USO (mudança 2026-08-12, mesmo dia, pedido do dono: "A compra
+  dos itens deve ficar no inventario do jogador, itens usaveis em jogo
+  devem ter botão para usar no inventário deles pelo site"): comprar
+  (POST /loja/comprar-jogo) só debita Ossos e grava no inventário
+  (gameShopInventory) — NÃO dispara RCON mais. Usar (POST
+  /loja/usar-jogo, botão "Usar" na seção "Seu Inventário") é o momento
+  que dispara o RCON de verdade contra o servidor, checando online/
+  espécie NESSE momento — não mais na compra.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
     personalizacao, badges, isLinked, bonesBalance, huntBalance,
-    xpBalance, marksPerBone, playedGuilds, gameShopCatalogs, convertResult,
-    convertError, convertAmount, convertRconResponse, purchaseResult,
-    gameShopPurchaseResult, personalizationConfig, submissionSent }) —
+    xpBalance, marksPerBone, playedGuilds, gameShopCatalogs,
+    gameShopInventory, convertResult, convertError, convertAmount,
+    convertRconResponse, purchaseResult, gameShopPurchaseResult,
+    gameShopUseResult, personalizationConfig, submissionSent }) —
     personalizationConfig/submissionSent alimentam o card "Enviar imagem
     para venda" (marketplace, POST /loja/enviar-imagem — ver
     ImageShopSystem.submitImageForSale). As 2 listas de imagens são o mesmo pool
@@ -56,8 +64,12 @@
     ImageShopSystem.ownsImage). purchaseResult é o label do item de
     personalização comprado com sucesso na última ação (?comprado=),
     preenchido pelo redirect de POST /loja/comprar; gameShopPurchaseResult
-    é o mesmo pro item da Loja de Jogo (?jogoComprado=), preenchido por
-    POST /loja/comprar-jogo. Erros das 3 compras/conversões reaproveitam
+    é o mesmo pro item da Loja de Jogo ADICIONADO AO INVENTÁRIO
+    (?jogoComprado=), preenchido por POST /loja/comprar-jogo;
+    gameShopUseResult é o label do item USADO com sucesso de verdade
+    (?jogoUsado=), preenchido por POST /loja/usar-jogo (ver seção "Seu
+    Inventário"). Erros das 4 compras/usos/conversões (conversor,
+    compra de personalização, compra E uso da Loja de Jogo) reaproveitam
     o MESMO convertError/?erro= (banner único no topo da página, ver
     comentário mais abaixo).
 
@@ -269,22 +281,13 @@
     <main class="flex-1 w-full flex flex-col p-[15px] gap-[20px] lg:p-[30px] lg:gap-[30px]">
 
         <h1 class="section-title text-2xl"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></h1>
-        <p class="text-sm opacity-50 -mt-2"><span data-i18n-pt>A Loja de Personalização já permite comprar itens com Caçadas. O resto abaixo (Loja de Jogo) ainda é só uma prévia.</span><span data-i18n-en>The Customization Shop already lets you buy items with Hunt. Everything else below (Game Shop) is still just a preview.</span></p>
+        <p class="text-sm opacity-50 -mt-2"><span data-i18n-pt>Loja de Personalização e Loja de Jogo — as duas já são reais, pagas com Caçadas e Ossos.</span><span data-i18n-en>Customization Shop and Game Shop — both are already live, paid with Hunt and Bones.</span></p>
 
         <%- include('partials/testing-phase-banner') %>
 
         <%# Carrossel compacto de anúncios de servidores parceiros (pedido
             do dono, 2026-08-10) — feed completo com overlay de detalhe
             continua exclusivo da home, ver web/views/hero.ejs. %>
-        <%- include('partials/partner-news-mini', { partnerNews }) %>
-
-        <div class="outline-chip">
-            <i data-lucide="construction" class="outline-chip-icon"></i>
-            <div class="outline-chip-text">
-                <span class="outline-chip-headline"><span data-i18n-pt>Loja de Jogo em construção</span><span data-i18n-en>Game Shop under construction</span></span>
-                <span class="outline-chip-subtitle"><span data-i18n-pt>O farm de Caçadas/Ossos/XP por hora jogada e as compras na Loja de Personalização já são reais. A Loja de Jogo (bônus dentro do Path of Titans) ainda não existe.</span><span data-i18n-en>Earning Hunt/Bones/XP per hour played and purchases in the Customization Shop are already live. The Game Shop (in-game bonuses) doesn't exist yet.</span></span>
-            </div>
-        </div>
 
         <%# Banner de erro COMPARTILHADO entre o conversor de moedas e a
             compra de itens de personalização (ambos redirecionam pra
@@ -507,6 +510,15 @@
             itens que aquele servidor de fato ligou. Nada de "Em breve"
             genérico mais — ou o item está à venda de verdade, ou nem
             aparece.
+
+            COMPRA vs USO (mudança 2026-08-12, pedido do dono: "A compra
+            dos itens deve ficar no inventario do jogador, itens usaveis
+            em jogo devem ter botão para usar no inventário deles pelo
+            site"): comprar só debita Ossos e guarda o item no
+            inventário (gameShopInventory abaixo) — NÃO precisa estar
+            online pra comprar mais. Usar (botão "Usar" no inventário) é
+            o momento que de fato dispara o RCON — aí sim precisa estar
+            online (e na espécie certa, se for Growth restrito).
         %>
         <section class="titan-card-premium flex-col gap-4">
             <div>
@@ -514,15 +526,24 @@
                     <img src="/images/icons/bone.webp" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span>
                 </h2>
-                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Bônus aplicados DENTRO do Path of Titans, via comando do servidor. Precisa estar online no servidor pra comprar.</span><span data-i18n-en>Paid with Bones. Bonuses applied INSIDE Path of Titans, via server command. You need to be online on the server to buy.</span></p>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Comprar guarda o item no seu inventário — use quando quiser, direto daqui, mas precisa estar online no servidor na hora de usar.</span><span data-i18n-en>Paid with Bones. Buying keeps the item in your inventory — use it whenever you want, right here, but you need to be online on the server when you use it.</span></p>
             </div>
 
             <% if (gameShopPurchaseResult) { %>
                 <div class="outline-chip">
                     <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
                     <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Adicionado ao inventário</span><span data-i18n-en>Added to inventory</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopPurchaseResult %> comprado — use quando estiver online no servidor.</span><span data-i18n-en><%= gameShopPurchaseResult %> purchased — use it whenever you're online on the server.</span></span>
+                    </div>
+                </div>
+            <% } %>
+            <% if (gameShopUseResult) { %>
+                <div class="outline-chip">
+                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                    <div class="outline-chip-text">
                         <span class="outline-chip-headline"><span data-i18n-pt>Aplicado no jogo</span><span data-i18n-en>Applied in-game</span></span>
-                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopPurchaseResult %> aplicado com sucesso.</span><span data-i18n-en><%= gameShopPurchaseResult %> successfully applied.</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopUseResult %> aplicado com sucesso.</span><span data-i18n-en><%= gameShopUseResult %> successfully applied.</span></span>
                     </div>
                 </div>
             <% } %>
@@ -530,6 +551,28 @@
             <%
                 const lojaJogoIcons = { growth_juvenil: 'sprout', growth_adolescente: 'sprout', growth_subadulto: 'sprout', growth_adulto: 'sprout', skipshed: 'refresh-cw', quest: 'scroll-text' };
             %>
+
+            <% if (gameShopInventory.length > 0) { %>
+                <div class="flex flex-col gap-3">
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Seu Inventário</span><span data-i18n-en>Your Inventory</span></h3>
+                    <div class="loja-grid">
+                        <% gameShopInventory.forEach(item => { %>
+                            <div class="loja-item">
+                                <div class="loja-item-thumb"><i data-lucide="<%= lojaJogoIcons[item.itemKey] || 'store' %>"></i></div>
+                                <span class="loja-item-label"><%= item.label %></span>
+                                <span class="loja-item-desc"><%= item.guildName %></span>
+                                <form method="POST" action="/loja/usar-jogo" class="loja-item-buy-form">
+                                    <input type="hidden" name="inventoryId" value="<%= item.id %>">
+                                    <button type="submit" class="btn-chip btn-chip-success">
+                                        <i data-lucide="zap"></i> <span data-i18n-pt>Usar</span><span data-i18n-en>Use</span>
+                                    </button>
+                                </form>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            <% } %>
+
             <% if (!isLinked) { %>
                 <p class="text-sm opacity-50"><span data-i18n-pt>Vincule sua conta com</span><span data-i18n-en>Link your account with</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra poder comprar.</span><span data-i18n-en>on Discord to be able to buy.</span></p>
             <% } else if (gameShopCatalogs.length === 0) { %>

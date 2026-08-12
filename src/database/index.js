@@ -79,6 +79,7 @@ class DatabaseManager {
                 'profile_image_pool',
                 'image_inventory',
                 'personalization_shop_config',
+                'game_shop_inventory',
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',
