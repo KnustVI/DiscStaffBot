@@ -160,6 +160,58 @@ async function resolveImageBuffer(client, type, id) {
     }
 }
 
+/**
+ * Cria uma entrada 'personalizacao' enviada por um JOGADOR (marketplace,
+ * reforma 2026-08-12) — sempre pending_review=1/is_public=0 (não aparece
+ * na loja pra ninguém até o dono aprovar em /dev/lojas), com o valor pago
+ * no envio guardado em submission_fee (pra reembolso se reprovado). Ver
+ * imageShopSystem.js pro repasse/reprecificação que acontece a cada venda
+ * DEPOIS de aprovado.
+ * @param {string} label
+ * @param {string} messageId
+ * @param {string} submittedBy - Discord ID de quem enviou
+ * @param {number} submissionFee - Caçadas pagas no envio
+ */
+function addSubmittedImage(label, messageId, submittedBy, submissionFee) {
+    const result = db.prepare(`
+        INSERT INTO profile_image_pool (type, label, message_id, created_by, created_at, is_public, submitted_by, pending_review, submission_fee, shop_price, shop_min_tier)
+        VALUES ('personalizacao', ?, ?, ?, ?, 0, ?, 1, ?, ?, 'free')
+    `).run(label, messageId, submittedBy, Date.now(), submittedBy, submissionFee, submissionFee);
+    return getById(result.lastInsertRowid);
+}
+
+/**
+ * Fila de aprovação (pending_review=1) — sempre itens do marketplace de
+ * jogador, nunca curados pelo dono (que já entram direto como públicos).
+ */
+function getPendingSubmissions() {
+    return db.prepare(`SELECT * FROM profile_image_pool WHERE pending_review = 1 ORDER BY created_at ASC`).all();
+}
+
+/**
+ * Aprova um envio pendente — some da fila e vira comprável de verdade.
+ */
+function approveSubmission(id) {
+    db.prepare(`UPDATE profile_image_pool SET pending_review = 0, is_public = 1 WHERE id = ? AND pending_review = 1`).run(id);
+    return getById(id);
+}
+
+/**
+ * Requisito de resgate automático (badge/titulo, reforma 2026-08-12) — ver
+ * checkRequirementMet. requirement null limpa (volta a ser só concedível
+ * na mão, sem resgate automático).
+ * @param {string} type
+ * @param {number} id
+ * @param {{type: string, value: number, species?: string}|null} requirement
+ */
+function setRequirement(type, id, requirement) {
+    const row = getByTypeAndId(type, id);
+    if (!row) return false;
+    db.prepare(`UPDATE profile_image_pool SET requirement = ? WHERE type = ? AND id = ?`)
+        .run(requirement ? JSON.stringify(requirement) : null, type, id);
+    return true;
+}
+
 module.exports = {
     VALID_TYPES,
     toPoolValue,
@@ -168,9 +220,13 @@ module.exports = {
     getById,
     getByTypeAndId,
     addImage,
+    addSubmittedImage,
     removeImage,
     setPublic,
     listImages,
+    getPendingSubmissions,
+    approveSubmission,
+    setRequirement,
     resolveImageUrl,
     resolveImageBuffer,
 };

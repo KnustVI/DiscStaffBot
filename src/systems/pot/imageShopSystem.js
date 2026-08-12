@@ -207,6 +207,77 @@ function purchaseImage(userId, type, id) {
     return { ok: true };
 }
 
+/**
+ * Config global (única linha, id=1) do marketplace de envio de imagens —
+ * taxa de envio em Caçadas e se o dono está aceitando envios novos agora.
+ * Sempre existe uma linha (seedada em database/index.js na migração), mas
+ * o fallback aqui cobre qualquer ambiente onde isso ainda não rodou.
+ */
+function getPersonalizationShopConfig() {
+    const row = db.prepare(`SELECT * FROM personalization_shop_config WHERE id = 1`).get();
+    return row || { id: 1, submission_fee: 500, accepting_submissions: 1 };
+}
+
+function setPersonalizationShopConfig({ submissionFee, acceptingSubmissions }) {
+    const normalizedFee = Number.isInteger(submissionFee) && submissionFee > 0 ? submissionFee : 500;
+    db.prepare(`
+        INSERT INTO personalization_shop_config (id, submission_fee, accepting_submissions)
+        VALUES (1, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET submission_fee = excluded.submission_fee, accepting_submissions = excluded.accepting_submissions
+    `).run(normalizedFee, acceptingSubmissions ? 1 : 0);
+}
+
+/**
+ * Submete uma imagem enviada por jogador pra venda — cobra a taxa de
+ * envio (Caçadas), valida se o marketplace está aceitando envios, e cria
+ * a entrada como pendente de aprovação (ver ProfileImagePool.
+ * addSubmittedImage). Mesmo padrão débito-antes-devolve-se-falhar do
+ * resto da economia.
+ * @param {string} userId
+ * @param {string} label
+ * @param {string} messageId - já armazenado via storeImageBuffer (ver
+ *   dashboard.js POST /loja/enviar-imagem)
+ * @returns {{ok: boolean, error?: string}}
+ */
+function submitImageForSale(userId, label, messageId) {
+    if (!userId) return { ok: false, error: 'Vincule sua conta com /registrar primeiro.' };
+    const config = getPersonalizationShopConfig();
+    if (!config.accepting_submissions) return { ok: false, error: 'O envio de imagens pra venda está temporariamente fechado.' };
+    if (!label || !messageId) return { ok: false, error: 'Imagem inválida.' };
+
+    const PlayerRegistry = require('./potPlayerRegistry');
+    if (!PlayerRegistry.spendHunt(userId, config.submission_fee)) {
+        return { ok: false, error: 'Saldo de Caçadas insuficiente pra pagar a taxa de envio.' };
+    }
+
+    const ProfileImagePool = require('./profileImagePool');
+    try {
+        ProfileImagePool.addSubmittedImage(label, messageId, userId, config.submission_fee);
+        return { ok: true };
+    } catch (error) {
+        PlayerRegistry.addHunt(userId, config.submission_fee);
+        console.error('❌ [ImageShop] Erro ao registrar envio pra venda (Caçadas devolvidas):', error);
+        return { ok: false, error: 'Erro ao registrar o envio — suas Caçadas foram devolvidas.' };
+    }
+}
+
+/**
+ * Reprova um envio pendente — devolve a taxa de envio e apaga a entrada
+ * por completo (pedido do dono: "removemos tudo sobre o item").
+ * @param {number} id
+ */
+function rejectSubmission(id) {
+    const ProfileImagePool = require('./profileImagePool');
+    const row = ProfileImagePool.getByTypeAndId('personalizacao', id);
+    if (!row || !row.pending_review) return false;
+    if (row.submitted_by && row.submission_fee) {
+        const PlayerRegistry = require('./potPlayerRegistry');
+        PlayerRegistry.addHunt(row.submitted_by, row.submission_fee);
+    }
+    ProfileImagePool.removeImage('personalizacao', id);
+    return true;
+}
+
 module.exports = {
     VALID_SHOP_TIERS,
     CREATOR_REVENUE_SHARE,
@@ -217,4 +288,8 @@ module.exports = {
     ownsImage,
     canUseImage,
     purchaseImage,
+    getPersonalizationShopConfig,
+    setPersonalizationShopConfig,
+    submitImageForSale,
+    rejectSubmission,
 };
