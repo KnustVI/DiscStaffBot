@@ -8827,8 +8827,16 @@ frente, nao so este relatorio):
 
 180) Página "Game Server" no dashboard + Cargo Administrativo do
      Dashboard (bypassa Administrator nativo em quase tudo, exceto
-     /potserver) + remoção da pill "Player Premium" dos perfis
+     /potserver) + remoção da pill "Player Premium" do /perfil do Discord
 ------------------------------------------------------------------
+- CORREÇÃO (mesmo dia, ver seção 181): o item 4 abaixo originalmente
+  também removia a pill de `web/views/perfil.ejs` (site) — o dono
+  corrigiu na hora: "A informação de premium que precisava ser removida
+  era só do discord, mantenha o que tinhamos no perfil do site." A pill
+  foi RESTAURADA em perfil.ejs (site) — só a linha equivalente no
+  `/perfil` do Discord (`playerRegistrationSystem.js`) continua
+  removida. Texto original do item 4 abaixo mantido como registro
+  histórico do pedido inicial, já corrigido pela seção 181.
 - Pedido do dono (2026-08-11): "Adicione uma pagina de configuração
   geral do servidor onde vai adicionar todas as configurações de
   potsever (tudo que não temos nas categorias de moderação e de
@@ -8931,3 +8939,75 @@ frente, nao so este relatorio):
   (`/botstatus`, `/reportchat`, `/divulgar`, `/config`) — mudança de
   permissão default de um comando só é aplicada de novo com o comando
   re-registrado no Discord.
+
+181) Correção da pill de Premium (só Discord) + botões novos/ajustados no
+     /perfil do Discord (Dashboard→/perfil, Loja, Inventário, Emblema&Título
+     em navegação de página) — os 2 últimos DESATIVADOS por pedido do dono
+------------------------------------------------------------------
+- Pedido do dono (2026-08-11, mesmo dia da seção 180): "A informação de
+  premium que precisava ser removida era só do discord, mantenha o que
+  tinhamos no perfil do site. link de dashboard no perfil (discord) deve
+  levar diretamente a pagina do perfil do usúario. Adicione botão de
+  link da loja que leva a loja no site. Adicione tambem um botão de
+  iventário do jogador ao perfil, que manda uma mensagem ephemeral do
+  inventario dele no discord. (Desative por hora o botão inventario).
+  Botao de emblemas e titulos deve mudar a vizualização do perfil (como
+  se fosse uma nova pagina, naquele esquema de navegação de pagina),
+  nessa tela mostre os ultimos 3 titulos e emblemas que ele conquistou,
+  adicione tambem um botão boltar para a pagina perfil com os botões.
+  Por hora desative os botões de emblemas e titulo."
+- FIX 1 — `web/views/perfil.ejs` (site) revertido pro estado de antes da
+  seção 180: pill "Player Premium: X" e as variáveis `pfTierColors`/
+  `pfTierLabels` restauradas (byte a byte idêntico ao commit anterior à
+  seção 180, confirmado via `git diff`). A remoção continua valendo SÓ
+  em `playerRegistrationSystem.js` (`/perfil` do Discord).
+- FIX 2 — botão "Dashboard" do `/perfil` do Discord aponta agora pra
+  `${DASHBOARD_BASE_URL}/perfil` (perfil do site) em vez de `/dashboard`
+  (lista de servidores administrados). Continua restrito a quem
+  administra algum servidor (gate `administersAnyGuild` original, não
+  mexido — o pedido só trocou o destino, não quem vê o botão).
+- FEATURE 3 — botão "Loja" novo (`ButtonStyle.Link`, emoji
+  `EMOJIS.store`), sempre visível (a Loja de Personalização é aberta a
+  qualquer jogador em qualquer tier, sem gate de administrador — ao
+  contrário do botão Dashboard).
+- FEATURE 4 — botão "Inventário" novo (`perfil-edit:inventory:<userId>`,
+  handler `ConfigSystem.handlePerfilInventory`): lista
+  `image_inventory` (itens da Loja de Personalização já comprados —
+  avatar/plano de fundo/emblema/banner/título) agrupados por tipo, numa
+  mensagem efêmera de verdade. Handler TESTADO e funcional (item
+  comprado aparece corretamente agrupado; estado vazio quando não há
+  compras) mas o BOTÃO está com `.setDisabled(true)` — pedido explícito
+  do dono ("Desative por hora o botão inventario"). Só aparece com
+  vínculo (`player`), mesmo gate do botão de Emblema & Título.
+- FEATURE 5 — botão "Emblema & Título" reformulado: antes respondia com
+  um followUp efêmero mostrando só o equipado ATUAL; agora EDITA a
+  mesma mensagem (mesmo padrão de navegação do `/ajuda` — `editReply`
+  troca o conteúdo no lugar) e ganha um botão "Voltar ao Perfil"
+  (`perfil-edit:back-to-profile:<userId>`, handler
+  `ConfigSystem.handlePerfilBackToProfile`) que reconstrói o card de
+  perfil original chamando `PlayerRegistrationSystem.sendProfile` de
+  novo — fecha a "página" de Emblema & Título e volta pro perfil com
+  todos os botões. "Últimos 3 títulos e emblemas conquistados" (pedido
+  literal do dono) ainda NÃO é mostrado como histórico de verdade:
+  `selected_badge_key`/`profile_title` só guardam o que está EQUIPADO
+  agora, não existe uma tabela de aquisição/conquista (diferente de
+  `player_level_ups`, que existe pro sistema de Nível) — a tela mostra
+  o equipado atual com uma nota explícita disso. Botão também com
+  `.setDisabled(true)` — pedido explícito do dono ("Por hora desative
+  os botões de emblemas e titulo"), provavelmente até essa fonte de
+  dados de histórico existir de verdade.
+- Verificado: `node --check` nos 2 arquivos tocados; `git diff` contra
+  o commit anterior à seção 180 confirmando `perfil.ejs` byte a byte
+  igual (revert completo); teste funcional cobrindo (1)
+  `handlePerfilViewBadgeTitle` usa `editReply` (não mais `followUp`) e
+  inclui o botão "Voltar ao Perfil", (2) `handlePerfilBackToProfile`
+  busca o usuário e delega pra `sendProfile` corretamente, (3) mesma
+  função não quebra quando o usuário não pode ser buscado (fallback de
+  erro), (4) `handlePerfilInventory` lista item comprado de verdade
+  (SQLite real: `profile_image_pool` + `image_inventory`), agrupado
+  pelo rótulo do tipo, (5) mesma função mostra o estado vazio
+  corretamente sem compras.
+- Pendente (ambiente do dono, fora deste código): nenhuma mudança de
+  schema de comando desta vez (só troca de URL/lógica de handler) —
+  `git pull && pm2 restart discord-bot` já é suficiente, sem
+  `node deploy.js`.

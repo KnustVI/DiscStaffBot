@@ -631,6 +631,14 @@ const ConfigSystem = {
                 await this.handlePerfilViewBadgeTitle(interaction, param);
                 return;
             }
+            if (action === 'back-to-profile') {
+                await this.handlePerfilBackToProfile(interaction, param);
+                return;
+            }
+            if (action === 'inventory') {
+                await this.handlePerfilInventory(interaction, param);
+                return;
+            }
             if (customId === 'perfil-edit:background') {
                 await this.handlePlayerBackgroundSelect(interaction);
                 return;
@@ -2306,6 +2314,26 @@ const ConfigSystem = {
      * sempre efêmera (followUp, mesmo padrão de handlePerfilEditInfoButton
      * acima) — só quem clicou vê, sem poluir o card público pro canal.
      */
+    /**
+     * Pedido do dono, 2026-08-11: "Botao de emblemas e titulos deve mudar a
+     * vizualização do perfil (como se fosse uma nova pagina, naquele
+     * esquema de navegação de pagina), nessa tela mostre os ultimos 3
+     * titulos e emblemas que ele conquistou, adicione tambem um botão
+     * boltar para a pagina perfil com os botões." — troca de um followUp
+     * efêmero (versão anterior) pra EDITAR a mesma mensagem (mesmo padrão
+     * de /ajuda: editReply troca o conteúdo no lugar), com um botão Voltar
+     * (action 'back-to-profile', ver handleComponent acima) que reconstrói
+     * o card de perfil original via PlayerRegistrationSystem.sendProfile.
+     *
+     * "Últimos 3 conquistados" — PENDENTE: hoje só existe o que está
+     * EQUIPADO (selected_badge_key/profile_title, um valor cada, sem
+     * histórico de quando/quais foram conquistados antes) — não existe
+     * uma tabela de histórico de aquisição de emblema/título (diferente
+     * de player_level_ups, que existe pra Nível). Mostra o equipado atual
+     * por ora; motivo pelo qual o dono pediu pra manter o botão
+     * DESATIVADO (ver playerRegistrationSystem.js) até essa fonte de
+     * dados existir de verdade.
+     */
     async handlePerfilViewBadgeTitle(interaction, targetUserId) {
         const PlayerRegistry = require('../pot/potPlayerRegistry');
         const targetPlayer = targetUserId ? PlayerRegistry.getPlayerByDiscordId(targetUserId) : null;
@@ -2327,7 +2355,70 @@ const ConfigSystem = {
             '# EMBLEMA & TÍTULO',
             `${EMOJIS.badge || '🏅'} **Emblema ativo:** ${badgeLabel}`,
             `${EMOJIS.sparkles || '✨'} **Título ativo:** ${titleLabel}`,
+            '-# Histórico completo de conquistas ainda não é rastreado — mostrando o que está equipado agora.',
         ].join('\n'));
+        cb.footer(`Perfil de <@${targetUserId}>`);
+
+        const backRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`perfil-edit:back-to-profile:${targetUserId}`).setLabel('Voltar ao Perfil').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.arrowleft || '⬅️'),
+        );
+
+        const payload = cb.build();
+        await interaction.editReply({ ...payload, components: [...payload.components, backRow] });
+    },
+
+    /**
+     * "Voltar ao Perfil" — reconstrói o card de perfil original (mesmo
+     * builder de /perfil de sempre) na MESMA mensagem, fechando a
+     * "página" de Emblema & Título aberta por handlePerfilViewBadgeTitle
+     * acima. Lazy require de propósito (playerRegistrationSystem.js já
+     * requer ConfigSystem de volta em vários pontos — mesmo padrão de
+     * dependência lazy/circular já usado no resto do arquivo).
+     */
+    async handlePerfilBackToProfile(interaction, targetUserId) {
+        const PlayerRegistrationSystem = require('../pot/playerRegistrationSystem');
+        const targetUser = await interaction.client.users.fetch(targetUserId).catch(() => null);
+        if (!targetUser) {
+            return await interaction.followUp({ content: `${EMOJIS.circlealert || '❌'} Não foi possível recarregar este perfil.`, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        await PlayerRegistrationSystem.sendProfile(interaction, targetUser);
+    },
+
+    /**
+     * Botão "Inventário" do /perfil — pedido do dono, 2026-08-11: "botão
+     * de inventário do jogador ao perfil, que manda uma mensagem
+     * ephemeral do inventario dele no discord". Lista os itens da Loja de
+     * Personalização já comprados (image_inventory, ver imageShopSystem.js
+     * — avatar/plano de fundo/emblema/banner/título comprados com
+     * Caçadas), agrupados por tipo. DESATIVADO no botão em si por pedido
+     * explícito do dono ("Desative por hora o botão inventario") — handler
+     * já funcional, só não alcançável ainda (botão com setDisabled(true),
+     * ver playerRegistrationSystem.js).
+     */
+    async handlePerfilInventory(interaction, targetUserId) {
+        const ImageShopSystem = require('../pot/imageShopSystem');
+        const ProfileImagePool = require('../pot/profileImagePool');
+
+        const items = targetUserId ? ImageShopSystem.getInventory(targetUserId) : [];
+
+        const TYPE_LABELS = { avatar: 'Foto de Perfil', background: 'Plano de Fundo', badge: 'Emblema', banner: 'Banner', titulo: 'Título' };
+        const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
+        cb.text(`# ${EMOJIS.gift || '🎒'} INVENTÁRIO`);
+
+        if (items.length === 0) {
+            cb.text('Nenhum item comprado na Loja de Personalização ainda.');
+        } else {
+            const byType = new Map();
+            for (const item of items) {
+                const poolItem = ProfileImagePool.getByTypeAndId(item.pool_type, item.pool_id);
+                if (!poolItem) continue; // item removido do pool depois da compra — não mostra órfão
+                if (!byType.has(item.pool_type)) byType.set(item.pool_type, []);
+                byType.get(item.pool_type).push(poolItem.label);
+            }
+            for (const [type, labels] of byType) {
+                cb.text(`**${TYPE_LABELS[type] || type}:** ${labels.join(', ')}`);
+            }
+        }
         cb.footer(`Perfil de <@${targetUserId}>`);
 
         const payload = cb.build();

@@ -590,19 +590,31 @@ class PlayerRegistrationSystem {
         extraFiles.push(...this._appendFooterImage(builder, playerTier));
 
         // Botão "Emblema & Título" — baseado no TARGET (o perfil sendo
-        // exibido), diferente dos botões de atalho abaixo. Mostra o que já
-        // está ATIVO (equipado), não um picker (isso continua sendo
-        // /perfil-edit) — pedido do dono, 2026-08-10: "Comando de perfil no
-        // discord deve ter um botão de vizualização de embletas e titulos
-        // ativos no perfil pelo player". Só entra com vínculo (sem
-        // player_links não há emblema/título pra mostrar, mesmo gate do
-        // bloco de saldo de moedas acima). Interativo de verdade (customId,
-        // roteado por ConfigSystem.handlePerfilViewBadgeTitle), não Link —
-        // por isso PODE refletir o target mesmo clicado por outra pessoa.
+        // exibido), diferente dos botões de atalho abaixo. Pedido do dono,
+        // 2026-08-11: em vez de um followUp efêmero mostrando só o que está
+        // ATIVO, agora navega pra uma "página" nova DENTRO da mesma
+        // mensagem (mesmo padrão de /ajuda — editReply troca o conteúdo,
+        // com um botão Voltar pra página de perfil original) mostrando os
+        // últimos emblemas/títulos conquistados — ver handlePerfilViewBadgeTitle
+        // em configSystem.js. DESATIVADO por pedido do dono ("por hora
+        // desative os botões de emblemas e titulo") — a navegação já está
+        // pronta, só falta uma fonte de dados real de "conquistado" (hoje
+        // só existe o que está EQUIPADO, não um histórico de aquisição —
+        // ver comentário completo em handlePerfilViewBadgeTitle). Só entra
+        // com vínculo (sem player_links não há emblema/título pra mostrar).
         const profileActionButtons = [];
         if (player) {
             profileActionButtons.push(
-                new ButtonBuilder().setCustomId(`perfil-edit:view-badge-title:${targetUser.id}`).setLabel('Emblema & Título').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅'),
+                new ButtonBuilder().setCustomId(`perfil-edit:view-badge-title:${targetUser.id}`).setLabel('Emblema & Título').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.badge || '🏅').setDisabled(true),
+            );
+            // Inventário — pedido do dono, 2026-08-11: "botão de inventário
+            // do jogador... manda uma mensagem ephemeral do inventario dele
+            // no discord". Handler já funcional (ver handlePerfilInventory
+            // em configSystem.js, lista image_inventory/imageShopSystem —
+            // itens de personalização comprados na Loja), mas DESATIVADO
+            // por pedido explícito ("Desative por hora o botão inventario").
+            profileActionButtons.push(
+                new ButtonBuilder().setCustomId(`perfil-edit:inventory:${targetUser.id}`).setLabel('Inventário').setStyle(ButtonStyle.Secondary).setEmoji('🎒').setDisabled(true),
             );
         }
 
@@ -618,6 +630,13 @@ class PlayerRegistrationSystem {
         // Controle Loja (só pro dono) removido em 2026-08-10 — pedido do
         // dono: "não é para ser isso" — a página continua acessível pela
         // sidebar do dashboard (/dev/image-pool), só não pelo /perfil.
+        //
+        // Botão Dashboard aponta direto pro /perfil do site agora (pedido
+        // do dono, 2026-08-11: "link de dashboard no perfil (discord) deve
+        // levar diretamente a pagina do perfil do usúario") — antes ia pra
+        // /dashboard (lista de servidores administrados). Continua restrito
+        // a quem administra algum servidor (gate original, não mexido —
+        // pedido só trocou o destino, não quem vê o botão).
         const profileLinkButtons = [];
         // Cache-only de propósito (mesmo risco aceito já documentado em
         // dashboard.js getStaffRoles/resolveStaffRoleLabel): iterar E
@@ -631,13 +650,22 @@ class PlayerRegistrationSystem {
         });
         if (administersAnyGuild) {
             profileLinkButtons.push(
-                new ButtonBuilder().setLabel('Dashboard').setURL(`${DASHBOARD_BASE_URL}/dashboard`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.gauge || '📊'),
+                new ButtonBuilder().setLabel('Dashboard').setURL(`${DASHBOARD_BASE_URL}/perfil`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.gauge || '📊'),
             );
         }
+        // Loja — pedido do dono, 2026-08-11: "Adicione um botão de link da
+        // loja que leva a loja no site". Sempre visível (a Loja de
+        // Personalização é aberta a qualquer jogador, em qualquer tier —
+        // ver imageShopSystem.js —, sem gate de administrador nenhum, ao
+        // contrário do botão Dashboard acima).
+        profileLinkButtons.push(
+            new ButtonBuilder().setLabel('Loja').setURL(`${DASHBOARD_BASE_URL}/loja`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.store || '🛍️'),
+        );
 
-        // Mesma linha pros dois grupos (cabe até 5 por ActionRow, hoje no
-        // máximo 3: emblema/título + 2 atalhos) — mistura Secondary com Link
-        // sem problema nenhum, Discord permite os dois estilos juntos.
+        // Mesma linha pros dois grupos (cabe até 5 por ActionRow — hoje no
+        // máximo 4: Emblema&Título + Inventário + Dashboard + Loja) —
+        // mistura Secondary com Link sem problema nenhum, Discord permite
+        // os dois estilos juntos.
         const allProfileButtons = [...profileActionButtons, ...profileLinkButtons];
 
         const payload = builder.build();
