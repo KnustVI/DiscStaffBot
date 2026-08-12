@@ -24,6 +24,18 @@ const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSy
 const { renderProfileCard } = require('./src/utils/profileCardRenderer');
 const PoTConfigSystem = require('./src/systems/pot/potConfigSystem');
 
+// Cache-busting pras imagens estáticas da home (assets/screenshots em
+// web/public/images/) — pedido do dono, 2026-08-12: atualizou o print do
+// /perfil na home (screenshot-perfil.webp) e ele continuou aparecendo
+// desatualizado pro navegador, mesmo com o arquivo já certo no disco —
+// causa real: o nome do arquivo nunca muda, então o navegador (e qualquer
+// cache na frente, ex. Cloudflare) segue servindo a versão antiga que já
+// tinha em cache, sem saber que o conteúdo mudou. Calculado UMA VEZ no
+// boot do processo (não por request) — todo `pm2 restart` já gera uma
+// versão nova sozinho, sem precisar tocar em nada manualmente a cada
+// atualização de imagem.
+const ASSET_VERSION = Date.now();
+
 const app = express();
 
 // Upload de banner próprio (Personalização/Report-Chat) — mesmo whitelist
@@ -930,7 +942,7 @@ function loadDashboard(client) {
         const registeredPlayersCount = db.prepare('SELECT COUNT(*) c FROM player_links').get().c;
         const serversCount = client.guilds.cache.size;
 
-        res.render('hero', { isBrazil, isOwner, regionOverride, generalNews, partnerNews, registeredPlayersCount, serversCount });
+        res.render('hero', { isBrazil, isOwner, regionOverride, generalNews, partnerNews, registeredPlayersCount, serversCount, assetVersion: ASSET_VERSION });
     });
 
     // Termos de Serviço e Política de Privacidade — parseados direto de

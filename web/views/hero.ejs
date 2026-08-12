@@ -1145,7 +1145,7 @@
             <% if (f.mockup) { %>
                 <%- f.mockup %>
             <% } else { %>
-                <img src="/images/landing/<%= f.img %>.webp" alt="" class="feature-card w-full lg:w-1/2" style="max-width: 420px; height: auto;">
+                <img src="/images/landing/<%= f.img %>.webp?v=<%= assetVersion %>" alt="" class="feature-card w-full lg:w-1/2" style="max-width: 420px; height: auto;">
             <% } %>
             <div class="w-full lg:w-1/2 flex flex-col gap-3">
                 <% if (!f.noHeading) { %>
