@@ -133,9 +133,11 @@ FREE
   deixaram de ser compraveis com Cacadas - agora sao RESGATADOS de graca
   quando o jogador cumpre um requisito definido pelo dono (kills, tempo de
   jogo, nivel, especie mais jogada), botao "Resgatar" no /perfil (bot e
-  site). O DESENHO do emblema escolhido em cima do card ainda NAO esta
-  implementado (precisa de assets reais cadastrados antes de acertar a
-  composicao - ver secao Compy abaixo).
+  site) e, desde 2026-08-13, tambem no card "MISSÕES E RECOMPENSAS" em
+  /loja (mesma rota POST /perfil/resgatar, so muda pra onde volta depois
+  - ver secao 188). O DESENHO do emblema escolhido em cima do card ainda
+  NAO esta implementado (precisa de assets reais cadastrados antes de
+  acertar a composicao - ver secao Compy abaixo).
 - Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
   esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
 - Ganha Caçadas E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
@@ -9486,3 +9488,47 @@ frente, nao so este relatorio):
   CSS/layout puro (centralização, cores, tamanhos, lado a lado) foram
   só revisadas por leitura de código + teste de render, não vistas na
   tela; vale o dono conferir visualmente após o deploy.
+
+------------------------------------------------------------------
+188) Ícones de Ossos/Caçadas maiores em /loja + Emblema/Título saem da
+     Loja de Personalização, ganham card próprio "Missões e Recompensas"
+------------------------------------------------------------------
+- Pedido do dono (2026-08-13): "Icones de ossos e caçadas na loja podem
+  ser meiores." + "Emblemas e titulos não devem ficar no card da loja
+  de personalização, vamos fazer um card que se chama Missões e
+  recompensas, adicione a lista de emblema e titulos la."
+- Ícones: `.loja-currency-icon` (os 3 cards de moeda no topo de /loja)
+  ganham um tamanho maior SÓ pra Ossos/Caçadas (container 52px->64px,
+  ícone 36px->48px) - Nível/XP não foi pedido, mantido do tamanho de
+  sempre.
+- DIAGNÓSTICO do card de Emblemas: desde a reforma de 2026-08-12 (seção
+  183), emblema/título pararam de ter `shop_price` (viraram resgate por
+  requisito) - mas o card "LOJA DE PERSONALIZAÇÃO" continuava misturando
+  Emblemas ali dentro, com a mesma lógica de preço/"Comprar" das fotos/
+  planos de fundo. Na prática, como todo emblema ficou sem preço, TODO
+  emblema aparecia com o selo genérico "Em breve" - nunca mostrava o
+  requisito de verdade nem um jeito de resgatar direto da loja. Título
+  nem aparecia (GET /loja nunca buscava o tipo 'titulo').
+- FIX: `badges`/`titulos` saíram do grupo `lojaPersonalizacaoGroups`
+  (que agora só tem `personalizacao`) e viraram uma seção nova,
+  "MISSÕES E RECOMPENSAS", entre a Loja de Personalização e a Loja de
+  Jogo. `dashboard.js` GET `/loja`: `resolvePublicGroup` passou a
+  calcular `requirement`/`requirementLabel` (AchievementSystem, mesmo
+  padrão já usado em `/dev/Loja`) pros 3 tipos; busca `titulo` além de
+  `personalizacao`/`badge`; `redeemable` marcado via
+  `ImageShopSystem.getRedeemableItems` (mesma fonte de `/perfil`).
+  Card novo mostra, por item: "Você já tem" (dono), botão "Resgatar"
+  (requisito cumprido, ainda não possui - mesma rota `POST
+  /perfil/resgatar` de `/perfil`), requisito com ícone de cadeado
+  (requisito NÃO cumprido ainda) ou "Concedido manualmente pelo dono"
+  (item sem requisito nenhum configurado - só o dono concede na mão).
+- `POST /perfil/resgatar` ganhou um campo opcional `redirectTo` (hidden
+  no form) - só aceita o valor fixo `'loja'` (nunca uma URL do corpo do
+  request, evita open-redirect) pra voltar pra `/loja?resgatado=`/`?erro=`
+  em vez do `/perfil?saved=` de sempre; sem o campo, comportamento 100%
+  igual ao de antes (usado por `/perfil`).
+- Verificado: `node --check` em `dashboard.js`; `ejs.renderFile` de
+  `loja.ejs` com item resgatável/já possuído/bloqueado/sem requisito
+  (badge E título) + caso vazio (sem emblema/título público nenhum),
+  conferindo presença/ausência de cada estado. SEM confirmação visual
+  (sem navegador neste ambiente, mesma ressalva de sempre).

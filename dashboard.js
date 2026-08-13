@@ -1670,22 +1670,44 @@ function loadDashboard(client) {
     app.get('/loja', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
 
+        // requirement/requirementLabel (ver AchievementSystem) só têm
+        // efeito real pra badge/titulo — personalizacao nunca grava essa
+        // coluna, fica sempre null aqui, sem custo/risco de calcular do
+        // mesmo jeito pros 3 tipos (mesmo padrão já usado em /dev/Loja).
         const resolvePublicGroup = async (type) => {
             const rows = ProfileImagePool.listImages(type, { publicOnly: true });
-            return Promise.all(rows.map(async (row) => ({
-                ...row,
-                url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
-                owned: ImageShopSystem.ownsImage(req.user.id, type, row.id),
-            })));
+            return Promise.all(rows.map(async (row) => {
+                const requirement = AchievementSystem.parseRequirement(row);
+                return {
+                    ...row,
+                    url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
+                    owned: ImageShopSystem.ownsImage(req.user.id, type, row.id),
+                    requirement,
+                    requirementLabel: AchievementSystem.describeRequirement(requirement),
+                };
+            }));
         };
         // Foto de perfil e plano de fundo unificados num grupo só
         // (personalizacao, reforma das lojas 2026-08-12) — a mesma imagem
         // comprada serve pras duas coisas, então não faz mais sentido
         // mostrar o mesmo item 2x sob headers diferentes (ver loja.ejs).
-        const [personalizacao, badges] = await Promise.all([
+        // Emblema/Título (badges/titulos) saíram do card de Personalização
+        // (pedido do dono, 2026-08-13: "Emblemas e titulos não devem
+        // ficar no card da loja de personalização") — moraram pro card
+        // próprio "Missões e Recompensas" mais abaixo, já que não são
+        // comprados com Caçadas, são resgatados de graça por requisito.
+        const [personalizacao, badges, titulos] = await Promise.all([
             resolvePublicGroup('personalizacao'),
             resolvePublicGroup('badge'),
+            resolvePublicGroup('titulo'),
         ]);
+        // Quais badges/titulos este jogador já pode resgatar AGORA (requisito
+        // cumprido, ainda não possui) — mesma fonte usada em /perfil.
+        const redeemableKeys = new Set(
+            ImageShopSystem.getRedeemableItems(req.user.id).map((i) => `${i.type}:${i.id}`)
+        );
+        badges.forEach((b) => { b.redeemable = redeemableKeys.has(`badge:${b.id}`); });
+        titulos.forEach((t) => { t.redeemable = redeemableKeys.has(`titulo:${t.id}`); });
 
         const link = PlayerRegistry.getPlayerByDiscordId(req.user.id);
         const bonesBalance = PlayerRegistry.getBonesBalance(req.user.id);
@@ -1733,6 +1755,7 @@ function loadDashboard(client) {
             otherGuilds: await getAdminGuildsWithBot(req),
             personalizacao,
             badges,
+            titulos,
             isLinked: !!link,
             bonesBalance,
             huntBalance,
@@ -1751,6 +1774,7 @@ function loadDashboard(client) {
             purchaseResult: req.query.comprado || null,
             gameShopPurchaseResult: req.query.jogoComprado || null,
             gameShopUseResult: req.query.jogoUsado || null,
+            redeemResult: req.query.resgatado || null,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
             submissionSent: req.query.enviado === '1',
         });
@@ -1990,12 +2014,29 @@ function loadDashboard(client) {
     // do Discord (ver ConfigSystem.handlePerfilRedeemSelect), aqui vindo
     // de um <select> do form web. Reconfere elegibilidade no
     // ImageShopSystem.redeemItem, nunca confia só na lista já renderizada.
+    // Rota COMPARTILHADA por /perfil e /loja (pedido do dono, 2026-08-13:
+    // card "Missões e Recompensas" novo em /loja também lista/resgata
+    // emblema+título) — redirectTo (campo hidden do form) decide pra onde
+    // volta depois; só aceita o valor fixo 'loja' (nunca uma URL vinda do
+    // corpo do request, pra não abrir a porta pra open-redirect), qualquer
+    // outra coisa cai no default de sempre (/perfil, ?saved=). /loja usa
+    // os próprios parâmetros de query já estabelecidos na página
+    // (?resgatado=/?erro=, ver GET /loja) em vez de ?saved=, que é
+    // específico do padrão de overlay de configurações do /perfil.
     app.post('/perfil/resgatar', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const backToLoja = req.body.redirectTo === 'loja';
         const [type, idStr] = (req.body.item || '').split(':');
         const id = Number(idStr);
-        if (!type || !id) return res.redirect('/perfil?saved=error');
+        if (!type || !id) {
+            return res.redirect(backToLoja ? `/loja?erro=${encodeURIComponent('Requisição inválida.')}` : '/perfil?saved=error');
+        }
         const result = ImageShopSystem.redeemItem(req.user.id, type, id);
+        if (backToLoja) {
+            return res.redirect(result.ok
+                ? `/loja?resgatado=${encodeURIComponent(result.label)}`
+                : `/loja?erro=${encodeURIComponent(result.error)}`);
+        }
         res.redirect(`/perfil?saved=${result.ok ? 'success' : 'error'}`);
     });
 

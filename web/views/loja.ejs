@@ -51,13 +51,31 @@
   espécie NESSE momento — não mais na compra.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
-    personalizacao, badges, isLinked, bonesBalance, huntBalance,
+    personalizacao, badges, titulos, isLinked, bonesBalance, huntBalance,
     xpBalance, marksPerBone, playedGuilds, gameShopCatalogs,
     gameShopInventory, convertResult, convertError, convertAmount,
     convertRconResponse, purchaseResult, gameShopPurchaseResult,
-    gameShopUseResult, personalizationConfig, submissionSent }) —
-    personalizationConfig alimenta o preço mostrado no card "Enviar
-    imagem para venda" (primeiro item da grade de Fotos/Planos de Fundo).
+    gameShopUseResult, redeemResult, personalizationConfig,
+    submissionSent }) — personalizationConfig alimenta o preço mostrado
+    no card "Enviar imagem para venda" (primeiro item da grade de Fotos/
+    Planos de Fundo).
+
+    EMBLEMAS E TÍTULOS saíram do card "LOJA DE PERSONALIZAÇÃO" (pedido do
+    dono, 2026-08-13: "Emblemas e titulos não devem ficar no card da
+    loja de personalização... vamos fazer um card que se chama Missões e
+    recompensas") — ver seção própria "MISSÕES E RECOMPENSAS" mais
+    abaixo. Fazia sentido eles saírem: personalização é comprada com
+    Caçadas, emblema/título NUNCA são comprados (reforma 2026-08-12) — só
+    resgatados de graça quando o requisito (kills/horas/nível/espécie) é
+    cumprido, misturar os dois debaixo de "loja" (com botão "Comprar")
+    era enganoso. `badges`/`titulos` já vêm de dashboard.js com
+    `requirement`/`requirementLabel` (AchievementSystem) e `redeemable`
+    (true se o requisito já foi cumprido e o jogador ainda não possui,
+    ver ImageShopSystem.getRedeemableItems) — mesmo par type:id e mesma
+    rota POST /perfil/resgatar já usada em perfil.ejs, só que aqui o
+    form manda um campo extra `redirectTo=loja` pra voltar pra cá (em vez
+    de /perfil) depois, com o resultado em `redeemResult`/`convertError`
+    (reaproveita o banner de erro genérico do topo da página).
     Marketplace já tem back-end funcional e testado (POST
     /loja/enviar-imagem — ver ImageShopSystem.submitImageForSale), mas o
     card em si fica só como prévia "Em breve" por pedido do dono
@@ -137,6 +155,11 @@
         .loja-currency-icon.is-xp { background: rgba(248, 220, 192, 0.12); color: #F8DCC0; }
         .loja-currency-icon i { width: 28px; height: 28px; }
         .loja-currency-icon img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
+        <%# Ossos/Caçadas maiores que XP (pedido do dono, 2026-08-13:
+            "Icones de ossos e caçadas na loja podem ser meiores") — só
+            essas 2, XP mantém o tamanho de sempre (não foi pedido). %>
+        .loja-currency-icon.is-hunt, .loja-currency-icon.is-bones { width: 64px; height: 64px; }
+        .loja-currency-icon.is-hunt img, .loja-currency-icon.is-bones img { width: 48px; height: 48px; }
         .loja-currency-title { font-family: 'Tilt Warp', cursive; font-size: 15px; color: #F8DCC0; }
         .loja-currency-text { font-family: 'Poppins', sans-serif; font-size: 12.5px; opacity: 0.6; line-height: 1.5; }
         .loja-currency-balance {
@@ -420,10 +443,14 @@
                 // Foto de perfil e plano de fundo foram unificados num tipo
                 // só (personalizacao, reforma 2026-08-12) — uma imagem
                 // comprada aqui pode ser usada como qualquer um dos dois,
-                // então é UM grupo só na loja agora, não mais dois.
+                // então é UM grupo só na loja agora. Emblemas SAÍRAM daqui
+                // (pedido do dono, 2026-08-13) — ver seção "MISSÕES E
+                // RECOMPENSAS" mais abaixo. Continua um array (em vez de
+                // só renderizar personalizacao direto) pra não precisar
+                // reescrever o corpo do forEach abaixo, que usa group.key/
+                // group.labelPt em vários pontos.
                 const lojaPersonalizacaoGroups = [
                     { key: 'personalizacao', labelPt: 'Fotos e Planos de Fundo', labelEn: 'Photos and Backgrounds', items: personalizacao },
-                    { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges },
                 ];
                 // Label de exibição do tier mínimo pra USAR o item depois
                 // de comprado — mesma convenção de nomes já usada em
@@ -496,6 +523,88 @@
                                                 <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                             <% } %>
                                         <% } %>
+                                    <% } %>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            <% }); %>
+        </section>
+
+        <%#
+            MISSÕES E RECOMPENSAS — emblema/título (pedido do dono,
+            2026-08-13: "Emblemas e titulos não devem ficar no card da
+            loja de personalização... vamos fazer um card que se chama
+            Missões e recompensas"). Diferente da Loja de Personalização
+            (compra com Caçadas), emblema/título NUNCA são comprados
+            (reforma 2026-08-12) — só resgatados de graça quando o
+            requisito (kills/horas/nível/espécie) é cumprido, ver
+            AchievementSystem/ImageShopSystem.getRedeemableItems. Mesmo
+            botão "Resgatar" que já existe em /perfil (POST
+            /perfil/resgatar), só que aqui manda redirectTo=loja pra
+            voltar pra esta página (não /perfil) depois. Título nunca tem
+            img.url (guard em resolveImageUrl — título é só texto, sem
+            imagem/attachment), por isso a thumb cai no ícone de
+            fallback, igual ao resto da loja quando não há imagem.
+        %>
+        <section class="titan-card-premium flex-col gap-4">
+            <div>
+                <h2 class="section-title text-lg flex items-center gap-2">
+                    <i data-lucide="award" style="width:20px;height:20px;color:#D9A362;"></i>
+                    <span data-i18n-pt>MISSÕES E RECOMPENSAS</span><span data-i18n-en>MISSIONS AND REWARDS</span>
+                </h2>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Emblemas e títulos não são comprados — são conquistados jogando. Cumpra o requisito e resgate de graça.</span><span data-i18n-en>Badges and titles aren't bought — they're earned by playing. Meet the requirement and redeem them for free.</span></p>
+            </div>
+
+            <% if (redeemResult) { %>
+                <div class="outline-chip">
+                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Resgatado</span><span data-i18n-en>Redeemed</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= redeemResult %> adicionado ao seu inventário, de graça.</span><span data-i18n-en><%= redeemResult %> added to your inventory, for free.</span></span>
+                    </div>
+                </div>
+            <% } %>
+
+            <%
+                const lojaMissoesGroups = [
+                    { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges, icon: 'shield' },
+                    { key: 'titulo', labelPt: 'Títulos', labelEn: 'Titles', items: titulos, icon: 'award' },
+                ];
+            %>
+            <% lojaMissoesGroups.forEach(group => { %>
+                <div class="flex flex-col gap-3">
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt><%= group.labelPt %></span><span data-i18n-en><%= group.labelEn %></span></h3>
+                    <% if (group.items.length === 0) { %>
+                        <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum item público neste grupo ainda.</span><span data-i18n-en>No public item in this group yet.</span></p>
+                    <% } else { %>
+                        <div class="loja-grid">
+                            <% group.items.forEach(item => { %>
+                                <div class="loja-item">
+                                    <div
+                                        class="loja-item-thumb<%= item.url ? ' is-zoomable' : '' %>"
+                                        style="<%= item.url ? `background-image:url('${item.url}')` : '' %>"
+                                        <% if (item.url) { %>onclick="openImageLightbox('<%= item.url %>', '<%= (item.label || '').replace(/'/g, "\\'") %>')"<% } %>
+                                    ><% if (!item.url) { %><i data-lucide="<%= group.icon %>"></i><% } %></div>
+                                    <span class="loja-item-label"><%= item.label %></span>
+                                    <% if (item.owned) { %>
+                                        <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>Você já tem</span><span data-i18n-en>You already have it</span></span>
+                                    <% } else if (item.redeemable) { %>
+                                        <% if (item.requirementLabel) { %>
+                                            <span class="loja-item-desc"><%= item.requirementLabel %></span>
+                                        <% } %>
+                                        <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form">
+                                            <input type="hidden" name="item" value="<%= group.key %>:<%= item.id %>">
+                                            <input type="hidden" name="redirectTo" value="loja">
+                                            <button type="submit" class="btn-chip btn-chip-success">
+                                                <i data-lucide="gift"></i> <span data-i18n-pt>Resgatar</span><span data-i18n-en>Redeem</span>
+                                            </button>
+                                        </form>
+                                    <% } else if (item.requirementLabel) { %>
+                                        <span class="loja-item-desc"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Requisito:</span><span data-i18n-en>Requirement:</span> <%= item.requirementLabel %></span>
+                                    <% } else { %>
+                                        <span class="loja-item-desc"><span data-i18n-pt>Concedido manualmente pelo dono.</span><span data-i18n-en>Manually granted by the owner.</span></span>
                                     <% } %>
                                 </div>
                             <% }); %>
