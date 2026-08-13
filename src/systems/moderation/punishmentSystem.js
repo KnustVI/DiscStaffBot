@@ -274,7 +274,20 @@ const PunishmentSystem = {
         return ConfigSystem.getPanelPersonalization(guildId);
     },
 
-    async generateStrikeUnifiedContainer(client, target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, guildName, reportLink, guildId, jogoAct, ingameActionResult, approvedByTag = null) {
+    // notes (último parâmetro, opcional): pedido do dono, 2026-08-13 —
+    // "apliquei uma punição com orientação mas a orientação acaba não
+    // aparecendo em nenhum canal das punições ou lugar". `observacoes`
+    // (coluna `notes`) já aparecia na prévia de confirmação (linha ~509)
+    // e no /historico (linha ~251), mas ESTE container — usado tanto pro
+    // canal de log quanto pra DM do jogador (mesmo `components` reaproveitado
+    // nos dois envios, ver _executeStrike) — nunca incluía o campo, então a
+    // observação "desaparecia" assim que a punição era publicada de
+    // verdade. NUNCA passe `notes` aqui pra montar o payload que vai pra
+    // DM do jogador — o próprio /strike promete "NÃO vai pro jogo nem
+    // aparece pro jogador" (ver docblock em src/commands/strike/index.js).
+    // _executeStrike monta 2 containers separados quando há notes: um sem
+    // (DM) e outro com (canal de log), nunca reaproveitando o mesmo build.
+    async generateStrikeUnifiedContainer(client, target, moderator, strikeNumber, levelName, levelSeverity, reason, reportId, pointsLost, newPoints, guildName, reportLink, guildId, jogoAct, ingameActionResult, approvedByTag = null, notes = null) {
         const personalization = this._resolvePersonalization(guildId);
         const builder = new AdvancedContainerBuilder({ accentColor: personalization.accentColor ?? COLORS.ERROR });
         // Banner padrão do bot / pool de fotos / imagem própria enviada via
@@ -321,6 +334,14 @@ const PunishmentSystem = {
         // próprio registro (não só na resposta efêmera de handleSupervisorApproval).
         if (approvedByTag) {
             builder.text(`**${EMOJIS.shieldban || '🛡️'} Aprovado por:** ${approvedByTag}`);
+        }
+        // Observações (internas) — só quando o chamador explicitamente
+        // passar `notes` (nunca no build usado pra DM do jogador, ver
+        // comentário no topo desta função). Mesmo rótulo/emoji da prévia
+        // de confirmação (linha ~509), pra ficar visualmente idêntico ao
+        // que o staff já viu antes de confirmar.
+        if (notes) {
+            builder.text(`**${EMOJIS.messagesquare || '📝'} Observações (internas):** ${notes}`);
         }
 
         const actions = this.getPunishmentActions(jogoAct, ingameActionResult);
@@ -954,13 +975,31 @@ const PunishmentSystem = {
             }
         }
 
+        // Canal de log: quando há observações internas (notes), monta um
+        // SEGUNDO container próprio pra este envio, com notes incluído —
+        // nunca reaproveita o `components` de cima (o da DM), senão a
+        // observação vazaria pro jogador (pedido do dono, 2026-08-13:
+        // "apliquei uma punição com orientação mas a orientação acaba não
+        // aparecendo em nenhum canal das punições ou lugar" — ela já ia
+        // pro registro/notes no banco e pro /historico, só faltava
+        // aparecer aqui, no lugar que o staff realmente confere depois).
+        let logComponents = components, logFlags = flags, logFiles = filesPayload;
+        if (notes) {
+            const logContainerBuilder = await this.generateStrikeUnifiedContainer(
+                guild.client, targetUser, staff, strikeId, levelName, levelSeverity, reason, reportId || null,
+                pointsLost, newPoints, guild.name, reportLink, guild.id,
+                jogoAct, ingameActionResult, approvalInfo?.approvedByTag || null, notes
+            );
+            ({ components: logComponents, flags: logFlags, files: logFiles } = logContainerBuilder.build());
+        }
+
         let logSent = false;
         const logChannelId = ConfigSystem.getSetting(guild.id, 'log_punishments');
         if (logChannelId) {
             try {
                 const logChannel = await guild.channels.fetch(logChannelId).catch(() => null);
                 if (logChannel) {
-                    await logChannel.send({ components, flags: [flags], files: filesPayload });
+                    await logChannel.send({ components: logComponents, flags: [logFlags], files: logFiles });
                     logSent = true;
                 }
             } catch (err) {
