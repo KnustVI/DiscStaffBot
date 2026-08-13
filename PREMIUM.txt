@@ -9605,3 +9605,32 @@ frente, nao so este relatorio):
   tocados. SEM confirmação em produção contra o jogo real (mesma
   ressalva de sempre pra tudo que depende do webhook do Path of
   Titans — só confirmável de verdade depois do deploy).
+
+------------------------------------------------------------------
+190) FIX: Observações internas do /strike não apareciam no canal de log
+     de punições
+------------------------------------------------------------------
+- Pedido do dono (2026-08-13): "Apliquei uma punição com orientação mas
+  a orientação acaba não aparecendo em nenhum canal das puinições ou
+  lugar." ("Orientação" = campo `observacoes` do /strike, salvo na
+  coluna `notes`.)
+- CAUSA: `observacoes` sempre foi salva de verdade (coluna `notes`,
+  `punishments`) e já aparecia na prévia de confirmação (antes de
+  clicar em confirmar) e no `/historico jogador` — mas
+  `generateStrikeUnifiedContainer`, o container usado tanto pro canal
+  de log de punições quanto pra DM mandada ao jogador (MESMO payload
+  reaproveitado nos dois envios, ver `_executeStrike`), nunca incluía o
+  campo. Resultado: a observação "sumia" bem na hora que a punição era
+  de fato publicada, exatamente onde o staff foi conferir depois.
+- FIX, com cuidado extra: `observacoes` é uma nota EXPLICITAMENTE
+  interna — a descrição do próprio `/strike` promete "NÃO vai pro jogo
+  nem aparece pro jogador". Não dava pra simplesmente adicionar o campo
+  no container existente (viria junto na DM). `_executeStrike` agora
+  monta 2 containers quando há `notes`: um sem (vai pra DM do jogador,
+  como sempre) e outro com (vai só pro canal de log) — nunca
+  reaproveitando o mesmo build entre os dois envios.
+- Verificado com script direto: build sem notes não tem nenhum rastro
+  de "Observações"; build com notes mostra o rótulo e o texto certo;
+  outro build sem notes logo depois não vaza nada do anterior (sem
+  estado compartilhado entre builds). `node --check` no arquivo
+  tocado.
