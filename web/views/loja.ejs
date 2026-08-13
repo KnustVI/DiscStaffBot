@@ -531,6 +531,7 @@
                     <span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Comprar guarda o item no seu inventário — use quando quiser, direto daqui, mas precisa estar online no servidor na hora de usar.</span><span data-i18n-en>Paid with Bones. Buying keeps the item in your inventory — use it whenever you want, right here, but you need to be online on the server when you use it.</span></p>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Itens consumíveis: cada compra vale por 1 uso e some do inventário assim que você usar. Quer usar de novo? É preciso comprar outra vez.</span><span data-i18n-en>Consumable items: each purchase is good for 1 use and disappears from your inventory once used. Want to use it again? You'll need to buy it again.</span></p>
             </div>
 
             <% if (gameShopPurchaseResult) { %>
@@ -547,7 +548,7 @@
                     <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
                     <div class="outline-chip-text">
                         <span class="outline-chip-headline"><span data-i18n-pt>Aplicado no jogo</span><span data-i18n-en>Applied in-game</span></span>
-                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopUseResult %> aplicado com sucesso.</span><span data-i18n-en><%= gameShopUseResult %> successfully applied.</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopUseResult %> aplicado com sucesso e consumido do seu inventário.</span><span data-i18n-en><%= gameShopUseResult %> successfully applied and consumed from your inventory.</span></span>
                     </div>
                 </div>
             <% } %>

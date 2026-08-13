@@ -501,7 +501,11 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   mas a COMPRA em si (POST /loja/comprar-jogo) so funciona com o Caçador
   ativo, mesmo criterio ja usado no filtro de chat abaixo). Growth pode
   ser restrito a especies de dinossauro especificas, lista separada por
-  etapa (Juvenil/Adolescente/Subadulto/Adulto).
+  etapa (Juvenil/Adolescente/Subadulto/Adulto). CONSUMIVEL: cada compra
+  vale por 1 uso - o item some do inventario (`game_shop_inventory`)
+  assim que o USO (nao a compra) e confirmado com sucesso via RCON;
+  pra usar de novo, precisa comprar de novo. O preco configurado pelo
+  admin e por unidade, nao um desbloqueio permanente.
 - Filtro de palavras do chat em jogo, JA IMPLEMENTADO (ver secoes 93 e 94)
   - /config filtro cadastra palavras/frases que, ao serem escritas no chat
   Global ou de Grupo (NUNCA em sussurro), aplicam automaticamente um nivel
