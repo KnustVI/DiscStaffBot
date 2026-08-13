@@ -36,7 +36,7 @@
  *
  * MARKETPLACE de imagens enviadas por jogador (reforma 2026-08-12, pedido
  * do dono: jogador paga Caçadas pra enviar uma imagem, dono aprova/reprova
- * em /dev/image-pool — ver dashboard.js POST /loja/enviar-imagem). Item com
+ * em /dev/Loja — ver dashboard.js POST /loja/enviar-imagem). Item com
  * `submitted_by` preenchido é DIFERENTE de um item curado pelo dono:
  *  - Repasse: 10% do valor de CADA venda vai pro `submitted_by` em Caçadas
  *    (purchaseImage abaixo).

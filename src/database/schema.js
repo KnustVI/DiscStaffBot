@@ -358,7 +358,7 @@ const SCHEMA = {
     `,
 
     // ==================== POOL DE IMAGENS DE PERFIL (personalizacao/emblema/titulo/banner) ====================
-    // Entradas adicionadas via painel /dev/image-pool (dashboard) ou, pra
+    // Entradas adicionadas via painel /dev/Loja (dashboard) ou, pra
     // personalizacao, enviadas pelo próprio jogador (ver submitted_by
     // abaixo) — complementa os pools estáticos hardcoded em configSystem.js
     // (PLAYER_PHOTO_OPTIONS etc, vindos de assets/images/ via imageManager)
@@ -411,7 +411,7 @@ const SCHEMA = {
     // reforma pedida pelo dono 2026-08-12: qualquer jogador pode pagar
     // Caçadas pra enviar uma imagem própria e colocá-la à venda (sujeita a
     // aprovação do dono). submission_fee é o preço dessa ação em si
-    // (editável no painel /dev/image-pool); accepting_submissions liga/desliga
+    // (editável no painel /dev/Loja); accepting_submissions liga/desliga
     // o recebimento de novos envios sem mexer no preço. Ver
     // src/systems/pot/imageShopSystem.js.
     personalization_shop_config: `

@@ -614,7 +614,7 @@ const DEVELOPER_ID = '203676076189286412';
 // motivo funcional depois desta revisão. As 8 rotas globais (/perfil e
 // afins, /loja e afins) ficam abertas pra qualquer usuário autenticado,
 // como pedido — nunca dependeram de permissão de servidor nenhuma.
-// /dev/image-pool continua exclusivo do dono (isOwnerSession própria, nunca
+// /dev/Loja continua exclusivo do dono (isOwnerSession própria, nunca
 // dependeu desta constante). Deixada como `false` (não removida)
 // pra poder travar de novo rápido se precisar, sem reescrever nada.
 const DASHBOARD_LOCKED_TO_OWNER = false;
@@ -966,7 +966,7 @@ function loadDashboard(client) {
     });
 
     // ==================== TODAS AS LOJAS (só o dono) ====================
-    // Substitui /dev/image-pool (reforma das lojas, pedido do dono
+    // Substitui a antiga /dev/image-pool (reforma das lojas, pedido do dono
     // 2026-08-12: "Controle da loja que é um acesso só do desenvolvedor,
     // deve ser um painel de configuração completa de todas as lojas...
     // preciso de todos os controles de configuração possiveis de todos os
@@ -993,7 +993,7 @@ function loadDashboard(client) {
     // preço (setShopConfig só aceita 'personalizacao' agora), usa o
     // editor de requisito próprio (ver bloco separado na view).
 
-    app.get('/dev/image-pool', checkAuth, async (req, res) => {
+    app.get('/dev/Loja', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
 
         const groups = await Promise.all(IMAGE_POOL_TYPES.map(async ({ type, label }) => {
@@ -1001,6 +1001,14 @@ function loadDashboard(client) {
             const images = await Promise.all(rows.map(async row => ({
                 ...row,
                 url: await ProfileImagePool.resolveImageUrl(client, type, row.id),
+                // requirement/requirementLabel só têm efeito real pra
+                // 'titulo' (o outro tipo com resgate por requisito, ver
+                // partials/requirement-form.ejs — personalizacao/banner
+                // nunca gravam essa coluna, então ficam sempre null aqui,
+                // sem custo/risco nenhum de calcular do mesmo jeito pra
+                // manter os 3 tipos consistentes nesta mesma lista).
+                requirement: AchievementSystem.parseRequirement(row),
+                requirementLabel: AchievementSystem.describeRequirement(AchievementSystem.parseRequirement(row)),
             })));
             return { type, label, images };
         }));
@@ -1036,13 +1044,13 @@ function loadDashboard(client) {
         });
     });
 
-    app.post('/dev/image-pool/:type/:id/toggle', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/:type/:id/toggle', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
         const row = ProfileImagePool.getByTypeAndId(type, id);
         if (row) ProfileImagePool.setPublic(type, id, !row.is_public);
-        res.redirect('/dev/image-pool');
+        res.redirect('/dev/Loja');
     });
 
     // Precifica um item do pool pra Loja de Caçadas — só 'personalizacao'
@@ -1050,7 +1058,7 @@ function loadDashboard(client) {
     // — ImageShopSystem.setShopConfig já recusa qualquer outro tipo).
     // Mandar preco 0/vazio remove da loja (o item continua no pool, só
     // deixa de ser comprável) — ver ImageShopSystem.setShopConfig.
-    app.post('/dev/image-pool/:type/:id/preco', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/:type/:id/preco', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
@@ -1058,12 +1066,12 @@ function loadDashboard(client) {
             price: Number(req.body.preco),
             minTier: req.body.tier_minimo,
         });
-        res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
     // Define (ou limpa, se algum campo vier vazio) o requisito de resgate
     // automático de um emblema/título — ver AchievementSystem.
-    app.post('/dev/image-pool/:type/:id/requisito', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/:type/:id/requisito', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
@@ -1075,11 +1083,11 @@ function loadDashboard(client) {
         } else if (AchievementSystem.REQUIREMENT_TYPES[reqType] && Number.isFinite(value) && value > 0) {
             const species = (req.body.requirement_species || '').trim();
             if (AchievementSystem.REQUIREMENT_TYPES[reqType].needsSpecies && !species) {
-                return res.redirect('/dev/image-pool?saved=error');
+                return res.redirect('/dev/Loja?saved=error');
             }
             ok = ProfileImagePool.setRequirement(type, id, { type: reqType, value, ...(species ? { species } : {}) });
         }
-        res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
     // Upload direto pelo dashboard (pedido do dono: não precisar ir no
@@ -1087,9 +1095,9 @@ function loadDashboard(client) {
     // upload próprio de banner (POST /moderacao/:guildID/save), só que
     // gravando no pool em vez de num setting de guild específico.
     app.post(
-        '/dev/image-pool/:type/upload',
+        '/dev/Loja/:type/upload',
         checkAuth,
-        safeUpload(upload.single('imagem'), '/dev/image-pool?saved=error'),
+        safeUpload(upload.single('imagem'), '/dev/Loja?saved=error'),
         async (req, res) => {
             if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
             const { type } = req.params;
@@ -1111,7 +1119,7 @@ function loadDashboard(client) {
                     ok = true;
                 }
             }
-            res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+            res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
         }
     );
 
@@ -1119,7 +1127,7 @@ function loadDashboard(client) {
     // que é texto puro, sem attachment nenhum pra subir, então tem sua
     // própria rota em vez de passar pelo upload multer acima (ver
     // profileImagePool.js pro porquê de messageId ser '' e não null).
-    app.post('/dev/image-pool/titulo/add', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/titulo/add', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const text = (req.body.titulo || '').trim();
         let ok = false;
@@ -1127,47 +1135,47 @@ function loadDashboard(client) {
             ProfileImagePool.addImage('titulo', text, '', req.user.id);
             ok = true;
         }
-        res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
     // Remove de verdade (diferente do toggle, que só esconde).
-    app.post('/dev/image-pool/:type/:id/delete', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/:type/:id/delete', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
         ProfileImagePool.removeImage(type, id);
-        res.redirect('/dev/image-pool');
+        res.redirect('/dev/Loja');
     });
 
     // Aprova um envio pendente do marketplace de imagem de jogador — vira
     // público/comprável, com o nome de quem enviou (ver imageShopSystem.js
     // purchaseImage pro repasse de 10%/reprecificação que passam a valer
     // a partir daqui).
-    app.post('/dev/image-pool/pendente/:id/aprovar', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/pendente/:id/aprovar', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const id = Number(req.params.id);
         const row = ProfileImagePool.approveSubmission(id);
-        res.redirect(`/dev/image-pool?saved=${row ? 'success' : 'error'}`);
+        res.redirect(`/dev/Loja?saved=${row ? 'success' : 'error'}`);
     });
 
     // Reprova — devolve a taxa de envio pro jogador e apaga o item por
     // completo (pedido do dono: "removemos tudo sobre o item").
-    app.post('/dev/image-pool/pendente/:id/reprovar', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/pendente/:id/reprovar', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const id = Number(req.params.id);
         const ok = ImageShopSystem.rejectSubmission(id);
-        res.redirect(`/dev/image-pool?saved=${ok ? 'success' : 'error'}`);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
     // Config global da Loja de Personalização — taxa de envio (Caçadas) e
     // se o marketplace está aceitando envios novos agora.
-    app.post('/dev/image-pool/config', checkAuth, async (req, res) => {
+    app.post('/dev/Loja/config', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         ImageShopSystem.setPersonalizationShopConfig({
             submissionFee: Number(req.body.submission_fee),
             acceptingSubmissions: req.body.accepting_submissions === '1',
         });
-        res.redirect('/dev/image-pool?saved=success');
+        res.redirect('/dev/Loja?saved=success');
     });
 
     // ==================== PERFIL (do usuário logado) ====================
@@ -1563,12 +1571,6 @@ function loadDashboard(client) {
         const totalPlaytimeSeconds = playedGuilds.reduce((sum, pg) => sum + (pg.totalPlaytime || 0), 0);
         const totalPlaytimeLabel = totalPlaytimeSeconds > 0 ? StaffPresenceSystem.formatDuration(totalPlaytimeSeconds * 1000) : null;
 
-        // Carrossel pequeno de anúncios de servidores parceiros no topo
-        // (pedido do dono, 2026-08-10: "Adicione um pequeno carrosseu
-        // desses anúncios de servers na parfina de perfil e na pagina de
-        // loja, no topo") — mesma fonte da home (getPartnerNews).
-        const partnerNews = await getPartnerNews(client);
-
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
             role: 'Membro',
@@ -1598,7 +1600,6 @@ function loadDashboard(client) {
             backgroundOptions,
             avatarPreviewUrl,
             backgroundPreviewUrl,
-            partnerNews,
             saved: req.query.saved,
         });
     });
@@ -1738,6 +1739,7 @@ function loadDashboard(client) {
             xpBalance,
             levelProgress,
             marksPerBone: CurrencySystem.MARKS_PER_BONE,
+            dailyMarksLimit: CurrencySystem.DAILY_MARKS_TO_BONES_LIMIT,
             playedGuilds,
             gameShopCatalogs,
             gameShopInventory,
@@ -1841,7 +1843,7 @@ function loadDashboard(client) {
     // suficientes ou o marketplace está fechado); a proporção é validada
     // com sharp().metadata() no buffer CRU (webp/resize de
     // storeImageBuffer só roda depois, se passar). Fica pendente até o
-    // dono aprovar/reprovar em /dev/image-pool — ver ImageShopSystem.submitImageForSale.
+    // dono aprovar/reprovar em /dev/Loja — ver ImageShopSystem.submitImageForSale.
     app.post(
         '/loja/enviar-imagem',
         checkAuth,
@@ -2305,7 +2307,7 @@ function loadDashboard(client) {
     // cada uma com sua própria restrição de espécie)/Skipshed/Missão, pago
     // em Ossos, configurado POR SERVIDOR pelo próprio admin (GameShopSystem
     // — não confundir com a Loja de Personalização, que é global e só o
-    // dono mexe, ver /dev/image-pool). GET exige isStaff (visualização, mesmo
+    // dono mexe, ver /dev/Loja). GET exige isStaff (visualização, mesmo
     // padrão de /gameserver), POST exige isAdmin (edição). O dono
     // (isOwnerSession) ignora o vínculo de membership/cargo com o servidor
     // — consegue configurar a Loja de Jogo de QUALQUER servidor onde o bot

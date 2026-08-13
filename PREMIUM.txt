@@ -126,7 +126,7 @@ FREE
 - EMBLEMA libera aqui tambem (correcao do dono - ver secao 96): e o UNICO
   item de personalizacao disponivel em QUALQUER tier, escolhido de uma
   lista via /perfil-edit. Selecao/persistencia JA IMPLEMENTADA. A lista de
-  opcoes e alimentada pelo dono a qualquer momento via o painel /dev/image-pool
+  opcoes e alimentada pelo dono a qualquer momento via o painel /dev/Loja
   no site (antes era /perfil-pool no bot developer, removido na reforma
   das lojas - ver secao 183) - sem precisar editar codigo/redeployar a
   cada emblema novo. MUDANCA 2026-08-12 (secao 183): emblema (e titulo)
@@ -158,7 +158,7 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
       que o jogador possua (livre por tier, comprada na Loja, ou enviada
       por ele mesmo e aprovada, ver Loja de Personalizacao mais abaixo)
       pode ser usada como foto OU como plano de fundo, sem distincao.
-      Alimentado pelo dono via /dev/image-pool no site (antes /perfil-pool add
+      Alimentado pelo dono via /dev/Loja no site (antes /perfil-pool add
       avatar/fundo no bot developer, removido - ver secao 183). JA
       IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
@@ -218,7 +218,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
       formula XP_Total = 10 x Nivel^2.2, progressao infinita sem teto;
     - EMBLEMA (fileira de icones abaixo da foto) - selecao/persistencia
       liberada em QUALQUER tier (JA IMPLEMENTADA), lista de opcoes
-      alimentada pelo dono via /dev/image-pool no site (antes /perfil-pool add
+      alimentada pelo dono via /dev/Loja no site (antes /perfil-pool add
       badge, removido - ver secao 183), mas o DESENHO do emblema escolhido
       em cima do card ainda NAO implementado;
     - nome do jogador e identificacao (Alderon ID + usuario do Discord) -
@@ -239,7 +239,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   toda vez que o /perfil e exibido.
 - Foto/plano de fundo escolhidos por menu (Compy) via /perfil-edit - sem
   upload do jogador, so seleciona entre as imagens que o dono ja tiver
-  adicionado ao pool via /dev/image-pool no site (antes /perfil-pool add
+  adicionado ao pool via /dev/Loja no site (antes /perfil-pool add
   avatar/fundo, removido - ver secao 183) - pool 100% dinamico, nao
   depende mais de nenhuma foto fixa em assets/images. Guarda so a CHAVE
   "pool:<id>" (player_links.selected_photo_key/selected_background_key),
@@ -247,7 +247,7 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   foto e plano de fundo viraram um UNICO tipo de imagem no pool
   ("personalizacao") - a mesma imagem serve pras duas coisas.
 - Pool dinamico de imagens (personalizacao/emblema/banner/titulo) via
-  /dev/image-pool no site (antes /perfil-pool no bot developer, removido - ver
+  /dev/Loja no site (antes /perfil-pool no bot developer, removido - ver
   secao 183) - o dono adiciona/remove/lista imagens sem precisar editar
   codigo ou redeployar. Mesmo padrao de armazenamento do upload proprio
   do Raptor (guarda so o ID da mensagem no canal fixo
@@ -278,16 +278,21 @@ Caçadas e ela entra no INVENTÁRIO pessoal, usável como foto OU plano de
 fundo (unificados, sem distinção de compra). Compy+ continua com acesso
 LIVRE a todo o pool (como já era, sem precisar comprar nada) - a loja é
 um caminho ADICIONAL, não uma restrição nova. Por item, o dono define
-(painel `/dev/image-pool` no site): preço em Caçadas e o tier mínimo pra USAR
+(painel `/dev/Loja` no site): preço em Caçadas e o tier mínimo pra USAR
 o item depois de comprado (shop_min_tier) - COMPRAR nunca depende de
 tier, só de ter Caçadas suficientes. NOVO em 2026-08-12: qualquer jogador
 também pode ENVIAR uma imagem própria pra venda (paga uma taxa em
 Caçadas, imagem precisa ter proporção 800×427, fica pendente até o dono
-aprovar em `/dev/image-pool`) - se aprovada, o autor recebe 10% de Caçadas a
+aprovar em `/dev/Loja`) - se aprovada, o autor recebe 10% de Caçadas a
 cada venda e o preço sobe 5% por venda (nunca desce sozinho, popularidade
-determina o preço). Emblema e título SAÍRAM do formulário de preço por
-completo (não são mais compráveis direto) - viraram resgate por
-requisito, ver bullet Emblema/Free acima.
+determina o preço). BACKEND 100% FUNCIONAL, mas a entrada visual pro
+jogador em `/loja` está ESCONDIDA por hora - "vindo em breve" (ver seção
+187) - `POST /loja/enviar-imagem` e a fila de aprovação continuam
+funcionando por trás, só o card que levava até lá foi trocado por um
+aviso "Em breve" (mudança 100% reversível, só de frontend). Emblema e
+título SAÍRAM do formulário de preço por completo (não são mais
+compráveis direto) - viraram resgate por requisito, ver bullet Emblema/
+Free acima.
 
 
 2) SERVER PREMIUM (por servidor Discord)
@@ -9210,7 +9215,7 @@ frente, nao so este relatorio):
   `playtime_hours`/`level`/`species_picks`, valor, espécie quando
   aplicável) verificado ao vivo contra dados JÁ rastreados (nenhuma
   tabela nova) — `checkRequirementMet`. Dev define o requisito por item
-  no painel `/dev/image-pool`; jogador vê o item elegível e resgata (grátis,
+  no painel `/dev/lojas`; jogador vê o item elegível e resgata (grátis,
   `image_inventory.source='redeemed'`, coluna nova só pra auditoria) via
   um menu "Resgatar" novo na tela "Emblema & Título" do `/perfil`
   (Discord, reabilitada — estava com `.setDisabled(true)` esperando
@@ -9225,14 +9230,14 @@ frente, nao so este relatorio):
   = só quem possui, comprado antes ou resgatado agora).
 - FEATURE 4 — MARKETPLACE de imagens enviadas por jogador, na Loja de
   Personalização: card fixo "Enviar imagem para venda" no topo de `/loja`
-  (taxa em Caçadas, configurável pelo dono em `/dev/image-pool`, tabela nova
+  (taxa em Caçadas, configurável pelo dono em `/dev/lojas`, tabela nova
   `personalization_shop_config`, 1 linha global). `POST
   /loja/enviar-imagem` valida proporção 800×427 no arquivo CRU via
   `sharp().metadata()` (tolerância ~2%) ANTES de subir/converter pra webp
   (evita gastar o custo do upload num arquivo que ia ser rejeitado
   mesmo), cobra a taxa, cria a entrada como `pending_review=1`/
   `is_public=0` (`ProfileImagePool.addSubmittedImage`, novo) — invisível
-  na loja até o dono decidir. Painel `/dev/image-pool` ganha uma fila de
+  na loja até o dono decidir. Painel `/dev/lojas` ganha uma fila de
   aprovação: Aprovar (`is_public=1`/`pending_review=0`, aparece com o
   username de quem enviou) ou Reprovar (devolve a taxa via `addHunt`,
   apaga a linha por completo — "removemos tudo sobre o item", pedido
@@ -9244,7 +9249,7 @@ frente, nao so este relatorio):
   e pediu um crescimento mais lento, resultando nos 5%. Itens curados
   pelo próprio dono (sem `submitted_by`) nunca são repreçados
   automaticamente — preço deles continua 100% manual.
-- FEATURE 5 — painel `/dev/image-pool` (novo, `web/views/dev-lojas.ejs`)
+- FEATURE 5 — painel `/dev/lojas` (novo, `web/views/dev-lojas.ejs`)
   substitui por completo a antiga `/dev/image-pool`: catálogo de TODOS os
   servidores (link direto pra `/lojajogo/:guildId` de cada um), pool de
   Personalização/Banner/Título (upload/preço/visibilidade, mesmo padrão
@@ -9253,7 +9258,7 @@ frente, nao so este relatorio):
   restrita ao dono (`isOwnerSession`, nunca abre pra outros admins).
 - FEATURE 6 — comando Discord `/perfil-pool` (dev-only) REMOVIDO por
   completo, junto com a view antiga `web/views/dev-image-pool.ejs` — o
-  site (`/dev/image-pool`) já cobre tudo que os dois faziam, e mais. Pedido
+  site (`/dev/lojas`) já cobre tudo que os dois faziam, e mais. Pedido
   explícito do dono: "não precisamos dos comandos de dev pool imagens".
 - Verificado: `node --check` em todos os ~15 arquivos tocados/criados
   (gameShopSystem.js, achievementSystem.js, imageShopSystem.js,
@@ -9378,3 +9383,102 @@ frente, nao so este relatorio):
   `dev-lojas.ejs` e `lojajogo.ejs` (que inclui a sidebar) confirmando o
   título/heading/nav novos e as URLs de formulário já apontando pra
   `/dev/image-pool`.
+
+------------------------------------------------------------------
+186) Rota /dev/image-pool renomeada (de vez) pra /dev/Loja + nome da
+     página "Controle de Lojas" mantido
+------------------------------------------------------------------
+- Pedido do dono, mesmo dia (2026-08-12), na sequência de um lote maior
+  de ajustes de UI: "e podemos alterar o
+  https://dashboard.titansvisit.win/dev/image-pool para
+  https://dashboard.titansvisit.win/dev/Loja?" — diferente da seção 185
+  (que reverteu pra `/dev/image-pool` porque o dono já tinha esse link
+  salvo), desta vez o pedido é pela URL nova mesmo, então a troca ficou
+  definitiva.
+- `/dev/image-pool` renomeada pra `/dev/Loja` em todo lugar que
+  referenciava a rota (dashboard.js — GET + as 9 POST de ação —, link
+  da sidebar, `action` dos formulários em `dev-lojas.ejs`) — mesma
+  varredura da seção 185, só que na direção oposta. Nome exibido da
+  página ("Controle de Lojas") não muda, só a URL.
+- Verificado: `node --check` nos arquivos `.js` tocados; `ejs.renderFile`
+  de `sidebar-v2.ejs`/`dev-lojas.ejs` confirmando as URLs de nav/
+  formulário já apontando pra `/dev/Loja`.
+
+------------------------------------------------------------------
+187) Lote de ajustes de UI/UX pós-reforma das lojas (home, /loja,
+     /perfil, /dev/Loja, sidebar)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-12, mesmo dia das seções 183-186), lote único
+  com 4 screenshots anexados apontando problemas visuais concretos.
+- Home (`hero.ejs`): card de apresentação de perfil recebeu `mx-auto`
+  (estava desalinhado do centro dentro do flex row). Botão "LOJA/SHOP"
+  novo na nav de topo (mesmo `<nav>` duplicado em `hero.ejs`/
+  `documentacao.ejs`/`portal.ejs`/`termos.ejs`, 4 edições idênticas).
+- `/perfil`: removido o carrossel de "Novidades de servidores parceiros"
+  (`partials/partner-news-mini`) — continua existindo normalmente em
+  `/loja`, só saiu do perfil.
+- `/loja`: card de "Enviar imagem para venda" (marketplace, seção 183/
+  FEATURE 4) trocado por um card compacto com ribbon "Em breve" no topo
+  da grade de Personalização — backend (`POST /loja/enviar-imagem`,
+  aprovação, repasse de 10%, reprecificação de 5%) continua 100%
+  funcional e intocado, só a entrada visual do jogador foi escondida
+  (reversível puramente no frontend). Botões "Comprar" dos itens
+  encolhidos e recoloridos pra `#F8DCC0` (só nesse formulário, via
+  seletor `.loja-item-buy-form .btn-chip`, sem tocar `.btn-chip-success`
+  global usado noutras telas, ex. "Aprovar" no painel do dev). Cor do
+  texto/ícone de Ossos trocada de amarelo puro (`#FFCC00`) pra
+  `#D9A362` em `loja.ejs`/`perfil.ejs` (hex E as variantes `rgba(...)`
+  de borda/fundo). Conversor de Ossos↔Marks ganhou aviso do limite
+  diário (`CurrencySystem.DAILY_MARKS_TO_BONES_LIMIT`, 100.000
+  Marks/dia) e o saldo exibido ganhou mais respiro (`margin`/`gap`/
+  `padding`) — estava colado no texto ao lado. Ícones de saldo (Ossos/
+  Caçadas/XP) aumentados; Ossos e Caçadas (que já têm moldura própria)
+  perderam o `background` extra que deixava redundante com a moldura —
+  XP manteve o fundo (referência que o dono pediu pra igualar). Também
+  removido, no mesmo arquivo, um banner "Loja de Jogo em construção"
+  esquecido — sobrava de antes da Loja de Jogo virar real (seção 183/
+  FEATURE 1-2), contradizendo visualmente a seção logo abaixo dele, que
+  já funciona.
+- `/dev/Loja`: badge (emblema) já tinha editor de requisito, mas raso
+  ("Valor" genérico, sem explicação) — e título não tinha editor NENHUM
+  apesar do backend (`getRedeemableItems`, `POST /dev/Loja/:type/:id/
+  requisito`, `ProfileImagePool.setRequirement`) já suportar os dois
+  tipos. `AchievementSystem.REQUIREMENT_TYPES` ganhou `valueLabel`
+  (rótulo do campo "Valor" por tipo, ex. "Kills"/"Horas"/"Nível"/
+  "Vezes") e `hint` (frase explicando o que aquele requisito checa) —
+  só pra UI, `checkRequirementMet`/`describeRequirement` inalterados.
+  Editor extraído pro parcial novo `partials/requirement-form.ejs`
+  (IDs únicos por instância, `rf-${type}-${img.id}`, pra emblema e
+  título usarem o MESMO formulário/JS sem colidir na mesma página),
+  com o rótulo/dica/campo de Espécie trocando sozinhos via JS conforme
+  o tipo de requisito escolhido (campo Espécie só aparece nos tipos que
+  usam `needsSpecies`). Título ganhou o mesmo editor pela primeira vez.
+- Sidebar (`partials/sidebar-v2.ejs`): botão de idioma e botão de
+  recolher/expandir, antes empilhados cada um numa linha, agora ficam
+  lado a lado (`.tp-sidebar-top-actions`, `flex-direction: row`) no
+  modo expandido — a lista de itens de nav cresceu bastante nesta
+  mesma sessão (Game Server/Loja de Jogo/Controle de Lojas somados),
+  sobrando pouca altura pros botões principais. Nos 3 gatilhos de modo
+  "só ícone" (`data-collapsed="true"`, tela ≤1023px sem preferência
+  salva, `@container` estreito) os dois voltam a empilhar em coluna —
+  a largura interna colapsada (~73px) não cabe os dois lado a lado.
+  BUG separado encontrado e corrigido na mesma revisão: `.tp-sidebar`
+  já declarava `overflow-y: auto`, mas nunca tinha `height` nenhuma —
+  sem isso a regra não tinha o que limitar, então uma sidebar mais alta
+  que a tela (fácil de acontecer agora com a nav maior) só vazava pra
+  fora do `<aside>` (`h-screen sticky`, mesmo padrão nas ~10 páginas
+  que incluem esta sidebar) em vez de rolar por dentro dela mesma —
+  bem provável a causa real do "sidebar vai ficar cortada" relatado
+  pelo dono. `height: 100%` resolve isso pra sempre: agora a sidebar
+  sempre cabe exatamente na tela e rola sozinha quando o conteúdo não
+  cabe, independente de quantos itens a nav tiver no futuro.
+- Verificado: `node --check` em todos os `.js` tocados (`dashboard.js`,
+  `achievementSystem.js`); `ejs.renderFile` de todas as `.ejs` tocadas
+  (`hero`/`documentacao`/`termos`/`portal`/`loja`/`perfil`/`dev-lojas`,
+  além do `sidebar-v2` isolado) com locals mockados, cobrindo caso
+  populado e vazio, confirmando presença/ausência do HTML esperado por
+  item da lista acima. SEM confirmação visual/browser real (nenhuma
+  ferramenta de navegador disponível neste ambiente) — mudanças de
+  CSS/layout puro (centralização, cores, tamanhos, lado a lado) foram
+  só revisadas por leitura de código + teste de render, não vistas na
+  tela; vale o dono conferir visualmente após o deploy.

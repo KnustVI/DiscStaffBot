@@ -134,14 +134,14 @@
         // Só o dono do bot vê esse item — painel completo de todas as
         // lojas (Loja de Jogo de cada servidor + pool de Personalização/
         // Emblema/Título + fila de aprovação do marketplace, ver
-        // dashboard.js GET /dev/image-pool). Renomeado de "Controle Loja"
-        // pra "Controle de Lojas" (pedido do dono, 2026-08-12: "altere o
-        // nome da pagina tambem") — a URL/rota continua /dev/image-pool
-        // de propósito (o dono já tem esse link salvo/em uso), só o
-        // CONTEÚDO por trás dela virou o painel novo (reforma das lojas)
-        // e o nome exibido passou a refletir isso. Página global, sem
-        // :guildID, por isso não usa guildHref.
-        ...(sbIsOwner ? [{ key: 'lojas-dev', labelPt: 'Controle de Lojas', labelEn: 'Shops Control', icon: 'store', href: '/dev/image-pool' }] : []),
+        // dashboard.js GET /dev/Loja). Renomeado de "Controle Loja" pra
+        // "Controle de Lojas" (pedido do dono, 2026-08-12: "altere o nome
+        // da pagina tambem"). URL passou por 2 renomeações no mesmo dia:
+        // /dev/image-pool -> /dev/lojas (conteúdo virou o painel novo) ->
+        // de volta pra /dev/image-pool (pedido do dono: link antigo já
+        // salvo/em uso) -> /dev/Loja (pedido explícito seguinte, mesmo
+        // dia). Página global, sem :guildID, por isso não usa guildHref.
+        ...(sbIsOwner ? [{ key: 'lojas-dev', labelPt: 'Controle de Lojas', labelEn: 'Shops Control', icon: 'store', href: '/dev/Loja' }] : []),
         { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ];
     const activeKey = typeof active !== 'undefined' ? active : null;
@@ -178,28 +178,35 @@
                 <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass">
             </div>
             <%#
-                Botão de idioma (pedido do dono, 2026-08-06) — mesmo
-                redesign de bandeiras sobrepostas já usado no site (ver
-                hero.ejs .lang-toggle/.lang-toggle-flag), agora também no
-                dashboard. html[data-lang] e a persistência em
-                localStorage.titanspass_lang são as MESMAS do site — troca
-                o idioma aqui e ele já vem trocado se a pessoa visitar a
-                home depois (e vice-versa). ACIMA do botão de recolher/
-                expandir (pedido do dono, 2026-08-06: "botão de idioma
-                deve ficar acima do botão de estender e recolher sidebar"
-                — havia sido movido pra dentro de .tp-sidebar-nav antes,
-                desfeito). Tamanho igual expandida/colapsada — sem
-                scale() (pedido do dono: "não deveria ter alterado o
-                tamanho do botão de idioma").
+                Botão de idioma + botão de recolher/expandir, lado a lado
+                (pedido do dono, 2026-08-12: "de idioma e side bar devem
+                ficar lado a lado dando mais espaço para os botões
+                principais" — com a lista de itens de nav crescendo
+                (Game Server/Loja de Jogo/Controle de Lojas somados nesta
+                mesma sessão), os dois empilhados verticalmente estavam
+                sobrando altura que fazia falta pros botões principais.
+                Histórico: antes ficavam cada um em sua própria linha,
+                idioma ACIMA do de recolher (pedido anterior do dono,
+                2026-08-06) — essa ordem vertical não existe mais, os
+                dois viram uma única linha .tp-sidebar-top-actions.
+                Continuam lado a lado só no modo EXPANDIDO: nos 3 modos
+                "ícone só" (data-collapsed, tela estreita, container
+                estreito) a largura interna não sobra pros dois num,
+                então cada um volta a empilhar (ver overrides mais abaixo
+                no <style>). Tamanho dos botões em si continua igual
+                expandido/colapsado — sem scale() (pedido do dono:
+                "não deveria ter alterado o tamanho do botão de idioma").
             %>
-            <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
-                <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
-                <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
-            </button>
-            <button type="button" class="tp-sidebar-toggle" id="tpSidebarToggle" aria-label="Recolher/expandir menu" aria-expanded="true">
-                <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
-                <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
-            </button>
+            <div class="tp-sidebar-top-actions">
+                <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
+                    <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
+                    <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
+                </button>
+                <button type="button" class="tp-sidebar-toggle" id="tpSidebarToggle" aria-label="Recolher/expandir menu" aria-expanded="true">
+                    <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
+                    <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
+                </button>
+            </div>
         </div>
 
         <nav class="tp-sidebar-nav">
@@ -292,6 +299,21 @@
            — a primeira tentativa aqui tinha ficado no lado errado. */
         border-right: 1.5px solid rgba(248, 220, 192, 0.3);
         border-radius: 20px;
+        /* height:100% (pedido do dono, 2026-08-12: "sidebar vai ficar
+           cortada na página" com a lista de nav crescendo) — o <aside>
+           que envolve esta sidebar em TODA página (moderacao/reports/
+           events/perfil/loja/etc.) é sempre "h-screen sticky top-0"
+           (100vh fixo). Sem height:100% aqui, esta div (bloco comum,
+           sem display:flex/grid no pai que a esticasse sozinha) só
+           cresce com o próprio conteúdo — se ficar mais alta que 100vh
+           (fácil de acontecer agora com Game Server/Loja de Jogo/
+           Controle de Lojas somados à nav), o overflow-y:auto abaixo
+           nunca tinha altura nenhuma pra realmente limitar, então o
+           excesso só vazava/ficava inacessível em vez de rolar. Com
+           height:100%, a sidebar sempre cabe exatamente na tela e passa
+           a rolar POR DENTRO dela mesma quando o conteúdo não cabe —
+           nunca mais "corta" nada, só precisa de scroll. */
+        height: 100%;
         overflow-y: auto;
         transition: width 0.2s ease;
         /* Pedido do dono, 2026-08-04 (último ajuste): "se a largura for
@@ -329,6 +351,20 @@
     }
     .tp-sidebar-logo { display: flex; justify-content: center; padding: 9px 0; width: 100%; }
     .tp-sidebar-logo img { width: 100%; max-width: 229px; height: auto; }
+
+    /* Idioma + recolher/expandir lado a lado (pedido do dono, 2026-08-12
+       — ver comentário no HTML acima). Só no modo EXPANDIDO: os 3
+       gatilhos de "só ícone" (data-collapsed, tela estreita, container
+       estreito) revertem pra column mais abaixo, porque a largura
+       interna colapsada (~73px) não cabe os dois lado a lado
+       (52px + 41px + gap > 73px). */
+    .tp-sidebar-top-actions {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
 
     /* Tamanho fixo (pedido do dono, 2026-08-06: "botão de recolher e
        estender sidebar deve sempre ter o mesmo tamanho em ambas
@@ -552,6 +588,10 @@
     .tp-sidebar[data-collapsed="true"] { width: var(--tp-w-collapsed); }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
+    /* Idioma + recolher voltam a empilhar (column) quando colapsada — a
+       largura interna colapsada (~73px, ver --tp-collapsed-pad) não cabe
+       os 52px do lang-toggle + 41px do toggle + gap lado a lado. */
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-top-actions { flex-direction: column; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-expanded { display: none; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-collapsed { display: block; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-nav { gap: 10px; padding: 0; }
@@ -580,6 +620,7 @@
         .tp-sidebar:not([data-user-set]) { width: var(--tp-w-collapsed); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-top-actions { flex-direction: column; }
         .tp-sidebar:not([data-user-set]) .tp-icon-expanded { display: none; }
         .tp-sidebar:not([data-user-set]) .tp-icon-collapsed { display: block; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-nav { gap: 10px; padding: 0; }
@@ -629,6 +670,7 @@
     @container tpsidebar (max-width: 270px) {
         .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
+        .tp-sidebar-top-actions { flex-direction: column; }
         .tp-icon-expanded { display: none; }
         .tp-icon-collapsed { display: block; }
         .tp-sidebar-nav { gap: 10px; padding: 0; }

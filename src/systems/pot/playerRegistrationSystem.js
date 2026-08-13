@@ -661,7 +661,7 @@ class PlayerRegistrationSystem {
         // usuários que administram um server". Botão de atalho pro
         // Controle Loja (só pro dono) removido em 2026-08-10 — pedido do
         // dono: "não é para ser isso" — a página continua acessível pela
-        // sidebar do dashboard (/dev/image-pool), só não pelo /perfil.
+        // sidebar do dashboard (/dev/Loja), só não pelo /perfil.
         //
         // Botão Dashboard aponta direto pro /perfil do site agora (pedido
         // do dono, 2026-08-11: "link de dashboard no perfil (discord) deve

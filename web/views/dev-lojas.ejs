@@ -1,29 +1,33 @@
 <%#
   web/views/dev-lojas.ejs
   Página GLOBAL (sem :guildID), restrita ao dono do bot (isOwnerSession,
-  ver dashboard.js GET /dev/image-pool) — CONTEÚDO substituído por
-  completo na reforma das lojas (pedido do dono 2026-08-12: "Controle da
-  loja... deve ser um painel de configuração completa de todas as
-  lojas"), mas a URL/rota `/dev/image-pool` foi MANTIDA de propósito
-  (pedido do dono, mesmo dia: "altere o nome da pagina tambem, o
-  controle da loja que fizemos tem de ser nessa pagina" — o dono já tem
-  esse link salvo/em uso, só o conteúdo e o nome exibido (nav/heading)
-  precisavam virar o painel novo). Nome do arquivo (dev-lojas.ejs)
-  continua diferente do nome da rota — Express/EJS não exigem que
-  bata, o `res.render('dev-lojas', ...)` é só uma referência interna.
+  ver dashboard.js GET /dev/Loja) — CONTEÚDO substituído por completo na
+  reforma das lojas (pedido do dono 2026-08-12: "Controle da loja...
+  deve ser um painel de configuração completa de todas as lojas"). URL
+  já passou por 2 rodadas de renomeação no mesmo dia: nasceu em
+  `/dev/lojas` (seção 183 do PREMIUM.txt), voltou pra `/dev/image-pool`
+  por pedido do dono (a URL antiga já estava salva/em uso — ver seção
+  185), e finalmente virou `/dev/Loja` por pedido explícito seguinte.
+  Nome do arquivo (dev-lojas.ejs) continua diferente do nome da rota —
+  Express/EJS não exigem que bata, o `res.render('dev-lojas', ...)` é só
+  uma referência interna, não precisa mudar toda vez que a URL muda.
 
   5 seções: (1) Loja de Jogo de CADA servidor onde o bot está (link pra
   /lojajogo/:guildId, mesma página do admin — o dono tem bypass lá pra
   configurar/dar suporte em qualquer servidor mesmo sem ser membro); (2)
   config global da Loja de Personalização (taxa de envio do marketplace);
   (3) fila de aprovação de imagens enviadas por jogador; (4) pool de
-  Personalização/Banner/Título (upload/visibilidade/preço); (5) Emblemas,
-  com editor de requisito de resgate no lugar do preço (ver
-  src/systems/pot/achievementSystem.js).
+  Personalização/Banner (upload/visibilidade/preço) + Título (editor de
+  requisito, ver abaixo); (5) Emblemas, com o MESMO editor de requisito
+  de resgate de Título (partials/requirement-form.ejs, ver
+  src/systems/pot/achievementSystem.js) — Título estava faltando esse
+  editor até 2026-08-12 (pedido do dono: "titulo esta sem essa
+  confguração tambem"), corrigido no mesmo dia que a UX do requisito
+  ganhou rótulo/dica dinâmicos por tipo escolhido.
 
   Uso: res.render('dev-lojas', { groups, badges, pendingSubmissions,
     allGuilds, requirementTypes, personalizationConfig, saved }) — ver
-    dashboard.js GET /dev/image-pool pro shape completo de cada local.
+    dashboard.js GET /dev/Loja pro shape completo de cada local.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -174,6 +178,15 @@
             border-radius: 8px;
         }
         .pool-price-current { font-size: 0.65rem; opacity: 0.6; }
+        <%# Rótulo/valor/espécie do requisito (pedido do dono, 2026-08-12:
+            "não esta claro como devem ser os requisitos") — linha própria
+            em vez de espremer no mesmo .pool-price-row genérico do preço,
+            já que aqui o rótulo do campo MUDA de acordo com o tipo
+            escolhido (ver partials/requirement-form.ejs). %>
+        .pool-req-value-row { display: flex; align-items: center; gap: 6px; }
+        .pool-req-value-row label { font-size: 0.65rem; opacity: 0.7; flex: none; white-space: nowrap; }
+        .pool-req-value-row input { flex: 1; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 6px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.7rem; }
+        .pool-req-hint { font-size: 0.62rem; opacity: 0.5; line-height: 1.4; font-style: italic; }
         .pool-price-row { display: flex; gap: 6px; }
         .pool-price-row input[type="number"],
         .pool-price-row input[type="text"],
@@ -280,7 +293,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <h2 class="section-title text-lg">Marketplace de Imagens — Configuração</h2>
             <p class="text-xs opacity-50">Taxa (em Caçadas) que um jogador paga pra enviar uma imagem própria pra venda na Loja de Personalização — precisa da sua aprovação antes de aparecer pra qualquer um comprar.</p>
-            <form action="/dev/image-pool/config" method="POST" class="pool-price-row" style="max-width: 420px;">
+            <form action="/dev/Loja/config" method="POST" class="pool-price-row" style="max-width: 420px;">
                 <input type="number" name="submission_fee" min="1" step="1" value="<%= personalizationConfig.submission_fee %>" placeholder="Taxa de envio">
                 <select name="accepting_submissions">
                     <option value="1" <%= personalizationConfig.accepting_submissions ? 'selected' : '' %>>Aceitando envios</option>
@@ -304,10 +317,10 @@
                                 <span class="pool-item-label"><%= sub.label %></span>
                                 <span class="pool-item-meta">Enviado por <%= sub.submitterName %> — taxa paga: <%= sub.submission_fee %> Caçadas</span>
                                 <div class="lojas-pending-actions">
-                                    <form action="/dev/image-pool/pendente/<%= sub.id %>/aprovar" method="POST">
+                                    <form action="/dev/Loja/pendente/<%= sub.id %>/aprovar" method="POST">
                                         <button type="submit" class="pool-approve-btn">Aprovar</button>
                                     </form>
-                                    <form action="/dev/image-pool/pendente/<%= sub.id %>/reprovar" method="POST" onsubmit="return confirm('Reprovar? A taxa de envio é devolvida e o item é apagado por completo.');">
+                                    <form action="/dev/Loja/pendente/<%= sub.id %>/reprovar" method="POST" onsubmit="return confirm('Reprovar? A taxa de envio é devolvida e o item é apagado por completo.');">
                                         <button type="submit" class="pool-reject-btn">Reprovar</button>
                                     </form>
                                 </div>
@@ -325,12 +338,12 @@
                 <h2 class="section-title text-lg"><%= group.label %> (<%= group.images.length %>)</h2>
 
                 <% if (group.type === 'titulo') { %>
-                    <form class="pool-upload-form" action="/dev/image-pool/titulo/add" method="POST">
+                    <form class="pool-upload-form" action="/dev/Loja/titulo/add" method="POST">
                         <input type="text" name="titulo" placeholder="Texto do título" maxlength="80" required>
                         <button type="submit" class="pool-upload-submit">Adicionar</button>
                     </form>
                 <% } else { %>
-                    <form class="pool-upload-form" action="/dev/image-pool/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
+                    <form class="pool-upload-form" action="/dev/Loja/<%= group.type %>/upload" method="POST" enctype="multipart/form-data">
                         <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
                         <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
                         <button type="submit" class="pool-upload-submit">Adicionar</button>
@@ -362,7 +375,7 @@
                                                 Não está à venda
                                             <% } %>
                                         </span>
-                                        <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/preco" method="POST">
+                                        <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/preco" method="POST">
                                             <div class="pool-price-row">
                                                 <input type="number" name="preco" min="0" step="1" placeholder="Preço" value="<%= img.shop_price || '' %>">
                                                 <select name="tier_minimo">
@@ -374,12 +387,14 @@
                                             <button type="submit" class="pool-price-submit">Salvar preço</button>
                                         </form>
                                     </div>
+                                <% } else if (group.type === 'titulo') { %>
+                                    <%- include('partials/requirement-form', { img, type: 'titulo', requirementTypes }) %>
                                 <% } %>
                                 <div class="pool-item-actions">
-                                    <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/toggle" method="POST">
+                                    <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/toggle" method="POST">
                                         <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
                                     </form>
-                                    <form action="/dev/image-pool/<%= group.type %>/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
+                                    <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
                                         <button type="submit" class="pool-delete-btn">Excluir</button>
                                     </form>
                                 </div>
@@ -394,7 +409,7 @@
         <section class="titan-card-premium flex-col gap-4">
             <h2 class="section-title text-lg">Emblemas (<%= badges.length %>)</h2>
             <p class="text-xs opacity-50">Emblemas não são mais compráveis direto — defina um requisito e o jogador vê o botão "Resgatar" assim que cumprir, sem gastar moeda nenhuma.</p>
-            <form class="pool-upload-form" action="/dev/image-pool/badge/upload" method="POST" enctype="multipart/form-data">
+            <form class="pool-upload-form" action="/dev/Loja/badge/upload" method="POST" enctype="multipart/form-data">
                 <input type="text" name="label" placeholder="Nome de exibição" maxlength="80" required>
                 <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp" required>
                 <button type="submit" class="pool-upload-submit">Adicionar</button>
@@ -410,27 +425,12 @@
                             <span class="pool-item-label"><%= img.label %></span>
                             <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                             <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
-                            <div class="pool-requirement-form">
-                                <span class="pool-price-current"><%= img.requirementLabel || 'Sem requisito (só concessão manual)' %></span>
-                                <form action="/dev/image-pool/badge/<%= img.id %>/requisito" method="POST">
-                                    <div class="pool-price-row">
-                                        <select name="requirement_type">
-                                            <option value="">Nenhum</option>
-                                            <% Object.keys(requirementTypes).forEach(key => { %>
-                                                <option value="<%= key %>" <%= img.requirement && img.requirement.type === key ? 'selected' : '' %>><%= requirementTypes[key].label %></option>
-                                            <% }); %>
-                                        </select>
-                                        <input type="number" name="requirement_value" min="1" step="1" placeholder="Valor" value="<%= img.requirement ? img.requirement.value : '' %>">
-                                    </div>
-                                    <input type="text" name="requirement_species" placeholder="Espécie (só se aplicável)" value="<%= img.requirement && img.requirement.species ? img.requirement.species : '' %>">
-                                    <button type="submit" class="pool-price-submit">Salvar requisito</button>
-                                </form>
-                            </div>
+                            <%- include('partials/requirement-form', { img, type: 'badge', requirementTypes }) %>
                             <div class="pool-item-actions">
-                                <form action="/dev/image-pool/badge/<%= img.id %>/toggle" method="POST">
+                                <form action="/dev/Loja/badge/<%= img.id %>/toggle" method="POST">
                                     <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
                                 </form>
-                                <form action="/dev/image-pool/badge/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
+                                <form action="/dev/Loja/badge/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
                                     <button type="submit" class="pool-delete-btn">Excluir</button>
                                 </form>
                             </div>
@@ -449,5 +449,24 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script>
+        // Sincroniza o formulário de requisito (partials/requirement-form.ejs)
+        // com o tipo escolhido no <select> — rótulo do campo "Valor", frase
+        // de ajuda, e mostra/esconde o campo de Espécie só quando o tipo
+        // selecionado realmente usa espécie (needsSpecies). Um formulário
+        // por item do pool (badge/titulo), cada um com seu próprio id
+        // (rfId, ver o parcial) — por isso a função recebe o prefixo e
+        // busca os elementos por ele, em vez de IDs fixos repetidos na página.
+        function requirementFormSync(rfId) {
+            const select = document.getElementById(rfId + '-type');
+            const option = select.options[select.selectedIndex];
+            const valueLabel = document.getElementById(rfId + '-value-label');
+            const speciesRow = document.getElementById(rfId + '-species-row');
+            const hint = document.getElementById(rfId + '-hint');
+            valueLabel.textContent = (option.dataset.valueLabel || 'Valor') + ':';
+            speciesRow.style.display = option.dataset.needsSpecies === '1' ? '' : 'none';
+            hint.textContent = option.dataset.hint || 'Escolha um tipo de requisito acima para ver a explicação.';
+        }
+    </script>
 </body>
 </html>

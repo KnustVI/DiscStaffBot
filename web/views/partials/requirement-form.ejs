@@ -1,0 +1,56 @@
+<%#
+  web/views/partials/requirement-form.ejs
+  Editor de requisito de resgate de emblema/título — extraído num parcial
+  só (pedido do dono, 2026-08-12: "Configuração e emblemas parece meio
+  quebrado, não esta claro como devem ser os requisitos... e titulo esta
+  sem essa confguração tambem") pra usar EXATAMENTE o mesmo formulário
+  nos dois tipos (badge E titulo) sem duplicar a marcação/JS duas vezes —
+  antes disso só emblema tinha esse editor, título não tinha nenhum.
+
+  Clareza da UX (mesmo pedido): o rótulo do campo "Valor" e a frase de
+  ajuda embaixo agora mudam sozinhos conforme o tipo de requisito
+  escolhido (ver requirementTypes[*].valueLabel/hint em
+  achievementSystem.js), e o campo de Espécie só aparece pros tipos que
+  realmente usam espécie (needsSpecies) — antes ficava sempre visível,
+  mesmo quando não fazia sentido pro tipo selecionado.
+
+  Uso: include( partials/requirement-form , { img, type, requirementTypes } )
+    img — linha do pool (badge ou titulo), já com img.requirement
+      (objeto parseado ou null) e img.requirementLabel (string legível,
+      ver AchievementSystem.describeRequirement) vindos de dashboard.js.
+    type — 'badge' ou 'titulo', usado só pra montar a action do form.
+    requirementTypes — AchievementSystem.REQUIREMENT_TYPES.
+%>
+<%
+    const rfId = `rf-${type}-${img.id}`;
+    const rfCurrentType = img.requirement?.type || '';
+%>
+<div class="pool-requirement-form">
+    <span class="pool-price-current"><%= img.requirementLabel || 'Sem requisito (só concessão manual)' %></span>
+    <form action="/dev/Loja/<%= type %>/<%= img.id %>/requisito" method="POST" class="flex flex-col gap-2">
+        <div class="pool-price-row">
+            <select name="requirement_type" id="<%= rfId %>-type" onchange="requirementFormSync('<%= rfId %>')">
+                <option value="" data-hint="Nenhum requisito — só você pode conceder este item na mão.">Nenhum (só concessão manual)</option>
+                <% Object.keys(requirementTypes).forEach(key => { %>
+                    <option
+                        value="<%= key %>"
+                        data-value-label="<%= requirementTypes[key].valueLabel %>"
+                        data-hint="<%= requirementTypes[key].hint %>"
+                        data-needs-species="<%= requirementTypes[key].needsSpecies ? '1' : '0' %>"
+                        <%= rfCurrentType === key ? 'selected' : '' %>
+                    ><%= requirementTypes[key].label %></option>
+                <% }); %>
+            </select>
+        </div>
+        <div class="pool-req-value-row">
+            <label id="<%= rfId %>-value-label" for="<%= rfId %>-value"><%= requirementTypes[rfCurrentType]?.valueLabel || 'Valor' %>:</label>
+            <input type="number" id="<%= rfId %>-value" name="requirement_value" min="1" step="1" placeholder="Ex: 100" value="<%= img.requirement ? img.requirement.value : '' %>">
+        </div>
+        <div id="<%= rfId %>-species-row" class="pool-req-value-row" style="<%= requirementTypes[rfCurrentType]?.needsSpecies ? '' : 'display:none;' %>">
+            <label for="<%= rfId %>-species">Espécie:</label>
+            <input type="text" id="<%= rfId %>-species" name="requirement_species" placeholder="Ex: Deinosuchus" value="<%= img.requirement && img.requirement.species ? img.requirement.species : '' %>">
+        </div>
+        <p id="<%= rfId %>-hint" class="pool-req-hint"><%= requirementTypes[rfCurrentType]?.hint || 'Escolha um tipo de requisito acima para ver a explicação.' %></p>
+        <button type="submit" class="pool-price-submit">Salvar requisito</button>
+    </form>
+</div>

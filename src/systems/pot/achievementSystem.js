@@ -5,7 +5,7 @@
  * recompensaveis por missões, onde só o desenvolvedor pode colocar na
  * loja com requisitos para o player resgatar." O dono define o requisito
  * (tipo + valor, ver `requirement` em profile_image_pool/
- * ProfileImagePool.setRequirement) no painel /dev/image-pool; o sistema
+ * ProfileImagePool.setRequirement) no painel /dev/Loja; o sistema
  * verifica automaticamente se um jogador já cumpre e libera um botão
  * "Resgatar" (ver playerRegistrationSystem.js/configSystem.js) — sem
  * conceder nada sozinho, o jogador precisa clicar.
@@ -18,11 +18,34 @@
  */
 'use strict';
 
+// valueLabel/hint (novos, 2026-08-12 — pedido do dono: "não esta claro
+// como devem ser os requisitos") alimentam o painel /dev/Loja: valueLabel
+// rotula o campo "Valor" de acordo com o tipo escolhido (em vez de um
+// "Valor" genérico sem contexto), hint explica em uma frase o que aquele
+// requisito realmente checa — os dois só existem pra UI, não mudam nada
+// em checkRequirementMet/describeRequirement.
 const REQUIREMENT_TYPES = {
-    kills: { label: 'Kills (total)' },
-    playtime_hours: { label: 'Tempo de jogo (horas)' },
-    level: { label: 'Nível (XP)' },
-    species_picks: { label: 'Vezes jogadas com uma espécie', needsSpecies: true },
+    kills: {
+        label: 'Kills (total)',
+        valueLabel: 'Kills',
+        hint: 'Jogador precisa ter pelo menos esse número de abates (kills), somando todos os servidores.',
+    },
+    playtime_hours: {
+        label: 'Tempo de jogo (horas)',
+        valueLabel: 'Horas',
+        hint: 'Jogador precisa ter pelo menos essa quantidade de horas jogadas, somando todos os servidores.',
+    },
+    level: {
+        label: 'Nível (XP)',
+        valueLabel: 'Nível',
+        hint: 'Jogador precisa ter alcançado pelo menos esse Nível (calculado a partir do XP acumulado).',
+    },
+    species_picks: {
+        label: 'Vezes jogadas com uma espécie',
+        valueLabel: 'Vezes',
+        hint: 'Jogador precisa ter jogado com a espécie informada abaixo pelo menos esse número de vezes (spawns), somando todos os servidores.',
+        needsSpecies: true,
+    },
 };
 
 function parseRequirement(row) {

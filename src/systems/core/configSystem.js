@@ -210,7 +210,7 @@ const LOG_FIELDS = [
  * Opções de personalização/emblema/banner pro /perfil-edit E pro
  * /config personalizar (banner de Strike/Unstrike/Report-Chat) — 100%
  * vindas do pool DINÂMICO (profile_image_pool, alimentado pela página
- * /dev/image-pool do dashboard — ver profileImagePool.js; o antigo comando
+ * /dev/Loja do dashboard — ver profileImagePool.js; o antigo comando
  * /perfil-pool do bot developer foi removido na reforma das lojas,
  * 2026-08-12), sem nenhum pool estático hardcoded por trás. A galeria de
  * banner era um array separado (PLAYER_PHOTO_OPTIONS, resolvido via
@@ -283,7 +283,7 @@ function _ownedUsableOptions(userId, poolType) {
  * tabela/AchievementSystem). Badge que já foi priceado antes da migração
  * mas ainda não ganhou um requisito novo do dono fica temporariamente
  * livre pra qualquer um (mesmo comportamento que um emblema sempre-livre
- * já tinha) até o dono configurar um requisito em /dev/image-pool.
+ * já tinha) até o dono configurar um requisito em /dev/Loja.
  */
 function _usableBadgeOptions(userId) {
     const ImageShopSystem = require('../pot/imageShopSystem');
@@ -1930,7 +1930,7 @@ const ConfigSystem = {
     // ==================== PLAYER PREMIUM — FOTO DE PERFIL (COMPY) ====================
     // Compy escolhe entre as fotos do pool de personalização
     // (getPersonalizationOptions — 100% dinâmico, alimentado via
-    // /dev/image-pool no dashboard) via menu; Raptor continua com upload
+    // /dev/Loja no dashboard) via menu; Raptor continua com upload
     // próprio (/perfil-edit, banner_message_id). Ver
     // playerRegistrationSystem.js.
     // _resolveCardPhotoBuffer pra onde essa escolha é lida na hora de montar
@@ -2103,7 +2103,7 @@ const ConfigSystem = {
     // ==================== EMBLEMA (QUALQUER TIER) ====================
     // Sempre "escolher de uma lista", nunca upload próprio — liberado em
     // QUALQUER tier (diferente de foto/fundo, exclusivos Compy+/Raptor).
-    // Pool 100% dinâmico (getBadgeOptions — ver /dev/image-pool no dashboard).
+    // Pool 100% dinâmico (getBadgeOptions — ver /dev/Loja no dashboard).
     // Desenho do emblema escolhido em cima do card ainda
     // não implementado — esta tela já deixa a escolha/persistência
     // prontas, o desenho fica pra quando existirem assets reais cadastrados
