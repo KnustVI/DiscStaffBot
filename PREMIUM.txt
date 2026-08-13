@@ -9634,3 +9634,50 @@ frente, nao so este relatorio):
   outro build sem notes logo depois não vaza nada do anterior (sem
   estado compartilhado entre builds). `node --check` no arquivo
   tocado.
+
+------------------------------------------------------------------
+191) CORREÇÃO da seção 190: observações internas saem do canal
+     'log_punishments' (pode ser público) e vão pro 'log_staff'
+------------------------------------------------------------------
+- Pedido do dono, MESMO DIA (2026-08-13), na sequência direta da seção
+  190: "Ta na verdade muitos servidores estão usando o canal de log de
+  forma publica apara plaeyrs então essa orientação postada pode ser
+  anexada em outro lugar?"
+- PROBLEMA com a seção 190: ela mandava observações internas pro canal
+  configurado em 'log_punishments' (num container SEPARADO do que vai
+  pra DM, então tecnicamente nunca "vazava pro jogador" na DM) — mas
+  esse canal de log de punições, na prática, é usado PUBLICAMENTE por
+  muitos servidores reais (visível pra qualquer jogador, não só staff).
+  Uma nota marcada como "interna" acabava exposta de qualquer forma,
+  só que por um caminho diferente do que a seção 190 tinha fechado.
+- FIX: revertido o envio de notes pro 'log_punishments' por completo —
+  esse container volta a ser IDÊNTICO ao que vai pra DM (nunca inclui
+  observações, ver `generateStrikeUnifiedContainer`, parâmetro `notes`
+  removido de novo). Observações internas agora vão só pro canal
+  configurado em 'log_staff' (`/config logs` → Staff), um card PRÓPRIO
+  e compacto (`_sendStrikeNotesToStaffLog`, novo) com o ID do strike,
+  jogador, staff responsável e o texto — canal genuinamente staff-only
+  por convenção deste bot (mesmo canal já usado por
+  analyticsSystem.js/guildMemberUpdate.js/ingame-buff.js pra conteúdo
+  sensível). Sem 'log_staff' configurado, a observação NÃO cai de volta
+  no canal público — fica só no registro (banco/`/historico`/prévia de
+  confirmação), e o staff que aplicou o strike é avisado disso na
+  resposta efêmera ("Observações internas não enviadas a nenhum canal —
+  configure um canal de log de Staff").
+- BUG PRÓPRIO encontrado e corrigido durante o teste desta correção:
+  `_sendStrikeNotesToStaffLog` chamava `ConfigSystem.getSetting(...)`
+  sem perceber que `ConfigSystem` NÃO é um require top-level neste
+  arquivo — é sempre local, por método (padrão do arquivo inteiro,
+  provavelmente pra evitar um require circular). Sem o require local,
+  virava `ReferenceError`, engolido pelo próprio catch da função —
+  retornava `false` silenciosamente, sem enviar nada e sem log de erro
+  nenhum que explicasse o motivo. Só apareceu porque o teste funcional
+  checava o conteúdo REAL enviado ao canal fake, não só o valor
+  booleano de retorno.
+- Verificado com script direto: container da DM/`log_punishments`
+  nunca mais contém "Observações"; sem `log_staff` configurado,
+  `_sendStrikeNotesToStaffLog` devolve `false` sem lançar; com
+  `log_staff` configurado, o card chega no canal certo com ID do
+  strike/jogador/staff/texto da nota; resumo efêmero pro staff reflete
+  os 3 estados (sem nota nenhuma, nota entregue, nota NÃO entregue).
+  `node --check` no arquivo tocado.
