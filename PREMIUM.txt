@@ -9532,3 +9532,76 @@ frente, nao so este relatorio):
   (badge E título) + caso vazio (sem emblema/título público nenhum),
   conferindo presença/ausência de cada estado. SEM confirmação visual
   (sem navegador neste ambiente, mesma ressalva de sempre).
+
+------------------------------------------------------------------
+189) Relatório de combate parava de misturar engages sem relação nenhuma
+     entre si + mostra os grupos (matilhas/packs) envolvidos
+------------------------------------------------------------------
+- Pedido do dono (2026-08-13): "Relatorios de combate estão misturando
+  varios engages. Conseguimos melhorar isso?" seguido de "Consegue puxar
+  players em grupos tambem para esses casos? Assim sabemos quais grupos
+  estão brigando."
+- CAUSA RAIZ (não era a mesma da seção 51, que era sobre o relatório
+  nunca CHEGAR por passar do limite de componentes do Discord — aqui o
+  relatório chegava certinho, só que juntando coisas que não tinham
+  relação): `_findOrCreateEncounter` (gatewayServer.js) juntava um evento
+  novo a QUALQUER encontro já aberto que tivesse um dos dois lados como
+  participante, não importa há quanto tempo esse participante lutou ali
+  pela última vez — e o timer de inatividade (5min default,
+  `damage_batch_idle_minutes`) reiniciava a cada evento novo de QUALQUER
+  participante, sem teto de duração nenhum. Um "alvo ímã" (dino parado
+  num ponto movimentado, atacado por 3+ predadores sem relação nenhuma
+  entre si ao longo de vários minutos) virava sistematicamente UM
+  relatório só.
+- FIX 1 — merge por atividade RECENTE, não "a vida toda do encontro":
+  `_findOrCreateEncounter` só junta um evento novo a um encontro aberto
+  se o participante compartilhado teve uma ação nos últimos
+  `RECENT_PARTICIPANT_WINDOW_MS` (2min, constante fixa por ora — não
+  exposta em `/combat-config`). Continua juntando uma briga 3+ genuína e
+  contínua (A bate B, B bate C segundos depois, ainda no calor da mesma
+  confusão); já não junta um alvo atacado por B às 14h05 e por C às
+  14h08 só porque o encontro de B nunca tinha fechado de vez. Novo campo
+  `lastActiveAt` por participante (`_upsertParticipant`), atualizado a
+  CADA evento (diferente de nome/espécie/dieta, que só preenchem se
+  ainda vazios — aqui sempre reflete a ação mais recente de verdade).
+- FIX 2 — teto de duração `MAX_ENCOUNTER_DURATION_MS` (15min, também
+  constante fixa): mesmo com atividade contínua e legítima o tempo
+  todo, um encontro nunca fica aberto além deste tempo desde o primeiro
+  evento — rede de segurança pro caso patológico de um combate
+  realmente ininterrupto. `_resetEncounterTimer` agora agenda o PRÓXIMO
+  fechamento como o menor entre "daqui a X min de ocioso" e "o que
+  falta pro teto" (`_msUntilDurationCap`, função pura extraída só pra
+  dar pra testar a conta sem depender de esperar minutos de verdade).
+- FEATURE — grupos (matilhas/packs) envolvidos no relatório: PoT já
+  manda `PlayerJoinedGroup`/`PlayerLeftGroup` (Player/PlayerAlderonId +
+  Leader/LeaderAlderonId de quem entrou; só Player/PlayerAlderonId de
+  quem saiu) — antes só virava uma linha de log, sem nenhum registro
+  persistido. 2 colunas novas em `pot_players`
+  (`group_leader_alderon_id`/`group_leader_name`), atualizadas ao vivo
+  por esses 2 eventos (`PlayerRegistry.setGroupMembership`/
+  `getGroupMembership`, novo) — NUNCA pelo evento de dano/morte em si,
+  que confirmadamente não carrega esse campo. `_upsertParticipant`
+  resolve o grupo de cada participante UMA VEZ por encontro (na primeira
+  vez que ele aparece com um Alderon ID; não reconsulta a cada golpe —
+  um combate gera muitos golpes, e grupo raramente muda no meio de uma
+  briga). Limitação conhecida, aceita: o LÍDER de um grupo nunca recebe
+  `PlayerJoinedGroup` pra si mesmo (só quem entra no grupo dele manda
+  esse evento) — o líder aparece no relatório sem grupo próprio, só os
+  seguidores mostram "Grupo de <Líder>". Relatório ganha um resumo
+  "Grupos envolvidos: Grupo de X, Grupo de Y" logo no topo de "JOGADORES
+  ENVOLVIDOS" (só aparece se pelo menos 1 participante tiver grupo) +
+  uma linha "Grupo de X" no card de cada participante que tiver.
+- Verificado com script direto (dados de teste, todos apagados no fim):
+  `setGroupMembership`/`getGroupMembership` gravam/limpam corretamente,
+  no-op silencioso (sem crash) se o jogador ainda não tem linha em
+  `pot_players`; participante com atividade recente JUNTA no mesmo
+  encontro, participante com atividade antiga (>2min simulados) NÃO
+  junta e abre um encontro novo; `groupLeaderName` resolvido do registro
+  e mantido (não refeito) em upserts seguintes do mesmo participante;
+  `_msUntilDurationCap` confirmado com valores antes/depois do teto
+  (nunca negativo); relatório final (`buildDamageReportPayload`) confir-
+  mado mostrando o resumo de grupos E a linha por participante,
+  ausentes pra quem não tem grupo. `node --check` nos 5 arquivos
+  tocados. SEM confirmação em produção contra o jogo real (mesma
+  ressalva de sempre pra tudo que depende do webhook do Path of
+  Titans — só confirmável de verdade depois do deploy).

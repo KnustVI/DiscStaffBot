@@ -1352,6 +1352,66 @@ function getGuildPlayerStats(guildId, alderonId) {
  * @param {string} guildId
  * @param {object} rawPayload
  */
+/**
+ * Grava/limpa o grupo (matilha/pack) ATUAL de um jogador nesta guild —
+ * pedido do dono, 2026-08-13: "sabemos quais grupos estão brigando"
+ * (relatório de combate juntando engages sem relação entre si só porque
+ * compartilham um participante). Chamado a partir de PlayerJoinedGroup/
+ * PlayerLeftGroup (ver gatewayServer.js _routeToDiscord) — NUNCA a partir
+ * de um evento de dano/morte, que não carrega esse campo.
+ *
+ * leaderAlderonId/leaderName nulos = limpa o grupo (jogador voltou a
+ * solo) — é assim que PlayerLeftGroup chama esta função.
+ *
+ * UPDATE-only (mesmo padrão de setSelectedBadgeKey/setBackgroundMessageId
+ * acima): se o jogador ainda não tem linha em pot_players nesta guild
+ * (nunca disparou nenhum dos playerEvents que criam a linha — raríssimo,
+ * exigiria entrar num grupo antes de qualquer login/chat/respawn já
+ * processado), a atualização vira um no-op silencioso em vez de criar uma
+ * linha incompleta; o grupo fica sem registro até o próximo evento normal
+ * criar a linha e ele entrar/sair do grupo de novo.
+ *
+ * @param {string} guildId
+ * @param {string} alderonId - jogador que entrou/saiu
+ * @param {string|null} leaderAlderonId
+ * @param {string|null} leaderName
+ * @returns {boolean} true se alguma linha foi atualizada
+ */
+function setGroupMembership(guildId, alderonId, leaderAlderonId, leaderName) {
+    if (!guildId || !alderonId) return false;
+    try {
+        const result = db.prepare(`
+            UPDATE pot_players SET group_leader_alderon_id = ?, group_leader_name = ?, updated_at = ?
+            WHERE guild_id = ? AND alderon_id = ?
+        `).run(leaderAlderonId || null, leaderName || null, Math.floor(Date.now() / 1000), guildId, alderonId);
+        return result.changes > 0;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao registrar grupo do jogador:', error);
+        return false;
+    }
+}
+
+/**
+ * Grupo ATUAL de um jogador nesta guild (ver setGroupMembership acima) —
+ * null quando ele não está em nenhum grupo (ou nunca foi registrado).
+ * @param {string} guildId
+ * @param {string} alderonId
+ * @returns {{leaderAlderonId: string, leaderName: string}|null}
+ */
+function getGroupMembership(guildId, alderonId) {
+    if (!guildId || !alderonId) return null;
+    try {
+        const row = db.prepare(`
+            SELECT group_leader_alderon_id, group_leader_name FROM pot_players WHERE guild_id = ? AND alderon_id = ?
+        `).get(guildId, alderonId);
+        if (!row || !row.group_leader_alderon_id) return null;
+        return { leaderAlderonId: row.group_leader_alderon_id, leaderName: row.group_leader_name };
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao buscar grupo do jogador:', error);
+        return null;
+    }
+}
+
 function recordKillEvent(guildId, rawPayload) {
     if (!guildId || !rawPayload) return;
     const killerAlderonId = rawPayload.KillerAlderonId ? String(rawPayload.KillerAlderonId).trim() : null;
@@ -1403,6 +1463,10 @@ module.exports = {
     getMostPlayedDinosaur,
     getKnownSpecies,
     recordKillEvent,
+    // Grupo (matilha/pack) atual do jogador — ver PlayerJoinedGroup/
+    // PlayerLeftGroup em gatewayServer.js e docblock de setGroupMembership.
+    setGroupMembership,
+    getGroupMembership,
     registerPlayerManually,
     setBannerMessageId,
     setSelectedPhotoKey,

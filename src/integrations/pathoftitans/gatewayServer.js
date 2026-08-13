@@ -180,6 +180,36 @@ const EVENT_GROUPS = PoTConfigSystem.EVENT_GROUPS;
 // (developer), setting "damage_batch_idle_minutes" no ConfigSystem.
 const DEFAULT_DAMAGE_BATCH_IDLE_MINUTES = 5;
 
+// Diagnóstico do dono, 2026-08-13: "Relatorios de combate estão
+// misturando varios engages" — causa raiz era _findOrCreateEncounter
+// (mais abaixo) juntar um evento novo a QUALQUER encontro já aberto que
+// tivesse um dos dois participantes, não importa há quanto tempo esse
+// participante lutou pela última vez ali. Um "alvo ímã" (dino parado num
+// ponto movimentado, atacado por 3+ predadores sem relação nenhuma entre
+// si ao longo de vários minutos) virava UM relatório só, porque cada
+// ataque novo reiniciava o timer de inatividade do encontro inteiro —
+// sem teto nenhum, o encontro podia ficar aberto pra sempre enquanto
+// houvesse QUALQUER atividade de QUALQUER participante.
+//
+// 2 limites novos, complementares:
+// - RECENT_PARTICIPANT_WINDOW_MS: um evento novo só entra num encontro
+//   já aberto se o participante compartilhado (ver _findOrCreateEncounter)
+//   teve uma ação DENTRO desta janela — não "em algum momento da vida do
+//   encontro". Continua juntando uma briga 3+ genuína e contínua (A bate
+//   B, B bate C segundos depois — ainda no calor da mesma confusão), mas
+//   já não junta um alvo atacado por B às 14h05 e por C às 14h08 só
+//   porque B "ainda está tecnicamente participando" de um encontro que
+//   nunca fechou.
+// - MAX_ENCOUNTER_DURATION_MS: teto absoluto — mesmo com atividade
+//   contínua e legítima o tempo todo, um encontro nunca fica aberto além
+//   deste tempo desde o primeiro evento (_resetEncounterTimer calcula o
+//   PRÓXIMO fechamento como o menor entre "daqui a X min de ocioso" e "o
+//   que falta pro teto"). Rede de segurança pro caso patológico de um
+//   combate realmente ininterrupto (evita um encontro crescer pra sempre
+//   só porque nunca deu uma pausa de verdade).
+const RECENT_PARTICIPANT_WINDOW_MS = 2 * 60 * 1000; // 2min
+const MAX_ENCOUNTER_DURATION_MS = 15 * 60 * 1000; // 15min
+
 class PoTGatewayServer {
     constructor(client) {
         this.client = client;
@@ -429,6 +459,31 @@ class PoTGatewayServer {
                     PlayerRegistry.upsertPlayerFromEvent(guildId, data, potEvent);
                 } catch (err) {
                     console.warn('⚠️ [Gateway] Registro de jogador falhou:', err.message);
+                }
+            }
+
+            // 1c. Grupo (matilha/pack) ATUAL do jogador (pedido do dono,
+            // 2026-08-13: "sabemos quais grupos estão brigando" — relatório
+            // de combate juntando engages sem relação entre si só por
+            // compartilhar um participante) — mantém pot_players.
+            // group_leader_* em dia pra _upsertParticipant (mais abaixo)
+            // conseguir anexar o grupo de cada participante ao relatório,
+            // sem precisar que o próprio evento de dano/morte carregue esse
+            // campo (confirmadamente não carrega). Campos confirmados no
+            // formatMessage() de webhookPayloads.js (PlayerJoinedGroup já
+            // usa Player/PlayerAlderonId/Leader/LeaderAlderonId pra montar o
+            // log de texto de sempre — só reaproveitando os mesmos aqui).
+            if (potEvent === 'PlayerJoinedGroup' && data.PlayerAlderonId) {
+                try {
+                    PlayerRegistry.setGroupMembership(guildId, data.PlayerAlderonId, data.LeaderAlderonId || null, data.Leader || null);
+                } catch (err) {
+                    console.warn('⚠️ [Gateway] Registro de entrada em grupo falhou:', err.message);
+                }
+            } else if (potEvent === 'PlayerLeftGroup' && data.PlayerAlderonId) {
+                try {
+                    PlayerRegistry.setGroupMembership(guildId, data.PlayerAlderonId, null, null);
+                } catch (err) {
+                    console.warn('⚠️ [Gateway] Registro de saída de grupo falhou:', err.message);
                 }
             }
 
@@ -692,16 +747,25 @@ class PoTGatewayServer {
 
     /**
      * Acha um encontro já aberto (nesta guild) que já tenha QUALQUER um dos
-     * dois identificadores como participante, ou cria um novo. É isso que
-     * faz uma briga de 3+ jogadores (A bate em B, B bate em C) virar UM
-     * relatório só — quando o evento entre B e C chega, B já é participante
-     * do encontro criado pelo evento entre A e B, então C entra no MESMO
-     * encontro em vez de abrir um novo.
+     * dois identificadores como participante ATIVO RECENTEMENTE (última
+     * ação dentro de RECENT_PARTICIPANT_WINDOW_MS — ver constante no topo
+     * do arquivo), ou cria um novo. É isso que faz uma briga de 3+
+     * jogadores (A bate em B, B bate em C segundos depois, ainda no calor
+     * da mesma confusão) virar UM relatório só, SEM juntar um participante
+     * que só passou por ali minutos atrás e já não tem nada a ver com o
+     * evento novo (causa raiz do dono reportar "relatórios de combate
+     * estão misturando vários engages" — ver comentário completo em
+     * RECENT_PARTICIPANT_WINDOW_MS).
      */
     _findOrCreateEncounter(guildId, groupId, keyA, keyB) {
+        const now = Date.now();
         for (const encounter of this.damageEncounters.values()) {
             if (encounter.guildId !== guildId) continue;
-            if (encounter.participants.has(keyA) || encounter.participants.has(keyB)) {
+            const pA = encounter.participants.get(keyA);
+            const pB = encounter.participants.get(keyB);
+            const recentA = pA && (now - pA.lastActiveAt) <= RECENT_PARTICIPANT_WINDOW_MS;
+            const recentB = pB && (now - pB.lastActiveAt) <= RECENT_PARTICIPANT_WINDOW_MS;
+            if (recentA || recentB) {
                 return encounter;
             }
         }
@@ -724,21 +788,41 @@ class PoTGatewayServer {
 
     /**
      * Registra/atualiza um participante do encontro — sempre mantém o
-     * growth mais RECENTE visto (o dinossauro cresce durante o encontro),
-     * mas nunca apaga nome/ID/espécie/dieta/identidade do dino já
-     * conhecidos com um valor vazio.
+     * growth e o horário da última ação (lastActiveAt, usado por
+     * _findOrCreateEncounter acima pra decidir se ele ainda "conta" pra
+     * juntar um evento novo) mais RECENTES vistos, mas nunca apaga nome/
+     * ID/espécie/dieta/identidade do dino já conhecidos com um valor
+     * vazio. groupLeaderName (grupo/matilha atual, pedido do dono
+     * 2026-08-13) é resolvido só UMA VEZ por participante por encontro
+     * (na primeira vez que ele aparece com um alderonId) — ao contrário
+     * do growth, não faz sentido reconsultar o registro a cada golpe
+     * (um combate gera muitos golpes; grupo raramente muda no meio de uma
+     * briga, e cada consulta é 1 SELECT a mais no caminho de maior
+     * volume do gateway).
      */
     _upsertParticipant(encounter, key, info) {
         if (!key) return;
         const existing = encounter.participants.get(key) || {};
+        const alderonId = info.alderonId || existing.alderonId || null;
+        let groupLeaderName = existing.groupLeaderName ?? null;
+        if (groupLeaderName === null && alderonId) {
+            try {
+                const membership = PlayerRegistry.getGroupMembership(encounter.guildId, alderonId);
+                groupLeaderName = membership?.leaderName || null;
+            } catch (err) {
+                console.warn('⚠️ [Gateway] Falha ao consultar grupo do participante:', err.message);
+            }
+        }
         encounter.participants.set(key, {
             name: info.name || existing.name || 'Desconhecido',
-            alderonId: info.alderonId || existing.alderonId || null,
+            alderonId,
             dinosaurType: info.dinosaurType || existing.dinosaurType || null,
             dinosaurGrowth: (info.growth !== undefined && info.growth !== null) ? info.growth : (existing.dinosaurGrowth ?? null),
             diet: info.diet || existing.diet || null,
             characterName: info.characterName || existing.characterName || null,
             dinosaurId: info.dinosaurId || existing.dinosaurId || null,
+            groupLeaderName,
+            lastActiveAt: Date.now(),
         });
     }
 
@@ -755,9 +839,23 @@ class PoTGatewayServer {
         return (Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_DAMAGE_BATCH_IDLE_MINUTES) * 60 * 1000;
     }
 
+    /**
+     * Quanto falta (ms, nunca negativo) pra este encontro bater o teto
+     * MAX_ENCOUNTER_DURATION_MS desde o primeiro evento — usado por
+     * _resetEncounterTimer pra nunca agendar um fechamento além do teto,
+     * mesmo com atividade legítima e contínua o tempo todo. Função pura
+     * (sem setTimeout/Date.now interno além do `now` recebido) só pra dar
+     * pra testar a conta isolada, sem precisar esperar minutos de verdade.
+     */
+    _msUntilDurationCap(now, firstAt) {
+        return Math.max(0, MAX_ENCOUNTER_DURATION_MS - (now - firstAt));
+    }
+
     _resetEncounterTimer(encounter) {
         if (encounter.timer) clearTimeout(encounter.timer);
-        encounter.timer = setTimeout(() => this._flushEncounter(encounter.id), this._getDamageBatchIdleMs(encounter.guildId));
+        const idleMs = this._getDamageBatchIdleMs(encounter.guildId);
+        const delay = Math.min(idleMs, this._msUntilDurationCap(Date.now(), encounter.firstAt));
+        encounter.timer = setTimeout(() => this._flushEncounter(encounter.id), delay);
     }
 
     /**

@@ -162,6 +162,20 @@ class DatabaseManager {
             // "parado" no /perfil pra quem está jogando agora). Ver
             // upsertPlayerFromEvent/getGuildPlayerStats em potPlayerRegistry.js.
             this.ensureColumn('pot_players', 'session_started_at', 'INTEGER');
+            // Grupo (matilha/pack) ATUAL do jogador em jogo — pedido do dono,
+            // 2026-08-13: "sabemos quais grupos estão brigando" (relatório de
+            // combate misturando engages sem relação nenhuma entre si).
+            // Atualizado ao vivo via PlayerJoinedGroup/PlayerLeftGroup (ver
+            // gatewayServer.js _routeToDiscord), NUNCA pelos eventos de
+            // dano/morte em si (que confirmadamente não carregam esse campo,
+            // ver extractDinoIdentity em gatewayServer.js). group_leader_name
+            // guarda o nome de exibição do líder (não dá pra resolver o nome
+            // por trás só do Alderon ID sem outra consulta, então salva os
+            // dois juntos igual outros pares nome+ID deste arquivo). NULL =
+            // sem grupo (solo) — estado inicial de todo jogador, e também o
+            // que PlayerLeftGroup grava de volta.
+            this.ensureColumn('pot_players', 'group_leader_alderon_id', 'TEXT');
+            this.ensureColumn('pot_players', 'group_leader_name', 'TEXT');
             // Banner de perfil personalizado (Player Premium Raptor) — ver /perfil-edit.
             // Guarda o ID da mensagem (não a URL — URLs de anexo do Discord
             // expiram em ~24h, a mensagem em si não).

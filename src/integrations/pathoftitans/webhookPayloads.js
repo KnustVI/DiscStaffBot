@@ -910,8 +910,8 @@ function chunkIntoBlocks(items, maxChars) {
  * perde participante/segmento nenhum.
  *
  * @param {object} encounter - { participants: Map<key, {name, alderonId,
- *   dinosaurType, dinosaurGrowth, diet, characterName, dinosaurId}>,
- *   events: [...], firstAt }
+ *   dinosaurType, dinosaurGrowth, diet, characterName, dinosaurId,
+ *   groupLeaderName}>, events: [...], firstAt }
  * @param {import('discord.js').Guild} guild
  * @returns {{ components: object[], flags: number }[]} um payload por parte (normalmente só 1)
  */
@@ -1113,6 +1113,23 @@ function buildDamageReportPayload(encounter, guild) {
         addSeparator();
 
         addTitle('JOGADORES ENVOLVIDOS', 2);
+        // Grupos (matilhas/packs) envolvidos — pedido do dono, 2026-08-13:
+        // "sabemos quais grupos estão brigando". Resumo no topo da seção
+        // (além da linha por participante logo abaixo) pra não precisar
+        // ler carta por carta só pra saber se é grupo rival vs grupo ou
+        // solteiro(s) vs grupo. groupLeaderName vem do registro vivo
+        // (PlayerRegistry.getGroupMembership, resolvido em
+        // gatewayServer._upsertParticipant) — nunca do payload de dano/
+        // morte em si, que não carrega esse campo. Participantes sem
+        // grupo (a maioria, na prática) não aparecem aqui; sem NENHUM
+        // grupo envolvido, a linha inteira some (mesmo padrão de "Local"
+        // mais abaixo, que também some sem dado nenhum).
+        const involvedGroups = [...new Set(
+            [...encounter.participants.values()].map((p) => p.groupLeaderName).filter(Boolean)
+        )];
+        if (involvedGroups.length > 0) {
+            addText(`${e('users', '👥')} Grupos envolvidos: ${involvedGroups.map((name) => `Grupo de ${name}`).join(', ')}`);
+        }
         // Ordenado por quem causou mais dano (pedido do dono, 2026-08-09 —
         // ver comentário de `stats`/`statsLine` acima): quem teve mais
         // participação real no combate aparece primeiro, em vez da ordem
@@ -1128,6 +1145,7 @@ function buildDamageReportPayload(encounter, guild) {
             const lines = [`### ${nameWithMention(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
             const identityLine = participantDinoIdentityLine(p);
             if (identityLine) lines.push(identityLine);
+            if (p.groupLeaderName) lines.push(`${e('users', '👥')} Grupo de ${p.groupLeaderName}`);
             const statsText = statsLine(key);
             if (statsText) lines.push(statsText);
             return lines.join('\n');
@@ -1173,6 +1191,7 @@ function buildDamageReportPayload(encounter, guild) {
         const lines = [`### ${nameWithMention(p.name, p.alderonId)}`, participantSpeciesLine(p, guild)];
         const identityLine = participantDinoIdentityLine(p);
         if (identityLine) lines.push(identityLine);
+        if (p.groupLeaderName) lines.push(`${e('users', '👥')} Grupo de ${p.groupLeaderName}`);
         addText(lines.join('\n'));
         addSeparator();
 
