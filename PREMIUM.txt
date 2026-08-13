@@ -9681,3 +9681,46 @@ frente, nao so este relatorio):
   strike/jogador/staff/texto da nota; resumo efêmero pro staff reflete
   os 3 estados (sem nota nenhuma, nota entregue, nota NÃO entregue).
   `node --check` no arquivo tocado.
+
+------------------------------------------------------------------
+192) FIX: alguns níveis de punição davam "nível não existe" de forma
+     intermitente no /strike
+------------------------------------------------------------------
+- Pedido do dono (2026-08-13): "Alguns niveis ainda dão erro as vezes
+  como se o nivel n existisse."
+- CAUSA (segunda camada do mesmo bug já parcialmente corrigido na seção
+  27/2026-08-07, ver docblock de `getLevelByIdOrName`): `nivel` no
+  /strike usa autocomplete de STRING, não um select menu de verdade — o
+  Discord não obriga o valor enviado a ser o `value` (ID) de uma
+  sugestão. O fix de 2026-08-07 já cobria um staff digitando o NOME
+  puro na mão (ex: "Grave"), mas `getLevelByIdOrName` só comparava
+  contra esse nome puro — quando o cliente do Discord manda de volta o
+  RÓTULO EXIBIDO da sugestão ("Nome (Severidade · Duração)", montado em
+  `autocomplete()` de strike/index.js) em vez do `value` de verdade,
+  nenhum dos 2 fallbacks batia, e o comando errava "nível não existe"
+  com o nível existindo perfeitamente. Intermitente porque só acontece
+  quando o cliente faz isso (não em toda seleção); "alguns níveis"
+  porque o nome puro digitado na mão sempre funcionou — só o rótulo
+  completo é que nunca tinha correspondência.
+- FIX: `getLevelByIdOrName` ganha um 3º fallback — compara o valor
+  recebido (minúsculo) contra `"${nome} ("` no início da string
+  (`startsWith`, não igualdade exata, porque o rótulo pode ter sido
+  truncado em 100 caracteres pelo próprio `/strike`, e o nome sozinho
+  continua intacto no começo mesmo truncado). Testado especificamente
+  contra colisão de prefixo (nível "Grave" vs "Grave 2" — o segundo
+  nunca falso-casa com o primeiro, porque exige o "(" logo depois do
+  nome inteiro).
+- ENDURECIMENTO relacionado: campos "Nome" e "Duração" do modal de
+  criar/editar nível (`/config punishments`) não tinham NENHUM limite
+  de tamanho (Discord usa 4000 caracteres por padrão pra um TextInput
+  Short sem `maxLength`) — um nome comprido o bastante cortava até o
+  NOME em si no meio do rótulo truncado de 100 caracteres, e aí nem o
+  fallback novo consegue casar de volta (não tem nome intacto pra
+  comparar). Adicionado `maxLength: 60` (nome) e `maxLength: 20`
+  (duração) — folga confortável pro sufixo " (Severidade · Duração)"
+  (pior caso ≈ 34 caracteres) sempre caber dentro dos 100 do rótulo.
+- Verificado com script direto: resolve por ID, por nome puro (como
+  antes), pelo rótulo composto COMPLETO, pelo rótulo composto
+  TRUNCADO, e continua devolvendo `null` pra entrada genuinamente
+  inexistente/vazia — sem nenhum falso positivo de colisão entre
+  "Grave" e "Grave 2". `node --check` nos 2 arquivos tocados.

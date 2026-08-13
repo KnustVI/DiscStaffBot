@@ -925,9 +925,20 @@ const ConfigSystem = {
      */
     _buildLevelModal(customId, title, existing = null) {
         const rows = [
+            // maxLength em nome/duração (pedido do dono, 2026-08-13: "Alguns
+            // niveis ainda dão erro as vezes como se o nivel n existisse") —
+            // sem isso (Discord usa 4000 por padrão pra TextInput Short sem
+            // maxLength), um nome longo o bastante faz o rótulo do
+            // autocomplete ("Nome (Severidade · Duração)", truncado em 100
+            // caracteres pelo próprio /strike) cortar até o NOME em si no
+            // meio, e aí nem o fallback de getLevelByIdOrName (que compara
+            // contra o nome inteiro) consegue casar de volta. 60 pro nome +
+            // 20 pra duração deixa folga confortável pro sufixo " (Severidade
+            // · Duração)" (pior caso: "Moderada" + " · " + até 20 chars de
+            // duração + parênteses ≈ 34 chars) sempre caber dentro dos 100.
             new ActionRowBuilder().addComponents(new TextInputBuilder({
                 customId: 'level_name', label: 'Nome', style: TextInputStyle.Short,
-                required: true, value: existing?.name || '', placeholder: 'Ex: Spam no chat',
+                required: true, value: existing?.name || '', placeholder: 'Ex: Spam no chat', maxLength: 60,
             })),
             new ActionRowBuilder().addComponents(new TextInputBuilder({
                 customId: 'level_severity', label: 'Severidade (Leve/Moderada/Grave/Severa)', style: TextInputStyle.Short,
@@ -939,7 +950,7 @@ const ConfigSystem = {
             })),
             new ActionRowBuilder().addComponents(new TextInputBuilder({
                 customId: 'level_duration', label: 'Duração (Ex: 10m, 1h, 3d — vazio = perm.)', style: TextInputStyle.Short,
-                required: false, value: existing?.duration_str || '', placeholder: 'Vazio = permanente',
+                required: false, value: existing?.duration_str || '', placeholder: 'Vazio = permanente', maxLength: 20,
             })),
             new ActionRowBuilder().addComponents(new TextInputBuilder({
                 customId: 'level_action', label: 'Ação (SystemMessage/Kick/Ban/ServerMute)', style: TextInputStyle.Short,
