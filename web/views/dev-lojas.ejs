@@ -444,7 +444,7 @@
                                         </form>
                                     </div>
                                 <% } else if (group.type === 'titulo') { %>
-                                    <%- include('partials/requirement-form', { img, type: 'titulo', requirementTypes }) %>
+                                    <%- include('partials/requirement-form', { img, type: 'titulo', requirementTypes, configuredServers }) %>
                                 <% } %>
                                 <div class="pool-item-actions">
                                     <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/toggle" method="POST">
@@ -481,7 +481,7 @@
                             <span class="pool-item-label"><%= img.label %></span>
                             <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                             <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
-                            <%- include('partials/requirement-form', { img, type: 'badge', requirementTypes }) %>
+                            <%- include('partials/requirement-form', { img, type: 'badge', requirementTypes, configuredServers }) %>
                             <div class="pool-item-actions">
                                 <form action="/dev/Loja/badge/<%= img.id %>/toggle" method="POST">
                                     <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
@@ -518,14 +518,24 @@
         // função sempre operou "por prefixo de elemento" e continua
         // funcionando sem mudança nenhuma, só o prefixo passado mudou de
         // "por item" pra "por linha".
+        //
+        // 2 campos condicionais novos (pedido do dono, 2026-08-14): campo
+        // de Servidor (needsServer) segue o mesmo padrão do de Espécie;
+        // campo de Valor inteiro esconde pra tipos noValue (ex: "Está
+        // online") — continua no DOM/enviado no submit, só o backend
+        // (dashboard.js) que ignora o conteúdo pra esses tipos.
         function requirementFormSync(rowId) {
             const select = document.getElementById(rowId + '-type');
             const option = select.options[select.selectedIndex];
+            const valueRow = document.getElementById(rowId + '-value-row');
             const valueLabel = document.getElementById(rowId + '-value-label');
             const speciesRow = document.getElementById(rowId + '-species-row');
+            const serverRow = document.getElementById(rowId + '-server-row');
             const hint = document.getElementById(rowId + '-hint');
             valueLabel.textContent = (option.dataset.valueLabel || 'Valor') + ':';
+            valueRow.style.display = option.dataset.noValue === '1' ? 'none' : '';
             speciesRow.style.display = option.dataset.needsSpecies === '1' ? '' : 'none';
+            serverRow.style.display = option.dataset.needsServer === '1' ? '' : 'none';
             hint.textContent = option.dataset.hint || 'Escolha um tipo de requisito acima para ver a explicação.';
         }
 

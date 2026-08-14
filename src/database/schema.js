@@ -287,6 +287,24 @@ const SCHEMA = {
         )
     `,
 
+    // Contagem de vezes que cada especie foi ABATIDA (como vitima) por
+    // jogador — mesmo padrao de pot_dinosaur_picks acima (espécie JOGADA),
+    // so que pro requisito NOVO "species_kills" de achievementSystem.js
+    // (pedido do dono, 2026-08-14: "Matou 'especie' especifica"). Populada
+    // a partir de PlayerKilled (VictimDinosaurType), ver
+    // potPlayerRegistry.recordKillEvent/_recordSpeciesKill.
+    pot_species_kills: `
+        CREATE TABLE IF NOT EXISTS pot_species_kills (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            alderon_id TEXT NOT NULL,
+            species_killed TEXT NOT NULL,
+            kill_count INTEGER DEFAULT 0,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            UNIQUE(guild_id, alderon_id, species_killed)
+        )
+    `,
+
     pot_logs: `
         CREATE TABLE IF NOT EXISTS pot_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -687,6 +705,7 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_guild ON pot_logs(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_logs_type ON pot_logs(event_type)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_dinosaur_picks_alderon ON pot_dinosaur_picks(alderon_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_pot_species_kills_alderon ON pot_species_kills(alderon_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_chat_filters_guild ON pot_chat_filters(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,
     

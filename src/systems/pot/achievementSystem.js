@@ -19,11 +19,17 @@
  * (objeto solto, não array) continua funcionando — `parseRequirement`
  * normaliza pra array de 1 item na leitura, sem precisar de migração.
  *
- * Todo requisito usa dados JÁ rastreados (nenhuma tabela nova): kills/
- * tempo de jogo vêm de potPlayerRegistry.getGlobalPlayerStats, nível vem
- * de getLevelProgress (XP), espécie mais jogada usa pot_dinosaur_picks —
- * tudo GLOBAL (somado entre servidores), mesmo critério já usado pro
- * resto do /perfil.
+ * Todo requisito usa dados já rastreados (kills/tempo de jogo/status
+ * online vêm de potPlayerRegistry.getGlobalPlayerStats, nível vem de
+ * getLevelProgress/XP, espécie mais jogada usa pot_dinosaur_picks) — tudo
+ * GLOBAL (somado entre servidores), mesmo critério já usado pro resto do
+ * /perfil. 3 tipos novos (pedido do dono, 2026-08-14): `server_playtime_
+ * hours` (tempo de jogo ESCOPADO a um servidor específico, via
+ * getGuildPlayerStats, não somado), `species_kills` (abates de uma
+ * espécie específica — vítima, não jogada; única exceção que precisou de
+ * tabela nova, pot_species_kills, alimentada por
+ * potPlayerRegistry.recordKillEvent) e `is_online` (checagem ao vivo,
+ * sem valor numérico — ver flag `noValue` em REQUIREMENT_TYPES).
  */
 'use strict';
 
@@ -54,6 +60,26 @@ const REQUIREMENT_TYPES = {
         valueLabel: 'Vezes',
         hint: 'Jogador precisa ter jogado com a espécie informada abaixo pelo menos esse número de vezes (spawns), somando todos os servidores.',
         needsSpecies: true,
+    },
+    // 3 tipos novos (pedido do dono, 2026-08-14): servidor específico,
+    // abate de espécie (vítima) e status online — ver docblock do topo.
+    server_playtime_hours: {
+        label: 'Tempo de jogo em um servidor específico (horas)',
+        valueLabel: 'Horas',
+        hint: 'Jogador precisa ter pelo menos essa quantidade de horas jogadas NESSE servidor específico (diferente de "Tempo de jogo", que soma todos os servidores).',
+        needsServer: true,
+    },
+    species_kills: {
+        label: 'Abates de uma espécie específica',
+        valueLabel: 'Abates',
+        hint: 'Jogador precisa ter abatido a espécie informada abaixo pelo menos esse número de vezes, somando todos os servidores.',
+        needsSpecies: true,
+    },
+    is_online: {
+        label: 'Está online agora',
+        valueLabel: 'Online',
+        hint: 'Jogador precisa estar online AGORA em algum servidor — checagem em tempo real, sem valor numérico associado.',
+        noValue: true,
     },
 };
 
@@ -114,6 +140,22 @@ function _checkSingleRequirementMet(userId, requirement, link) {
             `).get(link.alderon_id, requirement.species);
             return (row?.total || 0) >= requirement.value;
         }
+        case 'server_playtime_hours': {
+            if (!requirement.guildId) return false;
+            const stats = PlayerRegistry.getGuildPlayerStats(requirement.guildId, link.alderon_id);
+            return (stats.totalPlaytime / 3600) >= requirement.value;
+        }
+        case 'species_kills': {
+            if (!requirement.species) return false;
+            const db = require('../../database/index');
+            const row = db.prepare(`
+                SELECT SUM(kill_count) as total FROM pot_species_kills
+                WHERE alderon_id = ? AND species_killed = ? COLLATE NOCASE
+            `).get(link.alderon_id, requirement.species);
+            return (row?.total || 0) >= requirement.value;
+        }
+        case 'is_online':
+            return PlayerRegistry.getGlobalPlayerStats(link.alderon_id).isOnline === true;
         default:
             return false;
     }
@@ -155,6 +197,13 @@ function describeRequirement(requirements) {
                 case 'playtime_hours': return `${requirement.value}h de tempo de jogo`;
                 case 'level': return `Nível ${requirement.value}`;
                 case 'species_picks': return `${requirement.value}x jogando de ${requirement.species || '?'}`;
+                case 'server_playtime_hours': {
+                    const PoTConfigSystem = require('./potConfigSystem');
+                    const name = PoTConfigSystem.getServerConfig(requirement.guildId)?.server_name || 'servidor removido';
+                    return `${requirement.value}h jogadas em ${name}`;
+                }
+                case 'species_kills': return `${requirement.value}x abatendo ${requirement.species || '?'}`;
+                case 'is_online': return 'Online agora';
                 default: return null;
             }
         })

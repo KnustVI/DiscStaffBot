@@ -1045,12 +1045,28 @@ function loadDashboard(client) {
             .map(g => ({ id: g.id, name: g.name, iconURL: g.iconURL({ size: 64 }) }))
             .sort((a, b) => a.name.localeCompare(b.name));
 
+        // Servidores PoT configurados de verdade (não allGuilds acima, que
+        // inclui QUALQUER guild que o bot está — sem PoT configurado, o
+        // requisito "server_playtime_hours" nunca bateria com nada) — pro
+        // dropdown de servidor do requisito novo (ver requirement-form.ejs).
+        // Nome vem de PoTConfigSystem.getServerConfig (settings.
+        // pot_server_config), NUNCA da tabela pot_servers (morta, não usada
+        // em runtime — ver achievementSystem.js).
+        const configuredServers = PoTConfigSystem.getAllConfiguredGuildIds()
+            .map((guildId) => {
+                const guild = client.guilds.cache.get(guildId);
+                const config = PoTConfigSystem.getServerConfig(guildId);
+                return { guildId, name: config?.server_name || guild?.name || guildId };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+
         res.render('dev-lojas', {
             isOwner: true,
             groups,
             badges,
             pendingSubmissions,
             allGuilds,
+            configuredServers,
             requirementTypes: AchievementSystem.REQUIREMENT_TYPES,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
             saved: req.query.saved,
@@ -1099,6 +1115,7 @@ function loadDashboard(client) {
         const types = [].concat(req.body.requirement_type || []);
         const values = [].concat(req.body.requirement_value || []);
         const speciesList = [].concat(req.body.requirement_species || []);
+        const serverList = [].concat(req.body.requirement_server || []);
 
         // Teto defensivo (não pedido explicitamente, mas evita spam de
         // linhas) — mesmo valor no form (ver requirement-form.ejs), que
@@ -1110,17 +1127,31 @@ function loadDashboard(client) {
             // Linha adicionada mas deixada em branco (tipo "Nenhum") —
             // ignora silenciosamente, não bloqueia salvar as outras.
             if (!reqType) continue;
-            const value = Number(values[i]);
             const def = AchievementSystem.REQUIREMENT_TYPES[reqType];
+            if (!def) return res.redirect('/dev/Loja?saved=error');
+
+            // Tipos sem valor numérico de verdade (ex: "Está online") —
+            // campo de Valor fica escondido na UI (ver requirement-form.ejs
+            // requirementFormSync), então nem confere o que veio no POST;
+            // grava um placeholder fixo (nunca comparado de verdade em
+            // _checkSingleRequirementMet).
+            if (def.noValue) {
+                requirements.push({ type: reqType, value: 1 });
+                continue;
+            }
+
+            const value = Number(values[i]);
             const species = (speciesList[i] || '').trim();
+            const guildId = (serverList[i] || '').trim();
             // Linha PREENCHIDA mas inválida (tipo desconhecido, valor
-            // fora do range, ou espécie faltando quando o tipo exige)
-            // cancela o save inteiro — mesmo comportamento de quando só
-            // existia 1 requisito, nunca salva pela metade.
-            if (!def || !Number.isFinite(value) || value <= 0 || (def.needsSpecies && !species)) {
+            // fora do range, espécie faltando quando o tipo exige, ou
+            // servidor não selecionado quando o tipo exige) cancela o
+            // save inteiro — mesmo comportamento de quando só existia 1
+            // requisito, nunca salva pela metade.
+            if (!Number.isFinite(value) || value <= 0 || (def.needsSpecies && !species) || (def.needsServer && !guildId)) {
                 return res.redirect('/dev/Loja?saved=error');
             }
-            requirements.push({ type: reqType, value, ...(species ? { species } : {}) });
+            requirements.push({ type: reqType, value, ...(species ? { species } : {}), ...(guildId ? { guildId } : {}) });
         }
         const ok = ProfileImagePool.setRequirement(type, id, requirements.length > 0 ? requirements : null);
         res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);

@@ -9909,3 +9909,88 @@ frente, nao so este relatorio):
   ferramenta de navegador disponível neste ambiente) — o clique em
   "+ Adicionar requisito"/"×" (JS de UI) não dá pra confirmar sem abrir
   o site de verdade; vale o dono conferir visualmente após o deploy.
+
+------------------------------------------------------------------
+195) 3 tipos novos de requisito de emblema/título: servidor específico,
+     abate de espécie, está online
+------------------------------------------------------------------
+- Pedido do dono (2026-08-14): "jogou em N servidor / esta online /
+  matou 'especie' especifica", combinados na mesma lista de requisitos
+  (seção 194) junto dos 4 já existentes (kills/tempo de jogo/nível/
+  espécie jogada).
+- `server_playtime_hours`: tempo de jogo ESCOPADO a um servidor
+  específico (ex: "4h jogadas no Servidor X"), diferente de "Tempo de
+  jogo" (soma todos os servidores). Não precisou de tabela nova —
+  `pot_players` já é uma linha por (servidor, jogador);
+  `PlayerRegistry.getGuildPlayerStats` já devolvia esse tempo escopado,
+  só faltava o tipo de requisito usar essa função em vez da global.
+  Servidor escolhido num dropdown (não texto livre) — populado só com
+  servidores que TÊM PoT configurado de verdade
+  (`PoTConfigSystem.getAllConfiguredGuildIds`), não qualquer guild que
+  o bot está.
+- ARMADILHA EVITADA na investigação: a tabela `pot_servers` do schema
+  parece a fonte óbvia de "lista de servidores", mas está MORTA — não
+  é lida nem escrita em lugar nenhum do código em runtime. A config de
+  servidor de verdade (incluindo `server_name`) mora em `settings` sob
+  a chave `pot_server_config` (JSON), acessada só via
+  `PoTConfigSystem.getServerConfig`/`getAllConfiguredGuildIds`. O
+  dropdown novo usa essas funções, não a tabela morta.
+- `species_kills`: quantas vezes o jogador ABATEU (matou, como vítima
+  do outro lado) uma espécie específica — diferente de "espécie
+  jogada" (seção 194 anterior, quantas vezes o jogador JOGOU DE uma
+  espécie). Esse dado não existia — nova tabela `pot_species_kills`
+  (guild_id, alderon_id, species_killed, kill_count — mesmo formato de
+  `pot_dinosaur_picks`, só trocando "jogada" por "abatida"), alimentada
+  a partir de `PlayerRegistry.recordKillEvent` (evento `PlayerKilled`,
+  já usado pra contar kills/deaths) lendo `VictimDinosaurType` do
+  payload (já existia, só nunca tinha sido persistido em lugar
+  nenhum). Morte por ambiente/queda/fome (sem `KillerAlderonId` de
+  verdade) não grava nada — ninguém "abateu" a espécie nesse caso.
+  Contagem só anda a partir de agora — abates anteriores a esta
+  mudança não entram (não tem como reconstruir espécie de um kill já
+  contado só em `pot_players.kills`).
+- `is_online`: checagem ao vivo (`pot_players.is_online`, já mantido
+  por webhook de login/logout + reconciliado a cada 1min por Source
+  Query contra crash do servidor) sem valor numérico nenhum associado
+  — primeiro tipo de requisito SEM campo de "Valor". Painel ganhou uma
+  flag nova, `noValue`, que esconde o campo de Valor inteiro (fica no
+  DOM/é enviado no submit, mas o backend em `dashboard.js` ignora o
+  que vier e grava um placeholder fixo — mais simples que exigir o
+  campo escondido vir vazio/validado). Checagem GLOBAL (mesmo critério
+  dos outros tipos globais já existentes), não escopada a um servidor
+  — o pedido do dono lista esse tipo sozinho, sem qualificador de
+  servidor, diferente do tipo 1 acima.
+- PAINEL: `requirement-form.ejs` ganhou um campo de Servidor
+  (`<select>`, mesmo padrão condicional do campo de Espécie já
+  existente — mostra/esconde conforme o tipo escolhido, `needsServer`)
+  e o campo de Valor passou a poder sumir por completo (`noValue`).
+- FALHA REAL PEGA NO TESTE (antes de qualquer coisa ir pro ar): a
+  criação de tabelas do banco (`src/database/index.js`,
+  `createAllTables`) NÃO itera `Object.keys(SCHEMA)` — usa uma lista
+  fixa de nomes de tabela, hardcoded, separada de `schema.js`. A
+  tabela nova `pot_species_kills` foi declarada certinho em
+  `schema.js` mas nunca seria criada de verdade (SQLite acusaria
+  "no such table" na primeira tentativa de gravar um abate) até essa
+  lista fixa ganhar o nome dela também — pego pelo script de teste
+  direto, não por leitura de código.
+- Verificado com script direto (Node): `recordKillEvent` grava/soma
+  corretamente em `pot_species_kills` (2 mortes da mesma espécie somam
+  kill_count sem duplicar linha), morte sem matador não grava nada,
+  `VictimDinosaurType` "Invalid Character Data Asset" (bug conhecido
+  do próprio jogo) é sanitizado e não vira lixo no banco. Os 3 tipos
+  testados isoladamente (server_playtime_hours batendo no servidor
+  certo e falhando no servidor errado mesmo com playtime GLOBAL
+  suficiente; species_kills; is_online true/false) e numa lista
+  combinando os 3 + AND — só "todos batendo" resgata.
+  `describeRequirement` conferido pros 3, inclusive o caso "servidor
+  removido" (guildId que não tem mais config salva).
+  `ejs.renderFile()` em `requirement-form.ejs` conferindo que cada
+  campo condicional novo aparece/some no tipo certo, dropdown de
+  servidor marca a opção salva como `selected`, funciona com 0
+  servidores configurados (só mostra "Selecione um servidor..."), e
+  nome de servidor com HTML é escapado. `node --check` nos 5 arquivos
+  `.js` tocados. SEM confirmação visual/browser real (nenhuma
+  ferramenta de navegador disponível neste ambiente) — troca de tipo
+  no `<select>` escondendo/mostrando os campos certos (JS
+  `requirementFormSync`) fica só verificada por leitura de código;
+  vale o dono conferir visualmente após o deploy.

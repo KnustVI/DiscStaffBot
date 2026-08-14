@@ -397,6 +397,30 @@ function _recordDinosaurPick(guildId, alderonId, dinosaurType) {
 }
 
 /**
+ * Espelha _recordDinosaurPick acima, só que pra espécie ABATIDA (vítima),
+ * não jogada — alimenta o requisito "species_kills" de achievementSystem.js
+ * (pedido do dono, 2026-08-14: "Matou 'especie' especifica"). Chamada de
+ * dentro de recordKillEvent, abaixo, com a espécie da VÍTIMA já sanitizada.
+ *
+ * @param {string} guildId
+ * @param {string} killerAlderonId
+ * @param {string} victimSpecies
+ */
+function _recordSpeciesKill(guildId, killerAlderonId, victimSpecies) {
+    try {
+        db.prepare(`
+            INSERT INTO pot_species_kills (guild_id, alderon_id, species_killed, kill_count, updated_at)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(guild_id, alderon_id, species_killed) DO UPDATE SET
+                kill_count = kill_count + 1,
+                updated_at = excluded.updated_at
+        `).run(guildId, killerAlderonId, victimSpecies, Math.floor(Date.now() / 1000));
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao registrar abate de espécie:', error);
+    }
+}
+
+/**
  * "Dinossauro mais jogado" (por número de vezes escolhido/spawnado, não por
  * tempo de jogo) — GLOBAL, somando pot_dinosaur_picks de todos os guilds pro
  * mesmo alderon_id, mesmo critério "global" do resto deste arquivo (ver
@@ -1440,6 +1464,14 @@ function recordKillEvent(guildId, rawPayload) {
 
     bump(killerAlderonId, killerName, 'kills');
     bump(victimAlderonId, victimName, 'deaths');
+
+    // Espécie da vítima (requisito "species_kills") — só grava com matador
+    // de verdade; morte por ambiente/queda/fome não manda KillerAlderonId
+    // (vem string vazia), e nesse caso ninguém "abateu" a espécie.
+    if (killerAlderonId) {
+        const victimSpecies = sanitizeDinosaurType(rawPayload.VictimDinosaurType);
+        if (victimSpecies) _recordSpeciesKill(guildId, killerAlderonId, victimSpecies);
+    }
 
     // Vítima morreu — volta pra tela de seleção de dinossauro (ver
     // dinosaur_active em upsertPlayerFromEvent/getGlobalPlayerStats).

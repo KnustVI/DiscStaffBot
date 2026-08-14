@@ -27,7 +27,16 @@
   achievementSystem.js), e o campo de Espécie só aparece pros tipos que
   realmente usam espécie (needsSpecies).
 
-  Uso: include( partials/requirement-form , { img, type, requirementTypes } )
+  3 campos condicionais novos (pedido do dono, 2026-08-14 — servidor
+  específico/abate de espécie/está online, ver achievementSystem.js):
+  campo de Servidor (<select>, não texto livre) só aparece pra tipos
+  needsServer:true; campo de Valor inteiro SOME pra tipos noValue:true
+  (ex: "Está online", que não tem valor numérico nenhum — o campo fica
+  escondido mas continua existindo no DOM/form, o backend em
+  dashboard.js é quem ignora o que vier nele e grava um placeholder
+  fixo).
+
+  Uso: include( partials/requirement-form , { img, type, requirementTypes, configuredServers } )
     img — linha do pool (badge ou titulo), já com img.requirement
       (ARRAY parseado ou null — ver AchievementSystem.parseRequirement)
       e img.requirementLabel (string legível já com todos os requisitos
@@ -35,6 +44,9 @@
       dashboard.js.
     type — 'badge' ou 'titulo', usado só pra montar a action do form.
     requirementTypes — AchievementSystem.REQUIREMENT_TYPES.
+    configuredServers — [{guildId, name}], só servidores com PoT
+      configurado de verdade (PoTConfigSystem.getAllConfiguredGuildIds),
+      não toda guild que o bot está — ver dashboard.js GET /dev/Loja.
 %>
 <%
     const rfId = `rf-${type}-${img.id}`;
@@ -63,8 +75,9 @@
         const currentDef = requirementTypes[currentType];
         const optionsHtml = Object.keys(requirementTypes).map((key) => {
             const def = requirementTypes[key];
-            return `<option value="${key}" data-value-label="${rfEsc(def.valueLabel)}" data-hint="${rfEsc(def.hint)}" data-needs-species="${def.needsSpecies ? '1' : '0'}" ${currentType === key ? 'selected' : ''}>${rfEsc(def.label)}</option>`;
+            return `<option value="${key}" data-value-label="${rfEsc(def.valueLabel)}" data-hint="${rfEsc(def.hint)}" data-needs-species="${def.needsSpecies ? '1' : '0'}" data-needs-server="${def.needsServer ? '1' : '0'}" data-no-value="${def.noValue ? '1' : '0'}" ${currentType === key ? 'selected' : ''}>${rfEsc(def.label)}</option>`;
         }).join('');
+        const serverOptionsHtml = configuredServers.map((s) => `<option value="${rfEsc(s.guildId)}" ${requirement && requirement.guildId === s.guildId ? 'selected' : ''}>${rfEsc(s.name)}</option>`).join('');
         return `
             <div class="pool-req-row" data-row-id="${rowId}">
                 <div class="pool-price-row">
@@ -74,13 +87,20 @@
                     </select>
                     <button type="button" class="pool-req-remove" onclick="requirementFormRemoveRow(this)" aria-label="Remover este requisito" title="Remover este requisito">&times;</button>
                 </div>
-                <div class="pool-req-value-row">
+                <div id="${rowId}-value-row" class="pool-req-value-row" style="${currentDef?.noValue ? 'display:none;' : ''}">
                     <label id="${rowId}-value-label" for="${rowId}-value">${rfEsc(currentDef?.valueLabel || 'Valor')}:</label>
                     <input type="number" id="${rowId}-value" name="requirement_value[]" min="1" step="1" placeholder="Ex: 100" value="${requirement ? rfEsc(requirement.value) : ''}">
                 </div>
                 <div id="${rowId}-species-row" class="pool-req-value-row" style="${currentDef?.needsSpecies ? '' : 'display:none;'}">
                     <label for="${rowId}-species">Espécie:</label>
                     <input type="text" id="${rowId}-species" name="requirement_species[]" placeholder="Ex: Deinosuchus" value="${requirement && requirement.species ? rfEsc(requirement.species) : ''}">
+                </div>
+                <div id="${rowId}-server-row" class="pool-req-value-row" style="${currentDef?.needsServer ? '' : 'display:none;'}">
+                    <label for="${rowId}-server">Servidor:</label>
+                    <select id="${rowId}-server" name="requirement_server[]">
+                        <option value="">Selecione um servidor...</option>
+                        ${serverOptionsHtml}
+                    </select>
                 </div>
                 <p id="${rowId}-hint" class="pool-req-hint">${rfEsc(currentDef?.hint || 'Escolha um tipo de requisito acima para ver a explicação.')}</p>
             </div>`;
