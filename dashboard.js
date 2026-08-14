@@ -1082,24 +1082,47 @@ function loadDashboard(client) {
         res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
-    // Define (ou limpa, se algum campo vier vazio) o requisito de resgate
-    // automático de um emblema/título — ver AchievementSystem.
+    // Define (ou limpa, se nenhuma linha vier preenchida) a LISTA de
+    // requisitos de resgate automático de um emblema/título — ver
+    // AchievementSystem. Virou lista (pedido do dono, 2026-08-13:
+    // "preciso que ele adicione os requisitos como uma lista onde o
+    // player só consiga reivindicar se fez todos os requisitos") — o
+    // form (partials/requirement-form.ejs) manda N linhas via campos
+    // repetidos com colchete (requirement_type[] etc.), que
+    // express.urlencoded({extended:true}) (já configurado, usa `qs`)
+    // devolve como array mesmo com 1 ocorrência só; normalizado pra
+    // array de qualquer forma abaixo por segurança, sem depender disso.
     app.post('/dev/Loja/:type/:id/requisito', checkAuth, async (req, res) => {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
-        const reqType = req.body.requirement_type;
-        const value = Number(req.body.requirement_value);
-        let ok = false;
-        if (!reqType) {
-            ok = ProfileImagePool.setRequirement(type, id, null);
-        } else if (AchievementSystem.REQUIREMENT_TYPES[reqType] && Number.isFinite(value) && value > 0) {
-            const species = (req.body.requirement_species || '').trim();
-            if (AchievementSystem.REQUIREMENT_TYPES[reqType].needsSpecies && !species) {
+        const types = [].concat(req.body.requirement_type || []);
+        const values = [].concat(req.body.requirement_value || []);
+        const speciesList = [].concat(req.body.requirement_species || []);
+
+        // Teto defensivo (não pedido explicitamente, mas evita spam de
+        // linhas) — mesmo valor no form (ver requirement-form.ejs), que
+        // já desabilita o botão "+ Adicionar" antes de chegar aqui.
+        const MAX_REQUIREMENTS = 5;
+        const requirements = [];
+        for (let i = 0; i < Math.min(types.length, MAX_REQUIREMENTS); i++) {
+            const reqType = types[i];
+            // Linha adicionada mas deixada em branco (tipo "Nenhum") —
+            // ignora silenciosamente, não bloqueia salvar as outras.
+            if (!reqType) continue;
+            const value = Number(values[i]);
+            const def = AchievementSystem.REQUIREMENT_TYPES[reqType];
+            const species = (speciesList[i] || '').trim();
+            // Linha PREENCHIDA mas inválida (tipo desconhecido, valor
+            // fora do range, ou espécie faltando quando o tipo exige)
+            // cancela o save inteiro — mesmo comportamento de quando só
+            // existia 1 requisito, nunca salva pela metade.
+            if (!def || !Number.isFinite(value) || value <= 0 || (def.needsSpecies && !species)) {
                 return res.redirect('/dev/Loja?saved=error');
             }
-            ok = ProfileImagePool.setRequirement(type, id, { type: reqType, value, ...(species ? { species } : {}) });
+            requirements.push({ type: reqType, value, ...(species ? { species } : {}) });
         }
+        const ok = ProfileImagePool.setRequirement(type, id, requirements.length > 0 ? requirements : null);
         res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 

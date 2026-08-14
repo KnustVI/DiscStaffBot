@@ -9828,3 +9828,84 @@ frente, nao so este relatorio):
   pra confirmar sem abrir o site de verdade; vale o dono conferir
   visualmente após o deploy, mesma ressalva de sempre pra mudança de
   CSS/layout puro nesta sessão.
+
+------------------------------------------------------------------
+194) Requisitos de resgate de emblema/título viram uma LISTA (precisa
+     cumprir TODOS, não só um)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-13): "No controle de loja, Nos requisitos de
+  conquista de emblemas e titulos, preciso que ele adicione os
+  requisitos como uma lista onde o player só consiga reivindicar se
+  fez todos os requisitos."
+- ANTES: cada emblema/título em `/dev/Loja` só aceitava UM requisito
+  de resgate automático (`profile_image_pool.requirement`, JSON de um
+  objeto só — `{type, value, species?}`). Configurar "500 kills E
+  Nível 10" ao mesmo tempo não era possível, só um ou outro.
+- AGORA: `requirement` vira um ARRAY de 0 a 5 objetos, todos exigidos
+  ao mesmo tempo (E, não OU) — `AchievementSystem.checkRequirementMet`
+  só devolve `true` se `.every()` dos itens da lista bater. O card de
+  resgate no `/perfil` (Discord) e a lista de "pode resgatar" só
+  aparecem quando a lista inteira estiver cumprida.
+- COMPATIBILIDADE: emblemas/títulos que já tinham 1 requisito salvo no
+  formato antigo (objeto solto) continuam funcionando sem nenhuma
+  migração de banco — `AchievementSystem.parseRequirement` detecta se
+  o JSON salvo é array ou objeto solto e sempre devolve um array pro
+  resto do app (envelopa o objeto solto num array de 1). Na próxima
+  vez que o dono salvar esse item pelo painel, já regrava no formato
+  array de verdade.
+- "SEM REQUISITO" continua sendo gravado como `NULL` no banco, NUNCA
+  como array vazio (`[]`) — armadilha real do JS (`![]` é `false`,
+  array vazio é truthy): `configSystem.js` e `imageShopSystem.js` já
+  usavam `!row.requirement` como checagem de "sem requisito nenhum"
+  ANTES desta mudança; se `setRequirement` gravasse `[]` em vez de
+  `NULL` ao remover todas as linhas do form, esses 2 pontos passariam
+  a tratar "sem requisito" como "tem requisito (vazio)", escondendo o
+  emblema errado do menu. `dashboard.js` (rota que grava) sempre
+  converte lista vazia pra `null` antes de chamar `setRequirement`.
+- PAINEL (`/dev/Loja`, `partials/requirement-form.ejs`, reescrito):
+  cada emblema/título mostra 1 linha de campos (tipo/valor/espécie)
+  por requisito já salvo, com botão "+ Adicionar requisito" (JS puro,
+  clona um `<template>` embutido no próprio parcial — mesmo HTML da
+  linha de verdade, sem duplicar a lista de `<option>` em dois lugares)
+  até um teto de 5 por item, e um "×" por linha pra remover só aquela
+  (remover todas + salvar limpa o requisito por completo, volta a ser
+  só concessão manual). Rótulo/dica de cada linha ainda mudam sozinhos
+  conforme o tipo escolhido (`requirementFormSync`, já existia, só
+  passou a rodar por linha em vez de uma vez por item).
+- BACKEND (`dashboard.js`, POST `/dev/Loja/:type/:id/requisito`): o
+  form manda `requirement_type[]`/`requirement_value[]`/
+  `requirement_species[]` repetidos (colchete no nome — `qs`, usado
+  por `express.urlencoded({extended:true})`, já configurado, devolve
+  array mesmo com 1 ocorrência só). Linha deixada em branco (tipo
+  "Nenhum") é ignorada silenciosamente; linha PREENCHIDA mas inválida
+  (tipo desconhecido, valor fora do range, espécie faltando quando o
+  tipo exige) cancela o save inteiro — mesmo comportamento de quando
+  só existia 1 requisito, nunca salva pela metade.
+- DISCORD: `configSystem.js`, menu "Resgatar" do `/perfil`, trunca a
+  descrição do item (`describeRequirement` agora junta várias frases
+  com " + ") em 100 caracteres — limite do Discord pra
+  `StringSelectMenuOptionBuilder.setDescription`, que uma frase só
+  nunca estourava mas 2-3 juntas podem.
+- Verificado com script direto (Node): `parseRequirement` com dado
+  ANTIGO (objeto solto) devolve array de 1; com dado NOVO (array de 2)
+  passa direto; array vazio ou JSON inválido sempre devolvem `null`.
+  `checkRequirementMet` testado nas 3 combinações (nenhum requisito
+  cumprido, só 1 de 2, os 2) — só "os 2" devolve `true`, confirmando a
+  lógica E e não OU. Loop completo via `ProfileImagePool.setRequirement`
+  + `ImageShopSystem.getRedeemableItems`: emblema de teste aparece como
+  resgatável só com os 2 requisitos batendo, some ao voltar a cumprir
+  só 1. Confirmado que "sem requisito" grava `NULL`, nunca `[]`, tanto
+  direto quanto pela mesma lógica usada na rota. `ejs.renderFile()` no
+  `requirement-form.ejs` com item de 0/1/2/5 requisitos, conferindo
+  linhas certas renderizadas, campos pré-preenchidos por linha, campo
+  de espécie escondido/visível conforme o tipo, texto livre (espécie)
+  escapado corretamente, e botão "+ Adicionar" desabilitado ao atingir
+  o teto de 5. `node --check` nos 4 arquivos `.js` tocados. Durante a
+  verificação, um `<%= %>` mencionado dentro de um comentário JS
+  (`//`) do próprio parcial quebrou o parser do EJS (ele não entende
+  comentário de JS, só procura os delimitadores em qualquer lugar do
+  texto cru) — corrigido descrevendo o tag em palavras em vez do
+  delimitador literal. SEM confirmação visual/browser real (nenhuma
+  ferramenta de navegador disponível neste ambiente) — o clique em
+  "+ Adicionar requisito"/"×" (JS de UI) não dá pra confirmar sem abrir
+  o site de verdade; vale o dono conferir visualmente após o deploy.

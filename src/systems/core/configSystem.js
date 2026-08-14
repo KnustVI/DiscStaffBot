@@ -2405,8 +2405,12 @@ const ConfigSystem = {
                     .setPlaceholder('Resgatar um item...')
                     .addOptions(redeemable.slice(0, 25).map(r => new StringSelectMenuOptionBuilder()
                         .setLabel(r.label)
-                        .setValue(ProfileImagePool.toPoolValue(r.id) + ':' + r.type)
-                        .setDescription(AchievementSystem.describeRequirement(r.requirement) || 'Requisito cumprido')
+                        // .slice(0,100): Discord rejeita a option inteira se a
+                        // descrição passar de 100 caracteres — com requisito
+                        // virando LISTA (pedido do dono, 2026-08-13: "vários
+                        // requisitos... todos"), 2-3 juntados com " + " podem
+                        // passar disso, o que nunca acontecia com 1 só.
+                        .setDescription((AchievementSystem.describeRequirement(r.requirement) || 'Requisito cumprido').slice(0, 100))
                     ));
             } else {
                 lines.push('-# Nenhum emblema/título disponível pra resgatar agora — cumpra o requisito definido pelo dono pra desbloquear.');

@@ -197,12 +197,15 @@ function approveSubmission(id) {
 }
 
 /**
- * Requisito de resgate automático (badge/titulo, reforma 2026-08-12) — ver
- * checkRequirementMet. requirement null limpa (volta a ser só concedível
- * na mão, sem resgate automático).
+ * Requisitos de resgate automático (badge/titulo, reforma 2026-08-12,
+ * virou LISTA em 2026-08-13 — ver checkRequirementMet) — requirement
+ * null/array vazio limpa (volta a ser só concedível na mão, sem resgate
+ * automático). Função em si é agnóstica de forma (só JSON.stringify e
+ * grava) — quem decide "array de N requisitos, todos obrigatórios" é
+ * achievementSystem.js, não aqui.
  * @param {string} type
  * @param {number} id
- * @param {{type: string, value: number, species?: string}|null} requirement
+ * @param {Array<{type: string, value: number, species?: string}>|null} requirement
  */
 function setRequirement(type, id, requirement) {
     const row = getByTypeAndId(type, id);

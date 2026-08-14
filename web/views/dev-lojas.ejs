@@ -187,6 +187,50 @@
         .pool-req-value-row label { font-size: 0.65rem; opacity: 0.7; flex: none; white-space: nowrap; }
         .pool-req-value-row input { flex: 1; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 6px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.7rem; }
         .pool-req-hint { font-size: 0.62rem; opacity: 0.5; line-height: 1.4; font-style: italic; }
+        <%# Lista de requisitos (pedido do dono, 2026-08-13: "adicione os
+            requisitos como uma lista onde o player só consiga
+            reivindicar se fez todos") — .pool-req-row é UMA linha
+            (tipo/valor/espécie/remover), .pool-req-rows agrupa 0-5
+            delas com um traço fino separando uma da outra (exceto a
+            primeira), pra ficar claro visualmente que são itens
+            distintos da mesma lista, não um formulário só maior. %>
+        .pool-req-rows { display: flex; flex-direction: column; gap: 8px; }
+        .pool-req-row { display: flex; flex-direction: column; gap: 4px; }
+        .pool-req-row + .pool-req-row { padding-top: 8px; border-top: 1px dashed rgba(217, 163, 98, 0.2); }
+        .pool-req-row .pool-price-row { align-items: center; }
+        .pool-req-remove {
+            flex: none;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            color: #F8DCC0;
+            opacity: 0.6;
+            cursor: pointer;
+            font-size: 0.8rem;
+            line-height: 1;
+            transition: opacity 0.15s ease, background 0.15s ease;
+        }
+        .pool-req-remove:hover { opacity: 1; background: rgba(217, 163, 98, 0.12); }
+        .pool-req-add {
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px dashed rgba(217, 163, 98, 0.4);
+            background: transparent;
+            color: #D9A362;
+            cursor: pointer;
+            align-self: flex-start;
+            transition: background 0.15s ease, opacity 0.15s ease;
+        }
+        .pool-req-add:hover { background: rgba(217, 163, 98, 0.1); }
+        .pool-req-add:disabled { opacity: 0.35; cursor: not-allowed; }
         .pool-price-row { display: flex; gap: 6px; }
         .pool-price-row input[type="number"],
         .pool-price-row input[type="text"],
@@ -462,22 +506,65 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>if (window.lucide) window.lucide.createIcons();</script>
     <script>
-        // Sincroniza o formulário de requisito (partials/requirement-form.ejs)
-        // com o tipo escolhido no <select> — rótulo do campo "Valor", frase
-        // de ajuda, e mostra/esconde o campo de Espécie só quando o tipo
-        // selecionado realmente usa espécie (needsSpecies). Um formulário
-        // por item do pool (badge/titulo), cada um com seu próprio id
-        // (rfId, ver o parcial) — por isso a função recebe o prefixo e
-        // busca os elementos por ele, em vez de IDs fixos repetidos na página.
-        function requirementFormSync(rfId) {
-            const select = document.getElementById(rfId + '-type');
+        // Sincroniza UMA LINHA do formulário de requisitos
+        // (partials/requirement-form.ejs) com o tipo escolhido no
+        // <select> dela — rótulo do campo "Valor", frase de ajuda, e
+        // mostra/esconde o campo de Espécie só quando o tipo selecionado
+        // realmente usa espécie (needsSpecies). Recebe o ID da LINHA
+        // (rowId = "rf-<type>-<itemId>-<rowIdx>", ver
+        // renderRequirementRowHtml no parcial), não mais um ID fixo por
+        // item — cada emblema/título pode ter várias linhas agora
+        // (pedido do dono, 2026-08-13: requisitos viram lista), então a
+        // função sempre operou "por prefixo de elemento" e continua
+        // funcionando sem mudança nenhuma, só o prefixo passado mudou de
+        // "por item" pra "por linha".
+        function requirementFormSync(rowId) {
+            const select = document.getElementById(rowId + '-type');
             const option = select.options[select.selectedIndex];
-            const valueLabel = document.getElementById(rfId + '-value-label');
-            const speciesRow = document.getElementById(rfId + '-species-row');
-            const hint = document.getElementById(rfId + '-hint');
+            const valueLabel = document.getElementById(rowId + '-value-label');
+            const speciesRow = document.getElementById(rowId + '-species-row');
+            const hint = document.getElementById(rowId + '-hint');
             valueLabel.textContent = (option.dataset.valueLabel || 'Valor') + ':';
             speciesRow.style.display = option.dataset.needsSpecies === '1' ? '' : 'none';
             hint.textContent = option.dataset.hint || 'Escolha um tipo de requisito acima para ver a explicação.';
+        }
+
+        // "+ Adicionar requisito" (pedido do dono, 2026-08-13) — clona o
+        // <template> em branco do MESMO formulário (gerado pelo parcial
+        // com o placeholder literal "__IDX__" no lugar do índice da
+        // linha), troca "__IDX__" por um índice novo (nunca colide com
+        // uma linha já existente nem entre cliques seguidos) e insere
+        // antes do botão de submeter. Desabilita o próprio botão ao
+        // atingir o teto (data-rf-max no <form>, mesmo valor do backend
+        // em dashboard.js — só evita um clique que o servidor cortaria
+        // de qualquer forma, a validação de verdade é sempre no POST).
+        function requirementFormAddRow(button) {
+            const form = button.closest('form');
+            const rfId = form.dataset.rfId;
+            const max = Number(form.dataset.rfMax) || 5;
+            const rowsContainer = form.querySelector('.pool-req-rows');
+            if (rowsContainer.querySelectorAll('.pool-req-row').length >= max) return;
+
+            const template = document.getElementById(rfId + '-template');
+            const newIdx = 'n' + Date.now() + Math.floor(Math.random() * 1000);
+            const html = template.innerHTML.replace(/__IDX__/g, newIdx);
+            rowsContainer.insertAdjacentHTML('beforeend', html);
+
+            if (rowsContainer.querySelectorAll('.pool-req-row').length >= max) {
+                button.disabled = true;
+            }
+        }
+
+        // "×" numa linha — remove só ela do DOM (nunca menos que 0
+        // linhas; salvar sem nenhuma linha preenchida limpa o requisito
+        // por completo, ver dashboard.js POST /requisito). Reabilita o
+        // botão "+ Adicionar" caso tivesse sido desabilitado por ter
+        // batido no teto.
+        function requirementFormRemoveRow(button) {
+            const form = button.closest('form');
+            button.closest('.pool-req-row').remove();
+            const addBtn = form.querySelector('.pool-req-add');
+            if (addBtn) addBtn.disabled = false;
         }
     </script>
 </body>

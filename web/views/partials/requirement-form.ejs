@@ -1,56 +1,110 @@
 <%#
   web/views/partials/requirement-form.ejs
-  Editor de requisito de resgate de emblema/título — extraído num parcial
-  só (pedido do dono, 2026-08-12: "Configuração e emblemas parece meio
-  quebrado, não esta claro como devem ser os requisitos... e titulo esta
-  sem essa confguração tambem") pra usar EXATAMENTE o mesmo formulário
-  nos dois tipos (badge E titulo) sem duplicar a marcação/JS duas vezes —
-  antes disso só emblema tinha esse editor, título não tinha nenhum.
+  Editor de requisitos de resgate de emblema/título — extraído num
+  parcial só (pedido do dono, 2026-08-12: "Configuração e emblemas
+  parece meio quebrado, não esta claro como devem ser os requisitos...
+  e titulo esta sem essa confguração tambem") pra usar EXATAMENTE o
+  mesmo formulário nos dois tipos (badge E titulo) sem duplicar a
+  marcação/JS duas vezes.
 
-  Clareza da UX (mesmo pedido): o rótulo do campo "Valor" e a frase de
-  ajuda embaixo agora mudam sozinhos conforme o tipo de requisito
-  escolhido (ver requirementTypes[*].valueLabel/hint em
+  LISTA de requisitos, não só um (pedido do dono, 2026-08-13: "preciso
+  que ele adicione os requisitos como uma lista onde o player só
+  consiga reivindicar se fez todos os requisitos") — cada emblema/
+  título pode ter 0-5 requisitos, TODOS obrigatórios ao mesmo tempo
+  (E, não OU — ver AchievementSystem.checkRequirementMet). Renderiza
+  uma linha de campos (tipo/valor/espécie) por requisito já salvo
+  (`img.requirement`, sempre um array — ver AchievementSystem.
+  parseRequirement) + um botão "+ Adicionar requisito" que clona um
+  <template> em branco via JS (renderRequirementRowHtml abaixo gera o
+  MESMO HTML pras linhas reais e pro template, sem duplicar a lista de
+  <option> em JS solto). Remover uma linha (botão "×") só tira ela do
+  DOM — salvar com 0 linhas preenchidas limpa o requisito por completo
+  (volta a ser só concessão manual, ver dashboard.js POST /requisito).
+
+  Clareza da UX (pedido do dono, 2026-08-12): o rótulo do campo "Valor"
+  e a frase de ajuda embaixo mudam sozinhos conforme o tipo de
+  requisito escolhido (ver requirementTypes[*].valueLabel/hint em
   achievementSystem.js), e o campo de Espécie só aparece pros tipos que
-  realmente usam espécie (needsSpecies) — antes ficava sempre visível,
-  mesmo quando não fazia sentido pro tipo selecionado.
+  realmente usam espécie (needsSpecies).
 
   Uso: include( partials/requirement-form , { img, type, requirementTypes } )
     img — linha do pool (badge ou titulo), já com img.requirement
-      (objeto parseado ou null) e img.requirementLabel (string legível,
-      ver AchievementSystem.describeRequirement) vindos de dashboard.js.
+      (ARRAY parseado ou null — ver AchievementSystem.parseRequirement)
+      e img.requirementLabel (string legível já com todos os requisitos
+      juntados, ver AchievementSystem.describeRequirement) vindos de
+      dashboard.js.
     type — 'badge' ou 'titulo', usado só pra montar a action do form.
     requirementTypes — AchievementSystem.REQUIREMENT_TYPES.
 %>
 <%
     const rfId = `rf-${type}-${img.id}`;
-    const rfCurrentType = img.requirement?.type || '';
+    const rfRequirements = Array.isArray(img.requirement) ? img.requirement : [];
+    // Mesmo teto do backend (dashboard.js POST /requisito) — o botão
+    // "+ Adicionar requisito" se desabilita ao chegar aqui, evitando um
+    // submit que o servidor cortaria de qualquer forma.
+    const RF_MAX_REQUIREMENTS = 5;
+
+    // Só usado nos poucos valores livres (espécie) que passam por um
+    // template literal cru (renderRequirementRowHtml) em vez da
+    // interpolação escapada de sempre — requirementTypes/rowIdx nunca vêm de entrada de
+    // usuário, só requirement.species (texto que o próprio dono digitou
+    // num save anterior).
+    const rfEsc = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // Gera o HTML de UMA linha de campos (tipo/valor/espécie/remover) —
+    // reaproveitada tanto pelas linhas JÁ salvas (requirement != null)
+    // quanto pelo <template> em branco que o JS clona ao clicar em
+    // "+ Adicionar requisito" (requirement = null, rowIdx = '__IDX__',
+    // nunca renderizado de verdade — só existe dentro de um <template>,
+    // invisível e fora do form até ser clonado).
+    function renderRequirementRowHtml(rowIdx, requirement) {
+        const rowId = `${rfId}-${rowIdx}`;
+        const currentType = requirement?.type || '';
+        const currentDef = requirementTypes[currentType];
+        const optionsHtml = Object.keys(requirementTypes).map((key) => {
+            const def = requirementTypes[key];
+            return `<option value="${key}" data-value-label="${rfEsc(def.valueLabel)}" data-hint="${rfEsc(def.hint)}" data-needs-species="${def.needsSpecies ? '1' : '0'}" ${currentType === key ? 'selected' : ''}>${rfEsc(def.label)}</option>`;
+        }).join('');
+        return `
+            <div class="pool-req-row" data-row-id="${rowId}">
+                <div class="pool-price-row">
+                    <select name="requirement_type[]" id="${rowId}-type" onchange="requirementFormSync('${rowId}')">
+                        <option value="" data-hint="Nenhum requisito — deixe em branco pra não contar esta linha.">Nenhum</option>
+                        ${optionsHtml}
+                    </select>
+                    <button type="button" class="pool-req-remove" onclick="requirementFormRemoveRow(this)" aria-label="Remover este requisito" title="Remover este requisito">&times;</button>
+                </div>
+                <div class="pool-req-value-row">
+                    <label id="${rowId}-value-label" for="${rowId}-value">${rfEsc(currentDef?.valueLabel || 'Valor')}:</label>
+                    <input type="number" id="${rowId}-value" name="requirement_value[]" min="1" step="1" placeholder="Ex: 100" value="${requirement ? rfEsc(requirement.value) : ''}">
+                </div>
+                <div id="${rowId}-species-row" class="pool-req-value-row" style="${currentDef?.needsSpecies ? '' : 'display:none;'}">
+                    <label for="${rowId}-species">Espécie:</label>
+                    <input type="text" id="${rowId}-species" name="requirement_species[]" placeholder="Ex: Deinosuchus" value="${requirement && requirement.species ? rfEsc(requirement.species) : ''}">
+                </div>
+                <p id="${rowId}-hint" class="pool-req-hint">${rfEsc(currentDef?.hint || 'Escolha um tipo de requisito acima para ver a explicação.')}</p>
+            </div>`;
+    }
 %>
 <div class="pool-requirement-form">
     <span class="pool-price-current"><%= img.requirementLabel || 'Sem requisito (só concessão manual)' %></span>
-    <form action="/dev/Loja/<%= type %>/<%= img.id %>/requisito" method="POST" class="flex flex-col gap-2">
-        <div class="pool-price-row">
-            <select name="requirement_type" id="<%= rfId %>-type" onchange="requirementFormSync('<%= rfId %>')">
-                <option value="" data-hint="Nenhum requisito — só você pode conceder este item na mão.">Nenhum (só concessão manual)</option>
-                <% Object.keys(requirementTypes).forEach(key => { %>
-                    <option
-                        value="<%= key %>"
-                        data-value-label="<%= requirementTypes[key].valueLabel %>"
-                        data-hint="<%= requirementTypes[key].hint %>"
-                        data-needs-species="<%= requirementTypes[key].needsSpecies ? '1' : '0' %>"
-                        <%= rfCurrentType === key ? 'selected' : '' %>
-                    ><%= requirementTypes[key].label %></option>
+    <form action="/dev/Loja/<%= type %>/<%= img.id %>/requisito" method="POST" class="flex flex-col gap-2" data-rf-id="<%= rfId %>" data-rf-max="<%= RF_MAX_REQUIREMENTS %>">
+        <div class="pool-req-rows">
+            <% if (rfRequirements.length === 0) { %>
+                <%- renderRequirementRowHtml(0, null) %>
+            <% } else { %>
+                <% rfRequirements.forEach((requirement, i) => { %>
+                    <%- renderRequirementRowHtml(i, requirement) %>
                 <% }); %>
-            </select>
+            <% } %>
         </div>
-        <div class="pool-req-value-row">
-            <label id="<%= rfId %>-value-label" for="<%= rfId %>-value"><%= requirementTypes[rfCurrentType]?.valueLabel || 'Valor' %>:</label>
-            <input type="number" id="<%= rfId %>-value" name="requirement_value" min="1" step="1" placeholder="Ex: 100" value="<%= img.requirement ? img.requirement.value : '' %>">
-        </div>
-        <div id="<%= rfId %>-species-row" class="pool-req-value-row" style="<%= requirementTypes[rfCurrentType]?.needsSpecies ? '' : 'display:none;' %>">
-            <label for="<%= rfId %>-species">Espécie:</label>
-            <input type="text" id="<%= rfId %>-species" name="requirement_species" placeholder="Ex: Deinosuchus" value="<%= img.requirement && img.requirement.species ? img.requirement.species : '' %>">
-        </div>
-        <p id="<%= rfId %>-hint" class="pool-req-hint"><%= requirementTypes[rfCurrentType]?.hint || 'Escolha um tipo de requisito acima para ver a explicação.' %></p>
-        <button type="submit" class="pool-price-submit">Salvar requisito</button>
+        <button type="button" class="pool-req-add" onclick="requirementFormAddRow(this)"<%= rfRequirements.length >= RF_MAX_REQUIREMENTS ? ' disabled' : '' %>>+ Adicionar requisito</button>
+        <button type="submit" class="pool-price-submit">Salvar requisitos</button>
     </form>
+    <%# <template> nunca é exibido nem enviado no submit — só existe pro
+        JS (requirementFormAddRow, em dev-lojas.ejs) clonar o conteúdo.
+        rowIdx literal "__IDX__" é trocado por um índice novo (timestamp)
+        na hora de clonar, pra nunca colidir com uma linha já existente
+        nem entre chamadas seguidas de "+ Adicionar". %>
+    <template id="<%= rfId %>-template"><%- renderRequirementRowHtml('__IDX__', null) %></template>
 </div>

@@ -3,12 +3,21 @@
  * Resgate de emblema/título por requisito — reforma das lojas, 2026-08-12:
  * "Emblemas e titulos não vão ser itens compraveis apenas itens
  * recompensaveis por missões, onde só o desenvolvedor pode colocar na
- * loja com requisitos para o player resgatar." O dono define o requisito
- * (tipo + valor, ver `requirement` em profile_image_pool/
+ * loja com requisitos para o player resgatar." O dono define os
+ * requisitos (ver `requirement` em profile_image_pool/
  * ProfileImagePool.setRequirement) no painel /dev/Loja; o sistema
  * verifica automaticamente se um jogador já cumpre e libera um botão
  * "Resgatar" (ver playerRegistrationSystem.js/configSystem.js) — sem
  * conceder nada sozinho, o jogador precisa clicar.
+ *
+ * UMA LISTA de requisitos por item, não só um (pedido do dono,
+ * 2026-08-13: "preciso que ele adicione os requisitos como uma lista
+ * onde o player só consiga reivindicar se fez todos os requisitos") —
+ * `requirement` é sempre um ARRAY (`profile_image_pool.requirement`,
+ * JSON), e `checkRequirementMet` só devolve true se TODOS os itens da
+ * lista forem cumpridos (E, não OU). Dado salvo ANTES desta mudança
+ * (objeto solto, não array) continua funcionando — `parseRequirement`
+ * normaliza pra array de 1 item na leitura, sem precisar de migração.
  *
  * Todo requisito usa dados JÁ rastreados (nenhuma tabela nova): kills/
  * tempo de jogo vêm de potPlayerRegistry.getGlobalPlayerStats, nível vem
@@ -48,26 +57,40 @@ const REQUIREMENT_TYPES = {
     },
 };
 
+/**
+ * Sempre devolve um ARRAY de requisitos (ou null, "sem requisito
+ * nenhum") — pedido do dono, 2026-08-13: "preciso que ele adicione os
+ * requisitos como uma lista onde o player só consiga reivindicar se fez
+ * todos os requisitos" (AND, não "qualquer um deles"). Compatível com
+ * dado ANTIGO já salvo (objeto solto `{type,value,species?}`, formato de
+ * antes desta mudança) — normaliza pra array de 1 item aqui mesmo, sem
+ * precisar de migração de banco; o próximo "Salvar" no painel /dev/Loja
+ * já regrava no formato array de verdade. NUNCA devolve array vazio —
+ * "sem requisito" sempre vira `null` (código em vários lugares, ex.
+ * configSystem._usableBadgeOptions/imageShopSystem.getRedeemableItems,
+ * faz `!row.requirement` pra checar isso — um array vazio é truthy em
+ * JS, viraria "tem requisito" por engano).
+ */
 function parseRequirement(row) {
     if (!row?.requirement) return null;
     try {
-        return JSON.parse(row.requirement);
+        const parsed = JSON.parse(row.requirement);
+        if (Array.isArray(parsed)) return parsed.length > 0 ? parsed : null;
+        return parsed && parsed.type ? [parsed] : null;
     } catch {
         return null;
     }
 }
 
 /**
- * @param {string} userId - Discord ID
- * @param {{type: string, value: number, species?: string}|null} requirement
- * @returns {boolean}
+ * Checagem de UM requisito só — corpo movido pra fora de
+ * checkRequirementMet (que agora itera a lista inteira) sem nenhuma
+ * mudança de lógica interna.
  */
-function checkRequirementMet(userId, requirement) {
+function _checkSingleRequirementMet(userId, requirement, link) {
     if (!requirement || !REQUIREMENT_TYPES[requirement.type] || !Number.isFinite(requirement.value)) return false;
 
     const PlayerRegistry = require('./potPlayerRegistry');
-    const link = PlayerRegistry.getPlayerByDiscordId(userId);
-    if (!link?.alderon_id) return false;
 
     switch (requirement.type) {
         case 'kills': {
@@ -97,19 +120,46 @@ function checkRequirementMet(userId, requirement) {
 }
 
 /**
- * Descrição legível do requisito (pro card de emblema/título e pro painel
- * do dono) — ex: "500 kills", "10 horas de jogo", "Nível 5", "20x jogando
- * de Deinosuchus".
+ * @param {string} userId - Discord ID
+ * @param {Array<{type: string, value: number, species?: string}>|{type: string, value: number, species?: string}|null} requirements
+ *   Normalmente um array (ver parseRequirement) — objeto solto aceito só
+ *   defensivamente (nunca deve chegar assim vindo de parseRequirement,
+ *   mas outros call sites eventuais não quebram).
+ * @returns {boolean} true só se TODOS os requisitos da lista forem
+ *   cumpridos (AND) — lista vazia/nula nunca é "cumprida".
  */
-function describeRequirement(requirement) {
-    if (!requirement || !REQUIREMENT_TYPES[requirement.type]) return null;
-    switch (requirement.type) {
-        case 'kills': return `${requirement.value} kills`;
-        case 'playtime_hours': return `${requirement.value}h de tempo de jogo`;
-        case 'level': return `Nível ${requirement.value}`;
-        case 'species_picks': return `${requirement.value}x jogando de ${requirement.species || '?'}`;
-        default: return null;
-    }
+function checkRequirementMet(userId, requirements) {
+    const list = Array.isArray(requirements) ? requirements : (requirements ? [requirements] : []);
+    if (list.length === 0) return false;
+
+    const PlayerRegistry = require('./potPlayerRegistry');
+    const link = PlayerRegistry.getPlayerByDiscordId(userId);
+    if (!link?.alderon_id) return false;
+
+    return list.every((r) => _checkSingleRequirementMet(userId, r, link));
+}
+
+/**
+ * Descrição legível da LISTA de requisitos (pro card de emblema/título e
+ * pro painel do dono) — ex: "500 kills", ou "500 kills + Nível 10" com
+ * mais de um. " + " deixa claro que são TODOS obrigatórios (AND), sem
+ * precisar de gramática de lista (vírgula + "e") só pra isso.
+ */
+function describeRequirement(requirements) {
+    const list = Array.isArray(requirements) ? requirements : (requirements ? [requirements] : []);
+    const parts = list
+        .map((requirement) => {
+            if (!requirement || !REQUIREMENT_TYPES[requirement.type]) return null;
+            switch (requirement.type) {
+                case 'kills': return `${requirement.value} kills`;
+                case 'playtime_hours': return `${requirement.value}h de tempo de jogo`;
+                case 'level': return `Nível ${requirement.value}`;
+                case 'species_picks': return `${requirement.value}x jogando de ${requirement.species || '?'}`;
+                default: return null;
+            }
+        })
+        .filter(Boolean);
+    return parts.length > 0 ? parts.join(' + ') : null;
 }
 
 module.exports = {
