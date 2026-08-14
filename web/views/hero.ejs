@@ -142,91 +142,8 @@
             color: #F8DCC0;
             opacity: 0.85;
         }
-        .nav-btn {
-            box-sizing: border-box;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 5px 20px;
-            gap: 10px;
-            height: 30px;
-            background: #2A2A2A;
-            border: 1px solid #803E30;
-            border-radius: 15px;
-            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
-            font-family: 'Poppins', sans-serif;
-            font-weight: 300;
-            font-size: 14px;
-            color: #F8DCC0;
-            text-decoration: none;
-            white-space: nowrap;
-            transition: background 0.15s ease, border-color 0.15s ease;
-        }
-        .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
-        <%# Visual de "página atual" (pedido do dono, mesmo estilo já usado
-            no botão DOCUMENTAÇÃO de documentacao.ejs quando você está
-            nela) — aplicado aqui no botão HOME, já que esta é a página
-            hero/home. Cada página com nav própria marca o SEU botão. %>
-        .nav-btn.is-active { background: #4B2427; border-color: #DCA15E; }
-        .nav-btn:active {
-            background: #4B2427;
-            border-color: #803E30;
-            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
-        }
-        /* Padrão de botão desativado — usado nos itens de nav que não têm
-           destino pronto ainda (ex: Updates, Documentação). Direto do
-           Figma (Mode=Disabled): fundo igual ao normal, só a borda fica
-           cinza (em vez do tom de destaque) e a sombra vira bem mais
-           discreta, sem o relevo do estado normal. pointer-events:none
-           tira o hover/clique por completo, sem precisar remover o href
-           nem duplicar o HTML. */
-        .nav-btn.disabled {
-            border-color: #3E3D38;
-            color: #3E3D38;
-            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        /* Botão de idioma redesenhado (pedido do dono, 2026-08-06): duas
-           bandeiras circulares sobrepostas (imagens em /images/flag-br.webp
-           e /images/flag-us.webp, trocado de emoji Unicode pra imagem de
-           verdade a pedido do dono) no lugar do texto "PT"/"EN" — a
-           bandeira do idioma ATIVO fica na frente (z-index
-           maior, mais à esquerda), a do outro idioma fica atrás, espiada
-           à direita (mesma lógica de "Property 1=Portugues/English" do
-           Figma). Mesma família de sombra "USER/SERVER Icon" já usada nos
-           avatares/ícones redondos do site, só escalada pro tamanho do
-           botão. */
-        .lang-toggle {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            width: 52px;
-            height: 36px;
-            background: none;
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            flex: none;
-        }
-        .lang-toggle-flag {
-            position: absolute;
-            top: 2px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            overflow: hidden;
-            background: #2A2A2A;
-            border: 1px solid #803E30;
-            box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
-            transition: left 0.2s ease, border-color 0.15s ease;
-        }
-        .lang-toggle-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
-        .lang-toggle-flag-pt { left: 0; z-index: 2; }
-        .lang-toggle-flag-en { left: 18px; z-index: 1; }
-        html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
-        html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
+        /* .nav-btn/.lang-toggle etc. REMOVIDOS daqui (pedido do dono,
+           2026-08-13) — vivem só em partials/top-nav.ejs agora. */
 
         .section-title {
             font-family: 'Tilt Warp', sans-serif;
@@ -560,77 +477,20 @@
         .hero-stat-label { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: clamp(11px, 1.1vw, 13px); color: #F8DCC0; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.04em; }
         .hero-stats-divider { width: 1px; height: 34px; background: #3E3D38; }
 
-        /* Nav mais compacta em telas pequenas — menos padding/gap/fonte
-           reduz quantas linhas ela quebra num celular. */
-        @media (max-width: 640px) {
-            .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
-        }
     </style>
 </head>
 <body class="text-titan-cream">
 
-<!-- ===================== NAV (fixa, independente do scroll) ===================== -->
-<nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
-    <%#
-        Portal (pedido do dono, 2026-08-06: "um único botão de login junto
-        ao convide o bot"/"se logado colocar o ícone do usuário e nome dele
-        na barra de navegação e adicionar botão Portal") — os antigos
-        botões DASHBOARD+PERFIL viraram UM slot dinâmico na fileira
-        (ENTRAR deslogado, PORTAL logado, mesmo /dashboard de sempre) +
-        avatar/nome no canto só quando logado (deslogado, o ENTRAR da
-        fileira já cobre o login, sem duplicar no canto). /perfil não tem
-        mais link direto aqui — se chega lá pela "Toca" dentro do Portal
-        (web/views/portal.ejs). Trava de "dashboard em desenvolvimento"
-        REMOVIDA (pedido do dono, 2026-08-10: "Libere a trava de todo o
-        site para que todos testem") — os links iam pra /dashboard direto
-        mesmo assim (a rota nunca chegou a travar de verdade, ver
-        DASHBOARD_LOCKED_TO_OWNER em dashboard.js), só o clique aqui na
-        nav ficava interceptado por engano pra quem não era o dono.
-    %>
-    <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
-            <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
-            <%= (user.nickname || user.global_name || user.username) %>
-        </a>
-    <% } %>
-    <a href="/" class="nav-btn is-active"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
-    <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link nav-btn"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
-    <% } else { %>
-        <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
-    <% } %>
-    <a href="#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-    <a href="/loja" class="nav-btn"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></a>
-    <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
-    <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
-    <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
-        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
-        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
-    </button>
-</nav>
-<script>
-    // A nav quebra em números de linha diferentes dependendo da largura da
-    // tela — mede a altura real em vez de "chutar" um valor fixo de
-    // padding-top no hero, pra continuar responsivo mesmo se algum item for
-    // adicionado/removido da nav no futuro.
-    (function () {
-        function syncNavHeight() {
-            var nav = document.querySelector('nav');
-            if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
-        }
-        syncNavHeight();
-        window.addEventListener('resize', syncNavHeight);
-        window.addEventListener('load', syncNavHeight);
-        // A webfont (Poppins) pode terminar de carregar DEPOIS do 'load' e
-        // reflowar o texto dos botões da nav, mudando quantas linhas ela
-        // ocupa — sem isso, o conteúdo abaixo fica com espaço de menos e a
-        // borda arredondada do hero some sob a nav quando ela cresce de 1
-        // pra 2 linhas depois da 1a medição.
-        if (window.document.fonts && window.document.fonts.ready) {
-            window.document.fonts.ready.then(syncNavHeight);
-        }
-    })();
-</script>
+<%#
+    Barra de navegação de topo — pedido do dono, 2026-08-13: consolidada
+    em partials/top-nav.ejs (antes era um <nav> só desta página, duplicado
+    em documentacao.ejs/portal.ejs/termos.ejs; agora acompanha TODAS as
+    páginas do site, inclusive as que têm sidebar). --nav-height/JS de
+    idioma continuam sendo setados de dentro da partial, do mesmo jeito de
+    sempre — .hero-section-padding (mais abaixo) continua funcionando sem
+    mudança nenhuma.
+%>
+<%- include('partials/top-nav', { active: 'home' }) %>
 
 <!-- ===================== FUNDO COMPARTILHADO (hero + conteúdo abaixo) ===================== -->
 <!-- Textura única cobrindo o hero E o topo do conteúdo abaixo dele — antes
@@ -1627,27 +1487,9 @@
         if (nextBtn) nextBtn.addEventListener('click', function () { track.scrollBy({ left: scrollAmount(), behavior: 'smooth' }); });
     })();
 
-    (function () {
-        const stored = localStorage.getItem('titanspass_lang') || 'pt';
-        document.documentElement.setAttribute('data-lang', stored);
-        updateLangToggleLabel(stored);
-    })();
-
-    // aria-label dinâmico do botão de bandeiras (pedido do dono,
-    // 2026-08-06: substituiu o texto visível "PT"/"EN" — o rótulo agora
-    // só existe pra leitor de tela, o visual é 100% as duas bandeiras).
-    function updateLangToggleLabel(current) {
-        const btn = document.getElementById('langToggleBtn');
-        if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
-    }
-
-    function toggleLang() {
-        const current = document.documentElement.getAttribute('data-lang') || 'pt';
-        const next = current === 'pt' ? 'en' : 'pt';
-        document.documentElement.setAttribute('data-lang', next);
-        localStorage.setItem('titanspass_lang', next);
-        updateLangToggleLabel(next);
-    }
+    // JS de idioma (toggleLang/updateLangToggleLabel/inicialização)
+    // REMOVIDO daqui (pedido do dono, 2026-08-13) — vive só em
+    // partials/top-nav.ejs agora.
 </script>
 
 </body>

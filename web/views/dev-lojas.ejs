@@ -256,6 +256,18 @@
     </style>
 </head>
 <body class="flex min-h-screen">
+    <%#
+        Barra de navegação de topo (pedido do dono, 2026-08-13) — esta
+        página nunca teve sidebar nem barra nenhuma antes; entra no
+        rollout como "sem sidebar" (hideOnScroll:false — sempre visível,
+        igual hero.ejs/documentacao.ejs, já que não tem sidebar disputando
+        espaço vertical com ela) mas ainda precisa reservar o próprio
+        espaço (reserveSpace:true — nunca teve isso antes, o conteúdo
+        ficaria embaixo da barra sem essa flag). active:'dev-loja' marca
+        o botão "CONTROLE DE LOJAS" da barra (só visível pro dono) como a
+        página atual.
+    %>
+    <%- include('partials/top-nav', { active: 'dev-loja', hideOnScroll: false, reserveSpace: true }) %>
 
     <main class="flex-1 w-full flex flex-col p-[30px] gap-[30px]">
 

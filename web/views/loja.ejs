@@ -319,6 +319,13 @@
     </style>
 </head>
 <body class="flex min-h-screen">
+    <%# Barra de navegação de topo — acompanha a sidebar em toda página
+        (pedido do dono, 2026-08-13). hideOnScroll/reserveSpace:true — só
+        fica visível no topo da rolagem, e reserva o próprio espaço no
+        <body> (ver partials/top-nav.ejs). active:'loja' porque a Loja
+        de Personalização/Jogo saiu da sidebar e passou pro botão LOJA
+        desta barra. %>
+    <%- include('partials/top-nav', { active: 'loja', hideOnScroll: true, reserveSpace: true }) %>
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
         <%- include('partials/sidebar-v2', { active: 'loja', guild: otherGuilds[0] || null, nickname, role, isOwner, restricted: true }) %>

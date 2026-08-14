@@ -140,74 +140,17 @@
                         inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
         }
 
-        /* Barra de navegação padrão do site (mesma de hero.ejs — pedido do
-           dono, 2026-08-06: "devemos ter ainda a mesma barra de navegação
-           no top de home"). Fixa, então o conteúdo abaixo compensa com
-           --nav-height via padding-top INLINE no <div> do gradiente
-           (ver mais abaixo) — não um padding-top em classe própria,
-           porque colidiria em especificidade com o padding do próprio
-           Tailwind (p-4/sm:p-6/md:p-8) que já está no mesmo elemento;
-           inline sempre ganha, sem depender da ordem de injeção do
-           script do Tailwind. */
-        .nav-btn {
-            box-sizing: border-box;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 5px 20px;
-            gap: 10px;
-            height: 30px;
-            background: #2A2A2A;
-            border: 1px solid #803E30;
-            border-radius: 15px;
-            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
-            font-family: 'Poppins', sans-serif;
-            font-weight: 300;
-            font-size: 14px;
-            color: #F8DCC0;
-            text-decoration: none;
-            white-space: nowrap;
-            transition: background 0.15s ease, border-color 0.15s ease;
-        }
-        .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
-        .nav-btn.is-active { background: #4B2427; border-color: #DCA15E; }
-        .nav-btn:active {
-            background: #4B2427;
-            border-color: #803E30;
-            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
-        }
-        /* Botão de idioma redesenhado (pedido do dono, 2026-08-06) — ver
-           comentário completo em hero.ejs. */
-        .lang-toggle {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            width: 52px;
-            height: 36px;
-            background: none;
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            flex: none;
-        }
-        .lang-toggle-flag {
-            position: absolute;
-            top: 2px;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            overflow: hidden;
-            background: #2A2A2A;
-            border: 1px solid #803E30;
-            box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
-            transition: left 0.2s ease, border-color 0.15s ease;
-        }
-        .lang-toggle-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
-        .lang-toggle-flag-pt { left: 0; z-index: 2; }
-        .lang-toggle-flag-en { left: 18px; z-index: 1; }
-        html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
-        html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
+        /* Barra de navegação padrão do site (partials/top-nav.ejs desde
+           2026-08-13 — antes era um <nav> só desta página, mesma origem
+           de hero.ejs, pedido do dono 2026-08-06: "devemos ter ainda a
+           mesma barra de navegação no top de home"). .nav-btn/.lang-toggle
+           etc. vivem só na partial agora. Fixa, então o conteúdo abaixo
+           compensa com --nav-height via padding-top INLINE no <div> do
+           gradiente (ver mais abaixo) — não um padding-top em classe
+           própria, porque colidiria em especificidade com o padding do
+           próprio Tailwind (p-4/sm:p-6/md:p-8) que já está no mesmo
+           elemento; inline sempre ganha, sem depender da ordem de
+           injeção do script do Tailwind. */
 
         .section-title {
             font-family: 'Tilt Warp', sans-serif;
@@ -269,44 +212,9 @@
 </head>
 <body>
 
-<!-- ===================== NAV (fixa, padrão do site) ===================== -->
-<nav class="w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
-    <%# Mesmo slot dinâmico Entrar/Portal de hero.ejs, ver comentário completo lá. %>
-    <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
-            <img src="<%= user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(user.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
-            <%= (user.nickname || user.global_name || user.username) %>
-        </a>
-    <% } %>
-    <a href="/" class="nav-btn"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
-    <% if (user) { %>
-        <a href="/dashboard" class="dashboard-link nav-btn is-active"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
-    <% } else { %>
-        <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
-    <% } %>
-    <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
-    <a href="/loja" class="nav-btn"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></a>
-    <a href="/documentacao" class="nav-btn"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
-    <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
-    <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
-        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
-        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
-    </button>
-</nav>
-<script>
-    (function () {
-        function syncNavHeight() {
-            var nav = document.querySelector('nav');
-            if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
-        }
-        syncNavHeight();
-        window.addEventListener('resize', syncNavHeight);
-        window.addEventListener('load', syncNavHeight);
-        if (window.document.fonts && window.document.fonts.ready) {
-            window.document.fonts.ready.then(syncNavHeight);
-        }
-    })();
-</script>
+<%# Barra de navegação de topo — consolidada em partials/top-nav.ejs
+    (pedido do dono, 2026-08-13, ver comentário completo em hero.ejs). %>
+<%- include('partials/top-nav', { active: 'portal' }) %>
 
 <div class="min-h-screen w-full flex flex-col items-stretch p-4 sm:p-6 md:p-8"
      style="background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%); padding-top: calc(var(--nav-height, 84px) + 16px);">
@@ -478,26 +386,8 @@
     </div>
 </div>
 
-<script>
-    (function () {
-        const stored = localStorage.getItem('titanspass_lang') || 'pt';
-        document.documentElement.setAttribute('data-lang', stored);
-        updateLangToggleLabel(stored);
-    })();
-
-    function updateLangToggleLabel(current) {
-        const btn = document.getElementById('langToggleBtn');
-        if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
-    }
-
-    function toggleLang() {
-        const current = document.documentElement.getAttribute('data-lang') || 'pt';
-        const next = current === 'pt' ? 'en' : 'pt';
-        document.documentElement.setAttribute('data-lang', next);
-        localStorage.setItem('titanspass_lang', next);
-        updateLangToggleLabel(next);
-    }
-</script>
+<%# JS de idioma REMOVIDO daqui (pedido do dono, 2026-08-13) — vive só
+    em partials/top-nav.ejs agora. %>
 
 </body>
 </html>

@@ -9724,3 +9724,107 @@ frente, nao so este relatorio):
   TRUNCADO, e continua devolvendo `null` pra entrada genuinamente
   inexistente/vazia — sem nenhum falso positivo de colisão entre
   "Grave" e "Grave 2". `node --check` nos 2 arquivos tocados.
+
+------------------------------------------------------------------
+193) Barra de navegação de topo vira permanente em TODO o site + reforma
+     da sidebar (Ajuda/Loja/Controle de Lojas saem, Sair vira texto)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-13): "Pegue a barra de navegação do topo que
+  temos em home e documentação e deixa ela permanente em todos os
+  sites. Quando o usuário estiver em uma pagina que tem a sidebar, a
+  barra de navegação do topo só ficara visivel se o usuáro estiver no
+  topo da tela. Como vamos adicionar a barra de topo. remova botão de
+  ajuda, loja, controle loja, da sidebar. botão sair pode ficar como só
+  escrita e sutil abaixdo do perfi ilustrativo na sidebar. Para o
+  acesso do dev adicione controle loja na barra de navegação no topo.
+  Adicione um tutorial de navegação das paginas na docuementação."
+- NOVA PARTIAL `web/views/partials/top-nav.ejs`: consolida a barra
+  (HOME/PORTAL-ENTRAR/PREMIUM/LOJA/DOCUMENTAÇÃO/SUPORTE + toggle de
+  idioma) que antes existia duplicada 4x, quase idêntica, em
+  hero.ejs/documentacao.ejs/portal.ejs/termos.ejs (achada uma deriva
+  não-intencional nessa duplicação: documentacao.ejs tinha `.nav-btn`
+  a 16px, as outras 3 a 14px — padronizado pra 14px agora). Também
+  consolida o JS de idioma (`toggleLang`/`updateLangToggleLabel`/
+  `syncI18nAttrs` + inicialização), que ANTES vivia duplicado tanto
+  nas 4 páginas públicas quanto DENTRO de `partials/sidebar-v2.ejs`
+  (que tinha seu PRÓPRIO botão de idioma). `syncI18nAttrs` precisa
+  continuar GLOBAL (função solta, sem namespace) — `poll-fragment.js`
+  chama ela por fora, defensivamente, pra re-traduzir um fragmento
+  recarregado via AJAX; continua funcionando porque a partial nova
+  está sempre presente onde a sidebar está.
+- ROLLOUT: a barra passa a existir em TODAS as ~15 páginas do site —
+  as 4 públicas de sempre + as 10 que só tinham sidebar (loja,
+  lojajogo, perfil, gameserver, moderacao, perfil-historico,
+  staff-perfil, events, reports, perfil-denuncias) + `dev-lojas.ejs`
+  (`/dev/Loja`, que nunca teve sidebar nem barra nenhuma antes).
+- ESCONDE AO ROLAR (só nas páginas com sidebar): `hideOnScroll:true`
+  no include ativa um listener de scroll (`passive:true`) que some com
+  a barra (`transform:translateY(-100%)` + fade) quando `scrollY > 8px`
+  — evita competir por espaço vertical com a sidebar+conteúdo o tempo
+  todo. Nas 4 páginas públicas + `dev-lojas.ejs` (sem sidebar), a barra
+  continua sempre visível, sem esse listener (`hideOnScroll:false`,
+  comportamento idêntico ao de antes).
+- RESERVA DE ESPAÇO: as 10 páginas com sidebar + `dev-lojas.ejs` usam
+  `<body class="flex min-h-screen">`, um container flex em LINHA
+  (aside+main lado a lado) — um `<div>` espaçador simples ali viraria
+  um 3º item da linha, não reservaria altura nenhuma. Resolvido com
+  `padding-top: var(--nav-height)` direto no `<body>` (afeta o
+  container inteiro, desloca a linha pra baixo igual, sem depender de
+  flex-direction) — `reserveSpace:true` no include ativa isso.
+  `--nav-height` continua medido ao vivo (a barra quebra em mais linhas
+  em telas estreitas) — só que agora via `getElementById('tpTopNav')`
+  em vez do antigo `querySelector('nav')` genérico, necessário porque a
+  sidebar TEM seu próprio `<nav class="tp-sidebar-nav">` e um seletor
+  genérico virou ambíguo assim que as duas convivem na mesma página.
+  As 4 páginas públicas mantêm seu próprio `margin-top: calc(var(
+  --nav-height...)+extra)` de sempre, sem mudança — a partial nova
+  ainda seta a mesma variável CSS do mesmo jeito.
+- SIDEBAR (`partials/sidebar-v2.ejs`): Ajuda, Loja (só existia na
+  variante restrita) e Controle de Lojas (só dono, variante completa)
+  saíram do `NAV_ITEMS` — moraram pra barra de topo. Botão de idioma
+  removido de dentro da sidebar (virava duplicata visual/funcional com
+  o da barra nova) — a mudança "idioma e recolher lado a lado" feita
+  mais cedo no mesmo dia (seção 187/188) fica sem efeito prático (o
+  wrapper `.tp-sidebar-top-actions` sobra só com o botão de recolher).
+  Sair também saiu do `NAV_ITEMS` — virou `.tp-sidebar-logout`, um
+  link de texto sutil (opacity 0.55, sem chrome de botão) logo abaixo
+  do card de perfil, mesma linguagem visual já usada nos links
+  discretos do rodapé de `portal.ejs`. De propósito NÃO entra nas
+  regras de "esconde no modo colapsado" — sumir o único jeito de sair
+  seria uma regressão real, não só cosmética.
+- CONTROLE DE LOJAS na barra de topo: novo item `<a href="/dev/Loja">`,
+  gated por `isOwner`, mesmo nome já usado na sidebar antes de sair de
+  lá ("Controle de Lojas"/"Shops Control"). `isOwner` virou GLOBAL
+  (`res.locals.isOwner`, middleware em dashboard.js, junto de
+  `user`/`bot`) — antes cada rota precisava lembrar de passar
+  `isOwner: isOwnerSession(req)` manualmente, e `portal.ejs`/
+  `termos.ejs` nunca passavam (confirmado lendo as 3 chamadas
+  `res.render`). Seguro: locals explícitos de `res.render()` sempre
+  vencem `res.locals` em conflito, então rotas que já passavam
+  `isOwner` continuam com o valor idêntico — isto só preencheu a
+  lacuna nas 2 que não passavam.
+- TUTORIAL DE NAVEGAÇÃO em `documentacao.ejs`: novo bloco dentro da
+  seção "Dashboard Web", ao lado do callout "Como acessar" existente —
+  `.docs-callout` puro (não `pageCard()`, que sempre carimba o badge
+  "Administrador", inadequado aqui já que a navegação vale pra
+  qualquer usuário logado) explicando a barra permanente, o esconde-ao-
+  rolar nas páginas com sidebar, o papel da sidebar em si, e onde Sair
+  foi parar. Item novo no índice (`toc`) da categoria "Dashboard Web".
+  `scroll-margin-top` inline nesse bloco (a regra global
+  `section[id] { scroll-margin-top: 24px }` só cobre `<section>`, não
+  `<div>` — sem isso, clicar no item do índice rolaria até o topo
+  exato, deixando o texto embaixo da barra fixa).
+- Verificado: `ejs.compile()` (checagem de sintaxe pura) nos 11
+  arquivos com dados mais complexos pra montar mock completo; render
+  de dados real (`ejs.renderFile`) em `loja.ejs` (item LOJA marcado
+  ativo, sidebar sem Ajuda/Loja, Sair sutil presente, Controle de Lojas
+  na barra com isOwner:true) e `dev-lojas.ejs` (item CONTROLE DE LOJAS
+  marcado ativo, sem listener de esconder-ao-rolar, com reserva de
+  espaço); os 4 públicos com `isOwner` true/false pra confirmar o
+  gate do item novo. `node --check` em dashboard.js. SEM confirmação
+  visual/browser real (nenhuma ferramenta de navegador disponível
+  neste ambiente) — o comportamento de esconder ao rolar, o
+  alinhamento exato da reserva de espaço e a transição em si não dá
+  pra confirmar sem abrir o site de verdade; vale o dono conferir
+  visualmente após o deploy, mesma ressalva de sempre pra mudança de
+  CSS/layout puro nesta sessão.

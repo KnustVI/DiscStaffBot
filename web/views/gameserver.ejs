@@ -46,6 +46,9 @@
     </script>
 </head>
 <body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
+    <%# Barra de navegação de topo — acompanha a sidebar em toda página
+        (pedido do dono, 2026-08-13, ver partials/top-nav.ejs). %>
+    <%- include('partials/top-nav', { hideOnScroll: true, reserveSpace: true }) %>
 
     <aside class="shrink-0 h-screen sticky top-0 py-[15px] pl-[15px] lg:py-[30px] lg:pl-[30px]">
         <%- include('partials/sidebar-v2', { active: 'gameserver', guild, nickname, role, isOwner: typeof isOwner !== 'undefined' ? isOwner : false, showAvatarHint: typeof showAvatarHint !== 'undefined' ? showAvatarHint : false }) %>

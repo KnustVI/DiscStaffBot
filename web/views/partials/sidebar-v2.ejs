@@ -7,11 +7,16 @@
 
   Ligado às páginas reais construídas a partir de Moderação.txt/Reports.txt/
   Events.txt (mesma pasta do sidebar.txt): moderacao, denuncias (Reports) e
-  eventos. Ajuda aponta pra /documentacao (pedido do dono, 2026-08-03).
-  Premium ainda sem página própria (fica em `#`); Configurações e
+  eventos. Premium ainda sem página própria (fica em `#`); Configurações e
   Reputação removidos do menu por hora (pedido do dono, 2026-07-20 — sem
   página pronta ainda). O sidebar.ejs ANTIGO (sem "-v2") continua
   intocado, incluído só em home.ejs/manage.ejs.
+
+  Ajuda/Loja/Controle de Lojas SAÍRAM da sidebar (pedido do dono,
+  2026-08-13) — moraram pra barra de navegação de topo
+  (partials/top-nav.ejs), que passou a acompanhar esta sidebar em toda
+  página que a inclui. Sair também saiu do NAV_ITEMS — virou um link de
+  texto sutil abaixo do card de perfil (.tp-sidebar-logout).
 
   Comentário de verdade do EJS (abre com "menor, porcento"), não HTML —
   esse tipo de comentário some do HTML final (um comentário de HTML
@@ -32,10 +37,12 @@
       user: req.user,           // objeto do passport-discord (id, avatar, nickname/global_name/username)
       role: Administrador ,     // texto livre mostrado no badge abaixo do nome
       nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
-      restricted: true,         // OPCIONAL (pedido do dono, 2026-08-05) — troca os 7 itens padrão
-                                 // por só Premium/Ajuda/Suas Denúncias/Sair. Usado em perfil.ejs: nem
-                                 // todo usuário logado é admin de servidor, então Moderação/Eventos/
-                                 // Denúncias (todos guild-scoped) não fazem sentido nessa página global.
+      restricted: true,         // OPCIONAL (pedido do dono, 2026-08-05) — troca a lista padrão
+                                 // (Premium/Game Server/Loja de Jogo/Moderação/Eventos/Denúncias/
+                                 // Perfil) por só Premium/Perfil/Suas Denúncias/Histórico. Usado em
+                                 // perfil.ejs/perfil-denuncias.ejs/perfil-historico.ejs/loja.ejs: nem
+                                 // todo usuário logado é admin de servidor, então os itens guild-scoped
+                                 // não fazem sentido nessas páginas globais.
       defaultCollapsed: false,  // OPCIONAL — quando PASSADO (true OU false, não só omitido), a
                                  // sidebar SEMPRE nasce nesse estado nesta página, ignorando a
                                  // preferência salva em localStorage.tpSidebarCollapsed no
@@ -78,7 +85,6 @@
     // Configurações e Reputação removidos por hora (pedido do dono,
     // 2026-07-20) — ainda sem página própria pronta. Reativar assim que
     // /manage estiver de pé de verdade e Reputação tiver sua própria rota.
-    const sbIsOwner = typeof isOwner !== 'undefined' && isOwner;
     const sbRestricted = typeof restricted !== 'undefined' && restricted;
     // Premium sempre leva pra home na âncora #premium (pedido do dono,
     // 2026-08-05: "todo botão de premium leva a home na área de premium")
@@ -87,28 +93,29 @@
     // labelPt/labelEn (pedido do dono, 2026-08-06: tradução completa do
     // dashboard) — renderizados como o mesmo par data-i18n-pt/en padrão
     // do site (ver visão geral abaixo, no <a> de cada item).
+    // Ajuda, Loja e Controle de Lojas SAÍRAM daqui (pedido do dono,
+    // 2026-08-13: "remova botão de ajuda, loja, controle loja, da
+    // sidebar") — moraram pra barra de navegação de topo
+    // (partials/top-nav.ejs), que agora acompanha a sidebar em TODA
+    // página (antes só existia em hero.ejs/documentacao.ejs/portal.ejs/
+    // termos.ejs). Sair também saiu (era o último item de cada lista) —
+    // virou um link de texto sutil abaixo do card de perfil, ver
+    // .tp-sidebar-logout mais abaixo, em vez de um botão igual aos
+    // outros.
     const NAV_ITEMS = sbRestricted ? [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         // Botão explícito de Perfil (pedido do dono, 2026-08-07: "não está
         // intuitivo que o usuário pode usar o avatar dele de botão") —
         // além do avatar clicável (.tp-sidebar-avatar-btn, mais abaixo
         // neste arquivo, continua existindo do jeito que já era), agora
-        // também vira um item normal de nav, igual Loja/Ajuda/Histórico.
+        // também vira um item normal de nav.
         { key: 'perfil', labelPt: 'Perfil', labelEn: 'Profile', icon: 'user', href: '/perfil' },
-        // Prévia da loja (pedido do dono, 2026-08-06) — ver web/views/loja.ejs
-        // e PREMIUM.txt seção 116. Global como Premium/Ajuda (moeda é do
-        // jogador, não do servidor), por isso mora aqui e não na nav completa.
-        { key: 'loja', labelPt: 'Loja', labelEn: 'Shop', icon: 'store', href: '/loja' },
-        { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
         { key: 'minhas-denuncias', labelPt: 'Suas Denúncias', labelEn: 'Your Reports', icon: 'message-square-warning', href: '/perfil/denuncias' },
         // Histórico de reputação/punições (pedido do dono, 2026-08-07) —
         // pedido explícito de ficar na sidebar junto dos outros botões
         // padrão, em vez de um botão solto dentro do card de /perfil (ver
         // web/views/perfil-historico.ejs). Global como os itens acima.
         { key: 'historico', labelPt: 'Histórico', labelEn: 'History', icon: 'history', href: '/perfil/historico' },
-        // Faltava (pedido do dono, 2026-08-06) — a variante restrita nunca
-        // teve como sair sem editar a URL na mão.
-        { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ] : [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
         // Config geral do servidor Path of Titans (conexão + Cargo
@@ -126,23 +133,10 @@
         { key: 'moderacao', labelPt: 'Moderação', labelEn: 'Moderation', icon: 'shield-user', href: guildHref('moderacao') },
         { key: 'eventos', labelPt: 'Eventos', labelEn: 'Events', icon: 'star', href: guildHref('events') },
         { key: 'denuncias', labelPt: 'Denúncias', labelEn: 'Reports', icon: 'message-square-warning', href: guildHref('reports') },
-        { key: 'ajuda', labelPt: 'Ajuda', labelEn: 'Help', icon: 'message-circle-question-mark', href: '/documentacao' },
         // Mesmo botão explícito de Perfil da variante restrita acima
         // (pedido do dono, 2026-08-07) — global, sem :guildID, por isso
         // não usa guildHref.
         { key: 'perfil', labelPt: 'Perfil', labelEn: 'Profile', icon: 'user', href: '/perfil' },
-        // Só o dono do bot vê esse item — painel completo de todas as
-        // lojas (Loja de Jogo de cada servidor + pool de Personalização/
-        // Emblema/Título + fila de aprovação do marketplace, ver
-        // dashboard.js GET /dev/Loja). Renomeado de "Controle Loja" pra
-        // "Controle de Lojas" (pedido do dono, 2026-08-12: "altere o nome
-        // da pagina tambem"). URL passou por 2 renomeações no mesmo dia:
-        // /dev/image-pool -> /dev/lojas (conteúdo virou o painel novo) ->
-        // de volta pra /dev/image-pool (pedido do dono: link antigo já
-        // salvo/em uso) -> /dev/Loja (pedido explícito seguinte, mesmo
-        // dia). Página global, sem :guildID, por isso não usa guildHref.
-        ...(sbIsOwner ? [{ key: 'lojas-dev', labelPt: 'Controle de Lojas', labelEn: 'Shops Control', icon: 'store', href: '/dev/Loja' }] : []),
-        { key: 'sair', labelPt: 'Sair', labelEn: 'Log Out', icon: 'log-out', href: '/logout' },
     ];
     const activeKey = typeof active !== 'undefined' ? active : null;
     const sbUser = typeof user !== 'undefined' ? user : null;
@@ -178,30 +172,18 @@
                 <img src="/images/landing/titans-pass-logo.webp" alt="Titan's Pass">
             </div>
             <%#
-                Botão de idioma + botão de recolher/expandir, lado a lado
-                (pedido do dono, 2026-08-12: "de idioma e side bar devem
-                ficar lado a lado dando mais espaço para os botões
-                principais" — com a lista de itens de nav crescendo
-                (Game Server/Loja de Jogo/Controle de Lojas somados nesta
-                mesma sessão), os dois empilhados verticalmente estavam
-                sobrando altura que fazia falta pros botões principais.
-                Histórico: antes ficavam cada um em sua própria linha,
-                idioma ACIMA do de recolher (pedido anterior do dono,
-                2026-08-06) — essa ordem vertical não existe mais, os
-                dois viram uma única linha .tp-sidebar-top-actions.
-                Continuam lado a lado só no modo EXPANDIDO: nos 3 modos
-                "ícone só" (data-collapsed, tela estreita, container
-                estreito) a largura interna não sobra pros dois num,
-                então cada um volta a empilhar (ver overrides mais abaixo
-                no <style>). Tamanho dos botões em si continua igual
-                expandido/colapsado — sem scale() (pedido do dono:
-                "não deveria ter alterado o tamanho do botão de idioma").
+                Botão de idioma REMOVIDO daqui (pedido do dono, 2026-08-13:
+                a barra de navegação de topo, partials/top-nav.ejs, agora
+                acompanha a sidebar em toda página e já tem o próprio botão
+                de idioma — ter os dois ao mesmo tempo virava duplicata
+                visual/funcional). .tp-sidebar-top-actions fica só com o
+                botão de recolher/expandir agora (histórico: chegou a ficar
+                lado a lado com o de idioma numa revisão anterior, mesmo
+                dia — ver PREMIUM.txt seções 187/193 — sem efeito prático
+                agora com um filho só, mas mantido pra não inflar o diff
+                mexendo em CSS que já funciona).
             %>
             <div class="tp-sidebar-top-actions">
-                <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
-                    <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
-                    <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
-                </button>
                 <button type="button" class="tp-sidebar-toggle" id="tpSidebarToggle" aria-label="Recolher/expandir menu" aria-expanded="true">
                     <i data-lucide="arrow-left-to-line" class="tp-icon-expanded"></i>
                     <i data-lucide="arrow-right-to-line" class="tp-icon-collapsed"></i>
@@ -235,6 +217,22 @@
                 <span class="tp-sidebar-role"><span data-i18n-pt><%= sbRolePt %></span><span data-i18n-en><%= sbRoleEn %></span></span>
             </div>
         </div>
+        <%#
+            Sair (pedido do dono, 2026-08-13: "botão sair pode ficar como
+            só escrita e sutil abaixo do perfil ilustrativo na sidebar")
+            — antes era um item normal de NAV_ITEMS (ícone + caixa, igual
+            Perfil/Moderação/etc.), agora é só um link de texto discreto
+            embaixo do card de perfil. Sem ícone de propósito — por isso
+            NÃO entra nas regras de "esconde o rótulo no modo colapsado"
+            (data-collapsed/tela estreita/@container, ver .tp-sidebar-btn
+            mais abaixo): sumir o único jeito de sair seria uma regressão
+            de verdade, não só cosmética. white-space:normal deixa "Sair"/
+            "Log Out" quebrar em 2 linhas no colapso mais estreito em vez
+            de vazar ou cortar.
+        %>
+        <a href="/logout" class="tp-sidebar-logout">
+            <span data-i18n-pt>Sair</span><span data-i18n-en>Log Out</span>
+        </a>
     </div>
 </aside>
 
@@ -398,40 +396,9 @@
     .tp-sidebar-toggle svg { width: 22px; height: 22px; }
     .tp-icon-collapsed { display: none; }
 
-    /* Botão de idioma (pedido do dono, 2026-08-06) — mesmo CSS do
-       redesign do site (ver hero.ejs), duplicado aqui de propósito
-       (mesmo padrão já usado no resto deste arquivo: página/parcial
-       autocontido, sem depender de um <style> compartilhado externo). */
-    .lang-toggle {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        width: 52px;
-        height: 36px;
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        flex: none;
-    }
-    .lang-toggle-flag {
-        position: absolute;
-        top: 2px;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        overflow: hidden;
-        background: #2A2A2A;
-        border: 1px solid #803E30;
-        box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
-        transition: left 0.2s ease, border-color 0.15s ease;
-    }
-    .lang-toggle-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
-    .lang-toggle-flag-pt { left: 0; z-index: 2; }
-    .lang-toggle-flag-en { left: 18px; z-index: 1; }
-    html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
-    html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
+    /* Botão + CSS de idioma REMOVIDOS daqui (pedido do dono, 2026-08-13)
+       — vivem só em partials/top-nav.ejs agora, que acompanha a sidebar
+       em toda página. */
 
     /* ==================== NAVEGAÇÃO ==================== */
     .tp-sidebar-nav {
@@ -581,6 +548,25 @@
         white-space: nowrap;
     }
 
+    /* Sair — texto sutil abaixo do perfil (pedido do dono, 2026-08-13),
+       sem chrome de botão nenhum (compare com .tp-sidebar-btn acima) —
+       mesma linguagem visual já usada nos links discretos do rodapé de
+       portal.ejs (opacity baixa + underline só no hover). */
+    .tp-sidebar-logout {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 13px;
+        color: #F8DCC0;
+        opacity: 0.55;
+        text-decoration: none;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.25;
+        padding: 0 4px;
+        transition: opacity 0.15s ease;
+    }
+    .tp-sidebar-logout:hover { opacity: 0.9; text-decoration: underline; }
+
     /* ==================== ESTADO COLAPSADO (Size=Close) ==================== */
     /* Ativado via [data-collapsed="true"] (JS, botão de toggle) OU
        automaticamente em telas estreitas (media query abaixo) — sempre
@@ -725,49 +711,11 @@
         if (window.lucide) window.lucide.createIcons();
     })();
 
-    // Botão de idioma (pedido do dono, 2026-08-06) — mesmo mecanismo do
-    // site (hero.ejs etc.): html[data-lang] controla quais data-i18n-pt/en
-    // aparecem (regra CSS em web/public/css/style.css), persistido em
-    // localStorage.titanspass_lang — MESMA chave do site, preferência
-    // única entre as duas partes do site.
-    (function () {
-        var stored = localStorage.getItem('titanspass_lang') || 'pt';
-        document.documentElement.setAttribute('data-lang', stored);
-        updateLangToggleLabel(stored);
-        syncI18nAttrs(stored);
-    })();
-
-    function updateLangToggleLabel(current) {
-        var btn = document.getElementById('langToggleBtn');
-        if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
-    }
-
-    // placeholder/<option> não aceitam os pares data-i18n-pt/data-i18n-en
-    // de sempre em forma de <span> filho (não são elementos com filhos de
-    // verdade — o navegador só lê o texto puro), então esses dois atributos carregam
-    // as duas versões e a gente troca o que está ativo na mão (pedido do
-    // dono, 2026-08-06: buscas/selects/textareas do dashboard ficaram de
-    // fora da primeira leva de tradução). Chamado no load (acima) e em
-    // toggleLang() (abaixo); poll-fragment.js também chama de novo depois
-    // de recarregar um fragmento (#reportsListRoot etc.), já que o HTML
-    // que volta do servidor é sempre em português "puro".
-    function syncI18nAttrs(lang) {
-        document.querySelectorAll('[data-i18n-ph-pt]').forEach(function (el) {
-            var text = lang === 'en' ? el.getAttribute('data-i18n-ph-en') : el.getAttribute('data-i18n-ph-pt');
-            if (text !== null) el.setAttribute('placeholder', text);
-        });
-        document.querySelectorAll('option[data-i18n-opt-pt]').forEach(function (el) {
-            var text = lang === 'en' ? el.getAttribute('data-i18n-opt-en') : el.getAttribute('data-i18n-opt-pt');
-            if (text !== null) el.textContent = text;
-        });
-    }
-
-    function toggleLang() {
-        var current = document.documentElement.getAttribute('data-lang') || 'pt';
-        var next = current === 'pt' ? 'en' : 'pt';
-        document.documentElement.setAttribute('data-lang', next);
-        localStorage.setItem('titanspass_lang', next);
-        updateLangToggleLabel(next);
-        syncI18nAttrs(next);
-    }
+    // Botão + JS de idioma (toggleLang/updateLangToggleLabel/
+    // syncI18nAttrs) REMOVIDOS daqui (pedido do dono, 2026-08-13) — vivem
+    // só em partials/top-nav.ejs agora, que acompanha esta sidebar em
+    // toda página que a inclui. syncI18nAttrs continua global (função
+    // solta, sem namespace) a partir de lá — web/public/js/
+    // poll-fragment.js continua chamando ela por fora sem mudança
+    // nenhuma (checagem defensiva `typeof syncI18nAttrs === 'function'`).
 </script>

@@ -876,6 +876,19 @@ function loadDashboard(client) {
     app.use((req, res, next) => {
         res.locals.user = req.user || null;
         res.locals.bot = client;
+        // isOwner global (pedido do dono, 2026-08-13: barra de navegação
+        // de topo ganha um item "Controle de Lojas" visível só pro dono,
+        // em TODA página) — antes disso cada rota tinha que lembrar de
+        // passar isOwner: isOwnerSession(req) manualmente pro
+        // res.render(), e pelo menos 2 (portal.ejs/termos.ejs) nunca
+        // passavam. Locals explícitos de res.render() sempre vencem
+        // res.locals em conflito, então rotas que já passam isOwner
+        // continuam com o valor idêntico — isto só preenche a lacuna nas
+        // que não passavam. DEVELOPER_ID já é constante de módulo
+        // (declarada antes deste middleware) — calculado direto aqui em
+        // vez de chamar isOwnerSession(req) (só declarada mais abaixo,
+        // dentro de loadDashboard) pra não depender de ordem nenhuma.
+        res.locals.isOwner = !!(req.user && req.user.id === DEVELOPER_ID);
         next();
     });
 

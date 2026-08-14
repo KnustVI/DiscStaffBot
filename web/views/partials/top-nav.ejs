@@ -1,0 +1,277 @@
+<%#
+  web/views/partials/top-nav.ejs
+  ============================================================================
+  Barra de navegação fixa do topo — pedido do dono, 2026-08-13: "Pegue a
+  barra de navegação do topo que temos em home e documentação e deixa ela
+  permanente em todos os sites." Antes disto, esta barra (HOME/PORTAL-
+  ENTRAR/PREMIUM/LOJA/DOCUMENTAÇÃO/SUPORTE + toggle de idioma) existia
+  duplicada 4x, quase idêntica (hero.ejs/documentacao.ejs/portal.ejs/
+  termos.ejs — documentacao.ejs tinha uma deriva não-intencional,
+  .nav-btn a 16px em vez de 14px como as outras 3; padronizado aqui pra
+  14px). Agora vive só aqui, incluída também nas ~10 páginas que só
+  tinham a sidebar (dashboard) e em dev-lojas.ejs (que não tem sidebar
+  nem barra nenhuma hoje).
+
+  Também consolida o JS de troca de idioma (toggleLang/
+  updateLangToggleLabel/syncI18nAttrs + inicialização de data-lang) que
+  ANTES existia duplicado tanto nas 4 páginas públicas quanto dentro de
+  partials/sidebar-v2.ejs (que tinha seu PRÓPRIO botão de idioma — removido
+  de lá no mesmo pedido, agora só existe aqui). syncI18nAttrs precisa
+  continuar como função GLOBAL solta (sem namespace) — web/public/js/
+  poll-fragment.js chama ela por fora, defensivamente
+  (`typeof syncI18nAttrs === 'function'`), pra re-traduzir placeholders/
+  options depois de recarregar um fragmento via AJAX.
+
+  Uso: include( partials/top-nav , {
+    active,          // OPCIONAL — 'home'|'documentacao'|'portal'|'loja'|
+                      // 'dev-loja'|null — qual botão marcar como página
+                      // atual (mesmo padrão .is-active de sempre). null/
+                      // omitido = nenhum marcado (a maioria das páginas
+                      // com sidebar não tem botão correspondente aqui).
+    hideOnScroll,     // OPCIONAL, default false — true só nas páginas COM
+                      // sidebar: a barra some ao rolar (só fica visível
+                      // com a página no topo), porque ela e a sidebar
+                      // disputariam espaço vertical o tempo todo senão.
+    reserveSpace,     // OPCIONAL, default false — true nas páginas COM
+                      // sidebar E em dev-lojas.ejs (que não tem sidebar,
+                      // mas também não tem hoje nenhum jeito de reservar
+                      // espaço pro topo) — reserva a altura da barra via
+                      // padding-top no <body> (nunca via <div> espaçador
+                      // solto: essas páginas usam <body class="flex
+                      // min-h-screen">, um container em LINHA — um
+                      // espaçador ali viraria um 3º item da linha, não
+                      // reservaria espaço vertical nenhum). As 4 páginas
+                      // públicas (hero/documentacao/portal/termos) NÃO
+                      // passam isso — cada uma já reserva espaço com seu
+                      // próprio margin-top: calc(var(--nav-height...)+X),
+                      // que continua funcionando sem mudança nenhuma
+                      // (esta partial ainda seta --nav-height do mesmo
+                      // jeito de sempre).
+  } )
+
+  user/bot (globais, res.locals, ver dashboard.js) e isOwner (idem, ver
+  mesmo middleware) chegam de graça — não precisam ser passados no
+  include(), EJS herda o contexto do render inteiro pra dentro de
+  qualquer include().
+%>
+<%
+    const tnUser = typeof user !== 'undefined' ? user : null;
+    const tnIsOwner = typeof isOwner !== 'undefined' && isOwner;
+    const tnActive = typeof active !== 'undefined' ? active : null;
+    const tnHideOnScroll = typeof hideOnScroll !== 'undefined' && hideOnScroll;
+    const tnReserveSpace = typeof reserveSpace !== 'undefined' && reserveSpace;
+%>
+<nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+    <% if (tnUser) { %>
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+            <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
+            <%= (tnUser.nickname || tnUser.global_name || tnUser.username) %>
+        </a>
+    <% } %>
+    <a href="/" class="nav-btn<%= tnActive === 'home' ? ' is-active' : '' %>"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
+    <% if (tnUser) { %>
+        <a href="/dashboard" class="dashboard-link nav-btn<%= tnActive === 'portal' ? ' is-active' : '' %>"><span data-i18n-pt>PORTAL</span><span data-i18n-en>PORTAL</span></a>
+    <% } else { %>
+        <a href="/login" class="nav-btn"><span data-i18n-pt>ENTRAR</span><span data-i18n-en>LOGIN</span></a>
+    <% } %>
+    <a href="/#premium" class="nav-btn"><span data-i18n-pt>PREMIUM</span><span data-i18n-en>PREMIUM</span></a>
+    <a href="/loja" class="nav-btn<%= tnActive === 'loja' ? ' is-active' : '' %>"><span data-i18n-pt>LOJA</span><span data-i18n-en>SHOP</span></a>
+    <a href="/documentacao" class="nav-btn<%= tnActive === 'documentacao' ? ' is-active' : '' %>"><span data-i18n-pt>DOCUMENTAÇÃO</span><span data-i18n-en>DOCUMENTATION</span></a>
+    <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="nav-btn"><span data-i18n-pt>SUPORTE</span><span data-i18n-en>SUPPORT</span></a>
+    <%#
+        Controle de Lojas (pedido do dono, 2026-08-13: "Para o acesso do
+        dev adicione controle loja na barra de navegação no topo") — só o
+        dono do bot vê este item, mesmo nome já usado na sidebar antes
+        dele sair de lá (ver PREMIUM.txt seção 183: "Controle de Lojas"/
+        "Shops Control", maiúsculo aqui pra bater com o resto dos
+        .nav-btn, que são todos digitados em caixa alta direto no HTML).
+    %>
+    <% if (tnIsOwner) { %>
+        <a href="/dev/Loja" class="nav-btn<%= tnActive === 'dev-loja' ? ' is-active' : '' %>"><span data-i18n-pt>CONTROLE DE LOJAS</span><span data-i18n-en>SHOPS CONTROL</span></a>
+    <% } %>
+    <button type="button" class="lang-toggle" id="langToggleBtn" onclick="toggleLang()" aria-label="Switch language to English">
+        <span class="lang-toggle-flag lang-toggle-flag-pt" aria-hidden="true"><img src="/images/flag-br.webp" alt=""></span>
+        <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
+    </button>
+</nav>
+
+<style>
+    .nav-btn {
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 5px 20px;
+        gap: 10px;
+        height: 30px;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        border-radius: 15px;
+        box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 14px;
+        color: #F8DCC0;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .nav-btn:hover { background: #803E30; border-color: #F8DCC0; }
+    .nav-btn.is-active { background: #4B2427; border-color: #DCA15E; }
+    .nav-btn:active {
+        background: #4B2427;
+        border-color: #803E30;
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+    }
+    /* Padrão de botão desativado — sem uso hoje nesta barra, mantido só
+       porque itens futuros podem precisar (era usado nas versões antigas
+       da página, ver histórico de hero.ejs). */
+    .nav-btn.disabled {
+        border-color: #3E3D38;
+        color: #3E3D38;
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    .lang-toggle {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        width: 52px;
+        height: 36px;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        flex: none;
+    }
+    .lang-toggle-flag {
+        position: absolute;
+        top: 2px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        box-shadow: 3px 4px 8px rgba(0, 0, 0, 0.5);
+        transition: left 0.2s ease, border-color 0.15s ease;
+    }
+    .lang-toggle-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .lang-toggle:hover .lang-toggle-flag { border-color: #F8DCC0; }
+    .lang-toggle-flag-pt { left: 0; z-index: 2; }
+    .lang-toggle-flag-en { left: 18px; z-index: 1; }
+    html[data-lang="en"] .lang-toggle-flag-pt { left: 18px; z-index: 1; }
+    html[data-lang="en"] .lang-toggle-flag-en { left: 0; z-index: 2; }
+
+    @media (max-width: 640px) {
+        .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
+    }
+
+    /* Esconde ao rolar (pedido do dono, 2026-08-13) — só quando
+       hideOnScroll:true (ver JS abaixo). Nas páginas públicas (sem essa
+       flag) a barra continua sempre visível, exatamente como antes. */
+    .tp-top-nav { transition: transform 0.25s ease, opacity 0.25s ease; }
+    .tp-top-nav.tp-nav-hidden { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+    @media (prefers-reduced-motion: reduce) {
+        .tp-top-nav { transition: none; }
+    }
+
+    /* Reserva o espaço da barra (pedido do dono: barra permanente em toda
+       página) — só quando reserveSpace:true (ver JS abaixo). Aplicado no
+       <body> (o CONTAINER flex das páginas com sidebar), nunca via <div>
+       espaçador solto: <body class="flex min-h-screen"> nessas páginas é
+       uma linha (aside+main lado a lado) — um espaçador ali viraria um 3º
+       item da linha, não reservaria altura nenhuma. padding-top no
+       container desloca a linha inteira pra baixo igual, sem depender de
+       flex-direction. */
+    body.tp-reserve-nav-space { padding-top: var(--nav-height, 84px); }
+</style>
+
+<script>
+    (function () {
+        var nav = document.getElementById('tpTopNav');
+        // A barra quebra em números de linha diferentes dependendo da
+        // largura da tela — mede a altura real em vez de "chutar" um
+        // valor fixo, pra continuar responsivo mesmo se algum item for
+        // adicionado/removido no futuro (ex: CONTROLE DE LOJAS só
+        // aparece pro dono). getElementById (não querySelector('nav')
+        // genérico, como era antes de existir esta partial) — necessário
+        // porque a sidebar (partials/sidebar-v2.ejs) tem seu PRÓPRIO
+        // <nav class="tp-sidebar-nav">, então um seletor genérico vira
+        // ambíguo assim que as duas convivem na mesma página.
+        function syncNavHeight() {
+            if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
+        }
+        syncNavHeight();
+        window.addEventListener('resize', syncNavHeight);
+        window.addEventListener('load', syncNavHeight);
+        // A webfont (Poppins) pode terminar de carregar DEPOIS do 'load' e
+        // reflowar o texto dos botões, mudando quantas linhas a barra
+        // ocupa — sem isso, o conteúdo abaixo fica com espaço de menos.
+        if (window.document.fonts && window.document.fonts.ready) {
+            window.document.fonts.ready.then(syncNavHeight);
+        }
+
+        <% if (tnReserveSpace) { %>
+        document.body.classList.add('tp-reserve-nav-space');
+        <% } %>
+
+        <% if (tnHideOnScroll) { %>
+        var HIDE_THRESHOLD = 8;
+        function onScroll() {
+            if (nav) nav.classList.toggle('tp-nav-hidden', window.scrollY > HIDE_THRESHOLD);
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+        <% } %>
+    })();
+
+    // Idioma (pedido do dono, 2026-08-06) — html[data-lang] controla quais
+    // data-i18n-pt/en aparecem (regra CSS já existente em cada página
+    // pública e em web/public/css/style.css pras páginas com sidebar),
+    // persistido em localStorage.titanspass_lang. Consolidado aqui — antes
+    // existia duplicado tanto nas 4 páginas públicas quanto dentro de
+    // partials/sidebar-v2.ejs (removido de lá no mesmo pedido).
+    (function () {
+        var stored = localStorage.getItem('titanspass_lang') || 'pt';
+        document.documentElement.setAttribute('data-lang', stored);
+        updateLangToggleLabel(stored);
+        syncI18nAttrs(stored);
+    })();
+
+    // aria-label dinâmico do botão de bandeiras — o rótulo só existe pra
+    // leitor de tela, o visual é 100% as duas bandeiras sobrepostas.
+    function updateLangToggleLabel(current) {
+        var btn = document.getElementById('langToggleBtn');
+        if (btn) btn.setAttribute('aria-label', current === 'pt' ? 'Switch language to English' : 'Mudar idioma para português');
+    }
+
+    // placeholder/<option> não aceitam os pares data-i18n-pt/data-i18n-en
+    // de sempre em forma de <span> filho (não são elementos com filhos de
+    // verdade — o navegador só lê o texto puro), então esses dois atributos
+    // carregam as duas versões e a gente troca o que está ativo na mão.
+    // GLOBAL de propósito (função solta, sem namespace) — web/public/js/
+    // poll-fragment.js chama ela por fora, defensivamente, pra
+    // re-traduzir um fragmento recém recarregado via AJAX (o HTML que
+    // volta do servidor é sempre em português "puro").
+    function syncI18nAttrs(lang) {
+        document.querySelectorAll('[data-i18n-ph-pt]').forEach(function (el) {
+            var text = lang === 'en' ? el.getAttribute('data-i18n-ph-en') : el.getAttribute('data-i18n-ph-pt');
+            if (text !== null) el.setAttribute('placeholder', text);
+        });
+        document.querySelectorAll('option[data-i18n-opt-pt]').forEach(function (el) {
+            var text = lang === 'en' ? el.getAttribute('data-i18n-opt-en') : el.getAttribute('data-i18n-opt-pt');
+            if (text !== null) el.textContent = text;
+        });
+    }
+
+    function toggleLang() {
+        var current = document.documentElement.getAttribute('data-lang') || 'pt';
+        var next = current === 'pt' ? 'en' : 'pt';
+        document.documentElement.setAttribute('data-lang', next);
+        localStorage.setItem('titanspass_lang', next);
+        updateLangToggleLabel(next);
+        syncI18nAttrs(next);
+    }
+</script>
