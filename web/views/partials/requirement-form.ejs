@@ -47,6 +47,22 @@
     configuredServers — [{guildId, name}], só servidores com PoT
       configurado de verdade (PoTConfigSystem.getAllConfiguredGuildIds),
       não toda guild que o bot está — ver dashboard.js GET /dev/Loja.
+
+  OVERLAY (pedido do dono, 2026-08-15: "Edição de requisitos ainda
+  parece meio quebrado, não podemos alterar e salvar requisitos em uma
+  overlay?") — o formulário inteiro (linhas + adicionar + salvar) agora
+  mora dentro de um <dialog> nativo, aberto por um botão "Configurar
+  requisito" na já familiar "resumo" do card (só o texto de
+  img.requirementLabel + o botão, sempre visível). <dialog> nativo
+  resolve empilhamento/centralização sozinho (renderiza no top layer do
+  navegador, sem depender de z-index/overflow do .pool-item apertado que
+  o continha) e já dá confirmação por Esc de graça — só falta JS pra
+  fechar clicando fora e pra descartar edições não salvas (ver
+  requirementFormOpen/o listener de 'close' em dev-lojas.ejs). O motivo
+  de precisar descartar: como abrir/fechar o dialog NÃO recarrega a
+  página (diferente de salvar, que sempre navega pra ?saved=...), uma
+  linha adicionada/removida só no DOM sobreviveria "fantasma" pra
+  próxima vez que o dono abrisse o mesmo dialog se não fosse resetada.
 %>
 <%
     const rfId = `rf-${type}-${img.id}`;
@@ -106,9 +122,17 @@
             </div>`;
     }
 %>
-<div class="pool-requirement-form">
+<div class="pool-requirement-summary">
     <span class="pool-price-current"><%= img.requirementLabel || 'Sem requisito (só concessão manual)' %></span>
-    <form action="/dev/Loja/<%= type %>/<%= img.id %>/requisito" method="POST" class="flex flex-col gap-2" data-rf-id="<%= rfId %>" data-rf-max="<%= RF_MAX_REQUIREMENTS %>">
+    <button type="button" class="pool-req-configure-btn" onclick="requirementFormOpen('<%= rfId %>')">Configurar requisito</button>
+</div>
+
+<dialog id="<%= rfId %>-dialog" class="pool-req-dialog">
+    <form action="/dev/Loja/<%= type %>/<%= img.id %>/requisito" method="POST" class="flex flex-col gap-3" data-rf-id="<%= rfId %>" data-rf-max="<%= RF_MAX_REQUIREMENTS %>">
+        <div class="pool-req-dialog-head">
+            <h3>Requisito — <%= img.label %></h3>
+            <button type="button" class="pool-req-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar sem salvar" title="Fechar sem salvar">&times;</button>
+        </div>
         <div class="pool-req-rows">
             <% if (rfRequirements.length === 0) { %>
                 <%- renderRequirementRowHtml(0, null) %>
@@ -119,12 +143,15 @@
             <% } %>
         </div>
         <button type="button" class="pool-req-add" onclick="requirementFormAddRow(this)"<%= rfRequirements.length >= RF_MAX_REQUIREMENTS ? ' disabled' : '' %>>+ Adicionar requisito</button>
-        <button type="submit" class="pool-price-submit">Salvar requisitos</button>
+        <div class="pool-req-dialog-actions">
+            <button type="button" class="pool-toggle-btn" onclick="this.closest('dialog').close()">Cancelar</button>
+            <button type="submit" class="pool-price-submit">Salvar requisitos</button>
+        </div>
     </form>
-    <%# <template> nunca é exibido nem enviado no submit — só existe pro
-        JS (requirementFormAddRow, em dev-lojas.ejs) clonar o conteúdo.
-        rowIdx literal "__IDX__" é trocado por um índice novo (timestamp)
-        na hora de clonar, pra nunca colidir com uma linha já existente
-        nem entre chamadas seguidas de "+ Adicionar". %>
-    <template id="<%= rfId %>-template"><%- renderRequirementRowHtml('__IDX__', null) %></template>
-</div>
+</dialog>
+<%# <template> nunca é exibido nem enviado no submit — só existe pro
+    JS (requirementFormAddRow, em dev-lojas.ejs) clonar o conteúdo.
+    rowIdx literal "__IDX__" é trocado por um índice novo (timestamp)
+    na hora de clonar, pra nunca colidir com uma linha já existente
+    nem entre chamadas seguidas de "+ Adicionar". %>
+<template id="<%= rfId %>-template"><%- renderRequirementRowHtml('__IDX__', null) %></template>

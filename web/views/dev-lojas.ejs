@@ -168,7 +168,7 @@
         }
         .pool-upload-submit:hover { background: #F8DCC0; }
 
-        .pool-price-form, .pool-requirement-form {
+        .pool-price-form {
             display: flex;
             flex-direction: column;
             gap: 6px;
@@ -183,11 +183,71 @@
             "não esta claro como devem ser os requisitos") — linha própria
             em vez de espremer no mesmo .pool-price-row genérico do preço,
             já que aqui o rótulo do campo MUDA de acordo com o tipo
-            escolhido (ver partials/requirement-form.ejs). %>
+            escolhido (ver partials/requirement-form.ejs). Faltava
+            estilizar o <select> aqui (só o <input> tinha regra) — é o que
+            deixava o dropdown de Servidor branco/nativo, destoando do
+            resto do tema escuro (pedido do dono, 2026-08-15: "ainda
+            parece meio quebrado"). %>
         .pool-req-value-row { display: flex; align-items: center; gap: 6px; }
         .pool-req-value-row label { font-size: 0.65rem; opacity: 0.7; flex: none; white-space: nowrap; }
-        .pool-req-value-row input { flex: 1; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 6px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.7rem; }
+        .pool-req-value-row input,
+        .pool-req-value-row select { flex: 1; min-width: 0; background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 4px 6px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.7rem; }
         .pool-req-hint { font-size: 0.62rem; opacity: 0.5; line-height: 1.4; font-style: italic; }
+        <%# Editor de requisito virou overlay (pedido do dono, 2026-08-15,
+            ver docblock de partials/requirement-form.ejs) — o card só
+            mostra um resumo + botão "Configurar requisito"; o formulário
+            de verdade mora num <dialog> nativo (top layer do navegador,
+            centraliza/empilha sozinho, sem disputar espaço com o card
+            apertado do pool-grid nem precisar de z-index manual). %>
+        .pool-requirement-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+        .pool-req-configure-btn {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.7rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px dashed rgba(217, 163, 98, 0.4);
+            background: transparent;
+            color: #D9A362;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .pool-req-configure-btn:hover { background: rgba(217, 163, 98, 0.1); }
+        dialog.pool-req-dialog {
+            background: #1A1A1A;
+            color: #F8DCC0;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            border-radius: 14px;
+            padding: 18px;
+            width: calc(100% - 32px);
+            max-width: 380px;
+            max-height: calc(100vh - 64px);
+            overflow-y: auto;
+        }
+        dialog.pool-req-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+        .pool-req-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+        .pool-req-dialog-head h3 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.85rem; margin: 0; color: #F8DCC0; }
+        .pool-req-dialog-close {
+            flex: none;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            color: #F8DCC0;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 0.95rem;
+            line-height: 1;
+            transition: opacity 0.15s ease, background 0.15s ease;
+        }
+        .pool-req-dialog-close:hover { opacity: 1; background: rgba(217, 163, 98, 0.12); }
+        .pool-req-dialog-actions { display: flex; gap: 8px; margin-top: 2px; }
+        .pool-req-dialog-actions .pool-toggle-btn { width: auto; flex: none; padding-left: 14px; padding-right: 14px; }
+        .pool-req-dialog-actions .pool-price-submit { flex: 1; }
         <%# Lista de requisitos (pedido do dono, 2026-08-13: "adicione os
             requisitos como uma lista onde o player só consiga
             reivindicar se fez todos") — .pool-req-row é UMA linha
@@ -585,6 +645,44 @@
             const addBtn = form.querySelector('.pool-req-add');
             if (addBtn) addBtn.disabled = false;
         }
+
+        // Editor de requisito virou overlay (pedido do dono, 2026-08-15:
+        // "não podemos alterar e salvar requisitos em uma overlay?") —
+        // ver docblock de partials/requirement-form.ejs pro raciocínio
+        // completo. requirementFormOpen guarda uma FOTO das linhas atuais
+        // (dataset.rfSnapshot) antes de abrir; o listener de 'close' (que
+        // dispara sempre — Cancelar, X, clique fora, ou Esc, que o
+        // <dialog> nativo já fecha sozinho) restaura essa foto, descartando
+        // qualquer linha adicionada/removida sem salvar. Salvar de verdade
+        // nem chega a disparar 'close' — o submit navega a página inteira
+        // pra ?saved=..., então o reset não tem chance de rodar (e não
+        // precisa, os dados já foram pro servidor).
+        function requirementFormOpen(rfId) {
+            const dialog = document.getElementById(rfId + '-dialog');
+            dialog.dataset.rfSnapshot = dialog.querySelector('.pool-req-rows').innerHTML;
+            dialog.showModal();
+        }
+
+        document.querySelectorAll('.pool-req-dialog').forEach((dialog) => {
+            dialog.addEventListener('close', () => {
+                if (dialog.dataset.rfSnapshot === undefined) return;
+                const rowsContainer = dialog.querySelector('.pool-req-rows');
+                rowsContainer.innerHTML = dialog.dataset.rfSnapshot;
+                const addBtn = dialog.querySelector('.pool-req-add');
+                const max = Number(dialog.querySelector('form').dataset.rfMax) || 5;
+                if (addBtn) addBtn.disabled = rowsContainer.querySelectorAll('.pool-req-row').length >= max;
+            });
+            // <dialog> nativo não fecha sozinho ao clicar fora do conteúdo
+            // (a "área clicável" que sobra do próprio elemento <dialog> É
+            // o backdrop, já que ::backdrop não recebe eventos de clique) —
+            // deteta isso comparando a posição do clique com o retângulo
+            // real do conteúdo, mesmo idioma padrão pra esse caso.
+            dialog.addEventListener('click', (e) => {
+                const rect = dialog.getBoundingClientRect();
+                const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
+                if (!insideContent) dialog.close();
+            });
+        });
     </script>
 </body>
 </html>
