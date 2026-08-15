@@ -2451,12 +2451,21 @@ const ConfigSystem = {
      * dependência lazy/circular já usado no resto do arquivo).
      */
     async handlePerfilBackToProfile(interaction, targetUserId) {
+        // FIX (2026-08-15, achado investigando um erro de log não
+        // relacionado): PlayerRegistrationSystem é uma CLASSE (sendProfile
+        // é método de INSTÂNCIA, usa `this._sendLoadingStage` etc.) — a
+        // linha antiga chamava sendProfile direto na classe, sem
+        // instanciar, o que sempre lançava "sendProfile is not a function"
+        // (bug desde a introdução deste botão, commit 71d0c86 — nunca
+        // funcionou). Mesmo padrão de instanciação já usado em
+        // src/commands/utility/perfil.js.
         const PlayerRegistrationSystem = require('../pot/playerRegistrationSystem');
         const targetUser = await interaction.client.users.fetch(targetUserId).catch(() => null);
         if (!targetUser) {
             return await interaction.followUp({ content: `${EMOJIS.circlealert || '❌'} Não foi possível recarregar este perfil.`, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
-        await PlayerRegistrationSystem.sendProfile(interaction, targetUser);
+        const system = new PlayerRegistrationSystem(interaction.client);
+        await system.sendProfile(interaction, targetUser);
     },
 
     /**
