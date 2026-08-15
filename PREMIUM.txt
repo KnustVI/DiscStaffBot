@@ -75,10 +75,16 @@ MOEDA OSSO/BONE (ver seção 117 - pedido do dono, 2026-08-06): SEGUNDA
 moeda interna, diferente das Caçadas em propósito - Bones são a moeda da
 LOJA DE JOGO (bônus aplicados dentro do Path of Titans em si via RCON,
 ver catálogo abaixo), Caçadas continuam sendo só a moeda de
-personalização de perfil. As duas não se misturam livremente: Bones
-PODEM ser convertidos em Caçadas (limite de 100 Bones por semana), mas o
-caminho INVERSO não existe - Caçadas nunca viram Bones, e Caçadas nunca
-compram nenhum item da loja de jogo (só Bones compram). Fonte de Bones é
+personalização de perfil. MUDANÇA 2026-08-15 (pedido do dono: "gostaria
+que ossos fossem um saldo por servidor"): Bones deixou de ser um saldo
+GLOBAL e virou um saldo POR SERVIDOR - o jogador ganha Bones jogando NUM
+servidor e só pode gastá-los NAQUELE MESMO servidor (Loja de Jogo E
+conversor Ossos<->Marks, ambos por servidor agora), nunca num pool
+compartilhado entre todos os servidores que o bot atende. Caçadas e XP
+continuam GLOBAIS, sem mudança nenhuma nisso - só Bones migrou. As duas
+moedas não se misturam livremente: Bones nunca compram Caçadas nem
+personalização, Caçadas nunca compram nenhum item da loja de jogo (só
+Bones compram). Fonte de Bones é
 restrita de propósito: SÓ missões que QUALQUER jogador (premium ou não)
 pode completar rendem Bones - missões exclusivas de tier premium (ex:
 Missões Titan do Raptor) só podem render Caçadas, nunca Bones. ATENÇÃO -
@@ -301,9 +307,11 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   o item continua no inventario pra tentar de novo, sem perder o que foi
   pago. O CONVERSOR Ossos<->Marks continua funcional do mesmo jeito (taxa
   1 Osso = 100 Marks nos 2 sentidos - ver secao 122) - esse SEMPRE exigiu
-  estar online na hora, não foi afetado por essa mudança. O FARM por hora
-  jogada (Cacadas/Ossos/XP) tambem ja e real desde 2026-08-07 (ver secao
-  135).
+  estar online na hora, não foi afetado por essa mudança, so agora debita/
+  credita o saldo POR SERVIDOR (ver MUDANCA 2026-08-15 no topo desta
+  secao). O FARM por hora jogada (Cacadas/Ossos/XP) tambem ja e real
+  desde 2026-08-07 (ver secao 135) - Ossos credita so no servidor onde a
+  hora foi jogada desde 2026-08-15, Cacadas/XP continuam globais.
 
 A LOJA DE PERSONALIZAÇÃO já é FUNCIONAL DE VERDADE desde 2026-08-07 (ver
 seção 138), e ganhou uma REFORMA GRANDE em 2026-08-12 (ver seção 183):
@@ -10414,3 +10422,81 @@ frente, nao so este relatorio):
   banner quando a trava está ativa. SEM confirmação visual/browser real
   (nenhuma ferramenta de navegador disponível neste ambiente) — vale o
   dono conferir visualmente depois do deploy.
+
+202) Ossos (Bones) vira saldo POR SERVIDOR, em vez de global
+------------------------------------------------------------------
+- Investigando um relato de saldo sumindo do `/perfil` num servidor sem
+  webhooks configurados, descobri que Caçadas e XP são de fato globais,
+  mas o dono apontou que Ossos NÃO deveria ser — e até então era: as 3
+  moedas viviam juntas numa única linha global (`player_links`), sem
+  distinção nenhuma. Pedido explícito do dono: "vamos mudar os ossos,
+  gostaria que ossos fossem um saldo por servidor" — Ossos é a moeda da
+  Loja de Jogo (bônus aplicado via RCON num servidor específico), então
+  faz mais sentido econômico o saldo em si também ser por servidor
+  (ganha lá, gasta lá), em vez de um pool compartilhado gastável em
+  qualquer servidor que o bot atenda. Caçadas e XP continuam 100%
+  globais, sem mudança nenhuma nisso.
+- 3 decisões de produto confirmadas com o dono antes de implementar: (1)
+  migração do saldo global já existente credita no servidor onde o
+  jogador tem MAIS tempo de jogo registrado (melhor palpite disponível);
+  (2) teto diário do conversor Marks→Ossos (100k Marks/dia) vira POR
+  SERVIDOR — cada servidor com seu próprio teto independente; (3) o
+  carry de "hora jogada" pro crédito de Ossos ganhou um contador PRÓPRIO
+  por servidor, separado do carry global que Caçadas/XP continuam
+  usando — Ossos só credita quando aquele servidor específico acumula
+  uma hora cheia de sessões NAQUELE servidor, nunca misturado com tempo
+  jogado em outro.
+- Nova tabela `pot_player_bones` (`user_id`+`guild_id`+`balance`+carry
+  de hora próprio+teto diário do conversor próprio, mesmo estilo de
+  `pot_players` — id autoincrement + UNIQUE, não PK composta) substitui
+  as 4 colunas antigas de `player_links` (`bones_balance`,
+  `marks_converted_today`, `marks_converted_date` — `playtime_credit_
+  seconds` continua ativo em `player_links`, agora só pra Caçadas/XP).
+  Migração idempotente no boot (`migrateBonesToPerGuild`, mesmo padrão
+  das outras migrações deste arquivo): credita o saldo antigo no
+  servidor de maior tempo jogado e zera `player_links.bones_balance`
+  (é o zerar que torna idempotente — quem já migrou some do filtro).
+  Jogador com saldo mas SEM nenhuma atividade registrada em servidor
+  nenhum (caso raro) é pulado com aviso em log, não descartado — fica
+  intacto até resolução manual.
+- Toda função de leitura/escrita (`getBonesBalance`/`addBones`/
+  `spendBones`/`getMarksConvertedToday`/`addMarksConvertedToday`, ver
+  `potPlayerRegistry.js`) ganhou `guildId` como parâmetro — todo ponto
+  que as chama (Loja de Jogo, conversor Ossos↔Marks, `/perfil` do
+  Discord, ambas as rotas globais `/perfil`/`/loja` do site) já tinha
+  `guildId` disponível no escopo, nenhum retrofit forçado. `/perfil` do
+  Discord agora mostra o saldo de Ossos DESTE servidor especificamente
+  (com aviso "-#" explicando isso, já que Caçadas/XP continuam globais
+  na mesma linha). As duas páginas globais do site (`/perfil`/`/loja`)
+  mostram a SOMA de Ossos entre todo servidor jogado no resumo (mesmo
+  padrão já usado pra tempo de jogo total nessas páginas) — o saldo de
+  verdade POR SERVIDOR aparece no catálogo da Loja de Jogo e no
+  conversor de `/loja` (que já eram organizados por servidor). O
+  conversor Ossos→Marks ganhou um scriptzinho local que atualiza saldo/
+  máximo/botão ao trocar o servidor selecionado no dropdown, sem perder
+  a validação instantânea que já existia.
+- Corrigido de passagem: o parágrafo de Ossos na Seção 1 deste arquivo
+  citava uma conversão Bones→Caçadas (limite de 100 Bones/semana) que
+  não existe em código nenhum (só o conversor Ossos↔Marks é real,
+  `currencySystem.js`) — removida essa frase ao reescrever o parágrafo
+  pra refletir o saldo por servidor, não fazia sentido estender uma
+  descrição de recurso inexistente.
+- Fora de escopo (decisões deliberadas): não mexi na corrida
+  pré-existente do teto diário do conversor (checagem antes do RCON,
+  gravação depois — duas conversões simultâneas no MESMO servidor podem
+  passar as duas antes de qualquer uma escrever) — já existia em escopo
+  global, só ficou com raio de dano menor agora; e não travei a
+  atomicidade entre o crédito de Caçadas/XP e o crédito de Ossos por
+  hora jogada num único `db.transaction()` (avaliei fazer isso, mas o
+  pior caso de um crash bem no meio dos dois — um jogador ficando 5
+  Ossos "a menos" numa hora específica — é recuperável e não vale a
+  complexidade extra frente ao resto do código, que já tolera esse
+  mesmo tipo de risco em outras sequências de múltiplos `UPDATE`s).
+- Verificado: `node --check` em todos os `.js` tocados; `ejs.renderFile()`
+  em `perfil.ejs`/`loja.ejs` confirmando compilação e que a soma/mapa por
+  servidor chegam certos nos templates. SEM confirmação visual/browser
+  real nem contra um banco de produção de verdade (nenhuma ferramenta de
+  navegador neste ambiente, e a migração só roda contra dados reais no
+  boot da VPS) — vale o dono conferir, depois do deploy, que o saldo
+  migrado bateu com o esperado pro próprio Alderon ID dele, e observar o
+  log de boot pra confirmar quantos jogadores foram migrados.

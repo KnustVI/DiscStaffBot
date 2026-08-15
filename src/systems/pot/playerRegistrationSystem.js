@@ -606,30 +606,50 @@ class PlayerRegistrationSystem {
         }
 
         // ── Saldos de moeda (pedido do dono, 2026-08-10: "Adicionar todos
-        // os saldos de moedas no perfil, no discord e em jogo") — GLOBAIS
-        // (mesma razão de registered_at acima: bones_balance/hunt_balance/xp
-        // não são por servidor), só aparece pra quem já vinculou conta (sem
-        // isso os 3 sempre seriam 0, informação sem sentido nenhum pra
-        // mostrar). Ícones dedicados (pedido do dono, 2026-08-12: "foram
-        // adicionados icones para representar as moedas") — EMOJIS.hunt/
-        // EMOJIS.bone são os emoji de aplicação sincronizados via `npm run
+        // os saldos de moedas no perfil, no discord e em jogo") — Caçadas/
+        // XP continuam GLOBAIS (mesma razão de registered_at acima), só
+        // aparecem pra quem já vinculou conta. Ossos virou saldo POR
+        // SERVIDOR (reforma 2026-08-15, pedido do dono: "gostaria que
+        // ossos fossem um saldo por servidor") — mostra o saldo NESTE
+        // servidor especificamente, ver aviso "-#" abaixo. Ícones
+        // dedicados (pedido do dono, 2026-08-12: "foram adicionados
+        // icones para representar as moedas") — EMOJIS.hunt/EMOJIS.bone
+        // são os emoji de aplicação sincronizados via `npm run
         // sync-emojis`, mesmo vocabulário visual da Loja (ver loja.ejs).
         // XP usa DinoFootprint (já existia, reaproveitado por pedido
         // explícito em vez de um ícone novo só pra isso).
+        // Blindado com try/catch (pedido do dono, 2026-08-15: relato de
+        // saldo sumindo do /perfil às vezes) — este era o ÚNICO trecho da
+        // função inteira sem isso: se qualquer coisa aqui lançasse um erro,
+        // a função INTEIRA abortava ali (rodapé/botões/o envio final da
+        // mensagem, tudo depois deste bloco, também sumia sem log nenhum).
+        // As 3 funções de leitura (getBonesBalance/getHuntBalance/getXp) já
+        // são internamente blindadas (nunca deveriam lançar), então isto é
+        // defesa em profundidade — mas se acontecer de novo, agora fica
+        // registrado (ErrorLogger, que também avisa no canal de log do
+        // sistema) em vez de derrubar o resto do perfil em silêncio.
         if (player) {
-            await this._sendLoadingStage(interaction, `${EMOJIS.bone || '🦴'} Contando seus Ossos e Caçadas...`);
-            const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id);
-            const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
-            const levelProgress = PlayerRegistry.getLevelProgress(targetUser.id);
-            addSeparatorIfNeeded();
-            builder.text([
-                `${EMOJIS.bone || '🦴'} **Ossos:** ${bonesBalance}`,
-                `${EMOJIS.hunt || '💎'} **Caçadas:** ${huntBalance}`,
-                // Nível real ao lado do XP bruto (pedido do dono,
-                // 2026-08-11 — ver comentário completo em levelLabel do
-                // card de perfil, acima nesta mesma função).
-                `${EMOJIS.DinoFootprint || '🦶'} **XP:** ${levelProgress.xpTotal} (Nível ${levelProgress.level})`,
-            ].join(' | '));
+            try {
+                await this._sendLoadingStage(interaction, `${EMOJIS.bone || '🦴'} Contando seus Ossos e Caçadas...`);
+                const bonesBalance = PlayerRegistry.getBonesBalance(targetUser.id, guild.id);
+                const huntBalance = PlayerRegistry.getHuntBalance(targetUser.id);
+                const levelProgress = PlayerRegistry.getLevelProgress(targetUser.id);
+                addSeparatorIfNeeded();
+                builder.text([
+                    [
+                        `${EMOJIS.bone || '🦴'} **Ossos:** ${bonesBalance}`,
+                        `${EMOJIS.hunt || '💎'} **Caçadas:** ${huntBalance}`,
+                        // Nível real ao lado do XP bruto (pedido do dono,
+                        // 2026-08-11 — ver comentário completo em levelLabel do
+                        // card de perfil, acima nesta mesma função).
+                        `${EMOJIS.DinoFootprint || '🦶'} **XP:** ${levelProgress.xpTotal} (Nível ${levelProgress.level})`,
+                    ].join(' | '),
+                    `-# ${EMOJIS.messagesquare || 'ℹ️'} Ossos referentes a este servidor — Caçadas e XP continuam globais entre todos os servidores.`,
+                ].join('\n'));
+            } catch (error) {
+                const ErrorLogger = require('../core/errorLogger');
+                ErrorLogger.error('perfil', 'saldosDeMoeda', error, { userId: targetUser.id, guildId: guild.id });
+            }
         }
 
         // Linha de texto "Player Premium: X" removida (pedido do dono,

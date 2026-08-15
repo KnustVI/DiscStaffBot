@@ -1556,11 +1556,14 @@ function loadDashboard(client) {
         // abaixo porque o selo .perfil-hunt-pill no topo do card aparece
         // pra QUALQUER usuário logado, vinculado ou não.
         const huntBalance = PlayerRegistry.getHuntBalance(userId);
-        // Ossos e XP (pedido do dono, 2026-08-10: "Adicionar todos os
-        // saldos de moedas no perfil, no discord e em jogo") — mesmo
-        // motivo/mesma garantia de segurança de huntBalance acima (funções
-        // já usadas em /loja, devolvem 0 sem player_links).
-        const bonesBalance = PlayerRegistry.getBonesBalance(userId);
+        // XP (pedido do dono, 2026-08-10: "Adicionar todos os saldos de
+        // moedas no perfil, no discord e em jogo") — mesmo motivo/mesma
+        // garantia de segurança de huntBalance acima (função já usada em
+        // /loja, devolve 0 sem player_links). Ossos NÃO entra aqui mais —
+        // virou saldo por servidor (reforma 2026-08-15), calculado abaixo
+        // como SOMA de todo servidor jogado, depois que playedGuilds existe
+        // (esta página não tem contexto de UM servidor específico, mesmo
+        // motivo de totalPlaytimeSeconds mais abaixo já ser uma soma).
         const xpBalance = PlayerRegistry.getXp(userId);
         // Progressão de Nível (pedido do dono, 2026-08-11: "Implemente um
         // sistema de progressão de níveis infinito baseado em horas
@@ -1661,6 +1664,12 @@ function loadDashboard(client) {
         // VIVO somado quando online agora (ver getPlayedGuilds acima).
         const totalPlaytimeSeconds = playedGuilds.reduce((sum, pg) => sum + (pg.totalPlaytime || 0), 0);
         const totalPlaytimeLabel = totalPlaytimeSeconds > 0 ? StaffPresenceSystem.formatDuration(totalPlaytimeSeconds * 1000) : null;
+
+        // Ossos — saldo por servidor (reforma 2026-08-15), somado entre
+        // todo servidor já jogado pra essa página global mostrar UM número
+        // (mesmo padrão de totalPlaytimeSeconds acima). 0 se não vinculado
+        // (playedGuilds vazio nesse caso).
+        const bonesBalance = playedGuilds.reduce((sum, pg) => sum + PlayerRegistry.getBonesBalance(userId, pg.guildId), 0);
 
         res.render('perfil', {
             nickname: req.user.global_name || req.user.username,
@@ -1801,13 +1810,22 @@ function loadDashboard(client) {
         titulos.forEach((t) => { t.redeemable = redeemableKeys.has(`titulo:${t.id}`); });
 
         const link = PlayerRegistry.getPlayerByDiscordId(req.user.id);
-        const bonesBalance = PlayerRegistry.getBonesBalance(req.user.id);
         const huntBalance = PlayerRegistry.getHuntBalance(req.user.id);
         const xpBalance = PlayerRegistry.getXp(req.user.id);
         // Progressão de Nível (pedido do dono, 2026-08-11), ver comentário
         // completo na rota /perfil acima.
         const levelProgress = PlayerRegistry.getLevelProgress(req.user.id);
         const playedGuilds = link ? getPlayedGuilds(link.alderon_id, client) : [];
+        // Ossos — saldo POR SERVIDOR (reforma 2026-08-15, pedido do dono:
+        // "gostaria que ossos fossem um saldo por servidor") — mapa
+        // guildId->saldo, já que esta página lista catálogo/conversor POR
+        // servidor jogado (playedGuilds acima). bonesBalance (resumo do
+        // topo) é a soma de todos — ver loja.ejs.
+        const guildBonesBalances = {};
+        for (const pg of playedGuilds) {
+            guildBonesBalances[pg.guildId] = PlayerRegistry.getBonesBalance(req.user.id, pg.guildId);
+        }
+        const bonesBalance = Object.values(guildBonesBalances).reduce((sum, v) => sum + v, 0);
         // Carrossel pequeno de anúncios de servidores parceiros no topo
         // (pedido do dono, 2026-08-10) — mesma fonte da home/perfil.
         const partnerNews = await getPartnerNews(client);
@@ -1849,6 +1867,7 @@ function loadDashboard(client) {
             titulos,
             isLinked: !!link,
             bonesBalance,
+            guildBonesBalances,
             huntBalance,
             xpBalance,
             levelProgress,

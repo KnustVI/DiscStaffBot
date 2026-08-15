@@ -190,6 +190,13 @@ module.exports = {
                 deleteRows('feedbacks', 'user_id', discordIds);
                 deleteRows('event_teleport_uses', 'user_id', discordIds);
                 deleteRows('player_premium', 'user_id', discordIds);
+                // Ossos por servidor (reforma 2026-08-15) — sem isso, resetar
+                // um jogador deixava saldo/carry órfão em pot_player_bones,
+                // preso pra sempre a um user_id que não existe mais em
+                // player_links (mesmo gap pré-existente que já afeta
+                // game_shop_inventory/image_inventory, não corrigido aqui —
+                // fora do escopo desta mudança).
+                deleteRows('pot_player_bones', 'user_id', discordIds);
                 deleteRows('pot_players', 'discord_id', discordIds);
                 deleteRows('pot_players', 'alderon_id', alderonIds);
                 deleteRows('pot_dinosaur_picks', 'alderon_id', alderonIds);

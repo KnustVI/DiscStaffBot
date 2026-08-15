@@ -51,14 +51,23 @@
   espécie NESSE momento — não mais na compra.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
-    personalizacao, badges, titulos, isLinked, bonesBalance, huntBalance,
-    xpBalance, marksPerBone, playedGuilds, gameShopCatalogs,
-    gameShopInventory, convertResult, convertError, convertAmount,
-    convertRconResponse, purchaseResult, gameShopPurchaseResult,
-    gameShopUseResult, redeemResult, personalizationConfig,
-    submissionSent }) — personalizationConfig alimenta o preço mostrado
-    no card "Enviar imagem para venda" (primeiro item da grade de Fotos/
-    Planos de Fundo).
+    personalizacao, badges, titulos, isLinked, bonesBalance,
+    guildBonesBalances, huntBalance, xpBalance, marksPerBone,
+    playedGuilds, gameShopCatalogs, gameShopInventory, convertResult,
+    convertError, convertAmount, convertRconResponse, purchaseResult,
+    gameShopPurchaseResult, gameShopUseResult, redeemResult,
+    personalizationConfig, submissionSent }) — personalizationConfig
+    alimenta o preço mostrado no card "Enviar imagem para venda" (primeiro
+    item da grade de Fotos/Planos de Fundo).
+
+    OSSOS VIROU SALDO POR SERVIDOR (reforma 2026-08-15, pedido do dono:
+    "gostaria que ossos fossem um saldo por servidor") — Caçadas/XP
+    continuam globais. `guildBonesBalances` é um mapa {guildId: saldo},
+    já que catálogo da Loja de Jogo e conversor são inerentemente por
+    servidor; `bonesBalance` continua existindo como a SOMA de todos
+    (dashboard.js já faz isso, mesmo padrão de totalPlaytimeSeconds em
+    /perfil) — usado só no card-resumo do topo, que não tem contexto de
+    UM servidor.
 
     EMBLEMAS E TÍTULOS saíram do card "LOJA DE PERSONALIZAÇÃO" (pedido do
     dono, 2026-08-13: "Emblemas e titulos não devem ficar no card da
@@ -397,14 +406,26 @@
                 </div>
                 <p class="loja-currency-text"><span data-i18n-pt>Ganhe 1 Caçada por hora jogada (ou em missões, em breve). Só troca por itens de personalização de perfil e não pode ser convertida em nenhuma outra moeda da loja.</span><span data-i18n-en>Earn 1 Hunt per hour played (or from quests, coming soon). Only spent on profile customization, and can't be converted into any other shop currency.</span></p>
             </section>
+            <%#
+                Ossos virou saldo POR SERVIDOR (reforma 2026-08-15, pedido
+                do dono: "gostaria que ossos fossem um saldo por
+                servidor") — este card-resumo não tem contexto de UM
+                servidor específico, então bonesBalance aqui é a SOMA de
+                todos (ver dashboard.js GET /loja) — a notinha deixa isso
+                explícito, já que os cards de Caçadas/XP ao lado continuam
+                globais de verdade (sem soma nenhuma, é o mesmo número em
+                qualquer servidor). O saldo de VERDADE por servidor
+                aparece no catálogo da Loja de Jogo e no conversor mais
+                abaixo (guildBonesBalances).
+            %>
             <section class="titan-card-premium loja-currency-card">
                 <div class="loja-currency-icon is-bones"><img src="/images/icons/bone.webp" alt=""></div>
                 <span class="loja-currency-title"><span data-i18n-pt>OSSOS — Loja de Jogo</span><span data-i18n-en>BONES — Game Shop</span></span>
                 <div class="loja-currency-balance is-bones">
                     <span class="loja-currency-balance-value"><%= bonesBalance %></span>
-                    <span class="loja-currency-balance-label"><span data-i18n-pt>seu saldo</span><span data-i18n-en>your balance</span></span>
+                    <span class="loja-currency-balance-label"><span data-i18n-pt>seu saldo (soma de todos os servidores)</span><span data-i18n-en>your balance (sum across all servers)</span></span>
                 </div>
-                <p class="loja-currency-text"><span data-i18n-pt>Ganhe 5 Ossos por hora jogada (ou em missões, em breve). Troque Ossos por Marks ou por Caçadas (máximo 100 Caçadas por semana).</span><span data-i18n-en>Earn 5 Bones per hour played (or from quests, coming soon). Trade Bones for Marks or for Hunt (maximum 100 Hunt per week).</span></p>
+                <p class="loja-currency-text"><span data-i18n-pt>Ganhe 5 Ossos por hora jogada (ou em missões, em breve) — o saldo é POR SERVIDOR, gasto só onde foi ganho. Troque Ossos por Marks ou por Caçadas (máximo 100 Caçadas por semana).</span><span data-i18n-en>Earn 5 Bones per hour played (or from quests, coming soon) — the balance is PER SERVER, spent only where it was earned. Trade Bones for Marks or for Hunt (maximum 100 Hunt per week).</span></p>
             </section>
             <%#
                 Nível (pedido do dono, 2026-08-11: "Implemente um sistema de
@@ -725,8 +746,16 @@
                 <p class="text-sm opacity-50"><span data-i18n-pt>Nenhum servidor que você já jogou tem itens à venda na Loja de Jogo ainda.</span><span data-i18n-en>No server you've played on has Game Shop items on sale yet.</span></p>
             <% } else { %>
                 <% gameShopCatalogs.forEach(catalog => { %>
+                    <%
+                        // Ossos por servidor (reforma 2026-08-15) — o saldo
+                        // que decide se dá pra comprar NESTE catálogo é o
+                        // saldo NESTE servidor especificamente, não a soma
+                        // global mostrada no card-resumo lá em cima.
+                        const catalogBonesBalance = guildBonesBalances[catalog.guildId] || 0;
+                    %>
                     <div class="flex flex-col gap-3">
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><%= catalog.name %></h3>
+                        <p class="text-[11px] opacity-50 -mt-1"><span data-i18n-pt>Seu saldo de Ossos neste servidor:</span><span data-i18n-en>Your Bones balance on this server:</span> <strong><%= catalogBonesBalance %></strong></p>
                         <div class="loja-grid">
                             <% catalog.items.forEach(item => { %>
                                 <div class="loja-item">
@@ -739,13 +768,13 @@
                                     <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form">
                                         <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
                                         <input type="hidden" name="itemKey" value="<%= item.key %>">
-                                        <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || bonesBalance < item.config.price) ? ' disabled' : '' %>>
+                                        <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < item.config.price) ? ' disabled' : '' %>>
                                             <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                         </button>
                                     </form>
                                     <% if (shopPurchasesLocked) { %>
                                         <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
-                                    <% } else if (bonesBalance < item.config.price) { %>
+                                    <% } else if (catalogBonesBalance < item.config.price) { %>
                                         <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                     <% } %>
                                 </div>
@@ -797,8 +826,9 @@
                 %>
                 <div class="loja-converter-balance-pill">
                     <img src="/images/icons/bone.webp" alt="">
-                    <span><span data-i18n-pt>Seu saldo:</span><span data-i18n-en>Your balance:</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
+                    <span><span data-i18n-pt>Saldo somado de todos os servidores:</span><span data-i18n-en>Balance summed across all servers:</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
                 </div>
+                <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Ossos é por servidor — o formulário "Ossos → Marks" abaixo mostra e usa o saldo do servidor que você escolher ali, não a soma acima.</span><span data-i18n-en>Bones is per server — the "Bones → Marks" form below shows and uses the balance of whichever server you pick there, not the sum above.</span></p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Você precisa estar online no servidor de jogo escolhido pra converter.</span><span data-i18n-en>You need to be online on the chosen game server to convert.</span></p>
             </div>
 
@@ -838,21 +868,32 @@
                 <p class="text-sm opacity-50"><span data-i18n-pt>Jogue em algum servidor com o bot integrado ao Path of Titans primeiro — é lá que os Marks são creditados/removidos.</span><span data-i18n-en>Play on a server with the bot integrated with Path of Titans first — that's where Marks get credited/removed.</span></p>
             <% } else { %>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
-                    <form action="/loja/converter/ossos-marks" method="POST" class="loja-converter-form">
+                    <%#
+                        Ossos por servidor (reforma 2026-08-15) — o saldo
+                        que vale aqui é o do servidor ESCOLHIDO no select,
+                        não a soma global do pill acima. Cada <option>
+                        carrega o próprio saldo em data-balance; o script
+                        updateBonesConverterBalance (fim da página)
+                        atualiza o texto/max/disabled ao trocar o servidor
+                        (e uma vez no carregamento, pro servidor já
+                        selecionado por padrão).
+                    %>
+                    <form action="/loja/converter/ossos-marks" method="POST" class="loja-converter-form" data-bones-converter-form>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Ossos → Marks</span><span data-i18n-en>Bones → Marks</span></h3>
                         <label class="text-[13px] opacity-60"><span data-i18n-pt>Servidor</span><span data-i18n-en>Server</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="server"></i></div>
-                            <select name="guildId" class="input-premium-field" required>
-                                <% playedGuilds.forEach(g => { %><option value="<%= g.guildId %>"><%= g.name %></option><% }); %>
+                            <select name="guildId" class="input-premium-field" required onchange="updateBonesConverterBalance(this)">
+                                <% playedGuilds.forEach(g => { %><option value="<%= g.guildId %>" data-balance="<%= guildBonesBalances[g.guildId] || 0 %>"><%= g.name %></option><% }); %>
                             </select>
                         </div>
+                        <p class="text-[12px] opacity-60 mt-1"><span data-i18n-pt>Saldo neste servidor:</span><span data-i18n-en>Balance on this server:</span> <strong data-role="bones-balance-display">0</strong></p>
                         <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Ossos</span><span data-i18n-en>Amount of Bones</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="bone"></i></div>
-                            <input type="number" name="quantidade" class="input-premium-field" min="1" step="1" max="<%= bonesBalance %>" required>
+                            <input type="number" name="quantidade" class="input-premium-field" min="1" step="1" required>
                         </div>
-                        <button type="submit" class="btn-salvar-final self-start mt-3"<%= bonesBalance < 1 ? ' disabled' : '' %>><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
+                        <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
                     </form>
                     <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form">
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Marks → Ossos</span><span data-i18n-en>Marks → Bones</span></h3>
@@ -947,6 +988,29 @@
             document.querySelector('.image-lightbox-figure').classList.toggle('is-zoomed');
         }
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImageLightbox(); });
+    </script>
+
+    <%#
+        Ossos por servidor (reforma 2026-08-15) — o formulário "Ossos ->
+        Marks" (data-bones-converter-form) tem um <select> de servidor
+        cujas <option> já carregam o próprio saldo em data-balance (ver
+        guildBonesBalances). Atualiza o texto de saldo/max do input/estado
+        do botão ao trocar o servidor, e uma vez no load pro selecionado
+        por padrão — sem isso, o saldo mostrado ficaria sempre o do
+        primeiro servidor da lista, mesmo depois de trocar a seleção.
+    %>
+    <script>
+        function updateBonesConverterBalance(select) {
+            const balance = Number(select.selectedOptions[0]?.dataset.balance || 0);
+            const form = select.closest('form');
+            const display = form.querySelector('[data-role="bones-balance-display"]');
+            const input = form.querySelector('input[name="quantidade"]');
+            const button = form.querySelector('button[type="submit"]');
+            if (display) display.textContent = balance;
+            if (input) input.max = balance;
+            if (button) button.disabled = balance < 1;
+        }
+        document.querySelectorAll('[data-bones-converter-form] select[name="guildId"]').forEach(updateBonesConverterBalance);
     </script>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>

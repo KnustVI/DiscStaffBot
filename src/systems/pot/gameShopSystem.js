@@ -138,7 +138,7 @@ async function purchaseGameShopItem(guildId, discordId, itemKey) {
     const link = PlayerRegistry.getPlayerByDiscordId(discordId);
     if (!link) return { ok: false, error: 'Você precisa vincular sua conta com /registrar antes de comprar.' };
 
-    if (!PlayerRegistry.spendBones(discordId, itemConfig.price)) {
+    if (!PlayerRegistry.spendBones(discordId, guildId, itemConfig.price)) {
         return { ok: false, error: 'Saldo de Ossos insuficiente.' };
     }
 
@@ -156,7 +156,7 @@ async function purchaseGameShopItem(guildId, discordId, itemKey) {
         // mensagem ainda dizia "foram devolvidos". Log CRÍTICO agora
         // distingue os dois casos pra dar rastro de conciliação manual
         // (dono/DEVELOPER_ID) quando o reembolso automático também falha.
-        const refunded = PlayerRegistry.addBones(discordId, itemConfig.price);
+        const refunded = PlayerRegistry.addBones(discordId, guildId, itemConfig.price);
         if (!refunded) {
             console.error(`🚨 [GameShop] FALHA CRÍTICA: compra e reembolso falharam pra ${discordId} (guild ${guildId}, item ${itemKey}, ${itemConfig.price} Ossos) — requer conciliação manual.`, error);
             return { ok: false, error: 'Erro ao registrar a compra e ao devolver seus Ossos — avise a equipe, isso precisa de correção manual.' };

@@ -363,7 +363,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         // de criar o vínculo (discord_id vindo do próprio jogo), a
         // sessão que fechou agora já entra creditando moeda, em vez de
         // precisar de um PRÓXIMO login/logout pra "descobrir" o vínculo.
-        if (sessionSecondsToAdd) _creditPlaytimeCurrency(alderonId, sessionSecondsToAdd);
+        if (sessionSecondsToAdd) _creditPlaytimeCurrency(guildId, alderonId, sessionSecondsToAdd);
         return { created: false, alderonId };
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao cadastrar/atualizar jogador:', error);
@@ -726,7 +726,7 @@ function reconcileOnlineStatus(guildId, livePlayers) {
                 WHERE guild_id = ? AND alderon_id = ?
             `).run(newTotalPlaytime, Math.floor(now / 1000), guildId, player.alderon_id);
 
-            if (sessionSeconds) _creditPlaytimeCurrency(player.alderon_id, sessionSeconds);
+            if (sessionSeconds) _creditPlaytimeCurrency(guildId, player.alderon_id, sessionSeconds);
             result.correctedOffline++;
         }
 
@@ -941,17 +941,20 @@ function setHideKda(discordId, hide) {
 
 /**
  * Saldo de Ossos (Bones, moeda da Loja de Jogo — ver PREMIUM.txt seção
- * 122) do jogador. 0 se ele nunca teve vínculo (sem /registrar não tem
- * onde guardar saldo nenhum) — nunca null, sempre seguro pra exibir/somar
- * direto.
+ * 122) do jogador NUM SERVIDOR ESPECÍFICO — reforma 2026-08-15 (pedido do
+ * dono: "vamos mudar os ossos, gostaria que ossos fossem um saldo por
+ * servidor"), ver docblock de pot_player_bones em schema.js. 0 se ele
+ * nunca ganhou/gastou Ossos NESTE servidor (sem linha ainda, ou sem
+ * vínculo nenhum) — nunca null, sempre seguro pra exibir/somar direto.
  * @param {string} discordId
+ * @param {string} guildId
  * @returns {number}
  */
-function getBonesBalance(discordId) {
-    if (!discordId) return 0;
+function getBonesBalance(discordId, guildId) {
+    if (!discordId || !guildId) return 0;
     try {
-        const row = db.prepare(`SELECT bones_balance FROM player_links WHERE user_id = ?`).get(discordId);
-        return row ? row.bones_balance : 0;
+        const row = db.prepare(`SELECT balance FROM pot_player_bones WHERE user_id = ? AND guild_id = ?`).get(discordId, guildId);
+        return row ? row.balance : 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao buscar saldo de Ossos:', error);
         return 0;
@@ -959,19 +962,25 @@ function getBonesBalance(discordId) {
 }
 
 /**
- * Credita Ossos ao jogador (ex: conversão Marks->Ossos concluída com
- * sucesso via RCON, ver currencySystem.js) — sempre soma, sem checagem
- * de limite superior.
+ * Credita Ossos ao jogador NUM SERVIDOR ESPECÍFICO (ex: conversão
+ * Marks->Ossos concluída com sucesso via RCON, ver currencySystem.js) —
+ * sempre soma, sem checagem de limite superior. Upsert: cria a linha em
+ * pot_player_bones se ainda não existir.
  * @param {string} discordId
+ * @param {string} guildId
  * @param {number} amount - inteiro positivo
- * @returns {boolean} true se creditou de verdade (jogador tem vínculo)
+ * @returns {boolean} true se creditou de verdade
  */
-function addBones(discordId, amount) {
-    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+function addBones(discordId, guildId, amount) {
+    if (!discordId || !guildId || !Number.isInteger(amount) || amount <= 0) return false;
     try {
         const result = db.prepare(`
-            UPDATE player_links SET bones_balance = bones_balance + ?, updated_at = ? WHERE user_id = ?
-        `).run(amount, Math.floor(Date.now() / 1000), discordId);
+            INSERT INTO pot_player_bones (user_id, guild_id, balance, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                balance = balance + excluded.balance,
+                updated_at = excluded.updated_at
+        `).run(discordId, guildId, amount, Math.floor(Date.now() / 1000));
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao creditar Ossos:', error);
@@ -980,22 +989,26 @@ function addBones(discordId, amount) {
 }
 
 /**
- * Debita Ossos do jogador SE ele tiver saldo suficiente — checa e
- * desconta na MESMA query (WHERE bones_balance >= ?), atômico o
- * suficiente pra evitar 2 conversões simultâneas do mesmo jogador
- * descontando saldo que já não existia mais (better-sqlite3 é síncrono,
- * então não há como uma segunda chamada entrelaçar no meio desta).
+ * Debita Ossos do jogador NUM SERVIDOR ESPECÍFICO se ele tiver saldo
+ * suficiente NAQUELE servidor — checa e desconta na MESMA query (WHERE
+ * balance >= ?), atômico o suficiente pra evitar 2 gastos simultâneos do
+ * mesmo jogador NO MESMO servidor descontando saldo que já não existia
+ * mais (better-sqlite3 é síncrono, então não há como uma segunda chamada
+ * entrelaçar no meio desta). Nunca cria linha (UPDATE puro) — sem linha
+ * pra este par jogador+servidor, `changes` é 0, mesmo resultado de saldo
+ * insuficiente.
  * @param {string} discordId
+ * @param {string} guildId
  * @param {number} amount - inteiro positivo
- * @returns {boolean} true se debitou de verdade, false se saldo insuficiente/sem vínculo
+ * @returns {boolean} true se debitou de verdade, false se saldo insuficiente/sem linha
  */
-function spendBones(discordId, amount) {
-    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+function spendBones(discordId, guildId, amount) {
+    if (!discordId || !guildId || !Number.isInteger(amount) || amount <= 0) return false;
     try {
         const result = db.prepare(`
-            UPDATE player_links SET bones_balance = bones_balance - ?, updated_at = ?
-            WHERE user_id = ? AND bones_balance >= ?
-        `).run(amount, Math.floor(Date.now() / 1000), discordId, amount);
+            UPDATE pot_player_bones SET balance = balance - ?, updated_at = ?
+            WHERE user_id = ? AND guild_id = ? AND balance >= ?
+        `).run(amount, Math.floor(Date.now() / 1000), discordId, guildId, amount);
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao debitar Ossos:', error);
@@ -1017,19 +1030,21 @@ function _todayLocalDate() {
 }
 
 /**
- * Quantos Marks o jogador já converteu em Ossos HOJE (limite diário do
- * conversor, ver CurrencySystem.DAILY_MARKS_TO_BONES_LIMIT/
+ * Quantos Marks o jogador já converteu em Ossos HOJE, NUM SERVIDOR
+ * ESPECÍFICO (teto diário do conversor, agora POR SERVIDOR — reforma
+ * 2026-08-15, ver CurrencySystem.DAILY_MARKS_TO_BONES_LIMIT/
  * convertMarksToBones) — leitura pura, sem efeito colateral: se a data
  * guardada não é mais hoje, o total EFETIVO já é 0 sem precisar escrever
  * nada no banco agora (addMarksConvertedToday é quem grava o reset,
  * na próxima conversão bem-sucedida).
  * @param {string} discordId
+ * @param {string} guildId
  * @returns {number}
  */
-function getMarksConvertedToday(discordId) {
-    if (!discordId) return 0;
+function getMarksConvertedToday(discordId, guildId) {
+    if (!discordId || !guildId) return 0;
     try {
-        const row = db.prepare(`SELECT marks_converted_today, marks_converted_date FROM player_links WHERE user_id = ?`).get(discordId);
+        const row = db.prepare(`SELECT marks_converted_today, marks_converted_date FROM pot_player_bones WHERE user_id = ? AND guild_id = ?`).get(discordId, guildId);
         if (!row) return 0;
         return row.marks_converted_date === _todayLocalDate() ? (row.marks_converted_today || 0) : 0;
     } catch (error) {
@@ -1039,23 +1054,32 @@ function getMarksConvertedToday(discordId) {
 }
 
 /**
- * Soma `amount` ao total de Marks convertidos HOJE — chamada só depois de
- * uma conversão Marks->Ossos bem-sucedida de verdade (mesmo critério de
- * addBones logo acima). Reseta sozinha pro novo dia: sempre GRAVA o total
- * já recalculado por getMarksConvertedToday (que já zera se a data mudou)
- * mais `amount`, nunca um `+ ?` cru no SQL, então não importa se a linha
- * ainda tinha a data de ontem.
+ * Soma `amount` ao total de Marks convertidos HOJE NUM SERVIDOR
+ * ESPECÍFICO — chamada só depois de uma conversão Marks->Ossos
+ * bem-sucedida de verdade (mesmo critério de addBones logo acima).
+ * Reseta sozinha pro novo dia: sempre GRAVA o total já recalculado por
+ * getMarksConvertedToday (que já zera se a data mudou) mais `amount`,
+ * nunca um `+ ?` cru no SQL, então não importa se a linha ainda tinha a
+ * data de ontem. Upsert: cria a linha em pot_player_bones se ainda não
+ * existir (sem mexer em `balance`, que essa chamada não decide).
  * @param {string} discordId
+ * @param {string} guildId
  * @param {number} amount - inteiro positivo (quantidade de Marks desta conversão)
  * @returns {boolean}
  */
-function addMarksConvertedToday(discordId, amount) {
-    if (!discordId || !Number.isInteger(amount) || amount <= 0) return false;
+function addMarksConvertedToday(discordId, guildId, amount) {
+    if (!discordId || !guildId || !Number.isInteger(amount) || amount <= 0) return false;
     try {
-        const newTotal = getMarksConvertedToday(discordId) + amount;
+        const newTotal = getMarksConvertedToday(discordId, guildId) + amount;
+        const today = _todayLocalDate();
         const result = db.prepare(`
-            UPDATE player_links SET marks_converted_today = ?, marks_converted_date = ?, updated_at = ? WHERE user_id = ?
-        `).run(newTotal, _todayLocalDate(), Math.floor(Date.now() / 1000), discordId);
+            INSERT INTO pot_player_bones (user_id, guild_id, marks_converted_today, marks_converted_date, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                marks_converted_today = excluded.marks_converted_today,
+                marks_converted_date = excluded.marks_converted_date,
+                updated_at = excluded.updated_at
+        `).run(discordId, guildId, newTotal, today, Math.floor(Date.now() / 1000));
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao registrar Marks convertidos hoje:', error);
@@ -1211,16 +1235,24 @@ function addXp(discordId, amount) {
  * Converte tempo de jogo em moeda — pedido do dono, 2026-08-07: "Libere o
  * farm dos itens por hora jogada agora". Taxa original do dono (ver
  * PREMIUM.txt seção 117): 1 HORA jogada = 1 Caçada (Hunt) + 5 Ossos
- * (Bones) + 1 XP — as 3 juntas, sempre na mesma proporção, nunca uma sem
- * as outras.
+ * (Bones) + 1 XP.
  *
- * Chamada de upsertPlayerFromEvent toda vez que uma sessão de jogo fecha
- * (mesmo `sessionSecondsToAdd` que também alimenta pot_players.
- * total_playtime — nunca um valor diferente, pra moeda e "tempo total
- * exibido" nunca discordarem entre si). Só credita se o Alderon ID tiver
- * vínculo com uma conta Discord (player_links) — sem vínculo, não tem
- * onde guardar o saldo, mesmo critério de todo o resto da economia
- * (Player Premium é sempre amarrado a um user_id do Discord).
+ * Reforma 2026-08-15 (Ossos virou saldo POR SERVIDOR, pedido do dono):
+ * Caçadas/XP continuam creditadas aqui, no MESMO carry GLOBAL de sempre
+ * (`player_links.playtime_credit_seconds`) — inalterado. Ossos foi
+ * REMOVIDO deste UPDATE e passou a ser creditado por `_creditGuildBones`
+ * (logo abaixo), com um carry PRÓPRIO por servidor
+ * (`pot_player_bones.playtime_credit_seconds`) — Ossos só fecha hora
+ * cheia com sessões daquele MESMO servidor, nunca somando tempo jogado
+ * em outro. Por isso esta função agora recebe `guildId`.
+ *
+ * Chamada de upsertPlayerFromEvent/reconcileOnlineStatus toda vez que uma
+ * sessão de jogo fecha (mesmo `sessionSeconds` que também alimenta
+ * pot_players.total_playtime — nunca um valor diferente, pra moeda e
+ * "tempo total exibido" nunca discordarem entre si). Só credita se o
+ * Alderon ID tiver vínculo com uma conta Discord (player_links) — sem
+ * vínculo, não tem onde guardar o saldo, mesmo critério de todo o resto
+ * da economia (Player Premium é sempre amarrado a um user_id do Discord).
  *
  * `playtime_credit_seconds` é a SOBRA entre uma hora fechada e outra —
  * sem ela, sessões curtas (a maioria) nunca completariam 3600s sozinhas e
@@ -1229,10 +1261,11 @@ function addXp(discordId, amount) {
  * (`% 3600`) pra próxima vez — nunca perde segundo nenhum, só atrasa o
  * crédito até fechar 3600s de verdade.
  *
+ * @param {string} guildId - servidor onde a sessão que fechou aconteceu
  * @param {string} alderonId
  * @param {number} sessionSeconds - segundos da sessão que acabou de fechar
  */
-function _creditPlaytimeCurrency(alderonId, sessionSeconds) {
+function _creditPlaytimeCurrency(guildId, alderonId, sessionSeconds) {
     if (!alderonId || !sessionSeconds || sessionSeconds <= 0) return;
     try {
         const link = getPlayerByAlderonId(alderonId);
@@ -1245,25 +1278,71 @@ function _creditPlaytimeCurrency(alderonId, sessionSeconds) {
         const carrySeconds = (row?.playtime_credit_seconds || 0) + Math.floor(sessionSeconds);
         const hoursEarned = Math.floor(carrySeconds / 3600);
         const remainderSeconds = carrySeconds % 3600;
+        const now = Math.floor(Date.now() / 1000);
 
         if (hoursEarned > 0) {
             db.prepare(`
                 UPDATE player_links SET
                     hunt_balance = hunt_balance + ?,
-                    bones_balance = bones_balance + ?,
                     xp = xp + ?,
                     playtime_credit_seconds = ?,
                     updated_at = ?
                 WHERE user_id = ?
-            `).run(hoursEarned, hoursEarned * 5, hoursEarned, remainderSeconds, Math.floor(Date.now() / 1000), link.user_id);
+            `).run(hoursEarned, hoursEarned, remainderSeconds, now, link.user_id);
             _recordLevelUpsIfAny(link.user_id, row?.xp || 0, (row?.xp || 0) + hoursEarned);
         } else {
             db.prepare(`
                 UPDATE player_links SET playtime_credit_seconds = ?, updated_at = ? WHERE user_id = ?
-            `).run(remainderSeconds, Math.floor(Date.now() / 1000), link.user_id);
+            `).run(remainderSeconds, now, link.user_id);
         }
+
+        if (guildId) _creditGuildBones(link.user_id, guildId, sessionSeconds);
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao creditar moeda por tempo de jogo:', error);
+    }
+}
+
+/**
+ * Credita Ossos por hora jogada NUM SERVIDOR ESPECÍFICO — carry PRÓPRIO
+ * (`pot_player_bones.playtime_credit_seconds`), totalmente separado do
+ * carry global de Caçadas/XP em `_creditPlaytimeCurrency` acima. A MESMA
+ * `sessionSeconds` de uma sessão alimenta os dois carries ao mesmo tempo,
+ * mas cada um só fecha hora cheia (e credita) na PRÓPRIA soma — Ossos
+ * deste servidor só crescem quando ESTE servidor específico acumula
+ * 3600s de sessões, nunca misturado com tempo jogado em outro servidor
+ * (decisão confirmada com o dono, 2026-08-15).
+ * @param {string} userId
+ * @param {string} guildId
+ * @param {number} sessionSeconds
+ */
+function _creditGuildBones(userId, guildId, sessionSeconds) {
+    try {
+        const row = db.prepare(`SELECT playtime_credit_seconds FROM pot_player_bones WHERE user_id = ? AND guild_id = ?`).get(userId, guildId);
+        const carrySeconds = (row?.playtime_credit_seconds || 0) + Math.floor(sessionSeconds);
+        const hoursEarned = Math.floor(carrySeconds / 3600);
+        const remainderSeconds = carrySeconds % 3600;
+        const now = Math.floor(Date.now() / 1000);
+
+        if (hoursEarned > 0) {
+            db.prepare(`
+                INSERT INTO pot_player_bones (user_id, guild_id, balance, playtime_credit_seconds, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                    balance = balance + excluded.balance,
+                    playtime_credit_seconds = excluded.playtime_credit_seconds,
+                    updated_at = excluded.updated_at
+            `).run(userId, guildId, hoursEarned * 5, remainderSeconds, now);
+        } else {
+            db.prepare(`
+                INSERT INTO pot_player_bones (user_id, guild_id, playtime_credit_seconds, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                    playtime_credit_seconds = excluded.playtime_credit_seconds,
+                    updated_at = excluded.updated_at
+            `).run(userId, guildId, remainderSeconds, now);
+        }
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao creditar Ossos por tempo de jogo (por servidor):', error);
     }
 }
 

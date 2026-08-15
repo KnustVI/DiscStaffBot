@@ -76,6 +76,7 @@ class DatabaseManager {
                 'pot_logs',
                 'pot_tokens',
                 'player_links',
+                'pot_player_bones',
                 'player_level_ups',
                 'profile_image_pool',
                 'image_inventory',
@@ -406,6 +407,12 @@ class DatabaseManager {
             // "NOT LIKE" tornam idempotente (não reaplica em quem já foi migrado).
             this.migrateReportPunishmentIdPrefixes();
 
+            // Ossos (Bones) virou saldo POR SERVIDOR (pedido do dono,
+            // 2026-08-15) — migra o que sobrou de saldo GLOBAL antigo em
+            // player_links.bones_balance pra pot_player_bones. Idempotente
+            // (ver docblock do método): seguro rodar em todo boot.
+            this.migrateBonesToPerGuild();
+
             console.log('📋 Schema do banco de dados criado');
 
         } catch (error) {
@@ -462,6 +469,68 @@ class DatabaseManager {
             `).run();
         } catch (err) {
             // Tabela ainda não existe na primeiríssima execução — ignorar.
+        }
+    }
+
+    // Migra Ossos (Bones) de GLOBAL (player_links.bones_balance) pra POR
+    // SERVIDOR (pot_player_bones.balance) — reforma 2026-08-15, pedido do
+    // dono: "vamos mudar os ossos, gostaria que ossos fossem um saldo por
+    // servidor". Credita o saldo antigo no servidor onde o jogador tem o
+    // MAIOR total_playtime em pot_players (melhor palpite disponível pra
+    // associar um saldo GLOBAL antigo a UM servidor específico — decisão
+    // confirmada com o dono) e zera bones_balance depois — é esse zerar
+    // que torna o guard `bones_balance > 0` abaixo idempotente sozinho:
+    // uma vez migrado, o jogador some do filtro e nunca é reprocessado.
+    //
+    // Jogador com bones_balance > 0 mas NENHUMA linha em pot_players pro
+    // próprio alderon_id (nunca gerou evento de webhook em servidor
+    // nenhum — ex: saldo concedido manualmente no passado) é PULADO, não
+    // descartado: o saldo antigo fica intacto em player_links.bones_balance
+    // até resolução manual, e continua reaparecendo neste mesmo guard em
+    // todo boot subsequente até isso acontecer.
+    //
+    // Cada jogador migra na PRÓPRIA transação (credita + zera juntos, tudo
+    // ou nada) — não uma transação só pro lote inteiro: uma falha
+    // inesperada num jogador não deve impedir nem reverter o progresso já
+    // feito nos outros, e o guard já torna seguro retomar de onde parou no
+    // próximo boot de qualquer forma.
+    migrateBonesToPerGuild() {
+        if (!this.tableExists('player_links') || !this.tableExists('pot_player_bones') || !this.tableExists('pot_players')) return;
+        try {
+            const rows = this.db.prepare(`SELECT user_id, alderon_id, bones_balance FROM player_links WHERE bones_balance > 0`).all();
+            if (rows.length === 0) return;
+
+            const findBestGuild = this.db.prepare(`
+                SELECT guild_id FROM pot_players WHERE alderon_id = ? ORDER BY total_playtime DESC LIMIT 1
+            `);
+            const creditGuild = this.db.prepare(`
+                INSERT INTO pot_player_bones (user_id, guild_id, balance, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                    balance = balance + excluded.balance,
+                    updated_at = excluded.updated_at
+            `);
+            const zeroOldBalance = this.db.prepare(`UPDATE player_links SET bones_balance = 0, updated_at = ? WHERE user_id = ?`);
+
+            const migrateOne = this.db.transaction((row) => {
+                const now = Math.floor(Date.now() / 1000);
+                const best = findBestGuild.get(row.alderon_id);
+                if (!best) {
+                    console.warn(`⚠️ [Migração Ossos] ${row.user_id} (AGID ${row.alderon_id}) tem ${row.bones_balance} Ossos globais mas nenhuma atividade registrada em nenhum servidor (pot_players vazio) — saldo NÃO migrado, mantido intacto em player_links.bones_balance até resolução manual.`);
+                    return;
+                }
+                creditGuild.run(row.user_id, best.guild_id, row.bones_balance, now);
+                zeroOldBalance.run(now, row.user_id);
+            });
+
+            let migrated = 0;
+            for (const row of rows) {
+                migrateOne(row);
+                migrated++;
+            }
+            console.log(`   📦 Migração Ossos: ${migrated} jogador(es) verificado(s) (saldo global -> por servidor)`);
+        } catch (err) {
+            console.error('❌ [Migração Ossos] Erro ao migrar saldos globais pra por servidor:', err.message);
         }
     }
 

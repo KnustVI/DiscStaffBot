@@ -2,10 +2,13 @@
 /**
  * Conversão Ossos (Bones) <-> Marks — a Loja de Jogo (ver PREMIUM.txt
  * seção 122, pedido do dono 2026-08-07: "adicione um sistema de
- * conversor de moedas"). Ossos são moeda do BOT (saldo em
- * player_links.bones_balance, ver potPlayerRegistry.js); Marks é moeda
- * DO PRÓPRIO JOGO — o bot nunca guarda um "saldo" dela, só manda RCON
- * pro servidor de jogo creditar/remover.
+ * conversor de moedas"). Ossos são moeda do BOT, saldo POR SERVIDOR desde
+ * 2026-08-15 (pot_player_bones, ver potPlayerRegistry.js) — cada
+ * conversão ganha/gasta Ossos só no `guildId` informado, nunca num pool
+ * global; o teto diário do conversor (DAILY_MARKS_TO_BONES_LIMIT) também
+ * é por servidor pelo mesmo motivo. Marks é moeda DO PRÓPRIO JOGO — o bot
+ * nunca guarda um "saldo" dela, só manda RCON pro servidor de jogo
+ * creditar/remover.
  *
  * Taxa: 1 Osso = 100 Marks, nos dois sentidos (pedido do dono).
  *
@@ -113,7 +116,7 @@ async function convertBonesToMarks(client, discordId, guildId, bonesAmount) {
     const target = _resolveTarget(discordId, guildId);
     if (target.error) return { ok: false, error: target.error };
 
-    if (!PlayerRegistry.spendBones(discordId, bonesAmount)) {
+    if (!PlayerRegistry.spendBones(discordId, guildId, bonesAmount)) {
         return { ok: false, error: 'Saldo de Ossos insuficiente.' };
     }
 
@@ -121,7 +124,7 @@ async function convertBonesToMarks(client, discordId, guildId, bonesAmount) {
     const rconResult = await _executeRcon(client, guildId, `addmarks ${target.alderonId} ${marksAmount}`, { actor: `<@${discordId}>`, source: 'Loja de Jogo (Ossos→Marks)' });
 
     if (!rconResult.success) {
-        PlayerRegistry.addBones(discordId, bonesAmount);
+        PlayerRegistry.addBones(discordId, guildId, bonesAmount);
         return { ok: false, error: `Não foi possível creditar os Marks no jogo (${rconResult.error || 'erro desconhecido'}). Seus Ossos foram devolvidos.` };
     }
 
@@ -153,8 +156,10 @@ async function convertMarksToBones(client, discordId, guildId, marksAmount) {
     if (target.error) return { ok: false, error: target.error };
 
     // Teto diário — checado ANTES do RCON (pedido do dono: nada de
-    // remover Marks no jogo pra depois recusar creditar Ossos).
-    const convertedToday = PlayerRegistry.getMarksConvertedToday(discordId);
+    // remover Marks no jogo pra depois recusar creditar Ossos). POR
+    // SERVIDOR desde 2026-08-15 (Ossos deixou de ser saldo global) — cada
+    // servidor tem seu próprio teto de DAILY_MARKS_TO_BONES_LIMIT.
+    const convertedToday = PlayerRegistry.getMarksConvertedToday(discordId, guildId);
     if (convertedToday + marksAmount > DAILY_MARKS_TO_BONES_LIMIT) {
         const remaining = Math.max(0, DAILY_MARKS_TO_BONES_LIMIT - convertedToday);
         return {
@@ -171,8 +176,8 @@ async function convertMarksToBones(client, discordId, guildId, marksAmount) {
     }
 
     const bonesAmount = marksAmount / MARKS_PER_BONE;
-    PlayerRegistry.addBones(discordId, bonesAmount);
-    PlayerRegistry.addMarksConvertedToday(discordId, marksAmount);
+    PlayerRegistry.addBones(discordId, guildId, bonesAmount);
+    PlayerRegistry.addMarksConvertedToday(discordId, guildId, marksAmount);
     return { ok: true, bonesCredited: bonesAmount, rconResponse: rconResult.response || '' };
 }
 

@@ -357,6 +357,43 @@ const SCHEMA = {
         )
     `,
 
+    // ==================== OSSOS (BONES) — POR SERVIDOR ====================
+    // Reforma 2026-08-15 (pedido do dono: "vamos mudar os ossos, gostaria
+    // que ossos fossem um saldo por servidor") — Ossos deixou de ser um
+    // saldo GLOBAL (era player_links.bones_balance, colunas acima) e virou
+    // POR SERVIDOR: a Loja de Jogo é inerentemente por servidor (bônus
+    // aplicado via RCON num servidor específico), então faz mais sentido
+    // econômico o saldo em si também ser por servidor (ganha lá, gasta lá),
+    // em vez de um pool compartilhado gastável em qualquer servidor que o
+    // bot atenda. Caçadas (hunt_balance) e XP continuam GLOBAIS, em
+    // player_links, inalterados por esta reforma — só Ossos migrou.
+    //
+    // Consolida numa tabela só (saldo + carry de hora jogada NESTE servidor
+    // + teto diário do conversor Marks->Ossos NESTE servidor) o que antes
+    // eram 4 colunas espalhadas em player_links. Mesmo estilo de
+    // pot_players (id autoincrement + UNIQUE, não PK composta) — é uma
+    // linha mutada in-place por par servidor+jogador, não um log de eventos
+    // como image_inventory/game_shop_inventory.
+    //
+    // Ver src/database/index.js migrateBonesToPerGuild() pra migração
+    // idempotente do saldo global antigo, e potPlayerRegistry.js pras
+    // funções de leitura/escrita (getBonesBalance/addBones/spendBones/
+    // getMarksConvertedToday/addMarksConvertedToday, todas agora recebendo
+    // guildId).
+    pot_player_bones: `
+        CREATE TABLE IF NOT EXISTS pot_player_bones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            guild_id TEXT NOT NULL,
+            balance INTEGER NOT NULL DEFAULT 0,
+            playtime_credit_seconds INTEGER NOT NULL DEFAULT 0,
+            marks_converted_today INTEGER NOT NULL DEFAULT 0,
+            marks_converted_date TEXT,
+            updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+            UNIQUE(user_id, guild_id)
+        )
+    `,
+
     // ==================== EVENTOS DE LEVEL UP ====================
     // Histórico de cada vez que um jogador sobe de Nível (sistema de
     // progressão infinita baseado em XP, ver src/systems/pot/levelSystem.js)

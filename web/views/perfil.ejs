@@ -340,15 +340,29 @@
                     Caçadas sempre vermelho, Ossos sempre amarelo, XP a cor
                     "quase branca" padrão do bot — mesmo vocabulário visual
                     de loja.ejs (classes is-hunt/is-bones/is-xp).
+
+                    Ossos virou saldo POR SERVIDOR (reforma 2026-08-15,
+                    pedido do dono: "gostaria que ossos fossem um saldo
+                    por servidor") — esta página é global (sem seletor de
+                    servidor), então bonesBalance aqui já vem como a SOMA
+                    de todos (dashboard.js), mesmo padrão de
+                    totalPlaytimeSeconds mais abaixo. O saldo de verdade
+                    por servidor aparece em /loja (catálogo/conversor, já
+                    por servidor de propósito) — texto pequeno abaixo da
+                    pill deixa isso claro sem quebrar o layout compacto
+                    das 3 pills empilhadas.
                 %>
                 <div class="flex flex-col gap-2 items-end">
                     <div class="perfil-hunt-pill is-hunt">
                         <img src="/images/icons/hunt.webp" alt="">
                         <span><span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span>: <strong><%= huntBalance %></strong></span>
                     </div>
-                    <div class="perfil-hunt-pill is-bones">
-                        <img src="/images/icons/bone.webp" alt="">
-                        <span><span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span>: <strong><%= bonesBalance %></strong></span>
+                    <div class="flex flex-col items-end gap-0.5">
+                        <div class="perfil-hunt-pill is-bones">
+                            <img src="/images/icons/bone.webp" alt="">
+                            <span><span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span>: <strong><%= bonesBalance %></strong></span>
+                        </div>
+                        <span class="text-[10px] opacity-40"><span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum across all servers</span></span>
                     </div>
                     <div class="perfil-hunt-pill is-xp">
                         <img src="/images/icons/DinoFootprint.webp" alt="">
