@@ -106,6 +106,19 @@ function setPublic(type, id, isPublic) {
 }
 
 /**
+ * Liga/desliga a flag "Em breve" (pedido do dono, 2026-08-15) — item
+ * continua aparecendo na listagem da Loja (se is_public), mas fica sem
+ * poder comprar/resgatar até o dono desligar. INDEPENDENTE de is_public,
+ * ver o bloqueio server-side em imageShopSystem.js#purchaseImage/redeemItem.
+ */
+function setComingSoon(type, id, comingSoon) {
+    const row = getByTypeAndId(type, id);
+    if (!row) return null;
+    db.prepare(`UPDATE profile_image_pool SET coming_soon = ? WHERE type = ? AND id = ?`).run(comingSoon ? 1 : 0, type, id);
+    return getByTypeAndId(type, id);
+}
+
+/**
  * @param {string} type
  * @param {{publicOnly?: boolean}} [opts] - publicOnly:true filtra só
  *   is_public=1 (pickers voltados ao usuário comum); sem isso, devolve TUDO
@@ -226,6 +239,7 @@ module.exports = {
     addSubmittedImage,
     removeImage,
     setPublic,
+    setComingSoon,
     listImages,
     getPendingSubmissions,
     approveSubmission,

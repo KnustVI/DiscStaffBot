@@ -163,7 +163,7 @@ function getRedeemableItems(userId) {
     const results = [];
     for (const type of ['badge', 'titulo']) {
         for (const row of ProfileImagePool.listImages(type, { publicOnly: true })) {
-            if (!row.requirement || ownsImage(userId, type, row.id)) continue;
+            if (!row.requirement || row.coming_soon || ownsImage(userId, type, row.id)) continue;
             const requirement = AchievementSystem.parseRequirement(row);
             if (requirement && AchievementSystem.checkRequirementMet(userId, requirement)) {
                 results.push({ type, id: row.id, label: row.label, requirement });
@@ -188,6 +188,7 @@ function redeemItem(userId, type, id) {
     if (!userId) return { ok: false, error: 'Vincule sua conta com /registrar primeiro.' };
     const row = ProfileImagePool.getByTypeAndId(type, id);
     if (!row || !row.is_public) return { ok: false, error: 'Item não encontrado.' };
+    if (row.coming_soon) return { ok: false, error: 'Este item ainda não está disponível — em breve.' };
     if (ownsImage(userId, type, id)) return { ok: false, error: 'Você já possui este item.' };
 
     const AchievementSystem = require('./achievementSystem');
@@ -233,6 +234,7 @@ function purchaseImage(userId, type, id) {
 
     const row = ProfileImagePool.getByTypeAndId(type, id);
     if (!row || !row.is_public || row.pending_review) return { ok: false, error: 'Item não encontrado.' };
+    if (row.coming_soon) return { ok: false, error: 'Este item ainda não está disponível — em breve.' };
     if (!row.shop_price) return { ok: false, error: 'Este item não está à venda.' };
     if (ownsImage(userId, type, id)) return { ok: false, error: 'Você já tem este item no seu inventário.' };
 

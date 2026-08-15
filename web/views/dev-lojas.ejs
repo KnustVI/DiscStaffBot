@@ -96,6 +96,7 @@
         }
         .pool-item-badge.is-public { background: rgba(165, 255, 161, 0.15); color: #A5FFA1; }
         .pool-item-badge.is-private { background: rgba(255, 78, 59, 0.15); color: #FF4E3B; }
+        .pool-item-badge.is-coming-soon { background: rgba(217, 163, 98, 0.18); color: #DCA15E; }
         .pool-item-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
         .pool-toggle-btn, .pool-delete-btn, .pool-approve-btn, .pool-reject-btn {
             font-family: 'Poppins', sans-serif;
@@ -422,6 +423,7 @@
                                 <% } %>
                                 <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                                 <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
+                                <% if (img.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
                                 <% if (group.type === 'personalizacao') { %>
                                     <div class="pool-price-form">
                                         <span class="pool-price-current">
@@ -449,6 +451,9 @@
                                 <div class="pool-item-actions">
                                     <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/toggle" method="POST">
                                         <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
+                                    </form>
+                                    <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/toggle-coming-soon" method="POST">
+                                        <button type="submit" class="pool-toggle-btn"><%= img.coming_soon ? 'Tirar do "Em breve"' : 'Marcar "Em breve"' %></button>
                                     </form>
                                     <form action="/dev/Loja/<%= group.type %>/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
                                         <button type="submit" class="pool-delete-btn">Excluir</button>
@@ -481,10 +486,14 @@
                             <span class="pool-item-label"><%= img.label %></span>
                             <span class="pool-item-meta">#<%= img.id %> — <%= new Date(img.created_at).toLocaleDateString('pt-BR') %></span>
                             <span class="pool-item-badge <%= img.is_public ? 'is-public' : 'is-private' %>"><%= img.is_public ? 'Público' : 'Privado' %></span>
+                            <% if (img.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
                             <%- include('partials/requirement-form', { img, type: 'badge', requirementTypes, configuredServers }) %>
                             <div class="pool-item-actions">
                                 <form action="/dev/Loja/badge/<%= img.id %>/toggle" method="POST">
                                     <button type="submit" class="pool-toggle-btn"><%= img.is_public ? 'Tornar privado' : 'Tornar público' %></button>
+                                </form>
+                                <form action="/dev/Loja/badge/<%= img.id %>/toggle-coming-soon" method="POST">
+                                    <button type="submit" class="pool-toggle-btn"><%= img.coming_soon ? 'Tirar do "Em breve"' : 'Marcar "Em breve"' %></button>
                                 </form>
                                 <form action="/dev/Loja/badge/<%= img.id %>/delete" method="POST" onsubmit="return confirm('Excluir \'<%= img.label.replace(/'/g, "") %>\' do pool? Isso não pode ser desfeito.');">
                                     <button type="submit" class="pool-delete-btn">Excluir</button>

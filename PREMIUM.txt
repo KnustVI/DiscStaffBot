@@ -33,6 +33,18 @@ levar a um pagamento de verdade - NAO afeta quem ja tem premium concedido,
 só bloqueia gente NOVA tentando comprar. Remover este paragrafo quando a
 trava for desativada de volta (ConfigSystem/hero.ejs, ver secao 141).
 
+COMPRAS DE ITENS DE LOJA TEMPORARIAMENTE PAUSADAS (pedido do dono,
+2026-08-15 - ver secao 201 de changelog): enquanto a Loja estiver em fase
+de testes, NENHUMA compra de item processa de verdade - nem a Loja de
+Personalizacao (foto/plano de fundo, POST /loja/comprar) nem a Loja de
+Jogo por servidor (POST /loja/comprar-jogo). A flag e
+`SHOP_PURCHASES_LOCKED` no topo de `dashboard.js` (mesmo padrao de
+`DASHBOARD_LOCKED_TO_OWNER`, so troca `true`->`false` pra reabrir). NAO
+afeta USAR um item ja comprado (POST /loja/usar-jogo) nem RESGATAR
+emblema/titulo por requisito (POST /perfil/resgatar, sempre gratuito) -
+nenhum dos dois e uma compra de verdade. Remover este paragrafo quando a
+trava for desativada de volta.
+
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
 
@@ -138,15 +150,18 @@ FREE
   - ver secao 188). O DESENHO do emblema escolhido em cima do card ainda
   NAO esta implementado (precisa de assets reais cadastrados antes de
   acertar a composicao - ver secao Compy abaixo).
-- Sem o resto da personalizacao "de graca" (acesso livre ao pool inteiro,
-  titulo, esconder KDA) - isso continua exclusivo Compy+/Raptor, ver
-  abaixo. MUDANCA 2026-08-15: Free JA PODE comprar/enviar imagens
-  especificas na Loja de Personalizacao pagando Cacadas (sem gate de tier
-  nenhum na COMPRA em si, ja implementado desde 2026-08-07/12 - ver Loja
-  de Personalizacao mais abaixo) e usar como foto/plano de fundo do card -
-  diferente do acesso "de graca" ao catalogo INTEIRO que so Compy+/Raptor
-  tem. Sem nada comprado/configurado, o card sempre usa a foto padrao do
-  tier (fixa, local, NUNCA puxa nada do Discord para o Free).
+- Sem titulo/esconder KDA - isso continua exclusivo Compy+/Raptor, ver
+  abaixo. Free JA PODE comprar/enviar imagens especificas na Loja de
+  Personalizacao pagando Cacadas (sem gate de tier nenhum na COMPRA em
+  si, ja implementado desde 2026-08-07/12 - ver Loja de Personalizacao
+  mais abaixo) e usar como foto/plano de fundo do card - EXATAMENTE o
+  mesmo mecanismo do Compy (ver abaixo); a UNICA forma de trocar imagem
+  sem gastar Cacadas e o Raptor, via upload de imagem PROPRIA (nao
+  compra de item do catalogo - CORRIGIDO 2026-08-15, antes o Compy tinha
+  por engano acesso livre ao catalogo inteiro sem comprar nada, bug de
+  codigo antigo de antes da Loja existir, nunca revisado - ver secao
+  201). Sem nada comprado/configurado, o card sempre usa a foto padrao
+  do tier (fixa, local, NUNCA puxa nada do Discord para o Free).
 - Ganha Caçadas E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
   Caçada + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
   moeda Caçadas/Osso/Nível no topo desta seção. JÁ IMPLEMENTADO
@@ -162,14 +177,16 @@ COMPY - R$10/mes (Brasil, Pix manual) ou US$6/mes (fora do Brasil, via Ko-fi) ("
   upload proprio - isso e exclusivo do Raptor, ver abaixo):
     - Foto de fundo do CARD (avatar) e Plano de fundo (banner atras da
       mensagem INTEIRA do /perfil, distinto da foto de dentro do card)
-      escolhidos num menu - MUDANCA 2026-08-12 (secao 183): os dois viraram
-      um UNICO tipo de imagem ("personalizacao") no pool - qualquer imagem
-      que o jogador possua (livre por tier, comprada na Loja, ou enviada
-      por ele mesmo e aprovada, ver Loja de Personalizacao mais abaixo)
-      pode ser usada como foto OU como plano de fundo, sem distincao.
-      Alimentado pelo dono via /dev/Loja no site (antes /perfil-pool add
-      avatar/fundo no bot developer, removido - ver secao 183). JA
-      IMPLEMENTADO E FUNCIONAL.
+      escolhidos num menu, restrito ao que o jogador POSSUI (comprado na
+      Loja de Personalizacao com Cacadas - MESMO mecanismo do Free, sem
+      acesso livre ao catalogo por tier - CORRIGIDO 2026-08-15, ver secao
+      201) - MUDANCA 2026-08-12 (secao 183): os dois viraram um UNICO tipo
+      de imagem ("personalizacao") no pool - qualquer imagem comprada (ou
+      enviada por ele mesmo e aprovada, ver Loja de Personalizacao mais
+      abaixo) pode ser usada como foto OU como plano de fundo, sem
+      distincao. Alimentado pelo dono via /dev/Loja no site (antes
+      /perfil-pool add avatar/fundo no bot developer, removido - ver
+      secao 183). JA IMPLEMENTADO E FUNCIONAL.
     - Esconder/mostrar a linha de Kills/Deaths/K-D do /perfil. JA
       IMPLEMENTADO.
 - Titulo do card (texto livre) NAO libera aqui - exclusivo do Raptor (ver
@@ -252,10 +269,13 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   em ~24h, entao a URL e resolvida na hora (refazendo o fetch da mensagem)
   toda vez que o /perfil e exibido.
 - Foto/plano de fundo escolhidos por menu (Compy) via /perfil-edit - sem
-  upload do jogador, so seleciona entre as imagens que o dono ja tiver
-  adicionado ao pool via /dev/Loja no site (antes /perfil-pool add
-  avatar/fundo, removido - ver secao 183) - pool 100% dinamico, nao
-  depende mais de nenhuma foto fixa em assets/images. Guarda so a CHAVE
+  upload do jogador, so seleciona entre as imagens que ele POSSUI
+  (comprado na Loja de Personalizacao com Cacadas - mesmo mecanismo do
+  Free, sem acesso livre ao pool por tier - CORRIGIDO 2026-08-15, ver
+  secao 201), dentro do que o dono ja tiver adicionado ao pool via
+  /dev/Loja no site (antes /perfil-pool add avatar/fundo, removido - ver
+  secao 183) - pool 100% dinamico, nao depende mais de nenhuma foto fixa
+  em assets/images. Guarda so a CHAVE
   "pool:<id>" (player_links.selected_photo_key/selected_background_key),
   nunca um arquivo proprio do jogador. MUDANCA 2026-08-12 (secao 183):
   foto e plano de fundo viraram um UNICO tipo de imagem no pool
@@ -289,9 +309,11 @@ A LOJA DE PERSONALIZAÇÃO já é FUNCIONAL DE VERDADE desde 2026-08-07 (ver
 seção 138), e ganhou uma REFORMA GRANDE em 2026-08-12 (ver seção 183):
 QUALQUER jogador (qualquer tier) pode comprar uma imagem do pool com
 Caçadas e ela entra no INVENTÁRIO pessoal, usável como foto OU plano de
-fundo (unificados, sem distinção de compra). Compy+ continua com acesso
-LIVRE a todo o pool (como já era, sem precisar comprar nada) - a loja é
-um caminho ADICIONAL, não uma restrição nova. Por item, o dono define
+fundo (unificados, sem distinção de compra) - Free e Compy compram pelo
+MESMO mecanismo, sem distinção de tier na compra em si (CORRIGIDO
+2026-08-15: até então o Compy tinha acesso livre a todo o pool sem
+precisar comprar nada - bug de código antigo de antes da Loja existir,
+nunca revisado depois da reforma de 2026-08-12, ver seção 201). Por item, o dono define
 (painel `/dev/Loja` no site): preço em Caçadas e o tier mínimo pra USAR
 o item depois de comprado (shop_min_tier) - COMPRAR nunca depende de
 tier, só de ter Caçadas suficientes. NOVO em 2026-08-12: qualquer jogador
@@ -10318,3 +10340,77 @@ frente, nao so este relatorio):
   fallback de avatar/banner do Raptor depende de dado real de conta do
   Discord) — vale o dono conferir visualmente e com uma conta Raptor
   de teste depois do deploy.
+
+201) CORREÇÃO da seção 200: acesso do Compy à imagem de perfil era um bug
+     de verdade (não só a tabela) + flag "Em breve" na loja + trava geral
+     de compras (fase de testes)
+------------------------------------------------------------------
+- Pedido do dono (2026-08-15), sobre a tabela publicada na seção 200:
+  "Compy virou 'acesso completo sem gastar Caçadas' esta errado, somente
+  raptor pode alterar as imagem sem gastar as caçasda." Confirmado: a
+  seção 200 registrou corretamente o que o CÓDIGO fazia até então, mas o
+  próprio comportamento do código estava errado — não só a cópia de
+  marketing. Investigando pra corrigir só a tabela, achado o bug de
+  verdade: o Compy tinha acesso INCONDICIONAL (sem checar posse/compra)
+  a QUALQUER imagem do pool de personalização, herdado de antes da Loja
+  existir (pré-2026-08-07) e nunca revisado depois da reforma de compra
+  por Caçadas. Perguntado ao dono se era intencional ou bug — resposta:
+  "É um bug — restringir Compy também".
+- CORRIGIDO em ~10 pontos, nos 3 lugares que decidiam acesso a foto/plano
+  de fundo por `isCompyPlus` (Discord E site, pra ficarem consistentes
+  entre si):
+  - `playerRegistrationSystem.js` (`_resolveCardPhotoBuffer`/
+    `_resolveBackgroundBuffer`, usados tanto pelo card do Discord quanto
+    pelo Portal do site): removida a branch de acesso incondicional do
+    Compy e a branch legada de chave `imageManager` direta (código morto
+    desde a reforma 2026-08-12, sem fonte de escrita há tempos).
+  - `configSystem.js` (`handlePlayerPhotoSelect`/
+    `handlePlayerBackgroundSelect`, `buildPerfilEditPanelPayload`,
+    `handlePerfilEditInfoButton`): menu de seleção, texto de status e
+    botões do painel `/perfil-edit` passam a checar posse
+    (`_ownedUsableOptions`) pra Compy exatamente como já checavam pro
+    Free, em vez de liberar o pool inteiro por tier.
+  - `dashboard.js` (GET e POST `/perfil`) + `web/views/perfil.ejs`: mesma
+    correção do lado do site — texto único ("Escolha uma das fotos que
+    você comprou na Loja") pra Free e Compy, sem mais o texto de
+    "galeria" que só o Compy via antes.
+  - Raptor não muda em nada (upload próprio, nunca passou pelo pool).
+    `hide_kda` e título continuam exclusivos de Compy+/Raptor — não
+    fazem parte deste bug, intocados de propósito.
+  - Seções 1-2 deste arquivo atualizadas junto (bullets de Free/Compy
+    sobre foto/plano de fundo, e o parágrafo da Loja de Personalização)
+    pra não descrever mais o acesso livre por tier que não existe mais.
+- NOVO: flag "Em breve" por item da loja (pedido do dono: "Me de a opção
+  de colocar em breve nos itens da loja alem da opção publico"). Coluna
+  independente `profile_image_pool.coming_soon` (não é um tri-state de
+  `is_public` — um item pode ficar público E "em breve" ao mesmo tempo,
+  visível na listagem mas sem poder comprar/resgatar) — toggle em
+  `/dev/Loja` (botão "Marcar/Tirar do 'Em breve'", ao lado do de
+  público/privado, pros 3 tipos: personalização/banner, título e
+  emblema) e badge "EM BREVE" em `/loja` no lugar do botão de
+  Comprar/Resgatar. Bloqueio em profundidade também no backend
+  (`ImageShopSystem.purchaseImage`/`redeemItem`), não só escondendo o
+  botão.
+- NOVO: trava geral de compras de item, fase de testes (pedido do dono:
+  "Por hora trave todas as compras de itens e me lembre dessa trava,
+  loja em teste não deve haber compra, nenhuma loja nem de servidor") —
+  ver parágrafo "COMPRAS DE ITENS DE LOJA TEMPORARIAMENTE PAUSADAS" no
+  topo deste arquivo. Constante `SHOP_PURCHASES_LOCKED = true` em
+  `dashboard.js` (mesmo padrão de `DASHBOARD_LOCKED_TO_OWNER`) bloqueia
+  `POST /loja/comprar` e `POST /loja/comprar-jogo` — as 2 ÚNICAS rotas
+  que debitam moeda de verdade. `POST /loja/usar-jogo` (usar item já
+  comprado) e `/perfil/resgatar` (resgate grátis por requisito) ficam de
+  fora de propósito — nenhum dos dois é uma compra. `/loja` mostra um
+  banner de aviso no topo (mesmo padrão visual do já existente "Bot em
+  fase de testes") e os botões "Comprar" (Personalização e Loja de Jogo)
+  ficam desabilitados enquanto a trava estiver ativa.
+- Verificado: `node --check` em todos os `.js` tocados;
+  `ejs.renderFile()` em `perfil.ejs`/`dev-lojas.ejs`/`loja.ejs` com
+  vários cenários mockados (Raptor, Compy sem compra, Compy com compra,
+  Free sem compra, Free com compra, item `coming_soon` com/sem preço/já
+  possuído, badge `coming_soon` com requisito cumprido, trava de compra
+  ligada/desligada) confirmando texto unificado Free/Compy, ribbon "Em
+  breve" e bloqueio do formulário de compra, e botões desabilitados +
+  banner quando a trava está ativa. SEM confirmação visual/browser real
+  (nenhuma ferramenta de navegador disponível neste ambiente) — vale o
+  dono conferir visualmente depois do deploy.

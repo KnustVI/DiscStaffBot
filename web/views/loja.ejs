@@ -339,6 +339,22 @@
 
         <%- include('partials/testing-phase-banner') %>
 
+        <%# Trava geral de compras (pedido do dono, 2026-08-15: "loja em
+            teste não deve haber compra, nenhuma loja nem de servidor") —
+            só aparece quando shopPurchasesLocked vem true (ver dashboard.js
+            GET /loja, SHOP_PURCHASES_LOCKED). Usar/resgatar itens já
+            possuídos continua liberado, só a COMPRA em si é bloqueada
+            (ver POST /loja/comprar e /loja/comprar-jogo). %>
+        <% if (shopPurchasesLocked) { %>
+            <div class="outline-chip is-bad">
+                <i data-lucide="lock" class="outline-chip-icon"></i>
+                <div class="outline-chip-text">
+                    <span class="outline-chip-headline"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                    <span class="outline-chip-subtitle"><span data-i18n-pt>A Loja ainda está em fase de testes — compras de itens (Personalização e Loja de Jogo) estão temporariamente desabilitadas. Você ainda pode usar itens já comprados e resgatar emblemas/títulos por requisito.</span><span data-i18n-en>The Shop is still in testing — item purchases (Customization and Game Shop) are temporarily disabled. You can still use already-owned items and redeem badges/titles by requirement.</span></span>
+                </div>
+            </div>
+        <% } %>
+
         <%# Carrossel compacto de anúncios de servidores parceiros (pedido
             do dono, 2026-08-10) — feed completo com overlay de detalhe
             continua exclusivo da home, ver web/views/hero.ejs. %>
@@ -497,7 +513,7 @@
                             <% } %>
                             <% group.items.forEach(img => { %>
                                 <div class="loja-item">
-                                    <% if (!img.shop_price) { %>
+                                    <% if (img.coming_soon || !img.shop_price) { %>
                                         <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
                                     <% } %>
                                     <div
@@ -518,15 +534,19 @@
                                         <% } %>
                                         <% if (img.owned) { %>
                                             <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>No inventário</span><span data-i18n-en>In inventory</span></span>
+                                        <% } else if (img.coming_soon) { %>
+                                            <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Compra liberada em breve.</span><span data-i18n-en>Purchase opens soon.</span></span>
                                         <% } else { %>
                                             <form method="POST" action="/loja/comprar" class="loja-item-buy-form">
                                                 <input type="hidden" name="poolType" value="<%= img.type %>">
                                                 <input type="hidden" name="poolId" value="<%= img.id %>">
-                                                <button type="submit" class="btn-chip btn-chip-success"<%= huntBalance < img.shop_price ? ' disabled' : '' %>>
+                                                <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || huntBalance < img.shop_price) ? ' disabled' : '' %>>
                                                     <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                                 </button>
                                             </form>
-                                            <% if (huntBalance < img.shop_price) { %>
+                                            <% if (shopPurchasesLocked) { %>
+                                                <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                                            <% } else if (huntBalance < img.shop_price) { %>
                                                 <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                             <% } %>
                                         <% } %>
@@ -595,8 +615,13 @@
                                         <% if (item.url) { %>onclick="openImageLightbox('<%= item.url %>', '<%= (item.label || '').replace(/'/g, "\\'") %>')"<% } %>
                                     ><% if (!item.url) { %><i data-lucide="<%= group.icon %>"></i><% } %></div>
                                     <span class="loja-item-label"><%= item.label %></span>
+                                    <% if (item.coming_soon) { %>
+                                        <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
+                                    <% } %>
                                     <% if (item.owned) { %>
                                         <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>Você já tem</span><span data-i18n-en>You already have it</span></span>
+                                    <% } else if (item.coming_soon) { %>
+                                        <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Resgate liberado em breve.</span><span data-i18n-en>Redemption opens soon.</span></span>
                                     <% } else if (item.redeemable) { %>
                                         <% if (item.requirementLabel) { %>
                                             <span class="loja-item-desc"><%= item.requirementLabel %></span>
@@ -714,11 +739,13 @@
                                     <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form">
                                         <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
                                         <input type="hidden" name="itemKey" value="<%= item.key %>">
-                                        <button type="submit" class="btn-chip btn-chip-success"<%= bonesBalance < item.config.price ? ' disabled' : '' %>>
+                                        <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || bonesBalance < item.config.price) ? ' disabled' : '' %>>
                                             <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                         </button>
                                     </form>
-                                    <% if (bonesBalance < item.config.price) { %>
+                                    <% if (shopPurchasesLocked) { %>
+                                        <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                                    <% } else if (bonesBalance < item.config.price) { %>
                                         <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                     <% } %>
                                 </div>

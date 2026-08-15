@@ -333,6 +333,13 @@ class DatabaseManager {
             // nada depende disso pra funcionar.
             this.ensureColumn('image_inventory', 'source', "TEXT NOT NULL DEFAULT 'purchase'");
 
+            // Flag "Em breve" (pedido do dono, 2026-08-15) — INDEPENDENTE de
+            // is_public: um item pode ficar público (visível na listagem da
+            // Loja) e coming_soon ao mesmo tempo (compra/resgate bloqueados
+            // até o dono desligar a flag). Ver profileImagePool.js#setComingSoon
+            // e o bloqueio server-side em imageShopSystem.js.
+            this.ensureColumn('profile_image_pool', 'coming_soon', 'INTEGER NOT NULL DEFAULT 0');
+
             // Conta quantas vezes o usuário já viu o avatar da sidebar do
             // dashboard web (pedido do dono, 2026-08-06: animação de
             // indicação no avatar só nos 3 primeiros acessos, mostrando que

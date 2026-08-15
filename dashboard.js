@@ -620,6 +620,18 @@ const DEVELOPER_ID = '203676076189286412';
 // pra poder travar de novo rápido se precisar, sem reescrever nada.
 const DASHBOARD_LOCKED_TO_OWNER = false;
 
+// Trava geral de compras (pedido do dono, 2026-08-15: "Por hora trave
+// todas as compras de itens e me lembre dessa trava, loja em teste não
+// deve haber compra, nenhuma loja nem de servidor") — bloqueia as 2
+// rotas que debitam moeda de verdade: POST /loja/comprar (Loja de
+// Personalização) e POST /loja/comprar-jogo (Loja de Jogo por servidor).
+// NÃO afeta /loja/usar-jogo (usar item JÁ comprado) nem /perfil/resgatar
+// (resgate de emblema/título por requisito, sempre grátis) — nenhum dos
+// dois é uma COMPRA. Ver também PREMIUM.txt (parágrafo "COMPRAS DE ITENS
+// DE LOJA TEMPORARIAMENTE PAUSADAS") — remova o parágrafo de lá também
+// quando desligar esta flag.
+const SHOP_PURCHASES_LOCKED = true;
+
 // ==================== PARSER DE TERMOS_DE_SERVICO.txt ====================
 // O .txt usa uma marcação própria (pensada pra ficar legível cru, sem
 // precisar abrir nada): [==texto==]{#hexcolor} pra destaque colorido,
@@ -1080,6 +1092,18 @@ function loadDashboard(client) {
         const id = Number(req.params.id);
         const row = ProfileImagePool.getByTypeAndId(type, id);
         if (row) ProfileImagePool.setPublic(type, id, !row.is_public);
+        res.redirect('/dev/Loja');
+    });
+
+    // Flag "Em breve" (pedido do dono, 2026-08-15) — item continua visível
+    // na listagem (se público), mas fica sem poder comprar/resgatar. Ver
+    // profileImagePool.js#setComingSoon e o bloqueio em imageShopSystem.js.
+    app.post('/dev/Loja/:type/:id/toggle-coming-soon', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const { type } = req.params;
+        const id = Number(req.params.id);
+        const row = ProfileImagePool.getByTypeAndId(type, id);
+        if (row) ProfileImagePool.setComingSoon(type, id, !row.coming_soon);
         res.redirect('/dev/Loja');
     });
 
@@ -1590,19 +1614,18 @@ function loadDashboard(client) {
             // abaixo é a lista separada de "ainda dá pra resgatar").
             badgeOptions = ConfigSystem.getUsableBadgeOptions(userId);
             redeemableItems = ImageShopSystem.getRedeemableItems(userId);
-            if (isCompyPlus && !isRaptor) {
-                avatarOptions = ConfigSystem.getPersonalizationOptions();
-                backgroundOptions = avatarOptions;
-            } else if (!isCompyPlus) {
-                // Free tier pode ter comprado uma imagem ESPECÍFICA na Loja
-                // (pedido do dono, 2026-08-07: "a loja vai ser permitida a
-                // qualquer jogador, para comprar e adicionar ao seu
-                // inventario imagens de personalização") — mesma fonte
-                // usada pelo /perfil-edit do Discord, ver
-                // ConfigSystem.getOwnedUsableOptions/imageShopSystem.js.
-                // Foto e plano de fundo unificados num tipo só
-                // (personalizacao, reforma 2026-08-12) — a mesma imagem
-                // comprada aparece nos dois seletores.
+            // Foto/fundo: por POSSE (item comprado na Loja com Caçadas) pra
+            // QUALQUER tier que não seja Raptor — Free e Compy seguem a
+            // MESMA regra desde 2026-08-15 (Compy tinha acesso livre ao
+            // pool inteiro aqui, era bug, pedido do dono: "somente raptor
+            // pode alterar a imagem sem gastar caçadas"; corrigido igual do
+            // lado do Discord, ver ConfigSystem.buildPerfilEditPanelPayload).
+            // Raptor não usa este seletor (upload próprio, ver
+            // avatarPreviewUrl/backgroundPreviewUrl abaixo). Foto e plano de
+            // fundo unificados num tipo só (personalizacao, reforma
+            // 2026-08-12) — a mesma imagem comprada aparece nos dois
+            // seletores.
+            if (!isRaptor) {
                 avatarOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
                 backgroundOptions = avatarOptions;
             }
@@ -1845,6 +1868,7 @@ function loadDashboard(client) {
             redeemResult: req.query.resgatado || null,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
             submissionSent: req.query.enviado === '1',
+            shopPurchasesLocked: SHOP_PURCHASES_LOCKED,
         });
     });
 
@@ -1885,6 +1909,7 @@ function loadDashboard(client) {
     // merece o próprio parâmetro/banner) — ver loja.ejs pro texto exibido.
     app.post('/loja/comprar', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        if (SHOP_PURCHASES_LOCKED) return res.redirect(`/loja?erro=${encodeURIComponent('Compras estão temporariamente pausadas — a Loja ainda está em fase de testes.')}`);
         const { poolType, poolId } = req.body;
         const id = Number(poolId);
         const result = ImageShopSystem.purchaseImage(req.user.id, poolType, id);
@@ -1904,6 +1929,7 @@ function loadDashboard(client) {
     // reaproveita o banner já existente, sucesso usa ?jogoComprado=<label>.
     app.post('/loja/comprar-jogo', checkAuth, async (req, res) => {
         if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        if (SHOP_PURCHASES_LOCKED) return res.redirect(`/loja?erro=${encodeURIComponent('Compras estão temporariamente pausadas — a Loja ainda está em fase de testes.')}`);
         const { guildId, itemKey } = req.body;
         const result = await GameShopSystem.purchaseGameShopItem(guildId, req.user.id, itemKey);
         if (result.ok) {
@@ -2010,48 +2036,34 @@ function loadDashboard(client) {
 
                 if (isCompyPlus) {
                     PlayerRegistry.setHideKda(userId, body.hide_kda === 'on');
+                }
 
-                    if (isRaptor) {
-                        // Upload próprio tem prioridade sobre "remover" no mesmo
-                        // submit (mesma regra já usada pros banners de
-                        // Strike/Unstrike em /moderacao/:guildID/save).
-                        const avatarFile = files.avatar_file?.[0];
-                        const backgroundFile = files.background_file?.[0];
-                        if (avatarFile) {
-                            const result = await storeImageBuffer(client, avatarFile.buffer, `Foto de perfil de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
-                            if (result.ok) PlayerRegistry.setBannerMessageId(userId, result.messageId);
-                        }
-                        if (backgroundFile) {
-                            const result = await storeImageBuffer(client, backgroundFile.buffer, `Plano de fundo de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
-                            if (result.ok) PlayerRegistry.setBackgroundMessageId(userId, result.messageId);
-                        } else if (body.remove_background === 'on') {
-                            PlayerRegistry.setBackgroundMessageId(userId, null);
-                        }
-                        if ('profile_title' in body) {
-                            PlayerRegistry.setProfileTitle(userId, (body.profile_title || '').trim() || null);
-                        }
-                    } else {
-                        // Compy: escolhe da galeria do pool em vez de enviar
-                        // arquivo próprio (mesma restrição do /perfil-edit).
-                        if (body.remove_background === 'on') {
-                            PlayerRegistry.setSelectedBackgroundKey(userId, null);
-                        } else if ('background_key' in body) {
-                            const key = body.background_key || null;
-                            const valid = !key || ConfigSystem.getPersonalizationOptions().some(opt => opt.value === key);
-                            if (valid) PlayerRegistry.setSelectedBackgroundKey(userId, key);
-                        }
-                        if ('photo_key' in body) {
-                            const key = body.photo_key || null;
-                            const valid = !key || ConfigSystem.getPersonalizationOptions().some(opt => opt.value === key);
-                            if (valid) PlayerRegistry.setSelectedPhotoKey(userId, key);
-                        }
+                if (isRaptor) {
+                    // Upload próprio tem prioridade sobre "remover" no mesmo
+                    // submit (mesma regra já usada pros banners de
+                    // Strike/Unstrike em /moderacao/:guildID/save).
+                    const avatarFile = files.avatar_file?.[0];
+                    const backgroundFile = files.background_file?.[0];
+                    if (avatarFile) {
+                        const result = await storeImageBuffer(client, avatarFile.buffer, `Foto de perfil de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
+                        if (result.ok) PlayerRegistry.setBannerMessageId(userId, result.messageId);
+                    }
+                    if (backgroundFile) {
+                        const result = await storeImageBuffer(client, backgroundFile.buffer, `Plano de fundo de \`${req.user.username}\` (\`${userId}\`) via dashboard`);
+                        if (result.ok) PlayerRegistry.setBackgroundMessageId(userId, result.messageId);
+                    } else if (body.remove_background === 'on') {
+                        PlayerRegistry.setBackgroundMessageId(userId, null);
+                    }
+                    if ('profile_title' in body) {
+                        PlayerRegistry.setProfileTitle(userId, (body.profile_title || '').trim() || null);
                     }
                 } else {
-                    // Free: só pode escolher entre foto/plano de fundo que
-                    // comprou na Loja e já pode usar (pedido do dono,
-                    // 2026-08-07: "a loja vai ser permitida a qualquer
-                    // jogador, para comprar e adicionar ao seu inventario
-                    // imagens de personalização") — mesma fonte usada pelo
+                    // Free E Compy: só pode escolher entre foto/plano de
+                    // fundo que comprou na Loja e já pode usar (pedido do
+                    // dono, 2026-08-07 pro Free — e 2026-08-15 estendido pro
+                    // Compy, que tinha acesso livre ao pool inteiro aqui até
+                    // então, era bug: "somente raptor pode alterar a imagem
+                    // sem gastar caçadas"). Mesma fonte usada pelo
                     // /perfil-edit do Discord, ver imageShopSystem.js.
                     const ownedPhotoOptions = ConfigSystem.getOwnedUsableOptions(userId, 'personalizacao');
                     const ownedBackgroundOptions = ownedPhotoOptions;

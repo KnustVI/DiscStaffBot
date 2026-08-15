@@ -616,29 +616,25 @@
                                 <div class="icon-box"><i data-lucide="upload"></i></div>
                                 <input type="file" name="avatar_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                             </div>
-                        <% } else if (isCompyPlus || avatarOptions.length > 0) { %>
-                            <%# Free chega aqui só com avatarOptions.length > 0 — restrito ao que comprou na Loja (pedido do dono, 2026-08-07), ver dashboard.js GET /perfil. %>
-                            <p class="text-xs opacity-40 mb-2"><% if (isCompyPlus) { %><span data-i18n-pt>Escolha uma foto da galeria.</span><span data-i18n-en>Choose a photo from the gallery.</span><% } else { %><span data-i18n-pt>Escolha uma das fotos que você comprou na Loja.</span><span data-i18n-en>Choose one of the photos you bought in the Shop.</span><% } %></p>
-                            <% if (avatarOptions.length === 0) { %>
-                                <p class="text-xs opacity-40"><span data-i18n-pt>Nenhuma foto disponível no momento.</span><span data-i18n-en>No photo available right now.</span></p>
-                            <% } else { %>
-                                <div class="banner-picker">
+                        <% } else if (avatarOptions.length > 0) { %>
+                            <%# Free e Compy chegam aqui igual — restrito ao que comprou na Loja (bug do Compy com acesso livre corrigido em 2026-08-15), ver dashboard.js GET /perfil. %>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha uma das fotos que você comprou na Loja.</span><span data-i18n-en>Choose one of the photos you bought in the Shop.</span></p>
+                            <div class="banner-picker">
+                                <label class="banner-picker-option is-narrow">
+                                    <input type="radio" name="photo_key" value="" <%= !link.selected_photo_key ? 'checked' : '' %>>
+                                    <span class="banner-picker-thumb is-square"></span>
+                                    <span class="banner-picker-label"><span data-i18n-pt>Padrão do tier</span><span data-i18n-en>Tier default</span></span>
+                                </label>
+                                <% avatarOptions.forEach(opt => { %>
                                     <label class="banner-picker-option is-narrow">
-                                        <input type="radio" name="photo_key" value="" <%= !link.selected_photo_key ? 'checked' : '' %>>
+                                        <input type="radio" name="photo_key" value="<%= opt.value %>" <%= opt.value === link.selected_photo_key ? 'checked' : '' %>>
                                         <span class="banner-picker-thumb is-square"></span>
-                                        <span class="banner-picker-label"><span data-i18n-pt>Padrão do tier</span><span data-i18n-en>Tier default</span></span>
+                                        <span class="banner-picker-label"><%= opt.label %></span>
                                     </label>
-                                    <% avatarOptions.forEach(opt => { %>
-                                        <label class="banner-picker-option is-narrow">
-                                            <input type="radio" name="photo_key" value="<%= opt.value %>" <%= opt.value === link.selected_photo_key ? 'checked' : '' %>>
-                                            <span class="banner-picker-thumb is-square"></span>
-                                            <span class="banner-picker-label"><%= opt.label %></span>
-                                        </label>
-                                    <% }); %>
-                                </div>
-                            <% } %>
+                                <% }); %>
+                            </div>
                         <% } else { %>
-                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais, ou compre uma foto específica na</span><span data-i18n-en>on Discord to learn more, or buy a specific photo in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>com Caçadas.</span><span data-i18n-en>with Hunt.</span></p>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Você ainda não comprou nenhuma foto na</span><span data-i18n-en>You haven't bought any photo in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>— compre uma foto específica com Caçadas.</span><span data-i18n-en>yet — buy a specific photo with Hunt.</span></p>
                         <% } %>
                     </div>
 
@@ -653,32 +649,28 @@
                                 <div class="icon-box"><i data-lucide="upload"></i></div>
                                 <input type="file" name="background_file" accept="image/png,image/jpeg,image/webp" class="input-premium-field">
                             </div>
-                        <% } else if (isCompyPlus || backgroundOptions.length > 0) { %>
-                            <%# Free chega aqui só com backgroundOptions.length > 0 — restrito ao que comprou na Loja (pedido do dono, 2026-08-07), ver dashboard.js GET /perfil. %>
-                            <p class="text-xs opacity-40 mb-2"><% if (isCompyPlus) { %><span data-i18n-pt>Escolha um plano de fundo da galeria.</span><span data-i18n-en>Choose a background from the gallery.</span><% } else { %><span data-i18n-pt>Escolha um dos planos de fundo que você comprou na Loja.</span><span data-i18n-en>Choose one of the backgrounds you bought in the Shop.</span><% } %></p>
-                            <% if (backgroundOptions.length === 0) { %>
-                                <p class="text-xs opacity-40"><span data-i18n-pt>Nenhum plano de fundo disponível no momento.</span><span data-i18n-en>No background available right now.</span></p>
-                            <% } else { %>
-                                <div class="banner-picker">
+                        <% } else if (backgroundOptions.length > 0) { %>
+                            <%# Free e Compy chegam aqui igual — restrito ao que comprou na Loja (bug do Compy com acesso livre corrigido em 2026-08-15), ver dashboard.js GET /perfil. %>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Escolha um dos planos de fundo que você comprou na Loja.</span><span data-i18n-en>Choose one of the backgrounds you bought in the Shop.</span></p>
+                            <div class="banner-picker">
+                                <label class="banner-picker-option">
+                                    <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
+                                    <span class="banner-picker-thumb"></span>
+                                    <span class="banner-picker-label"><span data-i18n-pt>Nenhum</span><span data-i18n-en>None</span></span>
+                                </label>
+                                <% backgroundOptions.forEach(opt => { %>
                                     <label class="banner-picker-option">
-                                        <input type="radio" name="background_key" value="" <%= !link.selected_background_key ? 'checked' : '' %>>
+                                        <input type="radio" name="background_key" value="<%= opt.value %>" <%= opt.value === link.selected_background_key ? 'checked' : '' %>>
                                         <span class="banner-picker-thumb"></span>
-                                        <span class="banner-picker-label"><span data-i18n-pt>Nenhum</span><span data-i18n-en>None</span></span>
+                                        <span class="banner-picker-label"><%= opt.label %></span>
                                     </label>
-                                    <% backgroundOptions.forEach(opt => { %>
-                                        <label class="banner-picker-option">
-                                            <input type="radio" name="background_key" value="<%= opt.value %>" <%= opt.value === link.selected_background_key ? 'checked' : '' %>>
-                                            <span class="banner-picker-thumb"></span>
-                                            <span class="banner-picker-label"><%= opt.label %></span>
-                                        </label>
-                                    <% }); %>
-                                </div>
-                            <% } %>
+                                <% }); %>
+                            </div>
                         <% } else { %>
-                            <p class="text-xs opacity-40"><span data-i18n-pt>Recurso do Player Premium Compy ou superior — use</span><span data-i18n-en>Player Premium Compy or higher feature — use</span> <code>/premium</code> <span data-i18n-pt>no Discord pra saber mais, ou compre um plano de fundo específico na</span><span data-i18n-en>on Discord to learn more, or buy a specific background in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>com Caçadas.</span><span data-i18n-en>with Hunt.</span></p>
+                            <p class="text-xs opacity-40"><span data-i18n-pt>Você ainda não comprou nenhum plano de fundo na</span><span data-i18n-en>You haven't bought any background in the</span> <a href="/loja"><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></a> <span data-i18n-pt>— compre um plano de fundo específico com Caçadas.</span><span data-i18n-en>yet — buy a specific background with Hunt.</span></p>
                         <% } %>
-                        <%# Checkbox de remoção — Raptor (upload) OU galeria (Compy+/Free comprado), nunca no ramo sem acesso acima. isCompyPlus já cobre isRaptor. %>
-                        <% if (isCompyPlus || backgroundOptions.length > 0) { %>
+                        <%# Checkbox de remoção — Raptor (upload) ou compra na Loja (Free/Compy), nunca no ramo sem acesso acima. %>
+                        <% if (isRaptor || backgroundOptions.length > 0) { %>
                             <% const hasBackground = isRaptor ? !!link.background_message_id : !!link.selected_background_key; %>
                             <% if (hasBackground) { %>
                                 <label class="text-xs opacity-60 flex items-center gap-2 mt-2">
