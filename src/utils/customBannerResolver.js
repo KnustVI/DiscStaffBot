@@ -73,12 +73,14 @@ async function resolveBanner(client, guildId, field) {
     const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
     if (!messageId || !storageChannelId) return { type: 'key', value: cfg.defaultKey };
 
-    try {
-        const storageChannel = await client.channels.fetch(storageChannelId);
-        const storedMessage = await storageChannel.messages.fetch(messageId);
-        const url = storedMessage.attachments.first()?.url;
-        if (!url) return { type: 'key', value: cfg.defaultKey };
+    // resolveStoredImageUrl já tem retry/timeout/log embutidos (ver
+    // imageStorage.js) — antes essa resolução era feita aqui na mão, sem
+    // nenhum dos dois (pedido do dono, 2026-08-15: personalização parando
+    // de puxar imagem de vez em quando).
+    const url = await require('./imageStorage').resolveStoredImageUrl(client, messageId);
+    if (!url) return { type: 'key', value: cfg.defaultKey };
 
+    try {
         const res = await fetch(url);
         if (!res.ok) return { type: 'key', value: cfg.defaultKey };
 
@@ -119,13 +121,7 @@ async function resolveBannerUrl(client, guildId, field) {
     const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
     if (!messageId || !storageChannelId) return null;
 
-    try {
-        const storageChannel = await client.channels.fetch(storageChannelId);
-        const storedMessage = await storageChannel.messages.fetch(messageId);
-        return storedMessage.attachments.first()?.url || null;
-    } catch (err) {
-        return null;
-    }
+    return require('./imageStorage').resolveStoredImageUrl(client, messageId);
 }
 
 module.exports = { resolveBanner, resolveBannerUrl };

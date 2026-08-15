@@ -239,11 +239,9 @@ class PlayerRegistrationSystem {
      */
     async _resolveCardPhotoBuffer(interaction, targetUser, player, playerTier) {
         if (playerTier === 'raptor') {
-            if (player?.banner_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
+            if (player?.banner_message_id) {
                 try {
-                    const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
-                    const storedMessage = await storageChannel.messages.fetch(player.banner_message_id);
-                    const url = storedMessage.attachments.first()?.url;
+                    const url = await require('../../utils/imageStorage').resolveStoredImageUrl(interaction.client, player.banner_message_id);
                     if (url) {
                         const res = await fetch(url);
                         if (res.ok) return Buffer.from(await res.arrayBuffer());
@@ -312,11 +310,9 @@ class PlayerRegistrationSystem {
      * @returns {Promise<Buffer|null>}
      */
     async _resolveBackgroundBuffer(interaction, player, playerTier) {
-        if (playerTier === 'raptor' && player?.background_message_id && process.env.BANNER_STORAGE_CHANNEL_ID) {
+        if (playerTier === 'raptor' && player?.background_message_id) {
             try {
-                const storageChannel = await interaction.client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
-                const storedMessage = await storageChannel.messages.fetch(player.background_message_id);
-                const url = storedMessage.attachments.first()?.url;
+                const url = await require('../../utils/imageStorage').resolveStoredImageUrl(interaction.client, player.background_message_id);
                 if (url) {
                     const res = await fetch(url);
                     if (res.ok) return Buffer.from(await res.arrayBuffer());

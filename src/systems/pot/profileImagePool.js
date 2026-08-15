@@ -135,7 +135,10 @@ function listImages(type, opts = {}) {
 
 /**
  * Resolve a URL fresca de uma imagem do pool, refazendo o fetch da mensagem
- * de armazenamento — a URL do anexo nunca é guardada, expira em ~24h.
+ * de armazenamento — a URL do anexo nunca é guardada, expira em ~24h. Ver
+ * imageStorage.js#resolveStoredImageUrl pra retry/timeout/log (extraído de
+ * lá, pedido do dono, 2026-08-15: personalização parando de puxar imagem
+ * de vez em quando).
  * @returns {Promise<string|null>}
  */
 async function resolveImageUrl(client, type, id) {
@@ -143,14 +146,8 @@ async function resolveImageUrl(client, type, id) {
     // 'titulo' é texto puro (o texto já está em row.label) — não há
     // mensagem/anexo do Discord pra resolver, então nem tenta.
     if (row && row.type === 'titulo') return null;
-    if (!row || !process.env.BANNER_STORAGE_CHANNEL_ID) return null;
-    try {
-        const storageChannel = await client.channels.fetch(process.env.BANNER_STORAGE_CHANNEL_ID);
-        const storedMessage = await storageChannel.messages.fetch(row.message_id);
-        return storedMessage.attachments.first()?.url || null;
-    } catch (err) {
-        return null;
-    }
+    if (!row) return null;
+    return require('../../utils/imageStorage').resolveStoredImageUrl(client, row.message_id);
 }
 
 /**

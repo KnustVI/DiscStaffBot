@@ -103,4 +103,78 @@ async function uploadAndStoreImage(client, attachment, storageMessageContent) {
     return storeImageBuffer(client, rawBuffer, storageMessageContent);
 }
 
-module.exports = { uploadAndStoreImage, storeImageBuffer, MAX_DIMENSION, WEBP_QUALITY };
+const RESOLVE_TIMEOUT_MS = 10000;
+const RESOLVE_RETRY_DELAY_MS = 500;
+
+function _withTimeout(promise, ms) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout após ${ms}ms`)), ms)),
+    ]);
+}
+
+/**
+ * Resolve a URL fresca do anexo de UMA mensagem guardada no canal de
+ * armazenamento (BANNER_STORAGE_CHANNEL_ID) — todo consumidor de
+ * personalização (foto/plano de fundo, banner de /strike, /unstrike,
+ * ReportChat, e o pool de personalização/banner/emblema) passava por
+ * essa MESMA sequência de 2 chamadas (channels.fetch + messages.fetch)
+ * copiada em 3 lugares (profileImagePool.js#resolveImageUrl,
+ * customBannerResolver.js#resolveBanner/resolveBannerUrl), cada um com
+ * seu próprio try/catch silencioso — SEM retry e SEM log nenhum.
+ *
+ * Extraído aqui (pedido do dono, 2026-08-15: "em alguns momentos o
+ * perfil e as personalizações de comando nos servers param de puxar as
+ * imagens... reiniciar o bot [resolve]") pra dar resiliência de verdade:
+ * - 1 retry curto (RESOLVE_RETRY_DELAY_MS) cobre soluços passageiros de
+ *   rede/rate limit do Discord — antes, UM request que desse ruim
+ *   derrubava a imagem daquela renderização específica por completo,
+ *   mesmo com o arquivo intacto no canal de armazenamento (por isso
+ *   reiniciar o bot "resolvia" — zera qualquer fila/estado travado do
+ *   processo, não porque a imagem tivesse sido perdida de verdade; ver
+ *   memória [[vps_low_memory_no_swap_freeze]] — mesmo tipo de sintoma já
+ *   diagnosticado uma vez, causado por pressão de memória na VPS
+ *   travando temporariamente chamadas assíncronas).
+ * - timeout de RESOLVE_TIMEOUT_MS por tentativa — sem isso, uma
+ *   requisição que trava (em vez de falhar rápido) prende a resolução
+ *   indefinidamente em vez de desistir e cair no fallback.
+ * - loga a falha final (depois do retry) via ErrorLogger — antes não
+ *   havia NENHUM registro de quando/por que isso acontecia, impossível
+ *   confirmar se era rate limit, timeout, ou outra coisa sem isso.
+ *
+ * @param {import('discord.js').Client} client
+ * @param {string} messageId
+ * @returns {Promise<string|null>}
+ */
+async function resolveStoredImageUrl(client, messageId) {
+    const storageChannelId = process.env.BANNER_STORAGE_CHANNEL_ID;
+    if (!messageId || !storageChannelId) return null;
+
+    const attempt = async () => {
+        const storageChannel = await _withTimeout(client.channels.fetch(storageChannelId), RESOLVE_TIMEOUT_MS);
+        const storedMessage = await _withTimeout(storageChannel.messages.fetch(messageId), RESOLVE_TIMEOUT_MS);
+        return storedMessage.attachments.first()?.url || null;
+    };
+
+    try {
+        return await attempt();
+    } catch (firstError) {
+        await new Promise((resolve) => setTimeout(resolve, RESOLVE_RETRY_DELAY_MS));
+        try {
+            return await attempt();
+        } catch (secondError) {
+            try {
+                const ErrorLogger = require('../systems/core/errorLogger');
+                ErrorLogger.error('image_storage', 'resolveStoredImageUrl', secondError, {
+                    messageId,
+                    firstErrorMessage: firstError?.message,
+                });
+            } catch (logErr) {
+                // Nunca deixa uma falha no próprio log derrubar a resolução.
+            }
+            return null;
+        }
+    }
+}
+
+module.exports = { uploadAndStoreImage, storeImageBuffer, resolveStoredImageUrl, MAX_DIMENSION, WEBP_QUALITY };
