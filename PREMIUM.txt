@@ -10069,3 +10069,115 @@ frente, nao so este relatorio):
   depois do commit pra este comando aparecer de verdade nos
   servidores — carregamento (`index.js`) é automático, o registro no
   Discord não.
+
+------------------------------------------------------------------
+197) FIX: sidebar cortada na parte de baixo + botão de Loja na sidebar de
+     perfil/denúncias/histórico/loja
+------------------------------------------------------------------
+- Pedido do dono (2026-08-15): "Sidebar esta sendo cortada nas paginas
+  na parte de baixo, e preciso de um botão de loja na side bar da
+  pagina de perfil."
+- CAUSA da sidebar cortada: regressão real da reforma da barra de topo
+  (seção 193) — o `<aside class="shrink-0 h-screen sticky top-0 ...">`
+  de toda página com sidebar é filho direto de `<body>`, e o `<body>`
+  ganhou `padding-top: var(--nav-height)` naquela reforma (reserva o
+  espaço da barra fixa). Isso empurra o `<aside>` pra baixo, mas
+  `h-screen` continua sendo 100vh CHEIOS — no repouso (scroll=0), o
+  rodapé da sidebar ficava exatamente `--nav-height` pixels abaixo do
+  fim da viewport, só voltando a caber depois de rolar a página pra
+  baixo esse tanto (aí o `sticky top:0` "alcança" o topo e passa a
+  valer os 100vh cheios). Em página com pouco conteúdo (sem altura
+  suficiente pra rolar tanto), o rodapé da sidebar ficava
+  PERMANENTEMENTE inacessível, não só cosmético.
+- FIX (`partials/top-nav.ejs`, `body.tp-reserve-nav-space > aside`):
+  `top: var(--nav-height)` (não mais `0`, herdado do `top-0` do
+  Tailwind) + `height: calc(100vh - var(--nav-height))`. Como os dois
+  valores usam a MESMA variável `--nav-height` que já reserva o espaço
+  no `<body>`, ficam sempre em sincronia automaticamente — inclusive
+  quando a barra quebra em mais linhas em telas estreitas (o JS já
+  remedia `--nav-height` ao vivo). Resultado: o rodapé da sidebar
+  encosta exatamente no fim da viewport em QUALQUER posição de scroll,
+  sem sobra nem corte, sem precisar tocar nas ~11 páginas que usam esse
+  `<aside>` uma por uma (fix central, um seletor só).
+- BOTÃO DE LOJA: adicionado à lista RESTRITA de `sidebar-v2.ejs`
+  (compartilhada por perfil.ejs/perfil-denuncias.ejs/perfil-
+  historico.ejs/loja.ejs), não só em perfil.ejs — mantém a navegação
+  consistente entre as 4 páginas "pessoais", mesmo padrão já usado na
+  lista completa (item admin aparece em toda página admin). Motivo de
+  ir na sidebar e não só confiar no link "LOJA" que já existe na barra
+  de topo: essa barra é `hideOnScroll` nessas páginas — rolando a
+  página, ela some, e leva junto o único jeito de chegar na loja; a
+  sidebar fica sempre visível (sticky), então cobre esse buraco.
+  `href="/loja"` (loja pessoal de cosméticos, ícone `shopping-bag`) —
+  não confundir com `lojajogo`/Loja de Jogo da lista completa (por
+  servidor, ícone `shopping-cart`), que nunca aparece na mesma lista.
+- Verificado com `ejs.renderFile()`: `top-nav.ejs` com a regra CSS nova
+  presente; `sidebar-v2.ejs` restrita renderizando o link `/loja`
+  marcado `active` quando `active:'loja'` e SEM marca quando outro item
+  está ativo; variante completa (moderação/etc.) confirmada intocada
+  (sem `/loja`, só `/lojajogo`). `node --check`/compile das 15 páginas
+  que incluem `top-nav.ejs` (sweep completo, não só as que mudaram de
+  verdade) — nenhuma quebrou. SEM confirmação visual/browser real
+  (nenhuma ferramenta de navegador disponível neste ambiente) — vale o
+  dono conferir visualmente após o deploy, mesma ressalva de sempre.
+
+------------------------------------------------------------------
+198) Configuração de Webhooks adicionada na página Game Server do site
+------------------------------------------------------------------
+- Pedido do dono (2026-08-15): "Adicione a configuração de weebhooks
+  tambem no site em game server." Equivalente web de `/potserver logs`
+  (`potWebhookSystem.js`), que antes só existia no Discord — a própria
+  `gameserver.ejs` já documentava isso como fora do escopo original da
+  página (seção 174/175-ish, "NÃO inclui o painel de webhooks... fora
+  do escopo desta página por ora").
+- MESMO DADO, UI NOVA: os 11 grupos de eventos (`PoTConfigSystem.
+  EVENT_GROUPS`) e a config de webhook por grupo
+  (`pot_group_webhook_<groupId>` em `settings`) são exatamente os
+  mesmos do painel Discord — editar pelo site ou pelo Discord afeta o
+  MESMO servidor, sem coluna/tabela nova nenhuma. Reaproveitadas as
+  funções que já existiam (`getAllGroupWebhooks`/`setWebhookForGroup`/
+  `getWebhookForGroup`/`removeWebhookForGroup`, `PoTWebhookSystem.
+  testDiscordWebhook`/`getGameIniConfig`) — nenhuma lógica de negócio
+  nova, só rotas HTTP + EJS chamando o que já existia.
+- 3 rotas novas em `dashboard.js` (uma por ação, form próprio por
+  grupo — salvar/testar/remover um grupo nunca mexe nos outros 10):
+  `POST /gameserver/:guildID/webhook/:groupId/save` (mesma validação
+  do modal no Discord: prefixo `https://discord.com/api/webhooks/` +
+  teste ao vivo — POST de verdade pro Discord — ANTES de salvar, pra
+  nunca guardar uma URL quebrada sem o admin saber até um evento real
+  falhar em silêncio), `.../test` (re-testa a URL já salva) e
+  `.../remove`.
+- UI (`gameserver.ejs`, novo card "CONFIGURAÇÃO DE WEBHOOKS" entre
+  Conexão do Servidor e Cargo Administrativo): reaproveita o padrão
+  visual `.level-list`/`.level-card`/`.btn-chip`/`.level-form-details`
+  já usado pela lista de Níveis de Punição (moderação) em vez de
+  inventar um estilo novo de "lista de itens configuráveis" — cada
+  grupo é um card com badge Configurado/Não configurado, botões
+  Testar/Remover (só quando já tem URL) e um `<details>` colapsável
+  "Configurar"/"Alterar" com o campo de URL. Um bloco extra colapsável
+  "Ver Game.ini" no fim do card mostra o mesmo conteúdo gerado pelo
+  botão "Game.ini" do painel Discord (texto pronto pra colar no
+  `Game.ini` do servidor) — sem isso, configurar as URLs aqui não
+  bastaria pra o admin saber o que colar no servidor de jogo pra
+  ativar de verdade.
+- Gate de permissão: mesmo `isAdmin` (`ConfigSystem.memberIsGuildAdmin`
+  via `resolveAdminMember`) já usado pelo resto desta página — achado
+  incidental durante a implementação: o texto do card "Conexão do
+  Servidor" (acima) afirma que só Administrador NATIVO pode editar
+  aquele card especificamente, mas o código de `POST /gameserver/:
+  guildID/save` já usa esse mesmo `isAdmin` combinado (nativo OU cargo
+  Administrativo do Dashboard) pros dois cards daquele form — o texto
+  parece estar descrevendo um comportamento pretendido que o código
+  nunca chegou a implementar à parte. Não mexido agora (fora do escopo
+  deste pedido) — só sinalizado aqui pro dono decidir se quer isolar
+  de verdade depois. O novo card de Webhooks segue o `isAdmin` que o
+  código REALMENTE usa hoje nesta página, por consistência.
+- Verificado com `ejs.renderFile()`: card renderiza os 11 grupos, badge
+  Configurado/Não-configurado correto por grupo, botões Testar/Remover
+  só aparecem com URL salva, "Configurar"/"Alterar" no rótulo certo,
+  URL existente pré-preenchida no campo, Game.ini exibido. `node
+  --check` em `dashboard.js`. SEM confirmação end-to-end contra um
+  webhook Discord real nem contra um servidor PoT real (sem acesso a
+  nenhum dos dois neste ambiente) — o teste ao vivo (POST de verdade
+  pro Discord antes de salvar) só pode ser confirmado pelo dono
+  configurando uma URL de verdade depois do deploy.

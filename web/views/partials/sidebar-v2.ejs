@@ -39,10 +39,10 @@
       nickname,                 // apelido a mostrar (se omitido, cai pro user.username)
       restricted: true,         // OPCIONAL (pedido do dono, 2026-08-05) — troca a lista padrão
                                  // (Premium/Game Server/Loja de Jogo/Moderação/Eventos/Denúncias/
-                                 // Perfil) por só Premium/Perfil/Suas Denúncias/Histórico. Usado em
-                                 // perfil.ejs/perfil-denuncias.ejs/perfil-historico.ejs/loja.ejs: nem
-                                 // todo usuário logado é admin de servidor, então os itens guild-scoped
-                                 // não fazem sentido nessas páginas globais.
+                                 // Perfil) por só Premium/Loja/Perfil/Suas Denúncias/Histórico. Usado
+                                 // em perfil.ejs/perfil-denuncias.ejs/perfil-historico.ejs/loja.ejs:
+                                 // nem todo usuário logado é admin de servidor, então os itens
+                                 // guild-scoped não fazem sentido nessas páginas globais.
       defaultCollapsed: false,  // OPCIONAL — quando PASSADO (true OU false, não só omitido), a
                                  // sidebar SEMPRE nasce nesse estado nesta página, ignorando a
                                  // preferência salva em localStorage.tpSidebarCollapsed no
@@ -104,6 +104,22 @@
     // outros.
     const NAV_ITEMS = sbRestricted ? [
         { key: 'premium', labelPt: 'Premium', labelEn: 'Premium', icon: 'gem', href: '/#premium', accent: true },
+        // Loja (pedido do dono, 2026-08-15: "preciso de um botão de loja
+        // na sidebar da pagina de perfil") — a barra de topo já tem um
+        // link "LOJA" (ver top-nav.ejs), mas ela é hideOnScroll nestas
+        // páginas: rolando a página, some, e some junto o único jeito de
+        // chegar na loja. A sidebar fica sempre visível (sticky), então
+        // entra aqui também — mesmo `href` (`/loja`, loja PESSOAL de
+        // cosméticos, não confundir com `lojajogo`/Loja de Jogo da
+        // variante completa abaixo, essa sim por servidor). Adicionado na
+        // lista RESTRITA (perfil/perfil-denuncias/perfil-historico/loja
+        // compartilham essa lista) em vez de só em perfil.ejs — mantém a
+        // navegação consistente entre as 4 páginas "pessoais", mesmo
+        // padrão já usado na lista completa (todo item admin aparece em
+        // toda página admin). Ícone `shopping-bag` (não `shopping-cart`,
+        // usado por Loja de Jogo abaixo) só pra distinguir visualmente as
+        // duas lojas, mesmo elas nunca aparecendo juntas na mesma lista.
+        { key: 'loja', labelPt: 'Loja', labelEn: 'Shop', icon: 'shopping-bag', href: '/loja' },
         // Botão explícito de Perfil (pedido do dono, 2026-08-07: "não está
         // intuitivo que o usuário pode usar o avatar dele de botão") —
         // além do avatar clicável (.tp-sidebar-avatar-btn, mais abaixo

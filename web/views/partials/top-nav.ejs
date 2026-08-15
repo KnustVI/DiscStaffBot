@@ -186,6 +186,38 @@
        container desloca a linha inteira pra baixo igual, sem depender de
        flex-direction. */
     body.tp-reserve-nav-space { padding-top: var(--nav-height, 84px); }
+
+    /* FIX (pedido do dono, 2026-08-15: "Sidebar esta sendo cortada nas
+       paginas na parte de baixo") — o <aside class="shrink-0 h-screen
+       sticky top-0 ..."> de toda página com sidebar (moderacao/reports/
+       events/perfil/loja/lojajogo/gameserver/etc.) é filho direto de
+       <body>, então o padding-top acima empurra ele pra baixo — mas
+       h-screen (100vh) continua sendo a altura INTEIRA da viewport, não
+       "100vh menos o padding". No repouso (scroll=0), o rodapé da
+       sidebar fica exatamente `--nav-height` pixels ABAIXO do fim da
+       viewport — só volta a caber quando o usuário rola a página pra
+       baixo pelo menos esse tanto (sticky top:0 "alcança" o topo da
+       tela e passa a valer os 100vh cheios). Em páginas com pouco
+       conteúdo (sem altura suficiente pra rolar tanto), o rodapé da
+       sidebar fica PERMANENTEMENTE inacessível — bug real, não só
+       cosmético. Corrigido junto com a reserva de espaço (ver body
+       acima), não sozinho: `top` e `height` usam a MESMA variável
+       `--nav-height`, então os dois sempre ficam em sincronia
+       automaticamente, inclusive quando a barra quebra em mais linhas
+       em telas estreitas (JS já remede --nav-height ao vivo, ver
+       syncNavHeight abaixo). `top: var(--nav-height)` (não mais `0`)
+       gruda a sidebar logo ABAIXO do espaço reservado da barra, sempre
+       — a barra em si pode estar visualmente escondida (hideOnScroll),
+       mas o espaço reservado nunca muda (é constante, só o transform/
+       opacity da barra mexem), então esse offset continua correto em
+       qualquer posição de scroll. `height: calc(100vh - var(--nav-
+       height))` faz o rodapé encostar exatamente no fim da viewport, em
+       vez de sobrar/faltar. Seletor por filho direto (`> aside`) pra
+       não afetar nenhum outro <aside> eventual da página. */
+    body.tp-reserve-nav-space > aside {
+        top: var(--nav-height, 84px);
+        height: calc(100vh - var(--nav-height, 84px));
+    }
 </style>
 
 <script>

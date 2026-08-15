@@ -25,6 +25,7 @@ const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
 const PlayerRegistrationSystem = require('./src/systems/pot/playerRegistrationSystem');
 const { renderProfileCard } = require('./src/utils/profileCardRenderer');
 const PoTConfigSystem = require('./src/systems/pot/potConfigSystem');
+const PoTWebhookSystem = require('./src/systems/pot/potWebhookSystem');
 
 // Cache-busting pras imagens estáticas da home (assets/screenshots em
 // web/public/images/) — pedido do dono, 2026-08-12: atualizou o print do
@@ -2311,11 +2312,17 @@ function loadDashboard(client) {
     // eventos)". Espelha a config de /potserver setup (server_ip/rcon_port/
     // rcon_password/game_port/server_name — ver PoTConfigSystem.
     // getServerConfig/setServerConfig, um blob JSON em settings, não
-    // colunas soltas) + a NOVA config de Cargo Administrativo do Dashboard
-    // (admin_role — ver ConfigSystem.memberIsGuildAdmin). NÃO inclui o
-    // painel de webhooks/logs por grupo de evento (/potserver logs) — é uma
-    // UI própria grande (11 grupos, cada um com canal+regeneração de
-    // webhook), fora do escopo desta página por ora, continua só no Discord.
+    // colunas soltas) + a config de Cargo Administrativo do Dashboard
+    // (admin_role — ver ConfigSystem.memberIsGuildAdmin).
+    //
+    // Painel de Webhooks (pedido do dono, 2026-08-15: "Adicione a
+    // configuração de weebhooks tambem no site em game server") — antes
+    // só existia no Discord (/potserver logs, ver potWebhookSystem.js).
+    // Mesmo dado/mesmas funções (PoTConfigSystem.getAllGroupWebhooks/
+    // setWebhookForGroup/removeWebhookForGroup + PoTWebhookSystem.
+    // testDiscordWebhook/getGameIniConfig), só uma UI diferente — nada
+    // muda pro lado do Discord, os dois editam a MESMA configuração
+    // (`pot_group_webhook_<groupId>` em settings).
     const ADMIN_ROLE_LIMIT = 5;
 
     app.get('/gameserver/:guildID', checkAuth, async (req, res) => {
@@ -2350,6 +2357,9 @@ function loadDashboard(client) {
             adminRoleIds,
             adminRoleLimit: ADMIN_ROLE_LIMIT,
             hasRconPassword: !!potConfig.rcon_password,
+            eventGroups: PoTConfigSystem.EVENT_GROUPS,
+            groupWebhooks: PoTConfigSystem.getAllGroupWebhooks(guildID),
+            gameIniConfig: PoTWebhookSystem.getGameIniConfig(guildID),
             saved: req.query.saved,
         });
     });
@@ -2408,6 +2418,81 @@ function loadDashboard(client) {
             console.error('❌ Erro ao salvar configurações do Game Server:', error);
             res.redirect(`/gameserver/${guildID}?saved=error`);
         }
+    });
+
+    // ==================== WEBHOOKS POR GRUPO DE EVENTO (Game Server) ====================
+    // Equivalente web de /potserver logs (ver potWebhookSystem.js) — mesmo
+    // gate de permissão do resto desta página (isAdmin = memberIsGuildAdmin,
+    // não isolado por resolveAdminMember pra "Administrador nativo apenas"
+    // como o texto de "Conexão do Servidor" acima sugere; o código dessa
+    // seção já usa o mesmo isAdmin combinado há tempo, mantido igual aqui
+    // por consistência com o restante da página).
+    app.post('/gameserver/:guildID/webhook/:groupId/save', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, groupId } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
+
+        const group = PoTConfigSystem.EVENT_GROUPS.find((g) => g.id === groupId);
+        if (!group) return res.redirect(`/gameserver/${guildID}?saved=error`);
+
+        // Mesma validação do modal no Discord (ver PoTWebhookSystem.
+        // handleUrlModalSubmit): prefixo de URL de webhook do Discord +
+        // teste ao vivo (POST de verdade) antes de salvar — evita guardar
+        // uma URL quebrada/errada sem o admin descobrir só quando um
+        // evento de jogo real falhar em silêncio.
+        const webhookUrl = String(req.body.webhook_url || '').trim();
+        if (!webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+            return res.redirect(`/gameserver/${guildID}?saved=error`);
+        }
+        const test = await PoTWebhookSystem.testDiscordWebhook(webhookUrl, guild.name);
+        if (!test.success) {
+            return res.redirect(`/gameserver/${guildID}?saved=error`);
+        }
+
+        PoTConfigSystem.setWebhookForGroup(guildID, groupId, webhookUrl);
+        res.redirect(`/gameserver/${guildID}?saved=success`);
+    });
+
+    app.post('/gameserver/:guildID/webhook/:groupId/test', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, groupId } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
+
+        const webhookUrl = PoTConfigSystem.getWebhookForGroup(guildID, groupId);
+        if (!webhookUrl) return res.redirect(`/gameserver/${guildID}?saved=error`);
+
+        const test = await PoTWebhookSystem.testDiscordWebhook(webhookUrl, guild.name);
+        res.redirect(`/gameserver/${guildID}?saved=${test.success ? 'success' : 'error'}`);
+    });
+
+    app.post('/gameserver/:guildID/webhook/:groupId/remove', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, groupId } = req.params;
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) return res.status(404).send('Guild não encontrada.');
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+        }
+        if (!isAdmin) return res.status(403).send('Acesso negado.');
+
+        PoTConfigSystem.removeWebhookForGroup(guildID, groupId);
+        res.redirect(`/gameserver/${guildID}?saved=success`);
     });
 
     // ==================== LOJA DE JOGO (por servidor) ====================

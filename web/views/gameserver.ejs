@@ -11,10 +11,18 @@
   precisar de Administrator nativo do Discord (ver ConfigSystem.
   memberIsGuildAdmin).
 
-  NÃO inclui o painel de webhooks/logs por grupo de evento (/potserver
-  logs, 11 grupos com canal+regeneração de webhook cada) nem o teste de
-  conexão ao vivo (/potserver status já cobre os dois) — fora do escopo
-  desta página por ora.
+  Painel de Webhooks (pedido do dono, 2026-08-15: "Adicione a
+  configuração de weebhooks tambem no site em game server") — equivalente
+  web de /potserver logs, mesma lista de 11 grupos de evento
+  (PoTConfigSystem.EVENT_GROUPS) e mesmas 3 ações por grupo (Salvar/
+  Testar/Remover, ver PoTWebhookSystem.testDiscordWebhook), gravando na
+  MESMA config (`pot_group_webhook_<groupId>`) que o painel do Discord —
+  editar aqui ou lá afeta o mesmo servidor, sem duplicar dado nenhum.
+  Reaproveita o padrão visual de .level-list/.level-card/.btn-chip já
+  usado pela lista de Níveis de Punição (moderacao.ejs) em vez de
+  inventar um novo estilo de "lista de itens configuráveis". Ainda NÃO
+  inclui o teste de conexão RCON/Query ao vivo (/potserver status
+  continua sendo o único jeito de ver isso) — fora do escopo deste pedido.
 
   Uso: res.render('gameserver', { ... }) — ver dashboard.js GET
   /gameserver/:guildID pra lista completa de locals.
@@ -119,6 +127,73 @@
 
             <button type="submit" class="btn-salvar-final self-start mt-2"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
         </form>
+
+        <%#
+            CONFIGURAÇÃO DE WEBHOOKS — equivalente web de /potserver logs
+            (pedido do dono, 2026-08-15). Um <form> POR GRUPO (11 ao todo,
+            eventGroups) em vez de um form combinado — salvar/testar/
+            remover um grupo nunca mexe nos outros 10, mesmo padrão já
+            usado pela lista de Níveis de Punição em moderacao.ejs
+            (.level-list/.level-card/.btn-chip, ver style.css) e pela lista
+            de requisitos de emblema/título em dev-lojas.ejs.
+        %>
+        <div class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg"><span data-i18n-pt>CONFIGURAÇÃO DE WEBHOOKS</span><span data-i18n-en>WEBHOOK CONFIGURATION</span></h2>
+            <p class="text-[13px] opacity-50"><span data-i18n-pt>Cada grupo de eventos do jogo (login, combate, mortes, chat...) pode mandar um aviso formatado pra um webhook do Discord — os mesmos configurados por</span><span data-i18n-en>Each in-game event group (login, combat, deaths, chat...) can send a formatted notice to a Discord webhook — the same ones configured via</span> <code>/potserver logs</code> <span data-i18n-pt>no Discord. Alterar aqui atualiza a mesma configuração usada pelo bot.</span><span data-i18n-en>on Discord. Editing here updates the same configuration used by the bot.</span></p>
+
+            <div class="level-list">
+                <% eventGroups.forEach(group => { %>
+                    <% const webhookUrl = groupWebhooks[group.id] || null; %>
+                    <div class="level-card">
+                        <div class="level-card-main">
+                            <div class="level-card-info">
+                                <span class="level-card-name"><%= group.label %></span>
+                                <span class="level-card-meta"><%= group.description %></span>
+                            </div>
+                        </div>
+                        <div class="level-card-actions">
+                            <span class="level-approval-badge <%= webhookUrl ? 'is-required' : 'is-not-required' %>">
+                                <% if (webhookUrl) { %><span data-i18n-pt>Configurado</span><span data-i18n-en>Configured</span><% } else { %><span data-i18n-pt>Não configurado</span><span data-i18n-en>Not configured</span><% } %>
+                            </span>
+                            <% if (webhookUrl) { %>
+                                <form action="/gameserver/<%= guild.id %>/webhook/<%= group.id %>/test" method="POST">
+                                    <button type="submit" class="btn-chip"><span data-i18n-pt>Testar</span><span data-i18n-en>Test</span></button>
+                                </form>
+                                <form action="/gameserver/<%= guild.id %>/webhook/<%= group.id %>/remove" method="POST" onsubmit="return confirm('Remover o webhook do grupo \'<%= group.label %>\'? Esse grupo de eventos para de ser enviado ao Discord até você configurar de novo.');">
+                                    <button type="submit" class="btn-chip btn-chip-danger"><span data-i18n-pt>Remover</span><span data-i18n-en>Remove</span></button>
+                                </form>
+                            <% } %>
+                            <details class="level-form-details" style="width:auto;">
+                                <summary class="btn-chip"><% if (webhookUrl) { %><span data-i18n-pt>Alterar</span><span data-i18n-en>Change</span><% } else { %><span data-i18n-pt>Configurar</span><span data-i18n-en>Configure</span><% } %></summary>
+                                <form action="/gameserver/<%= guild.id %>/webhook/<%= group.id %>/save" method="POST" class="level-form-grid" style="min-width:280px;">
+                                    <div style="grid-column:1/-1;">
+                                        <label><span data-i18n-pt>URL do Webhook Discord</span><span data-i18n-en>Discord Webhook URL</span></label>
+                                        <div class="input-container-premium"><input type="text" name="webhook_url" class="input-premium-field" placeholder="https://discord.com/api/webhooks/ID/TOKEN" value="<%= webhookUrl || '' %>" required></div>
+                                        <span class="level-form-hint"><span data-i18n-pt>Canal → Configurações → Integrações → Criar Webhook → Copiar URL. Testado ao vivo antes de salvar.</span><span data-i18n-en>Channel → Settings → Integrations → Create Webhook → Copy URL. Live-tested before saving.</span></span>
+                                    </div>
+                                    <div class="level-form-actions" style="grid-column:1/-1;">
+                                        <button type="submit" class="btn-chip btn-chip-success"><span data-i18n-pt>Salvar</span><span data-i18n-en>Save</span></button>
+                                    </div>
+                                </form>
+                            </details>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+
+            <%#
+                Game.ini — mesmo texto/arquivo gerado pelo botão "Game.ini"
+                do painel no Discord (PoTWebhookSystem.getGameIniConfig),
+                só que direto na página em vez de anexo de mensagem — o
+                admin precisa colar isso no servidor de jogo pra qualquer
+                webhook configurado acima realmente funcionar.
+            %>
+            <details class="level-form-details">
+                <summary class="btn-chip">📄 <span data-i18n-pt>Ver Game.ini</span><span data-i18n-en>View Game.ini</span></summary>
+                <p class="text-[13px] opacity-50 mt-2"><span data-i18n-pt>Cole o conteúdo abaixo dentro do</span><span data-i18n-en>Paste the content below inside your</span> <code>Game.ini</code> <span data-i18n-pt>do seu servidor PoT, na seção</span><span data-i18n-en>server's, in the</span> <code>[ServerWebhooks]</code> <span data-i18n-pt>. Caminho:</span><span data-i18n-en>section. Path:</span> <code>AldronGames/PathOfTitans/Saved/Config/LinuxServer/Game.ini</code></p>
+                <pre class="text-[12px] opacity-70 mt-2" style="background:#131314; border:1px solid rgba(217,163,98,0.25); border-radius:10px; padding:14px 18px; overflow-x:auto; white-space:pre; font-family:'Poppins',monospace;"><%= gameIniConfig %></pre>
+            </details>
+        </div>
 
         <%#
             CARGO ADMINISTRATIVO DO DASHBOARD — pedido do dono, 2026-08-11,
