@@ -9994,3 +9994,78 @@ frente, nao so este relatorio):
   no `<select>` escondendo/mostrando os campos certos (JS
   `requirementFormSync`) fica só verificada por leitura de código;
   vale o dono conferir visualmente após o deploy.
+
+------------------------------------------------------------------
+196) NOVO comando /rcon-teste — testa a ação em jogo (RCON) de um nível,
+     SEM registrar punição nenhuma
+------------------------------------------------------------------
+- Motivo: investigando um ban que não aplicou em jogo (jogador
+  250-488-341, guild 1470636597929050255, pedido do dono 2026-08-14),
+  ficou confirmado que o bot só confere se o comando RCON foi ENVIADO
+  sem erro de transporte — nunca se o servidor do jogo de fato
+  reconheceu/executou o comando (a biblioteca RCON usada trata
+  qualquer resposta sem exceção como sucesso). A sintaxe do `/ban`
+  mudou 3 dias antes (seção 182, commit `01fdcab`, 2026-08-11 —
+  passou a exigir 2 motivos entre aspas), suspeito mais provável.
+  Pedido do dono: um jeito de aplicar a ação de um nível cadastrado de
+  verdade (ver a mensagem real no jogo) sem gravar punição nenhuma.
+- ALCANCE: restrito a **Administrador de verdade** do servidor (não
+  Moderador/Supervisor como o `/strike` — confirmado com o dono, mais
+  estreito que uma punição normal porque aplica ação REAL sem nenhum
+  registro). `/ingame-comandos.js` documenta que kick/ban/unban/
+  ServerMute/ServerUnmute são excluídos de propósito da família geral
+  `/ingame-*` — ficam exclusivos de `/strike`/`/unstrike`, pra todo ban
+  real ter registro; este comando reabre uma fatia estreita disso só
+  pra Admin, com aviso explícito de TESTE, mantendo a intenção
+  original (nenhum Moderador comum ganha acesso a ban cru). Exige
+  plano Rastreador+ (mesmo gate `autoRcon` do `/strike`).
+- COMANDO REUTILIZADO, não recriado: a montagem/envio do comando RCON
+  de aplicar (SystemMessage/Kick/Ban/ServerMute + ReloadBans/
+  ReloadMutes) foi extraída de dentro de `_executeStrike`
+  (`punishmentSystem.js`) pra `applyIngameAction`, chamada tanto pelo
+  `/strike` real quanto pelo `/rcon-teste` — garante que o teste manda
+  EXATAMENTE o mesmo comando que a aplicação real manda (senão o teste
+  não provaria nada sobre o bug). Comportamento do `/strike` real
+  idêntico ao de antes, só reorganizado.
+- SEM CONFIRMAÇÃO EM 2 PASSOS (diferente do `/strike`, que sempre
+  estagia + confirma) — o nome/descrição do comando e o aviso "TESTE"
+  já deixam claro o efeito; uma etapa de confirmação só atrasaria o
+  diagnóstico que é o objetivo do comando.
+- RESPOSTA PÚBLICA (pedido do dono) — `/rcon-teste` não entra na lista
+  `ephemeralCommands` (`handlers.js`), sai não-efêmera por padrão.
+  Mostra: alvo, nível/ação testada, comando RCON literal enviado,
+  resultado bruto (sucesso/erro), e aviso fixo "🧪 TESTE — nenhuma
+  punição foi registrada (não aparece em /historico, não afeta
+  reputação)".
+- SEM REGISTRO = SEM `/unstrike` POSSÍVEL: se o teste banir/mutar o
+  jogador errado, não existe punição pra `/unstrike` desfazer (unban/
+  ServerUnmute só existiam dentro da lógica de `/unstrike`, presa a
+  uma linha em `punishments`). Corrigido embutindo um botão "↩️
+  Desfazer" na própria resposta (só aparece quando a ação foi Ban/
+  ServerMute com sucesso) — mesma extração de `handleUnstrikeConfirmation`
+  pra `undoIngameAction`, chamado direto pelo botão (customId
+  `punishment:undo-rcon-test:<Ban|ServerMute>:<alderonId>`, roteado
+  dentro do `handleComponent` que `punishmentSystem.js` já tinha —
+  reconfirma Administrador no próprio clique, nunca confia em quem já
+  viu o botão renderizado).
+- Verificado com script direto (Node): `applyIngameAction`/
+  `undoIngameAction` testados isoladamente (30 checagens) com
+  `PoTConfigSystem.executeRconCommand` mockado — confirma que o
+  comando montado bate byte a byte com o formato oficial (Ban com
+  duração+2 motivos entre aspas, SystemMessage/Kick sem duração,
+  ServerMute análogo ao Ban, duração `''`/`'0'`/`'perm'`/`'PERM'`
+  sempre vira token `'0'`), que Reload só dispara pra Ban/ServerMute
+  com sucesso, que guild sem Rastreador+ bloqueia ANTES de mandar
+  RCON, que jogador sem vínculo/nível sem ação não mandam comando
+  nenhum, e que undo (unban/ServerUnmute + reload) segue o mesmo
+  padrão. `node --check` nos 2 arquivos tocados/criados, e o
+  `SlashCommandBuilder` do comando novo confirmado montando sem
+  erro (options obrigatórias antes das opcionais, descrição dentro do
+  limite de 100 caracteres). SEM confirmação end-to-end contra um
+  servidor PoT real (sem acesso RCON neste ambiente) — essa é
+  justamente a parte que o dono vai validar na prática rodando
+  `/rcon-teste` contra o jogador online, propósito do comando. Precisa
+  rodar `node deploy.js` (ou reiniciar com `DEPLOY_COMMANDS=true`)
+  depois do commit pra este comando aparecer de verdade nos
+  servidores — carregamento (`index.js`) é automático, o registro no
+  Discord não.

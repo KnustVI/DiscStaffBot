@@ -446,6 +446,12 @@ const PunishmentSystem = {
                 case 'supervisor_reject':
                     await this.handleSupervisorApproval(interaction, param, false);
                     break;
+                case 'undo-rcon-test':
+                    // Passa o param CRU ("Ban:250-488-341", ação:AGID), não
+                    // subAction — formato próprio de /rcon-teste, diferente
+                    // dos demais cases acima (subAction:targetId:page).
+                    await this.handleUndoRconTest(interaction, param);
+                    break;
                 default:
                     await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Ação "${action}" não reconhecida.`, COLORS.ERROR, interaction.guild));
             }
@@ -762,6 +768,137 @@ const PunishmentSystem = {
     },
 
     /**
+     * Aplica a ação em jogo (RCON) de um nível — SystemMessage/Kick/Ban/
+     * ServerMute — extraído de dentro de _executeStrike (2026-08-14) pra
+     * também ser chamado por /rcon-teste (comando de teste sem registro,
+     * ver rcon-teste.js) SEM duplicar a montagem do comando, que precisa
+     * ser EXATAMENTE a mesma da aplicação real (senão o teste não prova
+     * nada sobre o comando de verdade). Sintaxe oficial de /ban do PoT
+     * confirmada pelo dono, 2026-08-11:
+     *   /ban <Jogador/AGID> <Duração> "<Motivo_Admin>" "<Motivo_Jogador>"
+     * Aplicada também a ServerMute por analogia. Kick/SystemMessage não
+     * têm duração nem motivo duplo na sintaxe oficial, mas ainda assim
+     * entre aspas — evita quebrar o comando se o motivo tiver espaço.
+     * Ban/ServerMute disparam ReloadBans/ReloadMutes em seguida (mexem em
+     * listas persistentes do servidor — sem recarregar, o motivo só vale
+     * a partir do próximo restart, visto em teste real).
+     *
+     * @param {object} params
+     * @param {string} params.guildId
+     * @param {string} params.jogoAct - 'SystemMessage'|'Kick'|'Ban'|'ServerMute'|'none'|null
+     * @param {string|null} params.targetId - Discord ID, usado se alderonId não vier direto
+     * @param {string|null} params.alderonId - AGID direto, tem prioridade sobre targetId
+     * @param {string} params.durationStr
+     * @param {string} params.reason - motivo que o JOGADOR vê
+     * @param {string} params.levelName
+     * @param {string} params.staffTag
+     * @param {string|null} params.reportId
+     * @param {string} params.actorMention - staff.toString(), pro log de RCON
+     * @param {string} params.source - rótulo pro log de RCON (ex: '/strike', '/rcon-teste')
+     * @returns {Promise<{ command: string|null, ingameActionResult: string|null }>}
+     */
+    async applyIngameAction({ guildId, jogoAct, targetId, alderonId, durationStr, reason, levelName, staffTag, reportId, actorMention, source }) {
+        if (!jogoAct || jogoAct === 'none') return { command: null, ingameActionResult: null };
+        if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
+            return { command: null, ingameActionResult: 'Ação in-game requer o plano Rastreador.' };
+        }
+
+        const link = alderonId ? { alderon_id: alderonId } : getPlayerByDiscordId(targetId);
+        if (!link) {
+            return { command: null, ingameActionResult: 'Jogador não vinculado ao Path of Titans (/registrar) — ação in-game não executada.' };
+        }
+
+        try {
+            const PoTConfigSystem = require('../pot/potConfigSystem');
+            const durationLower = String(durationStr || '').toLowerCase();
+            // Permanente no RCON do PoT é "0" (confirmado pelo dono) — "perm" não é
+            // reconhecido pelo servidor, o comando ficava sem efeito nenhum (nem
+            // erro, só silenciosamente ignorado).
+            const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? '0' : durationStr;
+            const playerReason = sanitizeForRcon(reason, 120);
+            const adminReason = buildAdminReasonLabel({ levelName, staffTag, reportId });
+            const rconCommands = {
+                SystemMessage: `SystemMessage ${link.alderon_id} "${playerReason}"`,
+                Kick: `kick ${link.alderon_id} "${playerReason}"`,
+                Ban: `ban ${link.alderon_id} ${durationToken} "${adminReason}" "${playerReason}"`,
+                ServerMute: `ServerMute ${link.alderon_id} ${durationToken} "${adminReason}" "${playerReason}"`,
+            };
+            const command = rconCommands[jogoAct];
+            if (!command) {
+                return { command: null, ingameActionResult: `Ação in-game "${jogoAct}" desconhecida.` };
+            }
+
+            const rconResult = await PoTConfigSystem.executeRconCommand(guildId, command, { actor: actorMention, source });
+            let ingameActionResult = rconResult?.success
+                ? 'Ação in-game executada.'
+                : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+
+            // ── Ban/ServerMute mexem em listas persistentes do servidor
+            // (banlist/mutelist) — SEM recarregar, o jogador é banido/mutado
+            // mas o servidor não relê o motivo até o próximo restart do
+            // servidor. ──────────────────────────────────────────────────
+            if (rconResult?.success && (jogoAct === 'Ban' || jogoAct === 'ServerMute')) {
+                const reloadCommand = jogoAct === 'Ban' ? 'ReloadBans' : 'ReloadMutes';
+                const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand, { actor: actorMention, source }).catch((err) => ({ success: false, error: err.message }));
+                if (!reloadResult?.success) {
+                    ingameActionResult += ` ${EMOJIS.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}) — o jogador pode não ver o motivo até o próximo restart do servidor.`;
+                }
+            }
+
+            return { command, ingameActionResult };
+        } catch (err) {
+            return { command: null, ingameActionResult: `Falha na ação in-game: ${err.message}` };
+        }
+    },
+
+    /**
+     * Desfaz Ban/ServerMute (unban/ServerUnmute + reload) — extraído de
+     * dentro de handleUnstrikeConfirmation (2026-08-14) pro botão
+     * "Desfazer" de /rcon-teste reaproveitar a MESMA lógica: sem punição
+     * registrada, não há como usar /unstrike pra desfazer um teste que
+     * deu errado (ver rcon-teste.js) — este é o único outro caminho que
+     * o bot expõe pra unban/ServerUnmute (ver docblock de /ingame-comandos,
+     * que exclui esses comandos de propósito da família /ingame-* geral).
+     *
+     * @param {object} params
+     * @param {string} params.guildId
+     * @param {string} params.levelAction - 'Ban'|'ServerMute' (qualquer outro valor não faz nada)
+     * @param {string} params.alderonId - já resolvido pelo chamador (cada um tem sua própria fonte, ver handleUnstrikeConfirmation)
+     * @param {string} params.actorMention
+     * @param {string} params.source
+     * @returns {Promise<{ command: string|null, ingameUndoResult: string|null }>}
+     */
+    async undoIngameAction({ guildId, levelAction, alderonId, actorMention, source }) {
+        if (levelAction !== 'Ban' && levelAction !== 'ServerMute') return { command: null, ingameUndoResult: null };
+        if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
+            return { command: null, ingameUndoResult: 'Ação in-game requer o plano Rastreador — não desfeita automaticamente.' };
+        }
+        if (!alderonId) {
+            return { command: null, ingameUndoResult: 'Jogador não vinculado ao Path of Titans — ação in-game não desfeita.' };
+        }
+
+        try {
+            const PoTConfigSystem = require('../pot/potConfigSystem');
+            const isBan = levelAction === 'Ban';
+            const undoCommand = isBan ? `unban ${alderonId}` : `ServerUnmute ${alderonId}`;
+            const rconResult = await PoTConfigSystem.executeRconCommand(guildId, undoCommand, { actor: actorMention, source });
+            let ingameUndoResult = rconResult?.success
+                ? 'Ação in-game desfeita.'
+                : `Falha ao desfazer ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
+            if (rconResult?.success) {
+                const reloadCommand = isBan ? 'ReloadBans' : 'ReloadMutes';
+                const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand, { actor: actorMention, source }).catch((err) => ({ success: false, error: err.message }));
+                if (!reloadResult?.success) {
+                    ingameUndoResult += ` ${EMOJIS.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}).`;
+                }
+            }
+            return { command: undoCommand, ingameUndoResult };
+        } catch (err) {
+            return { command: null, ingameUndoResult: `Falha ao desfazer ação in-game: ${err.message}` };
+        }
+    },
+
+    /**
      * Núcleo compartilhado da aplicação de um strike: grava a punição,
      * vincula ao report (se houver), aplica ação no Discord, aplica cargo
      * temporário, registra atividade/analytics, envia DM ao alvo e log ao
@@ -865,76 +1002,13 @@ const PunishmentSystem = {
         const roleResult = await this.applyTemporaryRole(guild, targetMember, durationMs);
 
         // ── Ação in-game automática via RCON — a partir do Rastreador (ver
-        // premiumSystem.js, GUILD_LIMITS.autoRcon). Sintaxe oficial de /ban
-        // do PoT confirmada pelo dono, 2026-08-11:
-        //   /ban <Jogador/AGID> <Duração> "<Motivo_Admin>" "<Motivo_Jogador>"
-        // (aspas duplas obrigatórias quando o motivo tem espaço). Aplicado
-        // aqui também pra ServerMute, por analogia (mesmo formato
-        // alvo+duração+dois motivos). `playerReason` é o `motivo` digitado
-        // pelo staff — sempre o texto que o JOGADOR vê — sanitizado (sem
-        // aspas/quebra de linha, que quebram o comando no console) e limitado
-        // a 120 caracteres (trava sugerida: acima disso a UI do menu
-        // principal do jogo corta o texto). `adminReason` é gerado
-        // automaticamente (nível + staff + report), só aparece no
-        // log/console do servidor. Kick/SystemMessage não têm duração nem
-        // motivo duplo na sintaxe oficial, mas ainda assim entre aspas —
-        // evita quebrar o comando se o motivo tiver espaço. ────────────────
-        let ingameActionResult = null;
-        if (jogoAct && jogoAct !== 'none') {
-            if (!PremiumSystem.getGuildLimits(guild.id).autoRcon) {
-                ingameActionResult = 'Ação in-game requer o plano Rastreador.';
-            } else {
-                const link = alderonId ? { alderon_id: alderonId } : getPlayerByDiscordId(targetId);
-                if (!link) {
-                    ingameActionResult = 'Jogador não vinculado ao Path of Titans (/registrar) — ação in-game não executada.';
-                } else {
-                    try {
-                        const PoTConfigSystem = require('../pot/potConfigSystem');
-                        // Permanente no RCON do PoT é "0" (confirmado pelo dono) — "perm" não é
-                        // reconhecido pelo servidor, o comando ficava sem efeito nenhum (nem
-                        // erro, só silenciosamente ignorado).
-                        const durationToken = durationLower === '' || durationLower === '0' || durationLower === 'perm' ? '0' : durationStr;
-                        const playerReason = sanitizeForRcon(reason, 120);
-                        const adminReason = buildAdminReasonLabel({ levelName, staffTag: staff.tag, reportId });
-                        const rconCommands = {
-                            SystemMessage: `SystemMessage ${link.alderon_id} "${playerReason}"`,
-                            Kick: `kick ${link.alderon_id} "${playerReason}"`,
-                            Ban: `ban ${link.alderon_id} ${durationToken} "${adminReason}" "${playerReason}"`,
-                            ServerMute: `ServerMute ${link.alderon_id} ${durationToken} "${adminReason}" "${playerReason}"`,
-                        };
-                        const command = rconCommands[jogoAct];
-                        if (!command) {
-                            ingameActionResult = `Ação in-game "${jogoAct}" desconhecida.`;
-                        } else {
-                            const rconResult = await PoTConfigSystem.executeRconCommand(guild.id, command, { actor: staff.toString(), source: '/strike' });
-                            ingameActionResult = rconResult?.success
-                                ? 'Ação in-game executada.'
-                                : `Falha na ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
-
-                            // ── Ban/ServerMute mexem em listas persistentes do
-                            // servidor (banlist/mutelist) — SEM recarregar, o
-                            // jogador é banido/mutado mas o servidor não relê o
-                            // motivo até o próximo restart (visto em teste real:
-                            // ban aplicado sem esse reload não mostrou o motivo
-                            // pro jogador). Por isso agora é AGUARDADO (antes era
-                            // fire-and-forget silencioso) e a falha é reportada
-                            // ao staff em vez de sumir — a ação principal já foi
-                            // aplicada de qualquer forma, o reload só garante que
-                            // o motivo/efeito completo realmente valha na hora. ──
-                            if (rconResult?.success && (jogoAct === 'Ban' || jogoAct === 'ServerMute')) {
-                                const reloadCommand = jogoAct === 'Ban' ? 'ReloadBans' : 'ReloadMutes';
-                                const reloadResult = await PoTConfigSystem.executeRconCommand(guild.id, reloadCommand, { actor: staff.toString(), source: '/strike' }).catch((err) => ({ success: false, error: err.message }));
-                                if (!reloadResult?.success) {
-                                    ingameActionResult += ` ${EMOJIS.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}) — o jogador pode não ver o motivo até o próximo restart do servidor.`;
-                                }
-                            }
-                        }
-                    } catch (err) {
-                        ingameActionResult = `Falha na ação in-game: ${err.message}`;
-                    }
-                }
-            }
-        }
+        // premiumSystem.js, GUILD_LIMITS.autoRcon). Montagem do comando/envio/
+        // reload extraídos pra applyIngameAction (2026-08-14) — reaproveitado
+        // por /rcon-teste, ver docblock do método. ──────────────────────────
+        const { ingameActionResult } = await this.applyIngameAction({
+            guildId: guild.id, jogoAct, targetId, alderonId, durationStr, reason,
+            levelName, staffTag: staff.tag, reportId, actorMention: staff.toString(), source: '/strike',
+        });
 
         db.logActivity(guild.id, staff.id, 'strike', targetId, {
             command: 'strike', punishmentId: strikeId, levelName, levelSeverity, pointsLost,
@@ -1146,56 +1220,30 @@ const PunishmentSystem = {
             // ── Desfaz a ação EM JOGO, se a punição original tinha uma
             // (Ban/ServerMute via RCON) — antes disso, /unstrike não mexia
             // em nada no jogo, então um jogador banido/mutado continuava
-            // assim mesmo depois de anulado no Discord. Mesmo gate (autoRcon,
-            // Rastreador+) que já libera a aplicação original em
-            // _executeStrike — quem pôde aplicar também consegue desfazer.
-            // Falha de RCON aqui NÃO bloqueia o resto do unstrike (o banco/
-            // Discord já são a fonte da verdade da punição). ─────────────────
-            let ingameUndoResult = null;
-            if (punishment.level_action === 'Ban' || punishment.level_action === 'ServerMute') {
-                if (!PremiumSystem.getGuildLimits(guildId).autoRcon) {
-                    ingameUndoResult = 'Ação in-game requer o plano Rastreador — não desfeita automaticamente.';
-                } else {
-                    // Prioridade 1: o AGID gravado NA PRÓPRIA punição (coluna
-                    // alderon_id, ver ensureColumn em database/index.js) — o
-                    // valor EXATO usado na ação em jogo original, sempre
-                    // presente em punições aplicadas a partir desta revisão.
-                    // Sem isso (punição legada, coluna null), cai no
-                    // melhor-esforço antigo: alvo sem vínculo Discord (ver
-                    // UNREGISTERED_TARGET_PREFIX) guarda o AGID direto no
-                    // user_id; alvo normal tenta o vínculo GLOBAL ATUAL — que
-                    // pode já não bater com o AGID realmente punido (causa
-                    // raiz original do bug "unstrike não remove ban/mute",
-                    // pedido do dono 2026-08-11), mas é o único dado que
-                    // ainda existe pra punições antigas.
-                    const alderonId = punishment.alderon_id
-                        || (this._isUnregisteredTargetId(punishment.user_id)
-                            ? punishment.user_id.slice(UNREGISTERED_TARGET_PREFIX.length)
-                            : getPlayerByDiscordId(punishment.user_id)?.alderon_id);
-                    if (!alderonId) {
-                        ingameUndoResult = 'Jogador não vinculado ao Path of Titans — ação in-game não desfeita.';
-                    } else {
-                        try {
-                            const PoTConfigSystem = require('../pot/potConfigSystem');
-                            const isBan = punishment.level_action === 'Ban';
-                            const undoCommand = isBan ? `unban ${alderonId}` : `ServerUnmute ${alderonId}`;
-                            const rconResult = await PoTConfigSystem.executeRconCommand(guildId, undoCommand, { actor: staff.toString(), source: '/unstrike' });
-                            ingameUndoResult = rconResult?.success
-                                ? 'Ação in-game desfeita.'
-                                : `Falha ao desfazer ação in-game: ${rconResult?.error || 'erro desconhecido'}`;
-                            if (rconResult?.success) {
-                                const reloadCommand = isBan ? 'ReloadBans' : 'ReloadMutes';
-                                const reloadResult = await PoTConfigSystem.executeRconCommand(guildId, reloadCommand, { actor: staff.toString(), source: '/unstrike' }).catch((err) => ({ success: false, error: err.message }));
-                                if (!reloadResult?.success) {
-                                    ingameUndoResult += ` ${emojis.trianglealert || '⚠️'} ${reloadCommand} falhou (${reloadResult?.error || 'erro desconhecido'}).`;
-                                }
-                            }
-                        } catch (err) {
-                            ingameUndoResult = `Falha ao desfazer ação in-game: ${err.message}`;
-                        }
-                    }
-                }
-            }
+            // assim mesmo depois de anulado no Discord. Montagem do comando/
+            // envio/reload extraídos pra undoIngameAction (2026-08-14) —
+            // reaproveitado pelo botão "Desfazer" de /rcon-teste, ver
+            // docblock do método. Falha de RCON aqui NÃO bloqueia o resto
+            // do unstrike (o banco/Discord já são a fonte da verdade). ──────
+            // Prioridade 1: o AGID gravado NA PRÓPRIA punição (coluna
+            // alderon_id, ver ensureColumn em database/index.js) — o valor
+            // EXATO usado na ação em jogo original, sempre presente em
+            // punições aplicadas a partir desta revisão. Sem isso (punição
+            // legada, coluna null), cai no melhor-esforço antigo: alvo sem
+            // vínculo Discord (ver UNREGISTERED_TARGET_PREFIX) guarda o AGID
+            // direto no user_id; alvo normal tenta o vínculo GLOBAL ATUAL —
+            // que pode já não bater com o AGID realmente punido (causa raiz
+            // original do bug "unstrike não remove ban/mute", pedido do
+            // dono 2026-08-11), mas é o único dado que ainda existe pra
+            // punições antigas.
+            const undoAlderonId = punishment.alderon_id
+                || (this._isUnregisteredTargetId(punishment.user_id)
+                    ? punishment.user_id.slice(UNREGISTERED_TARGET_PREFIX.length)
+                    : getPlayerByDiscordId(punishment.user_id)?.alderon_id);
+            const { ingameUndoResult } = await this.undoIngameAction({
+                guildId, levelAction: punishment.level_action, alderonId: undoAlderonId,
+                actorMention: staff.toString(), source: '/unstrike',
+            });
 
             db.logActivity(guildId, staff.id, 'unstrike', punishment.user_id, {
                 command: 'unstrike', punishmentId, pointsRestored, oldPoints: currentRep, newPoints, ingameUndoResult
@@ -1248,6 +1296,43 @@ const PunishmentSystem = {
             SessionManager.delete(interaction.user.id, interaction.guildId, 'unstrike_pending', 'unstrike_pending');
             await interaction.editReply(this._simpleReply(summaryLines.join('\n'), COLORS.SUCCESS, interaction.guild));
         }
+    },
+
+    /**
+     * Botão "↩️ Desfazer" anexado à resposta de /rcon-teste (customId
+     * `punishment:undo-rcon-test:<Ban|ServerMute>:<alderonId>`, ver
+     * rcon-teste.js) — único jeito de reverter um ban/mute de TESTE, já
+     * que ele não cria punição nenhuma pra /unstrike referenciar (ver
+     * docblock de undoIngameAction). Reconfirma Administrador de verdade
+     * no próprio clique — nunca confia em quem já viu o botão renderizado,
+     * mesmo padrão de qualquer outro botão sensível deste bot.
+     */
+    async handleUndoRconTest(interaction, param) {
+        const ConfigSystem = require('../core/configSystem');
+        if (!ConfigSystem.memberIsGuildAdmin(interaction.guildId, interaction.member)) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Este botão é restrito a Administradores do servidor.`, COLORS.ERROR, interaction.guild));
+        }
+
+        const [levelAction, alderonId] = String(param || '').split(':');
+        if (!levelAction || !alderonId) {
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Dados do botão inválidos.`, COLORS.ERROR, interaction.guild));
+        }
+
+        const { ingameUndoResult } = await this.undoIngameAction({
+            guildId: interaction.guildId, levelAction, alderonId,
+            actorMention: interaction.user.toString(), source: '/rcon-teste (desfazer)',
+        });
+
+        // Mesmo padrão de handleStrikeConfirmation/handleUnstrikeConfirmation
+        // acima: SUBSTITUI a mensagem original inteira por um resumo de 1
+        // linha via _simpleReply/editReply (a interação já chega aqui
+        // deferida via deferUpdate() genérico em interactionCreate.js) — sem
+        // precisar tocar em interaction.message.components pra "preservar"
+        // o botão, que quebraria em Components V2 (o botão fica ANINHADO
+        // dentro do Container, não é um ActionRow solto no topo — ver
+        // containerBuilder.js build()).
+        const color = ingameUndoResult === 'Ação in-game desfeita.' ? COLORS.SUCCESS : COLORS.ERROR;
+        await interaction.editReply(this._simpleReply(`${EMOJIS.game || '🎮'} ${ingameUndoResult || 'Nada a desfazer.'}`, color, interaction.guild));
     },
 
     // ==================== MÉTODOS DE NEGÓCIO ====================
