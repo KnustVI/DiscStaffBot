@@ -615,10 +615,23 @@ const PunishmentSystem = {
         return this.parseDuration(durationStr) > 72 * 3600000;
     },
 
+    // Ponto ÚNICO de checagem "isso é coisa de Supervisor?" no bot inteiro —
+    // usado direto por _executeStrike (preview + gate de confirmação),
+    // handleSupervisorApproval (botão Aprovar/Rejeitar), e indiretamente por
+    // config/buffs.js, config/filtro.js, buffPanelSystem._isSupervisor e
+    // chatFilterPanelSystem._isSupervisor (todos só repassam pra cá). Pedido
+    // do dono, 2026-08-15: "Cargo administrativo ainda esta com travas em
+    // alguns comandos... ele deve liberar todos os comandos mesmo sem cargo
+    // de supervisão... ele esta acima da supervisão" — Cargo Administrativo
+    // do Dashboard (ConfigSystem.memberIsGuildAdmin: Administrator nativo OU
+    // admin_role) passa a valer como Supervisor em QUALQUER lugar que chame
+    // esta função, sem precisar do cargo Supervisor também. Corrigido aqui
+    // (fonte única) em vez de em cada um dos ~7 call sites separadamente.
     async memberHasSupervisorRole(guild, member) {
         if (!member) return false;
         const ConfigSystem = require('../core/configSystem');
-        return ConfigSystem.memberHasConfiguredRole(guild.id, member, 'supervisor_role');
+        return ConfigSystem.memberHasConfiguredRole(guild.id, member, 'supervisor_role')
+            || ConfigSystem.memberIsGuildAdmin(guild.id, member);
     },
 
     /**
@@ -719,7 +732,7 @@ const PunishmentSystem = {
         const guild = interaction.guild;
 
         if (!(await this.memberHasSupervisorRole(guild, interaction.member))) {
-            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Apenas o cargo Supervisor pode aprovar ou rejeitar punições severas.`, COLORS.ERROR, guild));
+            return await interaction.editReply(this._simpleReply(`${EMOJIS.circlealert || '❌'} Apenas o cargo Supervisor (ou o Cargo Administrativo do Dashboard) pode aprovar ou rejeitar punições severas.`, COLORS.ERROR, guild));
         }
 
         const session = SessionManager.get('approval', guild.id, 'strike_approval', approvalId);

@@ -19,8 +19,9 @@ module.exports = {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
         }
 
-        // Pedido do dono: CRIAR/editar filtro é restrito ao cargo
-        // Supervisor (mesmo critério de /config buffs).
+        // Pedido do dono: CRIAR/editar filtro é restrito ao cargo Supervisor
+        // OU ao Cargo Administrativo do Dashboard (mesmo critério de
+        // /config buffs, ver docblock de memberHasSupervisorRole).
         if (!(await PunishmentSystem.memberHasSupervisorRole(guild, member))) {
             return await ResponseManager.error(interaction, 'Este comando é restrito ao cargo Supervisor (ver /config roles).');
         }

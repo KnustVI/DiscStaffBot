@@ -608,7 +608,7 @@
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Foto de Perfil</span><span data-i18n-en>Profile Picture</span></h3>
                         <% if (isRaptor) { %>
-                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem. Sem upload, usa o banner do seu próprio perfil do Discord (se você tiver um).</span><span data-i18n-en>Upload your own image. Without an upload, it uses your own Discord profile banner (if you have one).</span></p>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem. Sem upload, usa o seu próprio avatar do Discord.</span><span data-i18n-en>Upload your own image. Without an upload, it uses your own Discord avatar.</span></p>
                             <% if (avatarPreviewUrl) { %>
                                 <div class="rounded-lg mb-2" style="width:96px; aspect-ratio:1/1; background-image:url('<%= avatarPreviewUrl %>'); background-size:cover; background-position:center;"></div>
                             <% } %>
@@ -645,7 +645,7 @@
                     <div>
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest mb-3"><span data-i18n-pt>Plano de Fundo</span><span data-i18n-en>Background</span></h3>
                         <% if (isRaptor) { %>
-                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem (ideal 1300x300).</span><span data-i18n-en>Upload your own image (ideal 1300x300).</span></p>
+                            <p class="text-xs opacity-40 mb-2"><span data-i18n-pt>Envie sua própria imagem (ideal 1300x300). Sem upload, usa o banner do seu próprio perfil do Discord, se você tiver um.</span><span data-i18n-en>Upload your own image (ideal 1300x300). Without an upload, it uses your own Discord profile banner, if you have one.</span></p>
                             <% if (backgroundPreviewUrl) { %>
                                 <div class="rounded-lg mb-2" style="aspect-ratio: 1300/300; max-width:300px; background-image:url('<%= backgroundPreviewUrl %>'); background-size:cover; background-position:center;"></div>
                             <% } %>

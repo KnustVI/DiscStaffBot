@@ -223,8 +223,13 @@ class PlayerRegistrationSystem {
 
     /**
      * Resolve os bytes da foto de fundo do card, em ordem de prioridade:
-     * Raptor: foto personalizada (upload via /perfil-edit) → banner do
-     * próprio Discord → foto padrão do tier.
+     * Raptor: foto personalizada (upload via /perfil-edit) → AVATAR do
+     * próprio Discord (pedido do dono, 2026-08-15: "no player premium
+     * raptor se não conseguir carregar o profile dele configurado, puxe a
+     * imagem de avatar do discord como imagem de perfil" — corrigido de
+     * bannerURL para avatarURL/displayAvatarURL, era o campo errado do
+     * Discord) → foto padrão do tier. Free/Compy NUNCA tocam Discord —
+     * já era assim antes desta revisão, confirmado correto.
      * Compy: foto escolhida num menu pré-definido (/perfil-edit,
      * selected_photo_key) → foto padrão do tier. A chave escolhida pode vir
      * do pool estático (imageManager) ou do pool dinâmico adicionado via
@@ -250,7 +255,7 @@ class PlayerRegistrationSystem {
 
             try {
                 const fullUser = await targetUser.fetch();
-                const url = fullUser.bannerURL({ size: 512 });
+                const url = fullUser.displayAvatarURL({ size: 512 });
                 if (url) {
                     const res = await fetch(url);
                     if (res.ok) return Buffer.from(await res.arrayBuffer());
@@ -294,11 +299,14 @@ class PlayerRegistrationSystem {
      * por renderProfileCard (pedido do dono: "literalmente no fundo de
      * tudo", não um bloco separado acima do card como antes), então precisa
      * dos bytes de verdade (Buffer), não só de uma URL pra exibir direto.
-     * Raptor (upload próprio, message_id) > Compy (selected_background_key,
-     * do pool estático via imageManager OU do pool dinâmico via
-     * /perfil-pool — ver profileImagePool.js) > null (sem plano de fundo
-     * nenhum — diferente da foto, não tem "padrão do tier" pra isso,
-     * simplesmente não compõe nenhum).
+     * Raptor: upload próprio (message_id) → BANNER do próprio Discord, se o
+     * jogador tiver um configurado (pedido do dono, 2026-08-15: "...e o
+     * banner dele como plano de fundo se existir" — antes não existia
+     * nenhum fallback de Discord aqui, sempre caía direto em null) > Compy
+     * (selected_background_key, do pool estático via imageManager OU do
+     * pool dinâmico via /perfil-pool — ver profileImagePool.js) > null (sem
+     * plano de fundo nenhum — Free/Compy sem seleção, ou Raptor sem upload
+     * E sem banner no Discord). Free/Compy NUNCA tocam Discord.
      *
      * @returns {Promise<Buffer|null>}
      */
@@ -313,7 +321,26 @@ class PlayerRegistrationSystem {
                     if (res.ok) return Buffer.from(await res.arrayBuffer());
                 }
             } catch (err) {
-                // segue pro fallback (sem plano de fundo)
+                // segue pro próximo fallback
+            }
+        }
+
+        // Sem upload próprio (ou upload falhou) — cai pro banner do Discord,
+        // se o jogador tiver um configurado (força um fetch de verdade via
+        // client.users.fetch(..., {force:true}), não client.users.cache: o
+        // objeto em cache pode ser parcial e nunca ter o campo `banner`
+        // populado, mesmo raciocínio já usado em _resolveCardPhotoBuffer
+        // pro avatar).
+        if (playerTier === 'raptor' && player?.user_id) {
+            try {
+                const fullUser = await interaction.client.users.fetch(player.user_id, { force: true });
+                const url = fullUser.bannerURL({ size: 512 });
+                if (url) {
+                    const res = await fetch(url);
+                    if (res.ok) return Buffer.from(await res.arrayBuffer());
+                }
+            } catch (err) {
+                // segue sem plano de fundo (ou pro pool, abaixo)
             }
         }
 

@@ -2223,10 +2223,10 @@ const ConfigSystem = {
 
         if (isCompyPlus) {
             const photoStatus = isRaptor
-                ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou banner do Discord)')
+                ? (link?.banner_message_id ? 'Upload próprio' : 'Padrão do tier (ou avatar do Discord)')
                 : (link?.selected_photo_key ? getPersonalizationOptions().find(o => o.value === link.selected_photo_key)?.label || link.selected_photo_key : 'Padrão do tier');
             const backgroundStatus = isRaptor
-                ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (sem plano de fundo)')
+                ? (link?.background_message_id ? 'Upload próprio' : 'Nenhum (ou banner do Discord, se houver)')
                 : (link?.selected_background_key ? getPersonalizationOptions().find(o => o.value === link.selected_background_key)?.label || link.selected_background_key : 'Nenhum (sem plano de fundo)');
             const kdaStatus = link?.hide_kda ? `${EMOJIS.circlealert || '❌'} Escondido` : `${EMOJIS.circlecheck || '✅'} Visível`;
             statusLines.push(`**Foto de perfil:** ${photoStatus}`, `**Plano de fundo:** ${backgroundStatus}`, `**Kills/Deaths/K-D:** ${kdaStatus}`);

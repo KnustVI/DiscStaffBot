@@ -23,8 +23,11 @@
  * parâmetros `avatar`/`plano_de_fundo` são ignorados pra esse tier (mostra
  * o painel de qualquer forma).
  * Raptor: upload próprio via `avatar` (foto de perfil) e/ou `plano_de_fundo`.
- * Sem anexo enviado em `avatar`: usa o banner do próprio Discord (se o
- * jogador tiver um configurado). Com anexo: a imagem enviada vira a foto/fundo.
+ * Sem anexo enviado em `avatar`: usa o AVATAR do próprio Discord como foto
+ * (pedido do dono, 2026-08-15). Sem anexo em `plano_de_fundo`: usa o BANNER
+ * do próprio Discord, se o jogador tiver um configurado. Com anexo: a
+ * imagem enviada vira a foto/fundo (ver playerRegistrationSystem.js
+ * _resolveCardPhotoBuffer/_resolveBackgroundBuffer).
  *
  * A composição de verdade (moldura, nome, badges, estrelas de honra em cima
  * da foto) acontece na hora que o /perfil é exibido, não aqui — ver

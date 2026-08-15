@@ -410,8 +410,11 @@ const toc = [
                 <span class="legend-item"><span class="badge tier-free">FREE</span> <%- t('— disponível em qualquer plano', '— available on any plan') %></span>
                 <span class="legend-item"><span class="badge tier-rastreador"><%- t('RASTREADOR+', 'TRACKER+') %></span> <%- t('— exige plano Rastreador ou Caçador', '— requires the Tracker or Hunter plan') %></span>
                 <span class="legend-item"><span class="badge tier-cacador"><%- t('CAÇADOR', 'HUNTER') %></span> <%- t('— exclusivo do plano Caçador', '— exclusive to the Hunter plan') %></span>
-                <span class="legend-item"><%- t('🔒 — exige também o cargo de Supervisor, além de Staff', '🔒 — also requires the Supervisor role, in addition to Staff') %></span>
+                <span class="legend-item"><%- t('🔒 — exige também o cargo de Supervisor, além de Staff (o Cargo Administrativo do Dashboard também libera, ver abaixo)', '🔒 — also requires the Supervisor role, in addition to Staff (the Dashboard Administrative Role also unlocks this, see below)') %></span>
             </div>
+            <p class="docs-cat-desc" style="margin-top:8px;">
+                <%- t('<strong>Cargo Administrativo do Dashboard</strong> (configurado na página Game Server do site) fica ACIMA de Supervisor na hierarquia — libera todo comando/configuração que normalmente exigiria o cargo Supervisor (inclusive os marcados com 🔒), sem precisar ter o cargo Supervisor também, e pode aprovar/rejeitar punições severas. Vale nos dois lados, site e Discord, porque é a mesma checagem (<code>memberIsGuildAdmin</code>) nos dois — a única exceção continua sendo <code>/potserver</code>, que sempre exige Administrador nativo do Discord de verdade.', '<strong>Dashboard Administrative Role</strong> (configured on the site\'s Game Server page) ranks ABOVE Supervisor in the hierarchy — it unlocks every command/setting that would normally require the Supervisor role (including ones marked 🔒), without needing the Supervisor role too, and it can approve/reject severe punishments. This applies on both the site and Discord, since it\'s the same check (<code>memberIsGuildAdmin</code>) on both sides — the one exception remains <code>/potserver</code>, which always requires a real native Discord Administrator.') %>
+            </p>
         </section>
 
         <!-- ===================== DASHBOARD WEB ===================== -->
@@ -665,8 +668,8 @@ const toc = [
                             { name: 'banner_unstrike', type: 'Anexo', req: false, descPt: '', descEn: '' },
                             { name: 'banner_reportchat', type: 'Anexo', req: false, descPt: '', descEn: '' },
                         ] },
-                        { name: 'buffs', descPt: 'Painel de criação/edição de buffs — presets de atributos (RCON) aplicados em lote num jogador com /ingame-buff aplicar. Exige também o cargo de Supervisor, além do plano.', descEn: 'Panel for creating/editing buffs — batches of attribute presets (RCON) applied to a player with /ingame-buff aplicar. Also requires the Supervisor role, in addition to the plan.', tier: 'cacador' },
-                        { name: 'filtro', descPt: 'Painel do filtro de palavras do chat em jogo, com ação automática configurável. Exige também o cargo de Supervisor, além do plano.', descEn: 'Panel for the in-game chat word filter, with configurable automatic action. Also requires the Supervisor role, in addition to the plan.', tier: 'cacador' },
+                        { name: 'buffs', descPt: 'Painel de criação/edição de buffs — presets de atributos (RCON) aplicados em lote num jogador com /ingame-buff aplicar. Exige também o cargo de Supervisor OU o Cargo Administrativo do Dashboard, além do plano.', descEn: 'Panel for creating/editing buffs — batches of attribute presets (RCON) applied to a player with /ingame-buff aplicar. Also requires the Supervisor role OR the Dashboard Administrative Role, in addition to the plan.', tier: 'cacador' },
+                        { name: 'filtro', descPt: 'Painel do filtro de palavras do chat em jogo, com ação automática configurável. Exige também o cargo de Supervisor OU o Cargo Administrativo do Dashboard, além do plano.', descEn: 'Panel for the in-game chat word filter, with configurable automatic action. Also requires the Supervisor role OR the Dashboard Administrative Role, in addition to the plan.', tier: 'cacador' },
                     ],
                 }) %>
                 <%- cmdCard({

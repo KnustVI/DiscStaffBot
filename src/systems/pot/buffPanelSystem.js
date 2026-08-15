@@ -40,9 +40,11 @@ function _isEnabled(guildId) {
     return !!PremiumSystem.getGuildLimits(guildId).genericRconEnabled;
 }
 
-// Criar/editar buff é restrito ao cargo Supervisor (pedido do dono) —
-// diferente de aplicar um buff (/ingame-buff aplicar), liberado pra
-// qualquer cargo de staff (ver ConfigSystem.memberHasAnyStaffRole lá).
+// Criar/editar buff é restrito ao cargo Supervisor OU ao Cargo
+// Administrativo do Dashboard (pedido do dono — memberHasSupervisorRole já
+// aceita os dois) — diferente de aplicar um buff (/ingame-buff aplicar),
+// liberado pra qualquer cargo de staff (ver ConfigSystem.
+// memberHasAnyStaffRole lá).
 async function _isSupervisor(interaction) {
     return await PunishmentSystem.memberHasSupervisorRole(interaction.guild, interaction.member);
 }

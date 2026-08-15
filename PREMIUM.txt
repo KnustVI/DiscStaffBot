@@ -138,8 +138,15 @@ FREE
   - ver secao 188). O DESENHO do emblema escolhido em cima do card ainda
   NAO esta implementado (precisa de assets reais cadastrados antes de
   acertar a composicao - ver secao Compy abaixo).
-- Sem o resto da personalizacao (foto/plano de fundo proprios, titulo,
-  esconder KDA) - isso continua exclusivo Compy+/Raptor, ver abaixo.
+- Sem o resto da personalizacao "de graca" (acesso livre ao pool inteiro,
+  titulo, esconder KDA) - isso continua exclusivo Compy+/Raptor, ver
+  abaixo. MUDANCA 2026-08-15: Free JA PODE comprar/enviar imagens
+  especificas na Loja de Personalizacao pagando Cacadas (sem gate de tier
+  nenhum na COMPRA em si, ja implementado desde 2026-08-07/12 - ver Loja
+  de Personalizacao mais abaixo) e usar como foto/plano de fundo do card -
+  diferente do acesso "de graca" ao catalogo INTEIRO que so Compy+/Raptor
+  tem. Sem nada comprado/configurado, o card sempre usa a foto padrao do
+  tier (fixa, local, NUNCA puxa nada do Discord para o Free).
 - Ganha Caçadas E Bones jogando (por hora de jogo, mesmo gatilho: 1h = 1
   Caçada + 5 Bones + 1 XP) em qualquer servidor integrado ao bot - ver
   moeda Caçadas/Osso/Nível no topo desta seção. JÁ IMPLEMENTADO
@@ -179,12 +186,16 @@ RAPTOR - R$25/mes (Brasil, Pix manual) ou US$12/mes (fora do Brasil, via Ko-fi) 
   JA IMPLEMENTADO: o /perfil mostra um CARD completo (moldura, foto,
   badges de Titulo/Nivel/Especie, estrelas de honra, nome e identificacao)
   no lugar do banner simples. Raptor troca a FOTO de fundo desse card por
-  UPLOAD PROPRIO (via /perfil-edit ou puxando o banner do proprio Discord);
-  Compy escolhe por MENU (ver acima); Free usa sempre a foto padrao do tier.
+  UPLOAD PROPRIO (via /perfil-edit ou puxando o AVATAR do proprio Discord
+  - CORRIGIDO 2026-08-15, pedido do dono: antes puxava o banner do Discord
+  por engano, campo errado); Compy escolhe por MENU (ver acima); Free usa
+  sempre a foto padrao do tier, nunca Discord.
 - Plano de fundo (banner atras da mensagem inteira) TAMBEM por upload
   proprio aqui (`/perfil-edit plano_de_fundo:<imagem>`), mesmo padrao de
-  armazenamento da foto (guarda so o ID da mensagem, nunca a URL). JA
-  IMPLEMENTADO.
+  armazenamento da foto (guarda so o ID da mensagem, nunca a URL) - sem
+  upload, cai pro BANNER do proprio Discord se o jogador tiver um
+  configurado (NOVO 2026-08-15 - antes nao existia fallback nenhum aqui,
+  ficava sempre sem plano de fundo). JA IMPLEMENTADO.
 - Titulo do card (texto livre, ate 40 caracteres) via modal em
   /perfil-edit - substitui o placeholder fixo "Em breve (missoes)" pela
   badge superior do card. JA IMPLEMENTADO (exclusivo deste tier - sem
@@ -202,8 +213,9 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   em assets/cards/{tier}.svg (Free/Compy/Raptor, cada um com sua cor), sem
   nenhuma parte redesenhada a mao. O que o bot desenha por cima na hora:
     - a FOTO, recortada exatamente na moldura do card (foto padrao do tier
-      pra Free/Compy; no Raptor, pode ser a foto personalizada via
-      /perfil-edit, o banner do proprio Discord, ou a padrao, nessa ordem);
+      pra Free/Compy - NUNCA Discord; no Raptor, pode ser a foto
+      personalizada via /perfil-edit, o AVATAR do proprio Discord, ou a
+      padrao, nessa ordem - corrigido 2026-08-15, era banner por engano);
     - as 5 ESTRELAS DE HONRA - JA REAL, calculada de verdade (nao e
       placeholder): conta punicoes ATIVAS do jogador em TODOS os
       servidores (honra e global, nao por servidor) e converte em 1 a 5
@@ -10181,3 +10193,128 @@ frente, nao so este relatorio):
   nenhum dos dois neste ambiente) — o teste ao vivo (POST de verdade
   pro Discord antes de salvar) só pode ser confirmado pelo dono
   configurando uma URL de verdade depois do deploy.
+
+------------------------------------------------------------------
+199) FIX: Cargo Administrativo do Dashboard ficava travado em vários
+     comandos que exigiam o cargo Supervisor especificamente
+------------------------------------------------------------------
+- Pedido do dono (2026-08-15): "Cargo administrativo ainda esta com
+  travas em alguns comandos e ele deve liberar todos os comandos
+  mesmo sem cargo de supervisão que seria requisito, ele tambem pode
+  aprovar punições severas, ele esta acima da supervisão."
+- CAUSA: `ConfigSystem.memberIsGuildAdmin` (Administrator nativo OU o
+  cargo admin_role) é o ponto único pra "é admin de verdade?" em quase
+  todo o bot, mas várias checagens de "isso é coisa de Supervisor?"
+  nunca faziam OR com ela — quem só tinha admin_role (sem o cargo
+  Supervisor também) esbarrava nessas travas exatamente como um staff
+  comum.
+- ACHADO na investigação: `PunishmentSystem.memberHasSupervisorRole`
+  (`punishmentSystem.js`) é o ÚNICO ponto de checagem "isso é coisa de
+  Supervisor?" usado, direto ou indiretamente, por 7 dos 8 gates
+  identificados: o gate de confirmação de `/strike` severo (preview +
+  execução), `handleSupervisorApproval` (botão Aprovar/Rejeitar),
+  `/config buffs`, `/config filtro`, e os painéis de buff/filtro
+  (`buffPanelSystem.js`/`chatFilterPanelSystem.js`, via um helper
+  `_isSupervisor` que só repassa pra essa mesma função). Corrigido
+  UMA VEZ SÓ, na fonte (`memberHasSupervisorRole` passa a aceitar
+  `ConfigSystem.memberIsGuildAdmin` como equivalente), em vez de
+  remendar cada um dos 7 lugares separadamente — bem mais seguro
+  contra esquecer algum. Comentários de `/config buffs`/`/config
+  filtro` e dos helpers `_isSupervisor` que afirmavam a regra antiga
+  ("restrito ao cargo Supervisor, mais estreito que Administrador")
+  foram corrigidos junto, senão ficariam mentindo sobre o próprio
+  código logo abaixo.
+- 8º gate, separado: `reportChatSystem.js` `joinReport` (staff clicar
+  "Entrar" num report) usava `ConfigSystem.memberHasModOrSupervisorRole`
+  sozinho — o ÚNICO call site dessa função em todo o repo sem o OR de
+  `memberIsGuildAdmin` (os outros 6 — unstrike.js, staffonline.js,
+  rep-set.js, report-fechar.js, strike/index.js, historico.js — já
+  faziam certo). Corrigido no mesmo padrão dos outros 6.
+- Efeito prático: quem só tem o Cargo Administrativo do Dashboard
+  (sem o cargo Supervisor configurado também) agora aplica punição
+  severa DIRETO, sem cair na fila de aprovação; pode Aprovar/Rejeitar
+  punições severas pendentes de outros staffs; e usa `/config buffs`/
+  `/config filtro`/entra em reports sem precisar do cargo Supervisor.
+  `/ingame-*` com `supervisorOnly` já fazia esse OR corretamente antes
+  desta revisão — não precisou de mudança.
+- Verificado com script direto (Node, 16 checagens): `member` mockado
+  com admin_role mas SEM cargo Supervisor confirmado passando em
+  `memberHasSupervisorRole`, no gate real de `/strike` (linha que
+  decide fila-de-aprovação vs. execução direta) e na checagem de
+  `handleSupervisorApproval`; staff comum (nem admin nem Supervisor)
+  confirmado continuando bloqueado nos 3; `joinReport` testado
+  isoladamente com a mesma combinação. `node --check` nos 6 arquivos
+  tocados.
+
+------------------------------------------------------------------
+200) Fallback de foto/plano de fundo do Raptor corrigido (avatar, não
+     banner) + tabela Player Premium e ordem de features em home
+------------------------------------------------------------------
+- Pedido do dono (2026-08-15): "O perfil do player é afetado pelo
+  player premium hoje, e puxa imagens do perfil do discord para o
+  tier free... O free deve usar uma imagem de perfil padrão que vou
+  determinar, e nunca deve puxar nada do discord, mas no player
+  premium raptor se não conseguir carregar o profile dele configurado,
+  puxe a imagem de avatar do discord como imagem de perfil e o banner
+  dele como plano de fundo se existir."
+- INVESTIGAÇÃO confirmou que o pedido do Free JÁ ERA verdade: o card
+  de `/perfil` (`playerRegistrationSystem.js` `_resolveCardPhotoBuffer`/
+  `_resolveBackgroundBuffer`, fonte única — Discord E o card renderizado
+  no Portal do site) nunca tocava Discord pra Free/Compy, sempre caindo
+  no arquivo fixo `assets/images/FOTO PERFIL FREE.webp` (chave
+  `foto_perfil_free` no imageManager) — sem mudança de código
+  necessária; o dono pode trocar esse ARQUIVO a qualquer momento sem
+  precisar de deploy de código novo.
+- 2 gaps reais só no Raptor, corrigidos: (a) o fallback de FOTO puxava
+  `bannerURL()` (banner do Discord) — campo errado, virou
+  `displayAvatarURL()` (avatar); (b) o fallback de PLANO DE FUNDO não
+  existia (sempre `null`) — ganhou um fallback novo pro banner do
+  Discord, quando o jogador tiver um configurado, force-fetchando o
+  usuário (`client.users.fetch(id, {force:true})`, necessário porque o
+  objeto em cache pode não ter o campo `banner` populado). Textos que
+  descreviam o comportamento antigo corrigidos junto:
+  `perfil-edit.js` (docblock), `configSystem.js` (2 linhas de status
+  do painel `/perfil-edit`), `perfil.ejs` (2 blocos de texto), e as 2
+  descrições correspondentes na seção 1 deste arquivo.
+- TABELA PLAYER PREMIUM em home (`hero.ejs`) atualizada — Free ganhou
+  acesso à Loja de Personalização (compra/upload sem gate de tier, já
+  implementado desde 2026-08-07/12) e "Perfil sincronizado com o
+  Discord" deixou de ser um diferencial de verdade do Free: bullet
+  removido, substituído por "Personalize seu perfil pela loja". O
+  bullet de Compy ("Perfil personalizável pela loja") ficou redundante
+  com o novo bullet do Free — trocado pelo diferencial REAL do Compy+
+  (acesso de graça ao catálogo INTEIRO sem gastar Caçadas, distinto da
+  compra por item do Free). Raptor sem mudança. Preço/região (BR vs.
+  Ko-fi internacional) continuam funcionando igual — bullets não têm
+  cópia separada por região.
+- ORDEM DAS FEATURES em home: "Análise e Histórico de Atividade Staff"
+  subiu pra ANTES de "Auxiliar de Eventos" (pedido do dono). Antes era
+  um bloco hardcoded FORA do array `features`, sempre renderizado por
+  último — um comentário já avisava que mover isso às cegas quebraria
+  o zigue-zague esquerda/direita do resto da página (dependia da
+  PARIDADE do último índice do array). Resolvido injetando o mesmo
+  conteúdo (sem alteração nenhuma) dentro do próprio `.forEach`, na
+  iteração que precede o item "Auxiliar de Eventos", com um índice de
+  EXIBIÇÃO calculado à parte (`di = i < 6 ? i : i + 1`) só pra decidir
+  o lado do mockup — corrige a paridade de tudo que vem depois
+  automaticamente, sem duplicar template nem arriscar divergência.
+- DOCUMENTAÇÃO (`documentacao.ejs`) atualizada pra refletir a seção
+  199 (Cargo Administrativo acima de Supervisor): legenda do 🔒 agora
+  menciona o bypass, novo parágrafo explicando a hierarquia (vale nos
+  dois lados, site e Discord, mesma checagem `memberIsGuildAdmin`,
+  única exceção continua `/potserver`), e as descrições de `/config
+  buffs`/`/config filtro` atualizadas pra "Supervisor OU Cargo
+  Administrativo".
+- Verificado: `node --check` em todos os arquivos `.js` tocados;
+  `ejs.renderFile()` em `hero.ejs` (bullets antigos sumiram, bullets
+  novos presentes, ordem de seções corrigida, E uma checagem à parte
+  extraindo a classe `lg:flex-row`/`lg:flex-row-reverse` de cada bloco
+  na ordem real de saída do HTML pra confirmar que o zigue-zague nunca
+  repete o mesmo lado duas vezes seguidas em toda a sequência — tanto
+  na região Brasil quanto internacional) e em `documentacao.ejs`
+  (legenda/parágrafo novo/descrições de buffs/filtro). SEM confirmação
+  visual/browser real nem contra um usuário do Discord de verdade
+  (nenhuma ferramenta de navegador disponível neste ambiente, e o
+  fallback de avatar/banner do Raptor depende de dado real de conta do
+  Discord) — vale o dono conferir visualmente e com uma conta Raptor
+  de teste depois do deploy.

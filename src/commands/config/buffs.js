@@ -19,10 +19,11 @@ module.exports = {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guild.id));
         }
 
-        // Pedido do dono: CRIAR/editar buff é restrito ao cargo Supervisor
-        // (mais estreito que só Administrator do Discord) — diferente de
-        // APLICAR um buff (/ingame-buff aplicar), liberado pra qualquer
-        // cargo de staff.
+        // Pedido do dono: CRIAR/editar buff é restrito ao cargo Supervisor OU
+        // ao Cargo Administrativo do Dashboard (memberHasSupervisorRole já
+        // aceita os dois, 2026-08-15 — "ele esta acima da supervisão") —
+        // diferente de APLICAR um buff (/ingame-buff aplicar), liberado pra
+        // qualquer cargo de staff.
         if (!(await PunishmentSystem.memberHasSupervisorRole(guild, member))) {
             return await ResponseManager.error(interaction, 'Este comando é restrito ao cargo Supervisor (ver /config roles).');
         }

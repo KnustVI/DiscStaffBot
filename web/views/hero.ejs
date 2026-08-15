@@ -1001,8 +1001,64 @@
     ];
     %>
 
-    <% features.forEach((f, i) => { %>
-        <div class="w-full flex flex-col <%= i % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse' %> items-center gap-10" style="max-width: 1100px;">
+    <%
+        // "Análise e Histórico de Atividade Staff" injetado ANTES do item
+        // que hoje é "Auxiliar de Eventos" (índice 6 do array `features`) —
+        // pedido do dono, 2026-08-15: "análise de staff deve ficar acima de
+        // auxiliar de eventos". Antes disso era um bloco hardcoded FORA do
+        // array, renderizado sempre por último (depois do .forEach inteiro)
+        // — mover o conteúdo pra cá, sem alterar nada dele, e recalcular o
+        // índice de EXIBIÇÃO (`di`) usado só pra decidir o lado do mockup
+        // (zigue-zague esquerda/direita) evita o bug que o comentário antigo
+        // avisava: qualquer item do array a partir do 6 precisa "andar" 1
+        // posição pra frente na exibição, senão a paridade de todo o resto
+        // da página (Automod/Integração/Dashboard Web) inverteria sozinha.
+    %>
+    <% features.forEach((f, i) => {
+        const di = i < 6 ? i : i + 1;
+    %>
+        <% if (i === 6) { %>
+            <!-- Análise e Histórico de Atividade Staff — dois mockups empilhados + texto
+                 (pedido do dono, 2026-08-03: mesmo estilo .mockup-panel usado em
+                 AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima).
+                 lg:flex-row (SEM reverse) — posição de exibição 6 (par), mesmo
+                 raciocínio de sempre, só que agora calculado por `di` em vez de
+                 fixo à mão. -->
+            <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
+                <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
+                    <%- mockupPanel({
+                        topbarPt: 'REPUTAÇÃO', topbarEn: 'REPUTATION', stacked: true,
+                        rows: [
+                            { icon: 'shield', labelPt: 'Cargo Exemplar atribuído', labelEn: 'Exemplary role assigned', subPt: 'reputação acima de 80', subEn: 'reputation above 80', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
+                            { icon: 'bolt', labelPt: 'Alerta de reputação crítica', labelEn: 'Critical reputation alert', subPt: 'jogador abaixo de 20 pontos', subEn: 'player below 20 points', pillPt: 'ALERTA', pillEn: 'ALERT', pillClass: 'is-red' },
+                        ],
+                    }) %>
+                    <%- mockupPanel({
+                        topbarPt: 'RANKING DE STAFF', topbarEn: 'STAFF RANKING', stacked: true,
+                        rows: [
+                            { icon: 'chart', labelPt: 'Staff mais ativo da semana', labelEn: "This week's most active staff", subPt: '12 punições aplicadas', subEn: '12 punishments applied', pillPt: 'TOP 1', pillEn: 'TOP 1', pillClass: 'is-gold' },
+                            { icon: 'chat', labelPt: '8 denúncias atendidas', labelEn: '8 reports handled', subPt: 'tempo médio de resposta: 4min', subEn: 'average response time: 4min', pillPt: 'DESEMPENHO', pillEn: 'PERFORMANCE', pillClass: 'is-gold' },
+                        ],
+                    }) %>
+                </div>
+                <div class="w-full lg:w-1/2 flex flex-col gap-3">
+                    <h2 class="section-title text-shadow-figma"><span data-i18n-pt>ANÁLISE E HISTÓRICO DE ATIVIDADE STAFF</span><span data-i18n-en>STAFF ACTIVITY ANALYSIS & HISTORY</span></h2>
+                    <p style="font-family:'Poppins',sans-serif; font-weight:600; opacity: 0.9;" class="text-shadow-figma">
+                        <span data-i18n-pt>Diariamente apresentando dados de desempenho geral do servidor.</span>
+                        <span data-i18n-en>Presenting daily server-wide performance data.</span>
+                    </p>
+                    <div class="w-full h-px" style="background:#3E3D38; margin: 8px 0;"></div>
+                    <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
+                        <span data-i18n-pt>AUTOSUPERVISÃO</span><span data-i18n-en>SELF-MONITORING</span>
+                    </h3>
+                    <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                        <span data-i18n-pt>Maneja automaticamente cargos de reputação de acordo com a pontuação do player. Vigia e alerta sobre jogadores com reputação crítica negativa. Analisa os staffs mais ativos no sistema — aplicando punições, atendendo reportes ou criando eventos.</span>
+                        <span data-i18n-en>Automatically manages reputation roles based on the player's score. Watches for and alerts on players with critically negative reputation. Analyzes the most active staff in the system — applying punishments, handling reports, or creating events.</span>
+                    </p>
+                </div>
+            </div>
+        <% } %>
+        <div class="w-full flex flex-col <%= di % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse' %> items-center gap-10" style="max-width: 1100px;">
             <% if (f.mockup) { %>
                 <%- f.mockup %>
             <% } else { %>
@@ -1036,51 +1092,6 @@
             </div>
         </div>
     <% }); %>
-
-    <!-- Análise e Histórico de Atividade Staff — dois mockups empilhados + texto
-         (pedido do dono, 2026-08-03: mesmo estilo .mockup-panel usado em
-         AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima).
-         lg:flex-row (SEM reverse — pedido do dono, 2026-08-11: inserir o
-         novo card "A LOJA" logo após Perfil no array `features` empurrou
-         Dashboard Web de índice par pra ÍMPAR, então agora ELE já vem com o
-         mockup do lado DIREITO — sem tirar o reverse daqui, as duas seguidas
-         ficariam com o mockup do MESMO lado, quebrando o zigue-zague que o
-         resto da página mantém (Perfil/Loja/Reporte/Punição etc. alternam a
-         cada seção). Se o array `features` ganhar/perder itens de novo,
-         reconferir a paridade do último índice antes de mexer aqui. -->
-    <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
-        <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
-            <%- mockupPanel({
-                topbarPt: 'REPUTAÇÃO', topbarEn: 'REPUTATION', stacked: true,
-                rows: [
-                    { icon: 'shield', labelPt: 'Cargo Exemplar atribuído', labelEn: 'Exemplary role assigned', subPt: 'reputação acima de 80', subEn: 'reputation above 80', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
-                    { icon: 'bolt', labelPt: 'Alerta de reputação crítica', labelEn: 'Critical reputation alert', subPt: 'jogador abaixo de 20 pontos', subEn: 'player below 20 points', pillPt: 'ALERTA', pillEn: 'ALERT', pillClass: 'is-red' },
-                ],
-            }) %>
-            <%- mockupPanel({
-                topbarPt: 'RANKING DE STAFF', topbarEn: 'STAFF RANKING', stacked: true,
-                rows: [
-                    { icon: 'chart', labelPt: 'Staff mais ativo da semana', labelEn: "This week's most active staff", subPt: '12 punições aplicadas', subEn: '12 punishments applied', pillPt: 'TOP 1', pillEn: 'TOP 1', pillClass: 'is-gold' },
-                    { icon: 'chat', labelPt: '8 denúncias atendidas', labelEn: '8 reports handled', subPt: 'tempo médio de resposta: 4min', subEn: 'average response time: 4min', pillPt: 'DESEMPENHO', pillEn: 'PERFORMANCE', pillClass: 'is-gold' },
-                ],
-            }) %>
-        </div>
-        <div class="w-full lg:w-1/2 flex flex-col gap-3">
-            <h2 class="section-title text-shadow-figma"><span data-i18n-pt>ANÁLISE E HISTÓRICO DE ATIVIDADE STAFF</span><span data-i18n-en>STAFF ACTIVITY ANALYSIS & HISTORY</span></h2>
-            <p style="font-family:'Poppins',sans-serif; font-weight:600; opacity: 0.9;" class="text-shadow-figma">
-                <span data-i18n-pt>Diariamente apresentando dados de desempenho geral do servidor.</span>
-                <span data-i18n-en>Presenting daily server-wide performance data.</span>
-            </p>
-            <div class="w-full h-px" style="background:#3E3D38; margin: 8px 0;"></div>
-            <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
-                <span data-i18n-pt>AUTOSUPERVISÃO</span><span data-i18n-en>SELF-MONITORING</span>
-            </h3>
-            <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
-                <span data-i18n-pt>Maneja automaticamente cargos de reputação de acordo com a pontuação do player. Vigia e alerta sobre jogadores com reputação crítica negativa. Analisa os staffs mais ativos no sistema — aplicando punições, atendendo reportes ou criando eventos.</span>
-                <span data-i18n-en>Automatically manages reputation roles based on the player's score. Watches for and alerts on players with critically negative reputation. Analyzes the most active staff in the system — applying punishments, handling reports, or creating events.</span>
-            </p>
-        </div>
-    </div>
 
 </main>
 
@@ -1143,7 +1154,7 @@
         <div class="pricing-card">
             <h3 style="font-family:'Tilt Warp',sans-serif; font-size:24px; text-transform:uppercase;">FREE</h3>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9; margin-top:12px;">
-                <li><span data-i18n-pt>Perfil sincronizado com o Discord</span><span data-i18n-en>Profile synced with Discord</span></li>
+                <li><span data-i18n-pt>Personalize seu perfil pela loja</span><span data-i18n-en>Customize your profile via the shop</span></li>
                 <li><span data-i18n-pt>Badges de missões</span><span data-i18n-en>Mission badges</span></li>
                 <li><span data-i18n-pt>Títulos de missões</span><span data-i18n-en>Mission titles</span></li>
                 <li><span data-i18n-pt>Ganhe Caçadas por hora de jogo</span><span data-i18n-en>Earn Hunt per hour played</span></li>
@@ -1154,7 +1165,7 @@
             <%- pricingCta('R$10', '$6', '#DCA15E') %>
             <p class="text-xs opacity-60 mb-2" style="font-family:'Poppins',sans-serif;"><span data-i18n-pt>Tudo do Free +</span><span data-i18n-en>Everything in Free +</span></p>
             <ul style="font-family:'Poppins',sans-serif; font-size:14px; display:flex; flex-direction:column; gap:8px; list-style:none; padding:0; opacity:0.9;">
-                <li><span data-i18n-pt>Perfil personalizável pela loja</span><span data-i18n-en>Store-customizable profile</span></li>
+                <li><span data-i18n-pt>Acesso completo à loja de personalização sem gastar Caçadas</span><span data-i18n-en>Full access to the personalization shop without spending Hunt</span></li>
                 <li><span data-i18n-pt>Badge exclusivo</span><span data-i18n-en>Exclusive badge</span></li>
                 <li><span data-i18n-pt>Títulos exclusivos</span><span data-i18n-en>Exclusive titles</span></li>
                 <li><span data-i18n-pt>Ganho extra de Caçadas por missão concluída</span><span data-i18n-en>Extra Hunt earnings per completed mission</span></li>

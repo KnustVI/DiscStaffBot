@@ -44,7 +44,7 @@ function _isEnabled(guildId) {
 }
 
 // Mesmo critério de acesso de config-buffs — criar/editar é restrito ao
-// cargo Supervisor, mais estreito que só Administrator do Discord.
+// cargo Supervisor OU ao Cargo Administrativo do Dashboard.
 async function _isSupervisor(interaction) {
     return await PunishmentSystem.memberHasSupervisorRole(interaction.guild, interaction.member);
 }

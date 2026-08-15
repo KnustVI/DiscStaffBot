@@ -896,7 +896,12 @@ class ReportChatSystem {
         const { guild, user, member } = interaction;
         
         try {
-            if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member)) {
+            // Mesmo padrão já usado em unstrike.js/staffonline.js/rep-set.js/
+            // report-fechar.js/strike/historico.js — OR com memberIsGuildAdmin
+            // (este era o único call site de memberHasModOrSupervisorRole no
+            // repo sem esse bypass, pedido do dono 2026-08-15: Cargo
+            // Administrativo do Dashboard acima de Supervisor em tudo).
+            if (!ConfigSystem.memberHasModOrSupervisorRole(guild.id, member) && !ConfigSystem.memberIsGuildAdmin(guild.id, member)) {
                 await this.sendTempReply(interaction, `Você não tem permissão para entrar em reports.`, false);
                 return;
             }
