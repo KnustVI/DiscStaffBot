@@ -42,10 +42,8 @@ Jogo por servidor (POST /loja/comprar-jogo). A flag e
 `DASHBOARD_LOCKED_TO_OWNER`, so troca `true`->`false` pra reabrir). NAO
 afeta USAR um item ja comprado (POST /loja/usar-jogo) nem RESGATAR
 emblema/titulo por requisito (POST /perfil/resgatar, sempre gratuito) -
-nenhum dos dois e uma compra de verdade. TAMBEM trava TRANSFERIR um item
-entre servidores (POST /loja/transferir-jogo, ver secao 203, adicionado
-2026-08-16) - move Bones de verdade, mesmo criterio das compras. Remover
-este paragrafo quando a trava for desativada de volta.
+nenhum dos dois e uma compra de verdade. Remover este paragrafo quando a
+trava for desativada de volta.
 
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
@@ -122,17 +120,9 @@ o bônus só é aplicado de verdade (RCON) quando o jogador clica "Usar" no
 próprio inventário, no site (`/loja`), não mais na hora da compra. TRAVA
 POR SERVIDOR (sempre existiu, desde a seção 184): item comprado num
 servidor SÓ pode ser usado naquele mesmo servidor - comprou um Growth no
-Atlas, só usa no Atlas. TRANSFERÊNCIA ENTRE SERVIDORES (ver seções 203/
-204) - única forma de mover um item já comprado pra outro servidor:
-custa o preço CHEIO daquele item no catálogo do servidor de DESTINO
-(mesmo preço que custaria comprar do zero lá), cobrado do saldo de Bones
-do próprio destino - transferir NUNCA sai mais barato que comprar direto
-no servidor de destino, então não existe vantagem em farmar barato num
-servidor e usar caro em outro. Cai pro preço ORIGINAL pago na compra só
-se o servidor de destino nunca configurou preço nenhum pra aquele item
-(sem outra referência de valor disponível). Item de Missão nunca pode
-ser transferido (a missão configurada é específica do servidor onde foi
-comprada).
+Atlas, só usa no Atlas, sem forma nenhuma de mover pra outro servidor
+(ver seção 205 - uma transferência paga chegou a ser implementada e
+removida no mesmo dia, 2026-08-16).
 
 NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
 jogo = 1 XP. O ACÚMULO de XP em si JÁ ESTÁ IMPLEMENTADO (2026-08-07, ver
@@ -10639,3 +10629,43 @@ frente, nao so este relatorio):
   500). SEM confirmação visual/browser real - vale o dono conferir a UI
   de verdade, principalmente a troca de servidor no `<select>`
   atualizando o valor do botão.
+
+205) Remove por completo a transferência de itens da Loja de Jogo entre servidores
+------------------------------------------------------------------
+- Continuação direta das Seções 203/204, mesmo dia. Depois de eu corrigir
+  a taxa pra 100% do preço de destino (Seção 204, pra fechar a brecha de
+  farm entre servidores), o dono percebeu a consequência direta: "Espera
+  mas se a taxa de transferencia for o valor do outro servidor não vai
+  nem fazer sentido transferir... Então vamos remover a transferencia
+  entre servidores." Faz sentido - com a taxa igual ao preço cheio de
+  destino, transferir nunca custava menos que comprar direto lá, então a
+  funcionalidade virava só uma ferramenta de conveniência marginal (item
+  desligado do catálogo depois da compra) sem valor prático suficiente
+  pra justificar a complexidade de manter.
+- Reversão completa do que as Seções 203/204 adicionaram: removida
+  `gameShopSystem.transferGameShopItem`, `_resolveTransferFee`, a rota
+  `POST /loja/transferir-jogo` em `dashboard.js`, o formulário/CSS/script
+  de transferência em `loja.ejs` (incluindo `updateGameShopTransferFee`),
+  o parâmetro `gameShopTransferResult` e o trecho sobre transferência no
+  parágrafo "COMPRAS DE ITENS DE LOJA TEMPORARIAMENTE PAUSADAS" no topo
+  deste arquivo.
+- `game_shop_inventory.price_paid` (a coluna que congelava o preço de
+  compra, adicionada só pra sustentar o cálculo da taxa) também foi
+  removida - `ensureColumn` da Seção 203 foi trocado por
+  `dropColumnIfExists('game_shop_inventory', 'price_paid')` em
+  `database/index.js`, limpando qualquer banco que já tinha rodado a
+  migração de adição (inclusive o de desenvolvimento usado nos testes das
+  Seções 203/204). `purchaseGameShopItem`/`getInventory` voltaram ao
+  formato exato de antes da Seção 203 (sem `pricePaid`/`transferable`/
+  `transferFee`).
+- Item comprado continua travado ao servidor onde foi comprado (isso
+  nunca mudou, é estrutural desde a Seção 184: `game_shop_inventory.
+  guild_id` é fixo e `useGameShopItem` sempre mira nele) - só não existe
+  mais NENHUMA forma de mover um item já comprado pra outro servidor,
+  nem paga nem grátis.
+- Verificado: `node --check` em todos os arquivos tocados;
+  `ejs.renderFile()` de `loja.ejs` confirmando que o formulário de
+  transferência não aparece mais em lugar nenhum; conferido no banco de
+  desenvolvimento que `PRAGMA table_info(game_shop_inventory)` já não
+  lista `price_paid` depois do boot (dropColumnIfExists funcionando).
+  SEM confirmação visual/browser real.

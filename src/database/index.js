@@ -349,17 +349,6 @@ class DatabaseManager {
             // web/views/partials/sidebar-v2.ejs.
             this.ensureColumn('users', 'dashboard_avatar_hint_views', 'INTEGER NOT NULL DEFAULT 0');
 
-            // Preço pago (em Ossos) congelado NA COMPRA (pedido do dono,
-            // 2026-08-16: "vamos adicionar uma transferencia de itens com
-            // uma taxa de Ossos... 50% do valor que os itens foram
-            // comprados") — sem isso, a taxa de transferência não teria
-            // como saber quanto o item custou originalmente (preço do
-            // catálogo muda com o tempo/por servidor). Linhas já existentes
-            // (compradas antes desta coluna existir) ficam com 0 — ver
-            // gameShopSystem.js transferGameShopItem, que recusa transferir
-            // um item com price_paid <= 0 em vez de cobrar taxa zerada.
-            this.ensureColumn('game_shop_inventory', 'price_paid', 'INTEGER NOT NULL DEFAULT 0');
-
             // Colunas nunca lidas/escritas em lugar nenhum do código
             // (confirmado por auditoria) — schema.js já não as declara mais
             // pra bancos novos; isso aqui remove de bancos já existentes.
@@ -370,6 +359,12 @@ class DatabaseManager {
             this.dropColumnIfExists('activity_logs', 'ip_address');
             this.dropColumnIfExists('temporary_roles', 'punishment_guild_id');
             this.dropColumnIfExists('temporary_roles', 'punishment_number');
+            // price_paid: adicionada e removida no mesmo dia (2026-08-16) —
+            // era só pra sustentar a taxa de transferência de itens entre
+            // servidores, que o dono decidiu remover (ver PREMIUM.txt
+            // seção 205). Drop aqui limpa qualquer banco que já rodou a
+            // migração de adição antes da remoção.
+            this.dropColumnIfExists('game_shop_inventory', 'price_paid');
 
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —

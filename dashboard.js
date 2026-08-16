@@ -1863,26 +1863,9 @@ function loadDashboard(client) {
         // resolvido via client.guilds.cache (guildId sozinho não basta
         // pra exibição) — fallback pro próprio ID se o bot não estiver
         // mais nesse servidor.
-        // transferTargets (pedido do dono, 2026-08-16: "transferencia de
-        // itens com uma taxa de Ossos... entre servidores") — só os OUTROS
-        // servidores já jogados (mesma lista playedGuilds do catálogo/
-        // conversor acima), nunca um servidor aleatório onde o jogador
-        // nunca esteve. `fee` já vem calculado POR destino (preço cheio do
-        // catálogo de lá, ver gameShopSystem._resolveTransferFee) — cada
-        // servidor pode precificar o mesmo item diferente, então não dá
-        // pra ter uma taxa única por item como antes de 2026-08-16 corrigir
-        // o desenho original (era 50% fixo do preço de origem). Ver POST
-        // /loja/transferir-jogo e gameShopSystem.transferGameShopItem.
         const gameShopInventory = GameShopSystem.getInventory(req.user.id).map((item) => ({
             ...item,
             guildName: client.guilds.cache.get(item.guildId)?.name || item.guildId,
-            transferTargets: playedGuilds
-                .filter((pg) => pg.guildId !== item.guildId)
-                .map((pg) => ({
-                    guildId: pg.guildId,
-                    name: pg.name,
-                    fee: GameShopSystem._resolveTransferFee(item.itemKey, item.pricePaid, pg.guildId),
-                })),
         }));
 
         res.render('loja', {
@@ -1912,7 +1895,6 @@ function loadDashboard(client) {
             purchaseResult: req.query.comprado || null,
             gameShopPurchaseResult: req.query.jogoComprado || null,
             gameShopUseResult: req.query.jogoUsado || null,
-            gameShopTransferResult: req.query.jogoTransferido || null,
             redeemResult: req.query.resgatado || null,
             personalizationConfig: ImageShopSystem.getPersonalizationShopConfig(),
             submissionSent: req.query.enviado === '1',
@@ -1997,24 +1979,6 @@ function loadDashboard(client) {
         const result = await GameShopSystem.useGameShopItem(inventoryId, req.user.id);
         if (result.ok) {
             return res.redirect(`/loja?jogoUsado=${encodeURIComponent(result.label)}`);
-        }
-        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
-    });
-
-    // Transfere um item já comprado pra OUTRO servidor, cobrando 50% do
-    // preço original em Ossos (pedido do dono, 2026-08-16). Tratada como
-    // "compra" pro efeito da trava de testes (SHOP_PURCHASES_LOCKED) —
-    // diferente de /loja/usar-jogo (gratuito), esta rota move Ossos de
-    // verdade, então fica pausada junto com o resto enquanto a Loja está
-    // em teste (ver gameShopSystem.transferGameShopItem pra regra completa).
-    app.post('/loja/transferir-jogo', checkAuth, async (req, res) => {
-        if (isDashboardLocked(req)) return res.redirect('/dashboard');
-        if (SHOP_PURCHASES_LOCKED) return res.redirect(`/loja?erro=${encodeURIComponent('Compras estão temporariamente pausadas — a Loja ainda está em fase de testes.')}`);
-        const inventoryId = Number(req.body.inventoryId);
-        const destGuildId = req.body.destGuildId;
-        const result = await GameShopSystem.transferGameShopItem(inventoryId, req.user.id, destGuildId);
-        if (result.ok) {
-            return res.redirect(`/loja?jogoTransferido=${encodeURIComponent(result.label)}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });

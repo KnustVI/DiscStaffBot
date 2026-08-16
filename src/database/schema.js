@@ -496,12 +496,7 @@ const SCHEMA = {
     // depois, o jogador ainda recebe a missão que pagou por, não uma
     // trocada por baixo. Sem UNIQUE (diferente de image_inventory): o
     // mesmo item pode ser comprado várias vezes, cada compra é uma linha
-    // independente. price_paid (2026-08-16) congela o preço em Ossos pago
-    // NESTA compra — a "trava por servidor" em si é o próprio guild_id
-    // (RCON de uso sempre mira nele, nunca em outro), mas transferir o
-    // item pra outro servidor (gameShopSystem.transferGameShopItem) cobra
-    // 50% deste valor, então precisa estar congelado por linha, não
-    // recalculado do catálogo (que muda de preço com o tempo).
+    // independente.
     game_shop_inventory: `
         CREATE TABLE IF NOT EXISTS game_shop_inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -510,8 +505,7 @@ const SCHEMA = {
             item_key TEXT NOT NULL,
             mission_name TEXT,
             purchased_at INTEGER NOT NULL,
-            used_at INTEGER,
-            price_paid INTEGER NOT NULL DEFAULT 0
+            used_at INTEGER
         )
     `,
 
