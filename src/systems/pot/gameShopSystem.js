@@ -144,9 +144,9 @@ async function purchaseGameShopItem(guildId, discordId, itemKey) {
 
     try {
         db.prepare(`
-            INSERT INTO game_shop_inventory (user_id, guild_id, item_key, mission_name, purchased_at)
-            VALUES (?, ?, ?, ?, ?)
-        `).run(discordId, guildId, itemKey, item.needsMission ? itemConfig.missionName : null, Date.now());
+            INSERT INTO game_shop_inventory (user_id, guild_id, item_key, mission_name, purchased_at, price_paid)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(discordId, guildId, itemKey, item.needsMission ? itemConfig.missionName : null, Date.now(), itemConfig.price);
     } catch (error) {
         // Revisão adversarial (2026-08-12) encontrou que o retorno de
         // addBones (nunca lança, só devolve boolean — ver
@@ -176,10 +176,13 @@ async function purchaseGameShopItem(guildId, discordId, itemKey) {
  * Itens comprados e ainda NÃO usados — o "inventário" mostrado no site
  * (botão "Usar" por linha, ver useGameShopItem). Cada linha já vem com o
  * label/metadados do catálogo embutidos, pra quem renderiza não precisar
- * cruzar com GAME_SHOP_ITEMS na mão.
+ * cruzar com GAME_SHOP_ITEMS na mão. transferFee/transferable (2026-08-16)
+ * já vêm calculados aqui pro template só decidir mostrar o botão ou não —
+ * ver transferGameShopItem pra regra completa (por que Missão nunca
+ * transfere e por que price_paid=0 bloqueia).
  * @param {string} userId
  * @param {string} [guildId] - opcional, filtra só um servidor
- * @returns {Array<{id: number, guildId: string, itemKey: string, label: string, missionName: string|null, speciesRestrictable: boolean, purchasedAt: number}>}
+ * @returns {Array<{id: number, guildId: string, itemKey: string, label: string, missionName: string|null, speciesRestrictable: boolean, purchasedAt: number, pricePaid: number, transferFee: number|null, transferable: boolean}>}
  */
 function getInventory(userId, guildId) {
     if (!userId) return [];
@@ -189,6 +192,7 @@ function getInventory(userId, guildId) {
 
     return rows.map(row => {
         const item = GAME_SHOP_ITEMS[row.item_key];
+        const pricePaid = Number.isInteger(row.price_paid) ? row.price_paid : 0;
         return {
             id: row.id,
             guildId: row.guild_id,
@@ -197,6 +201,9 @@ function getInventory(userId, guildId) {
             missionName: row.mission_name,
             speciesRestrictable: !!item?.speciesRestrictable,
             purchasedAt: row.purchased_at,
+            pricePaid,
+            transferFee: pricePaid > 0 ? Math.ceil(pricePaid / 2) : null,
+            transferable: pricePaid > 0 && !item?.needsMission,
         };
     });
 }
@@ -302,6 +309,77 @@ async function useGameShopItem(inventoryId, discordId) {
     }
 }
 
+/**
+ * Transfere um item já comprado pra OUTRO servidor, cobrando 50% do
+ * preço original em Ossos (pedido do dono, 2026-08-16: "a pessoa deve
+ * pagar 50% do valor que os itens foram comprados para transferir ele
+ * entre servidores"). A trava "só usa onde comprou" É o próprio
+ * game_shop_inventory.guild_id — useGameShopItem sempre dispara RCON
+ * contra row.guild_id, nunca outro — então transferir é simplesmente
+ * TROCAR esse guild_id depois de cobrar a taxa; nenhuma checagem extra
+ * de "servidor certo" é necessária em useGameShopItem por causa disso.
+ *
+ * A taxa é cobrada do saldo de Ossos do servidor de DESTINO (é lá que o
+ * bônus vai ser de fato aplicado) — arredondada pra cima
+ * (Math.ceil), sempre sobre o price_paid ORIGINAL da compra (não sobre
+ * o resultado de uma transferência anterior, evita taxa decrescente em
+ * transferências encadeadas).
+ *
+ * Item de Missão (item_key='quest') NUNCA pode ser transferido: o
+ * mission_name congelado na compra é uma string configurada NAQUELE
+ * servidor especificamente (nome exato de uma missão do PoT local) —
+ * não tem garantia de significar nada no servidor de destino.
+ *
+ * Reivindicação atômica sobre `used_at`, mesmo padrão/mesmo motivo de
+ * useGameShopItem (ver comentário lá) — evita um "Usar" e um
+ * "Transferir" concorrentes na mesma linha.
+ * @param {number} inventoryId
+ * @param {string} discordId - dono do item, sempre reconferido
+ * @param {string} destGuildId - servidor de destino
+ * @returns {Promise<{ok: true, label: string, fee: number} | {ok: false, error: string}>}
+ */
+async function transferGameShopItem(inventoryId, discordId, destGuildId) {
+    const row = db.prepare(`SELECT * FROM game_shop_inventory WHERE id = ? AND user_id = ?`).get(inventoryId, discordId);
+    if (!row) return { ok: false, error: 'Item não encontrado no seu inventário.' };
+    if (row.used_at !== null) return { ok: false, error: 'Este item já foi usado.' };
+    if (row.guild_id === destGuildId) return { ok: false, error: 'Este item já está neste servidor.' };
+
+    const item = GAME_SHOP_ITEMS[row.item_key];
+    if (!item) return { ok: false, error: 'Item inválido.' };
+    if (item.needsMission) return { ok: false, error: 'Itens de Missão são específicos do servidor onde foram comprados e não podem ser transferidos.' };
+    if (!Number.isInteger(row.price_paid) || row.price_paid <= 0) {
+        return { ok: false, error: 'Este item foi comprado antes do sistema de transferência existir, então não há como calcular a taxa — fale com a equipe.' };
+    }
+
+    const fee = Math.ceil(row.price_paid / 2);
+
+    const claim = db.prepare(`UPDATE game_shop_inventory SET used_at = ? WHERE id = ? AND user_id = ? AND used_at IS NULL`)
+        .run(CLAIM_SENTINEL, inventoryId, discordId);
+    if (claim.changes === 0) {
+        return { ok: false, error: 'Este item já foi usado (ou já está em outra operação agora).' };
+    }
+
+    let succeeded = false;
+    try {
+        if (!PlayerRegistry.spendBones(discordId, destGuildId, fee)) {
+            return { ok: false, error: `Saldo de Ossos insuficiente no servidor de destino — a transferência custa ${fee} Ossos lá.` };
+        }
+
+        db.prepare(`UPDATE game_shop_inventory SET guild_id = ?, used_at = NULL WHERE id = ?`).run(destGuildId, inventoryId);
+        succeeded = true;
+
+        db.logActivity(destGuildId, discordId, 'game_shop_transfer', null, {
+            itemKey: row.item_key, fromGuildId: row.guild_id, toGuildId: destGuildId, fee,
+        });
+
+        return { ok: true, label: item.label, fee };
+    } finally {
+        if (!succeeded) {
+            db.prepare(`UPDATE game_shop_inventory SET used_at = NULL WHERE id = ?`).run(inventoryId);
+        }
+    }
+}
+
 module.exports = {
     GAME_SHOP_ITEMS,
     getGuildShopConfig,
@@ -309,4 +387,5 @@ module.exports = {
     purchaseGameShopItem,
     getInventory,
     useGameShopItem,
+    transferGameShopItem,
 };

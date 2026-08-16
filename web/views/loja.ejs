@@ -50,15 +50,31 @@
   que dispara o RCON de verdade contra o servidor, checando online/
   espécie NESSE momento — não mais na compra.
 
+  TRAVA POR SERVIDOR + TRANSFERÊNCIA (pedido do dono, 2026-08-16: "a
+  pessoa só pode usar itens do jogo no servidor que ela comprou... vamos
+  adicionar uma transferencia de itens com uma taxa de Ossos... 50% do
+  valor que os itens foram comprados"): item comprado num servidor SÓ
+  pode ser usado ali (gameShopInventory[].guildId é fixo — useGameShopItem
+  sempre dispara RCON contra ELE, nunca outro). A única forma de mover um
+  item pra outro servidor é o botão "Transferir" (POST
+  /loja/transferir-jogo), que cobra metade do preço ORIGINAL da compra
+  (transferFee, já vem calculado por item — ver gameShopSystem.js
+  getInventory/transferGameShopItem) do saldo de Ossos do servidor de
+  DESTINO. Só aparece quando `item.transferable` (falso pra item de
+  Missão, que é específico do servidor onde foi comprado) e há pelo menos
+  um outro servidor já jogado em `item.transferTargets`. Mesma trava de
+  testes das compras (SHOP_PURCHASES_LOCKED) — transferir move Ossos de
+  verdade, então fica pausado junto.
+
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
     personalizacao, badges, titulos, isLinked, bonesBalance,
     guildBonesBalances, huntBalance, xpBalance, marksPerBone,
     playedGuilds, gameShopCatalogs, gameShopInventory, convertResult,
     convertError, convertAmount, convertRconResponse, purchaseResult,
-    gameShopPurchaseResult, gameShopUseResult, redeemResult,
-    personalizationConfig, submissionSent }) — personalizationConfig
-    alimenta o preço mostrado no card "Enviar imagem para venda" (primeiro
-    item da grade de Fotos/Planos de Fundo).
+    gameShopPurchaseResult, gameShopUseResult, gameShopTransferResult,
+    redeemResult, personalizationConfig, submissionSent }) —
+    personalizationConfig alimenta o preço mostrado no card "Enviar
+    imagem para venda" (primeiro item da grade de Fotos/Planos de Fundo).
 
     OSSOS VIROU SALDO POR SERVIDOR (reforma 2026-08-15, pedido do dono:
     "gostaria que ossos fossem um saldo por servidor") — Caçadas/XP
@@ -313,6 +329,25 @@
         .loja-item-buy-form .btn-chip:disabled { opacity: 0.4; cursor: not-allowed; }
         .loja-item-buy-form .btn-chip i { width: 12px; height: 12px; }
         .loja-item-insufficient { font-family: 'Poppins', sans-serif; font-size: 0.62rem; color: #FF4E3B; }
+
+        /* Transferência entre servidores (pedido do dono, 2026-08-16) — no
+           mesmo card compacto de 170px do inventário, então tudo aqui é
+           reduzido igual .loja-item-buy-form, só com um <select> extra pro
+           servidor de destino em vez de ir só o botão. */
+        .loja-item-transfer-form { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+        .loja-item-transfer-select {
+            width: 100%;
+            box-sizing: border-box;
+            background: #1F1D20;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 10px;
+            padding: 4px 5px;
+        }
+        .loja-item-transfer-form .btn-chip { width: 100%; justify-content: center; padding: 3px 6px; font-size: 10px; }
+        .loja-item-transfer-form .btn-chip i { width: 12px; height: 12px; }
 
         /* Formulários do Conversor de Moedas — mesma cápsula
            .input-container-premium/.input-premium-field do resto do
@@ -694,6 +729,7 @@
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Comprar guarda o item no seu inventário — use quando quiser, direto daqui, mas precisa estar online no servidor na hora de usar.</span><span data-i18n-en>Paid with Bones. Buying keeps the item in your inventory — use it whenever you want, right here, but you need to be online on the server when you use it.</span></p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Itens consumíveis: cada compra vale por 1 uso e some do inventário assim que você usar. Quer usar de novo? É preciso comprar outra vez.</span><span data-i18n-en>Consumable items: each purchase is good for 1 use and disappears from your inventory once used. Want to use it again? You'll need to buy it again.</span></p>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Item comprado só pode ser usado no servidor onde foi comprado. Quer levar pra outro servidor? Use "Transferir" no inventário — custa metade do preço original em Ossos, cobrado do saldo do servidor de destino.</span><span data-i18n-en>A purchased item can only be used on the server it was bought on. Want to bring it to a different server? Use "Transfer" in your inventory — it costs half the original price in Bones, charged from the destination server's balance.</span></p>
             </div>
 
             <% if (gameShopPurchaseResult) { %>
@@ -711,6 +747,15 @@
                     <div class="outline-chip-text">
                         <span class="outline-chip-headline"><span data-i18n-pt>Aplicado no jogo</span><span data-i18n-en>Applied in-game</span></span>
                         <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopUseResult %> aplicado com sucesso e consumido do seu inventário.</span><span data-i18n-en><%= gameShopUseResult %> successfully applied and consumed from your inventory.</span></span>
+                    </div>
+                </div>
+            <% } %>
+            <% if (gameShopTransferResult) { %>
+                <div class="outline-chip">
+                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Item transferido</span><span data-i18n-en>Item transferred</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopTransferResult %> movido pro novo servidor — já pode ser usado lá.</span><span data-i18n-en><%= gameShopTransferResult %> moved to the new server — it's ready to use there.</span></span>
                     </div>
                 </div>
             <% } %>
@@ -734,6 +779,19 @@
                                         <i data-lucide="zap"></i> <span data-i18n-pt>Usar</span><span data-i18n-en>Use</span>
                                     </button>
                                 </form>
+                                <% if (item.transferable && item.transferTargets.length > 0) { %>
+                                    <form method="POST" action="/loja/transferir-jogo" class="loja-item-transfer-form">
+                                        <input type="hidden" name="inventoryId" value="<%= item.id %>">
+                                        <select name="destGuildId" class="loja-item-transfer-select" required>
+                                            <% item.transferTargets.forEach(target => { %>
+                                                <option value="<%= target.guildId %>"><%= target.name %></option>
+                                            <% }); %>
+                                        </select>
+                                        <button type="submit" class="btn-chip">
+                                            <i data-lucide="arrow-left-right"></i> <span data-i18n-pt>Transferir (<%= item.transferFee %> Ossos)</span><span data-i18n-en>Transfer (<%= item.transferFee %> Bones)</span>
+                                        </button>
+                                    </form>
+                                <% } %>
                             </div>
                         <% }); %>
                     </div>

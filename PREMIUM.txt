@@ -42,8 +42,10 @@ Jogo por servidor (POST /loja/comprar-jogo). A flag e
 `DASHBOARD_LOCKED_TO_OWNER`, so troca `true`->`false` pra reabrir). NAO
 afeta USAR um item ja comprado (POST /loja/usar-jogo) nem RESGATAR
 emblema/titulo por requisito (POST /perfil/resgatar, sempre gratuito) -
-nenhum dos dois e uma compra de verdade. Remover este paragrafo quando a
-trava for desativada de volta.
+nenhum dos dois e uma compra de verdade. TAMBEM trava TRANSFERIR um item
+entre servidores (POST /loja/transferir-jogo, ver secao 203, adicionado
+2026-08-16) - move Bones de verdade, mesmo criterio das compras. Remover
+este paragrafo quando a trava for desativada de volta.
 
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
@@ -117,7 +119,14 @@ liga/desliga cada item e define o próprio preço em Bones (painel
 a espécies específicas de dinossauro, por etapa. MUDANÇA no mesmo dia
 (ver seção 184): comprar só debita Bones e guarda o item no inventário -
 o bônus só é aplicado de verdade (RCON) quando o jogador clica "Usar" no
-próprio inventário, no site (`/loja`), não mais na hora da compra.
+próprio inventário, no site (`/loja`), não mais na hora da compra. TRAVA
+POR SERVIDOR (sempre existiu, desde a seção 184): item comprado num
+servidor SÓ pode ser usado naquele mesmo servidor - comprou um Growth no
+Atlas, só usa no Atlas. TRANSFERÊNCIA ENTRE SERVIDORES (ver seção 203) -
+única forma de mover um item já comprado pra outro servidor: custa 50%
+do preço ORIGINAL da compra em Bones, cobrado do saldo do servidor de
+DESTINO. Item de Missão nunca pode ser transferido (a missão configurada
+é específica do servidor onde foi comprada).
 
 NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
 jogo = 1 XP. O ACÚMULO de XP em si JÁ ESTÁ IMPLEMENTADO (2026-08-07, ver
@@ -10500,3 +10509,68 @@ frente, nao so este relatorio):
   boot da VPS) — vale o dono conferir, depois do deploy, que o saldo
   migrado bateu com o esperado pro próprio Alderon ID dele, e observar o
   log de boot pra confirmar quantos jogadores foram migrados.
+
+203) Inventário da Loja de Jogo: transferência entre servidores com taxa de Ossos
+------------------------------------------------------------------
+- Pedido do dono: "quero que deixe uma trava nos itens onde a pessoa só
+  pode usar itens do jogo no servidor que ela comprou... vamos adicionar
+  uma transferência de itens com uma taxa de Ossos... a pessoa deve pagar
+  50% do valor que os itens foram comprados para transferir ele entre
+  servidores." A trava em si (comprou no Atlas, só usa no Atlas) já
+  existia estruturalmente desde a reforma da Seção 184
+  (`game_shop_inventory.guild_id` é fixo por linha e `useGameShopItem`
+  sempre dispara RCON contra ELE, nunca outro servidor) — o que faltava
+  era a via de escape paga: transferir o item pra outro servidor.
+- Nova coluna `game_shop_inventory.price_paid` (`ensureColumn`, default 0
+  pra linhas antigas) congela o preço em Ossos pago NA COMPRA — necessário
+  porque o preço de cada item é configurável por servidor e muda com o
+  tempo; sem congelar, uma transferência não teria como saber "50% de
+  quê". `purchaseGameShopItem` grava esse valor a partir de agora;
+  compras feitas ANTES desta revisão ficam com `price_paid = 0` e por
+  isso NÃO PODEM ser transferidas (ver próximo bullet) — sem isso seria
+  uma brecha de transferência de graça pro estoque antigo.
+- `gameShopSystem.transferGameShopItem(inventoryId, discordId,
+  destGuildId)`: recusa se o item já foi usado, se o destino é o mesmo
+  servidor onde já está, se é um item de Missão (`item_key='quest'` —
+  o nome da missão gravado na compra é específico do servidor de
+  origem, sem garantia de existir/fazer sentido no destino) ou se
+  `price_paid <= 0` (item antigo, taxa incalculável). A taxa
+  (`Math.ceil(price_paid / 2)`, sempre sobre o preço ORIGINAL da compra,
+  nunca sobre o de uma transferência anterior — evita taxa decrescente em
+  transferências encadeadas) é cobrada do saldo de Ossos do servidor de
+  DESTINO (é lá que o bônus vai ser aplicado de fato), não do servidor de
+  origem. A transferência em si é só um UPDATE trocando `guild_id` da
+  linha existente (mesmo item, mesmo id) — nenhuma cópia é criada, e
+  `useGameShopItem` não precisou de NENHUMA mudança: como ele sempre
+  confia em `row.guild_id`, a trava por servidor continua automática
+  depois de mover.
+- Mesma reivindicação atômica de `used_at` já usada em `useGameShopItem`
+  (Seção 184) reaproveitada aqui pra transferência: evita um "Usar" e um
+  "Transferir" concorrentes mexendo na mesma linha ao mesmo tempo.
+- Dashboard (`/loja`, card "LOJA DE JOGO" → "Seu Inventário"): cada item
+  transferível (com pelo menos 1 outro servidor já jogado disponível)
+  ganha um segundo formulário — `<select>` de servidor de destino +
+  botão "Transferir (X Ossos)" já mostrando a taxa calculada. Tratada
+  como compra pro efeito da trava de testes (`SHOP_PURCHASES_LOCKED`,
+  ver parágrafo no topo deste arquivo) — diferente de "Usar" (gratuito,
+  nunca travado), transferir move Ossos de verdade.
+- Decisão de produto sem confirmação explícita do dono (documentada aqui
+  pra revisão fácil se ele discordar): a taxa é cobrada do saldo do
+  servidor de DESTINO, não do de origem — raciocínio é que o servidor de
+  destino é quem "recebe" o benefício de um item pago em outro lugar, e
+  segue o mesmo espírito de "ganha lá, gasta lá" já estabelecido pra
+  Ossos na Seção 202.
+- Verificado: `node --check` em todos os arquivos tocados;
+  `ejs.renderFile()` de `loja.ejs` confirmando compilação e que o botão
+  de transferência só aparece pro item certo (transferível + com destino
+  disponível); script de teste isolado (dados prefixados
+  `test_guild_9997_shop_*`, sempre removidos no fim) cobrindo: preço
+  congelado na compra, taxa calculada sobre o preço original (ignorando
+  o preço atual do catálogo de destino, mesmo bem diferente), recusa por
+  saldo insuficiente no destino, recusa pro mesmo servidor, recusa pra
+  servidor sem saldo nenhum, transferência com saldo exato funcionando e
+  debitando certo (sem tocar no saldo de origem), item de Missão nunca
+  transferível mesmo forçando a chamada direto, item já usado recusado.
+  SEM confirmação visual/browser real (nenhuma ferramenta de navegador
+  neste ambiente) — vale o dono testar a UI de verdade em `/loja` antes
+  de considerar concluído.
