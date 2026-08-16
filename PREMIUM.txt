@@ -122,11 +122,17 @@ o bônus só é aplicado de verdade (RCON) quando o jogador clica "Usar" no
 próprio inventário, no site (`/loja`), não mais na hora da compra. TRAVA
 POR SERVIDOR (sempre existiu, desde a seção 184): item comprado num
 servidor SÓ pode ser usado naquele mesmo servidor - comprou um Growth no
-Atlas, só usa no Atlas. TRANSFERÊNCIA ENTRE SERVIDORES (ver seção 203) -
-única forma de mover um item já comprado pra outro servidor: custa 50%
-do preço ORIGINAL da compra em Bones, cobrado do saldo do servidor de
-DESTINO. Item de Missão nunca pode ser transferido (a missão configurada
-é específica do servidor onde foi comprada).
+Atlas, só usa no Atlas. TRANSFERÊNCIA ENTRE SERVIDORES (ver seções 203/
+204) - única forma de mover um item já comprado pra outro servidor:
+custa o preço CHEIO daquele item no catálogo do servidor de DESTINO
+(mesmo preço que custaria comprar do zero lá), cobrado do saldo de Bones
+do próprio destino - transferir NUNCA sai mais barato que comprar direto
+no servidor de destino, então não existe vantagem em farmar barato num
+servidor e usar caro em outro. Cai pro preço ORIGINAL pago na compra só
+se o servidor de destino nunca configurou preço nenhum pra aquele item
+(sem outra referência de valor disponível). Item de Missão nunca pode
+ser transferido (a missão configurada é específica do servidor onde foi
+comprada).
 
 NÍVEL/XP (ver seção 117): separado das duas moedas acima - 1 hora de
 jogo = 1 XP. O ACÚMULO de XP em si JÁ ESTÁ IMPLEMENTADO (2026-08-07, ver
@@ -10574,3 +10580,62 @@ frente, nao so este relatorio):
   SEM confirmação visual/browser real (nenhuma ferramenta de navegador
   neste ambiente) — vale o dono testar a UI de verdade em `/loja` antes
   de considerar concluído.
+
+204) Corrige a taxa de transferência da Loja de Jogo: de 50% do preço de origem pra 100% do preço de destino
+------------------------------------------------------------------
+- Continuação direta da Seção 203, mesmo dia. Depois de eu implementar a
+  taxa de 50% sobre o preço de ORIGEM (como pedido literalmente na Seção
+  203), o dono perguntou "como você faria para que um jogador não abuse
+  dessa transferência para abusar do farm entre servidores?" - apontei
+  que 50% do preço de ORIGEM não fecha essa brecha: comprando um item
+  barato num servidor com preço baixo e transferindo pra um servidor com
+  preço alto, o custo total (compra + taxa de 50% do valor BAIXO) fica
+  bem abaixo do preço de comprar direto no servidor caro. Sugeri cobrar
+  o preço CHEIO (100%) do catálogo de DESTINO em vez de uma fração do
+  preço de origem - dono confirmou: "Sim faça isso."
+- `gameShopSystem._resolveTransferFee(itemKey, pricePaid, destGuildId)`
+  (nova função, exportada) substitui o cálculo antigo (`Math.ceil(
+  price_paid / 2)`) - agora lê `getGuildShopConfig(destGuildId)[itemKey]
+  .price` e usa esse valor CHEIO como taxa; só cai pro `price_paid`
+  original (preço de ORIGEM) se o servidor de destino nunca configurou
+  preço nenhum pra aquele `item_key` (sem outra referência de valor
+  disponível pra cobrar). Chamada tanto por `transferGameShopItem`
+  quanto por `dashboard.js` (pra mostrar a taxa certa na UI ANTES de
+  confirmar).
+- Efeito prático: transferir um item NUNCA sai mais barato que comprá-lo
+  do zero no servidor de destino (o custo total fica em price_paid da
+  origem + preço cheio do destino - sempre MAIS caro que só o preço de
+  destino, nunca menos). O recurso vira uma ferramenta de conveniência/
+  caso especial (ex: item foi desligado no catálogo daquele servidor
+  depois que o jogador já tinha comprado em outro lugar), não um desconto
+  por comprar em outro lugar - elimina o incentivo econômico de farmar
+  Bones num servidor barato pra usar num servidor caro.
+- MUDANÇA DE UI NECESSÁRIA: como a taxa agora depende de QUAL servidor
+  de destino for escolhido (cada servidor pode precificar o mesmo item
+  diferente), deixou de fazer sentido um preço fixo no botão "Transferir"
+  por item - `getInventory()` NÃO retorna mais `transferFee` nenhum
+  (só `transferable`, que continua item-agnóstico de destino). Em vez
+  disso, `dashboard.js` calcula a taxa de CADA destino possível
+  (`transferTargets[].fee`) e `loja.ejs` mostra o botão com o texto
+  atualizado via JS ao trocar o `<select>` de servidor
+  (`updateGameShopTransferFee`, mesmo padrão já usado pelo conversor de
+  moedas em `updateBonesConverterBalance` - cada `<option>` carrega o
+  próprio valor em `data-fee`). Texto bilíngue montado em JS lendo
+  `html[data-lang]` direto (mesma fonte que `role-picker.js` já usa pro
+  mesmo problema de texto dinâmico que os pares `data-i18n-pt/en`
+  estáticos não cobrem) - fallback estático em português/inglês (via os
+  pares de sempre) cobre a primeira pintura da página antes do JS rodar,
+  usando a taxa do PRIMEIRO destino da lista (sempre o selecionado por
+  padrão de um `<select>`).
+- Verificado: `node --check` nos arquivos tocados; `ejs.renderFile()` de
+  `loja.ejs` confirmando que cada `<option>` carrega a taxa certa em
+  `data-fee` e que o fallback estático bate com o primeiro destino;
+  script de teste isolado (dados prefixados `test_guild_9996_shop_*`,
+  removidos no fim) cobrindo: taxa = preço cheio do destino (ignorando
+  o preço de origem completamente), fallback pro preço de origem quando
+  o destino nunca configurou preço, e o cenário de abuso citado pelo
+  dono explicitamente não compensando mais (comprar em A por 10 +
+  transferir pra B por 500 = 510, sempre ≥ que comprar direto em B por
+  500). SEM confirmação visual/browser real - vale o dono conferir a UI
+  de verdade, principalmente a troca de servidor no `<select>`
+  atualizando o valor do botão.

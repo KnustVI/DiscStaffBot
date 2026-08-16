@@ -1867,12 +1867,22 @@ function loadDashboard(client) {
         // itens com uma taxa de Ossos... entre servidores") — só os OUTROS
         // servidores já jogados (mesma lista playedGuilds do catálogo/
         // conversor acima), nunca um servidor aleatório onde o jogador
-        // nunca esteve. Ver POST /loja/transferir-jogo e
-        // gameShopSystem.transferGameShopItem pra taxa/regra completa.
+        // nunca esteve. `fee` já vem calculado POR destino (preço cheio do
+        // catálogo de lá, ver gameShopSystem._resolveTransferFee) — cada
+        // servidor pode precificar o mesmo item diferente, então não dá
+        // pra ter uma taxa única por item como antes de 2026-08-16 corrigir
+        // o desenho original (era 50% fixo do preço de origem). Ver POST
+        // /loja/transferir-jogo e gameShopSystem.transferGameShopItem.
         const gameShopInventory = GameShopSystem.getInventory(req.user.id).map((item) => ({
             ...item,
             guildName: client.guilds.cache.get(item.guildId)?.name || item.guildId,
-            transferTargets: playedGuilds.filter((pg) => pg.guildId !== item.guildId),
+            transferTargets: playedGuilds
+                .filter((pg) => pg.guildId !== item.guildId)
+                .map((pg) => ({
+                    guildId: pg.guildId,
+                    name: pg.name,
+                    fee: GameShopSystem._resolveTransferFee(item.itemKey, item.pricePaid, pg.guildId),
+                })),
         }));
 
         res.render('loja', {

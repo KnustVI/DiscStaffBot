@@ -52,19 +52,26 @@
 
   TRAVA POR SERVIDOR + TRANSFERÊNCIA (pedido do dono, 2026-08-16: "a
   pessoa só pode usar itens do jogo no servidor que ela comprou... vamos
-  adicionar uma transferencia de itens com uma taxa de Ossos... 50% do
-  valor que os itens foram comprados"): item comprado num servidor SÓ
-  pode ser usado ali (gameShopInventory[].guildId é fixo — useGameShopItem
-  sempre dispara RCON contra ELE, nunca outro). A única forma de mover um
-  item pra outro servidor é o botão "Transferir" (POST
-  /loja/transferir-jogo), que cobra metade do preço ORIGINAL da compra
-  (transferFee, já vem calculado por item — ver gameShopSystem.js
-  getInventory/transferGameShopItem) do saldo de Ossos do servidor de
-  DESTINO. Só aparece quando `item.transferable` (falso pra item de
-  Missão, que é específico do servidor onde foi comprado) e há pelo menos
-  um outro servidor já jogado em `item.transferTargets`. Mesma trava de
-  testes das compras (SHOP_PURCHASES_LOCKED) — transferir move Ossos de
-  verdade, então fica pausado junto.
+  adicionar uma transferencia de itens com uma taxa de Ossos"): item
+  comprado num servidor SÓ pode ser usado ali (gameShopInventory[].guildId
+  é fixo — useGameShopItem sempre dispara RCON contra ELE, nunca outro).
+  A única forma de mover um item pra outro servidor é o botão
+  "Transferir" (POST /loja/transferir-jogo), que cobra o preço CHEIO
+  daquele item no catálogo do servidor de DESTINO (mesmo preço de comprar
+  do zero lá — CORRIGIDO no mesmo dia: o design inicial cobrava só 50% do
+  preço de ORIGEM, mas o dono apontou que isso permitia farmar barato num
+  servidor e usar caro em outro; cobrar o preço cheio de destino fecha
+  essa brecha por completo, ver gameShopSystem.js _resolveTransferFee).
+  Como a taxa agora depende de QUAL destino for escolhido (cada servidor
+  pode precificar diferente), `item.transferTargets[].fee` já vem
+  calculado por destino (dashboard.js) e o texto do botão é atualizado
+  via JS ao trocar o `<select>` (updateGameShopTransferFee, fim da
+  página) — `item.transferable` continua um booleano só (falso pra item
+  de Missão, que é específico do servidor onde foi comprado), sem
+  depender de destino. Só aparece quando há pelo menos um outro servidor
+  já jogado em `item.transferTargets`. Mesma trava de testes das compras
+  (SHOP_PURCHASES_LOCKED) — transferir move Ossos de verdade, então fica
+  pausado junto.
 
   Uso: res.render('loja', { nickname, role, isOwner, otherGuilds,
     personalizacao, badges, titulos, isLinked, bonesBalance,
@@ -729,7 +736,7 @@
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Comprar guarda o item no seu inventário — use quando quiser, direto daqui, mas precisa estar online no servidor na hora de usar.</span><span data-i18n-en>Paid with Bones. Buying keeps the item in your inventory — use it whenever you want, right here, but you need to be online on the server when you use it.</span></p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Itens consumíveis: cada compra vale por 1 uso e some do inventário assim que você usar. Quer usar de novo? É preciso comprar outra vez.</span><span data-i18n-en>Consumable items: each purchase is good for 1 use and disappears from your inventory once used. Want to use it again? You'll need to buy it again.</span></p>
-                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Item comprado só pode ser usado no servidor onde foi comprado. Quer levar pra outro servidor? Use "Transferir" no inventário — custa metade do preço original em Ossos, cobrado do saldo do servidor de destino.</span><span data-i18n-en>A purchased item can only be used on the server it was bought on. Want to bring it to a different server? Use "Transfer" in your inventory — it costs half the original price in Bones, charged from the destination server's balance.</span></p>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Item comprado só pode ser usado no servidor onde foi comprado. Quer levar pra outro servidor? Use "Transferir" no inventário — custa o preço cheio daquele item no servidor de destino (o mesmo que custaria comprar do zero lá), cobrado do saldo de Ossos de lá.</span><span data-i18n-en>A purchased item can only be used on the server it was bought on. Want to bring it to a different server? Use "Transfer" in your inventory — it costs the full price of that item on the destination server (same as buying it fresh there), charged from that server's Bones balance.</span></p>
             </div>
 
             <% if (gameShopPurchaseResult) { %>
@@ -782,13 +789,14 @@
                                 <% if (item.transferable && item.transferTargets.length > 0) { %>
                                     <form method="POST" action="/loja/transferir-jogo" class="loja-item-transfer-form">
                                         <input type="hidden" name="inventoryId" value="<%= item.id %>">
-                                        <select name="destGuildId" class="loja-item-transfer-select" required>
+                                        <select name="destGuildId" class="loja-item-transfer-select" required onchange="updateGameShopTransferFee(this)">
                                             <% item.transferTargets.forEach(target => { %>
-                                                <option value="<%= target.guildId %>"><%= target.name %></option>
+                                                <option value="<%= target.guildId %>" data-fee="<%= target.fee %>"><%= target.name %></option>
                                             <% }); %>
                                         </select>
                                         <button type="submit" class="btn-chip">
-                                            <i data-lucide="arrow-left-right"></i> <span data-i18n-pt>Transferir (<%= item.transferFee %> Ossos)</span><span data-i18n-en>Transfer (<%= item.transferFee %> Bones)</span>
+                                            <i data-lucide="arrow-left-right"></i>
+                                            <span data-role="transfer-fee-label"><span data-i18n-pt>Transferir (<%= item.transferTargets[0].fee %> Ossos)</span><span data-i18n-en>Transfer (<%= item.transferTargets[0].fee %> Bones)</span></span>
                                         </button>
                                     </form>
                                 <% } %>
@@ -1069,6 +1077,30 @@
             if (button) button.disabled = balance < 1;
         }
         document.querySelectorAll('[data-bones-converter-form] select[name="guildId"]').forEach(updateBonesConverterBalance);
+    </script>
+
+    <%#
+        Transferência da Loja de Jogo entre servidores (pedido do dono,
+        2026-08-16) — cada <option> do <select> de destino carrega a
+        própria taxa em data-fee (já calculada por servidor em
+        dashboard.js, ver gameShopSystem._resolveTransferFee: preço cheio
+        do catálogo de destino, sem desconto nenhum). Atualiza o texto do
+        botão ao trocar a seleção, e uma vez no load pro destino já
+        selecionado por padrão — mesmo padrão de updateBonesConverterBalance
+        acima, só que o texto é bilíngue MONTADO em JS (não dá pra usar o
+        par data-i18n-pt/en aqui, o número muda) — lê html[data-lang], mesma
+        fonte que role-picker.js já usa pro mesmo problema.
+    %>
+    <script>
+        function updateGameShopTransferFee(select) {
+            const fee = Number(select.selectedOptions[0]?.dataset.fee || 0);
+            const form = select.closest('form');
+            const label = form.querySelector('[data-role="transfer-fee-label"]');
+            if (!label) return;
+            const lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            label.textContent = lang === 'en' ? `Transfer (${fee} Bones)` : `Transferir (${fee} Ossos)`;
+        }
+        document.querySelectorAll('.loja-item-transfer-select').forEach(updateGameShopTransferFee);
     </script>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>

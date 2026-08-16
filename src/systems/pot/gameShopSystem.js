@@ -173,16 +173,42 @@ async function purchaseGameShopItem(guildId, discordId, itemKey) {
 }
 
 /**
+ * Preço da taxa de transferência de um item pra OUTRO servidor (pedido do
+ * dono, 2026-08-16, CORRIGINDO o design original desta mesma revisão: "se
+ * não precisássemos manter o valor de 50%... eu cobraria 100% do preço
+ * atual do item no servidor de destino... transferir custaria exatamente
+ * o mesmo que comprar aquele item do zero lá" — fecha por completo a
+ * brecha de comprar barato num servidor generoso e usar caro em outro,
+ * já que não sobra NENHUM desconto por ter comprado em outro lugar).
+ * Preço de referência é sempre o do catálogo de DESTINO (preço cheio, não
+ * metade) — só cai pro price_paid original (preço de ORIGEM) se o
+ * destino nunca configurou um preço pra esse item_key (sem outra
+ * referência de valor disponível pra cobrar).
+ * @param {string} itemKey
+ * @param {number} pricePaid - preço original pago na compra (fallback)
+ * @param {string} destGuildId
+ * @returns {number}
+ */
+function _resolveTransferFee(itemKey, pricePaid, destGuildId) {
+    const destConfig = getGuildShopConfig(destGuildId)[itemKey];
+    const destPrice = Number.isInteger(destConfig?.price) && destConfig.price > 0 ? destConfig.price : null;
+    return destPrice ?? pricePaid;
+}
+
+/**
  * Itens comprados e ainda NÃO usados — o "inventário" mostrado no site
  * (botão "Usar" por linha, ver useGameShopItem). Cada linha já vem com o
  * label/metadados do catálogo embutidos, pra quem renderiza não precisar
- * cruzar com GAME_SHOP_ITEMS na mão. transferFee/transferable (2026-08-16)
- * já vêm calculados aqui pro template só decidir mostrar o botão ou não —
- * ver transferGameShopItem pra regra completa (por que Missão nunca
- * transfere e por que price_paid=0 bloqueia).
+ * cruzar com GAME_SHOP_ITEMS na mão. `transferable` (2026-08-16) já vem
+ * calculado aqui pro template decidir mostrar o botão ou não — ver
+ * transferGameShopItem pra regra completa (por que Missão nunca
+ * transfere e por que price_paid=0 bloqueia). A TAXA em si não entra
+ * aqui: depende de QUAL servidor de destino for escolhido (cada um pode
+ * ter um preço diferente pro mesmo item) — ver _resolveTransferFee,
+ * calculado por destino em dashboard.js.
  * @param {string} userId
  * @param {string} [guildId] - opcional, filtra só um servidor
- * @returns {Array<{id: number, guildId: string, itemKey: string, label: string, missionName: string|null, speciesRestrictable: boolean, purchasedAt: number, pricePaid: number, transferFee: number|null, transferable: boolean}>}
+ * @returns {Array<{id: number, guildId: string, itemKey: string, label: string, missionName: string|null, speciesRestrictable: boolean, purchasedAt: number, pricePaid: number, transferable: boolean}>}
  */
 function getInventory(userId, guildId) {
     if (!userId) return [];
@@ -202,7 +228,6 @@ function getInventory(userId, guildId) {
             speciesRestrictable: !!item?.speciesRestrictable,
             purchasedAt: row.purchased_at,
             pricePaid,
-            transferFee: pricePaid > 0 ? Math.ceil(pricePaid / 2) : null,
             transferable: pricePaid > 0 && !item?.needsMission,
         };
     });
@@ -310,20 +335,20 @@ async function useGameShopItem(inventoryId, discordId) {
 }
 
 /**
- * Transfere um item já comprado pra OUTRO servidor, cobrando 50% do
- * preço original em Ossos (pedido do dono, 2026-08-16: "a pessoa deve
- * pagar 50% do valor que os itens foram comprados para transferir ele
- * entre servidores"). A trava "só usa onde comprou" É o próprio
- * game_shop_inventory.guild_id — useGameShopItem sempre dispara RCON
- * contra row.guild_id, nunca outro — então transferir é simplesmente
- * TROCAR esse guild_id depois de cobrar a taxa; nenhuma checagem extra
- * de "servidor certo" é necessária em useGameShopItem por causa disso.
- *
- * A taxa é cobrada do saldo de Ossos do servidor de DESTINO (é lá que o
- * bônus vai ser de fato aplicado) — arredondada pra cima
- * (Math.ceil), sempre sobre o price_paid ORIGINAL da compra (não sobre
- * o resultado de uma transferência anterior, evita taxa decrescente em
- * transferências encadeadas).
+ * Transfere um item já comprado pra OUTRO servidor, cobrando o preço
+ * CHEIO do catálogo de destino em Ossos (pedido do dono, 2026-08-16 —
+ * CORRIGE o design inicial desta mesma revisão, que cobrava só 50% do
+ * preço de ORIGEM: isso permitia comprar barato num servidor generoso e
+ * usar caro em outro pagando quase nada. Cobrar o preço cheio de DESTINO
+ * fecha essa brecha por completo — transferir nunca sai mais barato que
+ * comprar do zero lá, vira só uma ferramenta de conveniência/caso
+ * especial, não um desconto). Ver _resolveTransferFee pra regra completa
+ * (inclusive o fallback pro preço de origem quando o destino nunca
+ * configurou preço pra esse item). A trava "só usa onde comprou" É o
+ * próprio game_shop_inventory.guild_id — useGameShopItem sempre dispara
+ * RCON contra row.guild_id, nunca outro — então transferir é simplesmente
+ * TROCAR esse guild_id depois de cobrar a taxa; nenhuma checagem extra de
+ * "servidor certo" é necessária em useGameShopItem por causa disso.
  *
  * Item de Missão (item_key='quest') NUNCA pode ser transferido: o
  * mission_name congelado na compra é uma string configurada NAQUELE
@@ -351,7 +376,7 @@ async function transferGameShopItem(inventoryId, discordId, destGuildId) {
         return { ok: false, error: 'Este item foi comprado antes do sistema de transferência existir, então não há como calcular a taxa — fale com a equipe.' };
     }
 
-    const fee = Math.ceil(row.price_paid / 2);
+    const fee = _resolveTransferFee(row.item_key, row.price_paid, destGuildId);
 
     const claim = db.prepare(`UPDATE game_shop_inventory SET used_at = ? WHERE id = ? AND user_id = ? AND used_at IS NULL`)
         .run(CLAIM_SENTINEL, inventoryId, discordId);
@@ -388,4 +413,5 @@ module.exports = {
     getInventory,
     useGameShopItem,
     transferGameShopItem,
+    _resolveTransferFee,
 };
