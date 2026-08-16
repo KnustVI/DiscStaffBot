@@ -210,6 +210,96 @@
            .perfil-soon-text sozinho sem !important. */
         .perfil-soon-text.perfil-playtime-total { font-size: 20px; font-weight: 600; opacity: 1; color: #DCA15E; }
 
+        /* Card de identidade "estilo Discord" (pedido do dono, 2026-08-16:
+           reproduzir em CSS o mesmo cartão que /perfil gera no Discord via
+           Canvas, ver profileCardRenderer.js/assets/cards/{tier}.svg) — no
+           lugar do card de texto puro que existia antes aqui. Adaptado do
+           export do Figma (que usa position:absolute com pixels fixos, um
+           card de 701x997px) pra flexbox com unidades relativas: mesma
+           regra de responsividade já usada em .perfil-hero acima
+           (flex-wrap, sem media query dedicada) — a foto e as pílulas
+           empilham verticalmente em telas estreitas em vez de ficarem
+           cortadas. Fundo do CARD em si é opaco (mesma cor #131314 já
+           usada em .perfil-guild-chip/.perfil-staff-history-card) — o
+           plano de fundo escolhido pelo jogador (backgroundPreviewUrl) já
+           cobre a página INTEIRA por baixo de todo card (ver body.perfil-
+           has-bg no topo deste arquivo), não precisa (nem deve) repetir
+           aqui dentro por cima.
+           Cores por tier (--pf-id-grad-a/b/text, aplicadas via style
+           inline no HTML a partir de playerTier) espelham exatamente os
+           3 tiers do card do Discord (T1 Free bege claro, T2 Compy
+           mostarda, T3 Raptor terracota escuro — mesmos hex do export do
+           Figma). */
+        .pf-id-card { padding: 20px; background: #131314; border: 1px solid rgba(217, 163, 98, 0.25); border-radius: 14px; }
+        .pf-id-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+        .pf-id-photo {
+            position: relative;
+            flex: 1 1 280px;
+            min-width: 220px;
+            aspect-ratio: 350 / 238;
+            border-radius: 12px;
+            background-color: #1F1D20;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+        .pf-id-stars {
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 14px 12px 10px;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.55) 10%, rgba(0, 0, 0, 0) 100%);
+        }
+        .pf-id-star {
+            width: clamp(20px, 4vw, 28px);
+            height: clamp(20px, 4vw, 28px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(14px, 3vw, 18px);
+            border-radius: 6px;
+            background: #1F1D20;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            color: #3E3D38;
+            box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.49);
+        }
+        .pf-id-star.is-filled {
+            color: #1F1D20;
+            background: conic-gradient(from 180deg at 50% 50%, #DCA15E 0deg, #F8DCC0 360deg);
+            border-color: #1F1D20;
+            box-shadow: 0px -2px 8.8px rgba(255, 226, 129, 0.35), 0px 4px 4px rgba(0, 0, 0, 0.49);
+        }
+        .pf-id-pills { flex: 1 1 260px; min-width: 220px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+        .pf-id-pill {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #DCA15E;
+            background: linear-gradient(179.54deg, var(--pf-id-grad-a) 47.59%, var(--pf-id-grad-b) 99.6%);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--pf-id-text);
+        }
+        .pf-id-pill i { width: 20px; height: 20px; flex: none; }
+        .pf-id-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pf-id-bottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; }
+        .pf-id-name { font-family: 'Tilt Warp', cursive; font-size: clamp(26px, 5vw, 40px); line-height: 1.1; color: #F8DCC0; word-break: break-word; }
+        /* Emblemas conquistados (pedido do dono, 2026-08-16: "os emblemas
+           que os jogadores conquistaram", até 6 — MESMO pool type='badge'
+           já usado na Loja/Missões e Recompensas, ver ownedItems filtrado
+           em JS acima). Imagem de verdade (não ícone fixo), então usa
+           object-fit:cover num círculo pequeno com borda dourada — mesmo
+           tratamento visual dos chips de .perfil-guild-chip img. */
+        .pf-id-badges { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; }
+        .pf-id-badges img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #DCA15E; }
+
         /* Abas Perfil/Personalização (pedido do dono, 2026-08-05) — só
            existem quando a conta está vinculada (sem link não tem stats
            nem o que personalizar, ver bloco !link mais abaixo). Mesmo
@@ -451,6 +541,62 @@
             </div>
 
             <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
+                <%
+                    // Card de identidade "estilo Discord" (pedido do dono,
+                    // 2026-08-16) — ver docblock do <style> .pf-id-card
+                    // acima pra explicação completa (fonte da foto/fundo,
+                    // cores por tier, responsividade). Emblemas: até 6
+                    // ícones de EMBLEMA JÁ RESGATADO pelo jogador (não
+                    // decorativo fixo como o mockup do Figma sugeria — o
+                    // dono confirmou que representam conquistas de verdade,
+                    // mesmo pool type='badge' já usado na Loja/Missões e
+                    // Recompensas). ownedItems já vem calculado (todos os
+                    // tipos) pra seção "Seus Itens" logo abaixo — só
+                    // filtra por tipo aqui, sem query nova.
+                    const pfIdCardGradients = {
+                        free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20' },
+                        compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0' },
+                        raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E' },
+                    };
+                    const pfIdCardGrad = pfIdCardGradients[playerTier] || pfIdCardGradients.free;
+                    const pfIdCardDefaultPhotos = { free: '/images/perfil-foto-free.webp', compy: '/images/perfil-foto-compy.webp', raptor: '/images/perfil-foto-raptor.webp' };
+                    const pfIdCardPhoto = avatarPreviewUrl || pfIdCardDefaultPhotos[playerTier] || pfIdCardDefaultPhotos.free;
+                    const pfIdBadges = ownedItems.filter((i) => i.type === 'badge').slice(0, 6);
+                %>
+                <section class="titan-card-premium pf-id-card">
+                    <div class="pf-id-top">
+                        <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
+                            <div class="pf-id-stars">
+                                <% for (let i = 1; i <= 5; i++) { %><span class="pf-id-star <%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
+                            </div>
+                        </div>
+                        <div class="pf-id-pills" style="--pf-id-grad-a: <%= pfIdCardGrad.a %>; --pf-id-grad-b: <%= pfIdCardGrad.b %>; --pf-id-text: <%= pfIdCardGrad.text %>;">
+                            <div class="pf-id-pill">
+                                <i data-lucide="medal"></i>
+                                <span><% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
+                            </div>
+                            <div class="pf-id-pill">
+                                <i data-lucide="play"></i>
+                                <span><span data-i18n-pt>Nível</span><span data-i18n-en>Level</span> <%= levelProgress.level %></span>
+                            </div>
+                            <div class="pf-id-pill">
+                                <i data-lucide="star"></i>
+                                <span><% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pf-id-bottom">
+                        <span class="pf-id-name"><%= link.player_name || discordUser.username %></span>
+                        <% if (pfIdBadges.length > 0) { %>
+                            <div class="pf-id-badges">
+                                <% pfIdBadges.forEach((b) => { %>
+                                    <img src="<%= b.url %>" alt="" title="<%= b.label %>">
+                                <% }); %>
+                            </div>
+                        <% } %>
+                    </div>
+                </section>
+
                 <section class="titan-card-premium flex-col gap-5">
                     <h2 class="section-title text-lg flex items-center gap-3">
                         <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
