@@ -61,41 +61,40 @@
     const tnHideOnScroll = typeof hideOnScroll !== 'undefined' && hideOnScroll;
     const tnReserveSpace = typeof reserveSpace !== 'undefined' && reserveSpace;
 %>
-<nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50<%= tnHideOnScroll ? ' tp-has-drawer-nav' : '' %>" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+<nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <%#
         Botão hamburguer (pedido do dono, 2026-08-16: "solução de
         navegação para celulares... incluindo todos os botões da barra de
         topo e da sidebar") — só existe visualmente abaixo de 767px (ver
         .tp-mobile-menu-btn no <style> abaixo; os .nav-btn/.dashboard-link
         normais somem nessa mesma faixa, só o hamburguer + o botão de
-        idioma continuam visíveis na barra). Abre o drawer definido em
-        partials/sidebar-v2.ejs (que já tem os dados de guild/restricted/
-        isOwner pra montar a lista completa categorizada, sem precisar
-        duplicar nada aqui) — chama toggleMobileDrawer(), função global
-        definida lá; guard `window.toggleMobileDrawer &&` porque
-        sidebar-v2.ejs pode ainda não ter terminado de rodar seu próprio
-        <script> no instante exato de um clique bem no início do
-        carregamento (raro, mas sem custo nenhum se proteger).
+        idioma continuam visíveis na barra).
+
+        Sempre chama toggleMobileDrawer() (função global, guard
+        `window.toggleMobileDrawer &&` pro raro caso de um clique
+        acontecer antes do script que a define terminar de rodar) — mas
+        QUAL script define essa função muda conforme a página:
+        - Nas ~10 páginas COM sidebar (tnHideOnScroll:true), vem de
+          partials/sidebar-v2.ejs, que já tem os dados de guild/
+          restricted/isOwner pra montar a lista completa categorizada.
+        - Nas ~5 páginas SEM sidebar (hero/documentacao/portal/termos/
+          dev-lojas), sidebar-v2.ejs nem é incluído — o drawer local logo
+          abaixo deste <nav> define sua PRÓPRIA toggleMobileDrawer() com
+          o mesmo nome/IDs (tpMobileDrawer/tpMobileDrawerBackdrop), sem
+          colisão possível porque as duas variantes nunca coexistem na
+          mesma página.
 
         BUG REAL corrigido (pedido do dono, 2026-08-16, testado ao vivo):
-        top-nav.ejs é incluído em TODA página (inclusive as ~5 sem
-        sidebar nenhuma — hero/documentacao/portal/termos/dev-lojas), mas
-        o drawer em si só existe em partials/sidebar-v2.ejs. Sem esta
-        checagem, o hamburguer aparecia em QUALQUER página abaixo de
-        767px, mas clicar nele não fazia nada nas páginas sem sidebar
-        (drawer/toggleMobileDrawer/lucide.createIcons simplesmente não
-        existiam no DOM — confirmado via console: "drawer encontrado?
-        false"). `tnHideOnScroll` já é, por acaso, EXATAMENTE o mesmo
-        sinal usado hoje pras 10 páginas que de fato têm sidebar (todas
-        passam hideOnScroll:true; as ~5 sem sidebar não passam, ou
-        passam false só no caso de dev-lojas.ejs) — reaproveitado aqui em
-        vez de inventar um parâmetro novo (ex: hasSidebar) só pra isso.
+        o hamburguer já tinha sido escrito uma vez renderizando sempre,
+        mas nessa 1ª versão o drawer só existia em sidebar-v2.ejs — nas
+        páginas sem sidebar o botão aparecia sem ícone e sem fazer nada
+        ao clicar (confirmado via console: "drawer encontrado? false").
+        Corrigido dando a essas páginas seu próprio drawer local (ver
+        abaixo), em vez de simplesmente esconder o botão nelas.
     %>
-    <% if (tnHideOnScroll) { %>
-        <button type="button" class="tp-mobile-menu-btn" id="tpMobileMenuBtn" onclick="if (window.toggleMobileDrawer) toggleMobileDrawer();" aria-label="Abrir menu" aria-expanded="false">
-            <i data-lucide="menu"></i>
-        </button>
-    <% } %>
+    <button type="button" class="tp-mobile-menu-btn" id="tpMobileMenuBtn" onclick="if (window.toggleMobileDrawer) toggleMobileDrawer();" aria-label="Abrir menu" aria-expanded="false">
+        <i data-lucide="menu"></i>
+    </button>
     <% if (tnUser) { %>
         <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
@@ -128,6 +127,83 @@
         <span class="lang-toggle-flag lang-toggle-flag-en" aria-hidden="true"><img src="/images/flag-us.webp" alt=""></span>
     </button>
 </nav>
+
+<% if (!tnHideOnScroll) { %>
+    <%#
+        Drawer mobile pras páginas SEM sidebar (pedido do dono, 2026-08-16,
+        parte 2: "seria interessante ter essa opção pras páginas sem
+        sidebar também"). partials/sidebar-v2.ejs não é incluído aqui,
+        então não dá pra reaproveitar o drawer categorizado de lá — mas
+        sua categoria "Navegação" já é EXATAMENTE a mesma lista que os
+        .nav-btn logo acima (Home/Portal-Entrar/Premium/Loja/Documentação/
+        Suporte/Controle de Lojas), então replica só essa lista, sem
+        cabeçalho de categoria (não há estrutura real a sinalizar numa
+        lista de 6-7 itens só). Mesmo IDs/classes/função
+        (tpMobileDrawer/tpMobileDrawerBackdrop/toggleMobileDrawer) do
+        drawer de sidebar-v2.ejs — nunca convivem na mesma página (uma
+        tem sidebar, a outra não), sem risco de colisão.
+    %>
+    <div class="tp-mobile-drawer-backdrop" id="tpMobileDrawerBackdrop" onclick="toggleMobileDrawer(false)"></div>
+    <aside class="tp-mobile-drawer" id="tpMobileDrawer" aria-hidden="true">
+        <button type="button" class="tp-mobile-drawer-close" onclick="toggleMobileDrawer(false)" aria-label="Fechar menu">
+            <i data-lucide="x"></i>
+        </button>
+        <% if (tnUser) { %>
+            <a href="/perfil" class="tp-mobile-drawer-profile" onclick="toggleMobileDrawer(false)">
+                <div class="tp-mobile-drawer-avatar">
+                    <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="">
+                </div>
+                <div class="tp-mobile-drawer-profile-info">
+                    <span class="tp-mobile-drawer-nickname"><%= (tnUser.nickname || tnUser.global_name || tnUser.username) %></span>
+                </div>
+            </a>
+        <% } %>
+        <div class="tp-mobile-drawer-section">
+            <a href="/" class="tp-mobile-drawer-item<%= tnActive === 'home' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                <i data-lucide="home"></i>
+                <span><span data-i18n-pt>Home</span><span data-i18n-en>Home</span></span>
+            </a>
+            <% if (tnUser) { %>
+                <a href="/dashboard" class="tp-mobile-drawer-item dashboard-link<%= tnActive === 'portal' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span><span data-i18n-pt>Portal</span><span data-i18n-en>Portal</span></span>
+                </a>
+            <% } else { %>
+                <a href="/login" class="tp-mobile-drawer-item" onclick="toggleMobileDrawer(false)">
+                    <i data-lucide="log-in"></i>
+                    <span><span data-i18n-pt>Entrar</span><span data-i18n-en>Login</span></span>
+                </a>
+            <% } %>
+            <a href="/#premium" class="tp-mobile-drawer-item" onclick="toggleMobileDrawer(false)">
+                <i data-lucide="gem"></i>
+                <span><span data-i18n-pt>Premium</span><span data-i18n-en>Premium</span></span>
+            </a>
+            <a href="/loja" class="tp-mobile-drawer-item<%= tnActive === 'loja' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                <i data-lucide="shopping-bag"></i>
+                <span><span data-i18n-pt>Loja</span><span data-i18n-en>Shop</span></span>
+            </a>
+            <a href="/documentacao" class="tp-mobile-drawer-item<%= tnActive === 'documentacao' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                <i data-lucide="book-open"></i>
+                <span><span data-i18n-pt>Documentação</span><span data-i18n-en>Documentation</span></span>
+            </a>
+            <a href="https://discord.gg/fkD5FQktn6" target="_blank" rel="noopener" class="tp-mobile-drawer-item" onclick="toggleMobileDrawer(false)">
+                <i data-lucide="life-buoy"></i>
+                <span><span data-i18n-pt>Suporte</span><span data-i18n-en>Support</span></span>
+            </a>
+            <% if (tnIsOwner) { %>
+                <a href="/dev/Loja" class="tp-mobile-drawer-item<%= tnActive === 'dev-loja' ? ' active' : '' %>" onclick="toggleMobileDrawer(false)">
+                    <i data-lucide="settings"></i>
+                    <span><span data-i18n-pt>Controle de Lojas</span><span data-i18n-en>Shops Control</span></span>
+                </a>
+            <% } %>
+        </div>
+        <% if (tnUser) { %>
+            <a href="/logout" class="tp-mobile-drawer-logout">
+                <span data-i18n-pt>Sair</span><span data-i18n-en>Log Out</span>
+            </a>
+        <% } %>
+    </aside>
+<% } %>
 
 <style>
     .nav-btn {
@@ -223,22 +299,143 @@
     }
     .tp-mobile-menu-btn:hover { background: #803E30; border-color: #F8DCC0; }
     .tp-mobile-menu-btn svg { width: 18px; height: 18px; }
-    /* BUG REAL corrigido (pedido do dono, 2026-08-16, testado ao vivo):
-       antes escondia .nav-btn/.dashboard-link em QUALQUER página abaixo
-       de 767px, mas o hamburguer (a única substituição) só existe nas
-       ~10 páginas COM sidebar (ver .tp-has-drawer-nav, aplicado só
-       quando hideOnScroll:true — mesmo sinal que já distingue essas
-       páginas). Nas ~5 páginas sem sidebar (hero/documentacao/portal/
-       termos/dev-lojas), sem este escopo o celular ficava SEM
-       NAVEGAÇÃO NENHUMA (nav-btn escondido, hamburguer nem existe ali).
-       Agora só esconde quando tem `.tp-has-drawer-nav` — nas páginas sem
-       sidebar, os .nav-btn continuam visíveis e quebrando linha
-       normalmente (comportamento de sempre, sem regressão). */
     @media (max-width: 767px) {
         .tp-mobile-menu-btn { display: flex; }
-        .tp-top-nav.tp-has-drawer-nav .nav-btn,
-        .tp-top-nav.tp-has-drawer-nav .dashboard-link { display: none; }
+        .tp-top-nav .nav-btn,
+        .tp-top-nav .dashboard-link { display: none; }
     }
+
+    <% if (!tnHideOnScroll) { %>
+    /* ==================== DRAWER MOBILE (páginas sem sidebar) ====================
+       Pedido do dono, 2026-08-16, parte 2 — mesmo visual/comportamento do
+       drawer de partials/sidebar-v2.ejs (CSS copiado de lá: só existe
+       reaproveitamento possível ENTRE os dois arquivos via duplicação,
+       porque sidebar-v2.ejs não é incluído aqui — ver nota na memória
+       "mobile-nav-drawer" sobre isso já ser um custo conhecido da divisão
+       em 2 arquivos). Só emitido quando `!tnHideOnScroll` (i.e. quando
+       sidebar-v2.ejs NÃO está na página) pra não duplicar a mesma regra
+       CSS nas ~10 páginas que já a recebem de lá. */
+    .tp-mobile-drawer-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 90;
+    }
+    .tp-mobile-drawer {
+        box-sizing: border-box;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(320px, 85vw);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 20px 18px;
+        overflow-y: auto;
+        background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+        border-right: 1.5px solid rgba(248, 220, 192, 0.3);
+        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.8);
+        font-family: 'Poppins', sans-serif;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .tp-mobile-drawer { transition: none; }
+    }
+    @media (max-width: 767px) {
+        .tp-mobile-drawer.is-open { transform: translateX(0); }
+        .tp-mobile-drawer-backdrop.is-open { display: block; }
+    }
+    .tp-mobile-drawer-close {
+        align-self: flex-end;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        flex: none;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        border-radius: 50%;
+        color: #F8DCC0;
+        cursor: pointer;
+        margin-bottom: 4px;
+    }
+    .tp-mobile-drawer-close:hover { background: #803E30; border-color: #F8DCC0; }
+    .tp-mobile-drawer-close svg { width: 18px; height: 18px; }
+    .tp-mobile-drawer-profile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 6px 16px;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(248, 220, 192, 0.12);
+        margin-bottom: 10px;
+    }
+    .tp-mobile-drawer-avatar {
+        box-sizing: border-box;
+        flex: none;
+        width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #4B2427;
+        border: 3px solid #803E30;
+        border-radius: 50%;
+        overflow: hidden;
+    }
+    .tp-mobile-drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .tp-mobile-drawer-avatar svg { width: 30px; height: 30px; color: #803E30; }
+    .tp-mobile-drawer-profile-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .tp-mobile-drawer-nickname {
+        font-family: 'Tilt Warp', sans-serif;
+        font-size: 16px;
+        color: #F8DCC0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .tp-mobile-drawer-section + .tp-mobile-drawer-section { margin-top: 14px; }
+    .tp-mobile-drawer-heading {
+        font-family: 'Tilt Warp', sans-serif;
+        font-size: 12px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #DCA15E;
+        opacity: 0.8;
+        margin: 0 0 8px 6px;
+    }
+    .tp-mobile-drawer-item {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: #F8DCC0;
+        font-size: 15px;
+        font-weight: 600;
+        transition: background 0.15s ease;
+    }
+    .tp-mobile-drawer-item:hover { background: rgba(128, 62, 48, 0.35); }
+    .tp-mobile-drawer-item.active { background: #4B2427; }
+    .tp-mobile-drawer-item svg { width: 19px; height: 19px; flex: none; color: #DCA15E; }
+    .tp-mobile-drawer-logout {
+        margin-top: auto;
+        padding-top: 16px;
+        text-align: center;
+        font-size: 13px;
+        color: #F8DCC0;
+        opacity: 0.55;
+        text-decoration: none;
+    }
+    .tp-mobile-drawer-logout:hover { opacity: 0.9; text-decoration: underline; }
+    <% } %>
 
     /* Esconde ao rolar (pedido do dono, 2026-08-13) — só quando
        hideOnScroll:true (ver JS abaixo). Nas páginas públicas (sem essa
@@ -298,6 +495,20 @@
     }
 </style>
 
+<% if (!tnHideOnScroll) { %>
+    <%#
+        Lucide (pedido do dono, 2026-08-16, parte 2) — só carregado aqui
+        quando a página NÃO tem sidebar-v2.ejs, que já traz o mesmo CDN
+        pras outras ~10 páginas. dev-lojas.ejs já carrega lucide de novo
+        no fim do próprio body (pros ícones dela mesma, ex: data-lucide=
+        "server") — duplicar o <script src> ali é inofensivo (cacheado
+        pelo navegador na 2ª vez, createIcons() é idempotente), mais
+        simples que coordenar entre os dois arquivos só por essa página.
+    %>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>if (window.lucide) window.lucide.createIcons();</script>
+<% } %>
+
 <script>
     (function () {
         var nav = document.getElementById('tpTopNav');
@@ -336,6 +547,30 @@
         onScroll();
         <% } %>
     })();
+
+    <% if (!tnHideOnScroll) { %>
+    // Drawer mobile pras páginas sem sidebar (pedido do dono, 2026-08-16,
+    // parte 2) — mesma função/mesmo comportamento de partials/
+    // sidebar-v2.ejs (só existe nas páginas COM sidebar), copiada aqui
+    // porque esta página não inclui aquele arquivo. GLOBAL de propósito
+    // (função solta, sem namespace) pro botão hamburguer no <nav> acima
+    // conseguir chamar.
+    function toggleMobileDrawer(force) {
+        var drawer = document.getElementById('tpMobileDrawer');
+        var backdrop = document.getElementById('tpMobileDrawerBackdrop');
+        var btn = document.getElementById('tpMobileMenuBtn');
+        if (!drawer || !backdrop) return;
+        var open = typeof force === 'boolean' ? force : !drawer.classList.contains('is-open');
+        drawer.classList.toggle('is-open', open);
+        backdrop.classList.toggle('is-open', open);
+        drawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+        if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        document.body.style.overflow = open ? 'hidden' : '';
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') toggleMobileDrawer(false);
+    });
+    <% } %>
 
     // Idioma (pedido do dono, 2026-08-06) — html[data-lang] controla quais
     // data-i18n-pt/en aparecem (regra CSS já existente em cada página
