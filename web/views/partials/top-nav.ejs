@@ -196,26 +196,32 @@
        "100vh menos o padding". No repouso (scroll=0), o rodapé da
        sidebar fica exatamente `--nav-height` pixels ABAIXO do fim da
        viewport — só volta a caber quando o usuário rola a página pra
-       baixo pelo menos esse tanto (sticky top:0 "alcança" o topo da
-       tela e passa a valer os 100vh cheios). Em páginas com pouco
-       conteúdo (sem altura suficiente pra rolar tanto), o rodapé da
-       sidebar fica PERMANENTEMENTE inacessível — bug real, não só
-       cosmético. Corrigido junto com a reserva de espaço (ver body
-       acima), não sozinho: `top` e `height` usam a MESMA variável
-       `--nav-height`, então os dois sempre ficam em sincronia
-       automaticamente, inclusive quando a barra quebra em mais linhas
-       em telas estreitas (JS já remede --nav-height ao vivo, ver
-       syncNavHeight abaixo). `top: var(--nav-height)` (não mais `0`)
-       gruda a sidebar logo ABAIXO do espaço reservado da barra, sempre
-       — a barra em si pode estar visualmente escondida (hideOnScroll),
-       mas o espaço reservado nunca muda (é constante, só o transform/
-       opacity da barra mexem), então esse offset continua correto em
-       qualquer posição de scroll. `height: calc(100vh - var(--nav-
-       height))` faz o rodapé encostar exatamente no fim da viewport, em
-       vez de sobrar/faltar. Seletor por filho direto (`> aside`) pra
-       não afetar nenhum outro <aside> eventual da página. */
+       baixo pelo menos esse tanto. Em páginas com pouco conteúdo (sem
+       altura suficiente pra rolar tanto), o rodapé da sidebar fica
+       PERMANENTEMENTE inacessível — bug real, não só cosmético.
+       `height: calc(100vh - var(--nav-height))` corrige isso: o rodapé
+       passa a encostar exatamente no fim da viewport, em vez de
+       sobrar/faltar.
+
+       CORREÇÃO 2026-08-16 (pedido do dono, com número exato tirado do
+       DevTools): a 1ª versão desta correção também botava `top:
+       var(--nav-height)` no sticky (em vez de manter `0`), achando que
+       precisava "grudar a sidebar ABAIXO do espaço reservado" — errado.
+       O padding-top do body ACIMA já empurra a posição de repouso da
+       sidebar pra `--nav-height`; somar OUTRO `top: --nav-height` no
+       sticky por cima disso DOBRAVA o deslocamento (confirmado ao vivo:
+       `getBoundingClientRect().top` sempre saía EXATAMENTE 2x
+       `--nav-height`, em 2 medições com valores diferentes — 65→130,
+       115→230). `top: 0` é o valor certo: o padding do body já cuida do
+       repouso, o sticky só precisa impedir que ela suba além do topo da
+       viewport ao rolar — o que é seguro em toda página que usa esta
+       reserva de espaço porque TODAS (exceto dev-lojas.ejs, que não tem
+       <aside> nenhum) também passam hideOnScroll:true, ou seja, a barra
+       já some antes da sidebar sequer chegar perto de sobrepor ela.
+       Seletor por filho direto (`> aside`) pra não afetar nenhum outro
+       <aside> eventual da página. */
     body.tp-reserve-nav-space > aside {
-        top: var(--nav-height, 84px);
+        top: 0;
         height: calc(100vh - var(--nav-height, 84px));
     }
 </style>
