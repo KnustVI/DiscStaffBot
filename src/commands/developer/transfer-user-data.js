@@ -73,10 +73,33 @@
  * por jogador) — se a conta NOVA já tiver uma linha própria em
  * QUALQUER uma das duas, o comando inteiro se RECUSA a rodar (nem
  * mostra prévia) em vez de tentar mesclar/sobrescrever às cegas.
+ *
+ * ORDEM DE ESCRITA SEGURA (pedido do dono, 2026-08-15, reforçando o que
+ * já era verdade por causa da transação única): "só vamos apagar os
+ * dados antigos quando tudo estiver registrado na conta nova". Como
+ * TUDO roda dentro de um único `db.transaction()`, isso já era
+ * garantido pela atomicidade (se qualquer passo falhar, a transação
+ * inteira reverte, nada é apagado) — mas o apagamento final da conta
+ * antiga (`DELETE FROM users`) só roda DEPOIS de uma verificação
+ * explícita (não só implícita) de que `player_links` do AGID realmente
+ * aponta pra conta nova. Se essa verificação falhar por qualquer
+ * motivo, a função lança erro, a transação inteira reverte (nada foi
+ * apagado) e o erro aparece tanto na resposta ao dono quanto no log
+ * detalhado do canal.
+ *
+ * LOG DETALHADO (pedido do dono, 2026-08-15): além da resposta efêmera
+ * pro dono e da DM pra conta antiga, todo resultado (sucesso OU erro) é
+ * mandado também pro canal fixo de log de sistema (`sendSystemLog`, ver
+ * systemLog.js — mesmo canal `1525104070321504428` no servidor
+ * `430534418818400266` que o dono já usa pra acompanhar o bot) — um
+ * registro permanente e auditável de toda transferência, com contagem
+ * completa por tabela, o que foi descartado (se algo foi), e o UUID que
+ * correlaciona com a linha de `activity_logs`.
  */
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const db = require('../../database/index');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
+const { sendSystemLog } = require('../../systems/core/systemLog');
 
 const DEVELOPER_ID = '203676076189286412';
 const CONFIRM_PHRASE = 'TRANSFERIR CONTA';
@@ -319,13 +342,30 @@ module.exports = {
                 db.prepare(`UPDATE player_links SET user_id = ? WHERE user_id = ?`).run(novaConta, oldId);
                 const premiumMigrated = db.prepare(`UPDATE player_premium SET user_id = ? WHERE user_id = ?`).run(novaConta, oldId).changes;
 
-                // Conta antiga completamente apagada por último — nada
-                // mais aponta pra ela a essa altura (tudo que era dela já
-                // migrou ou foi descartado acima). Economiza espaço em
-                // banco em vez de deixar um cache morto de username/avatar
-                // pra sempre (pedido do dono: "não deve manter nada salvo
-                // em banco... apagar tudo sobre a conta antiga, até o
-                // registro").
+                // Verificação EXPLÍCITA (pedido do dono, 2026-08-15: "só
+                // vamos apagar os dados antgos quando tudo estiver
+                // registrado na conta nova") — a transação já garante isso
+                // pela atomicidade (se algo falhar, tudo reverte, nada é
+                // apagado), mas essa checagem torna a garantia explícita no
+                // código em vez de só implícita: confirma de verdade que
+                // player_links do AGID aponta pra conta nova ANTES de
+                // apagar qualquer coisa da conta antiga. Se isso falhar por
+                // qualquer motivo, lança erro — a transação inteira reverte
+                // (nada é apagado, incluindo a conta antiga) e o erro
+                // aparece na resposta e no log detalhado do canal.
+                const verifyRow = db.prepare(`SELECT user_id FROM player_links WHERE alderon_id = ?`).get(agid);
+                if (!verifyRow || verifyRow.user_id !== novaConta) {
+                    throw new Error(`Verificação falhou: player_links do AGID ${agid} não confirma a conta nova depois da migração (esperado ${novaConta}, encontrado ${verifyRow?.user_id || 'nenhum'}) — nada foi apagado.`);
+                }
+
+                // SÓ AGORA, com a verificação acima confirmando que tudo
+                // está registrado na conta nova, a conta antiga é apagada
+                // por completo — nada mais aponta pra ela a essa altura
+                // (tudo que era dela já migrou ou foi descartado acima).
+                // Economiza espaço em banco em vez de deixar um cache morto
+                // de username/avatar pra sempre (pedido do dono: "não deve
+                // manter nada salvo em banco... apagar tudo sobre a conta
+                // antiga, até o registro").
                 const oldUserDeleted = db.prepare(`DELETE FROM users WHERE user_id = ?`).run(oldId).changes;
 
                 return { simple, composite, bones, premiumMigrated, oldUserDeleted };
@@ -399,11 +439,56 @@ module.exports = {
             await interaction.editReply({ components, flags: [flags] });
 
             console.log(`📊 [TRANSFER-USER-DATA] ${user.tag} transferiu AGID ${agid} de ${oldId} para ${novaConta}`);
+
+            // Log detalhado no canal fixo de sistema (pedido do dono,
+            // 2026-08-15: "só que ele envie uma log detalhada do processo
+            // no meu canal") — registro permanente e auditável, com o
+            // mesmo detalhamento da resposta ao dono + a confirmação
+            // explícita da verificação que rodou antes do apagamento.
+            await sendSystemLog(client, (builder) => {
+                builder.title('🔄 Transferência de conta — jogador', 2);
+                builder.text([
+                    `**Executado por:** <@${user.id}> (\`${user.tag}\`)`,
+                    `**AGID:** \`${agid}\`${link.player_name ? ` (${link.player_name})` : ''}`,
+                    `**Conta antiga:** \`${oldId}\` → **Conta nova:** \`${novaConta}\`${fetchedUser ? ` (${fetchedUser.tag || fetchedUser.username})` : ''}`,
+                ].join('\n'));
+                builder.separator();
+                builder.text(`**Migração simples:**\n${resultSimpleLines}`);
+                builder.separator();
+                builder.text(`**Migração com conflito:**\n${resultCompositeLines}`);
+                builder.separator();
+                builder.text(`**Ossos:** ${resultBonesLine}`);
+                builder.separator();
+                builder.text(`**Player Premium:** ${result.premiumMigrated > 0 ? 'migrado' : 'não tinha (Free)'}`);
+                builder.separator();
+                builder.text([
+                    `${EMOJIS.shieldcheck || '✅'} Verificação: \`player_links\` confirmado na conta nova ANTES do apagamento da conta antiga.`,
+                    `**Conta antiga:** apagada por completo do banco (linha de \`users\` incluída).`,
+                    `**DM de aviso pra conta antiga:** ${dmSent ? 'enviada' : 'não foi possível enviar'}.`,
+                ].join('\n'));
+                builder.footer('Bot de Developer', `UUID: ${transferUuid} — ${Date.now() - startTime}ms`);
+            });
         } catch (error) {
             console.error('❌ Erro no transfer-user-data:', error);
 
             const ErrorLogger = require('../../systems/core/errorLogger');
             await ErrorLogger.logInteractionError(interaction, error, 'command');
+
+            // Log detalhado do ERRO também vai pro canal de sistema — a
+            // transação inteira reverteu (ver docblock), então nada foi
+            // alterado, mas o dono precisa saber que a tentativa aconteceu
+            // e falhou.
+            await sendSystemLog(client, (builder) => {
+                builder.title('❌ Transferência de conta — FALHOU', 2);
+                builder.text([
+                    `**Executado por:** <@${user.id}> (\`${user.tag}\`)`,
+                    `**AGID:** \`${agid}\``,
+                    `**Conta antiga:** \`${oldId}\` → **Conta nova (pretendida):** \`${novaConta}\``,
+                    `**Erro:** \`${error.message?.slice(0, 300) || 'Desconhecido'}\``,
+                    `${EMOJIS.messagesquarewarning || 'ℹ️'} A transação inteira reverteu — nenhum dado foi alterado, a conta antiga NÃO foi apagada.`,
+                ].join('\n'));
+                builder.footer('Bot de Developer', `${Date.now() - startTime}ms`);
+            });
 
             db.logActivity(null, user.id, 'error', null, { command: 'transfer-user-data', error: error.message });
 
