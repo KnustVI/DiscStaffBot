@@ -61,7 +61,7 @@
     const tnHideOnScroll = typeof hideOnScroll !== 'undefined' && hideOnScroll;
     const tnReserveSpace = typeof reserveSpace !== 'undefined' && reserveSpace;
 %>
-<nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+<nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50<%= tnHideOnScroll ? ' tp-has-drawer-nav' : '' %>" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
     <%#
         Botão hamburguer (pedido do dono, 2026-08-16: "solução de
         navegação para celulares... incluindo todos os botões da barra de
@@ -76,10 +76,26 @@
         sidebar-v2.ejs pode ainda não ter terminado de rodar seu próprio
         <script> no instante exato de um clique bem no início do
         carregamento (raro, mas sem custo nenhum se proteger).
+
+        BUG REAL corrigido (pedido do dono, 2026-08-16, testado ao vivo):
+        top-nav.ejs é incluído em TODA página (inclusive as ~5 sem
+        sidebar nenhuma — hero/documentacao/portal/termos/dev-lojas), mas
+        o drawer em si só existe em partials/sidebar-v2.ejs. Sem esta
+        checagem, o hamburguer aparecia em QUALQUER página abaixo de
+        767px, mas clicar nele não fazia nada nas páginas sem sidebar
+        (drawer/toggleMobileDrawer/lucide.createIcons simplesmente não
+        existiam no DOM — confirmado via console: "drawer encontrado?
+        false"). `tnHideOnScroll` já é, por acaso, EXATAMENTE o mesmo
+        sinal usado hoje pras 10 páginas que de fato têm sidebar (todas
+        passam hideOnScroll:true; as ~5 sem sidebar não passam, ou
+        passam false só no caso de dev-lojas.ejs) — reaproveitado aqui em
+        vez de inventar um parâmetro novo (ex: hasSidebar) só pra isso.
     %>
-    <button type="button" class="tp-mobile-menu-btn" id="tpMobileMenuBtn" onclick="if (window.toggleMobileDrawer) toggleMobileDrawer();" aria-label="Abrir menu" aria-expanded="false">
-        <i data-lucide="menu"></i>
-    </button>
+    <% if (tnHideOnScroll) { %>
+        <button type="button" class="tp-mobile-menu-btn" id="tpMobileMenuBtn" onclick="if (window.toggleMobileDrawer) toggleMobileDrawer();" aria-label="Abrir menu" aria-expanded="false">
+            <i data-lucide="menu"></i>
+        </button>
+    <% } %>
     <% if (tnUser) { %>
         <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
@@ -207,10 +223,21 @@
     }
     .tp-mobile-menu-btn:hover { background: #803E30; border-color: #F8DCC0; }
     .tp-mobile-menu-btn svg { width: 18px; height: 18px; }
+    /* BUG REAL corrigido (pedido do dono, 2026-08-16, testado ao vivo):
+       antes escondia .nav-btn/.dashboard-link em QUALQUER página abaixo
+       de 767px, mas o hamburguer (a única substituição) só existe nas
+       ~10 páginas COM sidebar (ver .tp-has-drawer-nav, aplicado só
+       quando hideOnScroll:true — mesmo sinal que já distingue essas
+       páginas). Nas ~5 páginas sem sidebar (hero/documentacao/portal/
+       termos/dev-lojas), sem este escopo o celular ficava SEM
+       NAVEGAÇÃO NENHUMA (nav-btn escondido, hamburguer nem existe ali).
+       Agora só esconde quando tem `.tp-has-drawer-nav` — nas páginas sem
+       sidebar, os .nav-btn continuam visíveis e quebrando linha
+       normalmente (comportamento de sempre, sem regressão). */
     @media (max-width: 767px) {
         .tp-mobile-menu-btn { display: flex; }
-        .tp-top-nav .nav-btn,
-        .tp-top-nav .dashboard-link { display: none; }
+        .tp-top-nav.tp-has-drawer-nav .nav-btn,
+        .tp-top-nav.tp-has-drawer-nav .dashboard-link { display: none; }
     }
 
     /* Esconde ao rolar (pedido do dono, 2026-08-13) — só quando
