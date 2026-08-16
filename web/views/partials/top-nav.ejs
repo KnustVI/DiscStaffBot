@@ -62,6 +62,24 @@
     const tnReserveSpace = typeof reserveSpace !== 'undefined' && reserveSpace;
 %>
 <nav id="tpTopNav" class="tp-top-nav w-full flex flex-wrap items-center justify-center fixed top-0 left-0 right-0 z-50" style="gap: clamp(10px, 2vw, 20px); padding: 14px 16px; background: rgba(17, 17, 17, 0.92); backdrop-filter: blur(6px); border-bottom: 1px solid #3E3D38;">
+    <%#
+        Botão hamburguer (pedido do dono, 2026-08-16: "solução de
+        navegação para celulares... incluindo todos os botões da barra de
+        topo e da sidebar") — só existe visualmente abaixo de 767px (ver
+        .tp-mobile-menu-btn no <style> abaixo; os .nav-btn/.dashboard-link
+        normais somem nessa mesma faixa, só o hamburguer + o botão de
+        idioma continuam visíveis na barra). Abre o drawer definido em
+        partials/sidebar-v2.ejs (que já tem os dados de guild/restricted/
+        isOwner pra montar a lista completa categorizada, sem precisar
+        duplicar nada aqui) — chama toggleMobileDrawer(), função global
+        definida lá; guard `window.toggleMobileDrawer &&` porque
+        sidebar-v2.ejs pode ainda não ter terminado de rodar seu próprio
+        <script> no instante exato de um clique bem no início do
+        carregamento (raro, mas sem custo nenhum se proteger).
+    %>
+    <button type="button" class="tp-mobile-menu-btn" id="tpMobileMenuBtn" onclick="if (window.toggleMobileDrawer) toggleMobileDrawer();" aria-label="Abrir menu" aria-expanded="false">
+        <i data-lucide="menu"></i>
+    </button>
     <% if (tnUser) { %>
         <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
@@ -166,6 +184,33 @@
 
     @media (max-width: 640px) {
         .nav-btn { padding: 4px 12px; height: 26px; font-size: 12px; }
+    }
+
+    /* Botão hamburguer — invisível por padrão (desktop/tablet: a barra
+       cheia de .nav-btn já resolve), some no lugar dos .nav-btn/
+       .dashboard-link abaixo de 767px (pedido do dono, 2026-08-16 —
+       ver drawer completo em partials/sidebar-v2.ejs). Mesmo visual dos
+       outros botões redondos do site (.tp-sidebar-toggle/.lang-toggle-
+       flag) pra não parecer um elemento estranho na barra. */
+    .tp-mobile-menu-btn {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        flex: none;
+        background: #2A2A2A;
+        border: 1px solid #803E30;
+        border-radius: 50%;
+        color: #F8DCC0;
+        cursor: pointer;
+    }
+    .tp-mobile-menu-btn:hover { background: #803E30; border-color: #F8DCC0; }
+    .tp-mobile-menu-btn svg { width: 18px; height: 18px; }
+    @media (max-width: 767px) {
+        .tp-mobile-menu-btn { display: flex; }
+        .tp-top-nav .nav-btn,
+        .tp-top-nav .dashboard-link { display: none; }
     }
 
     /* Esconde ao rolar (pedido do dono, 2026-08-13) — só quando
