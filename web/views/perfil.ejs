@@ -219,12 +219,18 @@
            regra de responsividade já usada em .perfil-hero acima
            (flex-wrap, sem media query dedicada) — a foto e as pílulas
            empilham verticalmente em telas estreitas em vez de ficarem
-           cortadas. Fundo do CARD em si é opaco (mesma cor #131314 já
-           usada em .perfil-guild-chip/.perfil-staff-history-card) — o
-           plano de fundo escolhido pelo jogador (backgroundPreviewUrl) já
-           cobre a página INTEIRA por baixo de todo card (ver body.perfil-
-           has-bg no topo deste arquivo), não precisa (nem deve) repetir
-           aqui dentro por cima.
+           cortadas.
+           Fundo do card: DECISÃO REVERTIDA no mesmo dia — a primeira
+           versão deixava o card opaco (cor sólida #131314), confiando só
+           no fundo da PÁGINA inteira (body.perfil-has-bg). Depois de ver
+           ao vivo, o dono pediu o contrário: "não deve haver esse fundo e
+           sim a imagem de plano de fundo dele" — o CARD em si também
+           mostra o plano de fundo do jogador (mesma URL,
+           backgroundPreviewUrl, aplicada via style inline no HTML — é
+           condicional, então não dá pra fixar no CSS puro). Sem plano de
+           fundo escolhido, fica transparente de propósito (sem cor sólida
+           de reserva) — deixa a página por trás aparecer, em vez de
+           simular um fundo que o jogador não configurou.
            Cores por tier (--pf-id-grad-a/b/text, aplicadas via style
            inline no HTML a partir de playerTier) espelham exatamente os
            3 tiers do card do Discord (T1 Free bege claro, T2 Compy
@@ -236,7 +242,15 @@
            direção definida, então sem isso os filhos (.pf-id-top/.pf-id-
            bottom) viravam uma LINHA em vez de empilhados (bug real,
            2026-08-16: pílulas e nome ficavam lado a lado/sobrepostos). */
-        .pf-id-card { display: flex; flex-direction: column; padding: 20px; background: #131314; border: 1px solid rgba(217, 163, 98, 0.25); border-radius: 14px; }
+        .pf-id-card {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid rgba(217, 163, 98, 0.25);
+            border-radius: 14px;
+        }
         .pf-id-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
         /* Recorte da foto (pedido do dono, 2026-08-16, com o SVG exportado
            DIRETO do Figma da camada "Profile avatar") — path REAL, não
@@ -352,6 +366,29 @@
            tratamento visual dos chips de .perfil-guild-chip img. */
         .pf-id-badges { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; }
         .pf-id-badges img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1.5px solid #DCA15E; }
+
+        /* Nome/AGID + registro + KDA (pedido do dono, 2026-08-16) — o que
+           saiu do card de texto do Path of Titans, movido pra cá. Mesmo
+           tratamento visual de .perfil-stat-line (Poppins 13px, opacity
+           0.7), só que já dentro deste card em vez do outro. */
+        .pf-id-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(217, 163, 98, 0.15);
+        }
+        .pf-id-meta-line {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 13px;
+            color: #F8DCC0;
+            opacity: 0.7;
+        }
+        .pf-id-meta-logo { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: none; }
 
         /* Abas Perfil/Personalização (pedido do dono, 2026-08-05) — só
            existem quando a conta está vinculada (sem link não tem stats
@@ -476,7 +513,7 @@
                     </clipPath>
                 </defs>
             </svg>
-            <section class="titan-card-premium pf-id-card">
+            <section class="titan-card-premium pf-id-card"<% if (backgroundPreviewUrl) { %> style="background-image:url('<%= backgroundPreviewUrl %>')"<% } %>>
                 <div class="pf-id-top">
                     <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
                         <div class="pf-id-stars">
@@ -511,6 +548,28 @@
                                 <img src="<%= b.url %>" alt="" title="<%= b.label %>">
                             <% }); %>
                         </div>
+                    <% } %>
+                </div>
+
+                <%#
+                    Nome/AGID + data de registro + KDA (pedido do dono,
+                    2026-08-16: "coloque elas entro do card do perfil que
+                    montamos agora, logo após de tudo") — o que o card de
+                    texto do Path of Titans mostrava antes, movido pra cá
+                    (removido de lá, ver comentário no outro card). Mesmo
+                    critério de privacidade do card antigo: KDA só aparece
+                    se kdStats existir (respeita hide_kda, Compy+).
+                %>
+                <div class="pf-id-meta">
+                    <span class="pf-id-meta-line">
+                        <img src="/images/pot-logo.webp" alt="" class="pf-id-meta-logo">
+                        <%= link.player_name || discordUser.username %> | <%= link.alderon_id %>
+                    </span>
+                    <% if (link.registered_at) { %>
+                        <span class="pf-id-meta-line"><span data-i18n-pt>Registrado em:</span><span data-i18n-en>Registered on:</span> <%= new Date(link.registered_at).toLocaleDateString('pt-BR') %></span>
+                    <% } %>
+                    <% if (kdStats) { %>
+                        <span class="pf-id-meta-line">Kills: <%= kdStats.kills %> Deaths: <%= kdStats.deaths %> K/D: <%= kdStats.kd %> <span class="opacity-60">(<span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum of all servers</span>)</span></span>
                     <% } %>
                 </div>
             </section>
@@ -683,39 +742,19 @@
                         <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
                         Path of Titans
                     </h2>
-                    <div class="flex flex-col gap-2">
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nome no jogo:</span><span data-i18n-en>In-game name:</span></strong> <%= link.player_name || '—' %></span>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Alderon ID:</strong> <%= link.alderon_id %></span>
-                        <%# Data de registro (pedido do dono, 2026-08-07: "Registre a data de registro dos jogadores, adicione ao perfil") — player_links.registered_at, carimbada desde o primeiro /registrar. %>
-                        <% if (link.registered_at) { %>
-                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Registrado em:</span><span data-i18n-en>Registered on:</span></strong> <%= new Date(link.registered_at).toLocaleDateString('pt-BR') %></span>
-                        <% } %>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Título:</span><span data-i18n-en>Title:</span></strong> <% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Espécie mais jogada:</span><span data-i18n-en>Most played species:</span></strong> <% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
-                        <%#
-                            Nível (pedido do dono, 2026-08-11: "Implemente
-                            um sistema de progressão de níveis infinito
-                            baseado em horas jogadas") — antes fixo em "1
-                            (sistema de XP em breve)"; agora calculado
-                            dinamicamente a partir do XP total (ver
-                            levelProgress, passado pelas rotas /perfil e
-                            /loja em dashboard.js — src/systems/pot/
-                            levelSystem.js faz a matemática, sem nível
-                            máximo).
-                        %>
-                        <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Nível:</span><span data-i18n-en>Level:</span></strong> <%= levelProgress.level %> <span class="opacity-50">(<span data-i18n-pt>faltam <%= levelProgress.xpRemainingForNextLevel %> XP para o Nível <%= levelProgress.level + 1 %></span><span data-i18n-en><%= levelProgress.xpRemainingForNextLevel %> XP left for Level <%= levelProgress.level + 1 %></span> — <%= levelProgress.percent.toFixed(0) %>%)</span></span>
-                        <% if (kdStats) { %>
-                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100">Kills:</strong> <%= kdStats.kills %> <strong class="text-titan-cream opacity-100 ml-2">Deaths:</strong> <%= kdStats.deaths %> <strong class="text-titan-cream opacity-100 ml-2">K/D:</strong> <%= kdStats.kd %> <span class="opacity-50">(<span data-i18n-pt>soma de todos os servidores</span><span data-i18n-en>sum of all servers</span>)</span></span>
-                        <% } %>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="perfil-stat-line"><strong class="text-titan-cream opacity-100"><span data-i18n-pt>Honra:</span><span data-i18n-en>Honor:</span></strong></span>
-                            <span class="perfil-stars">
-                                <% for (let i = 1; i <= 5; i++) { %><span class="<%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
-                            </span>
-                        </div>
-                    </div>
 
                     <%#
+                        Identidade/estatísticas (nome, AGID, data de
+                        registro, título, espécie, nível, KDA, honra) SAÍRAM
+                        daqui (pedido do dono, 2026-08-16: "Vamos manter no
+                        card do path of titans apenas os servidores que
+                        jogou e os itens") — tudo isso já aparece no card de
+                        identidade novo (.pf-id-card, ver mais acima, agora
+                        o 1º card da página), que também ganhou nome/AGID/
+                        data de registro/KDA no próprio rodapé (ver
+                        .pf-id-meta). Mostrar os dois ao mesmo tempo virava
+                        duplicação pura.
+
                         Servidores que já jogou (pedido do dono, 2026-08-05)
                         — DIFERENTE da lista "administra" lá em cima (essa é
                         de permissão/Discord; esta é histórico de jogo, ver
