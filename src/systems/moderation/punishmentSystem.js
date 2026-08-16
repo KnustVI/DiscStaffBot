@@ -68,27 +68,59 @@ const PunishmentSystem = {
     _isUnregisteredTargetId,
     _unregisteredTargetId,
 
-    
+    /**
+     * Pedido do dono, 2026-08-15: punição/reputação de um alvo sem conta
+     * Discord vinculada fica gravada sob a chave sintética `agid:<AGID>`
+     * (ver UNREGISTERED_TARGET_PREFIX acima) e NUNCA migra pro user_id real
+     * quando a pessoa se registra depois — isso é intencional, não muda.
+     * O que faltava era o lado de LEITURA: uma punição aplicada antes do
+     * vínculo ficava invisível pra sempre depois que a pessoa registrava.
+     * Esta função monta a lista de user_id a pesquisar (o real, se
+     * conhecido, MAIS a chave sintética, se o AGID é conhecido) — quem
+     * chama passa o resultado pra getUserHistory/getGlobalHonorStars, que
+     * aceitam tanto um user_id único quanto essa lista.
+     */
+    _resolveHistoryUserIds(discordId, alderonId) {
+        const ids = [];
+        if (discordId) ids.push(discordId);
+        if (alderonId) {
+            const synthetic = _unregisteredTargetId(alderonId);
+            if (!ids.includes(synthetic)) ids.push(synthetic);
+        }
+        return ids;
+    },
+
     // ==================== FUNÇÕES DE BUSCA E BANCO ====================
-    
+
     async getUserHistory(guildId, userId, page = 1) {
         try {
+            const ids = Array.isArray(userId) ? userId : [userId];
+            const placeholders = ids.map(() => '?').join(',');
             const limit = 5;
             const offset = (page - 1) * limit;
 
-            let rep = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?`).get(guildId, userId);
-            const points = rep ? rep.points : 100;
+            // Reputação: pode haver uma linha por chave (ex: uma sob
+            // agid:xxx de antes do vínculo, outra sob o user_id real depois
+            // dele) — cada uma nasce em 100 e desconta pontos independente
+            // da outra (ver _executeStrike), então "somar os pontos" direto
+            // não faz sentido. Em vez disso soma o DÉFICIT (100 - pontos) de
+            // cada linha e aplica sobre 100 uma vez só — com uma linha só
+            // (o caso de sempre) dá exatamente o mesmo resultado de antes.
+            const repRows = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id IN (${placeholders})`).all(guildId, ...ids);
+            const points = repRows.length
+                ? Math.max(0, Math.min(100, 100 - repRows.reduce((deficit, row) => deficit + (100 - row.points), 0)))
+                : 100;
 
-            const total = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND user_id = ?`).get(guildId, userId);
+            const total = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE guild_id = ? AND user_id IN (${placeholders})`).get(guildId, ...ids);
             const totalRecords = total.count;
             const totalPages = Math.max(1, Math.ceil(totalRecords / limit));
 
             const punishments = db.prepare(`
-                SELECT * FROM punishments 
-                WHERE guild_id = ? AND user_id = ? 
-                ORDER BY created_at DESC 
+                SELECT * FROM punishments
+                WHERE guild_id = ? AND user_id IN (${placeholders})
+                ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
-            `).all(guildId, userId, limit, offset);
+            `).all(guildId, ...ids, limit, offset);
 
             return { reputation: points, punishments, totalRecords, totalPages };
         } catch (error) {
@@ -129,7 +161,9 @@ const PunishmentSystem = {
      * punições ativas, mais estrelas (0 a 5).
      */
     getGlobalHonorStars(userId) {
-        const row = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE user_id = ? AND status = 'active'`).get(userId);
+        const ids = Array.isArray(userId) ? userId : [userId];
+        const placeholders = ids.map(() => '?').join(',');
+        const row = db.prepare(`SELECT COUNT(*) as count FROM punishments WHERE user_id IN (${placeholders}) AND status = 'active'`).get(...ids);
         const activeCount = row?.count || 0;
         if (activeCount === 0) return 5;
         if (activeCount <= 2) return 4;
@@ -164,20 +198,26 @@ const PunishmentSystem = {
      * de uma vez (necessário porque PaginationBuilder.addPage recebe uma
      * função síncrona que retorna um AdvancedContainerBuilder já pronto).
      *
-     * @param {object} target   - User do discord.js
+     * @param {object} target   - User do discord.js (ou o "fantasma" sintético
+     *   de um AGID nunca vinculado, ver historico.js)
      * @param {string} guildId
      * @param {string} guildName
+     * @param {string|null} [alderonId] - AGID já conhecido do alvo (se
+     *   houver), pra também buscar punição/reputação gravada sob a chave
+     *   sintética agid:<AGID> de antes do vínculo — ver _resolveHistoryUserIds.
      * @returns {Promise<{ pages: Function[], totalPages: number, totalRecords: number, reputation: number }>}
      */
-    async buildHistoryPages(target, guildId, guildName) {
+    async buildHistoryPages(target, guildId, guildName, alderonId = null) {
+        const userIds = this._resolveHistoryUserIds(target.id, alderonId);
+
         // Primeiro busca a página 1 só para saber o totalPages/reputation/totalRecords
-        const first = await this.getUserHistory(guildId, target.id, 1);
+        const first = await this.getUserHistory(guildId, userIds, 1);
         const totalPages = first.totalPages;
 
         // Busca os dados de todas as páginas de uma vez (poucas páginas, é OK)
         const allPagesData = [first];
         for (let p = 2; p <= totalPages; p++) {
-            allPagesData.push(await this.getUserHistory(guildId, target.id, p));
+            allPagesData.push(await this.getUserHistory(guildId, userIds, p));
         }
 
         const pageFactories = allPagesData.map((historyData) =>

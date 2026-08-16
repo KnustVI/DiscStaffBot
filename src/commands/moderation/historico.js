@@ -87,15 +87,35 @@ module.exports = {
             }
 
             let target = usuarioOpt;
+            let targetAlderonId = null;
             if (alderonIdOpt) {
-                const linked = PlayerRegistry.getPlayerByAlderonId(alderonIdOpt.trim());
-                if (!linked) {
-                    return await ResponseManager.error(interaction, `Nenhum jogador registrado com o Alderon ID \`${alderonIdOpt}\`.`);
+                const agid = alderonIdOpt.trim();
+                const linked = PlayerRegistry.getPlayerByAlderonId(agid);
+                if (linked) {
+                    target = await client.users.fetch(linked.user_id).catch(() => null);
+                    if (!target) {
+                        return await ResponseManager.error(interaction, 'Esse Alderon ID está vinculado a uma conta do Discord que não foi encontrada.');
+                    }
+                    targetAlderonId = linked.alderon_id;
+                } else {
+                    // AGID nunca vinculado a nenhuma conta Discord — ainda
+                    // assim pode ter punição/reputação gravada sob a chave
+                    // sintética agid:<AGID> (ver punishmentSystem.js). Monta
+                    // um alvo "fantasma" só pra exibição, mesmo padrão que
+                    // _executeStrike já usa pra punir um AGID sem vínculo.
+                    const displayName = PlayerRegistry.getPlayerNameByAlderonId(guildId, agid) || agid;
+                    target = {
+                        id: PunishmentSystem._unregisteredTargetId(agid),
+                        username: displayName,
+                        tag: displayName,
+                        toString: () => `${displayName} \`${agid}\` (sem Discord vinculado)`,
+                        displayAvatarURL: () => 'https://cdn.discordapp.com/embed/avatars/0.png',
+                    };
+                    targetAlderonId = agid;
                 }
-                target = await client.users.fetch(linked.user_id).catch(() => null);
-                if (!target) {
-                    return await ResponseManager.error(interaction, 'Esse Alderon ID está vinculado a uma conta do Discord que não foi encontrada.');
-                }
+            } else if (usuarioOpt) {
+                const linked = PlayerRegistry.getPlayerByDiscordId(usuarioOpt.id);
+                if (linked) targetAlderonId = linked.alderon_id;
             }
 
             if (!target) {
@@ -104,13 +124,15 @@ module.exports = {
 
             db.ensureUser(user.id, user.username, user.discriminator, user.avatar);
             db.ensureGuild(guild.id, guild.name, guild.icon, guild.ownerId);
-            db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
+            if (!PunishmentSystem._isUnregisteredTargetId(target.id)) {
+                db.ensureUser(target.id, target.username, target.discriminator, target.avatar);
+            }
 
             const ConfigSystem = require('../../systems/core/configSystem');
 
             // ── Monta TODAS as páginas de uma vez (igual ao /ajuda) ─────────────
             const { pages, totalPages, totalRecords, reputation } =
-                await PunishmentSystem.buildHistoryPages(target, guildId, guild.name);
+                await PunishmentSystem.buildHistoryPages(target, guildId, guild.name, targetAlderonId);
 
             db.logActivity(guildId, user.id, 'history_view', target.id, {
                 totalRecords,

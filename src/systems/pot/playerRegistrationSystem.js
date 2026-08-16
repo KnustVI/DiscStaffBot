@@ -465,7 +465,7 @@ class PlayerRegistrationSystem {
                     // última — essa continua só no painel "Offline" abaixo,
                     // vinda de stats.dinosaurType (getGlobalPlayerStats).
                     speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
-                    honorStars: PunishmentSystem.getGlobalHonorStars(targetUser.id),
+                    honorStars: PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(targetUser.id, player.alderon_id)),
                 });
                 extraFiles.push(new AttachmentBuilder(cardBuffer, { name: 'perfil-card.png' }));
                 addSeparatorIfNeeded();

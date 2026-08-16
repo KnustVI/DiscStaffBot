@@ -563,28 +563,39 @@ function getUserReportsData(userId, client, state) {
 // derivados" no CLAUDE.md, que explicitamente NÃO se aplica a
 // punishments/reports.
 function getPlayerHistoryData(userId, client) {
+    // AGID-aware (pedido do dono, 2026-08-15): se essa conta Discord tem um
+    // Alderon ID vinculado, também busca sob a chave sintética agid:<AGID>
+    // — cobre punição/reputação aplicada ANTES do jogador rodar /registrar
+    // (ver punishmentSystem.js UNREGISTERED_TARGET_PREFIX/_resolveHistoryUserIds).
+    const link = PlayerRegistry.getPlayerByDiscordId(userId);
+    const ids = PunishmentSystem._resolveHistoryUserIds(userId, link?.alderon_id);
+    const placeholders = ids.map(() => '?').join(',');
+
     const guildIds = db.prepare(`
-        SELECT DISTINCT guild_id FROM punishments WHERE user_id = ?
+        SELECT DISTINCT guild_id FROM punishments WHERE user_id IN (${placeholders})
         UNION
-        SELECT DISTINCT guild_id FROM reputation WHERE user_id = ?
-    `).all(userId, userId).map((row) => row.guild_id);
+        SELECT DISTINCT guild_id FROM reputation WHERE user_id IN (${placeholders})
+    `).all(...ids, ...ids).map((row) => row.guild_id);
 
     const reputationByGuild = guildIds.map((guildId) => {
-        const rep = db.prepare('SELECT points FROM reputation WHERE guild_id = ? AND user_id = ?').get(guildId, userId);
-        if (!rep) return null;
+        const repRows = db.prepare(`SELECT points FROM reputation WHERE guild_id = ? AND user_id IN (${placeholders})`).all(guildId, ...ids);
+        if (!repRows.length) return null;
+        // Mesma combinação por déficit que getUserHistory usa — ver
+        // punishmentSystem.js pra explicação completa.
+        const points = Math.max(0, Math.min(100, 100 - repRows.reduce((deficit, row) => deficit + (100 - row.points), 0)));
         const guild = client.guilds.cache.get(guildId);
         return {
             guildId,
             guildName: guild?.name || 'Servidor desconhecido',
             guildIconUrl: guild?.icon ? `https://cdn.discordapp.com/icons/${guildId}/${guild.icon}.png` : null,
-            points: rep.points,
+            points,
             reputationEnabled: PremiumSystem.getGuildLimits(guildId).reputationEnabled,
         };
     }).filter(Boolean).sort((a, b) => a.guildName.localeCompare(b.guildName));
 
     const punishments = db.prepare(
-        `SELECT * FROM punishments WHERE user_id = ? ORDER BY created_at DESC`
-    ).all(userId).map((p) => {
+        `SELECT * FROM punishments WHERE user_id IN (${placeholders}) ORDER BY created_at DESC`
+    ).all(...ids).map((p) => {
         const guild = client.guilds.cache.get(p.guild_id);
         return {
             ...p,
@@ -1594,7 +1605,7 @@ function loadDashboard(client) {
         // player_links não tem onde gravar a escolha) — só calcula/busca
         // tudo isso quando faz sentido mostrar o editor.
         if (link) {
-            honorStars = PunishmentSystem.getGlobalHonorStars(userId);
+            honorStars = PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(userId, link.alderon_id));
             mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
             // KDA (pedido do dono, 2026-08-05: "tá faltando KDA no perfil
             // também") — GLOBAL (soma de todo servidor, ver
@@ -2194,7 +2205,7 @@ function loadDashboard(client) {
                     titleLabel: player.profile_title || 'Em breve (missões)',
                     levelLabel: 'Nível 1',
                     speciesLabel: PlayerRegistry.getMostPlayedDinosaur(player.alderon_id) || 'Ainda sem registro',
-                    honorStars: PunishmentSystem.getGlobalHonorStars(req.user.id),
+                    honorStars: PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(req.user.id, player.alderon_id)),
                 });
                 profileCard = `data:image/png;base64,${cardBuffer.toString('base64')}`;
             } catch (error) {
@@ -2273,7 +2284,7 @@ function loadDashboard(client) {
         // vínculo quando ele existe, e respeita hide_kda (privacidade que o
         // PRÓPRIO jogador escolheu, vale pra qualquer um vendo, staff ou não).
         if (link) {
-            honorStars = PunishmentSystem.getGlobalHonorStars(userID);
+            honorStars = PunishmentSystem.getGlobalHonorStars(PunishmentSystem._resolveHistoryUserIds(userID, link.alderon_id));
             mostPlayedDinosaur = PlayerRegistry.getMostPlayedDinosaur(link.alderon_id);
             if (!link.hide_kda) {
                 const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
