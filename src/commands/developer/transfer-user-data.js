@@ -31,23 +31,43 @@
  * punishmentSystem.js) também não é retroagido — mesmo critério que
  * /registrar já usa (nunca reescreve isso depois que alguém vincula).
  *
+ * MIGRAÇÃO DE VERDADE, NÃO CÓPIA (pedido do dono, 2026-08-15, revisão
+ * depois da 1ª versão): como o AGID só pode estar vinculado a UMA conta
+ * do Discord por vez (`player_links.alderon_id UNIQUE`), a conta nova
+ * numa troca de conta real nunca teria dado próprio conflitando de
+ * verdade — então em vez de tentar mesclar (Ossos) ou deixar órfão
+ * (reputação/staff/etc.) qualquer linha que colida com algo que a conta
+ * nova já tenha, TUDO da conta antiga que não puder migrar é
+ * DESCARTADO, e a conta antiga é APAGADA POR COMPLETO no final (até a
+ * linha de `users`) — nada fica salvo em banco sob o ID antigo, por
+ * economia de espaço (mesmo espírito do "favor database space economy"
+ * já seguido pro resto do projeto). O jogador é avisado por DM na conta
+ * ANTIGA (melhor esforço — pode falhar se DM estiver fechada, não trava
+ * a transferência) explicando que os dados foram migrados pra conta
+ * nova; esse aviso na conversa do Discord É o registro do que aconteceu
+ * com a conta antiga, não uma linha no banco.
+ *
  * `reports.user_id` tem FOREIGN KEY de verdade pra `users(user_id)` (ver
  * schema.js/index.js, `PRAGMA foreign_keys = ON`) — por isso
  * `db.ensureUser(novaConta, ...)` roda ANTES de qualquer outra coisa
  * dentro da transação, senão o UPDATE de `reports` quebra com
  * SQLITE_CONSTRAINT_FOREIGNKEY se a conta nova nunca interagiu com o bot
- * ainda.
+ * ainda. A linha de `users` da conta ANTIGA só é apagada no final (nada
+ * mais aponta pra ela a essa altura).
  *
  * Tabelas com chave composta envolvendo user_id (`reputation`,
  * `staff_presence_sessions`, `staff_analytics`, `event_teleport_uses`,
- * `image_inventory`) não podem levar um UPDATE em bloco — se a conta
- * nova JÁ tem uma linha com a mesma chave secundária (mesmo guild_id,
- * por exemplo), o UPDATE quebraria a constraint. Pra essas, cada linha é
- * migrada individualmente SE não colidir; se colidir, fica órfã na
- * conta antiga (nunca mais lida, inofensivo — nenhuma delas guarda
- * moeda de verdade). `pot_player_bones` (moeda de verdade, reforma
- * 2026-08-15) é a ÚNICA exceção: em vez de "pula e perde", SOMA o saldo
- * na conta nova e apaga a linha antiga.
+ * `image_inventory`, e `pot_player_bones`) não podem levar um UPDATE em
+ * bloco — se a conta nova JÁ tem uma linha com a mesma chave secundária
+ * (mesmo guild_id, por exemplo), o UPDATE quebraria a constraint. Pra
+ * essas, cada linha é migrada individualmente SE não colidir; se
+ * colidir, é DESCARTADA (não fica órfã, não mescla) — incluindo
+ * `pot_player_bones` (Ossos): num conflito de verdade (raro — só
+ * aconteceria se a conta NOVA já tivesse jogado antes com um AGID
+ * diferente), o saldo antigo daquele servidor é descartado junto. A
+ * prévia/resumo final sempre mostram quanto seria/foi descartado
+ * (inclusive em Ossos, se houver) — nunca é silencioso, mesmo que a
+ * ação em si não pergunte de novo.
  *
  * `player_links`/`player_premium` são singletons globais (uma linha só
  * por jogador) — se a conta NOVA já tiver uma linha própria em
@@ -75,31 +95,44 @@ function countMatch(table, column, id) {
     return db.prepare(`SELECT COUNT(*) as c FROM ${table} WHERE ${column} = ?`).get(id)?.c || 0;
 }
 
-// As 5 tabelas de chave composta — mesma forma pras 5: "existe uma linha
-// com esta(s) coluna(s) secundária(s) pra conta nova?". Só LEITURA —
-// reaproveitada tanto pela prévia quanto (de novo, fresca) na execução.
-function partitionByConflict(table, idColumn, matchCols, oldId, newId) {
-    const rows = db.prepare(`SELECT * FROM ${table} WHERE ${idColumn} = ?`).all(oldId);
+/**
+ * As 6 tabelas de chave composta (as 5 "normais" + pot_player_bones,
+ * tratada à parte por causa da coluna extra `balance`) — mesma forma:
+ * pra cada linha da conta antiga, existe uma linha da conta nova com a
+ * mesma chave secundária (guild_id / período+data / message_id /
+ * pool_type+pool_id)? Se não: migra (UPDATE). Se sim: DESCARTA (DELETE)
+ * — nunca deixa órfã, nunca mescla (só `pot_player_bones` soma o
+ * `balance` descartado no resumo, pra nunca ser silencioso sobre Ossos
+ * perdidos). `dryRun:true` só calcula, sem escrever — reaproveitado
+ * pela prévia; a execução chama de novo com `dryRun:false` (nunca
+ * reaproveita o resultado da prévia, dados podem ter mudado entre uma
+ * interação e outra).
+ */
+function processCompositeTable(table, matchCols, oldId, newId, { dryRun = false, balanceCol = null } = {}) {
+    const rows = db.prepare(`SELECT * FROM ${table} WHERE user_id = ?`).all(oldId);
     const whereMatch = matchCols.map((c) => `${c} = ?`).join(' AND ');
-    const free = [];
-    const conflict = [];
+    let migrated = 0;
+    let discarded = 0;
+    let discardedBalance = 0;
     for (const row of rows) {
-        const exists = db.prepare(`SELECT 1 FROM ${table} WHERE ${whereMatch} AND ${idColumn} = ?`)
+        const exists = db.prepare(`SELECT 1 FROM ${table} WHERE ${whereMatch} AND user_id = ?`)
             .get(...matchCols.map((c) => row[c]), newId);
-        (exists ? conflict : free).push(row);
+        if (exists) {
+            discarded++;
+            if (balanceCol) discardedBalance += row[balanceCol] || 0;
+            if (!dryRun) {
+                db.prepare(`DELETE FROM ${table} WHERE ${whereMatch} AND user_id = ?`)
+                    .run(...matchCols.map((c) => row[c]), oldId);
+            }
+        } else {
+            migrated++;
+            if (!dryRun) {
+                db.prepare(`UPDATE ${table} SET user_id = ? WHERE ${whereMatch} AND user_id = ?`)
+                    .run(newId, ...matchCols.map((c) => row[c]), oldId);
+            }
+        }
     }
-    return { free, conflict };
-}
-
-// Mutação correspondente — só as linhas SEM conflito (já filtradas por
-// partitionByConflict). As em conflito ficam órfãs de propósito, sem
-// ação nenhuma aqui.
-function migrateFreeRows(table, idColumn, matchCols, free, newId) {
-    if (!free.length) return 0;
-    const whereMatch = matchCols.map((c) => `${c} = ?`).join(' AND ');
-    const stmt = db.prepare(`UPDATE ${table} SET ${idColumn} = ? WHERE ${whereMatch} AND ${idColumn} = ?`);
-    for (const row of free) stmt.run(newId, ...matchCols.map((c) => row[c]), row[idColumn]);
-    return free.length;
+    return { migrated, discarded, discardedBalance };
 }
 
 const COMPOSITE_TABLES = [
@@ -109,39 +142,6 @@ const COMPOSITE_TABLES = [
     { table: 'event_teleport_uses', matchCols: ['message_id'], label: 'event_teleport_uses' },
     { table: 'image_inventory', matchCols: ['pool_type', 'pool_id'], label: 'image_inventory' },
 ];
-
-/**
- * pot_player_bones (moeda de verdade, ver docblock do arquivo) — única
- * tabela onde conflito vira MESCLAGEM (soma o saldo), não "pula e
- * perde". `dryRun:true` só calcula o que aconteceria, sem escrever nada
- * — reaproveitado pela prévia; a execução chama de novo com
- * `dryRun:false` (nunca reaproveita o resultado da prévia, dados podem
- * ter mudado entre uma interação e outra).
- */
-function processPotPlayerBones(oldId, newId, { dryRun = false } = {}) {
-    const rows = db.prepare(`SELECT * FROM pot_player_bones WHERE user_id = ?`).all(oldId);
-    let migrated = 0;
-    let merged = 0;
-    let mergedBalance = 0;
-    for (const row of rows) {
-        const existing = db.prepare(`SELECT balance FROM pot_player_bones WHERE user_id = ? AND guild_id = ?`).get(newId, row.guild_id);
-        if (existing) {
-            merged++;
-            mergedBalance += row.balance;
-            if (!dryRun) {
-                db.prepare(`UPDATE pot_player_bones SET balance = balance + ?, updated_at = ? WHERE user_id = ? AND guild_id = ?`)
-                    .run(row.balance, Math.floor(Date.now() / 1000), newId, row.guild_id);
-                db.prepare(`DELETE FROM pot_player_bones WHERE user_id = ? AND guild_id = ?`).run(oldId, row.guild_id);
-            }
-        } else {
-            migrated++;
-            if (!dryRun) {
-                db.prepare(`UPDATE pot_player_bones SET user_id = ? WHERE user_id = ? AND guild_id = ?`).run(newId, oldId, row.guild_id);
-            }
-        }
-    }
-    return { migrated, merged, mergedBalance };
-}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -217,7 +217,8 @@ module.exports = {
 
         // Best-effort — nunca bloqueia (rate limit/API fora do ar não pode
         // travar uma transferência válida), só melhora a prévia/o cache
-        // inicial de `users` pra conta nova.
+        // inicial de `users` pra conta nova e permite mandar a DM de aviso
+        // depois.
         const fetchedUser = await client.users.fetch(novaConta).catch(() => null);
 
         // ===== Prévia (contagens/conflitos, só leitura) =====
@@ -236,11 +237,10 @@ module.exports = {
         };
 
         const compositePreview = COMPOSITE_TABLES.map(({ table, matchCols, label }) => {
-            const { free, conflict } = partitionByConflict(table, 'user_id', matchCols, oldId, novaConta);
-            return { label, willMigrate: free.length, willOrphan: conflict.length };
+            const r = processCompositeTable(table, matchCols, oldId, novaConta, { dryRun: true });
+            return { label, ...r };
         });
-
-        const bonesPreview = processPotPlayerBones(oldId, novaConta, { dryRun: true });
+        const bonesPreview = processCompositeTable('pot_player_bones', ['guild_id'], oldId, novaConta, { dryRun: true, balanceCol: 'balance' });
 
         const simpleLines = Object.entries(simpleCounts)
             .filter(([, c]) => c > 0)
@@ -248,17 +248,17 @@ module.exports = {
             .join('\n') || '_Nenhum registro nas tabelas simples._';
 
         const compositeLines = compositePreview
-            .filter((c) => c.willMigrate > 0 || c.willOrphan > 0)
-            .map((c) => `- \`${c.label}\`: ${c.willMigrate} migrarão${c.willOrphan > 0 ? `, ${c.willOrphan} ficarão órfãs (conflito com a conta nova)` : ''}`)
+            .filter((c) => c.migrated > 0 || c.discarded > 0)
+            .map((c) => `- \`${c.label}\`: ${c.migrated} migrarão${c.discarded > 0 ? `, ${c.discarded} serão DESCARTADAS (conflito com a conta nova)` : ''}`)
             .join('\n') || '_Nenhum registro nas tabelas de conflito._';
 
-        const bonesLine = (bonesPreview.migrated > 0 || bonesPreview.merged > 0)
-            ? `- \`pot_player_bones\`: ${bonesPreview.migrated} servidor(es) migram direto${bonesPreview.merged > 0 ? `, ${bonesPreview.merged} servidor(es) terão saldo MESCLADO (+${bonesPreview.mergedBalance} Ossos somados na conta nova)` : ''}`
+        const bonesLine = (bonesPreview.migrated > 0 || bonesPreview.discarded > 0)
+            ? `- \`pot_player_bones\`: ${bonesPreview.migrated} servidor(es) migram${bonesPreview.discarded > 0 ? `, ${bonesPreview.discarded} servidor(es) serão DESCARTADOS (**${bonesPreview.discardedBalance} Ossos perdidos** — conflito com a conta nova)` : ''}`
             : '_Sem saldo de Ossos em nenhum servidor._';
 
         const identityLines = [
             `**AGID:** \`${agid}\`${link.player_name ? ` (${link.player_name})` : ''}`,
-            `**Conta antiga:** \`${oldId}\``,
+            `**Conta antiga:** \`${oldId}\` — será APAGADA por completo no final`,
             `**Conta nova:** \`${novaConta}\`${fetchedUser ? ` (${fetchedUser.tag || fetchedUser.username})` : ` — ${EMOJIS.messagesquarewarning || '⚠️'} não foi possível confirmar que este ID é uma conta real do Discord`}`,
         ].join('\n');
 
@@ -279,7 +279,7 @@ module.exports = {
                 '**Ossos (por servidor):**',
                 bonesLine,
                 '',
-                `${EMOJIS.messagesquarewarning || 'ℹ️'} \`player_links\` e \`player_premium\` também migram (identidade + assinatura, se houver) — já confirmado que a conta nova não tem nenhuma das duas ainda.`,
+                `${EMOJIS.messagesquarewarning || 'ℹ️'} \`player_links\` e \`player_premium\` também migram (identidade + assinatura, se houver). Depois de migrar tudo, a conta ANTIGA é apagada por completo do banco (nada fica salvo sob esse ID) e recebe uma DM avisando que os dados foram movidos pra conta nova.`,
             ].filter((l) => l !== undefined).join('\n'));
             previewBuilder.footer('Bot de Developer — nenhuma alteração foi feita');
             const { components, flags } = previewBuilder.build();
@@ -309,18 +309,26 @@ module.exports = {
 
                 const composite = {};
                 for (const { table, matchCols, label } of COMPOSITE_TABLES) {
-                    const { free, conflict } = partitionByConflict(table, 'user_id', matchCols, oldId, novaConta);
-                    composite[label] = { migrated: migrateFreeRows(table, 'user_id', matchCols, free, novaConta), orphaned: conflict.length };
+                    composite[label] = processCompositeTable(table, matchCols, oldId, novaConta, { dryRun: false });
                 }
 
-                const bones = processPotPlayerBones(oldId, novaConta, { dryRun: false });
+                const bones = processCompositeTable('pot_player_bones', ['guild_id'], oldId, novaConta, { dryRun: false, balanceCol: 'balance' });
 
-                // Singletons globais, por último — já validados sem
-                // conflito antes de chegar aqui.
+                // Singletons globais — já validados sem conflito antes de
+                // chegar aqui.
                 db.prepare(`UPDATE player_links SET user_id = ? WHERE user_id = ?`).run(novaConta, oldId);
                 const premiumMigrated = db.prepare(`UPDATE player_premium SET user_id = ? WHERE user_id = ?`).run(novaConta, oldId).changes;
 
-                return { simple, composite, bones, premiumMigrated };
+                // Conta antiga completamente apagada por último — nada
+                // mais aponta pra ela a essa altura (tudo que era dela já
+                // migrou ou foi descartado acima). Economiza espaço em
+                // banco em vez de deixar um cache morto de username/avatar
+                // pra sempre (pedido do dono: "não deve manter nada salvo
+                // em banco... apagar tudo sobre a conta antiga, até o
+                // registro").
+                const oldUserDeleted = db.prepare(`DELETE FROM users WHERE user_id = ?`).run(oldId).changes;
+
+                return { simple, composite, bones, premiumMigrated, oldUserDeleted };
             })();
 
             const transferUuid = db.generateUUID();
@@ -334,18 +342,38 @@ module.exports = {
                 responseTime: Date.now() - startTime,
             });
 
+            // Aviso por DM na conta ANTIGA (pedido do dono: "o usuário
+            // deve ser informado na conta antiga... o que aconteceu na
+            // conta antiga fica apenas como registro nos discord") —
+            // melhor esforço, nunca falha a transferência (já concluída
+            // no banco) se a DM não puder ser enviada.
+            let dmSent = false;
+            try {
+                const oldUser = await client.users.fetch(oldId).catch(() => null);
+                if (oldUser) {
+                    await oldUser.send([
+                        `${EMOJIS.messagesquarewarning || 'ℹ️'} **Seu registro no Titan's Pass foi transferido**`,
+                        `Seu Alderon ID \`${agid}\`${link.player_name ? ` (${link.player_name})` : ''} e todos os seus dados (perfil, moedas, reputação, histórico, Player Premium) foram migrados pra outra conta do Discord (\`${novaConta}\`).`,
+                        'Esta conta não tem mais nenhum dado salvo sobre esse registro. Se você não pediu essa transferência, entre em contato com a equipe do servidor.',
+                    ].join('\n'));
+                    dmSent = true;
+                }
+            } catch (dmError) {
+                console.warn('⚠️ [TRANSFER-USER-DATA] Não foi possível enviar DM de aviso pra conta antiga:', dmError.message);
+            }
+
             const resultSimpleLines = Object.entries(result.simple)
                 .filter(([, c]) => c > 0)
                 .map(([table, c]) => `- \`${table}\`: ${c}`)
                 .join('\n') || '_Nenhum registro migrado nas tabelas simples._';
 
             const resultCompositeLines = Object.entries(result.composite)
-                .filter(([, c]) => c.migrated > 0 || c.orphaned > 0)
-                .map(([label, c]) => `- \`${label}\`: ${c.migrated} migrado(s)${c.orphaned > 0 ? `, ${c.orphaned} órfã(s) por conflito` : ''}`)
+                .filter(([, c]) => c.migrated > 0 || c.discarded > 0)
+                .map(([label, c]) => `- \`${label}\`: ${c.migrated} migrado(s)${c.discarded > 0 ? `, ${c.discarded} descartado(s) por conflito` : ''}`)
                 .join('\n') || '_Nenhum registro nas tabelas de conflito._';
 
-            const resultBonesLine = (result.bones.migrated > 0 || result.bones.merged > 0)
-                ? `${result.bones.migrated} servidor(es) migrado(s) direto, ${result.bones.merged} mesclado(s) (+${result.bones.mergedBalance} Ossos somados)`
+            const resultBonesLine = (result.bones.migrated > 0 || result.bones.discarded > 0)
+                ? `${result.bones.migrated} servidor(es) migrado(s)${result.bones.discarded > 0 ? `, ${result.bones.discarded} servidor(es) descartado(s) (**${result.bones.discardedBalance} Ossos perdidos** por conflito)` : ''}`
                 : 'Sem saldo de Ossos em nenhum servidor.';
 
             const successBuilder = new AdvancedContainerBuilder({ accentColor: COLORS.SUCCESS });
@@ -362,7 +390,9 @@ module.exports = {
             successBuilder.separator();
             successBuilder.text(`**Player Premium:** ${result.premiumMigrated > 0 ? 'migrado' : 'não tinha (Free)'}`);
             successBuilder.separator();
-            successBuilder.text(`${EMOJIS.messagesquarewarning || 'ℹ️'} Referências deste jogador como MODERADOR/STAFF em ações sobre outras pessoas foram preservadas na conta antiga (histórico de auditoria de terceiros). Cargos/apelido do Discord na conta nova continuam responsabilidade de cada servidor.`);
+            successBuilder.text(`**Conta antiga:** apagada por completo do banco. **DM de aviso:** ${dmSent ? 'enviada' : 'não foi possível enviar (DM fechada ou conta inacessível)'}.`);
+            successBuilder.separator();
+            successBuilder.text(`${EMOJIS.messagesquarewarning || 'ℹ️'} Referências deste jogador como MODERADOR/STAFF em ações sobre outras pessoas foram preservadas (histórico de auditoria de terceiros, continua com o ID antigo — não afeta nada, essas colunas não têm FK). Cargos/apelido do Discord na conta nova continuam responsabilidade de cada servidor.`);
             successBuilder.footer('Bot de Developer', `UUID: ${transferUuid.slice(0, 8)} — ${Date.now() - startTime}ms`);
 
             const { components, flags } = successBuilder.build();
