@@ -238,17 +238,37 @@
            2026-08-16: pílulas e nome ficavam lado a lado/sobrepostos). */
         .pf-id-card { display: flex; flex-direction: column; padding: 20px; background: #131314; border: 1px solid rgba(217, 163, 98, 0.25); border-radius: 14px; }
         .pf-id-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+        /* Recorte da foto (pedido do dono, 2026-08-16, com o SVG exportado
+           DIRETO do Figma da camada "Profile avatar") — path REAL, não
+           aproximado: extraído do export (viewBox 377x267, path com
+           bounding box exato de 350.85x238 — bate com o "width:350.85px;
+           height:238px" do CSS original) e normalizado aqui pra frações de
+           0 a 1 (script Node fora do código, um `.match` tokenizando os
+           comandos M/C/H/V/Z e dividindo cada coordenada pela largura/
+           altura real do path). Preserva TUDO do original: os 2 cantos
+           curvos (sup-esquerdo/inf-esquerdo, curva grande e suave) E um
+           degrau/recorte no canto inferior-direito que não é um chute meu
+           — é o desenho de verdade do Figma, bate exatamente com onde a
+           barra de estrelas (.pf-id-stars) fica ancorada (top:199.89 de
+           238 ≈ 0.838, mesma fração onde o degrau começa aqui). Duas
+           tentativas anteriores (polygon() reto, depois um path à mão com
+           Bezier quadrática aproximando as curvas) foram substituídas por
+           este path exato assim que o dono exportou o SVG de origem — não
+           reintroduzir a aproximação. clipPathUnits="objectBoundingBox"
+           (não userSpaceOnUse) é o que mantém isso responsivo — as frações
+           escalam sozinhas com qualquer largura de tela, sem pixel fixo
+           nem media query. */
         .pf-id-photo {
             position: relative;
             flex: 1 1 280px;
             min-width: 220px;
             aspect-ratio: 350 / 238;
-            border-radius: 12px;
             background-color: #1F1D20;
             background-size: cover;
             background-position: center;
             box-shadow: 0px 0px 2.3px #DCA15E, 12px 15px 11.5px rgba(0, 0, 0, 0.36), inset 0px 4px 4px rgba(0, 0, 0, 0.25);
             overflow: hidden;
+            clip-path: url(#pf-id-photo-clip);
         }
         .pf-id-stars {
             position: absolute;
@@ -259,26 +279,53 @@
             padding: 14px 12px 10px;
             background: linear-gradient(0deg, rgba(0, 0, 0, 0.55) 10%, rgba(0, 0, 0, 0) 100%);
         }
-        .pf-id-star {
-            width: clamp(20px, 4vw, 28px);
-            height: clamp(20px, 4vw, 28px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: clamp(14px, 3vw, 18px);
-            border-radius: 6px;
-            background: #1F1D20;
-            border: 1px solid rgba(217, 163, 98, 0.35);
-            color: #3E3D38;
-            box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.49);
+        /* Estrela com o formato REAL (path exato exportado do Figma, mesma
+           técnica de clipPath objectBoundingBox da foto acima), não mais o
+           caractere ★ dentro de uma caixa arredondada. Gradiente cônico
+           (SVG nativo não suporta conic-gradient nenhum — nem o próprio
+           export do Figma consegue: ele usa o MESMO truque de um <div>
+           com CSS conic-gradient dentro de um <foreignObject>, confirmado
+           no SVG que o dono mandou) fica no `background` normal do
+           elemento, recortado pelo clip-path — não dá pra fazer isso
+           direto num <path> SVG. Contorno escuro (border:1px do Figma)
+           também não dá pra fazer com `border` normal (viraria um
+           retângulo por cima da estrela) — .pf-id-star-outline é uma
+           cópia da MESMA forma, um pouco maior (scale 1.12) e atrás,
+           criando a borda pela sobra visível nas pontas. Sombra via
+           filter:drop-shadow (não box-shadow — esse segue o RETÂNGULO da
+           caixa, ignora o clip-path; drop-shadow segue o alfa real da
+           forma renderizada). */
+        /* Diminuídas um pouco (pedido do dono, 2026-08-16: "podem diminuir
+           um pouquinho de tamanho só para n ficar fora das bordas") —
+           18-24px em vez de 20-28px, e o outline (scale 1.12->1.08) reduz
+           junto, já que ele "sangra" pra fora do tamanho base da estrela. */
+        .pf-id-star-wrap {
+            position: relative;
+            width: clamp(18px, 3.4vw, 24px);
+            height: clamp(18px, 3.4vw, 24px);
+            filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.49));
         }
-        .pf-id-star.is-filled {
-            color: #1F1D20;
-            background: conic-gradient(from 180deg at 50% 50%, #DCA15E 0deg, #F8DCC0 360deg);
-            border-color: #1F1D20;
-            box-shadow: 0px -2px 8.8px rgba(255, 226, 129, 0.35), 0px 4px 4px rgba(0, 0, 0, 0.49);
+        .pf-id-star-wrap.is-filled {
+            filter: drop-shadow(0px -2px 8.8px rgba(255, 226, 129, 0.35)) drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.49));
         }
-        .pf-id-pills { flex: 1 1 260px; min-width: 220px; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+        .pf-id-star-outline, .pf-id-star-fill {
+            position: absolute;
+            inset: 0;
+            clip-path: url(#pf-id-star-shape);
+        }
+        .pf-id-star-outline { background: #1F1D20; transform: scale(1.08); }
+        .pf-id-star-fill { background: #3E3D38; }
+        .pf-id-star-wrap.is-filled .pf-id-star-fill {
+            background: linear-gradient(0deg, rgba(197, 59, 0, 0.54), rgba(197, 59, 0, 0.54)), conic-gradient(from 180deg at 50% 50%, #DCA15E 0deg, #F8DCC0 360deg);
+            background-blend-mode: plus-lighter, normal;
+        }
+        /* justify-content:flex-start (pedido do dono, 2026-08-16: "não
+           estão alinhadas ao topo junto da imagem de perfil") — antes
+           "center" centralizava as 3 pílulas na altura toda da foto
+           (herdada via align-items:stretch do .pf-id-top pai); flex-start
+           alinha o topo da 1ª pílula com o topo da foto, igual à
+           referência do Discord. */
+        .pf-id-pills { flex: 1 1 260px; min-width: 220px; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; }
         .pf-id-pill {
             box-sizing: border-box;
             display: flex;
@@ -384,6 +431,90 @@
         <h1 class="section-title text-2xl" style="text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6), -2px -2px 6px rgba(0, 0, 0, 0.5);"><span data-i18n-pt>Bem vindo de volta,</span><span data-i18n-en>Welcome back,</span> <%= nickname %></h1>
 
         <%- include('partials/save-result-overlay', { saved }) %>
+
+        <%
+            // Card de identidade "estilo Discord" (pedido do dono,
+            // 2026-08-16) — ver docblock do <style> .pf-id-card acima pra
+            // explicação completa (fonte da foto/fundo, cores por tier,
+            // responsividade). PRIMEIRO card da página (pedido do dono:
+            // "essa apresentação... deve vir como primeiro dos cards") —
+            // antes do próprio .perfil-hero (identidade Discord), que
+            // sempre foi o primeiro até agora. Só existe com `link`
+            // (precisa de AGID pra título/nível/espécie/foto) — sem
+            // vínculo, .perfil-hero volta a ser o primeiro card de fato,
+            // sem gap nenhum aqui. Emblemas: até 6 ícones de EMBLEMA JÁ
+            // RESGATADO pelo jogador (não decorativo fixo como o mockup do
+            // Figma sugeria — o dono confirmou que representam conquistas
+            // de verdade, mesmo pool type='badge' já usado na Loja/Missões
+            // e Recompensas). ownedItems já vem calculado (todos os tipos)
+            // pra seção "Seus Itens" mais abaixo — só filtra por tipo aqui,
+            // sem query nova.
+            const pfIdCardGradients = {
+                free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20' },
+                compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0' },
+                raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E' },
+            };
+            const pfIdCardGrad = pfIdCardGradients[playerTier] || pfIdCardGradients.free;
+            const pfIdCardDefaultPhotos = { free: '/images/perfil-foto-free.webp', compy: '/images/perfil-foto-compy.webp', raptor: '/images/perfil-foto-raptor.webp' };
+            const pfIdCardPhoto = link ? (avatarPreviewUrl || pfIdCardDefaultPhotos[playerTier] || pfIdCardDefaultPhotos.free) : null;
+            const pfIdBadges = link ? ownedItems.filter((i) => i.type === 'badge').slice(0, 6) : [];
+        %>
+        <% if (link) { %>
+            <%# clipPaths do recorte da foto e da forma da estrela (path
+                exato exportado do Figma pros dois, ver comentários
+                completos em .pf-id-photo/.pf-id-star-wrap no <style>
+                acima) — svg width/height 0, invisível, só guarda as
+                definições referenciadas por url(#pf-id-photo-clip) e
+                url(#pf-id-star-shape). %>
+            <svg width="0" height="0" style="position:absolute">
+                <defs>
+                    <clipPath id="pf-id-photo-clip" clipPathUnits="objectBoundingBox">
+                        <path d="M0.1372,0.0463 C0.1570,0.0154 0.1653,0.0000 0.2033,0.0000 H0.9355 C0.9818,0.0000 1.0000,0.0334 1.0000,0.0900 V0.7635 C1.0000,0.8101 0.9851,0.8380 0.9391,0.8380 H0.6642 C0.6278,0.8380 0.6169,0.8380 0.6007,0.8740 C0.5907,0.8964 0.5802,0.9152 0.5603,0.9537 C0.5405,0.9923 0.5256,1.0000 0.5008,1.0000 H0.0547 C0.0081,1.0000 0.0000,0.9589 0.0000,0.9203 V0.3753 C0.0000,0.2931 0.0066,0.2751 0.0231,0.2442 C0.0397,0.2134 0.1174,0.0771 0.1372,0.0463 Z" />
+                    </clipPath>
+                    <clipPath id="pf-id-star-shape" clipPathUnits="objectBoundingBox">
+                        <path d="M0.5000,0.0000 L0.6180,0.3820 L1.0000,0.3820 L0.6910,0.6180 L0.8090,1.0000 L0.5000,0.7639 L0.1910,1.0000 L0.3090,0.6180 L0.0000,0.3820 L0.3820,0.3820 L0.5000,0.0000 Z" />
+                    </clipPath>
+                </defs>
+            </svg>
+            <section class="titan-card-premium pf-id-card">
+                <div class="pf-id-top">
+                    <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
+                        <div class="pf-id-stars">
+                            <% for (let i = 1; i <= 5; i++) { %>
+                                <span class="pf-id-star-wrap <%= i <= honorStars ? 'is-filled' : '' %>">
+                                    <span class="pf-id-star-outline"></span>
+                                    <span class="pf-id-star-fill"></span>
+                                </span>
+                            <% } %>
+                        </div>
+                    </div>
+                    <div class="pf-id-pills" style="--pf-id-grad-a: <%= pfIdCardGrad.a %>; --pf-id-grad-b: <%= pfIdCardGrad.b %>; --pf-id-text: <%= pfIdCardGrad.text %>;">
+                        <div class="pf-id-pill">
+                            <i data-lucide="medal"></i>
+                            <span><% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
+                        </div>
+                        <div class="pf-id-pill">
+                            <i data-lucide="play"></i>
+                            <span><span data-i18n-pt>Nível</span><span data-i18n-en>Level</span> <%= levelProgress.level %></span>
+                        </div>
+                        <div class="pf-id-pill">
+                            <i data-lucide="star"></i>
+                            <span><% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="pf-id-bottom">
+                    <span class="pf-id-name"><%= link.player_name || discordUser.username %></span>
+                    <% if (pfIdBadges.length > 0) { %>
+                        <div class="pf-id-badges">
+                            <% pfIdBadges.forEach((b) => { %>
+                                <img src="<%= b.url %>" alt="" title="<%= b.label %>">
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+            </section>
+        <% } %>
 
         <section class="titan-card-premium flex-col gap-5">
             <div class="perfil-hero">
@@ -547,62 +678,6 @@
             </div>
 
             <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
-                <%
-                    // Card de identidade "estilo Discord" (pedido do dono,
-                    // 2026-08-16) — ver docblock do <style> .pf-id-card
-                    // acima pra explicação completa (fonte da foto/fundo,
-                    // cores por tier, responsividade). Emblemas: até 6
-                    // ícones de EMBLEMA JÁ RESGATADO pelo jogador (não
-                    // decorativo fixo como o mockup do Figma sugeria — o
-                    // dono confirmou que representam conquistas de verdade,
-                    // mesmo pool type='badge' já usado na Loja/Missões e
-                    // Recompensas). ownedItems já vem calculado (todos os
-                    // tipos) pra seção "Seus Itens" logo abaixo — só
-                    // filtra por tipo aqui, sem query nova.
-                    const pfIdCardGradients = {
-                        free: { a: '#A6917D', b: '#F8DCC0', text: '#1F1D20' },
-                        compy: { a: '#A25E2D', b: '#DCA15E', text: '#F8DCC0' },
-                        raptor: { a: '#4B2427', b: '#803E30', text: '#DCA15E' },
-                    };
-                    const pfIdCardGrad = pfIdCardGradients[playerTier] || pfIdCardGradients.free;
-                    const pfIdCardDefaultPhotos = { free: '/images/perfil-foto-free.webp', compy: '/images/perfil-foto-compy.webp', raptor: '/images/perfil-foto-raptor.webp' };
-                    const pfIdCardPhoto = avatarPreviewUrl || pfIdCardDefaultPhotos[playerTier] || pfIdCardDefaultPhotos.free;
-                    const pfIdBadges = ownedItems.filter((i) => i.type === 'badge').slice(0, 6);
-                %>
-                <section class="titan-card-premium pf-id-card">
-                    <div class="pf-id-top">
-                        <div class="pf-id-photo" style="background-image:url('<%= pfIdCardPhoto %>')">
-                            <div class="pf-id-stars">
-                                <% for (let i = 1; i <= 5; i++) { %><span class="pf-id-star <%= i <= honorStars ? 'is-filled' : '' %>">★</span><% } %>
-                            </div>
-                        </div>
-                        <div class="pf-id-pills" style="--pf-id-grad-a: <%= pfIdCardGrad.a %>; --pf-id-grad-b: <%= pfIdCardGrad.b %>; --pf-id-text: <%= pfIdCardGrad.text %>;">
-                            <div class="pf-id-pill">
-                                <i data-lucide="medal"></i>
-                                <span><% if (link.profile_title) { %><%= link.profile_title %><% } else { %><span data-i18n-pt>Em breve (missões)</span><span data-i18n-en>Coming soon (quests)</span><% } %></span>
-                            </div>
-                            <div class="pf-id-pill">
-                                <i data-lucide="play"></i>
-                                <span><span data-i18n-pt>Nível</span><span data-i18n-en>Level</span> <%= levelProgress.level %></span>
-                            </div>
-                            <div class="pf-id-pill">
-                                <i data-lucide="star"></i>
-                                <span><% if (mostPlayedDinosaur) { %><%= mostPlayedDinosaur %><% } else { %><span data-i18n-pt>Ainda sem registro</span><span data-i18n-en>No record yet</span><% } %></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="pf-id-bottom">
-                        <span class="pf-id-name"><%= link.player_name || discordUser.username %></span>
-                        <% if (pfIdBadges.length > 0) { %>
-                            <div class="pf-id-badges">
-                                <% pfIdBadges.forEach((b) => { %>
-                                    <img src="<%= b.url %>" alt="" title="<%= b.label %>">
-                                <% }); %>
-                            </div>
-                        <% } %>
-                    </div>
-                </section>
-
                 <section class="titan-card-premium flex-col gap-5">
                     <h2 class="section-title text-lg flex items-center gap-3">
                         <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">
