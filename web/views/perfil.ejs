@@ -230,7 +230,13 @@
            3 tiers do card do Discord (T1 Free bege claro, T2 Compy
            mostarda, T3 Raptor terracota escuro — mesmos hex do export do
            Figma). */
-        .pf-id-card { padding: 20px; background: #131314; border: 1px solid rgba(217, 163, 98, 0.25); border-radius: 14px; }
+        /* flex-direction:column explícito (não confia em quem usa a classe
+           lembrar de somar o utilitário Tailwind flex-col) — .titan-card-
+           premium (style.css compartilhado) já é display:flex, mas SEM
+           direção definida, então sem isso os filhos (.pf-id-top/.pf-id-
+           bottom) viravam uma LINHA em vez de empilhados (bug real,
+           2026-08-16: pílulas e nome ficavam lado a lado/sobrepostos). */
+        .pf-id-card { display: flex; flex-direction: column; padding: 20px; background: #131314; border: 1px solid rgba(217, 163, 98, 0.25); border-radius: 14px; }
         .pf-id-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
         .pf-id-photo {
             position: relative;
