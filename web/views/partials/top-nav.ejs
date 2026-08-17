@@ -549,6 +549,22 @@
     })();
 
     <% if (!tnHideOnScroll) { %>
+    // Portal do drawer pro <body> (pedido do dono, 2026-08-17: bug real
+    // de empilhamento encontrado nas páginas COM sidebar, ver o mesmo
+    // trecho em partials/sidebar-v2.ejs pro raciocínio completo — um
+    // ancestral `position: sticky` prendia o z-index do drawer num
+    // contexto de empilhamento local, incapaz de ficar por cima de
+    // conteúdo mais abaixo no DOM). Estas páginas (sem sidebar) hoje não
+    // têm esse wrapper sticky específico, mas o mesmo risco existiria se
+    // uma delas ganhasse um no futuro — replicado aqui por consistência
+    // e defesa, custo zero.
+    (function () {
+        var backdrop = document.getElementById('tpMobileDrawerBackdrop');
+        var drawer = document.getElementById('tpMobileDrawer');
+        if (backdrop) document.body.appendChild(backdrop);
+        if (drawer) document.body.appendChild(drawer);
+    })();
+
     // Drawer mobile pras páginas sem sidebar (pedido do dono, 2026-08-16,
     // parte 2) — mesma função/mesmo comportamento de partials/
     // sidebar-v2.ejs (só existe nas páginas COM sidebar), copiada aqui
