@@ -2703,7 +2703,7 @@ function loadDashboard(client) {
                 description: body.description,
                 imageMessageId,
                 actionType: body.action_type,
-                growthPercent: body.growth_percent,
+                growthStage: body.growth_stage,
                 map: body.map,
                 coords: body.coords,
                 price: body.price,

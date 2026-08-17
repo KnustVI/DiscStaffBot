@@ -368,6 +368,19 @@ const MIGRATED_MARKER_KEY = 'pot_game_shop_migrated';
 // 'quest' fica de fora de propósito (ver docblock acima).
 const MIGRATABLE_KEYS = ['growth_juvenil', 'growth_adolescente', 'growth_subadulto', 'growth_adulto', 'skipshed'];
 
+// Etapas de growth do item customizado (pedido do dono, 2026-08-17: "o
+// growth eta com porcentagem mas coloque categorias de juvenil até adulto
+// como tinhamos antes") — volta a ser uma escolha fixa entre as 4 etapas
+// nomeadas do catálogo antigo, em vez de uma porcentagem livre 1-100.
+// Reaproveita os MESMOS valores de GAME_SHOP_ITEMS (fonte única) em vez de
+// duplicar os números 0.25/0.5/0.75/1.0 aqui.
+const GROWTH_STAGE_VALUES = {
+    juvenil: GAME_SHOP_ITEMS.growth_juvenil.growthValue,
+    adolescente: GAME_SHOP_ITEMS.growth_adolescente.growthValue,
+    subadulto: GAME_SHOP_ITEMS.growth_subadulto.growthValue,
+    adulto: GAME_SHOP_ITEMS.growth_adulto.growthValue,
+};
+
 function _parseItemRow(row) {
     if (!row) return null;
     return {
@@ -419,11 +432,12 @@ function isGuildMigrated(guildId) {
  * Cria um item customizado — valida tudo que o form de criação promete
  * (ver web/views/lojajogo.ejs): nome/descrição obrigatórios, action_type
  * um dos 3 suportados com a sub-config certa (growth precisa de
- * growthPercent 1-100; teleport precisa de map+coords), preço inteiro
+ * growthStage, uma das 4 etapas nomeadas do catálogo antigo — ver
+ * GROWTH_STAGE_VALUES; teleport precisa de map+coords), preço inteiro
  * positivo, estoque opcional (ausente/vazio = ilimitado), espécies
  * opcionais (vazio = qualquer uma).
  * @param {string} guildId
- * @param {object} data - {name, description, imageMessageId, actionType, growthPercent, map, coords, price, stockLimit, species}
+ * @param {object} data - {name, description, imageMessageId, actionType, growthStage, map, coords, price, stockLimit, species}
  * @param {string} createdBy
  * @returns {{ok:true,id:number}|{ok:false,error:string}}
  */
@@ -445,9 +459,9 @@ function createShopItem(guildId, data, createdBy) {
 
     let actionConfig = null;
     if (data.actionType === 'growth') {
-        const pct = parseInt(data.growthPercent, 10);
-        if (!Number.isInteger(pct) || pct < 1 || pct > 100) return { ok: false, error: 'Porcentagem de crescimento precisa ser entre 1 e 100.' };
-        actionConfig = { growthValue: pct / 100 };
+        const growthValue = GROWTH_STAGE_VALUES[data.growthStage];
+        if (!growthValue) return { ok: false, error: 'Escolha uma etapa de crescimento válida (Juvenil/Adolescente/Subadulto/Adulto).' };
+        actionConfig = { growthValue };
     } else if (data.actionType === 'teleport') {
         const map = (data.map || '').trim().slice(0, 100);
         const coords = (data.coords || '').trim().slice(0, 200);
