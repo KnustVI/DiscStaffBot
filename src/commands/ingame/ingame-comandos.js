@@ -16,6 +16,7 @@ const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuild
 const { PaginationBuilder } = require('../../utils/paginationBuilder');
 const ResponseManager = require('../../utils/responseManager');
 const RconCatalog = require('../../systems/pot/rconCommandCatalog');
+const BuffStatCatalog = require('../../systems/pot/buffStatCatalog');
 
 let emojis = {};
 try { emojis = require('../../database/emojis.js').EMOJIS || {}; } catch (err) {}
@@ -50,6 +51,22 @@ function buildCategoryPage(guild, category, isFirst, personalization) {
     builder.block(category.entries.map((entry) =>
         `• \`${entry.name}\`${entry.supervisorOnly ? ` ${emojis.lock || '🔒'}` : ''} — ${entry.description}`
     ));
+
+    if (category.label === 'Change Stats') {
+        // Pedido do dono, 2026-08-17: "adicione a lista de atributos
+        // editaveis na pagina de stats change" — setattr/setattrall/
+        // getattr/getallattr (ver rconCommandCatalog.js) aceitam
+        // `atributo` como texto livre, sem nenhuma lista/autocomplete no
+        // próprio Discord. A lista de verdade (fechada, testada em
+        // servidor real) já existe em buffStatCatalog.js — reaproveitada
+        // aqui em vez de duplicar os 17 nomes, mesma fonte usada pelo
+        // select de atributo de /config buffs (ver buffPanelSystem.js).
+        builder.separator();
+        builder.text(
+            `${emojis.messagesquare || 'ℹ️'} **Atributos aceitos em \`atributo\` (setattr/setattrall/getattr/getallattr)** — lista fechada, confirmada em servidor real; um nome fora dela pode ser aceito pelo RCON sem surtir efeito nenhum no jogo: ` +
+            BuffStatCatalog.KNOWN_STATS.map((s) => `\`${s}\``).join(', ')
+        );
+    }
 
     if (category.label === 'List') {
         builder.separator();
