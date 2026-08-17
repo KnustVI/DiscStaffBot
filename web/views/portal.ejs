@@ -223,9 +223,18 @@
 
         <!-- Seção Superior: Logo e Boas-vindas -->
         <div class="flex flex-col items-center w-full" style="gap: clamp(20px, 3vw, 32px);">
+            <%# max-height removido (logo novo, 2026-08-17, é quadrado —
+                a versão antiga era bem mais larga que alta, então o
+                max-height daqui tinha sido calibrado só pra ELA; com o
+                logo quadrado, esse teto de altura sobrava e forçava o
+                object-contain a encolher a largura bem abaixo do
+                container, sobrando vão vazio dos dois lados. Sem
+                max-height, o logo escala só pela largura, igual às
+                outras 3 páginas que já usam esta mesma imagem
+                (hero/documentacao/sidebar). %>
             <div class="flex items-center justify-center" style="width: clamp(170px, 25vw, 300px);">
                 <img src="/images/landing/titans-pass-logo.webp"
-                     alt="Titan's Pass Logo" class="w-full h-auto object-contain" style="max-height: clamp(130px, 18vw, 210px);">
+                     alt="Titan's Pass Logo" class="w-full h-auto object-contain">
             </div>
 
             <div class="text-center px-4">
