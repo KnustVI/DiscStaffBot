@@ -509,6 +509,36 @@ const SCHEMA = {
         )
     `,
 
+    // Itens customizados da Loja de Jogo, criados livremente por cada
+    // admin de servidor (substitui o catálogo fixo GAME_SHOP_ITEMS —
+    // pedido do dono, 2026-08-16: mesma ideia de criação de emblemas/
+    // títulos de /dev/Loja, só que por admin de servidor em vez de só o
+    // dono do bot). deleted_at é exclusão LÓGICA (nunca DELETE de
+    // verdade) — pedido explícito: item excluído da loja continua
+    // funcionando pra quem já comprou e não usou, então a linha precisa
+    // continuar existindo pra game_shop_inventory.shop_item_id resolver.
+    // Sem FOREIGN KEY (este projeto não usa isso entre tabelas próprias).
+    pot_game_shop_items: `
+        CREATE TABLE IF NOT EXISTS pot_game_shop_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            image_message_id TEXT,
+            action_type TEXT NOT NULL,
+            action_config TEXT,
+            price INTEGER NOT NULL,
+            stock_limit INTEGER,
+            stock_sold INTEGER NOT NULL DEFAULT 0,
+            species TEXT,
+            is_public INTEGER NOT NULL DEFAULT 1,
+            coming_soon INTEGER NOT NULL DEFAULT 0,
+            created_by TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            deleted_at INTEGER
+        )
+    `,
+
     // ==================== PREMIUM ====================
     player_premium: `
         CREATE TABLE IF NOT EXISTS player_premium (
@@ -745,7 +775,8 @@ const INDEXES = [
     `CREATE INDEX IF NOT EXISTS idx_pot_species_kills_alderon ON pot_species_kills(alderon_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_chat_filters_guild ON pot_chat_filters(guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_pot_servers_guild ON pot_servers(guild_id)`,
-    
+    `CREATE INDEX IF NOT EXISTS idx_pot_game_shop_items_guild ON pot_game_shop_items(guild_id)`,
+
     // Sequences
     `CREATE INDEX IF NOT EXISTS idx_sequences_guild ON sequences(guild_id)`,
 

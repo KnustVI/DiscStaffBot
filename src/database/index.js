@@ -82,6 +82,7 @@ class DatabaseManager {
                 'image_inventory',
                 'personalization_shop_config',
                 'game_shop_inventory',
+                'pot_game_shop_items',
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',
@@ -365,6 +366,15 @@ class DatabaseManager {
             // seção 205). Drop aqui limpa qualquer banco que já rodou a
             // migração de adição antes da remoção.
             this.dropColumnIfExists('game_shop_inventory', 'price_paid');
+
+            // Itens customizados da Loja de Jogo (pedido do dono,
+            // 2026-08-16: substitui o catálogo fixo GAME_SHOP_ITEMS por
+            // criação livre de item por admin de servidor) — NULL nesta
+            // coluna = linha antiga, ainda lida via item_key/
+            // GAME_SHOP_ITEMS (catálogo fixo, mantido só pra resolver
+            // inventário comprado antes da migração); preenchido = id em
+            // pot_game_shop_items. Ver gameShopSystem.js.
+            this.ensureColumn('game_shop_inventory', 'shop_item_id', 'INTEGER');
 
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —

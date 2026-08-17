@@ -1,17 +1,35 @@
 <%#
   web/views/lojajogo.ejs
-  Loja de Jogo (reforma das lojas, pedido do dono 2026-08-12) — Growth (4
-  etapas, cada uma com sua própria restrição de espécie)/Skipshed/Missão,
-  pagos em Ossos, configurados POR SERVIDOR pelo próprio admin
-  (GameShopSystem — settings.pot_game_shop_config). Diferente da Loja de
-  Personalização (Caçadas, global, só o dono mexe — ver /dev/Loja).
+  Loja de Jogo — reforma 2026-08-16 (pedido do dono: "a configuração
+  atual de preço não esta muito boa... gostaria que a configuração de
+  preços trabalhasse de forma parecida com a configuração de
+  emblemas/titulos que eu, desenvolvedor, tenho"). Substitui o catálogo
+  fixo de 6 itens (era só liga/preço/espécie por item hardcoded) por
+  criação LIVRE de item pelo admin de CADA servidor, espelhando a UX de
+  /dev/Loja (dialog de criação + grade de cards com Público/Em breve/
+  Excluir) — ver gameShopSystem.js#createShopItem/listShopItems e
+  dashboard.js GET/POST /lojajogo/:guildID.
+
+  Migração automática (mesmo pedido, confirmado explicitamente): itens
+  do catálogo fixo antigo que já estavam ligados com preço configurado
+  viram itens novos equivalentes sozinhos, na 1ª vez que esta página é
+  aberta pra cada servidor — ver gameShopSystem.js#migrateLegacyItemsForGuild,
+  chamada em GET /lojajogo/:guildID antes de montar `shopItems`.
+
+  Exclusão é LÓGICA (pedido explícito do dono: item excluído continua
+  funcionando pra quem já comprou e não usou) — o botão "Excluir" some
+  o item desta lista, mas nunca apaga a linha de verdade.
 
   GET exige isStaff (view-only pra quem não é admin, mesmo padrão de
-  gameserver.ejs); POST exige isAdmin. O dono acessa QUALQUER servidor via
-  bypass em dashboard.js (isOwnerSession), mesmo sem ser membro lá.
+  gameserver.ejs — travado de verdade por web/public/js/dashboard-view-only-lock.js,
+  que desabilita todo form[method=POST] quando data-view-only="true").
+  POST exige isAdmin. O dono acessa QUALQUER servidor via bypass em
+  dashboard.js (isOwnerSession), mesmo sem ser membro lá.
 
-  Uso: res.render('lojajogo', { ... }) — ver dashboard.js GET
-  /lojajogo/:guildID pra lista completa de locals.
+  Uso: res.render('lojajogo', { guild, nickname, role, isAdmin, isOwner,
+    pageRoute, otherGuilds, showAvatarHint, shopItems, knownSpecies,
+    actionTypes, rconEnabled, saved }) — ver dashboard.js GET
+    /lojajogo/:guildID pra lista completa de locals.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -64,13 +82,159 @@
         }
         .lj-species-chip input { accent-color: #DCA15E; }
         .lj-species-chip:has(input:checked) { background: #4B2427; border-color: #DCA15E; }
-        .lj-item-toggle {
-            display: inline-flex;
+
+        <%# Grade de itens criados — mesmas classes .pool-* de dev-lojas.ejs
+            (CSS de página não é compartilhado neste projeto, duplicado
+            aqui igual lá faz com a própria). %>
+        .pool-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+        .pool-item {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 220px;
+            padding: 12px;
+            background: #131314;
+            border: 1px solid rgba(217, 163, 98, 0.25);
+            border-radius: 10px;
+        }
+        .pool-item-thumb {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            border-radius: 8px;
+            background-color: #1F1D20;
+            background-size: cover;
+            background-position: center;
+            display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            color: #DCA15E;
+        }
+        .pool-item-thumb svg { width: 32px; height: 32px; opacity: 0.6; }
+        .pool-item-label {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #F8DCC0;
+        }
+        .pool-item-desc {
+            font-size: 0.72rem;
+            opacity: 0.6;
+            line-height: 1.4;
+        }
+        .pool-item-meta { font-size: 0.7rem; opacity: 0.5; }
+        .pool-item-badge {
+            display: inline-flex;
+            align-self: flex-start;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .pool-item-badge.is-public { background: rgba(165, 255, 161, 0.15); color: #A5FFA1; }
+        .pool-item-badge.is-private { background: rgba(255, 78, 59, 0.15); color: #FF4E3B; }
+        .pool-item-badge.is-coming-soon { background: rgba(217, 163, 98, 0.18); color: #DCA15E; }
+        .pool-item-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .pool-item-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+        .pool-toggle-btn, .pool-delete-btn {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
+            width: 100%;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(248, 220, 192, 0.25);
+            background: transparent;
+            color: #F8DCC0;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .pool-toggle-btn:hover { background: rgba(248, 220, 192, 0.1); }
+        .pool-delete-btn { border-color: rgba(255, 78, 59, 0.3); color: #FF4E3B; }
+        .pool-delete-btn:hover { background: rgba(255, 78, 59, 0.12); }
+
+        <%# Botão "Criar item" + dialog nativo — mesmo padrão de overlay
+            de partials/requirement-form.ejs (top layer do navegador,
+            centraliza/empilha sozinho, fecha com Esc/clique fora de
+            graça). %>
+        .lj-create-btn {
+            align-self: flex-start;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: none;
+            background: #DCA15E;
+            color: #131314;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .lj-create-btn:hover { background: #F8DCC0; }
+        dialog.lj-item-dialog {
+            background: #1A1A1A;
+            color: #F8DCC0;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            border-radius: 14px;
+            padding: 20px;
+            width: calc(100% - 32px);
+            max-width: 460px;
+            max-height: calc(100vh - 64px);
+            overflow-y: auto;
+        }
+        dialog.lj-item-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+        .lj-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+        .lj-dialog-head h3 { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 1rem; margin: 0; color: #F8DCC0; }
+        .lj-dialog-close {
+            flex: none;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            color: #F8DCC0;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        .lj-dialog-close:hover { opacity: 1; background: rgba(217, 163, 98, 0.12); }
+        .lj-dialog-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .lj-dialog-actions .pool-toggle-btn { width: auto; flex: none; padding-left: 14px; padding-right: 14px; }
+        .lj-dialog-actions .lj-create-btn { flex: 1; }
+        .lj-field-group { display: flex; flex-direction: column; gap: 14px; }
+        .lj-select-premium {
+            width: 100%;
+            background: #1F1D20;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.85rem;
+        }
+        .lj-item-dialog input[type="file"] {
+            color: #F8DCC0;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.8rem;
+        }
+        .lj-item-dialog input[type="file"]::file-selector-button {
+            margin-right: 10px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            background: #DCA15E;
+            color: #131314;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.75rem;
             cursor: pointer;
         }
-        .lj-item-toggle input { width: 20px; height: 20px; accent-color: #DCA15E; }
+        .lj-item-dialog textarea.input-premium-field { resize: vertical; min-height: 70px; padding: 10px 12px; }
     </style>
 </head>
 <body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
@@ -90,71 +254,162 @@
 
         <%- include('partials/view-only-banner', { isAdmin, role }) %>
 
-        <form action="/lojajogo/<%= guild.id %>/save" method="POST" class="flex flex-col gap-[20px] lg:gap-[30px]">
-
-            <div class="titan-card-premium flex-col gap-4">
-                <h2 class="section-title text-lg"><span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span></h2>
-                <p class="text-[13px] opacity-50">
-                    <span data-i18n-pt>Preço e disponibilidade dos itens de Growth/Skipshed/Missão comprados com Ossos, só neste servidor. Um item continua indisponível na loja (`/loja`) enquanto estiver desligado ou sem preço definido.</span>
-                    <span data-i18n-en>Price and availability of the Growth/Skipshed/Mission items bought with Bones, only on this server. An item stays unavailable in the shop (`/loja`) while it's off or has no price set.</span>
-                </p>
-                <p class="text-[13px] opacity-50">
-                    <span data-i18n-pt>São itens consumíveis: cada compra vale por 1 uso e some do inventário do jogador assim que ele usar — o preço abaixo é por unidade, não um desbloqueio permanente.</span>
-                    <span data-i18n-en>These are consumable items: each purchase is good for 1 use and disappears from the player's inventory once used — the price below is per unit, not a permanent unlock.</span>
-                </p>
-            </div>
-
-            <% Object.keys(items).forEach(key => { const item = items[key]; const cfg = shopConfig[key]; %>
-                <div class="titan-card-premium flex-col gap-6">
-                    <div class="flex items-center justify-between flex-wrap gap-4">
-                        <h3 class="section-title text-base"><%= item.label %></h3>
-                        <label class="lj-item-toggle">
-                            <input type="checkbox" name="<%= key %>_enabled" value="1" <%= cfg.enabled ? 'checked' : '' %>>
-                            <span class="text-[13px]"><span data-i18n-pt>À venda</span><span data-i18n-en>On sale</span></span>
-                        </label>
+        <div class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg"><span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span></h2>
+            <p class="text-[13px] opacity-50">
+                <span data-i18n-pt>Crie os itens que os jogadores deste servidor podem comprar com Ossos — nome, descrição, imagem, ação em jogo, preço, estoque e quais dinossauros podem usar são todos escolhidos por você.</span>
+                <span data-i18n-en>Create the items players on this server can buy with Bones — name, description, image, in-game action, price, stock and which dinosaurs can use it are all up to you.</span>
+            </p>
+            <p class="text-[13px] opacity-50">
+                <span data-i18n-pt>São itens consumíveis: cada compra vale por 1 uso e some do inventário do jogador assim que ele usar. Excluir um item aqui não afeta quem já comprou e ainda não usou — o item continua funcionando pra essas pessoas.</span>
+                <span data-i18n-en>These are consumable items: each purchase is good for 1 use and disappears from the player's inventory once used. Deleting an item here doesn't affect players who already bought it and haven't used it yet — it keeps working for them.</span>
+            </p>
+            <% if (!rconEnabled) { %>
+                <div class="outline-chip">
+                    <i data-lucide="triangle-alert" class="outline-chip-icon" style="color:#F8DCC0;"></i>
+                    <div class="outline-chip-text">
+                        <span class="outline-chip-headline"><span data-i18n-pt>Este servidor não está no plano Caçador</span><span data-i18n-en>This server isn't on the Caçador plan</span></span>
+                        <span class="outline-chip-subtitle"><span data-i18n-pt>Itens criados aqui não podem ser comprados nem usados até o servidor ter o tier Caçador — a Loja de Jogo depende do mesmo RCON liberado só nesse plano.</span><span data-i18n-en>Items created here can't be bought or used until this server has the Caçador tier — the Game Shop depends on the same RCON only unlocked at that plan.</span></span>
                     </div>
+                </div>
+            <% } %>
+            <button type="button" class="lj-create-btn" onclick="document.getElementById('ljCreateDialog').showModal()"><span data-i18n-pt>+ Criar item</span><span data-i18n-en>+ Create item</span></button>
+        </div>
 
-                    <div>
-                        <label class="text-[13px] opacity-60"><span data-i18n-pt>Preço (Ossos)</span><span data-i18n-en>Price (Bones)</span></label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="bone"></i></div>
-                            <input type="number" class="input-premium-field" name="<%= key %>_price" min="1" step="1" value="<%= cfg.price || '' %>" placeholder="Ex: 100">
-                        </div>
+        <dialog id="ljCreateDialog" class="lj-item-dialog">
+            <form action="/lojajogo/<%= guild.id %>/criar" method="POST" enctype="multipart/form-data" class="lj-field-group" onsubmit="setTimeout(() => document.getElementById('ljCreateDialog').close(), 0)">
+                <div class="lj-dialog-head">
+                    <h3><span data-i18n-pt>Criar item</span><span data-i18n-en>Create item</span></h3>
+                    <button type="button" class="lj-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">&times;</button>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Nome</span><span data-i18n-en>Name</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="tag"></i></div>
+                        <input type="text" class="input-premium-field" name="name" maxlength="100" required placeholder="Ex: Poção de Crescimento">
                     </div>
+                </div>
 
-                    <% if (item.needsMission) { %>
-                        <div>
-                            <label class="text-[13px] opacity-60"><span data-i18n-pt>Nome exato da missão em jogo</span><span data-i18n-en>Exact in-game mission name</span></label>
-                            <div class="input-container-premium">
-                                <div class="icon-box"><i data-lucide="scroll-text"></i></div>
-                                <input type="text" class="input-premium-field" name="<%= key %>_mission" maxlength="100" value="<%= cfg.missionName || '' %>" placeholder="Ex: Collect Mushrooms">
-                            </div>
-                            <p class="text-[13px] opacity-40 mt-1"><span data-i18n-pt>Precisa bater exatamente com o nome da missão configurada no servidor — o comando enviado é `GiveQuest`.</span><span data-i18n-en>Must match exactly the mission name configured on the server — the command sent is `GiveQuest`.</span></p>
-                        </div>
-                    <% } %>
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Descrição</span><span data-i18n-en>Description</span></label>
+                    <textarea class="input-premium-field" name="description" maxlength="500" required placeholder="Ex: Aumenta o crescimento do seu dinossauro atual."></textarea>
+                </div>
 
-                    <% if (item.speciesRestrictable) { %>
-                        <div>
-                            <label class="text-[13px] opacity-60 mb-2 block"><span data-i18n-pt>Espécies liberadas (nenhuma marcada = todas liberadas)</span><span data-i18n-en>Allowed species (none checked = all allowed)</span></label>
-                            <% if (knownSpecies.length === 0) { %>
-                                <p class="text-[13px] opacity-40"><span data-i18n-pt>Nenhuma espécie registrada ainda neste servidor — assim que um jogador entrar no jogo com um dinossauro, ele aparece aqui.</span><span data-i18n-en>No species registered on this server yet — as soon as a player spawns as one, it shows up here.</span></p>
-                            <% } else { %>
-                                <div class="lj-species-grid">
-                                    <% knownSpecies.forEach(species => { %>
-                                        <label class="lj-species-chip">
-                                            <input type="checkbox" name="<%= key %>_species" value="<%= species %>" <%= (cfg.species || []).includes(species) ? 'checked' : '' %>>
-                                            <%= species %>
-                                        </label>
-                                    <% }); %>
-                                </div>
-                            <% } %>
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Imagem (opcional, máx. 250×250)</span><span data-i18n-en>Image (optional, max. 250×250)</span></label>
+                    <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp">
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Em branco, usa um ícone padrão de acordo com o tipo de ação.</span><span data-i18n-en>Left blank, uses a default icon based on the action type.</span></p>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Ação em jogo</span><span data-i18n-en>In-game action</span></label>
+                    <select class="lj-select-premium" name="action_type" id="ljActionType" onchange="ljItemFormSync()">
+                        <option value="growth" data-needs-growth="1">Growth (crescer o dinossauro)</option>
+                        <option value="skipshed">Skipshed</option>
+                        <option value="teleport" data-needs-teleport="1">Teleporte (mapa + coordenadas)</option>
+                    </select>
+                </div>
+
+                <div id="ljGrowthField">
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Porcentagem de crescimento</span><span data-i18n-en>Growth percentage</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="sprout"></i></div>
+                        <input type="number" class="input-premium-field" name="growth_percent" min="1" max="100" step="1" placeholder="Ex: 50">
+                    </div>
+                </div>
+
+                <div id="ljTeleportFields" style="display:none;">
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Mapa</span><span data-i18n-en>Map</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="map"></i></div>
+                        <input type="text" class="input-premium-field" name="map" maxlength="100" placeholder="Ex: Gondwa">
+                    </div>
+                    <label class="text-[13px] opacity-60 mt-2 block"><span data-i18n-pt>Coordenadas</span><span data-i18n-en>Coordinates</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="map-pin"></i></div>
+                        <input type="text" class="input-premium-field" name="coords" maxlength="200" placeholder="Ex: X=1234 Y=5678 Z=90">
+                    </div>
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Cole a posição copiada com `/mapbug` em jogo. Só funciona pra quem estiver jogando no mapa informado acima.</span><span data-i18n-en>Paste the position copied with `/mapbug` in-game. Only works for players on the map named above.</span></p>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Preço (Ossos)</span><span data-i18n-en>Price (Bones)</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="bone"></i></div>
+                        <input type="number" class="input-premium-field" name="price" min="1" step="1" required placeholder="Ex: 100">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível (opcional, em branco = ilimitado)</span><span data-i18n-en>Available quantity (optional, blank = unlimited)</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="package"></i></div>
+                        <input type="number" class="input-premium-field" name="stock_limit" min="1" step="1" placeholder="Ex: 20">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60 mb-2 block"><span data-i18n-pt>Dinossauros que podem usar (nenhum marcado = todos liberados)</span><span data-i18n-en>Dinosaurs that can use it (none checked = all allowed)</span></label>
+                    <% if (knownSpecies.length === 0) { %>
+                        <p class="text-[13px] opacity-40"><span data-i18n-pt>Nenhuma espécie registrada ainda neste servidor — assim que um jogador entrar no jogo com um dinossauro, ele aparece aqui.</span><span data-i18n-en>No species registered on this server yet — as soon as a player spawns as one, it shows up here.</span></p>
+                    <% } else { %>
+                        <div class="lj-species-grid">
+                            <% knownSpecies.forEach(species => { %>
+                                <label class="lj-species-chip">
+                                    <input type="checkbox" name="species" value="<%= species %>">
+                                    <%= species %>
+                                </label>
+                            <% }); %>
                         </div>
                     <% } %>
                 </div>
-            <% }); %>
 
-            <button type="submit" class="btn-salvar-final self-start"><span data-i18n-pt>Salvar Alterações</span><span data-i18n-en>Save Changes</span></button>
-        </form>
+                <div class="lj-dialog-actions">
+                    <button type="button" class="pool-toggle-btn" onclick="this.closest('dialog').close()"><span data-i18n-pt>Cancelar</span><span data-i18n-en>Cancel</span></button>
+                    <button type="submit" class="lj-create-btn"><span data-i18n-pt>Criar item</span><span data-i18n-en>Create item</span></button>
+                </div>
+            </form>
+        </dialog>
+
+        <% if (shopItems.length === 0) { %>
+            <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum item criado ainda.</span><span data-i18n-en>No items created yet.</span></p>
+        <% } else { %>
+            <div class="pool-grid">
+                <% const ljIcons = { growth: 'sprout', skipshed: 'refresh-cw', teleport: 'map-pin' }; %>
+                <% shopItems.forEach(item => { %>
+                    <div class="pool-item">
+                        <div class="pool-item-thumb" style="<%= item.url ? `background-image:url('${item.url}')` : '' %>">
+                            <% if (!item.url) { %><i data-lucide="<%= ljIcons[item.action_type] || 'store' %>"></i><% } %>
+                        </div>
+                        <span class="pool-item-label"><%= item.name %></span>
+                        <span class="pool-item-desc"><%= item.description %></span>
+                        <span class="pool-item-meta">
+                            <span data-i18n-pt>Preço:</span><span data-i18n-en>Price:</span> <%= item.price %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span>
+                            · <span data-i18n-pt>Estoque:</span><span data-i18n-en>Stock:</span> <%= item.remainingStock === null ? '∞' : item.remainingStock %>
+                        </span>
+                        <% if (item.species && item.species.length > 0) { %>
+                            <span class="pool-item-desc"><span data-i18n-pt>Restrito a:</span><span data-i18n-en>Restricted to:</span> <%= item.species.join(', ') %></span>
+                        <% } %>
+                        <div class="pool-item-badges">
+                            <span class="pool-item-badge <%= item.is_public ? 'is-public' : 'is-private' %>"><%= item.is_public ? 'Público' : 'Privado' %></span>
+                            <% if (item.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
+                        </div>
+                        <div class="pool-item-actions">
+                            <form action="/lojajogo/<%= guild.id %>/<%= item.id %>/toggle" method="POST">
+                                <button type="submit" class="pool-toggle-btn"><%= item.is_public ? 'Tornar privado' : 'Tornar público' %></button>
+                            </form>
+                            <form action="/lojajogo/<%= guild.id %>/<%= item.id %>/toggle-coming-soon" method="POST">
+                                <button type="submit" class="pool-toggle-btn"><%= item.coming_soon ? 'Tirar do "Em breve"' : 'Marcar "Em breve"' %></button>
+                            </form>
+                            <form action="/lojajogo/<%= guild.id %>/<%= item.id %>/excluir" method="POST" onsubmit="return confirm('Excluir \'<%= item.name.replace(/'/g, "") %>\' da loja? Quem já comprou e não usou continua podendo usar.');">
+                                <button type="submit" class="pool-delete-btn"><span data-i18n-pt>Excluir</span><span data-i18n-en>Delete</span></button>
+                            </form>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
 
         <footer class="flex justify-end pb-2">
             <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
@@ -163,7 +418,31 @@
         </footer>
     </main>
 
-    <script>if (window.lucide) window.lucide.createIcons();</script>
+    <script>
+        function ljItemFormSync() {
+            const select = document.getElementById('ljActionType');
+            const option = select.options[select.selectedIndex];
+            document.getElementById('ljGrowthField').style.display = option.dataset.needsGrowth === '1' ? '' : 'none';
+            document.getElementById('ljTeleportFields').style.display = option.dataset.needsTeleport === '1' ? '' : 'none';
+        }
+
+        // Clique fora do conteúdo fecha o <dialog> (::backdrop não recebe
+        // clique — compara a posição do clique com o retângulo real do
+        // conteúdo, mesmo padrão de dev-lojas.ejs), e reseta o form ao
+        // fechar (por qualquer motivo — Cancelar/X/fora/Esc) pra não
+        // deixar campos preenchidos "fantasma" da última tentativa.
+        (function () {
+            const dialog = document.getElementById('ljCreateDialog');
+            dialog.addEventListener('close', () => dialog.querySelector('form').reset());
+            dialog.addEventListener('click', (e) => {
+                const rect = dialog.getBoundingClientRect();
+                const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
+                if (!insideContent) dialog.close();
+            });
+        })();
+
+        if (window.lucide) window.lucide.createIcons();
+    </script>
     <script src="/js/dashboard-view-only-lock.js"></script>
 </body>
 </html>

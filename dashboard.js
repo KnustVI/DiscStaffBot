@@ -11,7 +11,7 @@ const SqliteSessionStore = require('./web/sqliteSessionStore');
 const ConfigSystem = require('./src/systems/core/configSystem');
 const PremiumSystem = require('./src/systems/premium/premiumSystem');
 const CustomBannerResolver = require('./src/utils/customBannerResolver');
-const { storeImageBuffer } = require('./src/utils/imageStorage');
+const { storeImageBuffer, resolveStoredImageUrl } = require('./src/utils/imageStorage');
 const ProfileImagePool = require('./src/systems/pot/profileImagePool');
 const ImageShopSystem = require('./src/systems/pot/imageShopSystem');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
@@ -1841,19 +1841,34 @@ function loadDashboard(client) {
         // (pedido do dono, 2026-08-10) — mesma fonte da home/perfil.
         const partnerNews = await getPartnerNews(client);
 
-        // Loja de Jogo (reforma 2026-08-12) — um catálogo POR servidor já
-        // jogado (mesma lista de playedGuilds do conversor de moedas
-        // acima), só com os itens que o admin daquele servidor de fato
-        // ligou (enabled=true) e, no caso da Missão, já tem o nome
-        // configurado (sem isso a compra falharia mesmo aparecendo aqui —
-        // melhor nem mostrar do que mostrar um item que sempre erra).
-        const gameShopCatalogs = playedGuilds.map((pg) => {
+        // Loja de Jogo — um catálogo POR servidor já jogado (mesma lista de
+        // playedGuilds do conversor de moedas acima). Reforma 2026-08-16
+        // (pedido do dono: substitui o catálogo fixo por itens customizados
+        // criados livremente pelo admin de cada servidor, ver
+        // gameShopSystem.js#createShopItem/listShopItems): um servidor já
+        // migrado (isGuildMigrated) usa SÓ os itens novos — misturar com o
+        // catálogo fixo antigo duplicaria os itens que a migração automática
+        // já clonou (ver migrateLegacyItemsForGuild). Servidor ainda não
+        // migrado (raro — migração roda na 1ª visita de um admin à página de
+        // config, ver GET /lojajogo/:guildID) continua no catálogo fixo até
+        // isso acontecer.
+        const gameShopCatalogs = (await Promise.all(playedGuilds.map(async (pg) => {
+            if (GameShopSystem.isGuildMigrated(pg.guildId)) {
+                const rawItems = GameShopSystem.listShopItems(pg.guildId, { publicOnly: true })
+                    .filter((item) => item.remainingStock !== 0);
+                const items = await Promise.all(rawItems.map(async (item) => ({
+                    ...item,
+                    isCustom: true,
+                    url: await GameShopSystem.resolveItemImageUrl(client, item),
+                })));
+                return { guildId: pg.guildId, name: pg.name, items };
+            }
             const shopConfig = GameShopSystem.getGuildShopConfig(pg.guildId);
             const availableItems = Object.keys(GameShopSystem.GAME_SHOP_ITEMS)
-                .map((key) => ({ key, ...GameShopSystem.GAME_SHOP_ITEMS[key], config: shopConfig[key] }))
+                .map((key) => ({ key, isCustom: false, ...GameShopSystem.GAME_SHOP_ITEMS[key], config: shopConfig[key] }))
                 .filter((item) => item.config.enabled && item.config.price > 0 && (!item.needsMission || item.config.missionName));
             return { guildId: pg.guildId, name: pg.name, items: availableItems };
-        }).filter((catalog) => catalog.items.length > 0);
+        }))).filter((catalog) => catalog.items.length > 0);
 
         // Inventário da Loja de Jogo (reforma 2026-08-12, pedido do dono:
         // "A compra dos itens deve ficar no inventario do jogador, itens
@@ -1862,11 +1877,15 @@ function loadDashboard(client) {
         // "Usar" por linha (ver POST /loja/usar-jogo). Nome do servidor
         // resolvido via client.guilds.cache (guildId sozinho não basta
         // pra exibição) — fallback pro próprio ID se o bot não estiver
-        // mais nesse servidor.
-        const gameShopInventory = GameShopSystem.getInventory(req.user.id).map((item) => ({
+        // mais nesse servidor. Itens customizados (isCustom) resolvem a
+        // URL da própria imagem, se tiverem uma (ver gameShopSystem.js#getInventory).
+        const gameShopInventory = await Promise.all(GameShopSystem.getInventory(req.user.id).map(async (item) => ({
             ...item,
             guildName: client.guilds.cache.get(item.guildId)?.name || item.guildId,
-        }));
+            url: item.isCustom && item.imageMessageId
+                ? await resolveStoredImageUrl(client, item.imageMessageId)
+                : null,
+        })));
 
         res.render('loja', {
             nickname: req.user.global_name || req.user.username,
@@ -1962,6 +1981,25 @@ function loadDashboard(client) {
         if (SHOP_PURCHASES_LOCKED) return res.redirect(`/loja?erro=${encodeURIComponent('Compras estão temporariamente pausadas — a Loja ainda está em fase de testes.')}`);
         const { guildId, itemKey } = req.body;
         const result = await GameShopSystem.purchaseGameShopItem(guildId, req.user.id, itemKey);
+        if (result.ok) {
+            return res.redirect(`/loja?jogoComprado=${encodeURIComponent(result.label)}`);
+        }
+        return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
+    });
+
+    // Compra de item CUSTOMIZADO da Loja de Jogo (pedido do dono,
+    // 2026-08-16: substitui o catálogo fixo acima por itens criados
+    // livremente pelo admin de cada servidor) — mesma lógica de não
+    // disparar RCON na compra (ver gameShopSystem.js#purchaseCustomShopItem),
+    // só que por itemId (numérico, tabela pot_game_shop_items) em vez de
+    // itemKey (string fixa do catálogo antigo). Rota separada da antiga
+    // em vez de uma só ramificando — mais explícito sobre qual corpo cada
+    // uma espera.
+    app.post('/loja/comprar-jogo-item', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        if (SHOP_PURCHASES_LOCKED) return res.redirect(`/loja?erro=${encodeURIComponent('Compras estão temporariamente pausadas — a Loja ainda está em fase de testes.')}`);
+        const { guildId, itemId } = req.body;
+        const result = GameShopSystem.purchaseCustomShopItem(guildId, req.user.id, Number(itemId));
         if (result.ok) {
             return res.redirect(`/loja?jogoComprado=${encodeURIComponent(result.label)}`);
         }
@@ -2571,9 +2609,25 @@ function loadDashboard(client) {
         }
 
         const showAvatarHint = db.incrementDashboardAvatarHintViews(req.user.id) <= 3;
-        const shopConfig = GameShopSystem.getGuildShopConfig(guildID);
+        // Migração automática (pedido do dono, 2026-08-16, confirmado
+        // explicitamente nesta sessão): a 1ª vez que este servidor abre a
+        // página, qualquer item do catálogo fixo antigo já ligado com
+        // preço vira um item novo equivalente — ver
+        // gameShopSystem.js#migrateLegacyItemsForGuild. Idempotente (1
+        // SELECT em settings depois da 1ª vez), seguro rodar em todo GET.
+        GameShopSystem.migrateLegacyItemsForGuild(guildID);
+        const rawItems = GameShopSystem.listShopItems(guildID);
+        const shopItems = await Promise.all(rawItems.map(async (item) => ({
+            ...item,
+            url: await GameShopSystem.resolveItemImageUrl(client, item),
+        })));
         const knownSpecies = PlayerRegistry.getKnownSpecies(guildID);
         const role = isAdmin ? 'Administrador' : (highestStaffRoleName(guildID, member) || 'Staff');
+        // Item criado num servidor sem o tier Caçador nunca pode ser
+        // comprado/usado (mesmo gate de purchaseCustomShopItem/
+        // useGameShopItem) — aviso na página em vez de deixar o admin
+        // montar um catálogo morto sem saber por quê.
+        const rconEnabled = PremiumSystem.getGuildLimits(guildID).genericRconEnabled;
 
         res.render('lojajogo', {
             guild,
@@ -2584,54 +2638,117 @@ function loadDashboard(client) {
             pageRoute: 'lojajogo',
             otherGuilds: await getAdminGuildsWithBot(req),
             showAvatarHint,
-            items: GameShopSystem.GAME_SHOP_ITEMS,
-            shopConfig,
+            shopItems,
             knownSpecies,
+            actionTypes: GameShopSystem.CUSTOM_ACTION_TYPES,
+            rconEnabled,
             saved: req.query.saved,
         });
     });
 
-    app.post('/lojajogo/:guildID/save', checkAuth, async (req, res) => {
-        if (isDashboardLocked(req)) return res.redirect('/dashboard');
-        const { guildID } = req.params;
+    // Gate de admin compartilhado pelas rotas de escrita da Loja de Jogo
+    // customizada (criar/toggle/toggle-coming-soon/excluir) — mesmo
+    // padrão do antigo POST /lojajogo/:guildID/save (nunca staff-only,
+    // sempre admin do servidor ou dono do bot). Devolve a guild se
+    // autorizado, ou já envia a resposta de erro e devolve null.
+    async function requireLojaJogoAdmin(req, res, guildID) {
         const guild = client.guilds.cache.get(guildID);
-        if (!guild) return res.status(404).send('Guild não encontrada.');
-
-        const owner = isOwnerSession(req);
-        if (!owner) {
-            const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
-            if (apiError) {
-                console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
-                return res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
-            }
-            if (!isAdmin) return res.status(403).send('Acesso negado.');
+        if (!guild) { res.status(404).send('Guild não encontrada.'); return null; }
+        if (isOwnerSession(req)) return guild;
+        const { isAdmin, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+            return null;
         }
+        if (!isAdmin) { res.status(403).send('Acesso negado.'); return null; }
+        return guild;
+    }
 
-        try {
+    // Cria um item customizado — substitui o antigo POST /save (formulário
+    // único salvando os 6 itens fixos de uma vez). Ver
+    // gameShopSystem.js#createShopItem pra validação completa; aqui só
+    // trata upload de imagem (opcional, ≤250×250 — rejeita em vez de
+    // redimensionar, mesmo precedente de /loja/enviar-imagem) e repassa o
+    // resto puro.
+    app.post(
+        '/lojajogo/:guildID/criar',
+        checkAuth,
+        safeUpload(upload.single('imagem'), (req) => `/lojajogo/${req.params.guildID}?saved=error`),
+        async (req, res) => {
+            if (isDashboardLocked(req)) return res.redirect('/dashboard');
+            const { guildID } = req.params;
+            const guild = await requireLojaJogoAdmin(req, res, guildID);
+            if (!guild) return;
+
             const body = req.body;
-            const config = {};
-            for (const key of Object.keys(GameShopSystem.GAME_SHOP_ITEMS)) {
-                const item = GameShopSystem.GAME_SHOP_ITEMS[key];
-                const priceParsed = parseInt(body[`${key}_price`], 10);
-                const entry = {
-                    enabled: body[`${key}_enabled`] === '1',
-                    price: !isNaN(priceParsed) && priceParsed > 0 ? priceParsed : 0,
-                };
-                if (item.speciesRestrictable) {
-                    const raw = body[`${key}_species`];
-                    entry.species = (Array.isArray(raw) ? raw : (raw ? [raw] : [])).filter(Boolean);
+            let imageMessageId = null;
+            if (req.file) {
+                try {
+                    const sharp = require('sharp');
+                    const metadata = await sharp(req.file.buffer).metadata();
+                    if (!metadata.width || !metadata.height || metadata.width > 250 || metadata.height > 250) {
+                        return res.redirect(`/lojajogo/${guildID}?saved=error`);
+                    }
+                } catch (error) {
+                    return res.redirect(`/lojajogo/${guildID}?saved=error`);
                 }
-                if (item.needsMission) {
-                    entry.missionName = (body[`${key}_mission`] || '').trim().slice(0, 100);
-                }
-                config[key] = entry;
+                const stored = await storeImageBuffer(client, req.file.buffer, `Loja de Jogo (${guild.name}) — "${(body.name || '').trim()}" criado por \`${req.user.username}\``);
+                if (!stored.ok) return res.redirect(`/lojajogo/${guildID}?saved=error`);
+                imageMessageId = stored.messageId;
             }
-            GameShopSystem.setGuildShopConfig(guildID, config, req.user.id);
-            res.redirect(`/lojajogo/${guildID}?saved=success`);
-        } catch (error) {
-            console.error('❌ Erro ao salvar Loja de Jogo:', error);
-            res.redirect(`/lojajogo/${guildID}?saved=error`);
+
+            const result = GameShopSystem.createShopItem(guildID, {
+                name: body.name,
+                description: body.description,
+                imageMessageId,
+                actionType: body.action_type,
+                growthPercent: body.growth_percent,
+                map: body.map,
+                coords: body.coords,
+                price: body.price,
+                stockLimit: body.stock_limit,
+                species: body.species,
+            }, req.user.id);
+
+            res.redirect(`/lojajogo/${guildID}?saved=${result.ok ? 'success' : 'error'}`);
         }
+    );
+
+    app.post('/lojajogo/:guildID/:itemID/toggle', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, itemID } = req.params;
+        const guild = await requireLojaJogoAdmin(req, res, guildID);
+        if (!guild) return;
+        const item = GameShopSystem.getShopItemById(Number(itemID));
+        if (item && item.guild_id === guildID) {
+            GameShopSystem.setItemPublic(guildID, Number(itemID), !item.is_public);
+        }
+        res.redirect(`/lojajogo/${guildID}?saved=success`);
+    });
+
+    app.post('/lojajogo/:guildID/:itemID/toggle-coming-soon', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, itemID } = req.params;
+        const guild = await requireLojaJogoAdmin(req, res, guildID);
+        if (!guild) return;
+        const item = GameShopSystem.getShopItemById(Number(itemID));
+        if (item && item.guild_id === guildID) {
+            GameShopSystem.setItemComingSoon(guildID, Number(itemID), !item.coming_soon);
+        }
+        res.redirect(`/lojajogo/${guildID}?saved=success`);
+    });
+
+    // Exclusão LÓGICA (nunca DELETE de verdade) — pedido explícito do
+    // dono: item excluído da loja continua funcionando pra quem já
+    // comprou e não usou. Ver gameShopSystem.js#softDeleteShopItem.
+    app.post('/lojajogo/:guildID/:itemID/excluir', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, itemID } = req.params;
+        const guild = await requireLojaJogoAdmin(req, res, guildID);
+        if (!guild) return;
+        GameShopSystem.softDeleteShopItem(guildID, Number(itemID));
+        res.redirect(`/lojajogo/${guildID}?saved=success`);
     });
 
     // ==================== MODERAÇÃO ====================

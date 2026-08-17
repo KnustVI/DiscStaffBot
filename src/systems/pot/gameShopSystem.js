@@ -188,10 +188,30 @@ function getInventory(userId, guildId) {
         : db.prepare(`SELECT * FROM game_shop_inventory WHERE user_id = ? AND used_at IS NULL ORDER BY purchased_at ASC`).all(userId);
 
     return rows.map(row => {
+        // shop_item_id preenchido = compra do sistema novo (item
+        // customizado) — resolve via getShopItemById, que NUNCA filtra
+        // deleted_at, então um item já excluído da loja continua
+        // aparecendo aqui normalmente pra quem comprou (pedido do dono).
+        if (row.shop_item_id) {
+            const item = getShopItemById(row.shop_item_id);
+            return {
+                id: row.id,
+                guildId: row.guild_id,
+                isCustom: true,
+                itemId: row.shop_item_id,
+                label: item ? item.name : 'Item removido',
+                description: item ? item.description : null,
+                imageMessageId: item ? item.image_message_id : null,
+                actionType: item ? item.action_type : null,
+                speciesRestrictable: !!(item && item.species && item.species.length > 0),
+                purchasedAt: row.purchased_at,
+            };
+        }
         const item = GAME_SHOP_ITEMS[row.item_key];
         return {
             id: row.id,
             guildId: row.guild_id,
+            isCustom: false,
             itemKey: row.item_key,
             label: item ? item.label : row.item_key,
             missionName: row.mission_name,
@@ -238,8 +258,14 @@ async function useGameShopItem(inventoryId, discordId) {
     if (!row) return { ok: false, error: 'Item não encontrado no seu inventário.' };
     if (row.used_at !== null) return { ok: false, error: 'Este item já foi usado.' };
 
-    const item = GAME_SHOP_ITEMS[row.item_key];
+    // shop_item_id preenchido = item do sistema novo (customizado);
+    // ausente = catálogo legado (GAME_SHOP_ITEMS) — ver docblock da
+    // seção "ITENS CUSTOMIZADOS" abaixo. getShopItemById NUNCA filtra
+    // deleted_at: um item já excluído da loja continua usável aqui.
+    const isCustom = !!row.shop_item_id;
+    const item = isCustom ? getShopItemById(row.shop_item_id) : GAME_SHOP_ITEMS[row.item_key];
     if (!item) return { ok: false, error: 'Item inválido.' };
+    const itemLabel = isCustom ? item.name : item.label;
 
     const claim = db.prepare(`UPDATE game_shop_inventory SET used_at = ? WHERE id = ? AND user_id = ? AND used_at IS NULL`)
         .run(CLAIM_SENTINEL, inventoryId, discordId);
@@ -266,35 +292,57 @@ async function useGameShopItem(inventoryId, discordId) {
         const onlinePlayer = PlayerRegistry.getOnlinePotPlayer(row.guild_id, link.alderon_id);
         if (!onlinePlayer) return { ok: false, error: 'Você precisa estar online no servidor de jogo pra usar este item.' };
 
-        if (item.speciesRestrictable) {
-            if (!onlinePlayer.dinosaur_active || !onlinePlayer.dinosaur_type) {
-                return { ok: false, error: 'Você precisa estar dentro de um dinossauro (fora da tela de seleção de personagem) pra usar Growth.' };
+        let command;
+        if (isCustom) {
+            // Restrição de espécie vale pros 3 tipos de ação agora (não só
+            // growth, diferente do catálogo legado abaixo) — só exige
+            // "dentro de um dinossauro" quando dá pra checar espécie (item
+            // restrito, precisa saber a espécie atual) ou quando a própria
+            // ação exige (growth sempre precisa, cresce o dinossauro atual).
+            const needsDinosaur = item.action_type === 'growth' || (item.species && item.species.length > 0);
+            if (needsDinosaur && (!onlinePlayer.dinosaur_active || !onlinePlayer.dinosaur_type)) {
+                return { ok: false, error: 'Você precisa estar dentro de um dinossauro (fora da tela de seleção de personagem) pra usar este item.' };
             }
-            // Restrição de espécie é conferida com a config ATUAL do
-            // servidor (não a de quando comprou) — é uma regra de
-            // balanceamento sobre qual dinossauro pode receber o bônus
-            // agora, não uma promessa travada no momento da compra.
-            const config = getGuildShopConfig(row.guild_id);
-            const allowedSpecies = Array.isArray(config[row.item_key]?.species) ? config[row.item_key].species : [];
-            if (allowedSpecies.length > 0) {
-                const isAllowed = allowedSpecies.some(s => s.toLowerCase() === onlinePlayer.dinosaur_type.toLowerCase());
-                if (!isAllowed) return { ok: false, error: `${item.label} não está liberado pra ${onlinePlayer.dinosaur_type} neste servidor.` };
+            if (item.species && item.species.length > 0) {
+                const isAllowed = item.species.some(s => s.toLowerCase() === onlinePlayer.dinosaur_type.toLowerCase());
+                if (!isAllowed) return { ok: false, error: `${item.name} não está liberado pra ${onlinePlayer.dinosaur_type} neste servidor.` };
             }
+
+            // Alvo pelo NOME em jogo pro teleporte (não Alderon ID) — ver
+            // _buildRconCommandForCustomItem.
+            const targetName = onlinePlayer.player_name || link.player_name;
+            command = _buildRconCommandForCustomItem(item, link.alderon_id, targetName);
+        } else {
+            if (item.speciesRestrictable) {
+                if (!onlinePlayer.dinosaur_active || !onlinePlayer.dinosaur_type) {
+                    return { ok: false, error: 'Você precisa estar dentro de um dinossauro (fora da tela de seleção de personagem) pra usar Growth.' };
+                }
+                // Restrição de espécie é conferida com a config ATUAL do
+                // servidor (não a de quando comprou) — é uma regra de
+                // balanceamento sobre qual dinossauro pode receber o bônus
+                // agora, não uma promessa travada no momento da compra.
+                const config = getGuildShopConfig(row.guild_id);
+                const allowedSpecies = Array.isArray(config[row.item_key]?.species) ? config[row.item_key].species : [];
+                if (allowedSpecies.length > 0) {
+                    const isAllowed = allowedSpecies.some(s => s.toLowerCase() === onlinePlayer.dinosaur_type.toLowerCase());
+                    if (!isAllowed) return { ok: false, error: `${item.label} não está liberado pra ${onlinePlayer.dinosaur_type} neste servidor.` };
+                }
+            }
+            command = _buildRconCommand(row.item_key, link.alderon_id, row.mission_name);
         }
 
-        const command = _buildRconCommand(row.item_key, link.alderon_id, row.mission_name);
         const PoTConfigSystem = require('./potConfigSystem');
-        const rconResult = await PoTConfigSystem.executeRconCommand(row.guild_id, command, { actor: `<@${discordId}>`, source: `Loja de Jogo (${item.label})` });
+        const rconResult = await PoTConfigSystem.executeRconCommand(row.guild_id, command, { actor: `<@${discordId}>`, source: `Loja de Jogo (${itemLabel})` });
 
         if (!rconResult.success) {
-            return { ok: false, error: `Não foi possível aplicar "${item.label}" no jogo (${rconResult.error || 'erro desconhecido'}). O item continua no seu inventário — tente de novo.` };
+            return { ok: false, error: `Não foi possível aplicar "${itemLabel}" no jogo (${rconResult.error || 'erro desconhecido'}). O item continua no seu inventário — tente de novo.` };
         }
 
         db.prepare(`UPDATE game_shop_inventory SET used_at = ? WHERE id = ?`).run(Date.now(), inventoryId);
         succeeded = true;
-        db.logActivity(row.guild_id, discordId, 'game_shop_use', null, { itemKey: row.item_key, command });
+        db.logActivity(row.guild_id, discordId, 'game_shop_use', null, { itemKey: row.item_key, shopItemId: row.shop_item_id, command });
 
-        return { ok: true, label: item.label };
+        return { ok: true, label: itemLabel };
     } finally {
         if (!succeeded) {
             db.prepare(`UPDATE game_shop_inventory SET used_at = NULL WHERE id = ?`).run(inventoryId);
@@ -302,11 +350,288 @@ async function useGameShopItem(inventoryId, discordId) {
     }
 }
 
+// ==================== ITENS CUSTOMIZADOS (pedido do dono, 2026-08-16) ====================
+// Substitui o catálogo fixo acima por criação livre de item, por admin de
+// SERVIDOR (não só o dono do bot) — "mesma ideia da criação de emblemas e
+// títulos que eu, desenvolvedor, tenho" (ver /dev/Loja,
+// src/systems/pot/profileImagePool.js). GAME_SHOP_ITEMS/getGuildShopConfig/
+// purchaseGameShopItem (acima) ficam intocados — viram catálogo LEGADO,
+// necessário só pra resolver game_shop_inventory.shop_item_id IS NULL
+// (comprado antes da migração automática, ainda não usado). GiveQuest/
+// 'quest' NUNCA tem equivalente aqui (pedido explícito do dono: "remova da
+// lista o givequest não vamos adicionar como item") — só sobrevive no
+// catálogo legado, pra inventário antigo continuar funcionando.
+
+const CUSTOM_ACTION_TYPES = ['growth', 'skipshed', 'teleport'];
+const MIGRATED_MARKER_KEY = 'pot_game_shop_migrated';
+// Só estas 5 chaves do catálogo antigo têm equivalente no sistema novo —
+// 'quest' fica de fora de propósito (ver docblock acima).
+const MIGRATABLE_KEYS = ['growth_juvenil', 'growth_adolescente', 'growth_subadulto', 'growth_adulto', 'skipshed'];
+
+function _parseItemRow(row) {
+    if (!row) return null;
+    return {
+        ...row,
+        actionConfig: row.action_config ? JSON.parse(row.action_config) : null,
+        species: row.species ? JSON.parse(row.species) : [],
+        remainingStock: row.stock_limit === null ? null : Math.max(0, row.stock_limit - row.stock_sold),
+    };
+}
+
+/**
+ * Um item pelo id — NUNCA filtra deleted_at, de propósito: é o que deixa
+ * um item excluído continuar resolvível pra quem já comprou e não usou
+ * (pedido explícito do dono: "o item permanece no inventário dos
+ * jogadores até ser usado").
+ * @param {number} itemId
+ */
+function getShopItemById(itemId) {
+    const row = db.prepare(`SELECT * FROM pot_game_shop_items WHERE id = ?`).get(itemId);
+    return _parseItemRow(row);
+}
+
+/**
+ * Lista de itens de um servidor — sempre exclui excluídos (deleted_at).
+ * publicOnly:true (catálogo de compra, ver GET /loja) também exige
+ * is_public=1 e coming_soon=0; false (default, visão de admin em
+ * /lojajogo/:guildID) mostra tudo que não foi excluído, privado/em breve
+ * incluídos.
+ * @param {string} guildId
+ * @param {{publicOnly?: boolean}} [opts]
+ */
+function listShopItems(guildId, { publicOnly = false } = {}) {
+    const sql = publicOnly
+        ? `SELECT * FROM pot_game_shop_items WHERE guild_id = ? AND deleted_at IS NULL AND is_public = 1 AND coming_soon = 0 ORDER BY created_at DESC`
+        : `SELECT * FROM pot_game_shop_items WHERE guild_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`;
+    return db.prepare(sql).all(guildId).map(_parseItemRow);
+}
+
+/**
+ * Marcador de migração já rodada pra este servidor (settings, nunca
+ * contagem de itens — ver migrateLegacyItemsForGuild).
+ * @param {string} guildId
+ */
+function isGuildMigrated(guildId) {
+    return !!db.prepare(`SELECT 1 FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, MIGRATED_MARKER_KEY);
+}
+
+/**
+ * Cria um item customizado — valida tudo que o form de criação promete
+ * (ver web/views/lojajogo.ejs): nome/descrição obrigatórios, action_type
+ * um dos 3 suportados com a sub-config certa (growth precisa de
+ * growthPercent 1-100; teleport precisa de map+coords), preço inteiro
+ * positivo, estoque opcional (ausente/vazio = ilimitado), espécies
+ * opcionais (vazio = qualquer uma).
+ * @param {string} guildId
+ * @param {object} data - {name, description, imageMessageId, actionType, growthPercent, map, coords, price, stockLimit, species}
+ * @param {string} createdBy
+ * @returns {{ok:true,id:number}|{ok:false,error:string}}
+ */
+function createShopItem(guildId, data, createdBy) {
+    const name = (data.name || '').trim().slice(0, 100);
+    const description = (data.description || '').trim().slice(0, 500);
+    if (!name) return { ok: false, error: 'Nome é obrigatório.' };
+    if (!description) return { ok: false, error: 'Descrição é obrigatória.' };
+    if (!CUSTOM_ACTION_TYPES.includes(data.actionType)) return { ok: false, error: 'Tipo de ação inválido.' };
+
+    const price = parseInt(data.price, 10);
+    if (!Number.isInteger(price) || price <= 0) return { ok: false, error: 'Preço em Ossos precisa ser um número positivo.' };
+
+    let stockLimit = null;
+    if (data.stockLimit !== undefined && data.stockLimit !== null && String(data.stockLimit).trim() !== '') {
+        stockLimit = parseInt(data.stockLimit, 10);
+        if (!Number.isInteger(stockLimit) || stockLimit <= 0) return { ok: false, error: 'Quantidade disponível precisa ser um número positivo (ou em branco pra ilimitado).' };
+    }
+
+    let actionConfig = null;
+    if (data.actionType === 'growth') {
+        const pct = parseInt(data.growthPercent, 10);
+        if (!Number.isInteger(pct) || pct < 1 || pct > 100) return { ok: false, error: 'Porcentagem de crescimento precisa ser entre 1 e 100.' };
+        actionConfig = { growthValue: pct / 100 };
+    } else if (data.actionType === 'teleport') {
+        const map = (data.map || '').trim().slice(0, 100);
+        const coords = (data.coords || '').trim().slice(0, 200);
+        if (!map || !coords) return { ok: false, error: 'Mapa e coordenadas são obrigatórios pra um item de teleporte.' };
+        actionConfig = { map, coords };
+    }
+
+    const species = Array.isArray(data.species) ? data.species.filter(Boolean) : (data.species ? [data.species] : []);
+
+    const result = db.prepare(`
+        INSERT INTO pot_game_shop_items
+            (guild_id, name, description, image_message_id, action_type, action_config, price, stock_limit, species, is_public, coming_soon, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
+    `).run(
+        guildId, name, description, data.imageMessageId || null, data.actionType,
+        actionConfig ? JSON.stringify(actionConfig) : null, price, stockLimit,
+        species.length > 0 ? JSON.stringify(species) : null, createdBy, Date.now()
+    );
+
+    return { ok: true, id: result.lastInsertRowid };
+}
+
+// As 3 ações do card de item (toggle público, toggle "em breve", excluir)
+// — sempre com guild_id no WHERE: diferente de /dev/Loja (só o dono,
+// rotas globais), estas são alcançáveis por QUALQUER admin de QUALQUER
+// servidor — um id de item de OUTRO servidor precisa falhar em silêncio
+// (0 linhas afetadas) em vez de mexer em dado alheio.
+function setItemPublic(guildId, itemId, isPublic) {
+    return db.prepare(`UPDATE pot_game_shop_items SET is_public = ? WHERE id = ? AND guild_id = ? AND deleted_at IS NULL`)
+        .run(isPublic ? 1 : 0, itemId, guildId).changes > 0;
+}
+
+function setItemComingSoon(guildId, itemId, comingSoon) {
+    return db.prepare(`UPDATE pot_game_shop_items SET coming_soon = ? WHERE id = ? AND guild_id = ? AND deleted_at IS NULL`)
+        .run(comingSoon ? 1 : 0, itemId, guildId).changes > 0;
+}
+
+/**
+ * Exclusão LÓGICA — nunca DELETE de verdade (pedido do dono: item
+ * excluído continua funcionando pra quem já comprou e não usou). A linha
+ * some das listagens (listShopItems sempre filtra deleted_at IS NULL) mas
+ * continua resolvível via getShopItemById (que nunca filtra) — é isso que
+ * mantém o item usável no inventário de quem já comprou.
+ */
+function softDeleteShopItem(guildId, itemId) {
+    return db.prepare(`UPDATE pot_game_shop_items SET deleted_at = ? WHERE id = ? AND guild_id = ? AND deleted_at IS NULL`)
+        .run(Date.now(), itemId, guildId).changes > 0;
+}
+
+/**
+ * URL fresca da imagem do item (null se não tiver — a UI cai pro ícone
+ * padrão por action_type nesse caso, ver lojaJogoIcons em loja.ejs).
+ * Mesmo padrão de profileImagePool.resolveImageUrl.
+ */
+async function resolveItemImageUrl(client, item) {
+    if (!item || !item.image_message_id) return null;
+    return require('../../utils/imageStorage').resolveStoredImageUrl(client, item.image_message_id);
+}
+
+function _buildRconCommandForCustomItem(item, alderonId, playerName) {
+    const cfg = item.actionConfig || {};
+    if (item.action_type === 'growth') return `rewardgrowth ${alderonId} ${cfg.growthValue}`;
+    if (item.action_type === 'skipshed') return `SkipShed ${alderonId}`;
+    // Alvo pelo NOME em jogo, não Alderon ID — mesmo padrão confirmado em
+    // eventTeleportSystem.js pro comando `teleport` (nunca testado contra
+    // um servidor real, mesma ressalva de lá).
+    if (item.action_type === 'teleport') return `teleport ${playerName} ${cfg.coords}`;
+    return null;
+}
+
+/**
+ * Compra um item customizado — mesmo princípio do catálogo legado (só
+ * debita Ossos e grava inventário, sem RCON aqui, ver useGameShopItem),
+ * mas envolto num db.transaction() de verdade: código novo, sem a amarra
+ * assíncrona que forçou o reembolso manual do catálogo legado acima —
+ * estoque, débito de Ossos e inserção do inventário ficam atômicos.
+ * @param {string} guildId
+ * @param {string} discordId
+ * @param {number} itemId
+ * @returns {{ok:true,label:string,price:number}|{ok:false,error:string}}
+ */
+function purchaseCustomShopItem(guildId, discordId, itemId) {
+    const item = getShopItemById(itemId);
+    if (!item || item.guild_id !== guildId || item.deleted_at) return { ok: false, error: 'Item não encontrado.' };
+    if (!item.is_public) return { ok: false, error: 'Item não encontrado.' };
+    if (item.coming_soon) return { ok: false, error: 'Este item ainda não está disponível — em breve.' };
+
+    if (!PremiumSystem.getGuildLimits(guildId).genericRconEnabled) {
+        return { ok: false, error: 'Este servidor não está no plano Caçador — a Loja de Jogo depende do mesmo RCON liberado só nesse tier.' };
+    }
+
+    const link = PlayerRegistry.getPlayerByDiscordId(discordId);
+    if (!link) return { ok: false, error: 'Você precisa vincular sua conta com /registrar antes de comprar.' };
+
+    try {
+        const trans = db.transaction(() => {
+            if (item.stock_limit !== null) {
+                const claim = db.prepare(`UPDATE pot_game_shop_items SET stock_sold = stock_sold + 1 WHERE id = ? AND stock_sold < stock_limit`).run(itemId);
+                if (claim.changes === 0) throw new Error('OUT_OF_STOCK');
+            }
+            if (!PlayerRegistry.spendBones(discordId, guildId, item.price)) throw new Error('INSUFFICIENT_BONES');
+            db.prepare(`INSERT INTO game_shop_inventory (user_id, guild_id, item_key, shop_item_id, purchased_at) VALUES (?, ?, 'custom', ?, ?)`)
+                .run(discordId, guildId, itemId, Date.now());
+        });
+        trans();
+    } catch (err) {
+        if (err.message === 'OUT_OF_STOCK') return { ok: false, error: 'Este item está esgotado.' };
+        if (err.message === 'INSUFFICIENT_BONES') return { ok: false, error: 'Saldo de Ossos insuficiente.' };
+        console.error('❌ [GameShop] Erro ao comprar item customizado:', err);
+        return { ok: false, error: 'Erro ao registrar a compra.' };
+    }
+
+    db.logActivity(guildId, discordId, 'game_shop_purchase', null, { itemId, itemName: item.name, price: item.price, custom: true });
+    return { ok: true, label: item.name, price: item.price };
+}
+
+/**
+ * Migração automática, idempotente (pedido do dono, confirmado
+ * explicitamente nesta sessão): a 1ª vez que um servidor abre a Loja de
+ * Jogo nova (ver GET /lojajogo/:guildID), qualquer item do catálogo fixo
+ * antigo que já estava ligado com preço configurado vira um item novo
+ * equivalente, preservando preço/espécie. Marcador em `settings` (nunca
+ * contagem de itens) garante que rodar de novo depois do admin ter
+ * apagado tudo NÃO ressuscita nada. Envolta em db.transaction() pra 2
+ * abas carregando a página ao mesmo tempo não duplicarem a migração.
+ * @param {string} guildId
+ */
+function migrateLegacyItemsForGuild(guildId) {
+    if (isGuildMigrated(guildId)) return;
+
+    const trans = db.transaction(() => {
+        const configRow = db.prepare(`SELECT value, updated_by FROM settings WHERE guild_id = ? AND key = ?`).get(guildId, SETTINGS_KEY);
+        if (configRow) {
+            let config = {};
+            try { config = JSON.parse(configRow.value) || {}; } catch { config = {}; }
+
+            const insert = db.prepare(`
+                INSERT INTO pot_game_shop_items
+                    (guild_id, name, description, action_type, action_config, price, species, is_public, coming_soon, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
+            `);
+
+            for (const key of MIGRATABLE_KEYS) {
+                const cfg = config[key];
+                const item = GAME_SHOP_ITEMS[key];
+                if (!cfg || !cfg.enabled || !Number.isInteger(cfg.price) || cfg.price <= 0) continue;
+
+                const actionType = item.speciesRestrictable ? 'growth' : 'skipshed';
+                const actionConfig = item.speciesRestrictable ? JSON.stringify({ growthValue: item.growthValue }) : null;
+                const species = Array.isArray(cfg.species) && cfg.species.length > 0 ? JSON.stringify(cfg.species) : null;
+
+                insert.run(
+                    guildId, item.label, 'Migrado automaticamente do catálogo antigo da Loja de Jogo.',
+                    actionType, actionConfig, cfg.price, species,
+                    configRow.updated_by || 'system', Date.now()
+                );
+            }
+        }
+
+        db.prepare(`
+            INSERT INTO settings (guild_id, key, value, updated_at)
+            VALUES (?, ?, '1', ?)
+            ON CONFLICT(guild_id, key) DO NOTHING
+        `).run(guildId, MIGRATED_MARKER_KEY, Date.now());
+    });
+    trans();
+}
+
 module.exports = {
     GAME_SHOP_ITEMS,
+    CUSTOM_ACTION_TYPES,
     getGuildShopConfig,
     setGuildShopConfig,
     purchaseGameShopItem,
     getInventory,
     useGameShopItem,
+    listShopItems,
+    getShopItemById,
+    isGuildMigrated,
+    createShopItem,
+    setItemPublic,
+    setItemComingSoon,
+    softDeleteShopItem,
+    resolveItemImageUrl,
+    purchaseCustomShopItem,
+    migrateLegacyItemsForGuild,
 };

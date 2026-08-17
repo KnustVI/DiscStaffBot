@@ -729,7 +729,11 @@
             <% } %>
 
             <%
-                const lojaJogoIcons = { growth_juvenil: 'sprout', growth_adolescente: 'sprout', growth_subadulto: 'sprout', growth_adulto: 'sprout', skipshed: 'refresh-cw', quest: 'scroll-text' };
+                // teleport/growth (genérico) são dos itens CUSTOMIZADOS
+                // (chaveiam por actionType, não por itemKey fixo — ver
+                // reforma 2026-08-16, gameShopSystem.js). Os growth_* e
+                // quest continuam servindo só o catálogo legado (itemKey).
+                const lojaJogoIcons = { growth_juvenil: 'sprout', growth_adolescente: 'sprout', growth_subadulto: 'sprout', growth_adulto: 'sprout', skipshed: 'refresh-cw', quest: 'scroll-text', growth: 'sprout', teleport: 'map-pin' };
             %>
 
             <% if (gameShopInventory.length > 0) { %>
@@ -738,7 +742,9 @@
                     <div class="loja-grid">
                         <% gameShopInventory.forEach(item => { %>
                             <div class="loja-item">
-                                <div class="loja-item-thumb"><i data-lucide="<%= lojaJogoIcons[item.itemKey] || 'store' %>"></i></div>
+                                <div class="loja-item-thumb" style="<%= item.url ? `background-image:url('${item.url}')` : '' %>">
+                                    <% if (!item.url) { %><i data-lucide="<%= lojaJogoIcons[item.isCustom ? item.actionType : item.itemKey] || 'store' %>"></i><% } %>
+                                </div>
                                 <span class="loja-item-label"><%= item.label %></span>
                                 <span class="loja-item-desc"><%= item.guildName %></span>
                                 <form method="POST" action="/loja/usar-jogo" class="loja-item-buy-form">
@@ -771,23 +777,54 @@
                         <p class="text-[11px] opacity-50 -mt-1"><span data-i18n-pt>Seu saldo de Ossos neste servidor:</span><span data-i18n-en>Your Bones balance on this server:</span> <strong><%= catalogBonesBalance %></strong></p>
                         <div class="loja-grid">
                             <% catalog.items.forEach(item => { %>
+                                <%
+                                    // Reforma 2026-08-16: catálogo mistura itens
+                                    // customizados (isCustom, tabela pot_game_shop_items)
+                                    // e, só pra servidores ainda não migrados, itens do
+                                    // catálogo fixo legado — nomes de campo diferentes
+                                    // entre os dois (name/price/species vs
+                                    // label/config.price/config.species), normalizados
+                                    // aqui pra um só bloco de markup servir os dois.
+                                    const itemLabel = item.isCustom ? item.name : item.label;
+                                    const itemPrice = item.isCustom ? item.price : item.config.price;
+                                    const itemSpecies = item.isCustom ? item.species : (item.speciesRestrictable ? item.config.species : []);
+                                    const itemIcon = item.isCustom ? item.action_type : item.key;
+                                %>
                                 <div class="loja-item">
-                                    <div class="loja-item-thumb"><i data-lucide="<%= lojaJogoIcons[item.key] || 'store' %>"></i></div>
-                                    <span class="loja-item-label"><%= item.label %></span>
-                                    <% if (item.speciesRestrictable && item.config.species && item.config.species.length > 0) { %>
-                                        <span class="loja-item-desc"><span data-i18n-pt>Restrito a:</span><span data-i18n-en>Restricted to:</span> <%= item.config.species.join(', ') %></span>
+                                    <div class="loja-item-thumb" style="<%= (item.isCustom && item.url) ? `background-image:url('${item.url}')` : '' %>">
+                                        <% if (!(item.isCustom && item.url)) { %><i data-lucide="<%= lojaJogoIcons[itemIcon] || 'store' %>"></i><% } %>
+                                    </div>
+                                    <span class="loja-item-label"><%= itemLabel %></span>
+                                    <% if (item.isCustom) { %>
+                                        <span class="loja-item-desc"><%= item.description %></span>
                                     <% } %>
-                                    <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <%= item.config.price %></span>
-                                    <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form">
-                                        <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
-                                        <input type="hidden" name="itemKey" value="<%= item.key %>">
-                                        <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < item.config.price) ? ' disabled' : '' %>>
-                                            <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
-                                        </button>
-                                    </form>
+                                    <% if (itemSpecies && itemSpecies.length > 0) { %>
+                                        <span class="loja-item-desc"><span data-i18n-pt>Restrito a:</span><span data-i18n-en>Restricted to:</span> <%= itemSpecies.join(', ') %></span>
+                                    <% } %>
+                                    <% if (item.isCustom && item.remainingStock !== null) { %>
+                                        <span class="loja-item-desc"><span data-i18n-pt>Restam:</span><span data-i18n-en>Left:</span> <%= item.remainingStock %></span>
+                                    <% } %>
+                                    <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <%= itemPrice %></span>
+                                    <% if (item.isCustom) { %>
+                                        <form method="POST" action="/loja/comprar-jogo-item" class="loja-item-buy-form">
+                                            <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
+                                            <input type="hidden" name="itemId" value="<%= item.id %>">
+                                            <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
+                                                <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                            </button>
+                                        </form>
+                                    <% } else { %>
+                                        <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form">
+                                            <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
+                                            <input type="hidden" name="itemKey" value="<%= item.key %>">
+                                            <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
+                                                <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                            </button>
+                                        </form>
+                                    <% } %>
                                     <% if (shopPurchasesLocked) { %>
                                         <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
-                                    <% } else if (catalogBonesBalance < item.config.price) { %>
+                                    <% } else if (catalogBonesBalance < itemPrice) { %>
                                         <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                     <% } %>
                                 </div>
