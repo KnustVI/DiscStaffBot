@@ -633,15 +633,17 @@ const DASHBOARD_LOCKED_TO_OWNER = false;
 
 // Trava geral de compras (pedido do dono, 2026-08-15: "Por hora trave
 // todas as compras de itens e me lembre dessa trava, loja em teste não
-// deve haber compra, nenhuma loja nem de servidor") — bloqueia as 2
-// rotas que debitam moeda de verdade: POST /loja/comprar (Loja de
-// Personalização) e POST /loja/comprar-jogo (Loja de Jogo por servidor).
+// deve haber compra, nenhuma loja nem de servidor") — bloqueava as rotas
+// que debitam moeda de verdade: POST /loja/comprar (Loja de
+// Personalização), POST /loja/comprar-jogo e /loja/comprar-jogo-item
+// (Loja de Jogo por servidor, catálogo legado e itens customizados).
 // NÃO afeta /loja/usar-jogo (usar item JÁ comprado) nem /perfil/resgatar
 // (resgate de emblema/título por requisito, sempre grátis) — nenhum dos
-// dois é uma COMPRA. Ver também PREMIUM.txt (parágrafo "COMPRAS DE ITENS
-// DE LOJA TEMPORARIAMENTE PAUSADAS") — remova o parágrafo de lá também
-// quando desligar esta flag.
-const SHOP_PURCHASES_LOCKED = true;
+// dois é uma COMPRA. Reaberta (pedido do dono, 2026-08-17: "Pode abrir a
+// loja para compra") — mesmo padrão de DASHBOARD_LOCKED_TO_OWNER: deixada
+// como `false` (não removida) pra poder travar de novo rápido se
+// precisar, sem reescrever nada.
+const SHOP_PURCHASES_LOCKED = false;
 
 // ==================== PARSER DE TERMOS_DE_SERVICO.txt ====================
 // O .txt usa uma marcação própria (pensada pra ficar legível cru, sem

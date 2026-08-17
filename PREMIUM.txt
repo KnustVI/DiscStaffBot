@@ -33,18 +33,6 @@ levar a um pagamento de verdade - NAO afeta quem ja tem premium concedido,
 só bloqueia gente NOVA tentando comprar. Remover este paragrafo quando a
 trava for desativada de volta (ConfigSystem/hero.ejs, ver secao 141).
 
-COMPRAS DE ITENS DE LOJA TEMPORARIAMENTE PAUSADAS (pedido do dono,
-2026-08-15 - ver secao 201 de changelog): enquanto a Loja estiver em fase
-de testes, NENHUMA compra de item processa de verdade - nem a Loja de
-Personalizacao (foto/plano de fundo, POST /loja/comprar) nem a Loja de
-Jogo por servidor (POST /loja/comprar-jogo). A flag e
-`SHOP_PURCHASES_LOCKED` no topo de `dashboard.js` (mesmo padrao de
-`DASHBOARD_LOCKED_TO_OWNER`, so troca `true`->`false` pra reabrir). NAO
-afeta USAR um item ja comprado (POST /loja/usar-jogo) nem RESGATAR
-emblema/titulo por requisito (POST /perfil/resgatar, sempre gratuito) -
-nenhum dos dois e uma compra de verdade. Remover este paragrafo quando a
-trava for desativada de volta.
-
 1) PLAYER PREMIUM (global - vale em qualquer servidor com o bot)
 ------------------------------------------------
 
@@ -109,12 +97,19 @@ moeda ou dos itens não envolva dinheiro ou itens reais" - é exatamente
 esse o design. O GANHO de Bones por hora jogada (1h = 5 Bones) JÁ ESTÁ
 IMPLEMENTADO (2026-08-07, ver seção 135), mesmo estágio que as Caçadas -
 o CONVERSOR Ossos<->Marks já era funcional desde a seção 122, antes mesmo
-do ganho por hora. Ganho por missão continua "vindo em breve". O
-CATÁLOGO da loja de jogo (Growth/Skipshed/Missão de Marks) já é
-FUNCIONAL DE VERDADE desde 2026-08-12 (ver seção 183) - cada servidor
-liga/desliga cada item e define o próprio preço em Bones (painel
-`/lojajogo` no site, admin do servidor); Growth também pode ser restrito
-a espécies específicas de dinossauro, por etapa. MUDANÇA no mesmo dia
+do ganho por hora. Ganho por missão continua "vindo em breve". A
+loja de jogo deixou de ser um CATÁLOGO FIXO (era Growth/Skipshed/Missão
+de Marks, cada servidor só ligava/desligava e definia preço) e virou
+CRIAÇÃO LIVRE de item pelo admin do servidor (painel `/lojajogo` no
+site, reforma 2026-08-16/17 - ver seção 206): nome, descrição, imagem
+opcional, um tipo de ação em jogo (Growth/Skipshed/Teleporte - Missão de
+Marks/GiveQuest foi removida de vez, sem equivalente no sistema novo),
+preço em Bones, estoque opcional e quais espécies de dinossauro podem
+usar (qualquer tipo de ação, não só Growth). Item excluído da loja
+continua funcionando pra quem já comprou e não usou (exclusão é lógica,
+nunca apaga o histórico de compra). Growth continua com as mesmas 4
+etapas nomeadas de sempre - Juvenil/Adolescente/Subadulto/Adulto (ver
+seção 207). MUDANÇA no mesmo dia
 (ver seção 184): comprar só debita Bones e guarda o item no inventário -
 o bônus só é aplicado de verdade (RCON) quando o jogador clica "Usar" no
 próprio inventário, no site (`/loja`), não mais na hora da compra. TRAVA
@@ -297,14 +292,16 @@ O QUE JA FUNCIONA HOJE, DE VERDADE:
   codigo ou redeployar. Mesmo padrao de armazenamento do upload proprio
   do Raptor (guarda so o ID da mensagem no canal fixo
   BANNER_STORAGE_CHANNEL_ID, URL resolvida de novo a cada /perfil).
-- Loja de Jogo (Growth/Skipshed/Missao, moeda Bones) e Loja de
+- Loja de Jogo (Growth/Skipshed/Teleporte, moeda Bones) e Loja de
   Personalizacao (fotos/planos de fundo, moeda Cacadas) - as DUAS ja sao
   FUNCIONAIS DE VERDADE desde a reforma das lojas (2026-08-12, ver secao
   183). A Loja de Jogo passou de "so previa visual + conversor" pra um
-  catalogo real, configuravel POR SERVIDOR pelo proprio admin (`/lojajogo`
-  no site): cada item liga/desliga e tem seu proprio preco em Bones,
-  Growth pode ser restrito por especie de dinossauro (lista por etapa).
-  MUDANCA no mesmo dia (ver secao 184): COMPRAR um item da Loja de Jogo
+  catalogo real, e depois (reforma 2026-08-16/17, ver secao 206) de
+  catalogo FIXO pra CRIACAO LIVRE de item pelo proprio admin (`/lojajogo`
+  no site): nome, descricao, imagem opcional, preco em Bones, estoque
+  opcional e especies permitidas - Growth continua com as mesmas 4 etapas
+  nomeadas de sempre (Juvenil/Adolescente/Subadulto/Adulto, ver secao 207).
+  MUDANCA no mesmo dia (2026-08-12, ver secao 184): COMPRAR um item da Loja de Jogo
   so debita Bones e guarda ele no INVENTARIO do jogador - nao precisa
   estar online nem na especie certa pra comprar mais. USAR (botao "Usar"
   na secao "Seu Inventario" de `/loja`) e o momento que de fato dispara o
@@ -542,15 +539,20 @@ CAÇADOR - R$40/mes (Brasil, Pix manual) ou US$28/mes (fora do Brasil, via Ko-fi
   aplicar e logado (canal de Admin Commands -> log de Staff -> log Geral,
   nessa ordem de preferencia; sem nenhum configurado, avisa o staff a
   configurar um em vez de logar em silencio).
-- Loja de Jogo (Growth/Skipshed/Missao, moeda Bones) FUNCIONAL DE VERDADE
-  aqui - JA IMPLEMENTADO (reforma das lojas, 2026-08-12, ver secao 183):
-  o admin configura preco/liga-desliga de cada item no painel `/lojajogo`
-  do site (mesma flag `genericRconEnabled` do catalogo RCON acima - o
-  PAINEL de configuracao fica aberto pra qualquer tier pre-configurar,
-  mas a COMPRA em si (POST /loja/comprar-jogo) so funciona com o Caçador
-  ativo, mesmo criterio ja usado no filtro de chat abaixo). Growth pode
-  ser restrito a especies de dinossauro especificas, lista separada por
-  etapa (Juvenil/Adolescente/Subadulto/Adulto). CONSUMIVEL: cada compra
+- Loja de Jogo (Growth/Skipshed/Teleporte, moeda Bones) FUNCIONAL DE
+  VERDADE aqui - JA IMPLEMENTADO (reforma das lojas, 2026-08-12, ver
+  secao 183; reforma pra criacao livre de item, 2026-08-16/17, ver
+  secoes 206/207): o admin CRIA cada item do zero no painel `/lojajogo`
+  do site (nome, descricao, imagem opcional, preco, estoque opcional,
+  especies permitidas - nao so liga/desliga um catalogo fixo mais),
+  mesma flag `genericRconEnabled` do catalogo RCON acima (o PAINEL de
+  criacao/gerenciamento fica aberto pra qualquer tier pre-configurar,
+  mas a COMPRA em si so funciona com o Caçador ativo, mesmo criterio ja
+  usado no filtro de chat abaixo). Item excluido continua funcionando
+  pra quem ja comprou e nao usou (exclusao e logica). Growth pode ser
+  restrito a especies de dinossauro especificas e continua com as
+  mesmas 4 etapas nomeadas de sempre - Juvenil/Adolescente/Subadulto/
+  Adulto. CONSUMIVEL: cada compra
   vale por 1 uso - o item some do inventario (`game_shop_inventory`)
   assim que o USO (nao a compra) e confirmado com sucesso via RCON;
   pra usar de novo, precisa comprar de novo. O preco configurado pelo
@@ -10669,3 +10671,81 @@ frente, nao so este relatorio):
   desenvolvimento que `PRAGMA table_info(game_shop_inventory)` já não
   lista `price_paid` depois do boot (dropColumnIfExists funcionando).
   SEM confirmação visual/browser real.
+
+206) Loja de Jogo: itens customizados criados pelo admin (substitui o catálogo fixo)
+------------------------------------------------------------------
+- Pedido do dono: "a configuração atual de preço não esta muito boa...
+  gostaria que a configuração de preços trabalhasse de forma parecida
+  com a configuração de emblemas/titulos que eu, desenvolvedor, tenho".
+  O catálogo fixo de 6 itens (4 etapas de Growth + Skipshed + Missão de
+  Marks, só liga/desliga + preço configuráveis) foi substituído por
+  criação LIVRE de item, por admin de CADA servidor: nome, descrição,
+  imagem opcional (≤250×250, padrão de armazenamento igual emblemas/
+  títulos — `storeImageBuffer`/canal fixo), um tipo de ação em jogo
+  (Growth/Skipshed/Teleporte — Missão de Marks/GiveQuest ficou de fora
+  do sistema novo, pedido explícito: "remova da lista o givequest não
+  vamos adicionar como item", já que o RCON exige nome exato de missão
+  e não existe "dar missão aleatória" pronto no jogo), preço em Bones,
+  estoque opcional (em branco = ilimitado) e quais espécies de
+  dinossauro podem usar.
+- Nova tabela `pot_game_shop_items` (por servidor) + coluna
+  `game_shop_inventory.shop_item_id` (NULL = compra do catálogo antigo,
+  preenchido = item novo). Exclusão de item é LÓGICA (`deleted_at`,
+  nunca `DELETE` de verdade) — pedido explícito: item excluído da loja
+  continua funcionando pra quem já comprou e não usou.
+- Migração automática e idempotente: qualquer item fixo que já estava
+  ativo com preço configurado em cada servidor vira um item novo
+  equivalente sozinho, na 1ª vez que a página `/lojajogo` é aberta
+  depois desta mudança — preço/espécie preservados, sem o admin
+  precisar recriar nada.
+- Compra do item novo (`purchaseCustomShopItem`) envolta num
+  `db.transaction()` de verdade (estoque + débito de Bones + inventário,
+  atômico) — RCON só dispara no "Usar" (mesmo princípio de sempre, ver
+  seção 184). Teleporte usa o NOME em jogo como alvo do RCON (não
+  Alderon ID), mesmo padrão do teleporte de evento (nunca confirmado
+  contra servidor real em nenhum lugar do bot).
+- Catálogo antigo (`GAME_SHOP_ITEMS`) fica no código intocado, só pra
+  resolver inventário comprado antes da migração — não é mais criável
+  nem editável, some da UI assim que o servidor migra.
+- Verificado: `node --check`/`ejs.renderFile()` nos arquivos tocados;
+  script isolado (banco SQLite temporário, nunca o de produção) testando
+  criação/validação dos 3 tipos de ação, compra→inventário→uso com o
+  comando RCON certo em cada caso, exclusão preservando o uso posterior,
+  limite de estoque esgotando, migração idempotente (rodar 2x não
+  duplica) e isolamento entre servidores (admin de um servidor não mexe
+  em item de outro). SEM confirmação contra servidor de jogo real.
+
+207) Loja de Jogo: growth volta a usar as etapas nomeadas, não porcentagem livre
+------------------------------------------------------------------
+- Correção da Seção 206, mesmo tema: a criação de item com ação Growth
+  tinha ficado com uma porcentagem livre (1-100%). Pedido do dono: "o
+  growth eta com porcentagem mas coloque categorias de juvenil até
+  adulto como tinhamos antes". Voltou a ser uma escolha fixa entre as 4
+  etapas nomeadas do catálogo antigo — Juvenil (25%), Adolescente (50%),
+  Subadulto (75%), Adulto (100%) — reaproveitando os mesmos valores de
+  `GAME_SHOP_ITEMS` como fonte única (`GROWTH_STAGE_VALUES`), em vez de
+  duplicar os números. Só o campo de Growth mudou — imagem, preço,
+  estoque, espécies e os campos de Teleporte continuam livres.
+- Verificado: `node --check`/`ejs.renderFile()`; script isolado (banco
+  temporário) confirmando as 4 etapas criando com o `growthValue` certo
+  e uma etapa inválida/ausente sendo rejeitada.
+
+208) Reabertura das compras da Loja (Personalização e Loja de Jogo)
+------------------------------------------------------------------
+- Pedido do dono: "Pode abrir a loja para compra". Desativa a trava
+  geral de compras da Seção 201 (`SHOP_PURCHASES_LOCKED` em
+  `dashboard.js`, `true` → `false`, mesmo padrão de
+  `DASHBOARD_LOCKED_TO_OWNER`) — volta a processar de verdade
+  `POST /loja/comprar` (Loja de Personalização), `POST /loja/comprar-jogo`
+  (catálogo legado) e `POST /loja/comprar-jogo-item` (itens customizados
+  da Seção 206). Removido também o parágrafo "COMPRAS DE ITENS DE LOJA
+  TEMPORARIAMENTE PAUSADAS" do topo deste arquivo, como a própria nota
+  já instruía. Não afeta `/loja/usar-jogo` nem `/perfil/resgatar` — nunca
+  foram bloqueados, não são compras.
+- Trava deixada como constante `false` (não removida) — pode voltar a
+  travar rápido se precisar, sem reescrever nada, mesmo espírito de
+  `DASHBOARD_LOCKED_TO_OWNER`.
+- Verificado: `node --check` em `dashboard.js`. SEM confirmação
+  visual/browser real — o dono deve conferir que os botões "Comprar"
+  aparecem habilitados e uma compra de teste debita a moeda certa antes
+  de anunciar a abertura pros usuários.
