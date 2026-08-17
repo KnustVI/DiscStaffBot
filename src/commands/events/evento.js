@@ -1,7 +1,6 @@
 // src/commands/events/evento.js
 const {
     SlashCommandBuilder,
-    PermissionFlagsBits,
     ChannelType,
     AttachmentBuilder,
     GuildScheduledEventEntityType,
@@ -50,7 +49,20 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('evento')
         .setDescription('📅 Cria e publica um evento da comunidade (fórum + evento agendado do Discord).')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents)
+        // BUG REAL corrigido (pedido do dono, 2026-08-17: "/eventos... não
+        // estão aparecendo para os usuário que não tem administrador").
+        // ManageEvents (permissão NATIVA do Discord) escondia o comando do
+        // Discord inteiro pra qualquer membro sem essa permissão — mesmo
+        // quem tem o cargo configurável "Equipe de Eventos" (ver checagem
+        // de verdade logo abaixo, em execute(): ConfigSystem.
+        // memberHasConfiguredRole(..., 'event_role')). setDefaultMemberPermissions
+        // é um filtro de VISIBILIDADE do próprio Discord, não do bot — ele
+        // nunca soube desse cargo customizado, então escondia o comando de
+        // qualquer staff de evento que não fosse também Administrator.
+        // null (mesmo padrão de todo outro comando não-owner-only do bot,
+        // ver strike/unstrike/report/config/ingame-*) devolve o gate real
+        // pra checagem em execute(), que já estava certa.
+        .setDefaultMemberPermissions(null)
         .addChannelOption(opt => opt.setName('forum')
             .setDescription('Canal de fórum onde a postagem do evento será criada')
             .addChannelTypes(ChannelType.GuildForum)
