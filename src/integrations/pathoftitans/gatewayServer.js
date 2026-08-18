@@ -645,6 +645,35 @@ class PoTGatewayServer {
                 }
             }
 
+            // 1d-bis. PlayerLogout/PlayerLeave — BUG REAL corrigido (pedido do
+            // dono, 2026-08-18: "verifique se o staff que desconecta em modo
+            // espectador também fecha a janela de tempo espectando"). Até
+            // agora só 2 eventos fechavam uma sessão aberta em
+            // pot_spectator_sessions: o Action "Exited Spectator Mode" (1c
+            // acima) e PlayerRespawn como fallback (1d acima, comentário
+            // "cobre... ex: desconexão" — mas isso só é verdade se o staff
+            // VOLTAR e der respawn; quem desconecta e nunca mais volta, ou
+            // volta e fica parado sem spawnar, tinha o tempo perdido em
+            // silêncio pra sempre). Fecha aqui do mesmo jeito que 1d (mesma
+            // função, unconditional — closeSpectatorSession já é um no-op
+            // seguro se não houver sessão aberta pra esse Alderon ID).
+            // Efeito colateral bom: também reduz o risco de uma sessão FICAR
+            // aberta por dias e ser fechada por um PlayerRespawn não
+            // relacionado bem mais tarde, creditando um delta gigante e
+            // incorreto em spectator_seconds — fechando aqui, a sessão nunca
+            // chega a ficar aberta por tanto tempo.
+            if (potEvent === 'PlayerLogout' || potEvent === 'PlayerLeave') {
+                const alderonId = data.AlderonId || data.PlayerAlderonId;
+                if (alderonId) {
+                    try {
+                        const AnalyticsSystem = require('../../systems/moderation/analyticsSystem');
+                        await AnalyticsSystem.closeSpectatorSession(this.client, guildId, alderonId);
+                    } catch (err) {
+                        console.warn('⚠️ [Gateway] Fechamento de sessão de espectador (desconexão) falhou:', err.message);
+                    }
+                }
+            }
+
             // 1b. PlayerKilled identifica matador/vítima por KillerAlderonId/
             // VictimAlderonId (não por "AlderonId" like os demais eventos), então
             // kills/deaths são contabilizados à parte, não pelo upsert genérico acima.

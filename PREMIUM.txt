@@ -10850,3 +10850,56 @@ frente, nao so este relatorio):
   do servidor realmente traz `MapName`/`Map` — nunca testado contra
   servidor real antes desta revisão) antes de confiar que o bloqueio de
   mapa errado vai disparar quando deveria.
+
+211) Modo espectador: fecha a sessão também quando o staff desconecta
+----------------------------------------------------------------------
+- Pedido do dono (2026-08-18): "Verifique se o staff que desconecta em
+  modo espectador também fecha a janela de tempo espectando."
+- BUG REAL confirmado, não só uma dúvida: `pot_spectator_sessions`
+  (seção 57) só era fechada por 2 gatilhos — o Action "Exited Spectator
+  Mode" (sinal primário) e, como fallback, `PlayerRespawn` (staff volta
+  a jogar um dinossauro — seção 63 já documentava esse fallback com o
+  comentário "cobre... ex: desconexão", mas isso só é verdade se o
+  staff VOLTAR e der respawn de novo). Quem desconecta (`PlayerLogout`/
+  `PlayerLeave`) e nunca mais volta, ou volta e fica parado sem
+  spawnar, tinha o tempo de espectador perdido em silêncio pra sempre —
+  a sessão ficava com `started_at` preso no banco sem nenhum código
+  jamais lendo/fechando ela de novo (confirmado inclusive por um script
+  de diagnóstico já existente, `diagnostico_espectador.js`, que já
+  detectava sessões "presas" há horas sem fechar, sem nada que as
+  fechasse automaticamente).
+- Risco adicional que essa mesma lacuna criava: como reabrir uma sessão
+  não reseta `started_at` (`INSERT OR IGNORE`, ver seção 63) e
+  `PlayerRespawn` fecha QUALQUER sessão aberta sem checar se ainda faz
+  sentido, uma sessão esquecida de dias atrás podia ser fechada por um
+  respawn comum e creditar um número gigante e errado de segundos em
+  `spectator_seconds`.
+- Corrigido em `gatewayServer.js` — novo bloco (mesmo nível dos outros
+  handlers de evento em `_routeToDiscord`, logo depois do de
+  `PlayerRespawn`) pra `PlayerLogout`/`PlayerLeave`: resolve o Alderon
+  ID (`AlderonId` ou `PlayerAlderonId`, mesmo fallback já usado no
+  bloco de `PlayerRespawn`) e chama `AnalyticsSystem.closeSpectatorSession`
+  — a MESMA função já usada pelos outros 2 gatilhos, sem mudança
+  nenhuma nela (já era segura pra chamar sem sessão aberta, e já sempre
+  apagava a sessão mesmo sem creditar segundos quando o tier/cargo não
+  batem mais). Como efeito colateral direto, também reduz o risco do
+  parágrafo anterior — a sessão não fica mais aberta por dias esperando
+  um respawn não relacionado fechar ela errado, porque a desconexão já
+  fecha (e credita corretamente) na hora.
+- Fora de escopo desta correção: não foi replicado aqui o "log
+  sintético de saída" que o bloco de `PlayerRespawn` também faz (grava
+  um registro em `pot_logs` + posta no canal admin, pra manter
+  `isCurrentlySpectating` — o "Modo espectador: ✅/🚫" mostrado em
+  `/perfil`/dashboard — em dia mesmo sem o Action real chegar). Esta
+  correção resolve só a contagem de tempo (`spectator_seconds`), que
+  foi o que o dono pediu pra verificar; o texto de status ainda pode
+  mostrar "espectador: ✅" por mais tempo do que o staff realmente
+  ficou logado, num caso raro de desconexão sem o Action de saída
+  chegar — se o dono quiser esse ajuste também, é uma extensão pontual
+  do mesmo bloco.
+- Verificado: `node --check` em `gatewayServer.js`. SEM teste contra um
+  servidor real (não dá pra simular um `PlayerLogout`/`PlayerLeave` de
+  verdade sem um servidor PoT rodando) — o dono precisa confirmar ao
+  vivo, na próxima vez que um staff desconectar espectando, que
+  `spectator_seconds` recebeu o tempo certo e a sessão em
+  `pot_spectator_sessions` sumiu.
