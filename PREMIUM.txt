@@ -10991,3 +10991,37 @@ frente, nao so este relatorio):
   que o TP pro mapa Gondwa libera agora; (3) conferir visualmente a
   overlay/scroll/botões Usar/avatar da top bar; (4) esclarecer qual
   página de configuração ainda falta o botão Salvar, se for o caso.
+
+213) Corrige emoji de Caçadas no /perfil (Discord) — EMOJIS.hunt não existia
+----------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Use emoji Atack para moedas hunt e
+  emoji bone para ossos, nos paineis do discord. Emojis subiram para o
+  bot."
+- BUG REAL confirmado: desde o pedido original de 2026-08-12 (ícones
+  pras moedas no `/perfil`), o código sempre referenciou
+  `EMOJIS.hunt` — mas o emoji de aplicação sincronizado de verdade via
+  `npm run sync-emojis` (`src/database/emojis.js`) tem o nome `Atack`,
+  não `hunt`. `EMOJIS.hunt` sempre foi `undefined`, caindo
+  silenciosamente no fallback genérico 💎 — o emoji de Ossos
+  (`EMOJIS.bone`) já estava certo desde o início, nome batendo
+  direitinho, sem mudança nele.
+- Corrigido em `playerRegistrationSystem.js` (linha do "Caçadas:" no
+  `/perfil`): `EMOJIS.hunt` → `EMOJIS.Atack`.
+- Também investigado no mesmo pedido: "Algo não parece muito
+  consistente no ganho de caçadas e osso... antes de converter ossos
+  hoje eu tinha 2 caçada (2h de jogo) e 5 ossos (1h de jogo)."
+  Explicação encontrada no próprio código, não é bug: Caçadas/XP usam
+  um carry de segundos GLOBAL (`player_links.playtime_credit_seconds`,
+  soma tempo jogado em QUALQUER servidor), mas Ossos usa um carry
+  PRÓPRIO POR SERVIDOR (`pot_player_bones.playtime_credit_seconds`,
+  reforma da seção ~184/185, 2026-08-15) — só fecha hora cheia com
+  sessões DAQUELE mesmo servidor. Se o dono jogou em 2 servidores
+  diferentes hoje (1h em cada), Caçadas mostra os 2h combinados (2),
+  mas o saldo de Ossos de UM servidor só reflete a 1h jogada NELE (5)
+  — comportamento esperado do design já confirmado, não uma
+  divergência real. Precisa de confirmação do dono se jogou em mais de
+  1 servidor hoje; se confirmar que foi só 1 servidor o dia inteiro, aí
+  sim vira uma investigação de bug de verdade.
+- Verificado: `node --check` em `playerRegistrationSystem.js`. SEM
+  confirmação visual — o dono precisa conferir que o emoji Atack
+  aparece de verdade ao lado de "Caçadas:" no próximo `/perfil`.

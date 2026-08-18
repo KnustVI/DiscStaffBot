@@ -613,9 +613,16 @@ class PlayerRegistrationSystem {
         // ossos fossem um saldo por servidor") — mostra o saldo NESTE
         // servidor especificamente, ver aviso "-#" abaixo. Ícones
         // dedicados (pedido do dono, 2026-08-12: "foram adicionados
-        // icones para representar as moedas") — EMOJIS.hunt/EMOJIS.bone
+        // icones para representar as moedas") — EMOJIS.Atack/EMOJIS.bone
         // são os emoji de aplicação sincronizados via `npm run
         // sync-emojis`, mesmo vocabulário visual da Loja (ver loja.ejs).
+        // BUG REAL corrigido (pedido do dono, 2026-08-19: "Use emoji
+        // Atack para moedas hunt e emoji bone para ossos") — o emoji de
+        // Caçadas foi sincronizado do Discord com o nome "Atack" (não
+        // "hunt" como o código assumia desde 2026-08-12), então
+        // EMOJIS.hunt sempre foi undefined e caía no fallback 💎 genérico
+        // — nunca mostrava o emoji de verdade. EMOJIS.bone já estava
+        // certo desde o início, sem mudança nele.
         // XP usa DinoFootprint (já existia, reaproveitado por pedido
         // explícito em vez de um ícone novo só pra isso).
         // Blindado com try/catch (pedido do dono, 2026-08-15: relato de
@@ -638,7 +645,7 @@ class PlayerRegistrationSystem {
                 builder.text([
                     [
                         `${EMOJIS.bone || '🦴'} **Ossos:** ${bonesBalance}`,
-                        `${EMOJIS.hunt || '💎'} **Caçadas:** ${huntBalance}`,
+                        `${EMOJIS.Atack || '💎'} **Caçadas:** ${huntBalance}`,
                         // Nível real ao lado do XP bruto (pedido do dono,
                         // 2026-08-11 — ver comentário completo em levelLabel do
                         // card de perfil, acima nesta mesma função).
