@@ -308,6 +308,28 @@ async function useGameShopItem(inventoryId, discordId) {
                 if (!isAllowed) return { ok: false, error: `${item.name} não está liberado pra ${onlinePlayer.dinosaur_type} neste servidor.` };
             }
 
+            // Verificação de mapa pro item de teleporte (pedido do dono,
+            // 2026-08-18: "na configuração do item de teleporte nós pedimos
+            // mapa pois as coordenadas mudam de acordo com o mapa, então
+            // preciso que revise se existe a verificação do jogador estar no
+            // mapa certo pra usar o tp"). ANTES desta revisão, `map` nunca
+            // era lido aqui — ficava guardado só como anotação, o admin
+            // configurava mas nada impedia usar num mapa errado e desperdiçar
+            // o item numa coordenada sem sentido. onlinePlayer.current_map
+            // vem de pot_players (preenchido oportunisticamente por
+            // upsertPlayerFromEvent sempre que um webhook trouxer MapName/Map
+            // — ver potPlayerRegistry.js), então pode ainda ser null se
+            // nenhum evento com esse campo chegou nesta sessão. Bloqueia só
+            // quando o mapa É CONHECIDO e diverge — deixa passar quando é
+            // desconhecido, pra não travar o item inteiro por uma lacuna de
+            // dado em vez de aplicar no mapa errado por engano (mesma
+            // postura de "confia no jogo pra validar de verdade" já usada
+            // pro saldo de Marks, ver currencySystem.js).
+            if (item.action_type === 'teleport' && item.actionConfig?.map && onlinePlayer.current_map
+                && onlinePlayer.current_map.toLowerCase() !== item.actionConfig.map.toLowerCase()) {
+                return { ok: false, error: `Este item só funciona no mapa ${item.actionConfig.map} — você está em ${onlinePlayer.current_map} agora. O item continua no seu inventário, tente de novo quando estiver no mapa certo.` };
+            }
+
             // Alvo pelo NOME em jogo pro teleporte (não Alderon ID) — ver
             // _buildRconCommandForCustomItem.
             const targetName = onlinePlayer.player_name || link.player_name;
@@ -484,6 +506,71 @@ function createShopItem(guildId, data, createdBy) {
     return { ok: true, id: result.lastInsertRowid };
 }
 
+/**
+ * Edita um item já criado (pedido do dono, 2026-08-18: "adicione o botão
+ * editar item também para os itens criados"). Mesma validação de
+ * createShopItem acima — mas action_type NUNCA muda depois de criado
+ * (evita reconfigurar um item de teleporte pra virar growth por engano;
+ * quem quiser um tipo diferente cria um item novo). Itens já comprados e
+ * não usados resolvem o item por id em tempo real (getShopItemById nunca
+ * tira snapshot), então uma edição aqui também vale pra quem já comprou e
+ * ainda não usou — mesmo espírito de softDeleteShopItem (corrigir uma
+ * coordenada errada, por exemplo, deve valer pra quem ainda não usou, não
+ * só pra compras futuras).
+ * @param {string} guildId
+ * @param {number} itemId
+ * @param {object} data - mesmo shape de createShopItem, exceto actionType
+ *   (ignorado — o tipo existente em `existing.action_type` é quem manda).
+ *   imageMessageId ausente/undefined mantém a imagem atual.
+ * @returns {{ok:true}|{ok:false,error:string}}
+ */
+function updateShopItem(guildId, itemId, data) {
+    const existing = db.prepare(`SELECT * FROM pot_game_shop_items WHERE id = ? AND guild_id = ? AND deleted_at IS NULL`).get(itemId, guildId);
+    if (!existing) return { ok: false, error: 'Item não encontrado.' };
+
+    const name = (data.name || '').trim().slice(0, 100);
+    const description = (data.description || '').trim().slice(0, 500);
+    if (!name) return { ok: false, error: 'Nome é obrigatório.' };
+    if (!description) return { ok: false, error: 'Descrição é obrigatória.' };
+
+    const price = parseInt(data.price, 10);
+    if (!Number.isInteger(price) || price <= 0) return { ok: false, error: 'Preço em Ossos precisa ser um número positivo.' };
+
+    let stockLimit = null;
+    if (data.stockLimit !== undefined && data.stockLimit !== null && String(data.stockLimit).trim() !== '') {
+        stockLimit = parseInt(data.stockLimit, 10);
+        if (!Number.isInteger(stockLimit) || stockLimit <= 0) return { ok: false, error: 'Quantidade disponível precisa ser um número positivo (ou em branco pra ilimitado).' };
+    }
+
+    let actionConfig = null;
+    if (existing.action_type === 'growth') {
+        const growthValue = GROWTH_STAGE_VALUES[data.growthStage];
+        if (!growthValue) return { ok: false, error: 'Escolha uma etapa de crescimento válida (Juvenil/Adolescente/Subadulto/Adulto).' };
+        actionConfig = { growthValue };
+    } else if (existing.action_type === 'teleport') {
+        const map = (data.map || '').trim().slice(0, 100);
+        const coords = (data.coords || '').trim().slice(0, 200);
+        if (!map || !coords) return { ok: false, error: 'Mapa e coordenadas são obrigatórios pra um item de teleporte.' };
+        actionConfig = { map, coords };
+    }
+
+    const species = Array.isArray(data.species) ? data.species.filter(Boolean) : (data.species ? [data.species] : []);
+    const imageMessageId = data.imageMessageId !== undefined ? data.imageMessageId : existing.image_message_id;
+
+    db.prepare(`
+        UPDATE pot_game_shop_items
+        SET name = ?, description = ?, image_message_id = ?, action_config = ?, price = ?, stock_limit = ?, species = ?
+        WHERE id = ? AND guild_id = ? AND deleted_at IS NULL
+    `).run(
+        name, description, imageMessageId,
+        actionConfig ? JSON.stringify(actionConfig) : null, price, stockLimit,
+        species.length > 0 ? JSON.stringify(species) : null,
+        itemId, guildId
+    );
+
+    return { ok: true };
+}
+
 // As 3 ações do card de item (toggle público, toggle "em breve", excluir)
 // — sempre com guild_id no WHERE: diferente de /dev/Loja (só o dono,
 // rotas globais), estas são alcançáveis por QUALQUER admin de QUALQUER
@@ -633,6 +720,7 @@ function migrateLegacyItemsForGuild(guildId) {
 module.exports = {
     GAME_SHOP_ITEMS,
     CUSTOM_ACTION_TYPES,
+    GROWTH_STAGE_VALUES,
     getGuildShopConfig,
     setGuildShopConfig,
     purchaseGameShopItem,
@@ -642,6 +730,7 @@ module.exports = {
     getShopItemById,
     isGuildMigrated,
     createShopItem,
+    updateShopItem,
     setItemPublic,
     setItemComingSoon,
     softDeleteShopItem,

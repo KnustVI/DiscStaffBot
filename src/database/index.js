@@ -376,6 +376,20 @@ class DatabaseManager {
             // pot_game_shop_items. Ver gameShopSystem.js.
             this.ensureColumn('game_shop_inventory', 'shop_item_id', 'INTEGER');
 
+            // Mapa ATUAL do jogador em jogo (pedido do dono, 2026-08-18:
+            // revisão de segurança do item de teleporte da Loja de Jogo —
+            // as coordenadas de um item de teleporte só fazem sentido no
+            // mapa configurado nele, e não havia NENHUMA verificação disso
+            // na hora de usar). Preenchido oportunisticamente por
+            // upsertPlayerFromEvent sempre que um payload de webhook trouxer
+            // MapName/Map (mesmos campos já confirmados ao vivo em
+            // extractLocationParts, webhookPayloads.js) — igual a
+            // dinosaur_type/dinosaur_growth acima, eventos que não trazem o
+            // campo NUNCA sobrescrevem com null, só mantém o último valor
+            // conhecido. Ver potPlayerRegistry.js e
+            // gameShopSystem.js#useGameShopItem.
+            this.ensureColumn('pot_players', 'current_map', 'TEXT');
+
             // Renomeia os valores internos de tier de Server Premium já
             // gravados (pegada/fossil eram nomes de planejamento antigos —
             // ver PremiumSystem.GUILD_TIERS). Idempotente: depois da primeira

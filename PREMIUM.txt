@@ -10787,3 +10787,66 @@ frente, nao so este relatorio):
   ao vivo que a barra/texto atualizam corretamente digitando no campo e
   que uma conversão de Marks não-múltiplo de 100 credita o número certo
   de Ossos.
+
+210) Loja de Jogo: botão Editar item + verificação de mapa no item de teleporte
+--------------------------------------------------------------------------
+- Pedido do dono (2026-08-18): "adicione o botão editar item também para
+  os itens criados se for possível" + "na configuração do item de
+  teleporte nós pedimos mapa pois as coordenadas mudam de acordo com o
+  mapa, então preciso que revise se existe a verificação do jogador
+  estar no mapa certo para usar o tp."
+- EDITAR ITEM: não existia nenhuma rota/função de edição até agora — só
+  criar, alternar público/em breve e excluir (lógico). Adicionado
+  `GameShopSystem.updateShopItem(guildId, itemId, data)`
+  (`gameShopSystem.js`), mesma validação de `createShopItem` — o
+  `action_type` NUNCA muda depois de criado (evita reconfigurar um item
+  de teleporte pra virar growth por engano; quem quiser um tipo
+  diferente cria um item novo), só os campos do tipo já existente. Nova
+  rota `POST /lojajogo/:guildID/:itemID/editar` (`dashboard.js`), mesmo
+  tratamento de upload de imagem opcional (250×250) da rota `/criar` —
+  em branco mantém a imagem atual. `lojajogo.ejs` ganhou um botão
+  "Editar" por card e UM dialog compartilhado (populado via JS a partir
+  de um `<script type="application/json" class="lj-item-data">` por
+  card, mesmo padrão de embutir JSON já usado em
+  `partials/role-picker.ejs`) — como itens comprados e não usados
+  resolvem o item por id em tempo real (`getShopItemById` nunca tira
+  snapshot), uma edição também corrige o que já está no inventário de
+  quem ainda não usou (ex: corrigir uma coordenada errada), mesmo
+  espírito de `softDeleteShopItem`.
+- VERIFICAÇÃO DE MAPA NO TELEPORTE: resposta da revisão pedida — a
+  checagem NÃO EXISTIA. O campo `map` era coletado na criação do item e
+  guardado em `action_config`, mas `useGameShopItem`/
+  `_buildRconCommandForCustomItem` nunca liam esse valor — só `coords`
+  ia pro comando RCON `teleport`. Nada no bot sabia em qual mapa o
+  jogador estava (sem coluna, sem query RCON, sem campo de webhook
+  persistido em lugar nenhum) pra sequer comparar contra algo.
+  Corrigido: nova coluna `pot_players.current_map` (`schema.js` +
+  `ensureColumn` em `database/index.js`, mesmo padrão de
+  `dinosaur_type`/`dinosaur_growth`), preenchida oportunisticamente por
+  `upsertPlayerFromEvent` (`potPlayerRegistry.js`) sempre que um payload
+  de webhook trouxer `MapName`/`Map` — mesmos campos já confirmados ao
+  vivo em `extractLocationParts` (`webhookPayloads.js`, seção 179);
+  eventos que não trazem esse campo nunca sobrescrevem com null, só
+  mantêm o último mapa conhecido (mesma regra já usada pra
+  dinosaur_type). `useGameShopItem` agora bloqueia o uso — com o item
+  preservado no inventário, igual qualquer outra falha de uso — quando
+  `onlinePlayer.current_map` é CONHECIDO e diverge do `map` configurado
+  no item. Quando ainda é DESCONHECIDO (nenhum evento com esse campo
+  chegou nesta sessão do jogador ainda), a checagem deixa passar em vez
+  de bloquear — decisão deliberada pra não travar o item inteiro por uma
+  lacuna de dado (mesma postura de "confia no jogo pra validar de
+  verdade, avisa com transparência" já usada pro saldo de Marks, ver
+  seção 123) — o dono pode pedir pra apertar isso (bloquear também no
+  caso desconhecido) se preferir mais rigidez.
+- Verificado: `node --check` em todos os arquivos tocados
+  (`gameShopSystem.js`, `potPlayerRegistry.js`, `database/index.js`,
+  `dashboard.js`), `ejs.compile()`/`ejs.render()` em `lojajogo.ejs` com
+  itens fake dos 3 tipos (growth/skipshed/teleport, incluindo um nome/
+  descrição com `<script>` de propósito pra confirmar que o JSON
+  embutido escapa certo). SEM teste contra o `database.sqlite` real nem
+  confirmação visual/browser — o dono precisa: (1) conferir que o botão
+  Editar abre com os dados certos e salva; (2) confirmar ao vivo que
+  `current_map` está sendo preenchido de fato (algum evento de webhook
+  do servidor realmente traz `MapName`/`Map` — nunca testado contra
+  servidor real antes desta revisão) antes de confiar que o bloqueio de
+  mapa errado vai disparar quando deveria.

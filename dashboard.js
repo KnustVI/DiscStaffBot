@@ -2646,6 +2646,7 @@ function loadDashboard(client) {
             shopItems,
             knownSpecies,
             actionTypes: GameShopSystem.CUSTOM_ACTION_TYPES,
+            growthStageValues: GameShopSystem.GROWTH_STAGE_VALUES,
             rconEnabled,
             saved: req.query.saved,
         });
@@ -2715,6 +2716,56 @@ function loadDashboard(client) {
                 stockLimit: body.stock_limit,
                 species: body.species,
             }, req.user.id);
+
+            res.redirect(`/lojajogo/${guildID}?saved=${result.ok ? 'success' : 'error'}`);
+        }
+    );
+
+    // Edita um item já criado (pedido do dono, 2026-08-18). Mesmo
+    // tratamento de imagem da rota /criar acima — a diferença é que aqui
+    // `imageMessageId` fica `undefined` (não `null`) quando nenhum arquivo
+    // novo foi enviado, pra GameShopSystem.updateShopItem saber manter a
+    // imagem atual em vez de apagar. Ver gameShopSystem.js#updateShopItem
+    // pro resto da validação — action_type nunca muda aqui, só os campos
+    // do tipo já existente do item.
+    app.post(
+        '/lojajogo/:guildID/:itemID/editar',
+        checkAuth,
+        safeUpload(upload.single('imagem'), (req) => `/lojajogo/${req.params.guildID}?saved=error`),
+        async (req, res) => {
+            if (isDashboardLocked(req)) return res.redirect('/dashboard');
+            const { guildID, itemID } = req.params;
+            const guild = await requireLojaJogoAdmin(req, res, guildID);
+            if (!guild) return;
+
+            const body = req.body;
+            let imageMessageId;
+            if (req.file) {
+                try {
+                    const sharp = require('sharp');
+                    const metadata = await sharp(req.file.buffer).metadata();
+                    if (!metadata.width || !metadata.height || metadata.width > 250 || metadata.height > 250) {
+                        return res.redirect(`/lojajogo/${guildID}?saved=error`);
+                    }
+                } catch (error) {
+                    return res.redirect(`/lojajogo/${guildID}?saved=error`);
+                }
+                const stored = await storeImageBuffer(client, req.file.buffer, `Loja de Jogo (${guild.name}) — "${(body.name || '').trim()}" editado por \`${req.user.username}\``);
+                if (!stored.ok) return res.redirect(`/lojajogo/${guildID}?saved=error`);
+                imageMessageId = stored.messageId;
+            }
+
+            const result = GameShopSystem.updateShopItem(guildID, Number(itemID), {
+                name: body.name,
+                description: body.description,
+                imageMessageId,
+                growthStage: body.growth_stage,
+                map: body.map,
+                coords: body.coords,
+                price: body.price,
+                stockLimit: body.stock_limit,
+                species: body.species,
+            });
 
             res.redirect(`/lojajogo/${guildID}?saved=${result.ok ? 'success' : 'error'}`);
         }

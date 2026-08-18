@@ -374,6 +374,113 @@
             </form>
         </dialog>
 
+        <%#
+            Dialog de edição (pedido do dono, 2026-08-18: "adicione o botão
+            editar item também para os itens criados") — UM único dialog
+            compartilhado por todos os cards (em vez de um dialog por item,
+            que multiplicaria o HTML por N itens à toa), populado via JS
+            (ljOpenEditDialog, fim da página) a partir do <script
+            type="application/json" class="lj-item-data"> de cada card. Mesmo
+            campo por campo do dialog de criação acima, EXCETO o seletor de
+            "Ação em jogo": aqui vira um rótulo fixo (não dá pra trocar o tipo
+            de um item já criado, ver updateShopItem em gameShopSystem.js) e
+            só a sub-seção (Growth ou Teleporte) do tipo já existente do item
+            é mostrada.
+        %>
+        <dialog id="ljEditDialog" class="lj-item-dialog">
+            <form id="ljEditForm" method="POST" enctype="multipart/form-data" class="lj-field-group" onsubmit="setTimeout(() => document.getElementById('ljEditDialog').close(), 0)">
+                <div class="lj-dialog-head">
+                    <h3><span data-i18n-pt>Editar item</span><span data-i18n-en>Edit item</span></h3>
+                    <button type="button" class="lj-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">&times;</button>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Nome</span><span data-i18n-en>Name</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="tag"></i></div>
+                        <input type="text" class="input-premium-field" name="name" id="ljEditName" maxlength="100" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Descrição</span><span data-i18n-en>Description</span></label>
+                    <textarea class="input-premium-field" name="description" id="ljEditDescription" maxlength="500" required></textarea>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Imagem (opcional, máx. 250×250)</span><span data-i18n-en>Image (optional, max. 250×250)</span></label>
+                    <input type="file" name="imagem" accept="image/png,image/jpeg,image/webp">
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Deixe em branco pra manter a imagem atual.</span><span data-i18n-en>Leave blank to keep the current image.</span></p>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Ação em jogo</span><span data-i18n-en>In-game action</span></label>
+                    <p class="text-[13px] opacity-80" id="ljEditActionTypeLabel"></p>
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>O tipo de ação não pode ser alterado depois de criado — crie um item novo se precisar de outro tipo.</span><span data-i18n-en>The action type can't be changed after creation — create a new item if you need a different type.</span></p>
+                </div>
+
+                <div id="ljEditGrowthField">
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Etapa de crescimento</span><span data-i18n-en>Growth stage</span></label>
+                    <select class="lj-select-premium" name="growth_stage" id="ljEditGrowthStage">
+                        <option value="juvenil" data-i18n-opt-pt="Juvenil (25%)" data-i18n-opt-en="Juvenile (25%)">Juvenil (25%)</option>
+                        <option value="adolescente" data-i18n-opt-pt="Adolescente (50%)" data-i18n-opt-en="Adolescent (50%)">Adolescente (50%)</option>
+                        <option value="subadulto" data-i18n-opt-pt="Subadulto (75%)" data-i18n-opt-en="Subadult (75%)">Subadulto (75%)</option>
+                        <option value="adulto" data-i18n-opt-pt="Adulto (100%)" data-i18n-opt-en="Adult (100%)">Adulto (100%)</option>
+                    </select>
+                </div>
+
+                <div id="ljEditTeleportFields">
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Mapa</span><span data-i18n-en>Map</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="map"></i></div>
+                        <input type="text" class="input-premium-field" name="map" id="ljEditMap" maxlength="100">
+                    </div>
+                    <label class="text-[13px] opacity-60 mt-2 block"><span data-i18n-pt>Coordenadas</span><span data-i18n-en>Coordinates</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="map-pin"></i></div>
+                        <input type="text" class="input-premium-field" name="coords" id="ljEditCoords" maxlength="200">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Preço (Ossos)</span><span data-i18n-en>Price (Bones)</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="bone"></i></div>
+                        <input type="number" class="input-premium-field" name="price" id="ljEditPrice" min="1" step="1" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível (opcional, em branco = ilimitado)</span><span data-i18n-en>Available quantity (optional, blank = unlimited)</span></label>
+                    <div class="input-container-premium">
+                        <div class="icon-box"><i data-lucide="package"></i></div>
+                        <input type="number" class="input-premium-field" name="stock_limit" id="ljEditStockLimit" min="1" step="1">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[13px] opacity-60 mb-2 block"><span data-i18n-pt>Dinossauros que podem usar (nenhum marcado = todos liberados)</span><span data-i18n-en>Dinosaurs that can use it (none checked = all allowed)</span></label>
+                    <% if (knownSpecies.length === 0) { %>
+                        <p class="text-[13px] opacity-40"><span data-i18n-pt>Nenhuma espécie registrada ainda neste servidor.</span><span data-i18n-en>No species registered on this server yet.</span></p>
+                    <% } else { %>
+                        <div class="lj-species-grid">
+                            <% knownSpecies.forEach(species => { %>
+                                <label class="lj-species-chip">
+                                    <input type="checkbox" class="lj-edit-species-checkbox" name="species" value="<%= species %>">
+                                    <%= species %>
+                                </label>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                </div>
+
+                <div class="lj-dialog-actions">
+                    <button type="button" class="pool-toggle-btn" onclick="this.closest('dialog').close()"><span data-i18n-pt>Cancelar</span><span data-i18n-en>Cancel</span></button>
+                    <button type="submit" class="lj-create-btn"><span data-i18n-pt>Salvar alterações</span><span data-i18n-en>Save changes</span></button>
+                </div>
+            </form>
+        </dialog>
+
         <% if (shopItems.length === 0) { %>
             <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum item criado ainda.</span><span data-i18n-en>No items created yet.</span></p>
         <% } else { %>
@@ -398,6 +505,7 @@
                             <% if (item.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
                         </div>
                         <div class="pool-item-actions">
+                            <button type="button" class="pool-toggle-btn" onclick="ljOpenEditDialog(<%= item.id %>)"><span data-i18n-pt>Editar</span><span data-i18n-en>Edit</span></button>
                             <form action="/lojajogo/<%= guild.id %>/<%= item.id %>/toggle" method="POST">
                                 <button type="submit" class="pool-toggle-btn"><%= item.is_public ? 'Tornar privado' : 'Tornar público' %></button>
                             </form>
@@ -408,6 +516,26 @@
                                 <button type="submit" class="pool-delete-btn"><span data-i18n-pt>Excluir</span><span data-i18n-en>Delete</span></button>
                             </form>
                         </div>
+                        <%#
+                            Dados do item pro dialog de edição (ver ljOpenEditDialog
+                            no fim da página) — mesmo padrão de embutir JSON num
+                            <script type="application/json"> já usado em
+                            partials/role-picker.ejs, em vez de tentar encaixar
+                            JSON.stringify dentro de um atributo onclick (aspas de
+                            nome/descrição do item quebrariam o HTML). Escapa "<"
+                            (mesmo replace de role-picker.ejs) pra um eventual
+                            "</script" dentro de nome/descrição não fechar a tag
+                            mais cedo.
+                        %>
+                        <script type="application/json" class="lj-item-data" data-item-id="<%= item.id %>"><%- JSON.stringify({
+                            name: item.name,
+                            description: item.description,
+                            actionType: item.action_type,
+                            actionConfig: item.actionConfig,
+                            price: item.price,
+                            stockLimit: item.stock_limit,
+                            species: item.species,
+                        }).replace(/</g, '\\u003c') %></script>
                     </div>
                 <% }); %>
             </div>
@@ -442,6 +570,67 @@
                 if (!insideContent) dialog.close();
             });
         })();
+
+        <%#
+            Dialog de edição (ver comentário no HTML acima) — mesmo padrão de
+            clique-fora-fecha do dialog de criação, SEM reset automático no
+            close (diferente do de criação): o form é sempre repopulado do
+            zero por ljOpenEditDialog a cada abertura, então resetar no close
+            seria trabalho redundante, e resetar ANTES do close (ex: clique
+            fora enquanto o admin ainda está editando) apagaria o que ele
+            digitou sem necessidade nenhuma.
+        %>
+        (function () {
+            const dialog = document.getElementById('ljEditDialog');
+            dialog.addEventListener('click', (e) => {
+                const rect = dialog.getBoundingClientRect();
+                const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
+                if (!insideContent) dialog.close();
+            });
+        })();
+
+        const LJ_GUILD_ID = '<%= guild.id %>';
+        const LJ_GROWTH_STAGE_VALUES = <%- JSON.stringify(growthStageValues) %>;
+        const LJ_ACTION_LABELS = {
+            growth: 'Growth (crescer o dinossauro)',
+            skipshed: 'Skipshed',
+            teleport: 'Teleporte (mapa + coordenadas)',
+        };
+
+        // Popula o dialog de edição com os dados do item clicado (lidos do
+        // <script type="application/json" class="lj-item-data"> do próprio
+        // card, ver comentário lá) e abre. itemId vem do onclick de cada
+        // botão "Editar".
+        function ljOpenEditDialog(itemId) {
+            const dataEl = document.querySelector('.lj-item-data[data-item-id="' + itemId + '"]');
+            if (!dataEl) return;
+            const item = JSON.parse(dataEl.textContent);
+
+            const form = document.getElementById('ljEditForm');
+            form.action = '/lojajogo/' + LJ_GUILD_ID + '/' + itemId + '/editar';
+            document.getElementById('ljEditName').value = item.name || '';
+            document.getElementById('ljEditDescription').value = item.description || '';
+            document.getElementById('ljEditPrice').value = item.price;
+            document.getElementById('ljEditStockLimit').value = item.stockLimit === null || item.stockLimit === undefined ? '' : item.stockLimit;
+
+            document.getElementById('ljEditActionTypeLabel').textContent = LJ_ACTION_LABELS[item.actionType] || item.actionType;
+            document.getElementById('ljEditGrowthField').style.display = item.actionType === 'growth' ? '' : 'none';
+            document.getElementById('ljEditTeleportFields').style.display = item.actionType === 'teleport' ? '' : 'none';
+
+            if (item.actionType === 'growth' && item.actionConfig) {
+                const stageKey = Object.keys(LJ_GROWTH_STAGE_VALUES).find((k) => LJ_GROWTH_STAGE_VALUES[k] === item.actionConfig.growthValue);
+                if (stageKey) document.getElementById('ljEditGrowthStage').value = stageKey;
+            } else if (item.actionType === 'teleport' && item.actionConfig) {
+                document.getElementById('ljEditMap').value = item.actionConfig.map || '';
+                document.getElementById('ljEditCoords').value = item.actionConfig.coords || '';
+            }
+
+            document.querySelectorAll('.lj-edit-species-checkbox').forEach((cb) => {
+                cb.checked = Array.isArray(item.species) && item.species.includes(cb.value);
+            });
+
+            document.getElementById('ljEditDialog').showModal();
+        }
 
         if (window.lucide) window.lucide.createIcons();
     </script>

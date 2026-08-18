@@ -248,6 +248,7 @@ const SCHEMA = {
             session_started_at INTEGER,
             group_leader_alderon_id TEXT,
             group_leader_name TEXT,
+            current_map TEXT,
             UNIQUE(guild_id, alderon_id)
         )
     `,

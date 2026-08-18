@@ -145,6 +145,16 @@ function normalizeEvent(rawPayload, eventType) {
         ? Number(rawPayload.DinosaurGrowth)
         : null;
 
+    // Mapa atual do jogador (pedido do dono, 2026-08-18: verificação de
+    // segurança do item de teleporte da Loja de Jogo) — mesmos campos já
+    // confirmados ao vivo em extractLocationParts (webhookPayloads.js),
+    // duplicado aqui de propósito (mesmo padrão de auto-contenção já usado
+    // por aquele arquivo, evita um require circular com potPlayerRegistry).
+    // Nem todo evento traz esse campo — upsertPlayerFromEvent trata do
+    // mesmo jeito de dinosaurType/dinosaurGrowth acima, nunca sobrescreve
+    // com null.
+    const mapName = rawPayload.MapName || rawPayload.Map || null;
+
     return {
         alderonId: String(alderonId).trim(),
         playerName: String(playerName).trim(),
@@ -153,6 +163,7 @@ function normalizeEvent(rawPayload, eventType) {
         discordId: extractDiscordId(rawPayload),
         dinosaurType,
         dinosaurGrowth: Number.isNaN(dinosaurGrowth) ? null : dinosaurGrowth,
+        mapName,
     };
 }
 
@@ -228,7 +239,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         return null;
     }
 
-    const { alderonId, playerName, isOnline, sessionSeconds, discordId, dinosaurType, dinosaurGrowth } = normalized;
+    const { alderonId, playerName, isOnline, sessionSeconds, discordId, dinosaurType, dinosaurGrowth, mapName } = normalized;
     const now = Date.now();
 
     // ── "Tem dinossauro ativo nesta sessão?" — distingue "jogando" de "na
@@ -259,8 +270,8 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                     guild_id, alderon_id, player_name, discord_id,
                     dinosaur_type, dinosaur_growth, dinosaur_active,
                     last_seen, total_playtime, is_online, session_started_at,
-                    linked_at, first_login_at, updated_at, admin_notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    linked_at, first_login_at, updated_at, admin_notes, current_map
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                 guildId,
                 alderonId,
@@ -277,6 +288,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 now,                       // first_login_at — primeira vez que vemos este jogador
                 Math.floor(now / 1000),    // updated_at é em segundos (strftime('%s'))
                 null,
+                mapName,
             );
 
             console.log(`🦖 [PoT Registry] Novo jogador cadastrado: ${playerName} (${alderonId})`);
@@ -326,6 +338,10 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
         const newDinosaurType = dinosaurType !== null ? dinosaurType : existing.dinosaur_type;
         const newDinosaurGrowth = dinosaurGrowth !== null ? dinosaurGrowth : existing.dinosaur_growth;
         const newDinosaurActive = dinosaurActiveOverride ?? existing.dinosaur_active;
+        // Mesmo padrão de dinosaur_type acima — nem todo evento traz
+        // MapName/Map, então só sobrescreve quando o payload realmente
+        // trouxe esse dado (ver normalizeEvent).
+        const newCurrentMap = mapName !== null ? mapName : existing.current_map;
 
         db.prepare(`
             UPDATE pot_players SET
@@ -339,7 +355,8 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
                 is_online = ?,
                 session_started_at = ?,
                 linked_at = ?,
-                updated_at = ?
+                updated_at = ?,
+                current_map = ?
             WHERE guild_id = ? AND alderon_id = ?
         `).run(
             playerName,
@@ -353,6 +370,7 @@ function upsertPlayerFromEvent(guildId, rawPayload, eventType) {
             newSessionStartedAt,
             newLinkedAt,
             Math.floor(now / 1000),
+            newCurrentMap,
             guildId,
             alderonId,
         );
