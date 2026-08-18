@@ -112,13 +112,18 @@
         redesenhado de novo, esta cópia precisa ser atualizada manualmente
         a partir da variante branca correspondente — não existe conversão
         automática entre os dois arquivos.
-        hidden md:block (mesmo breakpoint do .dashboard-link à esquerda)
-        — numa barra estreita de celular, só hamburguer+bandeira de idioma
-        cabem sem disputar espaço; o logo desta marca d'água não é
-        essencial nesse tamanho de tela, mesmo raciocínio já aplicado ao
-        avatar+nome à esquerda.
+        Sempre visível, inclusive no mobile (pedido do dono, 2026-08-18:
+        "Ela deve aparecer na versão mobile também") — revertido do
+        `hidden md:block` original (mesmo breakpoint do .dashboard-link à
+        esquerda, que continua escondido no mobile, feature diferente).
+        Sem risco de disputar espaço com hamburguer/bandeira de idioma:
+        os dois ficam em fluxo normal (flex) e são CENTRALIZADOS juntos
+        no meio da barra assim que os .nav-btn somem abaixo de 767px
+        (.tp-top-nav tem justify-content:center) — a logo, por ser
+        position:absolute presa no canto direito, nunca compete pelo
+        mesmo espaço horizontal que esse grupo centralizado ocupa.
     %>
-    <img src="/images/logo-white.svg" alt="Titan's Pass" class="absolute right-4 top-1/2 -translate-y-1/2 hidden md:block" style="height: 32px; width: auto;">
+    <img src="/images/logo-white.svg" alt="Titan's Pass" class="absolute right-4 top-1/2 -translate-y-1/2 block" style="height: 32px; width: auto;">
     <% if (tnUser) { %>
         <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
