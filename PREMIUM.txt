@@ -10749,3 +10749,41 @@ frente, nao so este relatorio):
   visual/browser real — o dono deve conferir que os botões "Comprar"
   aparecem habilitados e uma compra de teste debita a moeda certa antes
   de anunciar a abertura pros usuários.
+
+209) Conversor Ossos<->Marks: prévia em tempo real e remoção da exigência de múltiplo de 100
+-----------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-18): "Conversor de marks pode ter um sistema de
+  barra que mostra o valor em tempo real antes de confirmar? Gostaria de
+  remover também o múltiplo do conversor que só permite converter de 100
+  em 100."
+- Prévia em tempo real (`loja.ejs`, os 2 formulários do CONVERSOR DE
+  OSSOS): o campo Quantidade ganhou `oninput="updateConverterPreview(this)"`
+  — uma barrinha de progresso + texto abaixo do input atualizam a cada
+  tecla digitada, sem precisar submeter o form pra saber quanto vai
+  receber. Em Ossos→Marks a barra é % do saldo do servidor selecionado
+  (mesmo `max` que `updateBonesConverterBalance` já calculava); em
+  Marks→Ossos é % do teto diário (`dailyMarksLimit`), única referência de
+  escala disponível já que Marks não tem saldo rastreado pelo bot.
+- Múltiplo de 100 removido (`currencySystem.js`, `convertMarksToBones`):
+  antes o backend REJEITAVA qualquer quantidade de Marks que não fosse
+  múltiplo exato de `MARKS_PER_BONE` (100). Agora aceita qualquer inteiro
+  >= 100, arredonda PARA BAIXO até o múltiplo de 100 mais próximo (Ossos
+  são inteiros — não dá pra creditar fração), e só remove via RCON/conta
+  pro teto diário essa parte arredondada — a sobra que não fechou 1 Osso
+  fica intocada com o jogador, disponível numa próxima conversão. A taxa
+  em si não mudou (1 Osso = 100 Marks, ver seção 122) — só a exigência de
+  digitar um múltiplo exato foi removida. Resultado agora carrega também
+  `marksUsed` (quanto foi de fato usado), exibido no banner de sucesso
+  quando difere do valor digitado ("X Ossos creditados (usando Y Marks)")
+  — mesma transparência já usada no resto do conversor (ver seção 123
+  sobre a resposta crua do RCON).
+- `dashboard.js`: rota `POST /loja/converter/marks-ossos` repassa
+  `marksUsed` na query string do redirect (`&marksUsados=`); `GET /loja`
+  passa isso pro template como `convertMarksUsados`.
+- Verificado: `node --check` em `dashboard.js`/`currencySystem.js`,
+  `ejs.compile()`/`ejs.render()` em `loja.ejs` com dados fake, e
+  `node --check` isolado no bloco de script novo extraído do HTML
+  renderizado. SEM confirmação visual/browser real — o dono deve conferir
+  ao vivo que a barra/texto atualizam corretamente digitando no campo e
+  que uma conversão de Marks não-múltiplo de 100 credita o número certo
+  de Ossos.

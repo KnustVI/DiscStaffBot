@@ -145,22 +145,35 @@ async function convertBonesToMarks(client, discordId, guildId, bonesAmount) {
  * @param {import('discord.js').Client} client
  * @param {string} discordId
  * @param {string} guildId
- * @param {number} marksAmount - múltiplo de 100
- * @returns {Promise<{ok: true, bonesCredited: number, rconResponse: string} | {ok: false, error: string}>}
+ * @param {number} marksAmount - qualquer inteiro >= MARKS_PER_BONE (não
+ *   precisa mais ser múltiplo exato — pedido do dono, 2026-08-18: "remover
+ *   o múltiplo do conversor que só permite converter de 100 em 100". O
+ *   valor é arredondado PARA BAIXO até o múltiplo de MARKS_PER_BONE mais
+ *   próximo antes de qualquer coisa (Ossos são inteiros, não dá pra
+ *   creditar uma fração) — só essa parte arredondada é removida via RCON
+ *   e conta pro teto diário; a sobra que não fechou 1 Osso simplesmente
+ *   não é tocada, fica com o jogador pra próxima conversão.
+ * @returns {Promise<{ok: true, bonesCredited: number, marksUsed: number, rconResponse: string} | {ok: false, error: string}>}
  */
 async function convertMarksToBones(client, discordId, guildId, marksAmount) {
-    if (!Number.isInteger(marksAmount) || marksAmount <= 0 || marksAmount % MARKS_PER_BONE !== 0) {
-        return { ok: false, error: `A quantidade de Marks precisa ser um múltiplo de ${MARKS_PER_BONE}.` };
+    if (!Number.isInteger(marksAmount) || marksAmount < MARKS_PER_BONE) {
+        return { ok: false, error: `A quantidade mínima é ${MARKS_PER_BONE} Marks (1 Osso).` };
     }
+    const bonesAmount = Math.floor(marksAmount / MARKS_PER_BONE);
+    const marksUsed = bonesAmount * MARKS_PER_BONE;
+
     const target = _resolveTarget(discordId, guildId);
     if (target.error) return { ok: false, error: target.error };
 
     // Teto diário — checado ANTES do RCON (pedido do dono: nada de
     // remover Marks no jogo pra depois recusar creditar Ossos). POR
     // SERVIDOR desde 2026-08-15 (Ossos deixou de ser saldo global) — cada
-    // servidor tem seu próprio teto de DAILY_MARKS_TO_BONES_LIMIT.
+    // servidor tem seu próprio teto de DAILY_MARKS_TO_BONES_LIMIT. Conta
+    // contra marksUsed (o que de fato é removido), não o valor bruto
+    // digitado — a sobra não convertida nunca sai do jogador, não faz
+    // sentido contar pro teto.
     const convertedToday = PlayerRegistry.getMarksConvertedToday(discordId, guildId);
-    if (convertedToday + marksAmount > DAILY_MARKS_TO_BONES_LIMIT) {
+    if (convertedToday + marksUsed > DAILY_MARKS_TO_BONES_LIMIT) {
         const remaining = Math.max(0, DAILY_MARKS_TO_BONES_LIMIT - convertedToday);
         return {
             ok: false,
@@ -170,15 +183,14 @@ async function convertMarksToBones(client, discordId, guildId, marksAmount) {
         };
     }
 
-    const rconResult = await _executeRcon(client, guildId, `removemarks ${target.alderonId} ${marksAmount}`, { actor: `<@${discordId}>`, source: 'Loja de Jogo (Marks→Ossos)' });
+    const rconResult = await _executeRcon(client, guildId, `removemarks ${target.alderonId} ${marksUsed}`, { actor: `<@${discordId}>`, source: 'Loja de Jogo (Marks→Ossos)' });
     if (!rconResult.success) {
         return { ok: false, error: `Não foi possível remover os Marks no jogo (${rconResult.error || 'erro desconhecido'}).` };
     }
 
-    const bonesAmount = marksAmount / MARKS_PER_BONE;
     PlayerRegistry.addBones(discordId, guildId, bonesAmount);
-    PlayerRegistry.addMarksConvertedToday(discordId, guildId, marksAmount);
-    return { ok: true, bonesCredited: bonesAmount, rconResponse: rconResult.response || '' };
+    PlayerRegistry.addMarksConvertedToday(discordId, guildId, marksUsed);
+    return { ok: true, bonesCredited: bonesAmount, marksUsed, rconResponse: rconResult.response || '' };
 }
 
 module.exports = { MARKS_PER_BONE, DAILY_MARKS_TO_BONES_LIMIT, convertBonesToMarks, convertMarksToBones };

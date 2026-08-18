@@ -341,6 +341,41 @@
             border: 1px solid rgba(217, 163, 98, 0.2);
             border-radius: 10px;
         }
+
+        /* Prévia em tempo real do conversor (pedido do dono, 2026-08-18:
+           "sistema de barra que mostra o valor em tempo real antes de
+           confirmar") — texto e barra atualizam a cada tecla digitada
+           (oninput no campo Quantidade, ver updateConverterPreview no fim
+           da página), sem precisar submeter o form pra saber quanto vai
+           receber. Mesma receita visual de .loja-level-progress-track/
+           -fill (barra de XP acima) — só que a largura aqui é escrita via
+           JS a cada input, não vem pronta do servidor. Em Ossos→Marks a
+           barra é % do saldo do servidor selecionado (mesmo limite já
+           usado no atributo max do input, ver updateBonesConverterBalance);
+           em Marks→Ossos é % do teto diário (dailyMarksLimit) — Marks não
+           tem "saldo" que o bot rastreie (ver currencySystem.js), então o
+           teto diário é a única referência de escala disponível. */
+        .loja-converter-preview { margin-top: 10px; }
+        .loja-converter-bar-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 4px;
+            background: rgba(248, 220, 192, 0.12);
+            overflow: hidden;
+        }
+        .loja-converter-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #F8DCC0;
+            transition: width 0.15s ease;
+        }
+        .loja-converter-preview-text {
+            font-family: 'Poppins', sans-serif;
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 6px;
+        }
+        .loja-converter-preview-text strong { color: #F8DCC0; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -903,7 +938,7 @@
                             <% if (convertResult === 'ossos-marks') { %>
                                 <span data-i18n-pt><%= convertAmount %> Marks creditados no jogo.</span><span data-i18n-en><%= convertAmount %> Marks credited in-game.</span>
                             <% } else { %>
-                                <span data-i18n-pt><%= convertAmount %> Ossos creditados no seu saldo.</span><span data-i18n-en><%= convertAmount %> Bones credited to your balance.</span>
+                                <span data-i18n-pt><%= convertAmount %> Ossos creditados no seu saldo<% if (convertMarksUsados) { %> (usando <%= convertMarksUsados %> Marks)<% } %>.</span><span data-i18n-en><%= convertAmount %> Bones credited to your balance<% if (convertMarksUsados) { %> (using <%= convertMarksUsados %> Marks)<% } %>.</span>
                             <% } %>
                             <% if (convertRconResponse) { %>
                                 <br><span data-i18n-pt>Resposta do jogo: </span><span data-i18n-en>Game response: </span>"<%= convertRconResponse %>"
@@ -932,7 +967,7 @@
                         (e uma vez no carregamento, pro servidor já
                         selecionado por padrão).
                     %>
-                    <form action="/loja/converter/ossos-marks" method="POST" class="loja-converter-form" data-bones-converter-form>
+                    <form action="/loja/converter/ossos-marks" method="POST" class="loja-converter-form" data-bones-converter-form data-converter-mode="ossos-marks">
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Ossos → Marks</span><span data-i18n-en>Bones → Marks</span></h3>
                         <label class="text-[13px] opacity-60"><span data-i18n-pt>Servidor</span><span data-i18n-en>Server</span></label>
                         <div class="input-container-premium">
@@ -945,11 +980,15 @@
                         <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Ossos</span><span data-i18n-en>Amount of Bones</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="bone"></i></div>
-                            <input type="number" name="quantidade" class="input-premium-field" min="1" step="1" required>
+                            <input type="number" name="quantidade" class="input-premium-field" min="1" step="1" required oninput="updateConverterPreview(this)">
+                        </div>
+                        <div class="loja-converter-preview">
+                            <div class="loja-converter-bar-track"><div class="loja-converter-bar-fill" data-role="converter-bar-fill" style="width:0%"></div></div>
+                            <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Você vai receber: </span><span data-i18n-en>You'll receive: </span><strong>0 Marks</strong></p>
                         </div>
                         <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
                     </form>
-                    <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form">
+                    <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form" data-converter-mode="marks-ossos" data-bar-max="<%= dailyMarksLimit %>">
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Marks → Ossos</span><span data-i18n-en>Marks → Bones</span></h3>
                         <label class="text-[13px] opacity-60"><span data-i18n-pt>Servidor</span><span data-i18n-en>Server</span></label>
                         <div class="input-container-premium">
@@ -958,13 +997,18 @@
                                 <% playedGuilds.forEach(g => { %><option value="<%= g.guildId %>"><%= g.name %></option><% }); %>
                             </select>
                         </div>
-                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Marks (múltiplo de <%= marksPerBone %>)</span><span data-i18n-en>Amount of Marks (multiple of <%= marksPerBone %>)</span></label>
+                        <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Marks (mínimo <%= marksPerBone %>)</span><span data-i18n-en>Amount of Marks (minimum <%= marksPerBone %>)</span></label>
                         <div class="input-container-premium">
                             <div class="icon-box"><i data-lucide="coins"></i></div>
-                            <input type="number" name="quantidade" class="input-premium-field" min="<%= marksPerBone %>" step="<%= marksPerBone %>" required>
+                            <input type="number" name="quantidade" class="input-premium-field" min="<%= marksPerBone %>" step="1" required oninput="updateConverterPreview(this)">
+                        </div>
+                        <div class="loja-converter-preview">
+                            <div class="loja-converter-bar-track"><div class="loja-converter-bar-fill" data-role="converter-bar-fill" style="width:0%"></div></div>
+                            <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Mínimo: 100 Marks (1 Osso).</span><span data-i18n-en>Minimum: 100 Marks (1 Bone).</span></p>
                         </div>
                         <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Ossos</span><span data-i18n-en>Convert to Bones</span></button>
                         <p class="text-[11px] opacity-40 mt-2"><span data-i18n-pt>⚠️ O próprio jogo confere seu saldo de Marks: se você não tiver o suficiente, a conversão não credita nenhum Osso. Confira a resposta do jogo depois de converter pra ter certeza.</span><span data-i18n-en>⚠️ The game itself checks your Marks balance: if you don't have enough, the conversion won't credit any Bones. Check the game's response after converting to be sure.</span></p>
+                        <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Não precisa ser múltiplo de <%= marksPerBone %> — o que não fechar 1 Osso fica sem ser tocado, pra usar numa próxima conversão.</span><span data-i18n-en>Doesn't need to be a multiple of <%= marksPerBone %> — whatever doesn't complete 1 Bone is left untouched, for a future conversion.</span></p>
                     </form>
                 </div>
             <% } %>
@@ -1063,8 +1107,53 @@
             if (display) display.textContent = balance;
             if (input) input.max = balance;
             if (button) button.disabled = balance < 1;
+            if (input) updateConverterPreview(input);
         }
         document.querySelectorAll('[data-bones-converter-form] select[name="guildId"]').forEach(updateBonesConverterBalance);
+
+        <%#
+            Prévia em tempo real (pedido do dono, 2026-08-18) — MARKS_PER_BONE
+            fixo (não muda em runtime, então basta injetar o valor uma vez
+            aqui em vez de reler o local do servidor em cada cálculo abaixo).
+            barMax vem de data-bar-max no form quando existe (Marks→Ossos,
+            usa dailyMarksLimit como escala fixa — Marks não tem saldo
+            rastreado pelo bot) ou senão do próprio atributo max do input
+            (Ossos→Marks, atualizado dinamicamente por
+            updateBonesConverterBalance acima conforme o servidor
+            selecionado).
+        %>
+        const MARKS_PER_BONE = <%= marksPerBone %>;
+        function updateConverterPreview(input) {
+            const form = input.closest('form');
+            const mode = form.dataset.converterMode;
+            const barFill = form.querySelector('[data-role="converter-bar-fill"]');
+            const text = form.querySelector('[data-role="converter-preview-text"]');
+            if (!barFill || !text) return;
+
+            const quantity = Math.max(0, parseInt(input.value, 10) || 0);
+            const barMax = Number(form.dataset.barMax || input.max || 0);
+            const pct = barMax > 0 ? Math.min(100, (quantity / barMax) * 100) : 0;
+            barFill.style.width = pct + '%';
+
+            const lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            if (mode === 'ossos-marks') {
+                const marks = quantity * MARKS_PER_BONE;
+                text.innerHTML = (lang === 'en' ? "You'll receive: " : 'Você vai receber: ') + '<strong>' + marks.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR') + ' Marks</strong>';
+            } else if (mode === 'marks-ossos') {
+                const bones = Math.floor(quantity / MARKS_PER_BONE);
+                const used = bones * MARKS_PER_BONE;
+                if (bones < 1) {
+                    text.innerHTML = lang === 'en' ? '<strong>Minimum: 100 Marks (1 Bone)</strong>' : '<strong>Mínimo: 100 Marks (1 Osso)</strong>';
+                } else if (used === quantity) {
+                    text.innerHTML = (lang === 'en' ? "You'll receive: " : 'Você vai receber: ') + '<strong>' + bones.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR') + (lang === 'en' ? ' Bones' : ' Ossos') + '</strong>';
+                } else if (lang === 'en') {
+                    text.innerHTML = "You'll receive: <strong>" + bones + ' Bones</strong> (uses ' + used + ' of the ' + quantity + ' Marks entered)';
+                } else {
+                    text.innerHTML = 'Você vai receber: <strong>' + bones + ' Ossos</strong> (usa ' + used + ' dos ' + quantity + ' Marks informados)';
+                }
+            }
+        }
+        document.querySelectorAll('.loja-converter-form input[name="quantidade"]').forEach(updateConverterPreview);
     </script>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>

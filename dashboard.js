@@ -1914,6 +1914,7 @@ function loadDashboard(client) {
             convertResult: req.query.convertido || null,
             convertError: req.query.erro || null,
             convertAmount: req.query.valor || null,
+            convertMarksUsados: req.query.marksUsados || null,
             convertRconResponse: req.query.resposta || null,
             purchaseResult: req.query.comprado || null,
             gameShopPurchaseResult: req.query.jogoComprado || null,
@@ -1949,7 +1950,7 @@ function loadDashboard(client) {
         const amount = parseInt(quantidade, 10);
         const result = await CurrencySystem.convertMarksToBones(client, req.user.id, guildId, amount);
         if (result.ok) {
-            return res.redirect(`/loja?convertido=marks-ossos&valor=${result.bonesCredited}&resposta=${encodeURIComponent(result.rconResponse || '')}`);
+            return res.redirect(`/loja?convertido=marks-ossos&valor=${result.bonesCredited}&marksUsados=${result.marksUsed}&resposta=${encodeURIComponent(result.rconResponse || '')}`);
         }
         return res.redirect(`/loja?erro=${encodeURIComponent(result.error)}`);
     });
