@@ -1010,8 +1010,9 @@
     // etc, nunca aqui dentro) tem `position: sticky`, que SEMPRE cria um
     // novo contexto de empilhamento (mesmo sem nenhum z-index definido —
     // confirmado na spec de CSS, não é um detalhe de implementação). O
-    // backdrop/drawer nascem DENTRO desse wrapper (mesmo <%- include %>),
-    // então o `z-index: 100` deles fica PRESO nesse contexto local — por
+    // backdrop/drawer nascem DENTRO desse wrapper (mesmo bloco incluído
+    // pela página via include), então o `z-index: 100` deles fica PRESO
+    // nesse contexto local — por
     // maior que seja o número, nunca consegue ficar por cima de <main>
     // (que vem DEPOIS do <aside> no DOM, sem position nenhum, empilhando
     // na ordem normal) — exatamente o "aviso de testes"/card de perfil

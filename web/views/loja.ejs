@@ -342,38 +342,74 @@
             border-radius: 10px;
         }
 
-        /* Prévia em tempo real do conversor (pedido do dono, 2026-08-18:
-           "sistema de barra que mostra o valor em tempo real antes de
-           confirmar") — texto e barra atualizam a cada tecla digitada
-           (oninput no campo Quantidade, ver updateConverterPreview no fim
-           da página), sem precisar submeter o form pra saber quanto vai
-           receber. Mesma receita visual de .loja-level-progress-track/
-           -fill (barra de XP acima) — só que a largura aqui é escrita via
-           JS a cada input, não vem pronta do servidor. Em Ossos→Marks a
-           barra é % do saldo do servidor selecionado (mesmo limite já
-           usado no atributo max do input, ver updateBonesConverterBalance);
-           em Marks→Ossos é % do teto diário (dailyMarksLimit) — Marks não
-           tem "saldo" que o bot rastreie (ver currencySystem.js), então o
-           teto diário é a única referência de escala disponível. */
-        .loja-converter-preview { margin-top: 10px; }
-        .loja-converter-bar-track {
-            width: 100%;
+        /* Slider do conversor (pedido do dono, 2026-08-18: "imaginei como se
+           fosse uma barra de volume que tem um botão que corre na barra
+           aumentando ou diminuindo o valor de conversão e alterando em
+           tempo real quantas marks vão virar ossos... quando ele decidir é
+           só confirmar") — substitui o campo numérico digitado (e a barra
+           de prévia separada embaixo dele) de uma revisão anterior por um
+           <input type="range"> de verdade: arrasta pra ajustar, o
+           preenchimento da trilha e o texto abaixo atualizam a cada input
+           (ver updateConverterPreview no fim da página), sem precisar
+           submeter o form pra saber quanto vai receber — só confirma
+           quando decidir, clicando no botão de baixo. O preenchimento
+           colorido da trilha (esquerda do polegar) é escrito via JS como
+           um linear-gradient inline (não dá pra estilizar isso só com CSS
+           num <input type="range"> nativo) — resto do visual (trilha
+           cinza, polegar redondo dourado) vem das pseudo-classes
+           ::-webkit-slider-thumb/::-moz-range-thumb abaixo, únicos
+           seletores deste arquivo que miram um <input type="range">. */
+        .loja-converter-slider-row { display: flex; align-items: center; gap: 12px; }
+        .loja-converter-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
             height: 6px;
             border-radius: 4px;
             background: rgba(248, 220, 192, 0.12);
-            overflow: hidden;
+            outline: none;
+            cursor: pointer;
         }
-        .loja-converter-bar-fill {
-            height: 100%;
-            border-radius: 4px;
+        .loja-converter-slider:disabled { opacity: 0.4; cursor: not-allowed; }
+        .loja-converter-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
             background: #F8DCC0;
-            transition: width 0.15s ease;
+            border: 2px solid #131314;
+            box-shadow: 0 0 0 1px rgba(217, 163, 98, 0.5);
+            cursor: pointer;
+        }
+        .loja-converter-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #F8DCC0;
+            border: 2px solid #131314;
+            box-shadow: 0 0 0 1px rgba(217, 163, 98, 0.5);
+            cursor: pointer;
+        }
+        .loja-converter-slider::-moz-range-track {
+            height: 6px;
+            border-radius: 4px;
+            background: transparent;
+        }
+        .loja-converter-slider-value {
+            font-family: 'Poppins', sans-serif;
+            font-size: 13px;
+            color: #F8DCC0;
+            min-width: 52px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            flex: none;
         }
         .loja-converter-preview-text {
             font-family: 'Poppins', sans-serif;
             font-size: 12px;
             opacity: 0.7;
-            margin-top: 6px;
+            margin-top: 8px;
         }
         .loja-converter-preview-text strong { color: #F8DCC0; }
     </style>
@@ -609,6 +645,19 @@
                                         <% } else if (img.coming_soon) { %>
                                             <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Compra liberada em breve.</span><span data-i18n-en>Purchase opens soon.</span></span>
                                         <% } else { %>
+                                            <%#
+                                                Aviso de saldo/compras pausadas ANTES do form/botão
+                                                (pedido do dono, 2026-08-18: "saldo insuficiente nos
+                                                itens de loja deve aparecer acime dos botões de
+                                                compra") — antes vinha DEPOIS do <form>, ficando
+                                                abaixo do botão "Comprar" no card (.loja-item é
+                                                flex-column, a ordem no HTML é a ordem visual).
+                                            %>
+                                            <% if (shopPurchasesLocked) { %>
+                                                <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                                            <% } else if (huntBalance < img.shop_price) { %>
+                                                <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                                            <% } %>
                                             <form method="POST" action="/loja/comprar" class="loja-item-buy-form">
                                                 <input type="hidden" name="poolType" value="<%= img.type %>">
                                                 <input type="hidden" name="poolId" value="<%= img.id %>">
@@ -616,11 +665,6 @@
                                                     <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                                 </button>
                                             </form>
-                                            <% if (shopPurchasesLocked) { %>
-                                                <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
-                                            <% } else if (huntBalance < img.shop_price) { %>
-                                                <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
-                                            <% } %>
                                         <% } %>
                                     <% } %>
                                 </div>
@@ -844,6 +888,17 @@
                                         <span class="loja-item-desc"><span data-i18n-pt>Restam:</span><span data-i18n-en>Left:</span> <%= item.remainingStock %></span>
                                     <% } %>
                                     <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <%= itemPrice %></span>
+                                    <%#
+                                        Aviso de saldo/compras pausadas ANTES do form/botão
+                                        (pedido do dono, 2026-08-18: "saldo insuficiente nos
+                                        itens de loja deve aparecer acime dos botões de
+                                        compra") — antes vinha DEPOIS dos 2 <form> abaixo.
+                                    %>
+                                    <% if (shopPurchasesLocked) { %>
+                                        <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                                    <% } else if (catalogBonesBalance < itemPrice) { %>
+                                        <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                                    <% } %>
                                     <% if (item.isCustom) { %>
                                         <form method="POST" action="/loja/comprar-jogo-item" class="loja-item-buy-form">
                                             <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
@@ -860,11 +915,6 @@
                                                 <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                             </button>
                                         </form>
-                                    <% } %>
-                                    <% if (shopPurchasesLocked) { %>
-                                        <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
-                                    <% } else if (catalogBonesBalance < itemPrice) { %>
-                                        <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                     <% } %>
                                 </div>
                             <% }); %>
@@ -978,17 +1028,28 @@
                         </div>
                         <p class="text-[12px] opacity-60 mt-1"><span data-i18n-pt>Saldo neste servidor:</span><span data-i18n-en>Balance on this server:</span> <strong data-role="bones-balance-display">0</strong></p>
                         <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Ossos</span><span data-i18n-en>Amount of Bones</span></label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="bone"></i></div>
-                            <input type="number" name="quantidade" class="input-premium-field" min="1" step="1" required oninput="updateConverterPreview(this)">
+                        <%#
+                            Slider (pedido do dono, 2026-08-18: "imaginei como se
+                            fosse uma barra de volume que tem um botão que corre na
+                            barra aumentando ou diminuindo o valor de conversão e
+                            alterando em tempo real quantas marks vão virar
+                            ossos... quando ele decidir é só confirmar") —
+                            substitui o campo numérico digitado da versão anterior.
+                            max começa em 1 (nunca 0 — range trava se max < min) e
+                            é atualizado de verdade por updateBonesConverterBalance
+                            ao trocar de servidor/carregar a página, junto com
+                            disabled quando o saldo é 0. O preenchimento visual da
+                            trilha (gradient) e o número ao lado são escritos por
+                            updateConverterPreview a cada input.
+                        %>
+                        <div class="loja-converter-slider-row">
+                            <input type="range" name="quantidade" class="loja-converter-slider" min="1" max="1" step="1" value="1" required oninput="updateConverterPreview(this)">
+                            <span class="loja-converter-slider-value" data-role="converter-slider-value">1</span>
                         </div>
-                        <div class="loja-converter-preview">
-                            <div class="loja-converter-bar-track"><div class="loja-converter-bar-fill" data-role="converter-bar-fill" style="width:0%"></div></div>
-                            <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Você vai receber: </span><span data-i18n-en>You'll receive: </span><strong>0 Marks</strong></p>
-                        </div>
+                        <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Você vai receber: </span><span data-i18n-en>You'll receive: </span><strong>100 Marks</strong></p>
                         <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
                     </form>
-                    <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form" data-converter-mode="marks-ossos" data-bar-max="<%= dailyMarksLimit %>">
+                    <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form" data-converter-mode="marks-ossos">
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Marks → Ossos</span><span data-i18n-en>Marks → Bones</span></h3>
                         <label class="text-[13px] opacity-60"><span data-i18n-pt>Servidor</span><span data-i18n-en>Server</span></label>
                         <div class="input-container-premium">
@@ -998,14 +1059,15 @@
                             </select>
                         </div>
                         <label class="text-[13px] opacity-60 block mt-4"><span data-i18n-pt>Quantidade de Marks (mínimo <%= marksPerBone %>)</span><span data-i18n-en>Amount of Marks (minimum <%= marksPerBone %>)</span></label>
-                        <div class="input-container-premium">
-                            <div class="icon-box"><i data-lucide="coins"></i></div>
-                            <input type="number" name="quantidade" class="input-premium-field" min="<%= marksPerBone %>" step="1" required oninput="updateConverterPreview(this)">
+                        <%# Mesmo slider do form acima — max é o teto diário do
+                            conversor (dailyMarksLimit), única referência de
+                            escala disponível já que Marks não tem saldo
+                            rastreado pelo bot (ver docblock de currencySystem.js). %>
+                        <div class="loja-converter-slider-row">
+                            <input type="range" name="quantidade" class="loja-converter-slider" min="<%= marksPerBone %>" max="<%= dailyMarksLimit %>" step="1" value="<%= marksPerBone %>" required oninput="updateConverterPreview(this)">
+                            <span class="loja-converter-slider-value" data-role="converter-slider-value"><%= marksPerBone %></span>
                         </div>
-                        <div class="loja-converter-preview">
-                            <div class="loja-converter-bar-track"><div class="loja-converter-bar-fill" data-role="converter-bar-fill" style="width:0%"></div></div>
-                            <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Mínimo: 100 Marks (1 Osso).</span><span data-i18n-en>Minimum: 100 Marks (1 Bone).</span></p>
-                        </div>
+                        <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Você vai receber: </span><span data-i18n-en>You'll receive: </span><strong>1 <span data-i18n-pt>Osso</span><span data-i18n-en>Bone</span></strong></p>
                         <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Ossos</span><span data-i18n-en>Convert to Bones</span></button>
                         <p class="text-[11px] opacity-40 mt-2"><span data-i18n-pt>⚠️ O próprio jogo confere seu saldo de Marks: se você não tiver o suficiente, a conversão não credita nenhum Osso. Confira a resposta do jogo depois de converter pra ter certeza.</span><span data-i18n-en>⚠️ The game itself checks your Marks balance: if you don't have enough, the conversion won't credit any Bones. Check the game's response after converting to be sure.</span></p>
                         <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Não precisa ser múltiplo de <%= marksPerBone %> — o que não fechar 1 Osso fica sem ser tocado, pra usar numa próxima conversão.</span><span data-i18n-en>Doesn't need to be a multiple of <%= marksPerBone %> — whatever doesn't complete 1 Bone is left untouched, for a future conversion.</span></p>
@@ -1092,7 +1154,7 @@
         Ossos por servidor (reforma 2026-08-15) — o formulário "Ossos ->
         Marks" (data-bones-converter-form) tem um <select> de servidor
         cujas <option> já carregam o próprio saldo em data-balance (ver
-        guildBonesBalances). Atualiza o texto de saldo/max do input/estado
+        guildBonesBalances). Atualiza o texto de saldo/max do slider/estado
         do botão ao trocar o servidor, e uma vez no load pro selecionado
         por padrão — sem isso, o saldo mostrado ficaria sempre o do
         primeiro servidor da lista, mesmo depois de trocar a seleção.
@@ -1102,38 +1164,51 @@
             const balance = Number(select.selectedOptions[0]?.dataset.balance || 0);
             const form = select.closest('form');
             const display = form.querySelector('[data-role="bones-balance-display"]');
-            const input = form.querySelector('input[name="quantidade"]');
+            const slider = form.querySelector('input[type="range"][name="quantidade"]');
             const button = form.querySelector('button[type="submit"]');
             if (display) display.textContent = balance;
-            if (input) input.max = balance;
+            if (slider) {
+                // max nunca pode ficar abaixo de min (1) — com saldo 0 o
+                // slider é travado por disabled, não pelo range em si.
+                slider.max = Math.max(balance, 1);
+                if (Number(slider.value) > balance) slider.value = Math.max(balance, 1);
+                slider.disabled = balance < 1;
+            }
             if (button) button.disabled = balance < 1;
-            if (input) updateConverterPreview(input);
+            if (slider) updateConverterPreview(slider);
         }
         document.querySelectorAll('[data-bones-converter-form] select[name="guildId"]').forEach(updateBonesConverterBalance);
 
         <%#
-            Prévia em tempo real (pedido do dono, 2026-08-18) — MARKS_PER_BONE
-            fixo (não muda em runtime, então basta injetar o valor uma vez
-            aqui em vez de reler o local do servidor em cada cálculo abaixo).
-            barMax vem de data-bar-max no form quando existe (Marks→Ossos,
-            usa dailyMarksLimit como escala fixa — Marks não tem saldo
-            rastreado pelo bot) ou senão do próprio atributo max do input
-            (Ossos→Marks, atualizado dinamicamente por
-            updateBonesConverterBalance acima conforme o servidor
-            selecionado).
+            Slider em tempo real (pedido do dono, 2026-08-18: "barra de
+            volume... alterando em tempo real quantas marks vão virar
+            ossos") — MARKS_PER_BONE fixo (não muda em runtime), injetado
+            uma vez aqui em vez de reler o local do servidor em cada
+            cálculo abaixo.
         %>
         const MARKS_PER_BONE = <%= marksPerBone %>;
-        function updateConverterPreview(input) {
-            const form = input.closest('form');
-            const mode = form.dataset.converterMode;
-            const barFill = form.querySelector('[data-role="converter-bar-fill"]');
-            const text = form.querySelector('[data-role="converter-preview-text"]');
-            if (!barFill || !text) return;
 
-            const quantity = Math.max(0, parseInt(input.value, 10) || 0);
-            const barMax = Number(form.dataset.barMax || input.max || 0);
-            const pct = barMax > 0 ? Math.min(100, (quantity / barMax) * 100) : 0;
-            barFill.style.width = pct + '%';
+        // Preenchimento colorido da trilha à esquerda do polegar — um
+        // <input type="range"> nativo não tem isso de graça (diferente de
+        // uma <progress> ou de um <div> com width%), escrito aqui como
+        // linear-gradient inline a cada input.
+        function _paintSliderTrack(slider) {
+            const min = Number(slider.min) || 0;
+            const max = Number(slider.max) || 1;
+            const pct = max > min ? ((Number(slider.value) - min) / (max - min)) * 100 : 0;
+            slider.style.background = `linear-gradient(to right, #F8DCC0 ${pct}%, rgba(248, 220, 192, 0.12) ${pct}%)`;
+        }
+
+        function updateConverterPreview(slider) {
+            const form = slider.closest('form');
+            const mode = form.dataset.converterMode;
+            const valueLabel = form.querySelector('[data-role="converter-slider-value"]');
+            const text = form.querySelector('[data-role="converter-preview-text"]');
+            if (!text) return;
+
+            _paintSliderTrack(slider);
+            const quantity = Math.max(0, parseInt(slider.value, 10) || 0);
+            if (valueLabel) valueLabel.textContent = quantity.toLocaleString('pt-BR');
 
             const lang = document.documentElement.getAttribute('data-lang') || 'pt';
             if (mode === 'ossos-marks') {
@@ -1142,18 +1217,16 @@
             } else if (mode === 'marks-ossos') {
                 const bones = Math.floor(quantity / MARKS_PER_BONE);
                 const used = bones * MARKS_PER_BONE;
-                if (bones < 1) {
-                    text.innerHTML = lang === 'en' ? '<strong>Minimum: 100 Marks (1 Bone)</strong>' : '<strong>Mínimo: 100 Marks (1 Osso)</strong>';
-                } else if (used === quantity) {
+                if (used === quantity) {
                     text.innerHTML = (lang === 'en' ? "You'll receive: " : 'Você vai receber: ') + '<strong>' + bones.toLocaleString(lang === 'en' ? 'en-US' : 'pt-BR') + (lang === 'en' ? ' Bones' : ' Ossos') + '</strong>';
                 } else if (lang === 'en') {
-                    text.innerHTML = "You'll receive: <strong>" + bones + ' Bones</strong> (uses ' + used + ' of the ' + quantity + ' Marks entered)';
+                    text.innerHTML = "You'll receive: <strong>" + bones + ' Bones</strong> (uses ' + used + ' of the ' + quantity + ' Marks selected)';
                 } else {
-                    text.innerHTML = 'Você vai receber: <strong>' + bones + ' Ossos</strong> (usa ' + used + ' dos ' + quantity + ' Marks informados)';
+                    text.innerHTML = 'Você vai receber: <strong>' + bones + ' Ossos</strong> (usa ' + used + ' dos ' + quantity + ' Marks selecionados)';
                 }
             }
         }
-        document.querySelectorAll('.loja-converter-form input[name="quantidade"]').forEach(updateConverterPreview);
+        document.querySelectorAll('.loja-converter-form input[type="range"][name="quantidade"]').forEach(updateConverterPreview);
     </script>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
