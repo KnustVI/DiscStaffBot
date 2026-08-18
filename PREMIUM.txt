@@ -11374,3 +11374,76 @@ frente, nao so este relatorio):
   o dono precisa conferir ao vivo que o overlay abre/fecha (clique/
   clique fora/Esc) e mostra os números certos nos 3 grupos (Emblemas/
   Títulos/Missões).
+
+222) Comando dev /moeda-admin + /perfil: Inventário (Loja de Jogo) e últimos conquistados
+--------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Crie comando de acesso apena do DEV
+  para adicioanr ou remover as moedas de um usúario, se for osso pedir
+  servidor, (assim removemos os osso daquele servidor). Comando /perfil
+  possui uma aba de inventário no discord, adicione os itens de loja de
+  jogo la, com botões de uso e nada mais, na aba emblemas e titulos
+  adicione uma lista dos ultimos 3 de cada que ele conquistou, e um
+  botão que leva para o perfil dele."
+- **`/moeda-admin`** (novo, `src/commands/developer/moeda-admin.js`,
+  bot developer — restrito ao `DEVELOPER_ID`, mesmo padrão de
+  `premium-admin.js`): 2 subcomandos, `adicionar`/`remover`, mesmas
+  opções (`usuario`, `moeda` Ossos/Caçadas, `quantidade`, `servidor_id`
+  opcional). Ossos exige `servidor_id` em runtime (validado em
+  `execute()` — a API do Discord não suporta opção condicionalmente
+  obrigatória) e confere que o servidor existe e tem PoT configurado;
+  Caçadas nunca pede servidor (moeda global). Novas funções em
+  `potPlayerRegistry.js`, `adjustBones`/`adjustHunt` — únicas que
+  conseguem SUBTRAIR sem a trava de saldo mínimo de `spendBones`/
+  `spendHunt` (que falham se insuficiente); resultado sempre clampado
+  em 0, nunca negativo. `adjustHunt` reconfere `changes > 0` antes de
+  reportar o novo saldo — sem isso, ajustar um usuário sem
+  `player_links` (nunca rodou `/registrar`) reportava um saldo que
+  nunca foi gravado (achado pelo teste isolado, corrigido antes de
+  virar bug real — `/moeda-admin` já bloqueia esse caso antes de
+  chegar lá, mas a função em si ficou honesta também).
+- **`/perfil` → Inventário** (`configSystem.js#handlePerfilInventory`)
+  ganhou uma seção de Loja de Jogo abaixo da de Loja de Personalização
+  já existente — "com botões de uso e nada mais": só nome do item
+  (agrupado por servidor) + botão "Usar", sem preço/descrição. Botões
+  só aparecem pra quem vê o PRÓPRIO perfil (usar item alheio não faz
+  sentido); pra quem vê perfil de outra pessoa, mostra só como texto.
+  Botão novo `perfil-edit:usar-jogo:<inventoryId>` → handler novo
+  `handlePerfilUsarJogo`, chama a MESMA `GameShopSystem.
+  useGameShopItem` que o site usa (RCON de verdade, reconfere dono/
+  online/espécie/mapa/tier), recarrega a mesma tela de Inventário
+  (`editReply`, não um `followUp` novo) e manda o resultado via
+  `sendFeedback`. Cap de 20 botões (Discord aceita até 25 componentes),
+  excedente vira nota apontando pro site.
+- **`/perfil` → Emblema & Título**
+  (`configSystem.js#handlePerfilViewBadgeTitle`) ganhou "últimos 3
+  conquistados de cada tipo" — pedido já feito antes (2026-08-11) e
+  documentado como PENDENTE por falta de uma fonte de dado com data de
+  conquista; essa fonte passou a existir na reforma das lojas de
+  2026-08-12 (`image_inventory.purchased_at`, preenchida em compra,
+  resgate por requisito E recompensa de missão), então o pedido virou
+  executável — `ImageShopSystem.getRecentInventory` novo
+  (`ORDER BY purchased_at DESC LIMIT N`). Mostrado pra QUALQUER perfil
+  visto (histórico público, diferente do resgate, que continua só pra
+  quem vê o próprio). Ganhou também um botão de link "Ver Perfil
+  Completo" pro `/perfil` do site (mesma URL do botão "Dashboard" já
+  existente na tela principal), sem o gate de "administra um servidor"
+  daquele botão — o destino é self-view, aberto a qualquer jogador
+  vinculado.
+- Verificado: `node --check` nos 4 arquivos tocados/criados. Script
+  isolado (banco SQLite temporário, nunca `database.sqlite` real)
+  exercitando: `adjustBones`/`adjustHunt` somando/subtraindo/clampando
+  em 0/usuário sem vínculo; `getRecentInventory` com 4 itens
+  confirmando ordem e limite de 3; `handlePerfilInventory`/
+  `handlePerfilViewBadgeTitle`/`handlePerfilUsarJogo` chamados com uma
+  interação FALSA (captura o que seria enviado ao Discord em vez de
+  mandar de verdade) confirmando botão aparece só pro próprio perfil,
+  `refresh:true` usa `editReply` em vez de `followUp`, últimos 3
+  conquistados aparecem na ordem certa, botão de link presente; e
+  `moeda-admin.js#execute` completo (negação pra não-dev, Ossos sem
+  servidor rejeitado, Ossos com servidor inválido rejeitado, saldo
+  realmente creditado/debitado no banco, remover mais do que tem
+  zera). 29 checagens no total, todas passando. SEM confirmação
+  visual/Discord real — o dono precisa rodar `node deploy.js` pra
+  `/moeda-admin` aparecer no bot developer, e testar ao vivo os botões
+  novos de `/perfil` (Usar item de Loja de Jogo dispara RCON de
+  verdade; link pro site).

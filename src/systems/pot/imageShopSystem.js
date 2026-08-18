@@ -121,6 +121,25 @@ function getInventory(userId, type) {
     return db.prepare(`SELECT * FROM image_inventory WHERE user_id = ?`).all(userId);
 }
 
+/**
+ * Últimos N itens conquistados de um tipo (mais recente primeiro) — ver
+ * pedido do dono, 2026-08-19: "na aba emblemas e titulos adicione uma
+ * lista dos ultimos 3 de cada que ele conquistou". `purchased_at` já
+ * serve de "data de conquista" pra qualquer origem (source='purchase'/
+ * 'redeemed'/'mission' — ver claimMission em missionSystem.js), sem
+ * precisar de tabela de histórico nova.
+ * @param {string} userId
+ * @param {string} type - 'badge'|'titulo'
+ * @param {number} [limit=3]
+ */
+function getRecentInventory(userId, type, limit = 3) {
+    if (!userId || !type) return [];
+    return db.prepare(`
+        SELECT * FROM image_inventory WHERE user_id = ? AND pool_type = ?
+        ORDER BY purchased_at DESC LIMIT ?
+    `).all(userId, type, limit);
+}
+
 function ownsImage(userId, type, id) {
     if (!userId) return false;
     const row = db.prepare(`
@@ -346,6 +365,7 @@ module.exports = {
     setShopConfig,
     getShopItems,
     getInventory,
+    getRecentInventory,
     ownsImage,
     canUseImage,
     getRedeemableItems,

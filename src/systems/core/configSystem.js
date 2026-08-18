@@ -653,6 +653,16 @@ const ConfigSystem = {
                 await this.handlePerfilInventory(interaction, param);
                 return;
             }
+            // Botão "Usar" de um item da Loja de Jogo dentro do Inventário
+            // do /perfil (pedido do dono, 2026-08-19: "adicione os itens de
+            // loja de jogo la, com botões de uso e nada mais") — param aqui
+            // é o ID da linha de game_shop_inventory, não um targetUserId
+            // (único action deste bloco que foge desse padrão, ver
+            // handlePerfilUsarJogo).
+            if (action === 'usar-jogo') {
+                await this.handlePerfilUsarJogo(interaction, param);
+                return;
+            }
             if (action === 'redeem') {
                 await this.handlePerfilRedeemSelect(interaction, param);
                 return;
@@ -2340,17 +2350,23 @@ const ConfigSystem = {
      * (action 'back-to-profile', ver handleComponent acima) que reconstrói
      * o card de perfil original via PlayerRegistrationSystem.sendProfile.
      *
-     * "Últimos 3 conquistados" — PENDENTE: hoje só existe o que está
-     * EQUIPADO (selected_badge_key/profile_title, um valor cada, sem
-     * histórico de quando/quais foram conquistados antes) — não existe
-     * uma tabela de histórico de aquisição de emblema/título (diferente
-     * de player_level_ups, que existe pra Nível). Mostra o equipado atual
-     * por ora; motivo pelo qual o dono pediu pra manter o botão
-     * DESATIVADO (ver playerRegistrationSystem.js) até essa fonte de
-     * dados existir de verdade.
+     * "Últimos 3 conquistados" (pedido do dono, 2026-08-19: "na aba
+     * emblemas e titulos adicione uma lista dos ultimos 3 de cada que
+     * ele conquistou") — ficou PENDENTE quando pedido pela 1ª vez
+     * (2026-08-11) por falta de uma fonte de dado com data de conquista.
+     * Essa fonte passou a existir na reforma das lojas de 2026-08-12:
+     * `image_inventory.purchased_at` é preenchida tanto em compra quanto
+     * em resgate por requisito (e, desde a Missões, em recompensa de
+     * missão também — source purchase/redeemed/mission, todas contam
+     * como "conquista"). Ver ImageShopSystem.getRecentInventory. Mostrado
+     * pra QUALQUER perfil visto (histórico público de conquista, não uma
+     * ação sobre a própria conta — diferente do resgate abaixo, que
+     * continua exclusivo de quem vê o próprio perfil).
      */
     async handlePerfilViewBadgeTitle(interaction, targetUserId) {
         const PlayerRegistry = require('../pot/potPlayerRegistry');
+        const ImageShopSystem = require('../pot/imageShopSystem');
+        const ProfileImagePool = require('../pot/profileImagePool');
         const targetPlayer = targetUserId ? PlayerRegistry.getPlayerByDiscordId(targetUserId) : null;
 
         const badgeLabel = targetPlayer?.selected_badge_key
@@ -2372,13 +2388,29 @@ const ConfigSystem = {
             `${EMOJIS.sparkles || '✨'} **Título ativo:** ${titleLabel}`,
         ];
 
+        // Últimos 3 de cada tipo — resolve o label de cada linha via
+        // ProfileImagePool (pula item removido do pool depois da
+        // conquista, mesmo tratamento de "não mostra órfão" já usado em
+        // handlePerfilInventory).
+        const describeRecent = (type) => {
+            const recent = targetUserId ? ImageShopSystem.getRecentInventory(targetUserId, type, 3) : [];
+            return recent
+                .map((row) => ProfileImagePool.getByTypeAndId(type, row.pool_id)?.label)
+                .filter(Boolean);
+        };
+        const recentBadges = describeRecent('badge');
+        const recentTitulos = describeRecent('titulo');
+        lines.push(
+            `\n${EMOJIS.medal || '🏆'} **Últimos emblemas conquistados:** ${recentBadges.length > 0 ? recentBadges.join(', ') : 'nenhum ainda'}`,
+            `${EMOJIS.medal || '🏆'} **Últimos títulos conquistados:** ${recentTitulos.length > 0 ? recentTitulos.map(t => `"${t}"`).join(', ') : 'nenhum ainda'}`,
+        );
+
         // Resgate por requisito (reforma das lojas, 2026-08-12) — só faz
         // sentido pra quem está vendo o PRÓPRIO perfil (targetUserId pode
         // ser outra pessoa, via /perfil usuario:@alguém — resgatar é uma
         // ação sobre a PRÓPRIA conta, não sobre a de quem está sendo
         // exibido). Reconfere elegibilidade em cima de dados ao vivo, ver
         // ImageShopSystem.getRedeemableItems/AchievementSystem.
-        const ImageShopSystem = require('../pot/imageShopSystem');
         const AchievementSystem = require('../pot/achievementSystem');
         const isOwnProfile = targetUserId === interaction.user.id;
         const redeemable = isOwnProfile ? ImageShopSystem.getRedeemableItems(interaction.user.id) : [];
@@ -2401,17 +2433,27 @@ const ConfigSystem = {
             } else {
                 lines.push('-# Nenhum emblema/título disponível pra resgatar agora — cumpra o requisito definido pelo dono pra desbloquear.');
             }
-        } else {
-            lines.push('-# Histórico completo de conquistas ainda não é rastreado — mostrando o que está equipado agora.');
         }
 
         cb.text(lines.join('\n'));
         cb.footer(`Perfil de <@${targetUserId}>`);
 
+        // URL do /perfil no site (pedido do dono, 2026-08-19: "um botão
+        // que leva para o perfil dele") — mesma URL do botão "Dashboard"
+        // já existente na tela principal de /perfil (playerRegistrationSystem.js),
+        // duplicada aqui como constante local (mesmo padrão de duplicação
+        // já usado no projeto pra evitar import cruzado só por uma
+        // string, ver _todayLocalDate em potPlayerRegistry.js). SEM o
+        // gate de "administra algum servidor" daquele botão — o destino
+        // é /perfil, self-view, aberto a qualquer jogador vinculado, não
+        // só admins.
+        const DASHBOARD_BASE_URL = 'https://dashboard.titansvisit.win';
+
         const rows = [];
         if (redeemSelect) rows.push(new ActionRowBuilder().addComponents(redeemSelect));
         rows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`perfil-edit:back-to-profile:${targetUserId}`).setLabel('Voltar ao Perfil').setStyle(ButtonStyle.Secondary).setEmoji(EMOJIS.arrowleft || '⬅️'),
+            new ButtonBuilder().setLabel('Ver Perfil Completo').setURL(`${DASHBOARD_BASE_URL}/perfil`).setStyle(ButtonStyle.Link).setEmoji(EMOJIS.gauge || '📊'),
         ));
 
         const payload = cb.build();
@@ -2474,21 +2516,46 @@ const ConfigSystem = {
      * ephemeral do inventario dele no discord". Lista os itens da Loja de
      * Personalização já comprados (image_inventory, ver imageShopSystem.js
      * — avatar/plano de fundo/emblema/banner/título comprados com
-     * Caçadas), agrupados por tipo. DESATIVADO no botão em si por pedido
-     * explícito do dono ("Desative por hora o botão inventario") — handler
-     * já funcional, só não alcançável ainda (botão com setDisabled(true),
-     * ver playerRegistrationSystem.js).
+     * Caçadas), agrupados por tipo, texto puro sem botão (não são
+     * "usáveis", só equipáveis via /perfil-edit).
+     *
+     * Loja de Jogo (pedido do dono, 2026-08-19: "adicione os itens de
+     * loja de jogo la, com botões de uso e nada mais") — ADICIONADO
+     * abaixo da seção acima, agrupado por servidor (o mesmo item pode
+     * existir em servidores diferentes). "Botões de uso e nada mais":
+     * cada item mostra só o nome + um botão "Usar", sem preço/descrição/
+     * outros detalhes — diferente da Loja de Personalização acima, que
+     * nunca teve isso. `GameShopSystem.getInventory` já filtra `used_at
+     * IS NULL` (só o que ainda não foi usado, exatamente o que faz
+     * sentido oferecer com botão). Botões só aparecem pra quem vê o
+     * PRÓPRIO perfil (isOwnProfile) — usar o item de outra pessoa não
+     * faz sentido, mesmo critério já usado no redeemSelect de Emblema &
+     * Título; pra quem vê perfil alheio, mostra só como texto informativo.
+     * Cap de 20 botões (Discord aceita até 25 componentes por mensagem,
+     * 20 deixa folga) — excedente vira uma nota apontando pro site.
+     *
+     * @param {import('discord.js').Interaction} interaction
+     * @param {string} targetUserId
+     * @param {{refresh?: boolean}} [opts] - refresh:true edita a MESMA
+     *   mensagem efêmera em vez de abrir uma nova (usado depois de "Usar"
+     *   um item, ver handlePerfilUsarJogo — a interação já chega com
+     *   deferUpdate() feito, então editReply re-renderiza a lista sem o
+     *   item recém-usado no lugar).
      */
-    async handlePerfilInventory(interaction, targetUserId) {
+    async handlePerfilInventory(interaction, targetUserId, { refresh = false } = {}) {
         const ImageShopSystem = require('../pot/imageShopSystem');
         const ProfileImagePool = require('../pot/profileImagePool');
+        const GameShopSystem = require('../pot/gameShopSystem');
 
+        const isOwnProfile = targetUserId === interaction.user.id;
         const items = targetUserId ? ImageShopSystem.getInventory(targetUserId) : [];
+        const gameItems = targetUserId ? GameShopSystem.getInventory(targetUserId) : [];
 
         const TYPE_LABELS = { personalizacao: 'Foto de Perfil / Plano de Fundo', badge: 'Emblema', banner: 'Banner', titulo: 'Título' };
         const cb = new AdvancedContainerBuilder({ accentColor: COLORS.DEFAULT });
         cb.text(`# ${EMOJIS.gift || '🎒'} INVENTÁRIO`);
 
+        cb.text('**Loja de Personalização**');
         if (items.length === 0) {
             cb.text('Nenhum item comprado na Loja de Personalização ainda.');
         } else {
@@ -2503,10 +2570,79 @@ const ConfigSystem = {
                 cb.text(`**${TYPE_LABELS[type] || type}:** ${labels.join(', ')}`);
             }
         }
+
+        cb.text('\n**Loja de Jogo**');
+        const gameRows = [];
+        const MAX_GAME_BUTTONS = 20;
+        if (gameItems.length === 0) {
+            cb.text('Nenhum item da Loja de Jogo pra usar ainda.');
+        } else if (!isOwnProfile) {
+            cb.text(gameItems.map((item) => item.label).join(', '));
+        } else {
+            const byGuild = new Map();
+            for (const item of gameItems) {
+                if (!byGuild.has(item.guildId)) byGuild.set(item.guildId, []);
+                byGuild.get(item.guildId).push(item);
+            }
+            let buttonsUsed = 0;
+            let truncated = false;
+            for (const [guildId, guildItems] of byGuild) {
+                if (buttonsUsed >= MAX_GAME_BUTTONS) { truncated = true; break; }
+                const guildName = interaction.client.guilds.cache.get(guildId)?.name || guildId;
+                cb.text(`**${guildName}:**`);
+                const buttons = [];
+                for (const item of guildItems) {
+                    if (buttonsUsed >= MAX_GAME_BUTTONS) { truncated = true; break; }
+                    buttons.push(
+                        new ButtonBuilder()
+                            .setCustomId(`perfil-edit:usar-jogo:${item.id}`)
+                            .setLabel(item.label.slice(0, 80))
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('🎮'),
+                    );
+                    buttonsUsed++;
+                }
+                for (let i = 0; i < buttons.length; i += 5) {
+                    gameRows.push(new ActionRowBuilder().addComponents(...buttons.slice(i, i + 5)));
+                }
+            }
+            if (truncated) {
+                cb.text(`-# +${gameItems.length - buttonsUsed} item(ns) a mais — veja e use o restante em /loja no site.`);
+            }
+        }
+
         cb.footer(`Perfil de <@${targetUserId}>`);
 
         const payload = cb.build();
-        await interaction.followUp({ ...payload, flags: (payload.flags | MessageFlags.Ephemeral) });
+        payload.components = [...payload.components, ...gameRows];
+        if (refresh) {
+            await interaction.editReply(payload);
+        } else {
+            await interaction.followUp({ ...payload, flags: (payload.flags | MessageFlags.Ephemeral) });
+        }
+    },
+
+    /**
+     * Botão "Usar" de um item da Loja de Jogo dentro do Inventário do
+     * /perfil (pedido do dono, 2026-08-19) — chama
+     * GameShopSystem.useGameShopItem (mesma função que o site usa, ver
+     * dashboard.js POST /loja/usar-jogo), que já reconfere dono/online/
+     * espécie/mapa/tier e dispara o RCON de verdade. Recarrega a MESMA
+     * tela de Inventário (refresh:true, ver handlePerfilInventory) —
+     * item some da lista se o uso deu certo, continua lá se falhou (o
+     * item nunca é perdido numa falha) — e manda o resultado via
+     * sendFeedback (mesmo padrão de handlePerfilRedeemSelect).
+     */
+    async handlePerfilUsarJogo(interaction, inventoryId) {
+        const GameShopSystem = require('../pot/gameShopSystem');
+        const result = await GameShopSystem.useGameShopItem(Number(inventoryId), interaction.user.id);
+
+        await this.handlePerfilInventory(interaction, interaction.user.id, { refresh: true });
+        if (result.ok) {
+            await this.sendFeedback(interaction, `${EMOJIS.circlecheck || '✅'} **${result.label}** usado com sucesso!`);
+        } else {
+            await this.sendFeedback(interaction, `${EMOJIS.circlealert || '❌'} ${result.error}`);
+        }
     },
 
     async handleHideKdaToggle(interaction) {

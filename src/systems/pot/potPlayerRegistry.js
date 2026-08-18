@@ -1056,6 +1056,40 @@ function spendBones(discordId, guildId, amount) {
     }
 }
 
+/**
+ * Ajuste ADMINISTRATIVO de Ossos NUM SERVIDOR ESPECÍFICO (dev-only, ver
+ * /moeda-admin) — soma OU subtrai livremente, SEM a trava de saldo mínimo
+ * que spendBones tem (`WHERE balance >= amount`, falha se insuficiente).
+ * Diferente de addBones (só soma) e spendBones (só subtrai, falha se
+ * insuficiente), este é o único caminho que pode SUBTRAIR sem falhar por
+ * saldo insuficiente — pedido do dono é "adicionar ou remover", uma
+ * correção manual de suporte, não uma compra que precisa respeitar saldo.
+ * Resultado nunca fica negativo (clampado em 0 — remover mais do que o
+ * jogador tem apenas zera, não é erro). Upsert (cria a linha se ainda não
+ * existir), mesmo padrão de addBones.
+ * @param {string} discordId
+ * @param {string} guildId
+ * @param {number} delta - inteiro, positivo soma / negativo subtrai
+ * @returns {number} saldo resultante (0 em qualquer entrada inválida)
+ */
+function adjustBones(discordId, guildId, delta) {
+    if (!discordId || !guildId || !Number.isInteger(delta)) return getBonesBalance(discordId, guildId);
+    try {
+        const next = Math.max(0, getBonesBalance(discordId, guildId) + delta);
+        db.prepare(`
+            INSERT INTO pot_player_bones (user_id, guild_id, balance, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(user_id, guild_id) DO UPDATE SET
+                balance = excluded.balance,
+                updated_at = excluded.updated_at
+        `).run(discordId, guildId, next, Math.floor(Date.now() / 1000));
+        return next;
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao ajustar Ossos (admin):', error);
+        return getBonesBalance(discordId, guildId);
+    }
+}
+
 // "Dia local" no formato YYYY-MM-DD — mesmo conceito/formato de
 // AnalyticsSystem.getLocalDate, copiado aqui em vez de importado pra não
 // criar dependência circular (analyticsSystem.js já importa este arquivo
@@ -1181,7 +1215,38 @@ function spendHunt(discordId, amount) {
         return result.changes > 0;
     } catch (error) {
         console.error('❌ [PoT Registry] Erro ao debitar Caçadas:', error);
-        return false;
+        return false
+    }
+}
+
+/**
+ * Ajuste ADMINISTRATIVO de Caçadas (dev-only, ver /moeda-admin) — mesmo
+ * raciocínio de adjustBones (soma OU subtrai livremente, sem a trava de
+ * saldo mínimo de spendHunt, resultado nunca negativo). SEMPRE um UPDATE
+ * puro (nunca cria linha) — diferente de adjustBones, `player_links` só
+ * existe pra quem já rodou /registrar; sem vínculo não há o que ajustar,
+ * e quem chama esta função (o comando /moeda-admin) já valida isso ANTES
+ * de chegar aqui, então `changes === 0` aqui não deveria acontecer na
+ * prática.
+ * @param {string} discordId
+ * @param {number} delta - inteiro, positivo soma / negativo subtrai
+ * @returns {number} saldo resultante (0 em qualquer entrada inválida)
+ */
+function adjustHunt(discordId, delta) {
+    if (!discordId || !Number.isInteger(delta)) return getHuntBalance(discordId);
+    try {
+        const next = Math.max(0, getHuntBalance(discordId) + delta);
+        const result = db.prepare(`UPDATE player_links SET hunt_balance = ?, updated_at = ? WHERE user_id = ?`)
+            .run(next, Math.floor(Date.now() / 1000), discordId);
+        // UPDATE puro nunca cria linha — sem player_links (nunca rodou
+        // /registrar), `changes` é 0 e `next` NUNCA foi gravado de
+        // verdade. Devolver `next` mesmo assim reportaria um saldo que
+        // não existe em lugar nenhum — devolve o saldo REAL (0, sem
+        // linha) em vez disso.
+        return result.changes > 0 ? next : getHuntBalance(discordId);
+    } catch (error) {
+        console.error('❌ [PoT Registry] Erro ao ajustar Caçadas (admin):', error);
+        return getHuntBalance(discordId);
     }
 }
 
@@ -1657,6 +1722,9 @@ module.exports = {
     getBonesBalance,
     addBones,
     spendBones,
+    // Ajuste administrativo (dev-only, /moeda-admin) — soma/subtrai livre,
+    // sem trava de saldo mínimo, resultado clampado em 0.
+    adjustBones,
     // Limite diário do conversor Marks->Ossos — ver currencySystem.js.
     getMarksConvertedToday,
     addMarksConvertedToday,
@@ -1666,6 +1734,7 @@ module.exports = {
     getHuntBalance,
     addHunt,
     spendHunt,
+    adjustHunt,
     getXp,
     addXp,
     // Progressão de Nível (infinita, ver levelSystem.js) — calculada
