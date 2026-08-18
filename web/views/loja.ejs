@@ -330,6 +330,62 @@
         .loja-item-buy-form .btn-chip i { width: 12px; height: 12px; }
         .loja-item-insufficient { font-family: 'Poppins', sans-serif; font-size: 0.62rem; color: #FF4E3B; }
 
+        /* Botão Comprar da LOJA DE JOGO — visual próprio (pedido do dono,
+           2026-08-18: "Use esse código de CSS pra botão de compra dos
+           itens de jogo", colado de um componente Figma com 4 estados —
+           Primary/Hover/Pressed/Disabled). Só a Loja de Jogo (classe
+           extra .loja-jogo-buy-form JUNTO com .loja-item-buy-form acima,
+           que continua dando o layout flex+centralizado) — a Loja de
+           Personalização mantém o .btn-chip-success cream simples de
+           sempre, sem o gradiente/sombras novos. Tamanho mantido
+           COMPACTO por confirmação explícita do dono nesta mesma
+           conversa: o Figma original pedia 111×26px/fonte 14px/padding
+           5px 20px (basicamente do tamanho dos botões da barra de
+           navegação), mas isso desfaria 3 pedidos anteriores de encolher
+           esse botão (2026-08-10/2026-08-12/2026-08-18) — só as cores/
+           gradiente/sombras/estados foram trazidos, o tamanho continua o
+           .loja-item-buy-form .btn-chip acima (min-width 92px, fonte
+           10px). :active (mouse pressionado) faz as vezes do "Mode=
+           Pressed" do Figma — não existe um jeitoide CSS de simular um
+           :focus-visible/estado "clicado e mantido" mais fiel sem JS,
+           e :active já cobre o clique real de comprar. Ícone trocado de
+           carrinho genérico (lucide) pra bone.webp (pedido do dono,
+           mesmo momento: "Coloque o icone de ossos nele também") — mesma
+           imagem já usada no preço do item logo acima, reforçando qual
+           moeda está sendo gasta. Seletores sempre com .btn-chip-success
+           junto (não só .btn-chip) — mesma especificidade de
+           .loja-item-buy-form .btn-chip.btn-chip-success acima (3
+           classes), pra garantir que este bloco (mais abaixo no arquivo)
+           vence de propósito, em vez de depender de coincidência (hoje
+           os dois concordam em #F8DCC0 pro estado padrão, mas isso é
+           frágil — se um dia divergirem, sem o .btn-chip-success aqui a
+           regra de cima ganharia por especificidade, não por ordem). */
+        .loja-jogo-buy-form .btn-chip.btn-chip-success {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border-color: #F8DCC0;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            color: #F8DCC0;
+        }
+        .loja-jogo-buy-form .btn-chip.btn-chip-success:hover:not(:disabled) {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5), 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .loja-jogo-buy-form .btn-chip.btn-chip-success:active:not(:disabled) {
+            background: #4B2427;
+            border-color: #DCA15E;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            color: #DCA15E;
+        }
+        .loja-jogo-buy-form .btn-chip.btn-chip-success:disabled {
+            background: #2A2A2A;
+            border-color: #3E3D38;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
+            color: #3E3D38;
+            opacity: 1;
+        }
+        .loja-jogo-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
+
         /* Formulários do Conversor de Moedas — mesma cápsula
            .input-container-premium/.input-premium-field do resto do
            dashboard, só o layout em coluna é próprio desta seção. */
@@ -900,19 +956,19 @@
                                         <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                     <% } %>
                                     <% if (item.isCustom) { %>
-                                        <form method="POST" action="/loja/comprar-jogo-item" class="loja-item-buy-form">
+                                        <form method="POST" action="/loja/comprar-jogo-item" class="loja-item-buy-form loja-jogo-buy-form">
                                             <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
                                             <input type="hidden" name="itemId" value="<%= item.id %>">
                                             <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
-                                                <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                <img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                             </button>
                                         </form>
                                     <% } else { %>
-                                        <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form">
+                                        <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form loja-jogo-buy-form">
                                             <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
                                             <input type="hidden" name="itemKey" value="<%= item.key %>">
                                             <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
-                                                <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                <img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                             </button>
                                         </form>
                                     <% } %>
