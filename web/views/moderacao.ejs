@@ -312,6 +312,122 @@
         </section>
 
         <%#
+            BUFFS — porta o painel /config buffs do Discord pro site
+            (pedido do dono, 2026-08-17: "adicione a criação de buffs na
+            pagina de moderação"). Reaproveita as classes de texto/forms de
+            Níveis de Punição acima (.level-list, .level-form-details/
+            -grid/-actions, .input-container-premium/-field, .btn-chip*,
+            .level-card-name/-meta pro texto) — mas NÃO .level-card em si
+            pro contêiner do card: aquela classe é `display:flex` numa
+            ÚNICA linha (pensada pro formato flat de um nível), e o card de
+            buff empilha em coluna (nome+meta, lista de atributos, forms) —
+            forçar isso com utilitário Tailwind por cima entraria numa
+            disputa de especificidade com a própria regra `display:flex`
+            do arquivo global (mesmo risco descrito no CLAUDE.md sobre
+          cascata). Em vez de arriscar, o contêiner de cada buff usa
+            style inline com os MESMOS valores visuais de .level-card
+            (cor/borda/sombra), sem nenhuma classe concorrente.
+
+            Permissão DIFERENTE do resto desta página (que é isAdmin):
+            qualquer cargo de staff configurado pode mexer aqui, mesma
+            regra do Discord (ver buffPanelSystem.js, mesmo pedido) — por
+            isso cada <form> daqui carrega data-staff-editable="true", que
+            isenta ele da trava geral de view-only da página (ver
+            public/js/dashboard-view-only-lock.js). Exclusivo do plano
+            Caçador (genericRconEnabled) — não Rastreador como Níveis de
+            Punição acima, mesma flag do resto do catálogo RCON manual.
+        %>
+        <section class="titan-card-premium flex-col gap-6">
+            <h2 class="section-title text-lg flex items-center gap-3 flex-wrap">
+                <span data-i18n-pt>BUFFS</span><span data-i18n-en>BUFFS</span>
+                <% if (!isCacador) { %><%- include('partials/tier-badge', { tier: 'cacador' }) %><% } %>
+            </h2>
+            <% if (!isCacador) { %>
+                <p class="text-[13px] opacity-50"><span data-i18n-pt>Exclusivo do plano Caçador — use</span><span data-i18n-en>Caçador plan exclusive — use</span> <code>/premium</code> <span data-i18n-pt>pra saber mais.</span><span data-i18n-en>to learn more.</span></p>
+            <% } else { %>
+                <div>
+                    <p class="text-[13px] opacity-50 mb-1">
+                        <span data-i18n-pt>Crie presets de atributos (RCON `setattr`) pra aplicar num jogador com um comando só (`/ingame-buff aplicar` no Discord). Qualquer cargo de staff configurado (Moderador, Supervisor ou Equipe de Eventos) pode criar/editar.</span>
+                        <span data-i18n-en>Create attribute presets (RCON `setattr`) to apply to a player with a single command (`/ingame-buff aplicar` on Discord). Any configured staff role (Moderador, Supervisor or Equipe de Eventos) can create/edit.</span>
+                    </p>
+                    <p class="text-[13px] opacity-40 mb-2">
+                        <span data-i18n-pt>Só os 25 primeiros buffs (por ordem de criação) aparecem no menu de `/ingame-buff aplicar` — limite do próprio Discord pra menus de seleção. Criar mais do que isso continua funcionando, só que os excedentes não ficam selecionáveis pra aplicar até algum dos 25 primeiros ser apagado.</span>
+                        <span data-i18n-en>Only the first 25 buffs (by creation order) show up in the `/ingame-buff aplicar` menu — a Discord limit for selection menus. Creating more than that still works, the extras just aren't selectable to apply until one of the first 25 is deleted.</span>
+                    </p>
+                    <p class="text-[13px] opacity-60 mb-3"><span data-i18n-pt>Buffs criados:</span><span data-i18n-en>Buffs created:</span> <%= buffs.length %></p>
+
+                    <% if (buffs.length === 0) { %>
+                        <p class="text-[13px] opacity-40 mb-3"><span data-i18n-pt>Nenhum buff criado ainda. Use o botão</span><span data-i18n-en>No buff created yet. Use the</span> <strong><span data-i18n-pt>Criar Buff</span><span data-i18n-en>Create Buff</span></strong> <span data-i18n-pt>abaixo.</span><span data-i18n-en>button below.</span></p>
+                    <% } else { %>
+                        <div class="level-list">
+                            <% buffs.forEach(buff => { %>
+                                <div style="display:flex; flex-direction:column; gap:12px; padding:14px 18px; background:#131314; border:1px solid rgba(217, 163, 98, 0.25); border-radius:10px; box-shadow:inset 0px 2px 10px rgba(0, 0, 0, 0.5);">
+                                    <div class="flex items-center justify-between flex-wrap gap-2">
+                                        <div class="flex flex-col gap-[2px] min-w-0">
+                                            <span class="level-card-name"><%= buff.name %></span>
+                                            <span class="level-card-meta"><%= buff.stats.length %> <span data-i18n-pt>atributo(s) configurado(s)</span><span data-i18n-en>attribute(s) configured</span></span>
+                                        </div>
+                                        <form action="/moderacao/<%= guild.id %>/buffs/<%= buff.id %>/delete" method="POST" data-staff-editable="true" onsubmit="return confirmDeleteBuff();">
+                                            <button type="submit" class="btn-chip btn-chip-danger"><span data-i18n-pt>Excluir Buff</span><span data-i18n-en>Delete Buff</span></button>
+                                        </form>
+                                    </div>
+
+                                    <% if (buff.stats.length > 0) { %>
+                                        <div class="flex flex-col gap-2">
+                                            <% buff.stats.forEach(stat => { %>
+                                                <div class="flex items-center justify-between gap-2" style="font-family:'Poppins',sans-serif; font-size:13px; color:#F8DCC0;">
+                                                    <span><strong><%= stat.attribute %></strong>: <code><%= stat.value %></code></span>
+                                                    <form action="/moderacao/<%= guild.id %>/buffs/<%= buff.id %>/remove-stat" method="POST" data-staff-editable="true">
+                                                        <input type="hidden" name="attribute" value="<%= stat.attribute %>">
+                                                        <button type="submit" class="btn-chip btn-chip-danger" style="padding:4px 10px; font-size:11px;"><span data-i18n-pt>Remover</span><span data-i18n-en>Remove</span></button>
+                                                    </form>
+                                                </div>
+                                            <% }); %>
+                                        </div>
+                                    <% } %>
+
+                                    <details class="level-form-details">
+                                        <summary class="btn-chip">+ <span data-i18n-pt>Adicionar Atributo</span><span data-i18n-en>Add Attribute</span></summary>
+                                        <form action="/moderacao/<%= guild.id %>/buffs/<%= buff.id %>/add-stat" method="POST" data-staff-editable="true" class="level-form-grid">
+                                            <div>
+                                                <label><span data-i18n-pt>Atributo</span><span data-i18n-en>Attribute</span></label>
+                                                <div class="input-container-premium">
+                                                    <select name="attribute" class="input-premium-field">
+                                                        <% knownStats.forEach(s => { %><option value="<%= s %>"><%= s %></option><% }); %>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label><span data-i18n-pt>Valor</span><span data-i18n-en>Value</span></label>
+                                                <div class="input-container-premium"><input type="text" name="value" class="input-premium-field" maxlength="50" placeholder="Ex: 500 ou 1.5" required></div>
+                                            </div>
+                                            <div class="level-form-actions" style="grid-column:1/-1;">
+                                                <button type="submit" class="btn-chip btn-chip-success"><span data-i18n-pt>Salvar Atributo</span><span data-i18n-en>Save Attribute</span></button>
+                                            </div>
+                                        </form>
+                                    </details>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+
+                    <details class="level-form-details mt-3">
+                        <summary class="btn-chip btn-chip-success">+ <span data-i18n-pt>Criar Buff</span><span data-i18n-en>Create Buff</span></summary>
+                        <form action="/moderacao/<%= guild.id %>/buffs/create" method="POST" data-staff-editable="true" class="level-form-grid">
+                            <div>
+                                <label><span data-i18n-pt>Nome</span><span data-i18n-en>Name</span></label>
+                                <div class="input-container-premium"><input type="text" name="name" class="input-premium-field" maxlength="100" placeholder="Ex: Buff de Evento" required></div>
+                            </div>
+                            <div class="level-form-actions" style="grid-column:1/-1;">
+                                <button type="submit" class="btn-chip btn-chip-success"><span data-i18n-pt>Confirmar Criação</span><span data-i18n-en>Confirm Creation</span></button>
+                            </div>
+                        </form>
+                    </details>
+                </div>
+            <% } %>
+        </section>
+
+        <%#
             CONFIGURAÇÕES DE REPUTAÇÃO — Cargos Automáticos (já existia,
             só mudou de lugar/head) + Recuperação Diária de Pontos (NOVO,
             porta a aba "reputation" do mesmo painel /config punishments —
@@ -571,6 +687,14 @@
             var msg = lang === 'en'
                 ? 'Delete this punishment level? Punishments already applied with it are not affected.'
                 : 'Deletar este nível de punição? Punições já aplicadas com ele não são afetadas.';
+            return confirm(msg);
+        }
+
+        function confirmDeleteBuff() {
+            var lang = document.documentElement.getAttribute('data-lang') || 'pt';
+            var msg = lang === 'en'
+                ? 'Delete this buff? This cannot be undone.'
+                : 'Excluir este buff? Isso não pode ser desfeito.';
             return confirm(msg);
         }
     </script>

@@ -24,7 +24,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require('discord.js');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PremiumSystem = require('../premium/premiumSystem');
-const PunishmentSystem = require('../moderation/punishmentSystem');
+const ConfigSystem = require('../core/configSystem');
 const BuffSystem = require('./buffSystem');
 const BuffStatCatalog = require('./buffStatCatalog');
 const ResponseManager = require('../../utils/responseManager');
@@ -40,16 +40,21 @@ function _isEnabled(guildId) {
     return !!PremiumSystem.getGuildLimits(guildId).genericRconEnabled;
 }
 
-// Criar/editar buff é restrito ao cargo Supervisor OU ao Cargo
-// Administrativo do Dashboard (pedido do dono — memberHasSupervisorRole já
-// aceita os dois) — diferente de aplicar um buff (/ingame-buff aplicar),
-// liberado pra qualquer cargo de staff (ver ConfigSystem.
-// memberHasAnyStaffRole lá).
-async function _isSupervisor(interaction) {
-    return await PunishmentSystem.memberHasSupervisorRole(interaction.guild, interaction.member);
+// BUG REAL corrigido (pedido do dono, 2026-08-17): criar/editar buff era
+// restrito ao cargo Supervisor (memberHasSupervisorRole), mas o comando que
+// abre este painel (buffs.js) já barrava qualquer não-admin ANTES de
+// chegar aqui — na prática só Administrador passava dos dois portões.
+// Pedido do dono vai além do bug: agora CRIAR/editar aceita qualquer cargo
+// de staff configurado (Moderador/Supervisor/Equipe de Eventos), igual já
+// funciona pra APLICAR um buff (/ingame-buff aplicar, ver
+// ConfigSystem.memberHasAnyStaffRole lá) — as duas ações usam a mesma regra
+// agora, sem distinção.
+async function _isStaff(interaction) {
+    return ConfigSystem.memberHasAnyStaffRole(interaction.guild.id, interaction.member)
+        || ConfigSystem.memberIsGuildAdmin(interaction.guild.id, interaction.member);
 }
 
-const SUPERVISOR_ONLY_MESSAGE = 'Este comando é restrito ao cargo Supervisor (ver /config roles).';
+const STAFF_ONLY_MESSAGE = 'Este comando é restrito à equipe do servidor (cargo Staff, ver /config roles).';
 
 async function _ephemeralError(interaction, message) {
     return await interaction.followUp({ content: message, flags: 64 });
@@ -68,6 +73,16 @@ function _renderList(cb, guildId) {
         cb.assetThumbnail('icone_config') || AdvancedContainerBuilder.thumbnail('https://cdn.discordapp.com/embed/avatars/0.png'),
     );
     cb.separator();
+
+    // Aviso pedido pelo dono, 2026-08-17: "adicione um aviso de limitação
+    // de criação de acordo com o que o discord pode mostrar" — não existe
+    // teto de CRIAÇÃO (ver comentário no BUFF_LIST_SAFE_LIMIT abaixo), mas
+    // existe um teto real de USO: o select de /ingame-buff aplicar
+    // (ingame-buff.js) só cabe 25 opções, limite nativo de um StringSelectMenu
+    // do Discord — antes disso só existia um aviso REATIVO lá, depois que o
+    // servidor já tinha passado de 25. Mostrado sempre (não só perto do
+    // limite) pra avisar de antemão, não só depois do fato consumado.
+    cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Só os 25 primeiros buffs (por ordem de criação) aparecem no menu de \`/ingame-buff aplicar\` — limite do próprio Discord pra menus de seleção. Criar mais do que isso continua funcionando, só que os excedentes não ficam selecionáveis pra aplicar até algum dos 25 primeiros ser apagado.`);
 
     if (buffs.length === 0) {
         cb.text(`${EMOJIS.messagesquare || 'ℹ️'} Nenhum buff criado ainda. Use o botão **Criar Buff** abaixo.`);
@@ -250,8 +265,8 @@ module.exports = {
         if (!_isEnabled(guildId)) {
             return await _ephemeralError(interaction, PremiumSystem.getGuildDenialMessage(guildId));
         }
-        if (!(await _isSupervisor(interaction))) {
-            return await _ephemeralError(interaction, SUPERVISOR_ONLY_MESSAGE);
+        if (!(await _isStaff(interaction))) {
+            return await _ephemeralError(interaction, STAFF_ONLY_MESSAGE);
         }
 
         switch (action) {
@@ -305,8 +320,8 @@ module.exports = {
         if (!_isEnabled(interaction.guildId)) {
             return await interaction.reply({ content: PremiumSystem.getGuildDenialMessage(interaction.guildId), flags: 64 });
         }
-        if (!(await _isSupervisor(interaction))) {
-            return await interaction.reply({ content: SUPERVISOR_ONLY_MESSAGE, flags: 64 });
+        if (!(await _isStaff(interaction))) {
+            return await interaction.reply({ content: STAFF_ONLY_MESSAGE, flags: 64 });
         }
 
         const modal = new ModalBuilder()
@@ -335,8 +350,8 @@ module.exports = {
         if (!_isEnabled(interaction.guildId)) {
             return await interaction.reply({ content: PremiumSystem.getGuildDenialMessage(interaction.guildId), flags: 64 });
         }
-        if (!(await _isSupervisor(interaction))) {
-            return await interaction.reply({ content: SUPERVISOR_ONLY_MESSAGE, flags: 64 });
+        if (!(await _isStaff(interaction))) {
+            return await interaction.reply({ content: STAFF_ONLY_MESSAGE, flags: 64 });
         }
 
         const attribute = interaction.values?.[0];
@@ -371,8 +386,8 @@ module.exports = {
         if (!_isEnabled(guildId)) {
             return await ResponseManager.error(interaction, PremiumSystem.getGuildDenialMessage(guildId));
         }
-        if (!(await _isSupervisor(interaction))) {
-            return await ResponseManager.error(interaction, SUPERVISOR_ONLY_MESSAGE);
+        if (!(await _isStaff(interaction))) {
+            return await ResponseManager.error(interaction, STAFF_ONLY_MESSAGE);
         }
 
         if (action === 'create-submit') {

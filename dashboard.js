@@ -16,6 +16,8 @@ const ProfileImagePool = require('./src/systems/pot/profileImagePool');
 const ImageShopSystem = require('./src/systems/pot/imageShopSystem');
 const PunishmentLevels = require('./src/systems/moderation/punishmentLevels');
 const PlayerRegistry = require('./src/systems/pot/potPlayerRegistry');
+const BuffSystem = require('./src/systems/pot/buffSystem');
+const BuffStatCatalog = require('./src/systems/pot/buffStatCatalog');
 const CurrencySystem = require('./src/systems/pot/currencySystem');
 const GameShopSystem = require('./src/systems/pot/gameShopSystem');
 const AchievementSystem = require('./src/systems/pot/achievementSystem');
@@ -2830,6 +2832,17 @@ function loadDashboard(client) {
         const levelLimit = PunishmentLevels.getLevelLimit(guildID);
         const canCreateLevel = PunishmentLevels.canCreateLevel(guildID);
 
+        // BUFFS (moderacao.ejs) — porta o painel /config buffs do Discord
+        // pro site (pedido do dono, 2026-08-17), mesmo BuffSystem/
+        // BuffStatCatalog que o Discord já usa (sem duplicar lógica nem
+        // dado). Cada buff já vem com seus atributos anexados (stats) pra
+        // não precisar de N chamadas extras no template.
+        const buffs = BuffSystem.getBuffs(guildID).map(buff => ({
+            ...buff,
+            stats: BuffSystem.getBuffStats(buff.id),
+        }));
+        const knownStats = BuffStatCatalog.KNOWN_STATS;
+
         // Prévia da Divulgação do Servidor (ver getOwnPartnerNews acima) +
         // próxima data em que /divulgar libera de novo (1 publicação por
         // semana) — null quando nunca publicou nada ainda.
@@ -2854,6 +2867,12 @@ function loadDashboard(client) {
             nickname: member.nickname || member.user.username,
             role,
             isAdmin,
+            // Só usado pela seção de Buffs (pedido do dono: qualquer cargo
+            // de staff configura buff, não só admin, diferente do resto
+            // desta página) — sempre true aqui, já que a própria rota
+            // barrou !isStaff lá em cima antes de chegar neste ponto; a
+            // distinção que importa na página é isAdmin vs staff-não-admin.
+            isStaff,
             isOwner: isOwnerSession(req),
             pageRoute: 'moderacao',
             otherGuilds: await getAdminGuildsWithBot(req),
@@ -2862,6 +2881,8 @@ function loadDashboard(client) {
             staffRoleIds,
             supervisorRoleIds,
             reportMentionRoleIds,
+            buffs,
+            knownStats,
             roleLimits,
             openReportsAlert,
             settings,
@@ -3179,6 +3200,97 @@ function loadDashboard(client) {
             res.redirect(`/moderacao/${guildID}?saved=success`);
         } catch (error) {
             console.error('❌ Erro ao alternar aprovação do nível:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    // ==================== BUFFS ====================
+    // Porta pro site o painel /config buffs do Discord (pedido do dono,
+    // 2026-08-17) — mesmo BuffSystem usado lá, sem duplicar CRUD. Gate
+    // DIFERENTE do resto de /moderacao (que é isAdmin): buffs aceitam
+    // qualquer cargo de staff configurado, mesma regra já usada pelo
+    // Discord (ver buffs.js/buffPanelSystem.js, mesmo pedido). Exclusivo do
+    // plano Caçador (genericRconEnabled), mesma flag do resto do catálogo
+    // RCON manual — não Rastreador como os níveis de punição.
+    async function resolveBuffsStaff(req, res, guildID) {
+        const guild = client.guilds.cache.get(guildID);
+        if (!guild) { res.status(404).send('Guild não encontrada.'); return null; }
+        const { isStaff, apiError } = await resolveAdminMember(guild, req.user.id);
+        if (apiError) {
+            console.error(`❌ [Dashboard] Falha ao verificar permissão de ${req.user.id} em ${guildID}:`, apiError);
+            res.status(503).send('Não foi possível verificar sua permissão agora (falha temporária do Discord) — tente novamente em instantes.');
+            return null;
+        }
+        if (!isStaff) { res.status(403).send('Acesso negado.'); return null; }
+        if (!PremiumSystem.getGuildLimits(guildID).genericRconEnabled) { res.status(403).send('Recurso exclusivo do plano Caçador.'); return null; }
+        return guild;
+    }
+
+    app.post('/moderacao/:guildID/buffs/create', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID } = req.params;
+        const guild = await resolveBuffsStaff(req, res, guildID);
+        if (!guild) return;
+        try {
+            const name = (req.body.name || '').trim();
+            if (!name) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            BuffSystem.createBuff(guildID, name.slice(0, 100), req.user.id);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao criar buff:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    app.post('/moderacao/:guildID/buffs/:buffId/add-stat', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, buffId } = req.params;
+        const guild = await resolveBuffsStaff(req, res, guildID);
+        if (!guild) return;
+        try {
+            if (!BuffSystem.getBuff(guildID, buffId)) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            const attribute = req.body.attribute;
+            const value = (req.body.value || '').trim();
+            // Defesa em profundidade: attribute vem de um <select> populado
+            // só com KNOWN_STATS, mas um POST forjado poderia mandar
+            // qualquer string — mesmo cuidado já tomado com outros campos
+            // de <select> no resto do dashboard (ex: cargos/tiers).
+            if (!BuffStatCatalog.isKnownAttribute(attribute) || !value) {
+                return res.redirect(`/moderacao/${guildID}?saved=error`);
+            }
+            BuffSystem.upsertBuffStat(buffId, attribute, value.slice(0, 50));
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao adicionar atributo do buff:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    app.post('/moderacao/:guildID/buffs/:buffId/remove-stat', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, buffId } = req.params;
+        const guild = await resolveBuffsStaff(req, res, guildID);
+        if (!guild) return;
+        try {
+            if (!BuffSystem.getBuff(guildID, buffId)) return res.redirect(`/moderacao/${guildID}?saved=error`);
+            BuffSystem.removeBuffStat(buffId, req.body.attribute);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao remover atributo do buff:', error);
+            res.redirect(`/moderacao/${guildID}?saved=error`);
+        }
+    });
+
+    app.post('/moderacao/:guildID/buffs/:buffId/delete', checkAuth, async (req, res) => {
+        if (isDashboardLocked(req)) return res.redirect('/dashboard');
+        const { guildID, buffId } = req.params;
+        const guild = await resolveBuffsStaff(req, res, guildID);
+        if (!guild) return;
+        try {
+            BuffSystem.deleteBuff(guildID, buffId);
+            res.redirect(`/moderacao/${guildID}?saved=success`);
+        } catch (error) {
+            console.error('❌ Erro ao excluir buff:', error);
             res.redirect(`/moderacao/${guildID}?saved=error`);
         }
     });
