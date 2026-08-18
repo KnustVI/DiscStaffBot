@@ -444,6 +444,16 @@
             border-radius: 10px;
         }
 
+        /* Botão "Converter em Marks/Ossos" — reduzido e centralizado
+           (pedido do dono, 2026-08-18: "diminua o botão de converter um
+           pouco e centralize ele nos cards de conversão"). .btn-salvar-final
+           é uma classe GLOBAL (style.css, usada em botões "Salvar" fora
+           desta página) — não mexida ali, só sobrescrita aqui dentro do
+           conversor via descendente de .loja-converter-form. Troca
+           self-start -> self-center no HTML (Tailwind) cuida da
+           centralização; padding/font-size aqui cuidam do tamanho. */
+        .loja-converter-form .btn-salvar-final { padding: 8px 28px; font-size: 13px; }
+
         /* Slider do conversor (pedido do dono, 2026-08-18: "imaginei como se
            fosse uma barra de volume que tem um botão que corre na barra
            aumentando ou diminuindo o valor de conversão e alterando em
@@ -1149,7 +1159,7 @@
                             <span class="loja-converter-slider-value" data-role="converter-slider-value">1</span>
                         </div>
                         <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Você vai receber: </span><span data-i18n-en>You'll receive: </span><strong>100 Marks</strong></p>
-                        <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
+                        <button type="submit" class="btn-salvar-final self-center mt-3"><span data-i18n-pt>Converter em Marks</span><span data-i18n-en>Convert to Marks</span></button>
                     </form>
                     <form action="/loja/converter/marks-ossos" method="POST" class="loja-converter-form" data-converter-mode="marks-ossos">
                         <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt>Marks → Ossos</span><span data-i18n-en>Marks → Bones</span></h3>
@@ -1170,7 +1180,7 @@
                             <span class="loja-converter-slider-value" data-role="converter-slider-value"><%= marksPerBone %></span>
                         </div>
                         <p class="loja-converter-preview-text" data-role="converter-preview-text"><span data-i18n-pt>Você vai receber: </span><span data-i18n-en>You'll receive: </span><strong>1 <span data-i18n-pt>Osso</span><span data-i18n-en>Bone</span></strong></p>
-                        <button type="submit" class="btn-salvar-final self-start mt-3"><span data-i18n-pt>Converter em Ossos</span><span data-i18n-en>Convert to Bones</span></button>
+                        <button type="submit" class="btn-salvar-final self-center mt-3"><span data-i18n-pt>Converter em Ossos</span><span data-i18n-en>Convert to Bones</span></button>
                         <p class="text-[11px] opacity-40 mt-2"><span data-i18n-pt>⚠️ O próprio jogo confere seu saldo de Marks: se você não tiver o suficiente, a conversão não credita nenhum Osso. Confira a resposta do jogo depois de converter pra ter certeza.</span><span data-i18n-en>⚠️ The game itself checks your Marks balance: if you don't have enough, the conversion won't credit any Bones. Check the game's response after converting to be sure.</span></p>
                         <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Não precisa ser múltiplo de <%= marksPerBone %> — o que não fechar 1 Osso fica sem ser tocado, pra usar numa próxima conversão.</span><span data-i18n-en>Doesn't need to be a multiple of <%= marksPerBone %> — whatever doesn't complete 1 Bone is left untouched, for a future conversion.</span></p>
                     </form>
