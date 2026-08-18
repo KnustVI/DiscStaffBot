@@ -127,73 +127,107 @@ function parseRequirement(row) {
     }
 }
 
-/**
- * Checagem de UM requisito só — corpo movido pra fora de
- * checkRequirementMet (que agora itera a lista inteira) sem nenhuma
- * mudança de lógica interna.
- */
-function _checkSingleRequirementMet(userId, requirement, link) {
-    if (!requirement || !REQUIREMENT_TYPES[requirement.type] || !Number.isFinite(requirement.value)) return false;
+// current arredondado ANTES de comparar com target (não o valor cru) —
+// mantém `met`/`percent` sempre consistentes entre si (nunca mostra 100%
+// na barra com met:false, ou vice-versa, por causa de uma casa decimal
+// escondida). decimals=1 pros tipos de hora (8.3h fica mais legível que
+// 8.333333h), decimals=0 pro resto (contagens já são inteiras).
+function _numericProgress(requirement, rawCurrent, decimals = 0) {
+    const factor = Math.pow(10, decimals);
+    const current = Math.floor(rawCurrent * factor) / factor;
+    const target = requirement.value;
+    const percent = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+    return { met: current >= target, isBoolean: false, current, target, percent };
+}
 
+function _booleanProgress(met) {
+    return { met, isBoolean: true, current: met, target: null, percent: met ? 100 : 0 };
+}
+
+/**
+ * Progresso de UM requisito — current/target/percent/met, usado tanto por
+ * checkRequirementMet (só olha `.met`) quanto pelo overlay de progresso de
+ * /loja (pedido do dono, 2026-08-19: "Em missões, emblemas e titullos
+ * motre o progresso em uma overlay" — ver getRequirementsProgress
+ * abaixo). Única fonte de verdade da busca de stats por tipo — nunca
+ * duplicada entre as duas funções que a usam.
+ * @returns {{type:string, label:string|null, met:boolean, isBoolean:boolean, current:number|boolean|null, target:number|null, percent:number}}
+ */
+function _singleRequirementProgress(userId, requirement, link) {
     const PlayerRegistry = require('./potPlayerRegistry');
+    let progress;
 
     switch (requirement.type) {
-        case 'kills': {
-            const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
-            return stats.kills >= requirement.value;
-        }
-        case 'playtime_hours': {
-            const stats = PlayerRegistry.getGlobalPlayerStats(link.alderon_id);
-            return (stats.totalPlaytime / 3600) >= requirement.value;
-        }
-        case 'level': {
-            const progress = PlayerRegistry.getLevelProgress(userId);
-            return (progress?.level || 0) >= requirement.value;
-        }
+        case 'kills':
+            progress = _numericProgress(requirement, PlayerRegistry.getGlobalPlayerStats(link.alderon_id).kills);
+            break;
+        case 'playtime_hours':
+            progress = _numericProgress(requirement, PlayerRegistry.getGlobalPlayerStats(link.alderon_id).totalPlaytime / 3600, 1);
+            break;
+        case 'level':
+            progress = _numericProgress(requirement, PlayerRegistry.getLevelProgress(userId)?.level || 0);
+            break;
         case 'species_picks': {
-            if (!requirement.species) return false;
+            if (!requirement.species) { progress = _numericProgress(requirement, 0); break; }
             const db = require('../../database/index');
             const row = db.prepare(`
                 SELECT SUM(pick_count) as total FROM pot_dinosaur_picks
                 WHERE alderon_id = ? AND dinosaur_type = ? COLLATE NOCASE
             `).get(link.alderon_id, requirement.species);
-            return (row?.total || 0) >= requirement.value;
+            progress = _numericProgress(requirement, row?.total || 0);
+            break;
         }
         case 'server_playtime_hours': {
-            if (!requirement.guildId) return false;
+            if (!requirement.guildId) { progress = _numericProgress(requirement, 0, 1); break; }
             const stats = PlayerRegistry.getGuildPlayerStats(requirement.guildId, link.alderon_id);
-            return (stats.totalPlaytime / 3600) >= requirement.value;
+            progress = _numericProgress(requirement, stats.totalPlaytime / 3600, 1);
+            break;
         }
         case 'species_kills': {
-            if (!requirement.species) return false;
+            if (!requirement.species) { progress = _numericProgress(requirement, 0); break; }
             const db = require('../../database/index');
             const row = db.prepare(`
                 SELECT SUM(kill_count) as total FROM pot_species_kills
                 WHERE alderon_id = ? AND species_killed = ? COLLATE NOCASE
             `).get(link.alderon_id, requirement.species);
-            return (row?.total || 0) >= requirement.value;
+            progress = _numericProgress(requirement, row?.total || 0);
+            break;
         }
         case 'is_online':
-            return PlayerRegistry.getGlobalPlayerStats(link.alderon_id).isOnline === true;
+            progress = _booleanProgress(PlayerRegistry.getGlobalPlayerStats(link.alderon_id).isOnline === true);
+            break;
         case 'registered_between': {
-            if (!requirement.startDate || !requirement.endDate || !link.registered_at) return false;
+            if (!requirement.startDate || !requirement.endDate || !link.registered_at) { progress = _booleanProgress(false); break; }
             // Comparação como string YYYY-MM-DD (não timestamp) pra evitar
             // fuso horário — ISO-date ordena igual string, então >= / <=
             // funcionam direto.
             const registeredDate = new Date(link.registered_at).toISOString().slice(0, 10);
-            return registeredDate >= requirement.startDate && registeredDate <= requirement.endDate;
+            progress = _booleanProgress(registeredDate >= requirement.startDate && registeredDate <= requirement.endDate);
+            break;
         }
         case 'registered_on_server': {
-            if (!requirement.guildId) return false;
+            if (!requirement.guildId) { progress = _booleanProgress(false); break; }
             const db = require('../../database/index');
             const row = db.prepare(`
                 SELECT 1 FROM pot_players WHERE guild_id = ? AND alderon_id = ? LIMIT 1
             `).get(requirement.guildId, link.alderon_id);
-            return !!row;
+            progress = _booleanProgress(!!row);
+            break;
         }
         default:
-            return false;
+            progress = { met: false, isBoolean: false, current: null, target: null, percent: 0 };
     }
+
+    return { type: requirement.type, label: describeRequirement([requirement]), ...progress };
+}
+
+/**
+ * Checagem de UM requisito só — delega pra _singleRequirementProgress
+ * (única fonte de verdade da busca de stats) e só olha `.met`.
+ */
+function _checkSingleRequirementMet(userId, requirement, link) {
+    if (!requirement || !REQUIREMENT_TYPES[requirement.type] || !Number.isFinite(requirement.value)) return false;
+    return _singleRequirementProgress(userId, requirement, link).met;
 }
 
 /**
@@ -214,6 +248,34 @@ function checkRequirementMet(userId, requirements) {
     if (!link?.alderon_id) return false;
 
     return list.every((r) => _checkSingleRequirementMet(userId, r, link));
+}
+
+/**
+ * Progresso de CADA requisito da lista (pedido do dono, 2026-08-19: "Em
+ * missões, emblemas e titullos motre o progresso em uma overlay") — uma
+ * linha por requisito (current/target/percent/met/label, ver
+ * _singleRequirementProgress), na MESMA ordem da lista salva. Sem
+ * vínculo (`link`) devolve tudo zerado/não-cumprido em vez de lançar —
+ * mesmo espírito defensivo de checkRequirementMet, só que sem jogar fora
+ * a lista inteira (o overlay ainda precisa mostrar os requisitos, só que
+ * como "0 de N cumpridos").
+ * @param {string} userId
+ * @param {Array<object>|object|null} requirements
+ * @returns {Array<{type:string, label:string|null, met:boolean, isBoolean:boolean, current:number|boolean|null, target:number|null, percent:number}>}
+ */
+function getRequirementsProgress(userId, requirements) {
+    const list = Array.isArray(requirements) ? requirements : (requirements ? [requirements] : []);
+    if (list.length === 0) return [];
+
+    const PlayerRegistry = require('./potPlayerRegistry');
+    const link = PlayerRegistry.getPlayerByDiscordId(userId);
+
+    return list.map((r) => {
+        if (!link?.alderon_id || !r || !REQUIREMENT_TYPES[r.type]) {
+            return { type: r?.type, label: describeRequirement([r]), met: false, isBoolean: false, current: null, target: r?.value ?? null, percent: 0 };
+        }
+        return _singleRequirementProgress(userId, r, link);
+    });
 }
 
 /**
@@ -257,4 +319,5 @@ module.exports = {
     parseRequirement,
     checkRequirementMet,
     describeRequirement,
+    getRequirementsProgress,
 };

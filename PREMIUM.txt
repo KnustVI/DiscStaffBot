@@ -11324,3 +11324,53 @@ frente, nao so este relatorio):
   "Infinito"/"Limitado" nos 2 dialogs mostra/esconde o campo certo e
   que criar um item com "Infinito" selecionado realmente grava estoque
   ilimitado (∞ no card).
+
+221) Overlay de progresso por requisito em Missões, Emblemas e Títulos
+--------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Em missões, emblemas e titullos motre o
+  progresso em uma overlay."
+- Feature nova: cada item de `/loja` (na seção "MISSÕES E RECOMPENSAS")
+  que tem um requisito configurado e ainda não foi conquistado ganha um
+  botão "Ver progresso", abrindo um `<dialog>` com UMA linha por
+  requisito da lista (podem ser vários, todos obrigatórios — E, não
+  OU) mostrando quanto falta: barra de progresso + "atual / meta" pros
+  tipos numéricos (kills, horas jogadas, nível, vezes com uma espécie,
+  etc.), e um selo "Cumprido"/"Ainda não cumprido" pros 3 tipos
+  booleanos sem fração numérica que faça sentido (Está online agora,
+  Registrou-se entre duas datas, Registrou-se em um servidor
+  específico).
+- `AchievementSystem` ganhou `getRequirementsProgress(userId,
+  requirements)`, refatorado a partir da MESMA busca de stats que
+  `checkRequirementMet` já fazia (`_singleRequirementProgress`, nova
+  função interna — `_checkSingleRequirementMet` agora só delega pra ela
+  e olha `.met`, sem duplicar nenhuma query). Cada linha devolve
+  `{type, label, met, isBoolean, current, target, percent}` — `current`
+  arredondado ANTES de comparar com `target` (1 casa decimal pros tipos
+  de hora, inteiro pro resto), garantindo que a barra e o selo de
+  "cumprido" nunca discordem um do outro por causa de arredondamento.
+- `dashboard.js` GET `/loja` calcula `item.progress` pra badges/
+  títulos (dentro de `resolvePublicGroup`, compartilhado pelos dois) e
+  pra missões, só quando o item tem `requirement` configurado — vazio
+  (`[]`) caso contrário, e o overlay/botão só aparece quando
+  `progress.length > 0` e o item ainda não foi conquistado (`!owned`).
+- `loja.ejs` ganhou CSS/JS novos (`.loja-progress-*`, `ljStockModeSync`-
+  style dialog nativo, fecha com clique fora igual /dev/Loja e
+  /lojajogo) — reusa a MESMA infraestrutura de `<dialog>` já
+  estabelecida no resto do site, sem inventar um padrão novo.
+- Verificado: `node --check` em `achievementSystem.js`/`dashboard.js`.
+  Reexecutados os testes isolados de `missionSystem.js` (21 checagens,
+  todas ainda passando) confirmando que a refatoração de
+  `_checkSingleRequirementMet` não mudou nenhum comportamento de
+  `checkRequirementMet`. Novo teste isolado de `getRequirementsProgress`
+  com stats reais (320 kills/500 exigidos = 64%, 8.5h/10h = 85%, 3x/5x
+  espécie = 60%, tipo booleano sem fração) — todas as contas batendo.
+  Teste end-to-end (banco SQLite temporário, réplica exata da
+  computação de `dashboard.js`) criando um emblema real com requisito
+  via `ProfileImagePool`, confirmando que `item.progress` chega
+  correto na mesma forma que o template consome. `ejs.render()`
+  completo de `loja.ejs` confirmando: botão aparece pra item locked,
+  NÃO aparece pra item já possuído nem pra item sem requisito, barra
+  numérica e selo booleano renderizam certo. SEM confirmação visual —
+  o dono precisa conferir ao vivo que o overlay abre/fecha (clique/
+  clique fora/Esc) e mostra os números certos nos 3 grupos (Emblemas/
+  Títulos/Missões).

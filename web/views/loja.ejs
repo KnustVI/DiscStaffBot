@@ -256,6 +256,73 @@
             color: #A5FFA1;
         }
         .loja-item-owned-badge i { width: 13px; height: 13px; }
+
+        <%#
+            Overlay de progresso por requisito (pedido do dono, 2026-08-19:
+            "Em missões, emblemas e titullos motre o progresso em uma
+            overlay") — mesmo padrão visual/estrutural de dialog nativo já
+            usado em /dev/Loja (.pool-req-dialog), classes próprias desta
+            página (loja.ejs nunca tinha um <dialog> antes). Um <dialog>
+            por item (badge/título/missão), populado server-side com
+            AchievementSystem.getRequirementsProgress (dashboard.js GET
+            /loja) — uma linha por requisito da lista (podem ser vários, E
+            entre eles), com barra de progresso pros tipos numéricos
+            (current/target) e um selo Cumprido/Ainda não pros tipos
+            booleanos (Está online/Registrou-se em X, sem fração
+            numérica que faça sentido mostrar).
+        %>
+        .loja-progress-btn { width: auto; padding: 4px 10px; font-size: 10px; gap: 4px; }
+        .loja-progress-btn i { width: 11px; height: 11px; }
+        dialog.loja-progress-dialog {
+            background: #1A1A1A;
+            color: #F8DCC0;
+            border: 1px solid rgba(217, 163, 98, 0.35);
+            border-radius: 14px;
+            padding: 18px;
+            width: calc(100% - 32px);
+            max-width: 380px;
+            max-height: calc(100vh - 64px);
+            overflow-y: auto;
+        }
+        dialog.loja-progress-dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+        .loja-progress-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .loja-progress-dialog-head h3 { font-family: 'Tilt Warp', cursive; font-weight: 400; font-size: 0.9rem; margin: 0; color: #F8DCC0; }
+        .loja-progress-dialog-close {
+            flex: none;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid rgba(217, 163, 98, 0.3);
+            border-radius: 6px;
+            color: #F8DCC0;
+            opacity: 0.7;
+            cursor: pointer;
+            font-size: 0.95rem;
+            line-height: 1;
+            transition: opacity 0.15s ease, background 0.15s ease;
+        }
+        .loja-progress-dialog-close:hover { opacity: 1; background: rgba(217, 163, 98, 0.12); }
+        .loja-progress-rows { display: flex; flex-direction: column; gap: 12px; }
+        .loja-progress-row + .loja-progress-row { padding-top: 12px; border-top: 1px dashed rgba(217, 163, 98, 0.2); }
+        .loja-progress-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+        .loja-progress-row-label { font-family: 'Poppins', sans-serif; font-size: 0.75rem; color: #F8DCC0; }
+        .loja-progress-row-status { display: flex; align-items: center; flex: none; color: rgba(248, 220, 192, 0.4); }
+        .loja-progress-row-status i { width: 14px; height: 14px; }
+        .loja-progress-row-status.is-met { color: #A5FFA1; }
+        .loja-progress-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 4px;
+            background: rgba(248, 220, 192, 0.12);
+            overflow: hidden;
+        }
+        .loja-progress-fill { height: 100%; border-radius: 4px; background: #D9A362; transition: width 0.3s ease; }
+        .loja-progress-fill.is-met { background: #A5FFA1; }
+        .loja-progress-caption { display: block; margin-top: 4px; font-family: 'Poppins', sans-serif; font-size: 0.65rem; opacity: 0.55; }
+
         .loja-item-buy-form { margin: 0; display: flex; justify-content: center; }
         /* Botão cada vez menor (pedido do dono, 2026-08-10, 2026-08-12,
            2026-08-18) — deixou de acompanhar a largura cheia do card
@@ -684,6 +751,46 @@
                                         <span class="loja-item-desc"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Requisito:</span><span data-i18n-en>Requirement:</span> <%= item.requirementLabel %></span>
                                     <% } else { %>
                                         <span class="loja-item-desc"><span data-i18n-pt>Concedido manualmente pelo dono.</span><span data-i18n-en>Manually granted by the owner.</span></span>
+                                    <% } %>
+                                    <%#
+                                        Overlay de progresso (pedido do dono,
+                                        2026-08-19: "Em missões, emblemas e
+                                        titullos motre o progresso em uma
+                                        overlay") — só quando tem requisito
+                                        configurado (item.progress vem [] sem
+                                        requisito, ver GET /loja em
+                                        dashboard.js) e o item ainda não foi
+                                        conquistado (progresso deixa de fazer
+                                        sentido depois de já ter/concluído).
+                                    %>
+                                    <% if (item.progress && item.progress.length > 0 && !item.owned) { %>
+                                        <button type="button" class="btn-chip loja-progress-btn" onclick="document.getElementById('lp-<%= group.key %>-<%= item.id %>-dialog').showModal()">
+                                            <i data-lucide="trending-up"></i> <span data-i18n-pt>Ver progresso</span><span data-i18n-en>View progress</span>
+                                        </button>
+                                        <dialog id="lp-<%= group.key %>-<%= item.id %>-dialog" class="loja-progress-dialog">
+                                            <div class="loja-progress-dialog-head">
+                                                <h3><%= item.label %></h3>
+                                                <button type="button" class="loja-progress-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar" title="Fechar">&times;</button>
+                                            </div>
+                                            <div class="loja-progress-rows">
+                                                <% item.progress.forEach(p => { %>
+                                                    <div class="loja-progress-row">
+                                                        <div class="loja-progress-row-head">
+                                                            <span class="loja-progress-row-label"><%= p.label %></span>
+                                                            <span class="loja-progress-row-status<%= p.met ? ' is-met' : '' %>"><i data-lucide="<%= p.met ? 'check' : 'lock' %>"></i></span>
+                                                        </div>
+                                                        <% if (p.isBoolean) { %>
+                                                            <span class="loja-progress-caption"><span data-i18n-pt><%= p.met ? 'Cumprido' : 'Ainda não cumprido' %></span><span data-i18n-en><%= p.met ? 'Met' : 'Not met yet' %></span></span>
+                                                        <% } else { %>
+                                                            <div class="loja-progress-track" role="progressbar" aria-valuenow="<%= p.percent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
+                                                                <div class="loja-progress-fill<%= p.met ? ' is-met' : '' %>" style="width: <%= p.percent.toFixed(1) %>%;"></div>
+                                                            </div>
+                                                            <span class="loja-progress-caption"><%= p.current %> / <%= p.target %></span>
+                                                        <% } %>
+                                                    </div>
+                                                <% }); %>
+                                            </div>
+                                        </dialog>
                                     <% } %>
                                 </div>
                             <% }); %>
@@ -1303,6 +1410,23 @@
             }
         }
         document.querySelectorAll('.loja-converter-form input[type="range"][name="quantidade"]').forEach(updateConverterPreview);
+
+        <%#
+            Clique fora fecha o <dialog> de progresso (pedido do dono,
+            2026-08-19 — overlay de progresso em Missões/Emblemas/Títulos)
+            — ::backdrop não recebe clique, então compara a posição do
+            clique com o retângulo real do conteúdo (mesmo padrão já usado
+            em dev-lojas.ejs/lojajogo.ejs). UM listener por dialog (podem
+            existir vários na página, um por item com requisito), Esc já
+            fecha sozinho (comportamento nativo de <dialog>).
+        %>
+        document.querySelectorAll('.loja-progress-dialog').forEach((dialog) => {
+            dialog.addEventListener('click', (e) => {
+                const rect = dialog.getBoundingClientRect();
+                const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
+                if (!insideContent) dialog.close();
+            });
+        });
     </script>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>

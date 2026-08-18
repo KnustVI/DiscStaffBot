@@ -1913,6 +1913,13 @@ function loadDashboard(client) {
                     owned: ImageShopSystem.ownsImage(req.user.id, type, row.id),
                     requirement,
                     requirementLabel: AchievementSystem.describeRequirement(requirement),
+                    // Progresso por requisito (pedido do dono, 2026-08-19:
+                    // "Em missões, emblemas e titullos motre o progresso em
+                    // uma overlay") — array de {current,target,percent,met}
+                    // por requisito, mostrado no overlay de progresso do
+                    // card (ver loja.ejs). [] quando não tem requisito
+                    // nenhum (nada pra mostrar).
+                    progress: requirement ? AchievementSystem.getRequirementsProgress(req.user.id, requirement) : [],
                 };
             }));
         };
@@ -1952,6 +1959,7 @@ function loadDashboard(client) {
                 url: null,
                 requirement,
                 requirementLabel: AchievementSystem.describeRequirement(requirement),
+                progress: requirement ? AchievementSystem.getRequirementsProgress(req.user.id, requirement) : [],
                 rewardLabel: MissionSystem.describeReward(row),
                 owned: MissionSystem.hasClaimed(req.user.id, row.id),
             };
