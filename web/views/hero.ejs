@@ -211,6 +211,21 @@
         .mockup-pill.is-gold { background: rgba(220,161,94,0.15); color: #DCA15E; border: 1px solid rgba(220,161,94,0.4); }
         .mockup-pill.is-red { background: rgba(255,78,59,0.15); color: #FF4E3B; border: 1px solid rgba(255,78,59,0.4); }
         .mockup-pill.is-green { background: rgba(126,196,124,0.15); color: #7EC47C; border: 1px solid rgba(126,196,124,0.4); }
+        <%# Revisão de textos da home (pedido do dono, 2026-08-18) — lista
+            com marcadores (f.bodyListPt/En, ver loop mais abaixo) pros
+            casos onde o texto dado já vem formatado como "- item" em vez
+            de parágrafo corrido (Perfil, Análise de Staff). Mesma
+            tipografia/opacidade do parágrafo normal (.text-shadow-figma
+            já aplicado no <ul> pai), só troca o marker por um traço
+            (mesma linguagem visual do "—" já usado no resto do site) em
+            vez do • padrão do navegador. Ícone inline antes de um h3 de
+            sub-seção (f.subIcon/f.body2HeadingIcon) — usado só pelo split
+            "LOJA DE CAÇADAS"/"LOJA DE OSSOS" com os ícones reais da
+            moeda, mesmo arquivo já usado em mockupRow('img:hunt'/'img:bone'). %>
+        .hero-feature-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 4px 0 0; padding: 0; }
+        .hero-feature-list li { position: relative; padding-left: 18px; }
+        .hero-feature-list li::before { content: '—'; position: absolute; left: 0; opacity: 0.6; }
+        .hero-heading-icon { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; vertical-align: -5px; margin-right: 8px; }
         .quote-card {
             background: #1A1A1A;
             border: 1px solid #3E3D38;
@@ -842,129 +857,112 @@
     // docblock da .mockup-panel no <style>.
     const features = [
         {
-            // Atualizado (pedido do dono, 2026-08-12: "Remova o texto sobre
-            // Ossos & Caçadas" + "Foque em falar sobre o perfil e que ele
-            // pode ser customizavel pela loja ou com uma conta premium
-            // raptor") — o subtópico de moeda saiu, o foco agora é
-            // personalização: a Loja (aberta a qualquer jogador) e o Player
-            // Premium Raptor (upload de imagem própria) como os 2 caminhos
-            // reais pra customizar o perfil. Print atualizado no mesmo dia
-            // pra refletir o card de verdade (saldo de moedas com os ícones
-            // novos, tier Raptor, histórico de staff).
-            img: 'screenshot-perfil', titlePt: 'PERFIL PRÉ-HISTÓRICO', titleEn: 'PREHISTORIC PROFILE',
-            leadPt: 'Todos nossos usuários podem desfrutar de um perfil com títulos, badges e o histórico da sua caminhada no jogo.',
-            leadEn: "Every user gets to enjoy a profile with titles, badges, and a record of their journey in the game.",
-            subPt: 'PERFIL ACESSÁVEL EM QUALQUER SERVIDOR QUE USE O BOT.', subEn: 'A PROFILE AVAILABLE ON ANY SERVER RUNNING THE BOT.',
-            bodyPt: 'Perfis totalmente personalizáveis com imagens, títulos e emblemas. O cartão mostra tempo de jogo no servidor, data de registro e o cargo de staff (quando configurado) — quem é Moderador ou Equipe de Eventos ainda vê seu próprio histórico de atividade, com o total e o que já rolou hoje. Personalize sua foto de perfil, plano de fundo e emblema comprando na Loja (aberta a qualquer jogador) ou desbloqueie o upload de imagens 100% suas com o Player Premium Raptor.',
-            bodyEn: "Fully customizable profiles with images, titles, and badges. The card shows your playtime on the server, registration date, and staff role (when configured) — Moderators and Event Staff also see their own activity history, both the running total and what happened today. Customize your profile picture, background, and badge by buying them in the Shop (open to every player) or unlock uploading your own images with Player Premium Raptor.",
+            // Revisão de textos da home (pedido do dono, 2026-08-18) —
+            // rebatizado "PERFIL PRÉ-HISTÓRICO" -> "PERFIL GLOBAL" (o dono
+            // deu o texto novo pronto, formatado abaixo exatamente como
+            // enviado: título, uma linha de tagline, e 3 itens em lista —
+            // sem sub-título h3 nem parágrafo corrido, por isso sem subPt/
+            // bodyPt aqui, só bodyListPt/En. Print mantido (screenshot-
+            // perfil já ilustra bem o card de perfil de verdade).
+            img: 'screenshot-perfil', titlePt: 'PERFIL GLOBAL', titleEn: 'GLOBAL PROFILE',
+            leadPt: 'Visível em todos os servidores que usam o bot.',
+            leadEn: 'Visible on every server that runs the bot.',
+            bodyListPt: [
+                'Os perfis podem ser personalizados ao máximo, com a possibilidade de adicionar imagens, títulos e emblemas. O perfil salva sua hora de jogo, além de registrar o dinossauro mais jogado e carregar seu inventário.',
+                'Membros da staff podem ver seu histórico de atividades, que exibe tanto o total acumulado quanto o que você realizou no dia atual.',
+                'O perfil conta com a loja para adquirir novas imagens de personalização. No tier premium, você pode subir a imagem que quiser no seu perfil.',
+            ],
+            bodyListEn: [
+                'Profiles can be customized to the fullest, with the option to add images, titles, and badges. The profile tracks your playtime, and also records your most-played dinosaur and carries your inventory.',
+                'Staff members can see their own activity history, showing both the accumulated total and what they\'ve done today.',
+                'The profile comes with the Shop to get new customization images. On the premium tier, you can upload any image you want to your profile.',
+            ],
         },
         {
-            // Explicação completa de como a Loja funciona (pedido do dono,
-            // 2026-08-12: "explique como funciona nossa loja em um todo" +
-            // "adicione os icones da moeda") — mockup HTML de ilustração
-            // mantido de propósito (pedido do dono: "permanece com o card
-            // de imagem que já fez em html"), só as 2 primeiras linhas
-            // ganharam os ícones reais das moedas (icon: 'img:hunt'/
-            // 'img:bone', ver mockupRow acima) no lugar do cadeado
-            // genérico. Continua tratado como prévia — a Loja já funciona
-            // por trás (ver web/views/loja.ejs, dashboard.js rotas /loja),
-            // mas ainda não foi lançada publicamente (ver seção 181 do
-            // PREMIUM.txt), então sem link/CTA pra /loja ainda.
+            // Reescrito por completo (pedido do dono, 2026-08-18) — a Loja
+            // deixou de ser "em breve" (compras reabertas nesta mesma
+            // sessão, ver PREMIUM.txt seção 208), então título/pills de
+            // "EM BREVE" saíram. Estrutura em 2 sub-seções nomeadas (LOJA
+            // DE CAÇADAS / LOJA DE OSSOS) usa o mecanismo sub+body (1ª) +
+            // body2Heading+body2 (2ª) já existente no template — cada
+            // título leva o ícone real da moeda (subIcon/body2HeadingIcon,
+            // mesmo arquivo webp já usado no mockup ao lado).
             titlePt: 'A LOJA', titleEn: 'THE SHOP',
-            leadPt: 'Duas moedas, ganhas só por jogar, trocadas por personalização de perfil de verdade — em breve, aberta pra todo mundo.',
-            leadEn: 'Two currencies, earned just by playing, traded for real profile customization — coming soon, open to everyone.',
-            subPt: 'EM BREVE PARA TODOS OS SERVIDORES.', subEn: 'COMING SOON FOR EVERY SERVER.',
-            bodyPt: 'A Loja funciona com 2 moedas que você ganha automaticamente jogando em qualquer servidor integrado ao sistema: Caçadas e Ossos. Caçadas são gastas na Loja de Personalização — fotos de perfil, planos de fundo e emblemas, incluindo criações enviadas pela própria comunidade (sempre com os devidos créditos) — guardados no seu inventário pra usar quando quiser. Ossos são a moeda da Loja de Jogo, com bônus aplicados direto dentro do Path of Titans, ou podem ser convertidos em Marks. A Loja já está pronta por trás dos panos, mas ainda estamos em fase de testes antes de abrir pra todo mundo.',
-            bodyEn: "The Shop runs on 2 currencies you earn automatically just by playing on any server integrated with the system: Hunt and Bones. Hunt is spent in the Customization Shop — profile pictures, backgrounds, and badges, including creations submitted by the community itself (always credited) — saved to your inventory to use whenever you want. Bones are the Game Shop's currency, powering bonuses applied straight inside Path of Titans, or they can be converted into Marks. The Shop is already built behind the scenes, but we're still testing before opening it up to everyone.",
+            leadPt: 'Movimentando constantemente nossas Caçadas.',
+            leadEn: 'Keeping our Hunt economy constantly moving.',
+            subPt: 'LOJA DE CAÇADAS', subEn: 'HUNT SHOP', subIcon: 'hunt',
+            bodyPt: 'Caçadas são a moeda usada para comercializar imagens de personalização do seu perfil. Podem ser formadas com hora de jogo, ou você pode subir suas próprias fotos tiradas no jogo para vender. No comércio de fotos, vender uma foto rende 10% do valor dela, e o preço sobe ou desce conforme a quantidade de compras — fotos mais compradas ficam mais caras. Os tiers premium Compy e Raptor aumentam o farm de Caçadas.',
+            bodyEn: 'Hunt is the currency used to trade profile customization images. You earn it through playtime, or you can upload your own in-game screenshots to sell. In the photo marketplace, selling a photo earns you 10% of its price, and the price rises or falls based on how many times it\'s been bought — the more popular a photo, the more expensive it gets. The Compy and Raptor premium tiers boost your Hunt farming rate.',
+            body2HeadingPt: 'LOJA DE OSSOS', body2HeadingEn: 'BONE SHOP', body2HeadingIcon: 'bone',
+            body2Pt: 'Ossos são usados apenas para comprar itens de uso no jogo; só podem ser adquiridos jogando, ou em missões e eventos. Cada servidor administra o valor dos itens, então cada servidor tem sua própria economia. Ossos e itens comprados por Ossos não podem ser transferidos ou usados em outros servidores — você tem um saldo por servidor, e itens comprados nele só podem ser usados nele. Ossos e itens de jogo não podem ser comercializados de nenhuma forma por dinheiro ou itens da vida real fora do jogo — em caso de denúncia, o jogador ou servidor envolvido pode ser bloqueado do uso do bot. Nenhum tier premium afeta a aquisição de Ossos.',
+            body2En: 'Bones are used only to buy in-game items; they can only be earned by playing, or through missions and events. Each server sets its own item prices, so every server has its own economy. Bones and items bought with them can\'t be transferred to or used on other servers — you have a separate balance per server, and items bought there can only be used there. Bones and game items can never be traded for real money or real-world items in any way — if reported, the player or server involved can be blocked from using the bot. No premium tier affects how Bones are earned.',
             mockup: mockupPanel({
                 topbarPt: 'LOJA', topbarEn: 'SHOP',
                 rows: [
-                    { icon: 'img:hunt', labelPt: 'Caçadas → Personalização', labelEn: 'Hunt → Customization', subPt: 'foto de perfil, fundo e emblema', subEn: 'profile picture, background & badge', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
-                    { icon: 'img:bone', labelPt: 'Ossos → Loja de Jogo ou Marks', labelEn: 'Bones → Game Shop or Marks', subPt: 'bônus em jogo, ou conversão', subEn: 'in-game bonuses, or conversion', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
-                    { icon: 'lock', labelPt: 'Fica no seu inventário', labelEn: 'Stays in your inventory', subPt: 'use quando quiser, pra sempre', subEn: 'use whenever you want, forever', pillPt: 'EM BREVE', pillEn: 'COMING SOON', pillClass: 'is-gold' },
+                    { icon: 'img:hunt', labelPt: 'Caçadas → Personalização', labelEn: 'Hunt → Customization', subPt: 'foto de perfil, fundo e emblema', subEn: 'profile picture, background & badge', pillPt: 'ATIVO', pillEn: 'ACTIVE', pillClass: 'is-green' },
+                    { icon: 'img:bone', labelPt: 'Ossos → Loja de Jogo', labelEn: 'Bones → Game Shop', subPt: 'bônus reais dentro do jogo', subEn: 'real in-game bonuses', pillPt: 'ATIVO', pillEn: 'ACTIVE', pillClass: 'is-green' },
+                    { icon: 'lock', labelPt: 'Fica no seu inventário', labelEn: 'Stays in your inventory', subPt: 'use quando quiser, pra sempre', subEn: 'use whenever you want, forever', pillPt: 'SEMPRE', pillEn: 'ALWAYS', pillClass: 'is-gold' },
                 ],
             }),
         },
         {
-            titlePt: 'SISTEMA DE REPORTE', titleEn: 'REPORT SYSTEM',
-            leadPt: 'Reporte com chat privado com os moderadores, trazendo mais informações do jogo ao chat por webhook!',
-            leadEn: 'Report through a private chat with the moderators, bringing more in-game context to the chat via webhook!',
-            subPt: 'INFORMAÇÕES DETALHADAS.', subEn: 'DETAILED INFORMATION.',
-            bodyPt: 'Cria chat privado para resolução ou revisão de punições. Faz relatório da última morte do personagem indicado pelo jogador. Inclui informações como data, local e jogadores envolvidos.',
-            bodyEn: "Creates a private chat for resolving or appealing punishments. Builds a report of the player's last death. Includes details like date, location, and everyone involved.",
+            // Rebatizado "SISTEMA DE REPORTE" -> "SISTEMA DE DENÚNCIA"
+            // (pedido do dono, 2026-08-18) — corpo reescrito, e as 3 linhas
+            // do mockup atualizadas pra refletir os 3 fatos novos citados
+            // (aviso de resposta no privado, status em tempo real,
+            // avaliação do player após fechamento).
+            titlePt: 'SISTEMA DE DENÚNCIA', titleEn: 'REPORT SYSTEM',
+            bodyPt: 'O sistema de denúncias abre um tópico privado no Discord entre o jogador e a staff. Ele avisa sobre respostas no privado do jogador, mostra o status em tempo real, e pode ser avaliado pelo jogador depois que é encerrado.',
+            bodyEn: 'The report system opens a private Discord thread between the player and staff. It notifies the player of replies via DM, shows real-time status, and can be rated by the player once it\'s closed.',
             mockup: mockupPanel({
                 topbarPt: 'REPORT CHAT', topbarEn: 'REPORT CHAT',
                 rows: [
-                    { icon: 'chat', labelPt: 'Nova denúncia aberta', labelEn: 'New report opened', subPt: 'thread privada com a staff', subEn: 'private thread with staff', pillPt: 'PRIVADO', pillEn: 'PRIVATE', pillClass: 'is-gold' },
-                    { icon: 'bolt', labelPt: 'Relatório da última morte', labelEn: 'Last-death report', subPt: 'data, local e envolvidos · webhook', subEn: 'date, location & everyone involved · webhook', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
-                    { icon: 'check', labelPt: 'Revisão de punição', labelEn: 'Punishment review', subPt: 'staff respondendo agora', subEn: 'staff replying now', pillPt: 'EM ANDAMENTO', pillEn: 'IN PROGRESS', pillClass: 'is-green' },
+                    { icon: 'chat', labelPt: 'Denúncia aberta em privado', labelEn: 'Report opened privately', subPt: 'tópico só com você e a staff', subEn: 'thread just for you and staff', pillPt: 'PRIVADO', pillEn: 'PRIVATE', pillClass: 'is-gold' },
+                    { icon: 'bolt', labelPt: 'Resposta no seu privado', labelEn: 'Reply sent to your DMs', subPt: 'avisado assim que a staff responde', subEn: 'notified as soon as staff replies', pillPt: 'TEMPO REAL', pillEn: 'REAL-TIME', pillClass: 'is-green' },
+                    { icon: 'check', labelPt: 'Avaliação após fechamento', labelEn: 'Rating after closing', subPt: 'você avalia o atendimento', subEn: 'you rate how it was handled', pillPt: 'FEEDBACK', pillEn: 'FEEDBACK', pillClass: 'is-gold' },
                 ],
             }),
         },
         {
+            // Corpo reescrito por completo (pedido do dono, 2026-08-18) —
+            // sem lead/sub, só título + parágrafo, mesmo formato dado.
+            // Print mantido (screenshot-strike já é o embed real de
+            // "STRIKE! #7"). screenshot-strike-revogado.webp fica sem uso
+            // depois da remoção de CONTROLE (ver mais abaixo) — arquivo
+            // mantido no disco, só sem referência em nenhuma seção agora.
             img: 'screenshot-strike', titlePt: 'SISTEMA DE PUNIÇÃO', titleEn: 'PUNISHMENT SYSTEM',
-            leadPt: 'Integrado com pontuação de reputação e histórico de todos os usuários.',
-            leadEn: "Integrated with a reputation score and full history for every user.",
-            subPt: 'REGISTRO COMPLETO', subEn: 'FULL RECORD',
-            bodyPt: 'Todas as punições são registradas e notificam os usuários no privado do Discord, sem exposições desnecessárias.',
-            bodyEn: 'Every punishment is logged and the user is notified privately on Discord, with no unnecessary exposure.',
+            bodyPt: 'O comando /strike do bot identifica e registra as punições em log, além de notificar o jogador. Esse processo é acompanhado por um sistema de reputação, no qual todos os jogadores possuem um histórico de punições, pontos de reputação e cargos que são aplicados automaticamente no Discord, conforme as ações de punição e os níveis de reputação são implementados. Você configura previamente o nível de punição do jogador para que a staff possa aplicá-lo de forma rápida e fazer todos os registros automaticamente, melhorando a agilidade da sua equipe sem perder um detalhe. Bans e mutes são aplicados simultaneamente em jogo via RCON, complementando o processo de punição.',
+            bodyEn: 'The bot\'s /strike command identifies and logs every punishment, and notifies the player automatically. This is backed by a reputation system, where every player has a punishment history, reputation points, and Discord roles applied automatically as punishments are made and reputation levels change. You pre-configure each punishment level so staff can apply it in one click, with every record generated automatically — keeping your team fast without losing a single detail. Bans and mutes are applied simultaneously in-game via RCON, completing the punishment in one step.',
         },
         {
-            img: 'screenshot-strike-revogado', noHeading: true,
-            subPt: 'CONTROLE', subEn: 'CONTROL',
-            bodyPt: 'Punições e pontos são facilmente ajustáveis e possuem registros de tudo.',
-            bodyEn: 'Punishments and points are easy to adjust, with a full record kept of everything.',
-        },
-        {
-            noHeading: true,
-            subPt: 'HISTÓRICO', subEn: 'HISTORY',
-            bodyPt: 'Todo o histórico do player fica registrado sem exceções, com acesso somente para staffs, com informações isoladas por servidor.',
-            bodyEn: "A player's full history stays on record with no exceptions, accessible only to staff, isolated per server.",
-            mockup: mockupPanel({
-                topbarPt: 'HISTÓRICO', topbarEn: 'HISTORY',
-                rows: [
-                    { icon: 'shield', labelPt: '3 punições registradas', labelEn: '3 punishments on record', subPt: 'todas com data e motivo', subEn: 'all with date and reason', pillPt: 'REGISTRO', pillEn: 'RECORD', pillClass: 'is-gold' },
-                    { icon: 'lock', labelPt: 'Acesso restrito à staff', labelEn: 'Staff-only access', subPt: 'isolado por servidor', subEn: 'isolated per server', pillPt: 'PRIVADO', pillEn: 'PRIVATE', pillClass: 'is-green' },
-                ],
-            }),
-        },
-        {
+            // AUXILIAR DE EVENTOS — corpo reescrito (pedido do dono,
+            // 2026-08-18): 2 parágrafos dados, sem título/sub repetido
+            // desta vez (a versão antiga repetia "AUXILIAR DE EVENTOS" nos
+            // dois). body2Pt (sem heading) carrega o 2º parágrafo. Print
+            // mantido (screenshot-evento já ilustra a postagem real).
             img: 'screenshot-evento', titlePt: 'AUXILIAR DE EVENTOS', titleEn: 'EVENT HELPER',
-            leadPt: 'Cria, promove e chama seus players para todos os eventos agendados.',
-            leadEn: 'Creates, promotes, and pings your players for every scheduled event.',
-            subPt: 'AUXILIAR DE EVENTOS', subEn: 'EVENT HELPER',
-            bodyPt: 'Cria eventos no canal desejado. Agenda o evento pelo Discord. Posta o evento e chama os players nos horários agendados. Cria comando de TP para o evento direto do Discord, bastando o jogador estar online.',
-            bodyEn: 'Creates events in the desired channel. Schedules the event right on Discord. Posts the event and pings players at the scheduled time. Creates an in-Discord TP command for the event, as long as the player is online.',
+            bodyPt: 'Cria e agenda eventos no Discord, e anuncia o começo dos eventos 30 minutos antes do início.',
+            bodyEn: 'Creates and schedules events on Discord, and announces the start of each event 30 minutes beforehand.',
+            body2Pt: 'Os eventos postados em fóruns acompanham um botão que pode ser configurado com um TP em jogo para os participantes, facilitando o processo de reunião em jogo.',
+            body2En: 'Events posted to forum channels come with a button that can be configured as an in-game teleport for participants, making it easy to gather everyone in-game.',
         },
         {
-            // Antes era só um bloco de texto sem imagem/mockup (única seção
-            // "nua" da página) — vira feature completa igual as outras,
-            // agora com mockup (sem print real ainda, ver docblock da
-            // .mockup-panel no <style>).
-            titlePt: 'AUTOMODERAÇÃO', titleEn: 'AUTO-MODERATION',
-            leadPt: 'Regras aplicadas sozinhas, sem a staff precisar estar de olho o tempo todo.',
-            leadEn: 'Rules enforced on their own, without staff needing to watch the clock.',
-            subPt: 'SEMPRE VIGIANDO', subEn: 'ALWAYS WATCHING',
-            bodyPt: 'Cargo temporário de strike aplicado e removido automaticamente. Cargos de reputação (Exemplar/Problemático) ajustados sozinhos conforme a pontuação do player, com recuperação diária de pontos. Filtro de palavras configurável, com ação automática no Discord ou direto no jogo via RCON.',
-            bodyEn: "Temporary strike role applied and removed automatically. Reputation roles (Exemplary/Problematic) adjusted on their own based on the player's score, with daily point recovery. Configurable word filter, with automatic action on Discord or straight in-game via RCON.",
-            mockup: mockupPanel({
-                topbarPt: 'AUTOMOD', topbarEn: 'AUTOMOD',
-                rows: [
-                    { icon: 'chat', labelPt: 'Palavra bloqueada', labelEn: 'Word blocked', subPt: 'filtro de chat · agora', subEn: 'chat filter · just now', pillPt: 'FILTRADO', pillEn: 'FILTERED', pillClass: 'is-red' },
-                    { icon: 'shield', labelPt: 'Cargo de Strike aplicado', labelEn: 'Strike role applied', subPt: 'expira automaticamente', subEn: 'expires automatically', pillPt: 'AUTOMÁTICO', pillEn: 'AUTOMATIC', pillClass: 'is-gold' },
-                    { icon: 'bolt', labelPt: 'Mute aplicado in-game', labelEn: 'In-game mute applied', subPt: 'via RCON · sem staff online', subEn: 'via RCON · no staff needed', pillPt: 'RCON', pillEn: 'RCON', pillClass: 'is-green' },
-                ],
-            }),
-        },
-        {
-            // Nova — hoje só aparecia como uma linha na tabela de Server
-            // Premium, sem uma seção narrativa própria como as outras.
+            // INTEGRAÇÃO PATH OF TITANS — o texto dado pelo dono já batia
+            // quase palavra por palavra com o que já existia aqui (sub
+            // "RCON E WEBHOOKS" e o corpo sobre RCON/webhook, idênticos) —
+            // interpretado como "mantenha, só acrescente a ressalva nova"
+            // em vez de reescrever do zero; leadPt original preservado
+            // (não contradito pelo texto novo). body2Pt (sem heading) é a
+            // frase nova sobre depender de RCON pra quase tudo, exceto
+            // denúncias.
             titlePt: 'INTEGRAÇÃO PATH OF TITANS', titleEn: 'PATH OF TITANS INTEGRATION',
             leadPt: 'Seu servidor de jogo e seu Discord conversando direto, sem gambiarra.',
             leadEn: 'Your game server and your Discord talking directly, no workarounds needed.',
             subPt: 'RCON E WEBHOOKS', subEn: 'RCON & WEBHOOKS',
             bodyPt: 'Conecta direto no seu servidor via RCON para aplicar punições, comandos de buff e teleporte de evento sem precisar entrar no jogo. Recebe logs de login e combate por webhook, trazendo contexto real do jogo para os reports.',
             bodyEn: 'Connects straight to your server via RCON to apply punishments, buff commands, and event teleports without ever opening the game. Receives login and combat logs via webhook, bringing real in-game context into reports.',
+            body2Pt: 'Necessário para a maioria das atividades do bot, com exceção do sistema de denúncias.',
+            body2En: 'Required for most of the bot\'s activities, with the exception of the report system.',
             mockup: mockupPanel({
                 topbarPt: 'CONEXÃO RCON', topbarEn: 'RCON CONNECTION',
                 rows: [
@@ -978,6 +976,8 @@
             // Nova — o Dashboard Web nunca teve NENHUMA seção própria na
             // Hero, mesmo já sendo uma parte grande do produto hoje
             // (Moderação/Reports/Eventos, tudo com dados em tempo real).
+            // Não fazia parte da revisão de 2026-08-18 — mantido como já
+            // estava.
             titlePt: 'DASHBOARD WEB', titleEn: 'WEB DASHBOARD',
             leadPt: 'Um painel completo para sua staff administrar tudo fora do Discord, com dados em tempo real.',
             leadEn: 'A full panel for your staff to manage everything outside Discord, with real-time data.',
@@ -1003,27 +1003,35 @@
 
     <%
         // "Análise e Histórico de Atividade Staff" injetado ANTES do item
-        // que hoje é "Auxiliar de Eventos" (índice 6 do array `features`) —
-        // pedido do dono, 2026-08-15: "análise de staff deve ficar acima de
-        // auxiliar de eventos". Antes disso era um bloco hardcoded FORA do
-        // array, renderizado sempre por último (depois do .forEach inteiro)
-        // — mover o conteúdo pra cá, sem alterar nada dele, e recalcular o
-        // índice de EXIBIÇÃO (`di`) usado só pra decidir o lado do mockup
-        // (zigue-zague esquerda/direita) evita o bug que o comentário antigo
-        // avisava: qualquer item do array a partir do 6 precisa "andar" 1
-        // posição pra frente na exibição, senão a paridade de todo o resto
-        // da página (Automod/Integração/Dashboard Web) inverteria sozinha.
+        // que hoje é "Auxiliar de Eventos" — pedido do dono, 2026-08-15:
+        // "análise de staff deve ficar acima de auxiliar de eventos".
+        // Revisão de textos 2026-08-18 removeu AUTOMODERAÇÃO/CONTROLE/
+        // HISTÓRICO do array `features` (3 itens), então o índice de
+        // "Auxiliar de Eventos" no array NOVO caiu de 6 pra 4 — ponto de
+        // injeção (`i === 4`) e o "andar 1 posição" do índice de EXIBIÇÃO
+        // (`di`, usado só pro zigue-zague esquerda/direita do mockup)
+        // recalculados juntos, mesmo raciocínio de sempre: qualquer item
+        // do array a partir daqui precisa andar 1 posição pra frente na
+        // exibição, senão a paridade do resto da página (Integração/
+        // Dashboard Web) inverteria sozinha.
     %>
     <% features.forEach((f, i) => {
-        const di = i < 6 ? i : i + 1;
+        const di = i < 4 ? i : i + 1;
     %>
-        <% if (i === 6) { %>
+        <% if (i === 4) { %>
             <!-- Análise e Histórico de Atividade Staff — dois mockups empilhados + texto
                  (pedido do dono, 2026-08-03: mesmo estilo .mockup-panel usado em
-                 AutoModeração/Integração PoT/Dashboard Web, ver mockupPanel() acima).
-                 lg:flex-row (SEM reverse) — posição de exibição 6 (par), mesmo
+                 Integração PoT/Dashboard Web, ver mockupPanel() acima).
+                 lg:flex-row (SEM reverse) — posição de exibição 4 (par), mesmo
                  raciocínio de sempre, só que agora calculado por `di` em vez de
-                 fixo à mão. -->
+                 fixo à mão. Texto reescrito por completo (pedido do dono,
+                 2026-08-18): trocou o antigo lead+"AUTOSUPERVISÃO" por um
+                 parágrafo introdutório + lista de 4 itens (bodyListPt-style,
+                 mas escrito direto aqui porque este bloco é hardcoded, fora
+                 do array `features`/loop principal). Os 2 mockups continuam
+                 batendo com o novo texto (cargo de reputação automático,
+                 ranking com denúncias atendidas/tempo médio de resposta),
+                 sem precisar de troca. -->
             <div class="w-full flex flex-col lg:flex-row items-center gap-10" style="max-width: 1100px;">
                 <div class="w-full lg:w-1/2 flex flex-col gap-6 items-center" style="max-width: 420px;">
                     <%- mockupPanel({
@@ -1042,19 +1050,18 @@
                     }) %>
                 </div>
                 <div class="w-full lg:w-1/2 flex flex-col gap-3">
-                    <h2 class="section-title text-shadow-figma"><span data-i18n-pt>ANÁLISE E HISTÓRICO DE ATIVIDADE STAFF</span><span data-i18n-en>STAFF ACTIVITY ANALYSIS & HISTORY</span></h2>
-                    <p style="font-family:'Poppins',sans-serif; font-weight:600; opacity: 0.9;" class="text-shadow-figma">
-                        <span data-i18n-pt>Diariamente apresentando dados de desempenho geral do servidor.</span>
-                        <span data-i18n-en>Presenting daily server-wide performance data.</span>
-                    </p>
+                    <h2 class="section-title text-shadow-figma"><span data-i18n-pt>ANÁLISE E HISTÓRICO DE ATIVIDADE DO STAFF</span><span data-i18n-en>STAFF ACTIVITY ANALYSIS & HISTORY</span></h2>
                     <div class="w-full h-px" style="background:#3E3D38; margin: 8px 0;"></div>
-                    <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
-                        <span data-i18n-pt>AUTOSUPERVISÃO</span><span data-i18n-en>SELF-MONITORING</span>
-                    </h3>
                     <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
-                        <span data-i18n-pt>Maneja automaticamente cargos de reputação de acordo com a pontuação do player. Vigia e alerta sobre jogadores com reputação crítica negativa. Analisa os staffs mais ativos no sistema — aplicando punições, atendendo reportes ou criando eventos.</span>
-                        <span data-i18n-en>Automatically manages reputation roles based on the player's score. Watches for and alerts on players with critically negative reputation. Analyzes the most active staff in the system — applying punishments, handling reports, or creating events.</span>
+                        <span data-i18n-pt>O bot guarda e registra as atividades da staff, identificando os pontos principais e possíveis até o momento:</span>
+                        <span data-i18n-en>The bot tracks and logs staff activity, identifying the key metrics available right now:</span>
                     </p>
+                    <ul class="hero-feature-list text-shadow-figma" style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;">
+                        <li><span data-i18n-pt>Tempo de jogo em modo espectador.</span><span data-i18n-en>Playtime spent in spectator mode.</span></li>
+                        <li><span data-i18n-pt>Uso de nametags.</span><span data-i18n-en>Nametag usage.</span></li>
+                        <li><span data-i18n-pt>Denúncias atendidas e tempo médio de resposta.</span><span data-i18n-en>Reports handled and average response time.</span></li>
+                        <li><span data-i18n-pt>E eventos agendados.</span><span data-i18n-en>And scheduled events.</span></li>
+                    </ul>
                 </div>
             </div>
         <% } %>
@@ -1065,29 +1072,64 @@
                 <img src="/images/landing/<%= f.img %>.webp?v=<%= assetVersion %>" alt="" class="feature-card w-full lg:w-1/2 mx-auto" style="max-width: 420px; height: auto;">
             <% } %>
             <div class="w-full lg:w-1/2 flex flex-col gap-3">
-                <% if (!f.noHeading) { %>
+                <%
+                    // Revisão de textos da home (pedido do dono, 2026-08-18)
+                    // — trocado de "noHeading:true" (flag única, tudo-ou-
+                    // nada) pra cada camada renderizar sozinha conforme o
+                    // campo correspondente existe. Antes disso title/lead/
+                    // divisor SÓ podiam ser escondidos os 3 juntos (só
+                    // usado por CONTROLE/HISTÓRICO, removidos nesta revisão
+                    // — nenhum item restante usa noHeading, então dá pra
+                    // simplificar sem quebrar nada). Divisor aparece sempre
+                    // que title OU lead existir (separa o "título" do
+                    // "detalhe" abaixo, mesmo em item sem lead). sub/body
+                    // agora IGUALMENTE opcionais (Denúncia/Punição só têm
+                    // título+corpo, sem h3 nem lead) — cada seção usa só os
+                    // campos que faz sentido pra ela, sem forçar as 2
+                    // camadas de sempre.
+                %>
+                <% if (f.titlePt) { %>
                     <h2 class="section-title text-shadow-figma"><span data-i18n-pt><%= f.titlePt %></span><span data-i18n-en><%= f.titleEn %></span></h2>
+                <% } %>
+                <% if (f.leadPt) { %>
                     <p style="font-family:'Poppins',sans-serif; font-weight:600; opacity: 0.9;" class="text-shadow-figma"><span data-i18n-pt><%= f.leadPt %></span><span data-i18n-en><%= f.leadEn %></span></p>
+                <% } %>
+                <% if (f.titlePt) { %>
                     <div class="w-full h-px" style="background:#3E3D38; margin: 8px 0;"></div>
                 <% } %>
-                <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
-                    <span data-i18n-pt><%= f.subPt %></span><span data-i18n-en><%= f.subEn %></span>
-                </h3>
-                <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
-                    <span data-i18n-pt><%= f.bodyPt %></span><span data-i18n-en><%= f.bodyEn %></span>
-                </p>
+                <% if (f.subPt) { %>
+                    <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px);">
+                        <% if (f.subIcon) { %><img src="/images/icons/<%= f.subIcon %>.webp" alt="" class="hero-heading-icon"><% } %>
+                        <span data-i18n-pt><%= f.subPt %></span><span data-i18n-en><%= f.subEn %></span>
+                    </h3>
+                <% } %>
+                <% if (f.bodyPt) { %>
+                    <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                        <span data-i18n-pt><%= f.bodyPt %></span><span data-i18n-en><%= f.bodyEn %></span>
+                    </p>
+                <% } %>
+                <% if (f.bodyListPt) { %>
+                    <ul class="hero-feature-list text-shadow-figma" style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;">
+                        <% f.bodyListPt.forEach((itemPt, li) => { %>
+                            <li><span data-i18n-pt><%= itemPt %></span><span data-i18n-en><%= f.bodyListEn[li] %></span></li>
+                        <% }); %>
+                    </ul>
+                <% } %>
                 <% if (f.body2HeadingPt) { %>
                     <h3 class="section-title text-shadow-figma" style="font-size: clamp(18px, 2vw, 24px); margin-top: 8px;">
+                        <% if (f.body2HeadingIcon) { %><img src="/images/icons/<%= f.body2HeadingIcon %>.webp" alt="" class="hero-heading-icon"><% } %>
                         <span data-i18n-pt><%= f.body2HeadingPt %></span><span data-i18n-en><%= f.body2HeadingEn %></span>
                     </h3>
+                <% } %>
+                <% if (f.body2Pt) { %>
                     <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
                         <span data-i18n-pt><%- f.body2Pt %></span><span data-i18n-en><%- f.body2En %></span>
                     </p>
-                    <% if (f.body3Pt) { %>
-                        <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
-                            <span data-i18n-pt><%= f.body3Pt %></span><span data-i18n-en><%= f.body3En %></span>
-                        </p>
-                    <% } %>
+                <% } %>
+                <% if (f.body3Pt) { %>
+                    <p style="font-family:'Poppins',sans-serif; font-size:16px; opacity:0.9; line-height:1.5;" class="text-shadow-figma">
+                        <span data-i18n-pt><%= f.body3Pt %></span><span data-i18n-en><%= f.body3En %></span>
+                    </p>
                 <% } %>
             </div>
         </div>
