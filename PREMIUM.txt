@@ -11143,3 +11143,31 @@ frente, nao so este relatorio):
   (2 dialogs × PT/EN). SEM confirmação visual — o dono precisa
   conferir que o campo de Descrição agora tem o mesmo fundo escuro/
   borda dourada dos outros campos nos dois dialogs.
+
+217) Loja de Jogo: itens "Em breve" voltam a aparecer na lista pública
+--------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "itens configurados como em breve não
+  aparecem na lista de itens públicos para os usuários."
+- BUG REAL confirmado: `listShopItems(guildId, { publicOnly: true })`
+  (usada pelo catálogo de compra em `GET /loja`) exigia `is_public=1
+  AND coming_soon=0` — um item marcado "Em breve" era escondido POR
+  COMPLETO da lista, em vez de aparecer com um aviso. Inconsistente
+  com a Loja de Personalização e o resgate de emblemas/títulos
+  (mesma página), que sempre mostraram itens "em breve" na lista, só
+  sem o botão de ação — e inconsistente também com o próprio card de
+  admin em `/lojajogo`, que já mostra um selo "Em breve" desde que a
+  flag existe.
+- Corrigido: `listShopItems` só exige mais `is_public=1` (removido
+  `coming_soon=0` da query). `loja.ejs` ganhou o mesmo tratamento das
+  outras 2 seções — ribbon `.loja-soon-ribbon` ("Em breve") no canto
+  do card + "Compra liberada em breve" no lugar do botão Comprar
+  (aviso de saldo/compras pausadas também pulado nesse caso, já que
+  não tem ação nenhuma pra fazer ainda). Só afeta itens `isCustom`
+  (catálogo legado nunca teve conceito de "em breve").
+- Verificado: `node --check` em `gameShopSystem.js`,
+  `ejs.compile()`/`ejs.render()` em `loja.ejs` com um item "em breve" e
+  um normal lado a lado, confirmando o ribbon + aviso aparecendo só no
+  primeiro e o form de Comprar só no segundo. SEM confirmação visual —
+  o dono precisa conferir que um item marcado "Em breve" em
+  `/lojajogo` aparece de verdade em `/loja` pros jogadores, sem botão
+  de comprar.

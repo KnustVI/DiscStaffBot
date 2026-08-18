@@ -1013,6 +1013,26 @@
                                     const itemIcon = item.isCustom ? item.action_type : item.key;
                                 %>
                                 <div class="loja-item">
+                                    <%#
+                                        BUG REAL corrigido (pedido do dono,
+                                        2026-08-19: "itens configurados como em
+                                        breve não aparecem na lista de itens
+                                        publicos para os usuários") —
+                                        listShopItems(publicOnly:true) escondia
+                                        o item por completo quando coming_soon=1
+                                        (ver gameShopSystem.js), diferente da
+                                        Loja de Personalização/resgate de
+                                        emblemas logo acima, que sempre mostraram
+                                        "em breve" na lista em vez de sumir com o
+                                        item. Mesmo ribbon (.loja-soon-ribbon) e
+                                        mesmo padrão "sem botão de comprar,
+                                        só aviso" daquelas 2 seções — só se
+                                        aplica a item.isCustom (o catálogo legado
+                                        nunca teve conceito de coming_soon).
+                                    %>
+                                    <% if (item.isCustom && item.coming_soon) { %>
+                                        <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
+                                    <% } %>
                                     <div class="loja-item-thumb" style="<%= (item.isCustom && item.url) ? `background-image:url('${item.url}')` : '' %>">
                                         <% if (!(item.isCustom && item.url)) { %><i data-lucide="<%= lojaJogoIcons[itemIcon] || 'store' %>"></i><% } %>
                                     </div>
@@ -1027,33 +1047,37 @@
                                         <span class="loja-item-desc"><span data-i18n-pt>Restam:</span><span data-i18n-en>Left:</span> <%= item.remainingStock %></span>
                                     <% } %>
                                     <span class="loja-item-price is-bones"><img src="/images/icons/bone.webp" alt=""> <%= itemPrice %></span>
-                                    <%#
-                                        Aviso de saldo/compras pausadas ANTES do form/botão
-                                        (pedido do dono, 2026-08-18: "saldo insuficiente nos
-                                        itens de loja deve aparecer acime dos botões de
-                                        compra") — antes vinha DEPOIS dos 2 <form> abaixo.
-                                    %>
-                                    <% if (shopPurchasesLocked) { %>
-                                        <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
-                                    <% } else if (catalogBonesBalance < itemPrice) { %>
-                                        <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
-                                    <% } %>
-                                    <% if (item.isCustom) { %>
-                                        <form method="POST" action="/loja/comprar-jogo-item" class="loja-item-buy-form loja-jogo-buy-form">
-                                            <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
-                                            <input type="hidden" name="itemId" value="<%= item.id %>">
-                                            <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
-                                                <img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
-                                            </button>
-                                        </form>
+                                    <% if (item.isCustom && item.coming_soon) { %>
+                                        <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Compra liberada em breve.</span><span data-i18n-en>Purchase opens soon.</span></span>
                                     <% } else { %>
-                                        <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form loja-jogo-buy-form">
-                                            <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
-                                            <input type="hidden" name="itemKey" value="<%= item.key %>">
-                                            <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
-                                                <img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
-                                            </button>
-                                        </form>
+                                        <%#
+                                            Aviso de saldo/compras pausadas ANTES do form/botão
+                                            (pedido do dono, 2026-08-18: "saldo insuficiente nos
+                                            itens de loja deve aparecer acime dos botões de
+                                            compra") — antes vinha DEPOIS dos 2 <form> abaixo.
+                                        %>
+                                        <% if (shopPurchasesLocked) { %>
+                                            <span class="loja-item-insufficient"><span data-i18n-pt>Compras pausadas</span><span data-i18n-en>Purchases paused</span></span>
+                                        <% } else if (catalogBonesBalance < itemPrice) { %>
+                                            <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
+                                        <% } %>
+                                        <% if (item.isCustom) { %>
+                                            <form method="POST" action="/loja/comprar-jogo-item" class="loja-item-buy-form loja-jogo-buy-form">
+                                                <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
+                                                <input type="hidden" name="itemId" value="<%= item.id %>">
+                                                <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
+                                                    <img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                </button>
+                                            </form>
+                                        <% } else { %>
+                                            <form method="POST" action="/loja/comprar-jogo" class="loja-item-buy-form loja-jogo-buy-form">
+                                                <input type="hidden" name="guildId" value="<%= catalog.guildId %>">
+                                                <input type="hidden" name="itemKey" value="<%= item.key %>">
+                                                <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || catalogBonesBalance < itemPrice) ? ' disabled' : '' %>>
+                                                    <img src="/images/icons/bone.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                </button>
+                                            </form>
+                                        <% } %>
                                     <% } %>
                                 </div>
                             <% }); %>

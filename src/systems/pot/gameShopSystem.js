@@ -440,16 +440,22 @@ function getShopItemById(itemId) {
 
 /**
  * Lista de itens de um servidor — sempre exclui excluídos (deleted_at).
- * publicOnly:true (catálogo de compra, ver GET /loja) também exige
- * is_public=1 e coming_soon=0; false (default, visão de admin em
- * /lojajogo/:guildID) mostra tudo que não foi excluído, privado/em breve
- * incluídos.
+ * publicOnly:true (catálogo de compra, ver GET /loja) exige is_public=1
+ * — itens "Em breve" (coming_soon=1) CONTINUAM aparecendo aqui (BUG REAL
+ * corrigido, pedido do dono, 2026-08-19: "itens configurados como em
+ * breve não aparecem na lista de itens públicos para os usuários"; antes
+ * também exigia coming_soon=0, escondendo o item por completo em vez de
+ * mostrar com aviso — inconsistente com a Loja de Personalização e o
+ * resgate de emblemas/títulos, que sempre mostraram itens "em breve" na
+ * lista, só sem o botão de ação, ver loja.ejs). false (default, visão de
+ * admin em /lojajogo/:guildID) mostra tudo que não foi excluído, privado/
+ * em breve incluídos.
  * @param {string} guildId
  * @param {{publicOnly?: boolean}} [opts]
  */
 function listShopItems(guildId, { publicOnly = false } = {}) {
     const sql = publicOnly
-        ? `SELECT * FROM pot_game_shop_items WHERE guild_id = ? AND deleted_at IS NULL AND is_public = 1 AND coming_soon = 0 ORDER BY created_at DESC`
+        ? `SELECT * FROM pot_game_shop_items WHERE guild_id = ? AND deleted_at IS NULL AND is_public = 1 ORDER BY created_at DESC`
         : `SELECT * FROM pot_game_shop_items WHERE guild_id = ? AND deleted_at IS NULL ORDER BY created_at DESC`;
     return db.prepare(sql).all(guildId).map(_parseItemRow);
 }
