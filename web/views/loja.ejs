@@ -386,6 +386,52 @@
         }
         .loja-jogo-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
 
+        /* Botão Comprar da LOJA DE PERSONALIZAÇÃO — mesmo processo do
+           bloco .loja-jogo-buy-form acima (pedido do dono, 2026-08-18:
+           "Use esse css para os botões de compra da loja de
+           personalização no mesmo processo que fez para o de ossos"),
+           2º componente Figma com os mesmos 4 estados. Únicas diferenças
+           reais de valor: borda/texto usam a cor de Caçadas (#FF4E3B,
+           mesma já usada em .loja-currency-icon.is-hunt/.loja-item-price.
+           is-hunt) em vez do cream de Ossos — e, só no estado Primary
+           (não no Hover), a borda é #803E30 em vez de já nascer na cor
+           de destaque (troca pra #FF4E3B só ao passar o mouse). Pressed/
+           Disabled são IDÊNTICOS ao bloco de Ossos (mesmos valores no
+           Figma nos dois componentes) — duplicados aqui mesmo assim, não
+           compartilhados, pra cada bloco continuar completo e não
+           depender da ordem dos dois no arquivo. Mesmo raciocínio de
+           especificidade do bloco acima (.btn-chip-success sempre
+           junto), mesmo tamanho compacto mantido (não o 111×26px do
+           Figma), ícone trocado do carrinho genérico pro hunt.webp
+           (mesma imagem já usada no preço do item, mesma lógica do
+           bone.webp na Loja de Jogo). */
+        .loja-perso-buy-form .btn-chip.btn-chip-success {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border-color: #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            color: #FF4E3B;
+        }
+        .loja-perso-buy-form .btn-chip.btn-chip-success:hover:not(:disabled) {
+            background: radial-gradient(225.25% 94.36% at 0% 86.37%, #111111 0%, #1F1D20 57.07%, #29272A 91.53%);
+            border-color: #FF4E3B;
+            box-shadow: -5px -5px 10px rgba(0, 0, 0, 0.5), 5px 5px 10px rgba(0, 0, 0, 0.5), 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(0, 0, 0, 0.5);
+        }
+        .loja-perso-buy-form .btn-chip.btn-chip-success:active:not(:disabled) {
+            background: #4B2427;
+            border-color: #DCA15E;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+            color: #DCA15E;
+        }
+        .loja-perso-buy-form .btn-chip.btn-chip-success:disabled {
+            background: #2A2A2A;
+            border-color: #3E3D38;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5);
+            color: #3E3D38;
+            opacity: 1;
+        }
+        .loja-perso-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
+
         /* Formulários do Conversor de Moedas — mesma cápsula
            .input-container-premium/.input-premium-field do resto do
            dashboard, só o layout em coluna é próprio desta seção. */
@@ -714,11 +760,11 @@
                                             <% } else if (huntBalance < img.shop_price) { %>
                                                 <span class="loja-item-insufficient"><span data-i18n-pt>Saldo insuficiente</span><span data-i18n-en>Insufficient balance</span></span>
                                             <% } %>
-                                            <form method="POST" action="/loja/comprar" class="loja-item-buy-form">
+                                            <form method="POST" action="/loja/comprar" class="loja-item-buy-form loja-perso-buy-form">
                                                 <input type="hidden" name="poolType" value="<%= img.type %>">
                                                 <input type="hidden" name="poolId" value="<%= img.id %>">
                                                 <button type="submit" class="btn-chip btn-chip-success"<%= (shopPurchasesLocked || huntBalance < img.shop_price) ? ' disabled' : '' %>>
-                                                    <i data-lucide="shopping-cart"></i> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
+                                                    <img src="/images/icons/hunt.webp" alt=""> <span data-i18n-pt>Comprar</span><span data-i18n-en>Buy</span>
                                                 </button>
                                             </form>
                                         <% } %>
