@@ -224,7 +224,15 @@
             moeda, mesmo arquivo já usado em mockupRow('img:hunt'/'img:bone'). %>
         .hero-feature-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 4px 0 0; padding: 0; }
         .hero-feature-list li { position: relative; padding-left: 18px; }
-        .hero-feature-list li::before { content: '—'; position: absolute; left: 0; opacity: 0.6; }
+        <%# Marcador trocado de travessão pra ponto (pedido do dono,
+            2026-08-19: "Em analise hstórico staff no lugar dos traços
+            coloque pontos") — a seção PERFIL GLOBAL (única outra que
+            usava esta lista) deixou de ser uma <ul> nesta mesma revisão
+            (virou bodyPt/body2Pt/body3Pt, mesmo formato de parágrafo já
+            usado no resto da home), então esta regra hoje só afeta
+            mesmo a lista de 4 itens de "Análise e Histórico de
+            Atividade do Staff" mais abaixo. %>
+        .hero-feature-list li::before { content: '•'; position: absolute; left: 0; opacity: 0.6; }
         .hero-heading-icon { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; vertical-align: -5px; margin-right: 8px; }
         .quote-card {
             background: #1A1A1A;
@@ -858,25 +866,27 @@
     const features = [
         {
             // Revisão de textos da home (pedido do dono, 2026-08-18) —
-            // rebatizado "PERFIL PRÉ-HISTÓRICO" -> "PERFIL GLOBAL" (o dono
-            // deu o texto novo pronto, formatado abaixo exatamente como
-            // enviado: título, uma linha de tagline, e 3 itens em lista —
-            // sem sub-título h3 nem parágrafo corrido, por isso sem subPt/
-            // bodyPt aqui, só bodyListPt/En. Print mantido (screenshot-
-            // perfil já ilustra bem o card de perfil de verdade).
+            // rebatizado "PERFIL PRÉ-HISTÓRICO" -> "PERFIL GLOBAL".
+            // Convertido de lista (bodyListPt/En, com marcador de
+            // travessão) pra 3 parágrafos soltos (pedido do dono,
+            // 2026-08-19: "Ainda existe um traço antes dos textos de
+            // perfil, remova os traços... faça parágrafos de acordo com
+            // a formatação que enviei mais cedo") — mesmo formato
+            // bodyPt/body2Pt/body3Pt já usado no resto das seções desta
+            // mesma revisão (ex: AUXILIAR DE EVENTOS usa bodyPt+body2Pt
+            // pro mesmo caso de "vários parágrafos curtos, sem repetir
+            // título"), texto em si inalterado. Print mantido
+            // (screenshot-perfil já ilustra bem o card de perfil de
+            // verdade).
             img: 'screenshot-perfil', titlePt: 'PERFIL GLOBAL', titleEn: 'GLOBAL PROFILE',
             leadPt: 'Visível em todos os servidores que usam o bot.',
             leadEn: 'Visible on every server that runs the bot.',
-            bodyListPt: [
-                'Os perfis podem ser personalizados ao máximo, com a possibilidade de adicionar imagens, títulos e emblemas. O perfil salva sua hora de jogo, além de registrar o dinossauro mais jogado e carregar seu inventário.',
-                'Membros da staff podem ver seu histórico de atividades, que exibe tanto o total acumulado quanto o que você realizou no dia atual.',
-                'O perfil conta com a loja para adquirir novas imagens de personalização. No tier premium, você pode subir a imagem que quiser no seu perfil.',
-            ],
-            bodyListEn: [
-                'Profiles can be customized to the fullest, with the option to add images, titles, and badges. The profile tracks your playtime, and also records your most-played dinosaur and carries your inventory.',
-                'Staff members can see their own activity history, showing both the accumulated total and what they\'ve done today.',
-                'The profile comes with the Shop to get new customization images. On the premium tier, you can upload any image you want to your profile.',
-            ],
+            bodyPt: 'Os perfis podem ser personalizados ao máximo, com a possibilidade de adicionar imagens, títulos e emblemas. O perfil salva sua hora de jogo, além de registrar o dinossauro mais jogado e carregar seu inventário.',
+            bodyEn: 'Profiles can be customized to the fullest, with the option to add images, titles, and badges. The profile tracks your playtime, and also records your most-played dinosaur and carries your inventory.',
+            body2Pt: 'Membros da staff podem ver seu histórico de atividades, que exibe tanto o total acumulado quanto o que você realizou no dia atual.',
+            body2En: 'Staff members can see their own activity history, showing both the accumulated total and what they\'ve done today.',
+            body3Pt: 'O perfil conta com a loja para adquirir novas imagens de personalização. No tier premium, você pode subir a imagem que quiser no seu perfil.',
+            body3En: 'The profile comes with the Shop to get new customization images. On the premium tier, you can upload any image you want to your profile.',
         },
         {
             // Reescrito por completo (pedido do dono, 2026-08-18) — a Loja
