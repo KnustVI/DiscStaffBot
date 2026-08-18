@@ -1216,6 +1216,21 @@
         primeiro servidor da lista, mesmo depois de trocar a seleção.
     %>
     <script>
+        <%#
+            BUG REAL corrigido (pedido do dono, 2026-08-18, erro real de
+            console: "Uncaught ReferenceError: Cannot access 'MARKS_PER_BONE'
+            before initialization"). Causa: updateBonesConverterBalance é
+            CHAMADA de imediato logo abaixo (.forEach), e ela chama
+            updateConverterPreview, que lê MARKS_PER_BONE — mas esse `const`
+            só era declarado DEPOIS dessa chamada no arquivo. Function
+            declarations são içadas inteiras (hoisting), mas um `const` fica
+            na "temporal dead zone" até a própria linha de declaração rodar;
+            como a chamada acontecia antes dessa linha, estourava
+            ReferenceError toda vez que a página carregava. Movido pro topo
+            do script, antes de qualquer chamada.
+        %>
+        const MARKS_PER_BONE = <%= marksPerBone %>;
+
         function updateBonesConverterBalance(select) {
             const balance = Number(select.selectedOptions[0]?.dataset.balance || 0);
             const form = select.closest('form');
@@ -1234,15 +1249,6 @@
             if (slider) updateConverterPreview(slider);
         }
         document.querySelectorAll('[data-bones-converter-form] select[name="guildId"]').forEach(updateBonesConverterBalance);
-
-        <%#
-            Slider em tempo real (pedido do dono, 2026-08-18: "barra de
-            volume... alterando em tempo real quantas marks vão virar
-            ossos") — MARKS_PER_BONE fixo (não muda em runtime), injetado
-            uma vez aqui em vez de reler o local do servidor em cada
-            cálculo abaixo.
-        %>
-        const MARKS_PER_BONE = <%= marksPerBone %>;
 
         // Preenchimento colorido da trilha à esquerda do polegar — um
         // <input type="range"> nativo não tem isso de graça (diferente de
