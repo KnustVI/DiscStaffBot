@@ -11109,3 +11109,37 @@ frente, nao so este relatorio):
   confirmação visual/browser real — o dono precisa conferir que editar
   um item zerado e digitar um número novo realmente aumenta o
   "Estoque:" mostrado no card.
+
+216) Loja de Jogo: corrige cor do campo Descrição + instrução de /mapbug mais clara
+-------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Campo de descrição no overlay de
+  criação esta da mesma cor do cardo, o que dificulta o usuário a
+  verificar onde esta digitando deixe ele como os outros campos" +
+  "Na criação de tp, acbaido do campo de coordenadas instrua o
+  administrador a pegar a coordenada no mapa usando /mapbug em jogo no
+  local que deve ser feito o teleporte."
+- BUG REAL confirmado: o `<textarea>` de Descrição (criação E edição)
+  era o ÚNICO campo dos dois dialogs sem o wrapper
+  `.input-container-premium` — `.input-premium-field` sozinho é
+  `background:transparent; border:none` (o fundo escuro/borda dourada
+  vêm de `.input-container-premium`, que o envolve em TODOS os outros
+  campos do site) — por isso ficava com a mesma cor do card por trás,
+  difícil de ver onde estava digitando. Corrigido nos dois dialogs:
+  `<div class="input-container-premium has-textarea">` +
+  `.icon-box` (ícone `align-left`) envolvendo o textarea, mesmo padrão
+  já usado em `reports.ejs` pras mensagens do Report-Chat. Removida
+  também a regra CSS local `.lj-item-dialog textarea.input-premium-
+  field` (min-height/padding menores, existia só por causa do wrapper
+  faltando) — agora herda o tamanho padrão maior de style.css, igual
+  aos outros textareas do site.
+- Instrução de `/mapbug` reescrita nos dois dialogs (criação já tinha
+  uma, mas só dizia "cole a posição copiada com /mapbug" — não deixava
+  claro que era preciso IR ATÉ O LOCAL de destino em jogo primeiro;
+  edição não tinha nenhuma) — agora: "Vá até o local exato em jogo pra
+  onde os jogadores devem ser teleportados, use /mapbug lá pra pegar a
+  coordenada, e cole o resultado aqui."
+- Verificado: `ejs.compile()`/`ejs.render()` em `lojajogo.ejs`
+  confirmando os 2 wrappers `has-textarea` e as 4 menções a `/mapbug`
+  (2 dialogs × PT/EN). SEM confirmação visual — o dono precisa
+  conferir que o campo de Descrição agora tem o mesmo fundo escuro/
+  borda dourada dos outros campos nos dois dialogs.

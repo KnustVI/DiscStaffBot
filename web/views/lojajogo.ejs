@@ -234,7 +234,6 @@
             font-size: 0.75rem;
             cursor: pointer;
         }
-        .lj-item-dialog textarea.input-premium-field { resize: vertical; min-height: 70px; padding: 10px 12px; }
     </style>
 </head>
 <body class="flex min-h-screen"<%- (typeof isAdmin !== 'undefined' && !isAdmin) ? ' data-view-only="true"' : '' %>>
@@ -293,7 +292,24 @@
 
                 <div>
                     <label class="text-[13px] opacity-60"><span data-i18n-pt>Descrição</span><span data-i18n-en>Description</span></label>
-                    <textarea class="input-premium-field" name="description" maxlength="500" required placeholder="Ex: Aumenta o crescimento do seu dinossauro atual."></textarea>
+                    <%#
+                        BUG REAL corrigido (pedido do dono, 2026-08-19: "Campo
+                        de descrição no overlay de criação esta da mesma cor
+                        do cardo... deixe ele como os outros campos") — o
+                        fundo/borda de .input-premium-field vêm do
+                        .input-container-premium que o envolve
+                        (background:#131314, borda dourada — ver style.css);
+                        sozinho, .input-premium-field é
+                        background:transparent/border:none, então este
+                        textarea (único campo do dialog sem o wrapper) ficava
+                        visualmente idêntico ao fundo do card por trás. Mesmo
+                        padrão já usado pra textarea em reports.ejs
+                        (.input-container-premium.has-textarea + .icon-box).
+                    %>
+                    <div class="input-container-premium has-textarea">
+                        <div class="icon-box"><i data-lucide="align-left"></i></div>
+                        <textarea class="input-premium-field" name="description" maxlength="500" required placeholder="Ex: Aumenta o crescimento do seu dinossauro atual."></textarea>
+                    </div>
                 </div>
 
                 <div>
@@ -332,7 +348,17 @@
                         <div class="icon-box"><i data-lucide="map-pin"></i></div>
                         <input type="text" class="input-premium-field" name="coords" maxlength="200" placeholder="Ex: X=1234 Y=5678 Z=90">
                     </div>
-                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Cole a posição copiada com `/mapbug` em jogo. Só funciona pra quem estiver jogando no mapa informado acima.</span><span data-i18n-en>Paste the position copied with `/mapbug` in-game. Only works for players on the map named above.</span></p>
+                    <%#
+                        Instrução mais explícita (pedido do dono, 2026-08-19:
+                        "acabado do campo de coordenadas instrua o
+                        administrador a pegar a coordenada no mapa usando
+                        /mapbug em jogo no local que deve ser feito o
+                        teleporte") — antes só dizia "cole a posição copiada
+                        com /mapbug", sem deixar claro que é preciso IR ATÉ O
+                        LOCAL de destino em jogo primeiro, e rodar o comando
+                        lá (não em qualquer lugar).
+                    %>
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Vá até o local exato em jogo pra onde os jogadores devem ser teleportados, use <code>/mapbug</code> lá pra pegar a coordenada, e cole o resultado aqui. Só funciona pra quem estiver jogando no mapa informado acima.</span><span data-i18n-en>Go to the exact spot in-game where players should be teleported to, use <code>/mapbug</code> there to get the coordinate, and paste the result here. Only works for players on the map named above.</span></p>
                 </div>
 
                 <div>
@@ -404,7 +430,10 @@
 
                 <div>
                     <label class="text-[13px] opacity-60"><span data-i18n-pt>Descrição</span><span data-i18n-en>Description</span></label>
-                    <textarea class="input-premium-field" name="description" id="ljEditDescription" maxlength="500" required></textarea>
+                    <div class="input-container-premium has-textarea">
+                        <div class="icon-box"><i data-lucide="align-left"></i></div>
+                        <textarea class="input-premium-field" name="description" id="ljEditDescription" maxlength="500" required></textarea>
+                    </div>
                 </div>
 
                 <div>
@@ -440,6 +469,7 @@
                         <div class="icon-box"><i data-lucide="map-pin"></i></div>
                         <input type="text" class="input-premium-field" name="coords" id="ljEditCoords" maxlength="200">
                     </div>
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Vá até o local exato em jogo pra onde os jogadores devem ser teleportados, use <code>/mapbug</code> lá pra pegar a coordenada, e cole o resultado aqui. Só funciona pra quem estiver jogando no mapa informado acima.</span><span data-i18n-en>Go to the exact spot in-game where players should be teleported to, use <code>/mapbug</code> there to get the coordinate, and paste the result here. Only works for players on the map named above.</span></p>
                 </div>
 
                 <div>
