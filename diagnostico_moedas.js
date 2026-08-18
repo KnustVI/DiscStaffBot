@@ -90,4 +90,20 @@ if (!bones.length) {
     }
 }
 
+console.log('\n=== HISTÓRICO DE SESSÕES (pot_logs — PlayerLogin/PlayerLogout/PlayerLeave) ===');
+console.log('(só existe a partir de 2026-08-19 — eventos antigos não foram persistidos, ver PERSISTED_EVENTS em gatewayServer.js)\n');
+const sessionEvents = db.prepare(`
+    SELECT guild_id, event_type, event_data, created_at
+    FROM pot_logs
+    WHERE event_type IN ('PlayerLogin', 'PlayerLogout', 'PlayerLeave') AND alderon_id = ?
+    ORDER BY created_at ASC
+`).all(link.alderon_id);
+if (!sessionEvents.length) {
+    console.log('Nenhum evento registrado ainda pra este Alderon ID — ou é de antes da mudança, ou ainda não fez login/logout desde então.');
+} else {
+    for (const ev of sessionEvents) {
+        console.log(`guild=${ev.guild_id} | ${ev.event_type} | ${new Date(ev.created_at * 1000).toISOString()}`);
+    }
+}
+
 process.exit(0);

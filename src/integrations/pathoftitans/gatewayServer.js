@@ -27,7 +27,18 @@ const db = require('../../database/index');
 // com isso dá pra consultar o payload bruto de qualquer AdminSpectate já
 // recebido, a qualquer momento, sem precisar ter tido DEBUG_POT ligado
 // bem na hora em que o evento aconteceu ao vivo.
-const PERSISTED_EVENTS = new Set(['AdminSpectate', 'AdminCommand', 'ServerModerate']);
+// PlayerLogin/PlayerLogout/PlayerLeave adicionados (pedido do dono,
+// 2026-08-19: "algo não parece muito consistente no ganho de caçadas e
+// osso... antes de converter ossos hoje eu tinha 2 caçada (2horas de
+// jogo) e 5 ossos (1 hora de jogo)") — confirmado com dado real (ver
+// diagnostico_moedas.js) que total_playtime tinha ~70min A MAIS de
+// sessões já fechadas do que o carry de Caçadas refletia, mesmo jogando
+// só num servidor. Mesma frequência baixa de AdminSpectate (1 evento por
+// sessão de jogo, nunca por mensagem/dano) — sem esse histórico não dava
+// pra reconstruir a linha do tempo de sessões de hoje e achar o evento
+// exato que perdeu tempo. Ver catch de _creditPlaytimeCurrency em
+// potPlayerRegistry.js pro resto do raciocínio.
+const PERSISTED_EVENTS = new Set(['AdminSpectate', 'AdminCommand', 'ServerModerate', 'PlayerLogin', 'PlayerLogout', 'PlayerLeave']);
 
 // Filtro opcional pro log de debug (DEBUG_POT=true) — sem isso, DEBUG_POT
 // mostra TODO evento recebido, e um evento raro (ex: AdminSpectate) fica

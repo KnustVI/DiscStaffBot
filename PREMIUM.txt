@@ -11025,3 +11025,57 @@ frente, nao so este relatorio):
 - Verificado: `node --check` em `playerRegistrationSystem.js`. SEM
   confirmação visual — o dono precisa conferir que o emoji Atack
   aparece de verdade ao lado de "Caçadas:" no próximo `/perfil`.
+
+214) Investigação: Caçadas/Ossos ficando pra trás do tempo de jogo real (bug confirmado, causa raiz ainda não encontrada)
+--------------------------------------------------------------------------------------------------------------------------
+- Continuação da seção 213 — o dono confirmou, com dado real via
+  `diagnostico_moedas.js` (guild única, sem confusão de servidor
+  múltiplo): `total_playtime` fechado daquele servidor = 12260s
+  (3.41h), mas o carry global de Caçadas só tinha recebido 8017s
+  (2 Caçadas × 3600 + 817s de sobra = 2.23h) — uma diferença de 4243s
+  (~70min) de sessões JÁ FECHADAS (contam em total_playtime) que nunca
+  chegaram a ser creditadas em moeda nenhuma. Ossos do mesmo servidor
+  também não batia (91 no saldo, mas isso já inclui uma conversão
+  Ossos→Marks feita no meio do dia, então o saldo bruto não dá pra
+  comparar direto — o carry de segundos por si só não prova nada
+  sozinho sem o histórico de sessões).
+- Investigado a fundo, SEM causa raiz confirmada: os 2 únicos lugares
+  que escrevem `pot_players.total_playtime`
+  (`upsertPlayerFromEvent`/`reconcileOnlineStatus`, ambos em
+  `potPlayerRegistry.js`) SEMPRE chamam `_creditPlaytimeCurrency` com
+  o MESMO valor de segundos usado pro total_playtime — não achei uma
+  divergência óbvia entre os dois caminhos por leitura de código. A
+  limitação real: `PlayerLogin`/`PlayerLogout`/`PlayerLeave` NUNCA
+  foram persistidos em `pot_logs` (só `AdminSpectate`/`AdminCommand`/
+  `ServerModerate`), então não tinha como reconstruir a linha do tempo
+  de sessões de hoje pra achar o evento exato que perdeu tempo.
+- Duas melhorias defensivas aplicadas enquanto a causa raiz não é
+  confirmada: (1) os 3 eventos de sessão (`PlayerLogin`/
+  `PlayerLogout`/`PlayerLeave`) passaram a ser persistidos em
+  `pot_logs` também (`gatewayServer.js`, `PERSISTED_EVENTS`), mesma
+  frequência baixa de `AdminSpectate` — a PRÓXIMA vez que isso
+  acontecer, dá pra reconstruir a sessão exata. (2) os `catch` de
+  `_creditPlaytimeCurrency`/`_creditGuildBones` (`potPlayerRegistry.js`)
+  trocaram de `console.error` (invisível numa VPS remota) pra
+  `ErrorLogger.error(...)`, mesmo padrão já usado em
+  `playerRegistrationSystem.js` pro relato irmão "saldo sumindo do
+  /perfil às vezes" — se o crédito de moeda estiver de fato lançando
+  uma exceção às vezes, agora isso vira um log visível no canal de
+  sistema em vez de sumir num `console.error` que ninguém lê.
+  `diagnostico_moedas.js` também ganhou uma seção nova que lista o
+  histórico de sessões do `pot_logs` pra um Alderon ID, pra cruzar com
+  os números de moeda na próxima investigação.
+- Hipóteses ainda não confirmadas nem descartadas: exceção silenciosa
+  em `_creditPlaytimeCurrency`/`_creditGuildBones` (agora visível, ver
+  acima); múltiplos `PlayerLogin` pro mesmo jogador sem um `PlayerLogout`
+  entre eles (resetaria `session_started_at` sem fechar/creditar a
+  sessão anterior — real, mas não explica sozinho o total_playtime
+  estar MAIOR que o creditado, já que esse cenário perderia o tempo dos
+  DOIS lados igualmente); falha momentânea de banco (SQLite
+  `busy`/lock) durante um pico de eventos.
+- Verificado: `node --check` em `potPlayerRegistry.js`/
+  `gatewayServer.js`/`diagnostico_moedas.js`. SEM causa raiz confirmada
+  — o dono precisa continuar jogando normalmente e, se a divergência
+  aparecer de novo, rodar `diagnostico_moedas.js` de novo (agora com
+  histórico de sessões) e conferir o canal de log de sistema por
+  qualquer entrada de `potPlayerRegistry`.

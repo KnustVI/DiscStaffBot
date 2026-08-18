@@ -1338,7 +1338,25 @@ function _creditPlaytimeCurrency(guildId, alderonId, sessionSeconds) {
 
         if (guildId) _creditGuildBones(link.user_id, guildId, sessionSeconds);
     } catch (error) {
-        console.error('❌ [PoT Registry] Erro ao creditar moeda por tempo de jogo:', error);
+        // BUG REAL confirmado (pedido do dono, 2026-08-19: "algo não parece
+        // muito consistente no ganho de caçadas e osso" — investigado com um
+        // snapshot real via diagnostico_moedas.js: total_playtime de um
+        // servidor tinha ~70min A MAIS de sessões já fechadas do que o carry
+        // de Caçadas refletia, mesmo jogando num único servidor o dia
+        // inteiro). Causa raiz exata ainda não confirmada — PlayerLogin/
+        // PlayerLogout/PlayerLeave nunca foram persistidos em pot_logs (só
+        // AdminSpectate/AdminCommand/ServerModerate, ver PERSISTED_EVENTS em
+        // gatewayServer.js), então não dava pra reconstruir a linha do tempo
+        // de sessões de hoje pra achar o exato evento problemático. Corrigido
+        // aqui: se este catch disparar de novo, agora fica REGISTRADO de
+        // verdade (ErrorLogger, avisa no canal de log do sistema) em vez de
+        // só um console.error que ninguém vê numa VPS remota — mesmo padrão
+        // já usado em playerRegistrationSystem.js pro mesmo tipo de relato
+        // ("saldo sumindo do /perfil"). Os 3 eventos passaram a ser
+        // persistidos também (ver gatewayServer.js), pra a PRÓXIMA ocorrência
+        // já vir com histórico de sessão reconstruível.
+        const ErrorLogger = require('../core/errorLogger');
+        ErrorLogger.error('potPlayerRegistry', '_creditPlaytimeCurrency', error, { guildId, alderonId, sessionSeconds });
     }
 }
 
@@ -1382,7 +1400,16 @@ function _creditGuildBones(userId, guildId, sessionSeconds) {
             `).run(userId, guildId, remainderSeconds, now);
         }
     } catch (error) {
-        console.error('❌ [PoT Registry] Erro ao creditar Ossos por tempo de jogo (por servidor):', error);
+        // Visibilidade real (ver comentário completo no catch de
+        // _creditPlaytimeCurrency acima, que chama esta função) — se isto
+        // falhar, só afeta Ossos (Caçadas/XP já foram creditados antes desta
+        // chamada, num UPDATE separado que não depende desta função) — por
+        // isso é uma causa PLAUSÍVEL isolada pra Ossos ficar pra trás de
+        // Caçadas especificamente, mas não sozinha suficiente pra explicar
+        // Caçadas também ficando atrás do total_playtime real (ver
+        // investigação de 2026-08-19 no catch acima).
+        const ErrorLogger = require('../core/errorLogger');
+        ErrorLogger.error('potPlayerRegistry', '_creditGuildBones', error, { userId, guildId, sessionSeconds });
     }
 }
 
