@@ -102,10 +102,16 @@
         do topo, no canto superior direito") — mesmo mecanismo de
         posicionamento do .dashboard-link à esquerda logo abaixo (absolute
         + top-1/2 -translate-y-1/2 pra centralizar verticalmente na
-        barra), espelhado pro lado direito. assets/Logo/logo.svg já É a
-        versão em branco (os 2 <filter> do próprio SVG recolorem o PNG
-        embutido pra branco puro via feColorMatrix — não precisa gerar
-        variante nenhuma, só copiar o arquivo pra web/public/images/).
+        barra), espelhado pro lado direito. web/public/images/logo-white.svg
+        NÃO é gerado a partir de assets/Logo/logo.svg (esse é o logo
+        desenhado à mão atual, cor própria — trocado em 2026-08-17, ver
+        histórico) — é uma cópia direta de assets/Logo/Logo branca.svg,
+        variante branca feita à parte pelo dono (pedido, 2026-08-18: "Logo
+        adiciona na barra de navegação do topo esta preta, adicionei uma
+        versão branca use a mesma"). Sempre que o logo principal for
+        redesenhado de novo, esta cópia precisa ser atualizada manualmente
+        a partir da variante branca correspondente — não existe conversão
+        automática entre os dois arquivos.
         hidden md:block (mesmo breakpoint do .dashboard-link à esquerda)
         — numa barra estreita de celular, só hamburguer+bandeira de idioma
         cabem sem disputar espaço; o logo desta marca d'água não é
