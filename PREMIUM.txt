@@ -11447,3 +11447,25 @@ frente, nao so este relatorio):
   `/moeda-admin` aparecer no bot developer, e testar ao vivo os botões
   novos de `/perfil` (Usar item de Loja de Jogo dispara RCON de
   verdade; link pro site).
+
+223) Divulgação de servidor expira 7 dias sem atualizar
+--------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Após 7 dias da divulgação de um server
+  remova a divulgação da parina até ele adicionar outra."
+- `dashboard.js#_fetchPartnerNews` (feed público de divulgações,
+  mostrado na home, `/perfil` e `/loja`) ganhou um filtro de idade na
+  própria query — só entra quem publicou/atualizou via `/divulgar` nos
+  últimos 7 dias (`partner_news_updated_at`, coluna que já existia,
+  nenhuma migração necessária). Passado o prazo, a divulgação some
+  sozinha da lista pública sem o servidor precisar fazer nada — só
+  volta a aparecer quando ele publica de novo. `getOwnPartnerNews`
+  (prévia só do próprio servidor em `moderacao.ejs`, "DIVULGAÇÃO DO
+  SERVIDOR") continua mostrando a divulgação atual independente da
+  idade — o admin precisa continuar vendo que ela expirou pra saber
+  que precisa atualizar, não faria sentido sumir dali também.
+- Verificado: `node --check` em `dashboard.js`. Teste isolado (SQL
+  direto contra um banco SQLite temporário) com divulgações de 0/6.9/
+  7.1/30 dias de idade, confirmando que só as duas dentro do prazo (0
+  e 6.9 dias) voltam na query. SEM confirmação visual — o dono pode
+  conferir olhando a home/`/perfil`/`/loja` com um servidor cuja
+  divulgação já passou de 7 dias.

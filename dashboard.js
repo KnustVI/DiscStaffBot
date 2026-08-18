@@ -1613,6 +1613,17 @@ function loadDashboard(client) {
         return data;
     }
 
+    // Divulgação expira 7 dias depois de publicada/atualizada (pedido do
+    // dono, 2026-08-19: "Após 7 dias da divulgação de um server remova a
+    // divulgação da pagina até ele adicionar outra") — some da lista
+    // PÚBLICA (esta função) sozinha, sem o servidor precisar fazer nada;
+    // só reaparece quando ele publica de novo (/divulgar já atualiza
+    // partner_news_updated_at a cada publicação/edição). getOwnPartnerNews
+    // (prévia só do próprio servidor, em moderacao.ejs) continua mostrando
+    // a divulgação atual independente da idade — o admin precisa ver que
+    // ela expirou pra saber que precisa atualizar, não some de propósito.
+    const PARTNER_NEWS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
     async function _fetchPartnerNews(client) {
         const rows = db.prepare(`
             SELECT t.guild_id, t.value AS title, x.value AS text, u.value AS updated_at,
@@ -1623,8 +1634,9 @@ function loadDashboard(client) {
             LEFT JOIN settings img ON img.guild_id = t.guild_id AND img.key = 'partner_news_image_message_id'
             LEFT JOIN settings ev ON ev.guild_id = t.guild_id AND ev.key = 'partner_news_event_id'
             WHERE t.key = 'partner_news_title' AND t.value IS NOT NULL AND TRIM(t.value) != ''
+              AND CAST(u.value AS INTEGER) >= ?
             ORDER BY CAST(u.value AS INTEGER) DESC
-        `).all();
+        `).all(Date.now() - PARTNER_NEWS_MAX_AGE_MS);
 
         const eligible = rows
             .map((row) => {
