@@ -36,6 +36,14 @@
   dashboard.js é quem ignora o que vier nele e grava um placeholder
   fixo).
 
+  Campo de PERÍODO novo (pedido do dono, 2026-08-19, junto com o
+  criador de Missões — "Registrou entre as datas...") — 2 <input
+  type="date"> (requirement_date_from[]/requirement_date_to[]) só
+  aparecem pro tipo registered_between (needsDateRange:true). O outro
+  tipo novo do mesmo pedido (registered_on_server) NÃO precisa de UI
+  nova nenhuma — já é noValue+needsServer, as 2 flags que este parcial
+  já sabia togglear independentemente.
+
   Uso: include( partials/requirement-form , { img, type, requirementTypes, configuredServers } )
     img — linha do pool (badge ou titulo), já com img.requirement
       (ARRAY parseado ou null — ver AchievementSystem.parseRequirement)
@@ -91,7 +99,7 @@
         const currentDef = requirementTypes[currentType];
         const optionsHtml = Object.keys(requirementTypes).map((key) => {
             const def = requirementTypes[key];
-            return `<option value="${key}" data-value-label="${rfEsc(def.valueLabel)}" data-hint="${rfEsc(def.hint)}" data-needs-species="${def.needsSpecies ? '1' : '0'}" data-needs-server="${def.needsServer ? '1' : '0'}" data-no-value="${def.noValue ? '1' : '0'}" ${currentType === key ? 'selected' : ''}>${rfEsc(def.label)}</option>`;
+            return `<option value="${key}" data-value-label="${rfEsc(def.valueLabel)}" data-hint="${rfEsc(def.hint)}" data-needs-species="${def.needsSpecies ? '1' : '0'}" data-needs-server="${def.needsServer ? '1' : '0'}" data-no-value="${def.noValue ? '1' : '0'}" data-needs-date-range="${def.needsDateRange ? '1' : '0'}" ${currentType === key ? 'selected' : ''}>${rfEsc(def.label)}</option>`;
         }).join('');
         const serverOptionsHtml = configuredServers.map((s) => `<option value="${rfEsc(s.guildId)}" ${requirement && requirement.guildId === s.guildId ? 'selected' : ''}>${rfEsc(s.name)}</option>`).join('');
         return `
@@ -117,6 +125,12 @@
                         <option value="">Selecione um servidor...</option>
                         ${serverOptionsHtml}
                     </select>
+                </div>
+                <div id="${rowId}-daterange-row" class="pool-req-value-row" style="${currentDef?.needsDateRange ? '' : 'display:none;'}">
+                    <label for="${rowId}-date-from">De:</label>
+                    <input type="date" id="${rowId}-date-from" name="requirement_date_from[]" value="${requirement && requirement.startDate ? rfEsc(requirement.startDate) : ''}">
+                    <label for="${rowId}-date-to">Até:</label>
+                    <input type="date" id="${rowId}-date-to" name="requirement_date_to[]" value="${requirement && requirement.endDate ? rfEsc(requirement.endDate) : ''}">
                 </div>
                 <p id="${rowId}-hint" class="pool-req-hint">${rfEsc(currentDef?.hint || 'Escolha um tipo de requisito acima para ver a explicação.')}</p>
             </div>`;

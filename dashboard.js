@@ -21,6 +21,7 @@ const BuffStatCatalog = require('./src/systems/pot/buffStatCatalog');
 const CurrencySystem = require('./src/systems/pot/currencySystem');
 const GameShopSystem = require('./src/systems/pot/gameShopSystem');
 const AchievementSystem = require('./src/systems/pot/achievementSystem');
+const MissionSystem = require('./src/systems/pot/missionSystem');
 const PunishmentSystem = require('./src/systems/moderation/punishmentSystem');
 const StaffPresenceSystem = require('./src/systems/moderation/staffPresenceSystem');
 const GeneralNewsSystem = require('./src/systems/news/generalNewsSystem');
@@ -1054,6 +1055,13 @@ function loadDashboard(client) {
             return { type, label, images };
         }));
 
+        // Títulos já cadastrados (mesmas linhas do grupo 'titulo' de
+        // `groups` acima) — extraído num local próprio só pro editor de
+        // recompensa de Missão (partials/mission-reward-form.ejs), que
+        // precisa de uma lista simples pra popular o <select> de "Título",
+        // sem o resto do shape de `groups` (type/label por fora).
+        const titulos = groups.find((g) => g.type === 'titulo')?.images || [];
+
         const badgeRows = ProfileImagePool.listImages('badge').filter(r => !r.pending_review);
         const badges = await Promise.all(badgeRows.map(async row => ({
             ...row,
@@ -1061,6 +1069,23 @@ function loadDashboard(client) {
             requirement: AchievementSystem.parseRequirement(row),
             requirementLabel: AchievementSystem.describeRequirement(AchievementSystem.parseRequirement(row)),
         })));
+
+        // Missões (pedido do dono, 2026-08-19) — mesma receita de
+        // requirement/requirementLabel de badges/groups acima + rewardLabel
+        // (MissionSystem.describeReward), pra alimentar tanto o resumo do
+        // card quanto o editor de requisito (que reaproveita
+        // partials/requirement-form.ejs sem mudança nenhuma).
+        const missionRows = MissionSystem.listMissions();
+        const missions = missionRows.map((row) => {
+            const requirement = AchievementSystem.parseRequirement(row);
+            return {
+                ...row,
+                requirement,
+                requirementLabel: AchievementSystem.describeRequirement(requirement),
+                reward: MissionSystem.parseReward(row),
+                rewardLabel: MissionSystem.describeReward(row),
+            };
+        });
 
         const pendingRows = ProfileImagePool.getPendingSubmissions();
         const pendingSubmissions = await Promise.all(pendingRows.map(async row => ({
@@ -1092,6 +1117,8 @@ function loadDashboard(client) {
             isOwner: true,
             groups,
             badges,
+            titulos,
+            missions,
             pendingSubmissions,
             allGuilds,
             configuredServers,
@@ -1105,8 +1132,16 @@ function loadDashboard(client) {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
-        const row = ProfileImagePool.getByTypeAndId(type, id);
-        if (row) ProfileImagePool.setPublic(type, id, !row.is_public);
+        // type==='missao' não vive em profile_image_pool (tabela própria,
+        // ver missionSystem.js) — mesma rota genérica reaproveitada pros 2
+        // backends, igual /toggle-coming-soon, /delete e /requisito abaixo.
+        if (type === 'missao') {
+            const row = MissionSystem.getMissionById(id);
+            if (row) MissionSystem.setPublic(id, !row.is_public);
+        } else {
+            const row = ProfileImagePool.getByTypeAndId(type, id);
+            if (row) ProfileImagePool.setPublic(type, id, !row.is_public);
+        }
         res.redirect('/dev/Loja');
     });
 
@@ -1117,8 +1152,13 @@ function loadDashboard(client) {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
-        const row = ProfileImagePool.getByTypeAndId(type, id);
-        if (row) ProfileImagePool.setComingSoon(type, id, !row.coming_soon);
+        if (type === 'missao') {
+            const row = MissionSystem.getMissionById(id);
+            if (row) MissionSystem.setComingSoon(id, !row.coming_soon);
+        } else {
+            const row = ProfileImagePool.getByTypeAndId(type, id);
+            if (row) ProfileImagePool.setComingSoon(type, id, !row.coming_soon);
+        }
         res.redirect('/dev/Loja');
     });
 
@@ -1156,6 +1196,8 @@ function loadDashboard(client) {
         const values = [].concat(req.body.requirement_value || []);
         const speciesList = [].concat(req.body.requirement_species || []);
         const serverList = [].concat(req.body.requirement_server || []);
+        const dateFromList = [].concat(req.body.requirement_date_from || []);
+        const dateToList = [].concat(req.body.requirement_date_to || []);
 
         // Teto defensivo (não pedido explicitamente, mas evita spam de
         // linhas) — mesmo valor no form (ver requirement-form.ejs), que
@@ -1170,19 +1212,37 @@ function loadDashboard(client) {
             const def = AchievementSystem.REQUIREMENT_TYPES[reqType];
             if (!def) return res.redirect('/dev/Loja?saved=error');
 
+            const species = (speciesList[i] || '').trim();
+            const guildId = (serverList[i] || '').trim();
+
+            // Período (registered_between, pedido do dono 2026-08-19) — não
+            // é um "valor" numérico nem espécie/servidor, validado à parte
+            // dos outros tipos sem valor abaixo.
+            if (def.needsDateRange) {
+                const dateFrom = (dateFromList[i] || '').trim();
+                const dateTo = (dateToList[i] || '').trim();
+                if (!dateFrom || !dateTo || dateFrom > dateTo) {
+                    return res.redirect('/dev/Loja?saved=error');
+                }
+                requirements.push({ type: reqType, value: 1, startDate: dateFrom, endDate: dateTo });
+                continue;
+            }
+
             // Tipos sem valor numérico de verdade (ex: "Está online") —
             // campo de Valor fica escondido na UI (ver requirement-form.ejs
             // requirementFormSync), então nem confere o que veio no POST;
             // grava um placeholder fixo (nunca comparado de verdade em
-            // _checkSingleRequirementMet).
+            // _checkSingleRequirementMet). Ainda pode exigir servidor
+            // (registered_on_server, pedido do dono 2026-08-19, é
+            // noValue+needsServer ao mesmo tempo) — só o "Valor" em si é
+            // dispensado, needsServer continua valendo.
             if (def.noValue) {
-                requirements.push({ type: reqType, value: 1 });
+                if (def.needsServer && !guildId) return res.redirect('/dev/Loja?saved=error');
+                requirements.push({ type: reqType, value: 1, ...(guildId ? { guildId } : {}) });
                 continue;
             }
 
             const value = Number(values[i]);
-            const species = (speciesList[i] || '').trim();
-            const guildId = (serverList[i] || '').trim();
             // Linha PREENCHIDA mas inválida (tipo desconhecido, valor
             // fora do range, espécie faltando quando o tipo exige, ou
             // servidor não selecionado quando o tipo exige) cancela o
@@ -1193,7 +1253,13 @@ function loadDashboard(client) {
             }
             requirements.push({ type: reqType, value, ...(species ? { species } : {}), ...(guildId ? { guildId } : {}) });
         }
-        const ok = ProfileImagePool.setRequirement(type, id, requirements.length > 0 ? requirements : null);
+        // type==='missao' não vive em profile_image_pool (tabela própria,
+        // pot_missions, ver missionSystem.js) — mesma rota genérica
+        // reaproveitada pros 2 backends, igual toggle/toggle-coming-soon/
+        // delete logo abaixo.
+        const ok = type === 'missao'
+            ? MissionSystem.setRequirement(id, requirements.length > 0 ? requirements : null)
+            : ProfileImagePool.setRequirement(type, id, requirements.length > 0 ? requirements : null);
         res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
@@ -1250,8 +1316,56 @@ function loadDashboard(client) {
         if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
         const { type } = req.params;
         const id = Number(req.params.id);
-        ProfileImagePool.removeImage(type, id);
+        if (type === 'missao') {
+            MissionSystem.removeMission(id);
+        } else {
+            ProfileImagePool.removeImage(type, id);
+        }
         res.redirect('/dev/Loja');
+    });
+
+    // ==================== MISSÕES (pedido do dono, 2026-08-19) ====================
+    // Cria a missão NUA (título+descrição, is_public=0) — requisito e
+    // recompensa são configurados DEPOIS, cada um no próprio dialog do card
+    // já criado (rotas /requisito acima, reaproveitada por type==='missao',
+    // e /recompensa abaixo) — mesmo padrão de 2 passos que o resto desta
+    // página já usa (criar -> configurar), ver missionSystem.js.
+    app.post('/dev/Loja/missao/criar', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const result = MissionSystem.createMission(req.body.title, req.body.description, req.user.id);
+        res.redirect(`/dev/Loja?saved=${result.ok ? 'success' : 'error'}`);
+    });
+
+    // Configura a recompensa de uma missão — Ossos (exige quantidade E um
+    // servidor, já que Ossos é moeda por servidor, ver pot_player_bones),
+    // Caçadas (só quantidade, moeda global), ou um Emblema/Título JÁ
+    // cadastrado no pool (o dono escolhe entre os que já existem nas
+    // seções de Emblema/Título da mesma página, não cria um novo aqui).
+    app.post('/dev/Loja/missao/:id/recompensa', checkAuth, async (req, res) => {
+        if (!isOwnerSession(req)) return res.status(403).send('Acesso restrito ao desenvolvedor do bot.');
+        const id = Number(req.params.id);
+        const rewardType = req.body.reward_type;
+
+        let reward = null;
+        if (rewardType === 'ossos') {
+            const amount = parseInt(req.body.reward_amount, 10);
+            const guildId = (req.body.reward_guild || '').trim();
+            if (!Number.isInteger(amount) || amount <= 0 || !guildId) return res.redirect('/dev/Loja?saved=error');
+            reward = { amount, guildId };
+        } else if (rewardType === 'cacadas') {
+            const amount = parseInt(req.body.reward_amount, 10);
+            if (!Number.isInteger(amount) || amount <= 0) return res.redirect('/dev/Loja?saved=error');
+            reward = { amount };
+        } else if (rewardType === 'badge' || rewardType === 'titulo') {
+            const poolId = Number(rewardType === 'badge' ? req.body.reward_pool_id_badge : req.body.reward_pool_id_titulo);
+            if (!Number.isInteger(poolId) || !ProfileImagePool.getByTypeAndId(rewardType, poolId)) return res.redirect('/dev/Loja?saved=error');
+            reward = { poolId };
+        } else {
+            return res.redirect('/dev/Loja?saved=error');
+        }
+
+        const ok = MissionSystem.setReward(id, rewardType, reward);
+        res.redirect(`/dev/Loja?saved=${ok ? 'success' : 'error'}`);
     });
 
     // Aprova um envio pendente do marketplace de imagem de jogador — vira
@@ -1824,6 +1938,27 @@ function loadDashboard(client) {
         badges.forEach((b) => { b.redeemable = redeemableKeys.has(`badge:${b.id}`); });
         titulos.forEach((t) => { t.redeemable = redeemableKeys.has(`titulo:${t.id}`); });
 
+        // Missões (pedido do dono, 2026-08-19) — mesmo padrão de
+        // badges/titulos logo acima: label/url genéricos (compatíveis com
+        // o loop de lojaMissoesGroups em loja.ejs, que já espera esses
+        // 2 campos pra qualquer grupo), requirementLabel/rewardLabel pro
+        // texto do card, owned/redeemable calculados igual badge/título.
+        const missionRows = MissionSystem.listMissions({ publicOnly: true });
+        const missoes = missionRows.map((row) => {
+            const requirement = AchievementSystem.parseRequirement(row);
+            return {
+                ...row,
+                label: row.title,
+                url: null,
+                requirement,
+                requirementLabel: AchievementSystem.describeRequirement(requirement),
+                rewardLabel: MissionSystem.describeReward(row),
+                owned: MissionSystem.hasClaimed(req.user.id, row.id),
+            };
+        });
+        const claimableMissionIds = new Set(MissionSystem.getClaimableMissions(req.user.id).map((m) => m.id));
+        missoes.forEach((m) => { m.redeemable = claimableMissionIds.has(m.id); });
+
         const link = PlayerRegistry.getPlayerByDiscordId(req.user.id);
         const huntBalance = PlayerRegistry.getHuntBalance(req.user.id);
         const xpBalance = PlayerRegistry.getXp(req.user.id);
@@ -1899,6 +2034,7 @@ function loadDashboard(client) {
             personalizacao,
             badges,
             titulos,
+            missoes,
             isLinked: !!link,
             bonesBalance,
             guildBonesBalances,
@@ -2184,7 +2320,15 @@ function loadDashboard(client) {
         if (!type || !id) {
             return res.redirect(backToLoja ? `/loja?erro=${encodeURIComponent('Requisição inválida.')}` : '/perfil?saved=error');
         }
-        const result = ImageShopSystem.redeemItem(req.user.id, type, id);
+        // type==='missao' concede uma recompensa de verdade (Ossos/
+        // Caçadas/Emblema/Título), não só um item do pool — ver
+        // missionSystem.js#claimMission. Mesmo shape de retorno
+        // ({ok, label, error}) que ImageShopSystem.redeemItem, então o
+        // resto da rota (redirect com ?resgatado=/?erro=) funciona sem
+        // mudança nenhuma pros dois casos.
+        const result = type === 'missao'
+            ? MissionSystem.claimMission(req.user.id, id)
+            : ImageShopSystem.redeemItem(req.user.id, type, id);
         if (backToLoja) {
             return res.redirect(result.ok
                 ? `/loja?resgatado=${encodeURIComponent(result.label)}`

@@ -83,6 +83,8 @@ class DatabaseManager {
                 'personalization_shop_config',
                 'game_shop_inventory',
                 'pot_game_shop_items',
+                'pot_missions',
+                'pot_mission_claims',
                 'player_premium',
                 'guild_premium',
                 'punishment_levels',

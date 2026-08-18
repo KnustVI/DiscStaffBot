@@ -12,7 +12,7 @@
   Express/EJS não exigem que bata, o `res.render('dev-lojas', ...)` é só
   uma referência interna, não precisa mudar toda vez que a URL muda.
 
-  5 seções: (1) Loja de Jogo de CADA servidor onde o bot está (link pra
+  6 seções: (1) Loja de Jogo de CADA servidor onde o bot está (link pra
   /lojajogo/:guildId, mesma página do admin — o dono tem bypass lá pra
   configurar/dar suporte em qualquer servidor mesmo sem ser membro); (2)
   config global da Loja de Personalização (taxa de envio do marketplace);
@@ -23,11 +23,17 @@
   src/systems/pot/achievementSystem.js) — Título estava faltando esse
   editor até 2026-08-12 (pedido do dono: "titulo esta sem essa
   confguração tambem"), corrigido no mesmo dia que a UX do requisito
-  ganhou rótulo/dica dinâmicos por tipo escolhido.
+  ganhou rótulo/dica dinâmicos por tipo escolhido; (6) Missões (pedido do
+  dono, 2026-08-19) — mesmo editor de requisito de Emblema/Título
+  (reaproveitado sem mudança, só type='missao') + um editor de
+  RECOMPENSA novo (partials/mission-reward-form.ejs) — Ossos/Caçadas/
+  Emblema/Título, ver src/systems/pot/missionSystem.js. Missão nasce
+  privada, diferente do resto do pool (que nasce pública) — só faz
+  sentido depois de requisito E recompensa configurados.
 
   Uso: res.render('dev-lojas', { groups, badges, pendingSubmissions,
-    allGuilds, requirementTypes, personalizationConfig, saved }) — ver
-    dashboard.js GET /dev/Loja pro shape completo de cada local.
+    allGuilds, requirementTypes, personalizationConfig, missions, saved }) —
+    ver dashboard.js GET /dev/Loja pro shape completo de cada local.
 %>
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -565,6 +571,48 @@
             <% } %>
         </section>
 
+        <%# ==================== MISSÕES (requisito + recompensa, mesmo catálogo de Emblema/Título) ==================== %>
+        <section class="titan-card-premium flex-col gap-4">
+            <h2 class="section-title text-lg">Missões (<%= missions.length %>)</h2>
+            <p class="text-xs opacity-50">Missão global pra todos os jogadores — mesmo catálogo de requisitos de Emblema/Título acima, mais uma recompensa (Ossos, Caçadas, Emblema ou Título já cadastrado). Nasce PRIVADA — configure requisito e recompensa e só depois torne pública.</p>
+            <form class="pool-upload-form flex-col gap-2" action="/dev/Loja/missao/criar" method="POST">
+                <input type="text" name="title" placeholder="Título da missão" maxlength="100" required>
+                <textarea name="description" placeholder="Descrição da missão" maxlength="500" required rows="2" style="background: #1F1D20; border: 1px solid rgba(217, 163, 98, 0.3); border-radius: 6px; padding: 6px 8px; color: #F8DCC0; font-family: 'Poppins', sans-serif; font-size: 0.75rem; resize: vertical;"></textarea>
+                <button type="submit" class="pool-upload-submit">Criar missão</button>
+            </form>
+
+            <% if (missions.length === 0) { %>
+                <p class="text-sm opacity-40">Nenhuma missão criada ainda.</p>
+            <% } else { %>
+                <div class="pool-grid">
+                    <% missions.forEach((m) => { %>
+                        <div class="pool-item" style="width: 230px;">
+                            <div class="pool-item-thumb flex items-center justify-center text-center p-2">
+                                <span class="pool-item-label !whitespace-normal"><%= m.title %></span>
+                            </div>
+                            <span class="pool-item-meta !whitespace-normal opacity-70"><%= m.description %></span>
+                            <span class="pool-item-meta">#<%= m.id %> — <%= new Date(m.created_at).toLocaleDateString('pt-BR') %></span>
+                            <span class="pool-item-badge <%= m.is_public ? 'is-public' : 'is-private' %>"><%= m.is_public ? 'Público' : 'Privado' %></span>
+                            <% if (m.coming_soon) { %><span class="pool-item-badge is-coming-soon">Em breve</span><% } %>
+                            <%- include('partials/requirement-form', { img: { id: m.id, label: m.title, requirement: m.requirement, requirementLabel: m.requirementLabel }, type: 'missao', requirementTypes, configuredServers }) %>
+                            <%- include('partials/mission-reward-form', { mission: m, configuredServers, badges, titulos }) %>
+                            <div class="pool-item-actions">
+                                <form action="/dev/Loja/missao/<%= m.id %>/toggle" method="POST">
+                                    <button type="submit" class="pool-toggle-btn"><%= m.is_public ? 'Tornar privada' : 'Tornar pública' %></button>
+                                </form>
+                                <form action="/dev/Loja/missao/<%= m.id %>/toggle-coming-soon" method="POST">
+                                    <button type="submit" class="pool-toggle-btn"><%= m.coming_soon ? 'Tirar do "Em breve"' : 'Marcar "Em breve"' %></button>
+                                </form>
+                                <form action="/dev/Loja/missao/<%= m.id %>/delete" method="POST" onsubmit="return confirm('Excluir a missão \'<%= m.title.replace(/'/g, "") %>\'? Isso não pode ser desfeito.');">
+                                    <button type="submit" class="pool-delete-btn">Excluir</button>
+                                </form>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } %>
+        </section>
+
         <footer class="flex justify-end pb-2">
             <span class="bebas text-[12px] uppercase tracking-[6px] text-titan-cream opacity-10 hover:opacity-30 transition-opacity">
                 BY: KNUST SEIER VI
@@ -600,12 +648,29 @@
             const valueLabel = document.getElementById(rowId + '-value-label');
             const speciesRow = document.getElementById(rowId + '-species-row');
             const serverRow = document.getElementById(rowId + '-server-row');
+            const dateRangeRow = document.getElementById(rowId + '-daterange-row');
             const hint = document.getElementById(rowId + '-hint');
             valueLabel.textContent = (option.dataset.valueLabel || 'Valor') + ':';
             valueRow.style.display = option.dataset.noValue === '1' ? 'none' : '';
             speciesRow.style.display = option.dataset.needsSpecies === '1' ? '' : 'none';
             serverRow.style.display = option.dataset.needsServer === '1' ? '' : 'none';
+            dateRangeRow.style.display = option.dataset.needsDateRange === '1' ? '' : 'none';
             hint.textContent = option.dataset.hint || 'Escolha um tipo de requisito acima para ver a explicação.';
+        }
+
+        // Sincroniza o dialog de recompensa de Missão (partials/
+        // mission-reward-form.ejs) com o tipo escolhido — mostra só os
+        // campos relevantes pra cada tipo (Quantidade+Servidor pra Ossos,
+        // só Quantidade pra Caçadas, um <select> do pool já cadastrado pra
+        // Emblema/Título). Independente de requirementFormSync (só 4
+        // combinações fixas, não vale a pena generalizar em cima do
+        // catálogo de requisitos pra isso).
+        function missionRewardFormSync(mrfId) {
+            const type = document.getElementById(mrfId + '-type').value;
+            document.getElementById(mrfId + '-amount-row').style.display = (type === 'ossos' || type === 'cacadas') ? '' : 'none';
+            document.getElementById(mrfId + '-guild-row').style.display = type === 'ossos' ? '' : 'none';
+            document.getElementById(mrfId + '-badge-row').style.display = type === 'badge' ? '' : 'none';
+            document.getElementById(mrfId + '-titulo-row').style.display = type === 'titulo' ? '' : 'none';
         }
 
         // "+ Adicionar requisito" (pedido do dono, 2026-08-13) — clona o

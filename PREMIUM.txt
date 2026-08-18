@@ -11215,3 +11215,77 @@ frente, nao so este relatorio):
   renomeação). SEM confirmação visual/browser real — o dono precisa
   conferir ao vivo que a ordem e o visual das 3 mudanças ficaram como
   pedido.
+
+219) Criador de Missões (/dev/Loja) com recompensas de Ossos/Caçadas/Emblema/Título + 2 requisitos novos
+--------------------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Crie um criador de missões com os
+  mesmos requisitos que temos em emblemas e titulo. Adicione mais 2
+  requisitos em tudo dessa área. Registrou entre as datas.... Registrou
+  em um servidor especifico.... Esse criador de missões vai estar em
+  controle de loja para o dev, onde ele vai criar uma missão global
+  para todos os usuarios cumprir. Essas missões vão poder conceder
+  recompensas de ossos, caçadas, ou titulos e emblemas. Adicione na
+  criação de missão titulo, desccrição, requisitos e recompensas."
+- Feature nova, não um bug: um sistema de "Missões" globais reaproveita
+  o mecanismo de resgate-por-requisito que Emblema/Título já tinham
+  (`AchievementSystem.checkRequirementMet`/`REQUIREMENT_TYPES`),
+  generalizado pra também poder pagar em moeda, não só conceder um item
+  do pool.
+- **2 requisitos novos** em `AchievementSystem.REQUIREMENT_TYPES`
+  (afetam Emblema/Título/Missão ao mesmo tempo, já que os 3 usam o
+  mesmo catálogo — "adicione mais 2 requisitos em tudo dessa área"):
+  `registered_between` (registrou-se entre duas datas — compara
+  `player_links.registered_at` como string YYYY-MM-DD, evita fuso
+  horário) e `registered_on_server` (registrou-se/apareceu em um
+  servidor específico — existência de linha em `pot_players` pra
+  aquele guildId). `partials/requirement-form.ejs` ganhou 2 campos de
+  data condicionais (`needsDateRange`, flag nova) pro primeiro tipo; o
+  segundo não precisou de UI nova (já é `noValue`+`needsServer`, 2
+  flags que o parcial já sabia togglear independentemente).
+- **Novo `src/systems/pot/missionSystem.js`** (tabelas novas
+  `pot_missions`/`pot_mission_claims`) — criação em 2 passos, igual o
+  resto de `/dev/Loja`: `createMission` cria a missão NUA
+  (título+descrição, nasce **privada**), requisito e recompensa são
+  configurados DEPOIS em dialogs separados no card já criado
+  (`partials/requirement-form.ejs`, reaproveitado sem mudança nenhuma
+  passando `type:'missao'`, + `partials/mission-reward-form.ejs`
+  novo). Recompensa é um dos 4 tipos: Ossos (exige escolher 1
+  servidor — Ossos é moeda por servidor, ver `pot_player_bones`),
+  Caçadas (moeda global), ou um Emblema/Título JÁ cadastrado no pool
+  (escolhido de um `<select>`, não cria um novo ali). `claimMission`
+  reconfere elegibilidade no servidor (nunca confia na lista já
+  mostrada), grava a reivindicação ANTES de conceder a recompensa
+  (nunca credita 2x), e credita via `PlayerRegistry.addBones`/`addHunt`
+  ou inserindo em `image_inventory` (`source='mission'`) pro caso de
+  Emblema/Título.
+- Nova seção "Missões" em `/dev/Loja` (mesmo padrão visual `.pool-
+  grid`/`.pool-item` das outras 5 seções da página); jogador resgata
+  em `/loja`, mesma seção "MISSÕES E RECOMPENSAS" que Emblema/Título já
+  usavam — ganhou um 3º grupo (`lojaMissoesGroups`), com descrição da
+  missão e texto de recompensa exibidos só pra esse grupo, sem tocar
+  no comportamento de Emblema/Título. `/perfil/resgatar` (mesma rota
+  que Discord e web já usam) ganhou dispatch por `type==='missao'` pra
+  `MissionSystem.claimMission`.
+- **Fora de escopo, deliberado** (ver plano completo): resgate de
+  Missão só pela web por enquanto, não pelo `/perfil`/`/perfil-edit`
+  do Discord (o pedido menciona só "controle de loja", painel web; web
+  usa a mesma `/perfil/resgatar` que o bot também aciona, então nada
+  impede estender pro Discord depois se o dono quiser). Sem cron/
+  notificação automática de conclusão — mesmo modelo sob-demanda que
+  Emblema/Título já usam.
+- Verificado: `node --check` em `dashboard.js`/`missionSystem.js`/
+  `achievementSystem.js`/`schema.js`/`index.js`. `ejs.compile()` +
+  `ejs.render()` completo de `loja.ejs`/`dev-lojas.ejs` (fixtures com
+  0/1/4 missões, incluindo uma sem requisito/recompensa configurados
+  ainda, uma com `registered_between`, uma com `registered_on_server`)
+  confirmando renderização correta dos 2 dialogs novos, dos campos de
+  data condicionais, e da seção "Missões" no card de `/loja`. Script
+  isolado (banco SQLite temporário, nunca `database.sqlite` real)
+  exercitando `missionSystem.js` fim a fim: criar missão, configurar
+  cada um dos 4 tipos de recompensa, os 2 requisitos novos (dentro/
+  fora do período, servidor certo/errado), `claimMission` creditando
+  Ossos/Caçadas/Emblema corretamente, 2ª tentativa de claim barrada,
+  missão "em breve" barrada mesmo com requisito cumprido, hard delete
+  — 21 checagens, todas passando. SEM confirmação visual/browser real
+  — o dono precisa conferir ao vivo os 2 dialogs (requisito/recompensa)
+  em `/dev/Loja` e o resgate de uma missão configurada em `/loja`.

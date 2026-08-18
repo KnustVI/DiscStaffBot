@@ -1,0 +1,90 @@
+<%#
+  web/views/partials/mission-reward-form.ejs
+  Editor de recompensa de Missão — mesmo padrão visual/estrutural de
+  requirement-form.ejs (resumo + botão "Configurar" + <dialog> nativo),
+  mas SEM lista/múltiplas linhas (uma missão só tem UMA recompensa, ao
+  contrário dos requisitos, que podem ser vários). Ver
+  src/systems/pot/missionSystem.js pro shape de reward_type/reward_config.
+
+  Uso: include( partials/mission-reward-form , { mission, configuredServers, badges, titulos } )
+    mission — linha de pot_missions, já com mission.reward (objeto
+      parseado via MissionSystem.parseReward, ou null) e
+      mission.rewardLabel (string legível, MissionSystem.describeReward)
+      vindos de dashboard.js.
+    configuredServers — mesma lista já usada por requirement-form.ejs
+      (servidores com PoT configurado de verdade) — recompensa Ossos
+      precisa escolher UM, já que Ossos é moeda por servidor.
+    badges/titulos — linhas já cadastradas em profile_image_pool (mesmas
+      que alimentam as seções de Emblema/Título da própria página) — a
+      recompensa Emblema/Título aponta pra uma DESSAS, não cria uma nova.
+%>
+<%
+    const mrfId = `mrf-${mission.id}`;
+    const mrfEsc = (str) => String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const mrfReward = mission.reward || {};
+    const mrfType = mission.reward_type || '';
+%>
+<div class="pool-requirement-summary">
+    <span class="pool-price-current"><%= mission.rewardLabel || 'Sem recompensa configurada' %></span>
+    <button type="button" class="pool-req-configure-btn" onclick="document.getElementById('<%= mrfId %>-dialog').showModal()">Configurar recompensa</button>
+</div>
+
+<dialog id="<%= mrfId %>-dialog" class="pool-req-dialog">
+    <form action="/dev/Loja/missao/<%= mission.id %>/recompensa" method="POST" class="flex flex-col gap-3">
+        <div class="pool-req-dialog-head">
+            <h3>Recompensa — <%= mrfEsc(mission.title) %></h3>
+            <button type="button" class="pool-req-dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar sem salvar" title="Fechar sem salvar">&times;</button>
+        </div>
+
+        <div class="pool-req-value-row">
+            <label for="<%= mrfId %>-type">Tipo:</label>
+            <select id="<%= mrfId %>-type" name="reward_type" onchange="missionRewardFormSync('<%= mrfId %>')">
+                <option value="">Selecione...</option>
+                <option value="ossos" <%= mrfType === 'ossos' ? 'selected' : '' %>>Ossos</option>
+                <option value="cacadas" <%= mrfType === 'cacadas' ? 'selected' : '' %>>Caçadas</option>
+                <option value="badge" <%= mrfType === 'badge' ? 'selected' : '' %>>Emblema</option>
+                <option value="titulo" <%= mrfType === 'titulo' ? 'selected' : '' %>>Título</option>
+            </select>
+        </div>
+
+        <div id="<%= mrfId %>-amount-row" class="pool-req-value-row" style="<%= (mrfType === 'ossos' || mrfType === 'cacadas') ? '' : 'display:none;' %>">
+            <label for="<%= mrfId %>-amount">Quantidade:</label>
+            <input type="number" id="<%= mrfId %>-amount" name="reward_amount" min="1" step="1" placeholder="Ex: 500" value="<%= mrfReward.amount || '' %>">
+        </div>
+
+        <div id="<%= mrfId %>-guild-row" class="pool-req-value-row" style="<%= mrfType === 'ossos' ? '' : 'display:none;' %>">
+            <label for="<%= mrfId %>-guild">Servidor (Ossos é por servidor):</label>
+            <select id="<%= mrfId %>-guild" name="reward_guild">
+                <option value="">Selecione um servidor...</option>
+                <% configuredServers.forEach((s) => { %>
+                    <option value="<%= s.guildId %>" <%= mrfReward.guildId === s.guildId ? 'selected' : '' %>><%= s.name %></option>
+                <% }); %>
+            </select>
+        </div>
+
+        <div id="<%= mrfId %>-badge-row" class="pool-req-value-row" style="<%= mrfType === 'badge' ? '' : 'display:none;' %>">
+            <label for="<%= mrfId %>-badge">Emblema:</label>
+            <select id="<%= mrfId %>-badge" name="reward_pool_id_badge">
+                <option value="">Selecione...</option>
+                <% badges.forEach((b) => { %>
+                    <option value="<%= b.id %>" <%= (mrfType === 'badge' && mrfReward.poolId === b.id) ? 'selected' : '' %>><%= b.label %></option>
+                <% }); %>
+            </select>
+        </div>
+
+        <div id="<%= mrfId %>-titulo-row" class="pool-req-value-row" style="<%= mrfType === 'titulo' ? '' : 'display:none;' %>">
+            <label for="<%= mrfId %>-titulo">Título:</label>
+            <select id="<%= mrfId %>-titulo" name="reward_pool_id_titulo">
+                <option value="">Selecione...</option>
+                <% titulos.forEach((t) => { %>
+                    <option value="<%= t.id %>" <%= (mrfType === 'titulo' && mrfReward.poolId === t.id) ? 'selected' : '' %>><%= t.label %></option>
+                <% }); %>
+            </select>
+        </div>
+
+        <div class="pool-req-dialog-actions">
+            <button type="button" class="pool-toggle-btn" onclick="this.closest('dialog').close()">Cancelar</button>
+            <button type="submit" class="pool-price-submit">Salvar recompensa</button>
+        </div>
+    </form>
+</dialog>

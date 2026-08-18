@@ -81,6 +81,25 @@ const REQUIREMENT_TYPES = {
         hint: 'Jogador precisa estar online AGORA em algum servidor — checagem em tempo real, sem valor numérico associado.',
         noValue: true,
     },
+    // 2 tipos novos (pedido do dono, 2026-08-19, junto com o criador de
+    // Missões — "Adicione mais 2 requisitos em tudo dessa área"): registro
+    // por período e registro num servidor específico. needsDateRange é uma
+    // flag NOVA (só existia needsSpecies/needsServer/noValue até aqui) — ver
+    // requirement-form.ejs pros 2 campos de data que ela liga.
+    registered_between: {
+        label: 'Registrou-se entre duas datas',
+        valueLabel: 'Data',
+        hint: 'Jogador precisa ter se registrado (/registrar) entre as duas datas informadas abaixo (inclusive).',
+        noValue: true,
+        needsDateRange: true,
+    },
+    registered_on_server: {
+        label: 'Registrou-se em um servidor específico',
+        valueLabel: 'Servidor',
+        hint: 'Jogador precisa ter aparecido pelo menos uma vez NESSE servidor específico (visto em algum webhook do jogo) — diferente do registro global (/registrar), que não é por servidor.',
+        noValue: true,
+        needsServer: true,
+    },
 };
 
 /**
@@ -156,6 +175,22 @@ function _checkSingleRequirementMet(userId, requirement, link) {
         }
         case 'is_online':
             return PlayerRegistry.getGlobalPlayerStats(link.alderon_id).isOnline === true;
+        case 'registered_between': {
+            if (!requirement.startDate || !requirement.endDate || !link.registered_at) return false;
+            // Comparação como string YYYY-MM-DD (não timestamp) pra evitar
+            // fuso horário — ISO-date ordena igual string, então >= / <=
+            // funcionam direto.
+            const registeredDate = new Date(link.registered_at).toISOString().slice(0, 10);
+            return registeredDate >= requirement.startDate && registeredDate <= requirement.endDate;
+        }
+        case 'registered_on_server': {
+            if (!requirement.guildId) return false;
+            const db = require('../../database/index');
+            const row = db.prepare(`
+                SELECT 1 FROM pot_players WHERE guild_id = ? AND alderon_id = ? LIMIT 1
+            `).get(requirement.guildId, link.alderon_id);
+            return !!row;
+        }
         default:
             return false;
     }
@@ -204,6 +239,12 @@ function describeRequirement(requirements) {
                 }
                 case 'species_kills': return `${requirement.value}x abatendo ${requirement.species || '?'}`;
                 case 'is_online': return 'Online agora';
+                case 'registered_between': return `Registrado entre ${requirement.startDate || '?'} e ${requirement.endDate || '?'}`;
+                case 'registered_on_server': {
+                    const PoTConfigSystem = require('./potConfigSystem');
+                    const name = PoTConfigSystem.getServerConfig(requirement.guildId)?.server_name || 'servidor removido';
+                    return `Registrado em ${name}`;
+                }
                 default: return null;
             }
         })

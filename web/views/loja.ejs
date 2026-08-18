@@ -625,9 +625,18 @@
             </div>
 
             <%
+                // Missões (pedido do dono, 2026-08-19) — 3º grupo do mesmo
+                // loop, mesmo mecanismo de resgate-por-requisito de Emblema/
+                // Título (item.label/url/owned/coming_soon/redeemable/
+                // requirementLabel já vêm no mesmo shape, ver GET /loja em
+                // dashboard.js), só que a recompensa pode ser moeda em vez
+                // de só o próprio item — ver as 2 linhas extras (descrição/
+                // recompensa) logo abaixo, guardadas por group.key==='missao'
+                // pra não afetar Emblema/Título.
                 const lojaMissoesGroups = [
                     { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges, icon: 'shield' },
                     { key: 'titulo', labelPt: 'Títulos', labelEn: 'Titles', items: titulos, icon: 'award' },
+                    { key: 'missao', labelPt: 'Missões', labelEn: 'Missions', items: missoes, icon: 'flag' },
                 ];
             %>
             <% lojaMissoesGroups.forEach(group => { %>
@@ -645,10 +654,18 @@
                                         <% if (item.url) { %>onclick="openImageLightbox('<%= item.url %>', '<%= (item.label || '').replace(/'/g, "\\'") %>')"<% } %>
                                     ><% if (!item.url) { %><i data-lucide="<%= group.icon %>"></i><% } %></div>
                                     <span class="loja-item-label"><%= item.label %></span>
+                                    <% if (group.key === 'missao' && item.description) { %>
+                                        <span class="loja-item-desc"><%= item.description %></span>
+                                    <% } %>
+                                    <% if (group.key === 'missao' && item.rewardLabel) { %>
+                                        <span class="loja-item-desc" style="color:#D9A362;"><i data-lucide="gift" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Recompensa:</span><span data-i18n-en>Reward:</span> <%= item.rewardLabel %></span>
+                                    <% } %>
                                     <% if (item.coming_soon) { %>
                                         <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
                                     <% } %>
-                                    <% if (item.owned) { %>
+                                    <% if (item.owned && group.key === 'missao') { %>
+                                        <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>Você já concluiu</span><span data-i18n-en>You already completed it</span></span>
+                                    <% } else if (item.owned) { %>
                                         <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>Você já tem</span><span data-i18n-en>You already have it</span></span>
                                     <% } else if (item.coming_soon) { %>
                                         <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Resgate liberado em breve.</span><span data-i18n-en>Redemption opens soon.</span></span>

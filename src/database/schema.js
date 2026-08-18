@@ -540,6 +540,50 @@ const SCHEMA = {
         )
     `,
 
+    // ==================== MISSÕES (GLOBAIS, /dev/Loja) ====================
+    // Criador de missões pro dono do bot (pedido do dono, 2026-08-19: "Crie
+    // um criador de missões com os mesmos requisitos que temos em emblemas
+    // e titulo... vai criar uma missão global para todos os usuarios
+    // cumprir") — mesmo mecanismo de resgate-por-requisito que Emblema/
+    // Título já usam (`requirement`, ver AchievementSystem), generalizado
+    // pra também poder pagar em Ossos/Caçadas, não só conceder um item do
+    // pool. Sem guild_id na missão em si (é global, pedido explícito) —
+    // guildId só aparece DENTRO de reward_config (recompensa Ossos, que é
+    // por servidor) ou de requirement (quando o requisito escolhido precisa
+    // de servidor). Nasce is_public=0 (diferente de profile_image_pool, que
+    // nasce público) — uma missão só faz sentido depois de requisito E
+    // recompensa configurados, os 2 num passo SEPARADO da criação (ver
+    // src/systems/pot/missionSystem.js), então fica escondida até o dono
+    // terminar de configurar e tornar pública manualmente.
+    pot_missions: `
+        CREATE TABLE IF NOT EXISTS pot_missions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            requirement TEXT,
+            reward_type TEXT,
+            reward_config TEXT,
+            is_public INTEGER NOT NULL DEFAULT 0,
+            coming_soon INTEGER NOT NULL DEFAULT 0,
+            created_by TEXT,
+            created_at INTEGER NOT NULL
+        )
+    `,
+
+    // Quem já reivindicou qual missão — mesma ideia de image_inventory
+    // (auditoria + trava de "só uma vez"), mas em tabela própria porque uma
+    // missão não é um item do pool, é um evento cumprido. UNIQUE garante
+    // que claimMission nunca credite a recompensa 2x pro mesmo jogador.
+    pot_mission_claims: `
+        CREATE TABLE IF NOT EXISTS pot_mission_claims (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            mission_id INTEGER NOT NULL,
+            claimed_at INTEGER NOT NULL,
+            UNIQUE(user_id, mission_id)
+        )
+    `,
+
     // ==================== PREMIUM ====================
     player_premium: `
         CREATE TABLE IF NOT EXISTS player_premium (
