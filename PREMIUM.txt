@@ -11289,3 +11289,38 @@ frente, nao so este relatorio):
   — 21 checagens, todas passando. SEM confirmação visual/browser real
   — o dono precisa conferir ao vivo os 2 dialogs (requisito/recompensa)
   em `/dev/Loja` e o resgate de uma missão configurada em `/loja`.
+
+220) Loja de Jogo: seletor explícito de Estoque Infinito/Limitado (criação e edição)
+--------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Existe um pequeno conflito na seleção
+  de stoque dos itens de loja de jogo, onde não esta sendo possivel
+  definir como estoque infinito. Faça uma opção se select para manter
+  estoque infinito, e exigir numero de estoque apenas se essa opção
+  não estiver marcada."
+- O backend (`gameShopSystem.js` create/updateShopItem) já tratava
+  campo de quantidade em branco como estoque ilimitado corretamente —
+  o problema era só de UX: não existia nenhuma affordance explícita
+  pra "confirmar" a intenção de infinito, então nada impedia o campo
+  de ficar com um valor residual sem o admin perceber que aquilo virava
+  estoque LIMITADO por engano.
+- Corrigido em `lojajogo.ejs` (dialogs de Criar item e Editar item): um
+  `<select>` novo ("Infinito"/"Limitado") decide o modo primeiro — o
+  campo de quantidade só aparece, e só ganha `required`, no modo
+  "Limitado"; no modo "Infinito" ele fica escondido e é limpo via JS
+  (`ljStockModeSync`, reaproveitada pelos 2 dialogs), garantindo que
+  sempre submete em branco (backend já grava `null` = ilimitado nesse
+  caso). Editar um item existente já abre com o modo certo pré-
+  selecionado (`remainingStock === null` → Infinito). O dialog de
+  criação reseta o `<select>` pro padrão "Infinito" ao fechar (Cancelar/
+  X/clique fora/Esc), mas isso sozinho não desfazia o display/required
+  setados via JS enquanto "Limitado" esteve selecionado — corrigido
+  resincronizando (`ljStockModeSync`) logo depois do `form.reset()`.
+- Verificado: `ejs.compile()`/`ejs.render()` completo de `lojajogo.ejs`
+  confirmando os 2 `<select>`s/wrappers novos e a ausência de `required`
+  cru no campo de quantidade da criação. Lógica de `ljStockModeSync`
+  simulada isoladamente (sem browser) nos 2 modos, confirmando visi-
+  bilidade/`required`/limpeza de valor residual corretos. SEM
+  confirmação visual — o dono precisa conferir ao vivo que trocar entre
+  "Infinito"/"Limitado" nos 2 dialogs mostra/esconde o campo certo e
+  que criar um item com "Infinito" selecionado realmente grava estoque
+  ilimitado (∞ no card).

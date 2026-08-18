@@ -369,11 +369,36 @@
                     </div>
                 </div>
 
+                <%#
+                    BUG REAL corrigido (pedido do dono, 2026-08-19: "Existe
+                    um pequeno conflito na seleção de stoque dos itens de
+                    loja de jogo, onde não esta sendo possivel definir como
+                    estoque infinito") — o campo de quantidade já aceitava
+                    "em branco = ilimitado" por baixo (ver gameShopSystem.js
+                    createShopItem), mas não existia NENHUMA affordance
+                    explícita pra isso: nada impedia o campo de ficar com um
+                    valor residual (autofill, engano) sem o admin perceber
+                    que aquilo virava estoque LIMITADO, e não havia como
+                    "confirmar" a intenção de infinito além de simplesmente
+                    não tocar no campo. Agora um <select> decide o modo
+                    primeiro (ljStockModeSync, ver <script> abaixo) — o
+                    campo de quantidade só aparece E só é `required` no modo
+                    "Limitado"; no modo "Infinito" ele fica escondido e é
+                    limpo/sem required, garantindo que sempre submete em
+                    branco (null no banco = ilimitado, sem ambiguidade).
+                %>
                 <div>
-                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível (opcional, em branco = ilimitado)</span><span data-i18n-en>Available quantity (optional, blank = unlimited)</span></label>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Estoque</span><span data-i18n-en>Stock</span></label>
+                    <select class="lj-select-premium" id="ljStockMode" onchange="ljStockModeSync('ljStockMode', 'ljStockLimitField', 'ljStockLimitInput')">
+                        <option value="unlimited" data-i18n-opt-pt="Infinito" data-i18n-opt-en="Unlimited">Infinito</option>
+                        <option value="limited" data-i18n-opt-pt="Limitado" data-i18n-opt-en="Limited">Limitado</option>
+                    </select>
+                </div>
+                <div id="ljStockLimitField" style="display:none;">
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível</span><span data-i18n-en>Available quantity</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="package"></i></div>
-                        <input type="number" class="input-premium-field" name="stock_limit" min="1" step="1" placeholder="Ex: 20">
+                        <input type="number" class="input-premium-field" name="stock_limit" id="ljStockLimitInput" min="1" step="1" placeholder="Ex: 20">
                     </div>
                 </div>
 
@@ -500,7 +525,14 @@
                         valor digitado aqui), sem tocar em stock_sold (histórico
                         de vendas reais, nunca deve ser apagado).
                     %>
-                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível agora (opcional, em branco = ilimitado)</span><span data-i18n-en>Available quantity right now (optional, blank = unlimited)</span></label>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Estoque</span><span data-i18n-en>Stock</span></label>
+                    <select class="lj-select-premium" id="ljEditStockMode" onchange="ljStockModeSync('ljEditStockMode', 'ljEditStockLimitField', 'ljEditStockLimit')">
+                        <option value="unlimited" data-i18n-opt-pt="Infinito" data-i18n-opt-en="Unlimited">Infinito</option>
+                        <option value="limited" data-i18n-opt-pt="Limitado" data-i18n-opt-en="Limited">Limitado</option>
+                    </select>
+                </div>
+                <div id="ljEditStockLimitField">
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível agora</span><span data-i18n-en>Available quantity right now</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="package"></i></div>
                         <input type="number" class="input-premium-field" name="stock_limit" id="ljEditStockLimit" min="1" step="1">
@@ -606,6 +638,20 @@
             document.getElementById('ljTeleportFields').style.display = option.dataset.needsTeleport === '1' ? '' : 'none';
         }
 
+        // Modo de estoque (Infinito/Limitado, pedido do dono 2026-08-19: ver
+        // comentário completo no HTML acima) — mostra o campo de quantidade
+        // e só o torna `required` no modo "Limitado"; no modo "Infinito" ele
+        // fica escondido E é limpo (nunca deixa um valor residual ser
+        // enviado por engano junto de "Infinito" selecionado). Reaproveitada
+        // pelos 2 dialogs (criação/edição), só muda os 3 ids passados.
+        function ljStockModeSync(selectId, wrapId, inputId) {
+            const isLimited = document.getElementById(selectId).value === 'limited';
+            document.getElementById(wrapId).style.display = isLimited ? '' : 'none';
+            const input = document.getElementById(inputId);
+            input.required = isLimited;
+            if (!isLimited) input.value = '';
+        }
+
         // Clique fora do conteúdo fecha o <dialog> (::backdrop não recebe
         // clique — compara a posição do clique com o retângulo real do
         // conteúdo, mesmo padrão de dev-lojas.ejs), e reseta o form ao
@@ -613,7 +659,17 @@
         // deixar campos preenchidos "fantasma" da última tentativa.
         (function () {
             const dialog = document.getElementById('ljCreateDialog');
-            dialog.addEventListener('close', () => dialog.querySelector('form').reset());
+            // form.reset() só volta os VALORES aos padrões do HTML (select
+            // volta pra "Infinito") — não desfaz o display:none/required
+            // que ljStockModeSync setou via JS enquanto o modo "Limitado"
+            // esteve selecionado, então precisa resincronizar explicitamente
+            // depois do reset, senão o campo de quantidade ficaria visível/
+            // required "fantasma" na próxima abertura mesmo com "Infinito"
+            // já selecionado de novo.
+            dialog.addEventListener('close', () => {
+                dialog.querySelector('form').reset();
+                ljStockModeSync('ljStockMode', 'ljStockLimitField', 'ljStockLimitInput');
+            });
             dialog.addEventListener('click', (e) => {
                 const rect = dialog.getBoundingClientRect();
                 const insideContent = e.clientY >= rect.top && e.clientY <= rect.bottom && e.clientX >= rect.left && e.clientX <= rect.right;
@@ -662,6 +718,8 @@
             document.getElementById('ljEditDescription').value = item.description || '';
             document.getElementById('ljEditPrice').value = item.price;
             document.getElementById('ljEditStockLimit').value = item.remainingStock === null || item.remainingStock === undefined ? '' : item.remainingStock;
+            document.getElementById('ljEditStockMode').value = (item.remainingStock === null || item.remainingStock === undefined) ? 'unlimited' : 'limited';
+            ljStockModeSync('ljEditStockMode', 'ljEditStockLimitField', 'ljEditStockLimit');
 
             document.getElementById('ljEditActionTypeLabel').textContent = LJ_ACTION_LABELS[item.actionType] || item.actionType;
             document.getElementById('ljEditGrowthField').style.display = item.actionType === 'growth' ? '' : 'none';
