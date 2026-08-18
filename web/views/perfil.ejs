@@ -139,6 +139,50 @@
         .perfil-hunt-pill.is-hunt { border-color: rgba(255, 78, 59, 0.35); color: #FF4E3B; }
         .perfil-hunt-pill.is-bones { border-color: rgba(217, 163, 98, 0.35); color: #D9A362; }
         .perfil-hunt-pill.is-xp { border-color: rgba(248, 220, 192, 0.35); color: #F8DCC0; }
+
+        <%#
+            Card de Nível/XP (pedido do dono, 2026-08-19: "Card de xp
+            coloque na pagina perfil") — realocado de loja.ejs pra cá, CSS
+            idêntico (só renomeado de .loja-currency-*/.loja-level-progress-*
+            pra .perfil-level-* já que agora vive só aqui, sem mais os
+            variants is-hunt/is-bones que só faziam sentido ao lado dos
+            outros 2 cards de saldo removidos de loja.ejs). Cor de XP
+            (quase branco, pedido do dono 2026-08-12) mantida.
+            levelProgress vem das rotas /perfil e /loja em dashboard.js,
+            matemática em src/systems/pot/levelSystem.js (XP_Total = 10 ×
+            Nível^2.2, sem teto de nível).
+        %>
+        .perfil-level-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+        .perfil-level-icon {
+            width: 52px; height: 52px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex: none;
+            background: rgba(248, 220, 192, 0.12); color: #F8DCC0;
+        }
+        .perfil-level-icon img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
+        .perfil-level-title { font-family: 'Tilt Warp', cursive; font-size: 15px; color: #F8DCC0; }
+        .perfil-level-balance {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .perfil-level-balance-value { font-size: 22px; font-weight: 700; color: #F8DCC0; }
+        .perfil-level-balance-label { font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; }
+        .perfil-level-progress-track {
+            width: 100%;
+            height: 6px;
+            border-radius: 4px;
+            background: rgba(248, 220, 192, 0.12);
+            overflow: hidden;
+        }
+        .perfil-level-progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #F8DCC0;
+            transition: width 0.3s ease;
+        }
+
         .perfil-guild-list { display: flex; flex-wrap: wrap; gap: 10px; }
         .perfil-guild-chip {
             display: flex;
@@ -737,6 +781,28 @@
             </div>
 
             <div class="pf-tab-panel flex flex-col gap-[20px] lg:gap-[30px]" data-pf-panel="perfil">
+                <%#
+                    Card de Nível/XP (pedido do dono, 2026-08-19: "Card de
+                    xp coloque na pagina perfil") — realocado de loja.ejs,
+                    onde vivia como um dos 3 cards-resumo de saldo no topo
+                    da página (removidos dali no mesmo pedido). Markup
+                    idêntico ao original, só a classe raiz mudou de
+                    .loja-currency-card pra .perfil-level-card (ver <style>
+                    acima). Continua sem depender de nada exclusivo de
+                    /loja — levelProgress já vinha calculado pras 2 rotas.
+                %>
+                <section class="titan-card-premium perfil-level-card">
+                    <div class="perfil-level-icon"><img src="/images/icons/DinoFootprint.webp" alt=""></div>
+                    <span class="perfil-level-title"><span data-i18n-pt>NÍVEL — Experiência</span><span data-i18n-en>LEVEL — Experience</span></span>
+                    <div class="perfil-level-balance">
+                        <span class="perfil-level-balance-value"><span data-i18n-pt>Nível <%= levelProgress.level %></span><span data-i18n-en>Level <%= levelProgress.level %></span></span>
+                        <span class="perfil-level-balance-label"><span data-i18n-pt><%= levelProgress.xpTotal %> XP acumulado</span><span data-i18n-en><%= levelProgress.xpTotal %> XP earned</span></span>
+                    </div>
+                    <div class="perfil-level-progress-track" role="progressbar" aria-valuenow="<%= levelProgress.percent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
+                        <div class="perfil-level-progress-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div>
+                    </div>
+                </section>
+
                 <section class="titan-card-premium flex-col gap-5">
                     <h2 class="section-title text-lg flex items-center gap-3">
                         <img src="/images/pot-logo.webp" alt="" class="w-8 h-8 rounded-full">

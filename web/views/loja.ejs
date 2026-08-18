@@ -153,73 +153,18 @@
         }
     </script>
     <style>
-        /* Cards das 2 moedas + nível — mesma cápsula .titan-card-premium
-           por fora, só o miolo é próprio desta página. */
-        .loja-currency-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
-        .loja-currency-icon {
-            width: 52px; height: 52px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            flex: none;
-        }
-        <%# Cor fixa por moeda (pedido do dono, 2026-08-12): Caçadas sempre
-            vermelho, Ossos sempre dourado, XP a cor "quase branca" padrão
-            do bot — mesmas classes/valores usados em perfil.ejs. Sem fundo
-            em Caçadas/Ossos (pedido do dono, mesmo dia: "ossos e caçadas
-            já tem uma moldura e não precisa de um fundo, como temos no
-            ícone do xp") — os ícones hunt.webp/bone.webp já vêm com a
-            própria moldura desenhada na imagem, um círculo colorido atrás
-            só duplicava a borda e apertava o ícone visualmente; ícone
-            também aumentado (26px -> 36px) pra ganhar presença sem a
-            moldura de fundo. %>
-        .loja-currency-icon.is-hunt { color: #FF4E3B; }
-        .loja-currency-icon.is-bones { color: #D9A362; }
-        .loja-currency-icon.is-xp { background: rgba(248, 220, 192, 0.12); color: #F8DCC0; }
-        .loja-currency-icon i { width: 28px; height: 28px; }
-        .loja-currency-icon img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; }
-        <%# Ossos/Caçadas maiores que XP (pedido do dono, 2026-08-13:
-            "Icones de ossos e caçadas na loja podem ser meiores") — só
-            essas 2, XP mantém o tamanho de sempre (não foi pedido). %>
-        .loja-currency-icon.is-hunt, .loja-currency-icon.is-bones { width: 64px; height: 64px; }
-        .loja-currency-icon.is-hunt img, .loja-currency-icon.is-bones img { width: 48px; height: 48px; }
-        .loja-currency-title { font-family: 'Tilt Warp', cursive; font-size: 15px; color: #F8DCC0; }
-        .loja-currency-text { font-family: 'Poppins', sans-serif; font-size: 12.5px; opacity: 0.6; line-height: 1.5; }
-        .loja-currency-balance {
-            display: inline-flex;
-            align-items: baseline;
-            gap: 5px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .loja-currency-balance-value { font-size: 22px; font-weight: 700; }
-        .loja-currency-balance-label { font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; }
-        .loja-currency-balance.is-hunt .loja-currency-balance-value { color: #FF4E3B; }
-        .loja-currency-balance.is-bones .loja-currency-balance-value { color: #D9A362; }
-        .loja-currency-balance.is-xp .loja-currency-balance-value { color: #F8DCC0; }
-
-        /* Barra de progresso até o próximo Nível (pedido do dono,
-           2026-08-11) — cor de XP (quase branco, pedido do dono 2026-08-12),
-           width em % vem direto de levelProgress.percent (server-side). */
-        .loja-level-progress-track {
-            width: 100%;
-            height: 6px;
-            border-radius: 4px;
-            background: rgba(248, 220, 192, 0.12);
-            overflow: hidden;
-        }
-        .loja-level-progress-fill {
-            height: 100%;
-            border-radius: 4px;
-            background: #F8DCC0;
-            transition: width 0.3s ease;
-        }
-
-        /* Saldo de Ossos em destaque dentro do Conversor (pedido do dono,
-           2026-08-10) — mesma receita de pill já usada em perfil.ejs
-           .perfil-hunt-pill, cor de Ossos = dourado (pedido do dono
-           2026-08-12). margin vertical (pedido do dono, mesmo dia: "o
-           saldo... esta colado de mais nos textos") — sem isso a pill
-           encostava direto no parágrafo da taxa acima e no aviso de
-           "precisa estar online" abaixo, sem respiro nenhum. */
-        .loja-converter-balance-pill {
+        /* Pill de saldo (ícone + texto), pill-shaped, fundo escuro/borda
+           dourada — nasceu só pro saldo de Ossos no Conversor (pedido do
+           dono, 2026-08-10), mesma receita de perfil.ejs .perfil-hunt-pill.
+           Renomeada de .loja-converter-balance-pill (2026-08-19, pedido do
+           dono: "os cards que estão mostrando o saldo vamos colocar o
+           conteudo deles dentro dos cards de cada loja") — passa a servir
+           3 lugares: aqui no Conversor, no cabeçalho de LOJA DE
+           PERSONALIZAÇÃO (Caçadas) e no de LOJA DE JOGO (Ossos). margin
+           vertical (pedido do dono, 2026-08-10: "o saldo... esta colado de
+           mais nos textos") — sem isso a pill encostava direto nos
+           parágrafos vizinhos, sem respiro nenhum. */
+        .loja-balance-pill {
             box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px;
             padding: 7px 18px; border-radius: 147.5px; background: #131314;
             border: 1px solid rgba(217, 163, 98, 0.35);
@@ -227,8 +172,8 @@
             width: fit-content;
             margin: 10px 0;
         }
-        .loja-converter-balance-pill i { width: 16px; height: 16px; flex: none; }
-        .loja-converter-balance-pill img { width: 18px; height: 18px; flex: none; border-radius: 4px; object-fit: cover; }
+        .loja-balance-pill i { width: 16px; height: 16px; flex: none; }
+        .loja-balance-pill img { width: 18px; height: 18px; flex: none; border-radius: 4px; object-fit: cover; }
 
         /* Grade de itens (personalização + jogo) — mesmo espírito de
            .pool-item já usado em dev-image-pool.ejs, adaptado pra
@@ -656,70 +601,80 @@
 
 
         <%#
-            3 cards explicando as moedas (pedido do dono, ver PREMIUM.txt
-            seção 116): Hunt (personalização, ganha por hora/missão,
-            NUNCA vira vantagem em jogo), Ossos/Bones (loja de jogo, ganha
-            por hora, só de missão aberta a todo mundo — nunca de missão
-            exclusiva premium) e XP/Nível (1h = 1 XP, separado das
-            moedas). Ordem importa: Hunt primeiro (moeda "mais segura"/já
-            documentada há mais tempo), Ossos no meio (a novidade desta
-            revisão), Nível por último (não é moeda, é progressão).
+            REORGANIZAÇÃO DA PÁGINA (pedido do dono, 2026-08-19):
+            "missões e recompensas deve ser o primeiro card da lista" +
+            "os cards que estão mostrando o saldo vamos colocar o
+            conteúdo deles dentro dos cards de cada loja" + "card de xp
+            coloque na pagina perfil". Os 3 cards de saldo (Caçadas/
+            Ossos/Nível) que ficavam aqui numa grade própria saíram —
+            Caçadas virou uma pill dentro do cabeçalho de LOJA DE
+            PERSONALIZAÇÃO (mais abaixo), Ossos virou uma pill dentro do
+            cabeçalho de LOJA DE JOGO, e o card de Nível (com a barra de
+            progresso) se mudou pra /perfil (mesmo CSS/HTML, só
+            realocado — ver perfil.ejs). MISSÕES E RECOMPENSAS (emblema/
+            título) virou a primeira seção da página — ver o mesmo bloco
+            mais abaixo do que estava, só que MOVIDO pra cá.
         %>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-[20px]">
-            <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-hunt"><img src="/images/icons/hunt.webp" alt=""></div>
-                <span class="loja-currency-title"><span data-i18n-pt>CAÇADAS — Personalização</span><span data-i18n-en>HUNT — Customization</span></span>
-                <div class="loja-currency-balance is-hunt">
-                    <span class="loja-currency-balance-value"><%= huntBalance %></span>
-                    <span class="loja-currency-balance-label"><span data-i18n-pt>seu saldo</span><span data-i18n-en>your balance</span></span>
-                </div>
-                <p class="loja-currency-text"><span data-i18n-pt>Ganhe 1 Caçada por hora jogada (ou em missões, em breve). Só troca por itens de personalização de perfil e não pode ser convertida em nenhuma outra moeda da loja.</span><span data-i18n-en>Earn 1 Hunt per hour played (or from quests, coming soon). Only spent on profile customization, and can't be converted into any other shop currency.</span></p>
-            </section>
-            <%#
-                Ossos virou saldo POR SERVIDOR (reforma 2026-08-15, pedido
-                do dono: "gostaria que ossos fossem um saldo por
-                servidor") — este card-resumo não tem contexto de UM
-                servidor específico, então bonesBalance aqui é a SOMA de
-                todos (ver dashboard.js GET /loja) — a notinha deixa isso
-                explícito, já que os cards de Caçadas/XP ao lado continuam
-                globais de verdade (sem soma nenhuma, é o mesmo número em
-                qualquer servidor). O saldo de VERDADE por servidor
-                aparece no catálogo da Loja de Jogo e no conversor mais
-                abaixo (guildBonesBalances).
+        <section class="titan-card-premium flex-col gap-4">
+            <div>
+                <h2 class="section-title text-lg flex items-center gap-2">
+                    <i data-lucide="award" style="width:20px;height:20px;color:#D9A362;"></i>
+                    <span data-i18n-pt>MISSÕES E RECOMPENSAS</span><span data-i18n-en>MISSIONS AND REWARDS</span>
+                </h2>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Emblemas e títulos não são comprados — são conquistados jogando. Cumpra o requisito e resgate de graça.</span><span data-i18n-en>Badges and titles aren't bought — they're earned by playing. Meet the requirement and redeem them for free.</span></p>
+            </div>
+
+            <%
+                const lojaMissoesGroups = [
+                    { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges, icon: 'shield' },
+                    { key: 'titulo', labelPt: 'Títulos', labelEn: 'Titles', items: titulos, icon: 'award' },
+                ];
             %>
-            <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-bones"><img src="/images/icons/bone.webp" alt=""></div>
-                <span class="loja-currency-title"><span data-i18n-pt>OSSOS — Loja de Jogo</span><span data-i18n-en>BONES — Game Shop</span></span>
-                <div class="loja-currency-balance is-bones">
-                    <span class="loja-currency-balance-value"><%= bonesBalance %></span>
-                    <span class="loja-currency-balance-label"><span data-i18n-pt>seu saldo (soma de todos os servidores)</span><span data-i18n-en>your balance (sum across all servers)</span></span>
+            <% lojaMissoesGroups.forEach(group => { %>
+                <div class="flex flex-col gap-3">
+                    <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt><%= group.labelPt %></span><span data-i18n-en><%= group.labelEn %></span></h3>
+                    <% if (group.items.length === 0) { %>
+                        <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum item público neste grupo ainda.</span><span data-i18n-en>No public item in this group yet.</span></p>
+                    <% } else { %>
+                        <div class="loja-grid">
+                            <% group.items.forEach(item => { %>
+                                <div class="loja-item">
+                                    <div
+                                        class="loja-item-thumb<%= item.url ? ' is-zoomable' : '' %>"
+                                        style="<%= item.url ? `background-image:url('${item.url}')` : '' %>"
+                                        <% if (item.url) { %>onclick="openImageLightbox('<%= item.url %>', '<%= (item.label || '').replace(/'/g, "\\'") %>')"<% } %>
+                                    ><% if (!item.url) { %><i data-lucide="<%= group.icon %>"></i><% } %></div>
+                                    <span class="loja-item-label"><%= item.label %></span>
+                                    <% if (item.coming_soon) { %>
+                                        <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
+                                    <% } %>
+                                    <% if (item.owned) { %>
+                                        <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>Você já tem</span><span data-i18n-en>You already have it</span></span>
+                                    <% } else if (item.coming_soon) { %>
+                                        <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Resgate liberado em breve.</span><span data-i18n-en>Redemption opens soon.</span></span>
+                                    <% } else if (item.redeemable) { %>
+                                        <% if (item.requirementLabel) { %>
+                                            <span class="loja-item-desc"><%= item.requirementLabel %></span>
+                                        <% } %>
+                                        <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form">
+                                            <input type="hidden" name="item" value="<%= group.key %>:<%= item.id %>">
+                                            <input type="hidden" name="redirectTo" value="loja">
+                                            <button type="submit" class="btn-chip btn-chip-success">
+                                                <i data-lucide="gift"></i> <span data-i18n-pt>Resgatar</span><span data-i18n-en>Redeem</span>
+                                            </button>
+                                        </form>
+                                    <% } else if (item.requirementLabel) { %>
+                                        <span class="loja-item-desc"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Requisito:</span><span data-i18n-en>Requirement:</span> <%= item.requirementLabel %></span>
+                                    <% } else { %>
+                                        <span class="loja-item-desc"><span data-i18n-pt>Concedido manualmente pelo dono.</span><span data-i18n-en>Manually granted by the owner.</span></span>
+                                    <% } %>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
                 </div>
-                <p class="loja-currency-text"><span data-i18n-pt>Ganhe 5 Ossos por hora jogada (ou em missões, em breve) — o saldo é POR SERVIDOR, gasto só onde foi ganho. Troque Ossos por Marks ou por Caçadas (máximo 100 Caçadas por semana).</span><span data-i18n-en>Earn 5 Bones per hour played (or from quests, coming soon) — the balance is PER SERVER, spent only where it was earned. Trade Bones for Marks or for Hunt (maximum 100 Hunt per week).</span></p>
-            </section>
-            <%#
-                Nível (pedido do dono, 2026-08-11: "Implemente um sistema de
-                progressão de níveis infinito baseado em horas jogadas") —
-                antes só mostrava o XP bruto sem calcular nível nenhum;
-                levelProgress vem das rotas /perfil e /loja em dashboard.js,
-                matemática em src/systems/pot/levelSystem.js (XP_Total = 10
-                × Nível^2.2, sem teto de nível).
-            %>
-            <section class="titan-card-premium loja-currency-card">
-                <div class="loja-currency-icon is-xp"><img src="/images/icons/DinoFootprint.webp" alt=""></div>
-                <span class="loja-currency-title"><span data-i18n-pt>NÍVEL — Experiência</span><span data-i18n-en>LEVEL — Experience</span></span>
-                <div class="loja-currency-balance is-xp">
-                    <span class="loja-currency-balance-value"><span data-i18n-pt>Nível <%= levelProgress.level %></span><span data-i18n-en>Level <%= levelProgress.level %></span></span>
-                    <span class="loja-currency-balance-label"><span data-i18n-pt><%= levelProgress.xpTotal %> XP acumulado</span><span data-i18n-en><%= levelProgress.xpTotal %> XP earned</span></span>
-                </div>
-                <div class="loja-level-progress-track" role="progressbar" aria-valuenow="<%= levelProgress.percent.toFixed(0) %>" aria-valuemin="0" aria-valuemax="100">
-                    <div class="loja-level-progress-fill" style="width: <%= levelProgress.percent.toFixed(1) %>%;"></div>
-                </div>
-                <p class="loja-currency-text">
-                    <span data-i18n-pt>Faltam <%= levelProgress.xpRemainingForNextLevel %> XP para o Nível <%= levelProgress.level + 1 %> (<%= levelProgress.percent.toFixed(0) %>%).</span>
-                    <span data-i18n-en><%= levelProgress.xpRemainingForNextLevel %> XP left for Level <%= levelProgress.level + 1 %> (<%= levelProgress.percent.toFixed(0) %>%).</span>
-                </p>
-            </section>
-        </div>
+            <% }); %>
+        </section>
 
         <%#
             LOJA DE PERSONALIZAÇÃO — só imagens (pedido do dono: "a loja
@@ -735,6 +690,21 @@
                     <span data-i18n-pt>LOJA DE PERSONALIZAÇÃO</span><span data-i18n-en>CUSTOMIZATION SHOP</span>
                 </h2>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Caçadas. Só imagens de perfil — nada que mude qualquer coisa dentro do jogo.</span><span data-i18n-en>Paid with Hunt. Only profile images — nothing that changes anything in-game.</span></p>
+                <%#
+                    Saldo de Caçadas movido pra dentro deste card (pedido do
+                    dono, 2026-08-19: "os cards que estão mostrando o saldo
+                    vamos colocar o conteudo deles dentro dos cards de cada
+                    loja") — antes vivia num card-resumo próprio, numa grade
+                    de 3 no topo da página. Mesma pill já usada no saldo de
+                    Ossos do conversor mais abaixo (.loja-balance-pill,
+                    renomeada de .loja-converter-balance-pill já que agora
+                    serve 3 lugares, não só o conversor).
+                %>
+                <div class="loja-balance-pill">
+                    <img src="/images/icons/hunt.webp" alt="">
+                    <span><span data-i18n-pt>Seu saldo:</span><span data-i18n-en>Your balance:</span> <strong><%= huntBalance %> <span data-i18n-pt>Caçadas</span><span data-i18n-en>Hunt</span></strong></span>
+                </div>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Ganhe 1 Caçada por hora jogada (ou em missões, em breve). Só troca por itens de personalização de perfil e não pode ser convertida em nenhuma outra moeda da loja.</span><span data-i18n-en>Earn 1 Hunt per hour played (or from quests, coming soon). Only spent on profile customization, and can't be converted into any other shop currency.</span></p>
             </div>
 
 
@@ -844,83 +814,6 @@
         </section>
 
         <%#
-            MISSÕES E RECOMPENSAS — emblema/título (pedido do dono,
-            2026-08-13: "Emblemas e titulos não devem ficar no card da
-            loja de personalização... vamos fazer um card que se chama
-            Missões e recompensas"). Diferente da Loja de Personalização
-            (compra com Caçadas), emblema/título NUNCA são comprados
-            (reforma 2026-08-12) — só resgatados de graça quando o
-            requisito (kills/horas/nível/espécie) é cumprido, ver
-            AchievementSystem/ImageShopSystem.getRedeemableItems. Mesmo
-            botão "Resgatar" que já existe em /perfil (POST
-            /perfil/resgatar), só que aqui manda redirectTo=loja pra
-            voltar pra esta página (não /perfil) depois. Título nunca tem
-            img.url (guard em resolveImageUrl — título é só texto, sem
-            imagem/attachment), por isso a thumb cai no ícone de
-            fallback, igual ao resto da loja quando não há imagem.
-        %>
-        <section class="titan-card-premium flex-col gap-4">
-            <div>
-                <h2 class="section-title text-lg flex items-center gap-2">
-                    <i data-lucide="award" style="width:20px;height:20px;color:#D9A362;"></i>
-                    <span data-i18n-pt>MISSÕES E RECOMPENSAS</span><span data-i18n-en>MISSIONS AND REWARDS</span>
-                </h2>
-                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Emblemas e títulos não são comprados — são conquistados jogando. Cumpra o requisito e resgate de graça.</span><span data-i18n-en>Badges and titles aren't bought — they're earned by playing. Meet the requirement and redeem them for free.</span></p>
-            </div>
-
-            <%
-                const lojaMissoesGroups = [
-                    { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges, icon: 'shield' },
-                    { key: 'titulo', labelPt: 'Títulos', labelEn: 'Titles', items: titulos, icon: 'award' },
-                ];
-            %>
-            <% lojaMissoesGroups.forEach(group => { %>
-                <div class="flex flex-col gap-3">
-                    <h3 class="text-titan-gold text-sm uppercase tracking-widest"><span data-i18n-pt><%= group.labelPt %></span><span data-i18n-en><%= group.labelEn %></span></h3>
-                    <% if (group.items.length === 0) { %>
-                        <p class="text-sm opacity-40"><span data-i18n-pt>Nenhum item público neste grupo ainda.</span><span data-i18n-en>No public item in this group yet.</span></p>
-                    <% } else { %>
-                        <div class="loja-grid">
-                            <% group.items.forEach(item => { %>
-                                <div class="loja-item">
-                                    <div
-                                        class="loja-item-thumb<%= item.url ? ' is-zoomable' : '' %>"
-                                        style="<%= item.url ? `background-image:url('${item.url}')` : '' %>"
-                                        <% if (item.url) { %>onclick="openImageLightbox('<%= item.url %>', '<%= (item.label || '').replace(/'/g, "\\'") %>')"<% } %>
-                                    ><% if (!item.url) { %><i data-lucide="<%= group.icon %>"></i><% } %></div>
-                                    <span class="loja-item-label"><%= item.label %></span>
-                                    <% if (item.coming_soon) { %>
-                                        <span class="loja-soon-ribbon"><span data-i18n-pt>Em breve</span><span data-i18n-en>Soon</span></span>
-                                    <% } %>
-                                    <% if (item.owned) { %>
-                                        <span class="loja-item-owned-badge"><i data-lucide="check"></i> <span data-i18n-pt>Você já tem</span><span data-i18n-en>You already have it</span></span>
-                                    <% } else if (item.coming_soon) { %>
-                                        <span class="loja-item-desc"><i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Resgate liberado em breve.</span><span data-i18n-en>Redemption opens soon.</span></span>
-                                    <% } else if (item.redeemable) { %>
-                                        <% if (item.requirementLabel) { %>
-                                            <span class="loja-item-desc"><%= item.requirementLabel %></span>
-                                        <% } %>
-                                        <form method="POST" action="/perfil/resgatar" class="loja-item-buy-form">
-                                            <input type="hidden" name="item" value="<%= group.key %>:<%= item.id %>">
-                                            <input type="hidden" name="redirectTo" value="loja">
-                                            <button type="submit" class="btn-chip btn-chip-success">
-                                                <i data-lucide="gift"></i> <span data-i18n-pt>Resgatar</span><span data-i18n-en>Redeem</span>
-                                            </button>
-                                        </form>
-                                    <% } else if (item.requirementLabel) { %>
-                                        <span class="loja-item-desc"><i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> <span data-i18n-pt>Requisito:</span><span data-i18n-en>Requirement:</span> <%= item.requirementLabel %></span>
-                                    <% } else { %>
-                                        <span class="loja-item-desc"><span data-i18n-pt>Concedido manualmente pelo dono.</span><span data-i18n-en>Manually granted by the owner.</span></span>
-                                    <% } %>
-                                </div>
-                            <% }); %>
-                        </div>
-                    <% } %>
-                </div>
-            <% }); %>
-        </section>
-
-        <%#
             LOJA DE JOGO — bônus DENTRO do Path of Titans via RCON.
             Reforma 2026-08-12: cada servidor configura seu PRÓPRIO
             catálogo (preço/disponibilidade/espécie liberada) no painel de
@@ -945,6 +838,20 @@
                     <img src="/images/icons/bone.webp" alt="" class="w-5 h-5" style="border-radius:4px; object-fit:cover;">
                     <span data-i18n-pt>LOJA DE JOGO</span><span data-i18n-en>GAME SHOP</span>
                 </h2>
+                <%#
+                    Saldo de Ossos movido pra dentro deste card (pedido do
+                    dono, 2026-08-19: "os cards que estão mostrando o saldo
+                    vamos colocar o conteudo deles dentro dos cards de cada
+                    loja") — antes vivia num card-resumo próprio. Soma de
+                    todos os servidores (mesmo raciocínio de sempre — o
+                    saldo de VERDADE por servidor aparece no catálogo logo
+                    abaixo e no conversor, guildBonesBalances).
+                %>
+                <div class="loja-balance-pill">
+                    <img src="/images/icons/bone.webp" alt="">
+                    <span><span data-i18n-pt>Seu saldo (soma de todos os servidores):</span><span data-i18n-en>Your balance (sum across all servers):</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
+                </div>
+                <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Ganhe 5 Ossos por hora jogada (ou em missões, em breve) — o saldo é POR SERVIDOR, gasto só onde foi ganho. Troque Ossos por Marks ou por Caçadas (máximo 100 Caçadas por semana).</span><span data-i18n-en>Earn 5 Bones per hour played (or from quests, coming soon) — the balance is PER SERVER, spent only where it was earned. Trade Bones for Marks or for Hunt (maximum 100 Hunt per week).</span></p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Ossos. Comprar guarda o item no seu inventário — use quando quiser, direto daqui, mas precisa estar online no servidor na hora de usar.</span><span data-i18n-en>Paid with Bones. Buying keeps the item in your inventory — use it whenever you want, right here, but you need to be online on the server when you use it.</span></p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Itens consumíveis: cada compra vale por 1 uso e some do inventário assim que você usar. Quer usar de novo? É preciso comprar outra vez.</span><span data-i18n-en>Consumable items: each purchase is good for 1 use and disappears from your inventory once used. Want to use it again? You'll need to buy it again.</span></p>
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Item comprado só pode ser usado no servidor onde foi comprado — não é possível transferir pra outro servidor.</span><span data-i18n-en>A purchased item can only be used on the server it was bought on — it can't be transferred to another server.</span></p>
@@ -1126,7 +1033,7 @@
                     uma pill própria, mesma linguagem visual das pills de
                     saldo do topo do card de moeda (Ossos) acima.
                 %>
-                <div class="loja-converter-balance-pill">
+                <div class="loja-balance-pill">
                     <img src="/images/icons/bone.webp" alt="">
                     <span><span data-i18n-pt>Saldo somado de todos os servidores:</span><span data-i18n-en>Balance summed across all servers:</span> <strong><%= bonesBalance %> <span data-i18n-pt>Ossos</span><span data-i18n-en>Bones</span></strong></span>
                 </div>

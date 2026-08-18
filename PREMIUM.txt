@@ -11171,3 +11171,47 @@ frente, nao so este relatorio):
   o dono precisa conferir que um item marcado "Em breve" em
   `/lojajogo` aparece de verdade em `/loja` pros jogadores, sem botão
   de comprar.
+
+218) Loja: reorganização — Missões primeiro, saldo dentro de cada loja, Nível vai pro Perfil
+----------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Na pagina da loja missões e recompensas
+  deve ser o primeiro card da lista da pagina. Os cards que estão
+  mostrando o saldo vamos clocar o conteudo deles dento dos cards de
+  cada loja. Card de xp coloque na pagina perfil."
+- 3 mudanças em `loja.ejs`/`perfil.ejs`, sem mudança nenhuma de
+  backend (`huntBalance`/`bonesBalance`/`levelProgress` já vinham
+  calculados pras 2 rotas antes disso):
+  1. MISSÕES E RECOMPENSAS (resgate de emblemas/títulos) virou a
+     primeira seção de `/loja`, antes de LOJA DE PERSONALIZAÇÃO — antes
+     ficava entre Personalização e Loja de Jogo.
+  2. Os 3 cards-resumo de saldo (Caçadas/Ossos/Nível), que ficavam numa
+     grade própria no topo da página, saíram dali. Caçadas virou uma
+     pill (`.loja-balance-pill`, ícone + "Seu saldo: X Caçadas") dentro
+     do cabeçalho de LOJA DE PERSONALIZAÇÃO; Ossos virou a mesma pill
+     dentro do cabeçalho de LOJA DE JOGO (com a nota "soma de todos os
+     servidores" que já tinha antes, já que o saldo de verdade por
+     servidor continua só no catálogo/conversor). `.loja-balance-pill`
+     é a antiga `.loja-converter-balance-pill` (usada só no Conversor)
+     renomeada, já que agora serve os 3 lugares — mesmo visual, sem CSS
+     novo.
+  3. O card de Nível (ícone + "Nível N" + barra de progresso até o
+     próximo) mudou de `/loja` pra `/perfil` — aparece na aba "Perfil",
+     antes da seção "Path of Titans". CSS relocado junto (não
+     duplicado): `.loja-currency-card`/`.loja-currency-icon.is-xp`/
+     `.loja-level-progress-*` viraram `.perfil-level-*` em `perfil.ejs`;
+     os variants `.is-hunt`/`.is-bones` e o shell genérico
+     `.loja-currency-*` foram apagados de `loja.ejs` por ficarem sem
+     nenhum uso depois da mudança 2.
+- Verificado: `ejs.compile()` em `loja.ejs` e `perfil.ejs` após cada
+  edit. `ejs.render()` completo dos dois com locals falsos (incluindo
+  `levelProgress`/`guildBonesBalances`/`redeemResult` reais, não só os
+  campos que o teste antigo já cobria) confirmando: Missões renderiza
+  antes de Personalização e de Loja de Jogo; a pill de Caçadas aparece
+  dentro do bloco de Personalização e a de Ossos dentro do bloco de
+  Loja de Jogo, com os saldos certos; o card de Nível aparece em
+  `/perfil` antes de "Path of Titans", com nível/XP/barra de progresso
+  corretos; nenhuma classe `.loja-currency-*`/`.loja-converter-balance-
+  pill` sobrou em uso (só em comentários, documentando a origem/
+  renomeação). SEM confirmação visual/browser real — o dono precisa
+  conferir ao vivo que a ordem e o visual das 3 mudanças ficaram como
+  pedido.
