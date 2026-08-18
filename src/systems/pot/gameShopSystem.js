@@ -40,8 +40,11 @@ const PremiumSystem = require('../premium/premiumSystem');
 
 const SETTINGS_KEY = 'pot_game_shop_config';
 
-// growthValue é o valor cru passado pro RCON `rewardgrowth` (mesma escala
-// 0-1 de pot_players.dinosaur_growth). speciesRestrictable só existe nos 4
+// growthValue é o valor cru passado pro RCON `setattr <target> growth
+// <valor>` (mesma escala 0-1 de pot_players.dinosaur_growth — CONFIRMADO
+// pelo dono, 2026-08-19, depois de um bug real com o comando errado
+// `rewardgrowth`, ver _buildRconCommand/_buildRconCommandForCustomItem).
+// speciesRestrictable só existe nos 4
 // itens de Growth — Skipshed/Missão não fazem sentido restringir por
 // espécie (não alteram o dinossauro em si).
 const GAME_SHOP_ITEMS = {
@@ -105,7 +108,17 @@ function setGuildShopConfig(guildId, config, userId) {
 
 function _buildRconCommand(itemKey, target, missionName) {
     const item = GAME_SHOP_ITEMS[itemKey];
-    if (item.speciesRestrictable) return `rewardgrowth ${target} ${item.growthValue}`;
+    // BUG REAL corrigido (pedido do dono, 2026-08-19: "Itens de growth
+    // comprados e usado pelo inventário da loja não funcionaram em
+    // jogo... esta usando rcon rewardgrowth... deve usar o setattr
+    // growth") — o comando certo pra crescer o dinossauro é
+    // `setattr <target> growth <valor>` (mesmo formato de setattr no
+    // catálogo manual, ver rconCommandCatalog.js), não `rewardgrowth`
+    // (que é um comando RCON de verdade, só que faz outra coisa — nunca
+    // confirmado o que exatamente, só que não é isto). A escala do
+    // valor (0-1: 0.25/0.5/0.75/1.0) estava certa o tempo todo, só o
+    // NOME do comando estava errado.
+    if (item.speciesRestrictable) return `setattr ${target} growth ${item.growthValue}`;
     if (itemKey === 'skipshed') return `SkipShed ${target}`;
     if (itemKey === 'quest') return `GiveQuest ${target} ${missionName}`;
     return null;
@@ -610,7 +623,11 @@ async function resolveItemImageUrl(client, item) {
 
 function _buildRconCommandForCustomItem(item, alderonId, playerName) {
     const cfg = item.actionConfig || {};
-    if (item.action_type === 'growth') return `rewardgrowth ${alderonId} ${cfg.growthValue}`;
+    // BUG REAL corrigido (pedido do dono, 2026-08-19) — mesmo motivo de
+    // _buildRconCommand acima (catálogo legado): o comando certo é
+    // `setattr <target> growth <valor>`, não `rewardgrowth`. Escala do
+    // valor (0-1) inalterada.
+    if (item.action_type === 'growth') return `setattr ${alderonId} growth ${cfg.growthValue}`;
     if (item.action_type === 'skipshed') return `SkipShed ${alderonId}`;
     // Alvo pelo NOME em jogo, não Alderon ID — mesmo padrão confirmado em
     // eventTeleportSystem.js pro comando `teleport` (nunca testado contra

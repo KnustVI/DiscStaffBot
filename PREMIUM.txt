@@ -10919,20 +10919,17 @@ frente, nao so este relatorio):
   confirmados ao vivo (mesmo espírito de `sanitizeDinosaurType`, nunca
   chutar um codinome sem confirmação).
 - GROWTH: "Itens de growth comprados e usado pelo inventário da loja
-  não funcionaram em jogo." Investigado, NÃO corrigido — o comando RCON
-  em si (`rewardgrowth <alderonId> <valor 0-1>`) bate exatamente com o
-  catálogo de comandos manuais (`rconCommandCatalog.js`, mesmo `target`/
-  mesma sintaxe), então a montagem do comando está certa. A suspeita
-  real: a ESCALA do valor (0-1, mesma de `pot_players.dinosaur_growth`)
-  nunca foi confirmada contra um servidor de verdade — só um comentário
-  antigo assumindo essa escala, sem teste ao vivo documentado em lugar
-  nenhum. Se o jogo esperar 0-100 (percentual) ou outra unidade, mandar
-  0.25 pode ser silenciosamente arredondado/ignorado pelo jogo — item
-  consumido, Ossos gastos, nenhum efeito visível, exatamente o sintoma
-  reportado. Precisa de confirmação do dono (testar `/ingame-comandos
-  rewardgrowth` manualmente com valores diferentes contra o servidor
-  real) antes de mudar a escala — mudar sem confirmar troca uma
-  suposição errada por outra.
+  não funcionaram em jogo." CONFIRMADO E CORRIGIDO pelo dono no mesmo
+  dia: o comando estava errado, não a escala do valor — `rewardgrowth`
+  é um comando RCON de verdade (existe no catálogo manual,
+  `rconCommandCatalog.js`), só que faz outra coisa; o certo pra crescer
+  o dinossauro é `setattr <target> growth <valor>` (mesmo formato do
+  `setattr` genérico já usado pra outros atributos). A escala 0-1
+  (0.25/0.5/0.75/1.0) estava certa o tempo todo — só o NOME do comando
+  em `_buildRconCommand` (catálogo legado) e
+  `_buildRconCommandForCustomItem` (itens customizados), ambos em
+  `gameShopSystem.js`, precisava trocar de `rewardgrowth` pra `setattr
+  ... growth ...`.
 - OVERLAY: "Avisos de confirmação na pagina da loja não estao como
   Overlay iguao outros avisos de salvamentos." `partials/
   save-result-overlay.ejs` (já usada em moderacao/events/reports/
@@ -10984,13 +10981,13 @@ frente, nao so este relatorio):
   duplicada/redundante — o botão "PORTAL", que também carrega a classe
   `dashboard-link`, continua escondido nesse breakpoint pela classe
   `.nav-btn` que ele já tinha por conta própria).
-- Verificado: `node --check` em `potPlayerRegistry.js`,
-  `ejs.compile()`/`ejs.render()` em `loja.ejs`/`top-nav.ejs`/
-  `save-result-overlay.ejs` com múltiplos cenários (cada tipo de
-  resultado da Loja, item de inventário pro botão Usar). SEM
+- Verificado: `node --check` em `potPlayerRegistry.js`/
+  `gameShopSystem.js`, `ejs.compile()`/`ejs.render()` em `loja.ejs`/
+  `top-nav.ejs`/`save-result-overlay.ejs` com múltiplos cenários (cada
+  tipo de resultado da Loja, item de inventário pro botão Usar). SEM
   confirmação visual/browser real nem contra servidor de jogo real — o
-  dono precisa: (1) testar `rewardgrowth` com valores diferentes pra
-  descobrir a escala certa; (2) confirmar que o TP pro mapa Gondwa
-  libera agora; (3) conferir visualmente a overlay/scroll/botões Usar/
-  avatar da top bar; (4) esclarecer qual página de configuração ainda
-  falta o botão Salvar, se for o caso.
+  dono precisa: (1) confirmar que um item de Growth comprado/usado
+  agora aplica de verdade com o comando `setattr` novo; (2) confirmar
+  que o TP pro mapa Gondwa libera agora; (3) conferir visualmente a
+  overlay/scroll/botões Usar/avatar da top bar; (4) esclarecer qual
+  página de configuração ainda falta o botão Salvar, se for o caso.
