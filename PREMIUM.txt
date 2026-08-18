@@ -11079,3 +11079,33 @@ frente, nao so este relatorio):
   aparecer de novo, rodar `diagnostico_moedas.js` de novo (agora com
   histórico de sessões) e conferir o canal de log de sistema por
   qualquer entrada de `potPlayerRegistry`.
+
+215) Loja de Jogo: corrige reabastecer estoque zerado pela edição de item
+---------------------------------------------------------------------------
+- Pedido do dono (2026-08-19): "Quando item chega a estoque 0, não é
+  possível recolocar o estoque no botão editar na criação de item da
+  loja de jogo."
+- BUG REAL confirmado: o campo "Quantidade disponível" do dialog de
+  edição mostrava/gravava `stock_limit` (o total histórico configurado
+  na criação, nunca muda sozinho) — mas o card do item mostra
+  "Estoque: X" com o RESTANTE de verdade (`stock_limit - stock_sold`).
+  Um admin vendo "Estoque: 0" e reabrindo Editar via o mesmo número de
+  antes (ou qualquer valor ≤ quanto já foi vendido) continuava dando 0
+  de restante — `stock_sold` nunca aparecia em lugar nenhum da UI, sem
+  como saber que precisava SOMAR esse valor ao que queria digitar.
+  Parecia, do ponto de vista do admin, "impossível reabastecer".
+- Corrigido em duas pontas: o dialog de edição (`lojajogo.ejs`) agora
+  mostra/edita o RESTANTE (mesmo número do card), não o total; o
+  `<script type="application/json" class="lj-item-data">` de cada card
+  passou a carregar `remainingStock` em vez de `stockLimit` bruto.
+  `updateShopItem` (`gameShopSystem.js`) recalcula `stock_limit` por
+  baixo (`stock_sold + valor digitado`) pra bater com o restante
+  pedido — `stock_sold` nunca é tocado (histórico real de vendas,
+  nunca deve ser reduzido/apagado por uma edição).
+- Verificado: `node --check` em `gameShopSystem.js`,
+  `ejs.compile()`/`ejs.render()` em `lojajogo.ejs` com um item de
+  estoque zerado (stock_limit=20, stock_sold=20) confirmando que o
+  JSON embutido carrega `remainingStock:0`, não o total antigo. SEM
+  confirmação visual/browser real — o dono precisa conferir que editar
+  um item zerado e digitar um número novo realmente aumenta o
+  "Estoque:" mostrado no card.

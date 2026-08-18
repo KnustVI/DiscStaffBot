@@ -451,11 +451,31 @@
                 </div>
 
                 <div>
-                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível (opcional, em branco = ilimitado)</span><span data-i18n-en>Available quantity (optional, blank = unlimited)</span></label>
+                    <%#
+                        BUG REAL corrigido (pedido do dono, 2026-08-19: "Quando
+                        item chega a stoque 0, não é possivel recolocar o
+                        estoque no botão editar"). Antes este campo mostrava/
+                        editava stock_limit (o total histórico configurado na
+                        criação — nunca muda sozinho), mas o card do item
+                        mostra "Estoque: X" com o RESTANTE (stock_limit -
+                        stock_sold). Um admin vendo "Estoque: 0" no card e
+                        tentando reabastecer não tinha como saber que precisava
+                        somar o stock_sold (nunca exibido em lugar nenhum) ao
+                        número que queria digitar — só reeditar com o MESMO
+                        valor de antes (ou qualquer valor menor que o já
+                        vendido) continuava dando 0, parecendo "impossível
+                        reabastecer". Agora este campo edita o RESTANTE
+                        diretamente (mesmo número do card) — updateShopItem
+                        recalcula stock_limit por baixo (stock_sold +
+                        valor digitado aqui), sem tocar em stock_sold (histórico
+                        de vendas reais, nunca deve ser apagado).
+                    %>
+                    <label class="text-[13px] opacity-60"><span data-i18n-pt>Quantidade disponível agora (opcional, em branco = ilimitado)</span><span data-i18n-en>Available quantity right now (optional, blank = unlimited)</span></label>
                     <div class="input-container-premium">
                         <div class="icon-box"><i data-lucide="package"></i></div>
                         <input type="number" class="input-premium-field" name="stock_limit" id="ljEditStockLimit" min="1" step="1">
                     </div>
+                    <p class="text-[11px] opacity-40 mt-1"><span data-i18n-pt>Mesmo número mostrado como "Estoque" no card — aumente pra reabastecer.</span><span data-i18n-en>Same number shown as "Stock" on the card — increase it to restock.</span></p>
                 </div>
 
                 <div>
@@ -533,7 +553,7 @@
                             actionType: item.action_type,
                             actionConfig: item.actionConfig,
                             price: item.price,
-                            stockLimit: item.stock_limit,
+                            remainingStock: item.remainingStock,
                             species: item.species,
                         }).replace(/</g, '\\u003c') %></script>
                     </div>
@@ -611,7 +631,7 @@
             document.getElementById('ljEditName').value = item.name || '';
             document.getElementById('ljEditDescription').value = item.description || '';
             document.getElementById('ljEditPrice').value = item.price;
-            document.getElementById('ljEditStockLimit').value = item.stockLimit === null || item.stockLimit === undefined ? '' : item.stockLimit;
+            document.getElementById('ljEditStockLimit').value = item.remainingStock === null || item.remainingStock === undefined ? '' : item.remainingStock;
 
             document.getElementById('ljEditActionTypeLabel').textContent = LJ_ACTION_LABELS[item.actionType] || item.actionType;
             document.getElementById('ljEditGrowthField').style.display = item.actionType === 'growth' ? '' : 'none';

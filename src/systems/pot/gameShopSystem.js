@@ -549,10 +549,23 @@ function updateShopItem(guildId, itemId, data) {
     const price = parseInt(data.price, 10);
     if (!Number.isInteger(price) || price <= 0) return { ok: false, error: 'Preço em Ossos precisa ser um número positivo.' };
 
+    // BUG REAL corrigido (pedido do dono, 2026-08-19: "Quando item chega a
+    // stoque 0, não é possivel recolocar o estoque no botão editar"). Este
+    // campo (data.stockLimit, vindo do form) representa o RESTANTE
+    // desejado a partir de agora — mesmo número que o card já mostra como
+    // "Estoque: X" (ver lojajogo.ejs) — NÃO o total histórico. Antes este
+    // valor era gravado direto em stock_limit, mas remainingStock é
+    // SEMPRE (stock_limit - stock_sold) — reeditar com o mesmo total de
+    // antes (ou qualquer valor ≤ stock_sold) continuava dando 0 restante,
+    // sem nenhuma forma de reabastecer um item zerado. Recalcula
+    // stock_limit por baixo (stock_sold + valor digitado) pra bater com o
+    // restante pedido — stock_sold nunca é tocado aqui (histórico real de
+    // vendas, nunca deve ser apagado/reduzido por uma edição).
     let stockLimit = null;
     if (data.stockLimit !== undefined && data.stockLimit !== null && String(data.stockLimit).trim() !== '') {
-        stockLimit = parseInt(data.stockLimit, 10);
-        if (!Number.isInteger(stockLimit) || stockLimit <= 0) return { ok: false, error: 'Quantidade disponível precisa ser um número positivo (ou em branco pra ilimitado).' };
+        const desiredRemaining = parseInt(data.stockLimit, 10);
+        if (!Number.isInteger(desiredRemaining) || desiredRemaining <= 0) return { ok: false, error: 'Quantidade disponível precisa ser um número positivo (ou em branco pra ilimitado).' };
+        stockLimit = existing.stock_sold + desiredRemaining;
     }
 
     let actionConfig = null;
