@@ -95,6 +95,24 @@
     <button type="button" class="tp-mobile-menu-btn" id="tpMobileMenuBtn" onclick="if (window.toggleMobileDrawer) toggleMobileDrawer();" aria-label="Abrir menu" aria-expanded="false">
         <i data-lucide="menu"></i>
     </button>
+    <%#
+        Logo em branco no canto direito (pedido do dono, 2026-08-17:
+        "adicione a logo em svg em branco como icone na barra de
+        navegação... lateral direita... em todas as barras de navegação
+        do topo, no canto superior direito") — mesmo mecanismo de
+        posicionamento do .dashboard-link à esquerda logo abaixo (absolute
+        + top-1/2 -translate-y-1/2 pra centralizar verticalmente na
+        barra), espelhado pro lado direito. assets/Logo/logo.svg já É a
+        versão em branco (os 2 <filter> do próprio SVG recolorem o PNG
+        embutido pra branco puro via feColorMatrix — não precisa gerar
+        variante nenhuma, só copiar o arquivo pra web/public/images/).
+        hidden md:block (mesmo breakpoint do .dashboard-link à esquerda)
+        — numa barra estreita de celular, só hamburguer+bandeira de idioma
+        cabem sem disputar espaço; o logo desta marca d'água não é
+        essencial nesse tamanho de tela, mesmo raciocínio já aplicado ao
+        avatar+nome à esquerda.
+    %>
+    <img src="/images/logo-white.svg" alt="Titan's Pass" class="absolute right-4 top-1/2 -translate-y-1/2 hidden md:block" style="height: 32px; width: auto;">
     <% if (tnUser) { %>
         <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
