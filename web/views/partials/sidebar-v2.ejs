@@ -776,13 +776,28 @@
        Mesmo tratamento visual de [data-collapsed="true"]/:not([data-user-set])
        acima, só que disparado pela largura ATUAL da própria .tp-sidebar
        (container query, ver container-type/-name nela) em vez de
-       data-collapsed ou da largura da janela — cobre o caso de
-       --tp-w-expanded (fluido, clamp) cair numa faixa estreita demais
-       pro texto do botão mais longo (ex: "Denúncias") continuar
-       confortável, mesmo em janelas ≥1024px onde nenhum dos outros dois
-       gatilhos entra em ação. 270px (era 300px, escalado ×0.9 junto com
-       o resto da sidebar — ver --tp-w-expanded acima) dá folga pro texto
-       NÃO virar reticências antes de esconder o rótulo de vez.
+       data-collapsed ou da largura da janela — cobre o caso raro de
+       --tp-w-expanded (fluido, clamp) ficar mais estreito que o previsto
+       (zoom do navegador, densidade de tela, etc.) mesmo em janelas
+       ≥1024px onde nenhum dos outros dois gatilhos entra em ação.
+
+       BUG REAL corrigido (pedido do dono, 2026-08-18, com prints
+       comparando os dois: "fica com uma largura fixa, diferente da
+       largura correta que tem quando fechamos ela manualmente" — o
+       botão ativado nem tinha o visual de ativado dos outros botões,
+       mesma causa). O limite era 270px, MAIOR que o piso de
+       --tp-w-expanded (235px, ver acima) — ou seja, em qualquer janela
+       onde o clamp() fluido computasse entre 235-270px (ex: ~1024-
+       1170px de largura), a sidebar JÁ entrava no modo só-ícone (rótulos
+       escondidos, botões/avatar/logo do tamanho de --tp-collapsed-*) só
+       que SEM encolher a largura de fora pra 109px (ver motivo no
+       parágrafo abaixo) — resultado: um estado hÍbrido nunca visto pelo
+       toggle manual, com ícones "flutuando" soltos numa coluna larga
+       demais pra eles, brecha visível entre o botão de fechar e a borda.
+       Baixado pra 150px (entre os 109px de --tp-w-collapsed e o piso de
+       235px de --tp-w-expanded) — nunca mais se sobrepõe com a faixa
+       fluida normal, só continua funcionando como rede de segurança pro
+       cenário raro de zoom/densidade que motivou este bloco originalmente.
 
        De propósito NÃO muda a largura da própria .tp-sidebar aqui (só
        padding interno + tamanho dos filhos) — um container não pode
@@ -790,8 +805,11 @@
        MESMO eixo que está sendo consultado (senão vira um ciclo:
        encolhe → a query já não bate mais → volta a crescer → bate de
        novo → ciclo). Trocar só os descendentes é seguro e continua
-       resolvendo o problema real (texto cortado). */
-    @container tpsidebar (max-width: 270px) {
+       resolvendo o problema real (texto cortado) sem reintroduzir esse
+       ciclo — por isso o limite foi ajustado pra nunca mais coincidir
+       com a faixa fluida normal, em vez de tentar forçar a largura aqui
+       dentro. */
+    @container tpsidebar (max-width: 150px) {
         .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
         .tp-sidebar-top-actions { flex-direction: column; }
