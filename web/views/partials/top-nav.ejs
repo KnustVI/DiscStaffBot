@@ -124,10 +124,26 @@
         mesmo espaço horizontal que esse grupo centralizado ocupa.
     %>
     <img src="/images/logo-white.svg" alt="Titan's Pass" class="absolute right-4 top-1/2 -translate-y-1/2 block" style="height: 32px; width: auto;">
+    <%#
+        Avatar+nome (pedido do dono, 2026-08-19: "Nome do usuário na top
+        bar fica encima dos botões quando tela diminuida, faça o nome
+        sumir e mantenha só o icone do jogador no ponto de largura 1200
+        ou menos" + "Coloque o icone do usuário tambem na topbar da
+        versão mobile") — mesmo raciocínio de "sempre visível" já
+        aplicado à logo em branco no canto oposto (ver comentário dela
+        acima): hidden md:flex virou só flex (sempre visível, inclusive
+        mobile), e o NOME (não o avatar) ganha .dashboard-link-name pra
+        poder sumir sozinho abaixo de 1200px (ver @media no <style>
+        abaixo) sem esconder o avatar junto — o avatar sozinho é a
+        marca d'água equivalente à logo, cabe em qualquer largura;
+        BUG REAL corrigido: era o nome (variável, pode ser longo — ex:
+        "Knust VI [ARTIST]") que ficava por cima dos botões da barra em
+        larguras médias, não o avatar (tamanho fixo, nunca colide).
+    %>
     <% if (tnUser) { %>
-        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
+        <a href="/dashboard" class="dashboard-link absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-sm opacity-80 hover:opacity-100" style="font-family:'Poppins',sans-serif; color:#F8DCC0; text-decoration:none;">
             <img src="<%= tnUser.avatar ? `https://cdn.discordapp.com/avatars/${tnUser.id}/${tnUser.avatar}.png` : `https://cdn.discordapp.com/embed/avatars/${(tnUser.id % 5)}.png` %>" alt="" style="width:24px; height:24px; border-radius:50%; object-fit:cover; flex:none;">
-            <%= (tnUser.nickname || tnUser.global_name || tnUser.username) %>
+            <span class="dashboard-link-name"><%= (tnUser.nickname || tnUser.global_name || tnUser.username) %></span>
         </a>
     <% } %>
     <a href="/" class="nav-btn<%= tnActive === 'home' ? ' is-active' : '' %>"><span data-i18n-pt>HOME</span><span data-i18n-en>HOME</span></a>
@@ -330,8 +346,17 @@
     .tp-mobile-menu-btn svg { width: 18px; height: 18px; }
     @media (max-width: 767px) {
         .tp-mobile-menu-btn { display: flex; }
-        .tp-top-nav .nav-btn,
-        .tp-top-nav .dashboard-link { display: none; }
+        .tp-top-nav .nav-btn { display: none; }
+    }
+    /* Nome ao lado do avatar (pedido do dono, 2026-08-19) — só o NOME
+       some em telas médias/estreitas, nunca o avatar (marca d'água
+       equivalente à logo do canto oposto, sempre visível). Abaixo de
+       767px o próprio .dashboard-link-name já herdaria isso, mas o
+       limite de verdade pedido foi 1200px (a barra cheia de .nav-btn
+       ainda cabe larga o bastante pra colidir com o nome bem antes de
+       767px). */
+    @media (max-width: 1200px) {
+        .dashboard-link-name { display: none; }
     }
 
     <% if (!tnHideOnScroll) { %>

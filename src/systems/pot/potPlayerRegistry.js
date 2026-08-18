@@ -113,6 +113,28 @@ function sanitizeDinosaurType(raw) {
     return trimmed;
 }
 
+// BUG REAL corrigido (pedido do dono, 2026-08-19: "Tp no mapa Gondwa não
+// funcionou por ver o player no mapa Island... Island = Gondwa neste
+// caso"). O campo MapName/Map que o webhook do jogo manda usa o codinome
+// INTERNO do mapa, não o nome público que o admin conhece e digita ao
+// criar um item de teleporte na Loja de Jogo — current_map chegava como
+// "Island", nunca batendo contra o "Gondwa" configurado no item, então a
+// verificação de mapa (ver gameShopSystem.js#useGameShopItem) bloqueava
+// teleportes válidos achando que o jogador estava em outro mapa. Só este
+// par confirmado por enquanto — adicionar outros aqui SÓ conforme forem
+// confirmados ao vivo (nunca chutar um codinome sem confirmação, mesmo
+// espírito de sanitizeDinosaurType acima). Chave sempre minúscula
+// (comparação case-insensitive); valor é o nome público de exibição.
+const MAP_NAME_ALIASES = {
+    island: 'Gondwa',
+};
+function _normalizeMapName(raw) {
+    if (!raw) return raw;
+    const trimmed = String(raw).trim();
+    const alias = MAP_NAME_ALIASES[trimmed.toLowerCase()];
+    return alias || trimmed;
+}
+
 /**
  * Normaliza um payload de webhook do PoT em um formato interno consistente.
  * Retorna null se o payload não tiver o mínimo necessário (AlderonId).
@@ -153,7 +175,7 @@ function normalizeEvent(rawPayload, eventType) {
     // Nem todo evento traz esse campo — upsertPlayerFromEvent trata do
     // mesmo jeito de dinosaurType/dinosaurGrowth acima, nunca sobrescreve
     // com null.
-    const mapName = rawPayload.MapName || rawPayload.Map || null;
+    const mapName = _normalizeMapName(rawPayload.MapName || rawPayload.Map || null);
 
     return {
         alderonId: String(alderonId).trim(),

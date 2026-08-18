@@ -18,7 +18,22 @@
   fim da página.
 
   Uso: include( partials/save-result-overlay , { saved } ) — saved vem
-  direto de req.query.saved ('success'/'error'/undefined).
+  direto de req.query.saved ('success'/'error'/undefined). titlePt/
+  titleEn/textPt/textEn (OPCIONAIS, pedido do dono, 2026-08-19: "Avisos
+  de confirmação na pagina da loja não estao como Overlay iguao outros
+  avisos de salvamentos") — texto PURO (não HTML — o parcial monta os
+  pares data-i18n-pt/data-i18n-en de sempre por conta própria, com
+  escape automático do EJS, ver loja.ejs pra exemplo), pra páginas com
+  mensagens de resultado mais específicas que o genérico "Configurações
+  salvas" (ex: "150 Ossos creditados", "Item X adicionado ao
+  inventário") reaproveitarem esta mesma overlay (visual + preservação
+  de rolagem) em vez de duplicar tudo isso. *En é opcional mesmo com
+  *Pt presente — cai no texto em Pt também quando faltar (mensagem
+  dinâmica só em português, ex: nome de item cadastrado pelo admin, é
+  melhor que sumir na versão em inglês). Omitidos (a maioria das
+  páginas: moderacao/events/reports/perfil/lojajogo/dev-lojas), cai no
+  texto genérico de sempre — 100% compatível com quem já usa este
+  parcial sem passar os 4 parâmetros novos.
 
   PRESERVAÇÃO DE SCROLL (pedido do dono, 2026-08-07: "ao salvar e
   aparecer a overlay ele sobe o rolamento da página inteira, é possível
@@ -80,10 +95,13 @@
                 <i data-lucide="<%= srIsOk ? 'check-circle' : 'circle-alert' %>"></i>
             </div>
             <h2 class="dev-overlay-title">
-                <% if (srIsOk) { %><span data-i18n-pt>Configurações salvas</span><span data-i18n-en>Settings saved</span><% } else { %><span data-i18n-pt>Falha ao salvar</span><span data-i18n-en>Failed to save</span><% } %>
+                <% if (typeof titlePt !== 'undefined' && titlePt) { %><span data-i18n-pt><%= titlePt %></span><span data-i18n-en><%= (typeof titleEn !== 'undefined' && titleEn) ? titleEn : titlePt %></span>
+                <% } else if (srIsOk) { %><span data-i18n-pt>Configurações salvas</span><span data-i18n-en>Settings saved</span><% } else { %><span data-i18n-pt>Falha ao salvar</span><span data-i18n-en>Failed to save</span><% } %>
             </h2>
             <p class="dev-overlay-text">
-                <% if (srIsOk) { %>
+                <% if (typeof textPt !== 'undefined' && textPt) { %>
+                    <span data-i18n-pt><%= textPt %></span><span data-i18n-en><%= (typeof textEn !== 'undefined' && textEn) ? textEn : textPt %></span>
+                <% } else if (srIsOk) { %>
                     <span data-i18n-pt>Suas alterações foram aplicadas com sucesso.</span><span data-i18n-en>Your changes were applied successfully.</span>
                 <% } else { %>
                     <span data-i18n-pt>Alguma coisa deu errado e as alterações não foram salvas. Tente novamente — se persistir, avise o suporte.</span><span data-i18n-en>Something went wrong and the changes weren't saved. Try again — if it keeps happening, contact support.</span>

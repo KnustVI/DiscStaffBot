@@ -10903,3 +10903,94 @@ frente, nao so este relatorio):
   vivo, na próxima vez que um staff desconectar espectando, que
   `spectator_seconds` recebeu o tempo certo e a sessão em
   `pot_spectator_sessions` sumiu.
+
+212) Alias de nome de mapa (Island = Gondwa) + overlay de resultado na Loja + botões Usar/avatar da top bar
+-------------------------------------------------------------------------------------------------------
+- Pedido do dono (2026-08-19), vários itens numa mensagem só:
+- MAPA: "Tp no mapa Gondwa não funcionou por ver o player no mapa
+  Island... Island = Gondwa neste caso." Confirma na prática o risco já
+  levantado na seção 210/211: o campo `MapName`/`Map` que o webhook do
+  jogo manda usa o codinome INTERNO do mapa, não o nome público — o
+  mapa que o admin conhece e digita como "Gondwa" chega como "Island".
+  Corrigido em `potPlayerRegistry.js` — novo `MAP_NAME_ALIASES`
+  (`{ island: 'Gondwa' }`) e `_normalizeMapName()`, aplicado direto em
+  `normalizeEvent` antes de `current_map` ser gravado — só este par
+  confirmado por enquanto, mais aliases só entram aqui conforme forem
+  confirmados ao vivo (mesmo espírito de `sanitizeDinosaurType`, nunca
+  chutar um codinome sem confirmação).
+- GROWTH: "Itens de growth comprados e usado pelo inventário da loja
+  não funcionaram em jogo." Investigado, NÃO corrigido — o comando RCON
+  em si (`rewardgrowth <alderonId> <valor 0-1>`) bate exatamente com o
+  catálogo de comandos manuais (`rconCommandCatalog.js`, mesmo `target`/
+  mesma sintaxe), então a montagem do comando está certa. A suspeita
+  real: a ESCALA do valor (0-1, mesma de `pot_players.dinosaur_growth`)
+  nunca foi confirmada contra um servidor de verdade — só um comentário
+  antigo assumindo essa escala, sem teste ao vivo documentado em lugar
+  nenhum. Se o jogo esperar 0-100 (percentual) ou outra unidade, mandar
+  0.25 pode ser silenciosamente arredondado/ignorado pelo jogo — item
+  consumido, Ossos gastos, nenhum efeito visível, exatamente o sintoma
+  reportado. Precisa de confirmação do dono (testar `/ingame-comandos
+  rewardgrowth` manualmente com valores diferentes contra o servidor
+  real) antes de mudar a escala — mudar sem confirmar troca uma
+  suposição errada por outra.
+- OVERLAY: "Avisos de confirmação na pagina da loja não estao como
+  Overlay iguao outros avisos de salvamentos." `partials/
+  save-result-overlay.ejs` (já usada em moderacao/events/reports/
+  perfil/lojajogo/dev-lojas) ganhou 4 parâmetros opcionais —
+  `titlePt`/`titleEn`/`textPt`/`textEn` (texto puro, o parcial monta os
+  pares data-i18n-pt/en com escape automático do EJS) — usados só
+  quando presentes, 100% compatível com quem já inclui o parcial sem
+  eles. `loja.ejs` agora computa `lojaSaved`/`lojaTitle*`/`lojaText*` a
+  partir dos MESMOS locals que já existiam (`purchaseResult`,
+  `gameShopPurchaseResult`, `gameShopUseResult`, `redeemResult`,
+  `convertResult`+`convertAmount`+`convertMarksUsados`+
+  `convertRconResponse`, `convertError`) e inclui a overlay compartilhada
+  — os 6 `outline-chip` inline antigos (um por ação) foram removidos,
+  sem duplicar a mensagem em dois lugares.
+- ROLAGEM: "Overlays na tela do jogador não deve alterar o ponto de
+  rolamento da pagina que o usuário esta." Resolvido de graça pelo item
+  acima — `save-result-overlay.ejs` já tinha essa preservação de
+  rolagem implementada (seção antiga, pedido do dono 2026-08-07),
+  `loja.ejs` simplesmente nunca usava o parcial antes; agora que usa,
+  herda o comportamento sem código novo.
+- BOTÃO SALVAR: "Coloque um botão de salvar configurações em todas as
+  configurações de servidores." Auditado nas 5 páginas de configuração
+  por servidor (`gameserver.ejs`, `moderacao.ejs`, `events.ejs`,
+  `reports.ejs`, `lojajogo.ejs`) — TODAS já têm botão de salvar
+  explícito em cada seção com configuração de lote (`btn-salvar-final`)
+  ou por-item (`btn-chip`/`btn-chip-success` num mini-form próprio,
+  nunca auto-save ao trocar um campo). Nenhuma lacuna encontrada — sem
+  mudança de código nesta seção. Precisa de esclarecimento do dono
+  sobre qual página especificamente ele tinha em mente.
+- BOTÃO USAR: "No botão usar use o mesmo css dos botões da sidebar e
+  topbar." O botão "Usar" do inventário da Loja de Jogo (`loja.ejs`)
+  trocou o `.btn-chip-success` verde/cream genérico pela MESMA receita
+  visual de `.tp-sidebar-btn`/`.nav-btn` (fundo #2A2A2A, borda #803E30,
+  sombra neumórfica, hover vira #803E30+borda cream, pressed vira
+  #4B2427+sombra interna) — classe própria `.loja-usar-form` (não a
+  classe `.nav-btn` reaproveitada direto), mesmo padrão de escopo já
+  usado em `.loja-jogo-buy-form`/`.loja-perso-buy-form`.
+- TOP BAR (nome/avatar): "Nome do usuário na top bar fica encima dos
+  botões quando tela diminuida... mantenha só o icone... 1200 ou menos"
+  + "Coloque o icone do usuário tambem na topbar da versão mobile."
+  `partials/top-nav.ejs`: `.dashboard-link` (avatar+nome, canto
+  superior esquerdo) perdeu o `hidden md:flex` (agora sempre visível,
+  inclusive mobile — mesmo raciocínio já usado pra logo em branco do
+  canto oposto) e o NOME virou `<span class="dashboard-link-name">`,
+  escondido só abaixo de 1200px via nova media query — o avatar (25px,
+  tamanho fixo) nunca colide com a barra de botões, só o nome (largura
+  variável, ex: "Knust VI [ARTIST]") colidia. Também removida a regra
+  antiga que escondia `.dashboard-link` inteiro abaixo de 767px (regra
+  duplicada/redundante — o botão "PORTAL", que também carrega a classe
+  `dashboard-link`, continua escondido nesse breakpoint pela classe
+  `.nav-btn` que ele já tinha por conta própria).
+- Verificado: `node --check` em `potPlayerRegistry.js`,
+  `ejs.compile()`/`ejs.render()` em `loja.ejs`/`top-nav.ejs`/
+  `save-result-overlay.ejs` com múltiplos cenários (cada tipo de
+  resultado da Loja, item de inventário pro botão Usar). SEM
+  confirmação visual/browser real nem contra servidor de jogo real — o
+  dono precisa: (1) testar `rewardgrowth` com valores diferentes pra
+  descobrir a escala certa; (2) confirmar que o TP pro mapa Gondwa
+  libera agora; (3) conferir visualmente a overlay/scroll/botões Usar/
+  avatar da top bar; (4) esclarecer qual página de configuração ainda
+  falta o botão Salvar, se for o caso.

@@ -432,6 +432,35 @@
         }
         .loja-perso-buy-form .btn-chip img { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; }
 
+        /* Botão Usar (inventário da Loja de Jogo) — pedido do dono,
+           2026-08-19: "No botão usar use o mesmo css dos botões da
+           sidebar e topbar", em vez do .btn-chip-success verde/cream
+           genérico de antes. Valores copiados direto de
+           .tp-sidebar-btn (partials/sidebar-v2.ejs) e .nav-btn
+           (partials/top-nav.ejs) — os dois já usam a MESMA receita
+           (fundo cinza #2A2A2A, borda ferrugem #803E30, sombra
+           neumórfica, hover vira fundo #803E30 + borda cream, pressed
+           vira #4B2427 + sombra interna) — não literalmente a mesma
+           classe (evita acoplar o botão desta seção a mudanças futuras
+           na nav em si), mesmo padrão de escopo já usado em
+           .loja-jogo-buy-form/.loja-perso-buy-form acima. */
+        .loja-usar-form .btn-chip.btn-chip-success {
+            background: #2A2A2A;
+            border-color: #803E30;
+            border-radius: 15px;
+            box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5), -5px -5px 10px rgba(0, 0, 0, 0.7);
+            color: #F8DCC0;
+        }
+        .loja-usar-form .btn-chip.btn-chip-success:hover:not(:disabled) {
+            background: #803E30;
+            border-color: #F8DCC0;
+        }
+        .loja-usar-form .btn-chip.btn-chip-success:active:not(:disabled) {
+            background: #4B2427;
+            border-color: #803E30;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -1px -1px 2px rgba(0, 0, 0, 0.5), inset 0px 8px 7.8px rgba(0, 0, 0, 0.59);
+        }
+
         /* Formulários do Conversor de Moedas — mesma cápsula
            .input-container-premium/.input-premium-field do resto do
            dashboard, só o layout em coluna é próprio desta seção. */
@@ -547,6 +576,64 @@
 
         <%- include('partials/testing-phase-banner') %>
 
+        <%
+            // Overlay de resultado (pedido do dono, 2026-08-19: "Avisos de
+            // confirmação na pagina da loja não estao como Overlay iguao
+            // outros avisos de salvamentos") — substitui os antigos
+            // outline-chip inline espalhados pela página (um por ação:
+            // compra de personalização, compra/uso de item de jogo, resgate,
+            // conversão, erro de qualquer uma delas) por UMA overlay
+            // compartilhada (partials/save-result-overlay, mesma usada em
+            // moderacao/events/reports/perfil/lojajogo/dev-lojas) — ganha de
+            // graça a preservação de posição de rolagem que aquele parcial
+            // já implementa (pedido do dono, mesma mensagem: "Overlays na
+            // tela do jogador não deve alterar o ponto de rolamento da
+            // pagina que o usuário esta"), sem precisar duplicar essa lógica
+            // aqui. Prioridade arbitrária mas nunca ambígua na prática — só
+            // UM resultado vem preenchido por vez (cada rota POST de /loja
+            // redireciona com um único parâmetro de resultado por vez).
+            let lojaSaved, lojaTitlePt, lojaTitleEn, lojaTextPt, lojaTextEn;
+            if (convertError) {
+                lojaSaved = 'error';
+                lojaTextPt = convertError;
+            } else if (purchaseResult) {
+                lojaSaved = 'success';
+                lojaTitlePt = 'Item comprado'; lojaTitleEn = 'Item purchased';
+                lojaTextPt = `${purchaseResult} adicionado ao seu inventário.`;
+                lojaTextEn = `${purchaseResult} added to your inventory.`;
+            } else if (gameShopPurchaseResult) {
+                lojaSaved = 'success';
+                lojaTitlePt = 'Adicionado ao inventário'; lojaTitleEn = 'Added to inventory';
+                lojaTextPt = `${gameShopPurchaseResult} comprado — use quando estiver online no servidor.`;
+                lojaTextEn = `${gameShopPurchaseResult} purchased — use it whenever you're online on the server.`;
+            } else if (gameShopUseResult) {
+                lojaSaved = 'success';
+                lojaTitlePt = 'Aplicado no jogo'; lojaTitleEn = 'Applied in-game';
+                lojaTextPt = `${gameShopUseResult} aplicado com sucesso e consumido do seu inventário.`;
+                lojaTextEn = `${gameShopUseResult} successfully applied and consumed from your inventory.`;
+            } else if (redeemResult) {
+                lojaSaved = 'success';
+                lojaTitlePt = 'Resgatado'; lojaTitleEn = 'Redeemed';
+                lojaTextPt = `${redeemResult} adicionado ao seu inventário, de graça.`;
+                lojaTextEn = `${redeemResult} added to your inventory, for free.`;
+            } else if (convertResult) {
+                lojaSaved = 'success';
+                lojaTitlePt = 'Conversão concluída'; lojaTitleEn = 'Conversion complete';
+                if (convertResult === 'ossos-marks') {
+                    lojaTextPt = `${convertAmount} Marks creditados no jogo.`;
+                    lojaTextEn = `${convertAmount} Marks credited in-game.`;
+                } else {
+                    lojaTextPt = `${convertAmount} Ossos creditados no seu saldo${convertMarksUsados ? ` (usando ${convertMarksUsados} Marks)` : ''}.`;
+                    lojaTextEn = `${convertAmount} Bones credited to your balance${convertMarksUsados ? ` (using ${convertMarksUsados} Marks)` : ''}.`;
+                }
+                if (convertRconResponse) {
+                    lojaTextPt += ` Resposta do jogo: "${convertRconResponse}"`;
+                    lojaTextEn += ` Game response: "${convertRconResponse}"`;
+                }
+            }
+        %>
+        <%- include('partials/save-result-overlay', { saved: lojaSaved, titlePt: lojaTitlePt, titleEn: lojaTitleEn, textPt: lojaTextPt, textEn: lojaTextEn }) %>
+
         <%# Trava geral de compras (pedido do dono, 2026-08-15: "loja em
             teste não deve haber compra, nenhuma loja nem de servidor") —
             só aparece quando shopPurchasesLocked vem true (ver dashboard.js
@@ -567,23 +654,6 @@
             do dono, 2026-08-10) — feed completo com overlay de detalhe
             continua exclusivo da home, ver web/views/hero.ejs. %>
 
-        <%# Banner de erro COMPARTILHADO entre o conversor de moedas e a
-            compra de itens de personalização (ambos redirecionam pra
-            /loja?erro=<mensagem>, mesmo padrão de feedback) — posicionado
-            aqui no topo, fora das 2 seções, porque a ação que disparou o
-            erro pode ter vindo de qualquer uma das duas mais abaixo.
-            Cabeçalho genérico de propósito (não "Não foi possível
-            converter"): a mensagem de verdade, específica da ação, já vem
-            pronta do back-end em convertError/result.error. %>
-        <% if (convertError) { %>
-            <div class="outline-chip is-bad">
-                <i data-lucide="circle-alert" class="outline-chip-icon"></i>
-                <div class="outline-chip-text">
-                    <span class="outline-chip-headline"><span data-i18n-pt>Não foi possível concluir</span><span data-i18n-en>Couldn't complete</span></span>
-                    <span class="outline-chip-subtitle"><%= convertError %></span>
-                </div>
-            </div>
-        <% } %>
 
         <%#
             3 cards explicando as moedas (pedido do dono, ver PREMIUM.txt
@@ -667,20 +737,6 @@
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Paga com Caçadas. Só imagens de perfil — nada que mude qualquer coisa dentro do jogo.</span><span data-i18n-en>Paid with Hunt. Only profile images — nothing that changes anything in-game.</span></p>
             </div>
 
-            <%# Banner de sucesso de compra — mesmo estilo visual do
-                convertResult do conversor (outline-chip + circle-check),
-                texto próprio (nome do item comprado em vez de valor
-                convertido). Fica aqui dentro da própria seção, perto de
-                onde a compra acontece. %>
-            <% if (purchaseResult) { %>
-                <div class="outline-chip">
-                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
-                    <div class="outline-chip-text">
-                        <span class="outline-chip-headline"><span data-i18n-pt>Item comprado</span><span data-i18n-en>Item purchased</span></span>
-                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= purchaseResult %> adicionado ao seu inventário.</span><span data-i18n-en><%= purchaseResult %> added to your inventory.</span></span>
-                    </div>
-                </div>
-            <% } %>
 
             <%
                 // Foto de perfil e plano de fundo foram unificados num tipo
@@ -812,16 +868,6 @@
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Emblemas e títulos não são comprados — são conquistados jogando. Cumpra o requisito e resgate de graça.</span><span data-i18n-en>Badges and titles aren't bought — they're earned by playing. Meet the requirement and redeem them for free.</span></p>
             </div>
 
-            <% if (redeemResult) { %>
-                <div class="outline-chip">
-                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
-                    <div class="outline-chip-text">
-                        <span class="outline-chip-headline"><span data-i18n-pt>Resgatado</span><span data-i18n-en>Redeemed</span></span>
-                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= redeemResult %> adicionado ao seu inventário, de graça.</span><span data-i18n-en><%= redeemResult %> added to your inventory, for free.</span></span>
-                    </div>
-                </div>
-            <% } %>
-
             <%
                 const lojaMissoesGroups = [
                     { key: 'badge', labelPt: 'Emblemas', labelEn: 'Badges', items: badges, icon: 'shield' },
@@ -904,25 +950,6 @@
                 <p class="text-[13px] opacity-50 mt-1"><span data-i18n-pt>Item comprado só pode ser usado no servidor onde foi comprado — não é possível transferir pra outro servidor.</span><span data-i18n-en>A purchased item can only be used on the server it was bought on — it can't be transferred to another server.</span></p>
             </div>
 
-            <% if (gameShopPurchaseResult) { %>
-                <div class="outline-chip">
-                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
-                    <div class="outline-chip-text">
-                        <span class="outline-chip-headline"><span data-i18n-pt>Adicionado ao inventário</span><span data-i18n-en>Added to inventory</span></span>
-                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopPurchaseResult %> comprado — use quando estiver online no servidor.</span><span data-i18n-en><%= gameShopPurchaseResult %> purchased — use it whenever you're online on the server.</span></span>
-                    </div>
-                </div>
-            <% } %>
-            <% if (gameShopUseResult) { %>
-                <div class="outline-chip">
-                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
-                    <div class="outline-chip-text">
-                        <span class="outline-chip-headline"><span data-i18n-pt>Aplicado no jogo</span><span data-i18n-en>Applied in-game</span></span>
-                        <span class="outline-chip-subtitle"><span data-i18n-pt><%= gameShopUseResult %> aplicado com sucesso e consumido do seu inventário.</span><span data-i18n-en><%= gameShopUseResult %> successfully applied and consumed from your inventory.</span></span>
-                    </div>
-                </div>
-            <% } %>
-
             <%
                 // teleport/growth (genérico) são dos itens CUSTOMIZADOS
                 // (chaveiam por actionType, não por itemKey fixo — ver
@@ -942,7 +969,7 @@
                                 </div>
                                 <span class="loja-item-label"><%= item.label %></span>
                                 <span class="loja-item-desc"><%= item.guildName %></span>
-                                <form method="POST" action="/loja/usar-jogo" class="loja-item-buy-form">
+                                <form method="POST" action="/loja/usar-jogo" class="loja-item-buy-form loja-usar-form">
                                     <input type="hidden" name="inventoryId" value="<%= item.id %>">
                                     <button type="submit" class="btn-chip btn-chip-success">
                                         <i data-lucide="zap"></i> <span data-i18n-pt>Usar</span><span data-i18n-en>Use</span>
@@ -1091,27 +1118,10 @@
                 </div>
             </div>
 
-            <% if (convertResult) { %>
-                <div class="outline-chip">
-                    <i data-lucide="circle-check" class="outline-chip-icon" style="color:#A5FFA1;"></i>
-                    <div class="outline-chip-text">
-                        <span class="outline-chip-headline"><span data-i18n-pt>Conversão concluída</span><span data-i18n-en>Conversion complete</span></span>
-                        <span class="outline-chip-subtitle">
-                            <% if (convertResult === 'ossos-marks') { %>
-                                <span data-i18n-pt><%= convertAmount %> Marks creditados no jogo.</span><span data-i18n-en><%= convertAmount %> Marks credited in-game.</span>
-                            <% } else { %>
-                                <span data-i18n-pt><%= convertAmount %> Ossos creditados no seu saldo<% if (convertMarksUsados) { %> (usando <%= convertMarksUsados %> Marks)<% } %>.</span><span data-i18n-en><%= convertAmount %> Bones credited to your balance<% if (convertMarksUsados) { %> (using <%= convertMarksUsados %> Marks)<% } %>.</span>
-                            <% } %>
-                            <% if (convertRconResponse) { %>
-                                <br><span data-i18n-pt>Resposta do jogo: </span><span data-i18n-en>Game response: </span>"<%= convertRconResponse %>"
-                            <% } %>
-                        </span>
-                    </div>
-                </div>
-            <% } %>
-            <%# Banner de erro deste fluxo já aparece no topo da página
-                (compartilhado com a compra de personalização — ver
-                comentário lá em cima), não duplicado aqui. %>
+            <%# Resultado (sucesso/erro) desta conversão já aparece na
+                overlay compartilhada do topo da página (partials/
+                save-result-overlay, ver bloco lojaSaved/lojaTitle*/lojaText*
+                perto do início de <main>), não duplicado aqui. %>
 
             <% if (!isLinked) { %>
                 <p class="text-sm opacity-50"><span data-i18n-pt>Vincule sua conta com</span><span data-i18n-en>Link your account with</span> <code>/registrar</code> <span data-i18n-pt>no Discord pra poder converter.</span><span data-i18n-en>on Discord to be able to convert.</span></p>
