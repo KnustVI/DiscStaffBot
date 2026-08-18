@@ -311,15 +311,19 @@
             color: #A5FFA1;
         }
         .loja-item-owned-badge i { width: 13px; height: 13px; }
-        .loja-item-buy-form { margin: 0; }
-        /* Botão um pouco menor (pedido do dono, 2026-08-10, diminuído mais
-           ainda em 2026-08-12) — mesma largura cheia do card, só reduzido
-           padding/fonte. Cor própria (pedido do dono, 2026-08-12: "coloque
-           eles em cor #F8DCC0") — sobrescreve o verde padrão de
-           .btn-chip-success só aqui dentro da Loja, sem mexer na classe
-           global (usada em outros botões "de sucesso" fora desta página,
-           como Aprovar em /dev/Loja). */
-        .loja-item-buy-form .btn-chip { width: 100%; justify-content: center; padding: 3px 6px; font-size: 10px; }
+        .loja-item-buy-form { margin: 0; display: flex; justify-content: center; }
+        /* Botão cada vez menor (pedido do dono, 2026-08-10, 2026-08-12,
+           2026-08-18) — deixou de acompanhar a largura cheia do card
+           (width:100%) e passa a ficar do tamanho do próprio texto
+           (width:auto), com um mínimo pra não espremer demais "Comprar"/
+           "Buy" — .loja-item-buy-form vira flex+justify-content:center
+           pra continuar centralizado no card mesmo mais estreito. Cor
+           própria (pedido do dono, 2026-08-12: "coloque eles em cor
+           #F8DCC0") — sobrescreve o verde padrão de .btn-chip-success só
+           aqui dentro da Loja, sem mexer na classe global (usada em
+           outros botões "de sucesso" fora desta página, como Aprovar em
+           /dev/Loja). */
+        .loja-item-buy-form .btn-chip { width: auto; min-width: 92px; justify-content: center; padding: 3px 6px; font-size: 10px; }
         .loja-item-buy-form .btn-chip.btn-chip-success { color: #F8DCC0; border-color: #F8DCC0; }
         .loja-item-buy-form .btn-chip.btn-chip-success:hover { background: rgba(248, 220, 192, 0.14); }
         .loja-item-buy-form .btn-chip:disabled { opacity: 0.4; cursor: not-allowed; }
