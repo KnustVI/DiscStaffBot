@@ -7,6 +7,7 @@ const {
     GuildScheduledEventPrivacyLevel,
 } = require('discord.js');
 const db = require('../../database/index');
+const sharp = require('sharp');
 const ResponseManager = require('../../utils/responseManager');
 const { AdvancedContainerBuilder, COLORS } = require('../../utils/containerBuilder');
 const PremiumSystem = require('../../systems/premium/premiumSystem');
@@ -21,7 +22,13 @@ try {
 const VALID_IMAGE_TYPES = ['image/png', 'image/jpeg'];
 // Proporção ideal pro padrão de postagem de fórum do Discord (pedido do
 // dono, 2026-08-19) — só INFORMATIVO na descrição da option, nunca
-// validado/bloqueado (uma imagem fora desse tamanho continua aceita).
+// validado/bloqueado (uma imagem fora desse tamanho continua aceita). Uma
+// imagem MAIOR é redimensionada proporcionalmente pra esse teto antes de
+// subir pro Discord (ver download da imagem mais abaixo) — pedido do
+// dono, mesmo dia: "a imagem pode ser maior mas ela vai ser reduzida
+// proporcionalmente até para não ficar pesado pra gente". Menor continua
+// do jeito que foi enviada (sem upscale, mesmo critério de
+// storeImageBuffer em imageStorage.js).
 const IDEAL_WIDTH = 1920;
 const IDEAL_HEIGHT = 1279;
 const DEFAULT_EXTERNAL_DURATION_MS = 4 * 60 * 60 * 1000; // 4h, usado só quando o local é descritivo
@@ -204,10 +211,22 @@ module.exports = {
         try {
             const res = await fetch(imagem.url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            imageBuffer = Buffer.from(await res.arrayBuffer());
+            const rawBuffer = Buffer.from(await res.arrayBuffer());
+            // Redimensiona proporcionalmente pro tamanho ideal (pedido do
+            // dono, 2026-08-19) ANTES de subir pro Discord (evento agendado
+            // + anexo do fórum) — imagem maior nunca é rejeitada (ver
+            // option acima), só reduzida; menor/já no tamanho ideal passa
+            // direto (withoutEnlargement, nunca aumenta). `.rotate()` sem
+            // argumento auto-orienta pela tag EXIF antes do resize, mesmo
+            // motivo documentado em storeImageBuffer (imageStorage.js) —
+            // sem isso uma foto tirada em pé no celular pode sair "torta".
+            imageBuffer = await sharp(rawBuffer)
+                .rotate()
+                .resize({ width: IDEAL_WIDTH, height: IDEAL_HEIGHT, fit: 'inside', withoutEnlargement: true })
+                .toBuffer();
         } catch (err) {
-            console.error('❌ [Evento] Erro ao baixar imagem:', err);
-            return await interaction.editReply(this._errorPayload(guild, 'Não foi possível baixar a imagem enviada. Tente reenviar o comando com outra imagem.'));
+            console.error('❌ [Evento] Erro ao baixar/processar imagem:', err);
+            return await interaction.editReply(this._errorPayload(guild, 'Não foi possível baixar ou processar a imagem enviada. Tente reenviar o comando com outra imagem.'));
         }
         const imageFileName = imagem.contentType === 'image/png' ? 'evento.png' : 'evento.jpg';
 

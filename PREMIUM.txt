@@ -11866,6 +11866,26 @@ frente, nao so este relatorio):
   pode conferir publicando uma nova `/divulgar` e olhando o card na
   home, no carrossel de `/perfil`/`/loja`, no overlay de detalhe e na
   prévia de `/moderacao`.
+- CORREÇÃO no mesmo dia (pedido do dono, logo em seguida): a remoção
+  da rejeição em `/evento` só parava de BLOQUEAR imagem maior — não
+  redimensionava nada, então uma imagem 4K de verdade subiria crua
+  pro Discord (evento agendado + anexo do fórum), pesada à toa. Dono
+  pediu explicitamente: "a imagem pode ser maior mas ela vai ser
+  reduzida proporcionalmente até para não ficar pesado pra gente."
+  Adicionado o resize de verdade em `evento.js`, no mesmo ponto onde a
+  imagem já era baixada uma única vez: `sharp(rawBuffer).rotate()
+  .resize({width:1920, height:1279, fit:'inside',
+  withoutEnlargement:true}).toBuffer()` — mesma receita/mesmo motivo
+  do `.rotate()` já usado em `storeImageBuffer` (imageStorage.js).
+  `fit:'inside'` preserva a proporção original (nunca distorce, só
+  encolhe até caber dentro de 1920x1279); `withoutEnlargement:true`
+  nunca aumenta uma imagem menor que o ideal. Formato (PNG/JPEG)
+  preservado automaticamente pelo sharp, sem `.toFormat()` explícito.
+  Testado isolado (imagem sintética gerada via `sharp({create:...})`,
+  nunca um arquivo real): imagem 4000x2662 virou 1920x1278 (mesma
+  proporção, ~146KB → ~36KB), imagem 800x533 continuou 800x533 (sem
+  upscale), imagem exatamente 1920x1279 não muda, formato PNG/JPEG
+  preservado nos dois casos — 10 checagens, todas passando.
 
 232) Imagens maiores que o ideal não são mais rejeitadas na Loja de Jogo — redimensiona em vez de bloquear
 ------------------------------------------------------------------------------------------------------
