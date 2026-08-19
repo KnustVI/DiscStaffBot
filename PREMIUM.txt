@@ -12167,6 +12167,53 @@ frente, nao so este relatorio):
 - Verificado: `node --check` em `diagnostico_moedas.js` após a
   correção do bug de milissegundos.
 
+239) Sidebar: logo menor + botão de recolher flutuando no canto do card + drawer mobile flutuante
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Diminua um pouco a logo na side bar
+  para caber mais botões sem forçar rolagem, verifique se o botão de
+  fechar e abrir sidebar pode ficar no canto do card. Menu de
+  navegação de mobile pode ficar com cantos arredondados e flutuante
+  para acompanhar o design do site?"
+- `partials/sidebar-v2.ejs`:
+  1. Logo reduzida de 229px pra 180px de largura (`.tp-sidebar-logo
+     img`), padding vertical de 9px pra 6px — imagem menor + altura
+     proporcionalmente menor (height:auto) libera espaço vertical de
+     verdade, não só cosmético.
+  2. Botão de recolher/expandir (`.tp-sidebar-top-actions`) deixou de
+     ocupar a própria linha abaixo da logo — vira `position:absolute`
+     no canto superior direito do CARD (`.tp-sidebar`, que ganhou
+     `position:relative` como âncora), não do bloco interno com
+     padding. Isso some com uma linha inteira de altura (~50px+) que
+     antes só existia pra esse 1 botão (o de idioma que dividia essa
+     linha com ele já tinha saído daqui em 2026-08-13). Revertido pra
+     `position:static` (fluxo normal, como antes) nos 3 gatilhos de
+     modo colapsado (`[data-collapsed="true"]`, `:not([data-user-set])`
+     em telas ≤1023px, `@container tpsidebar` ≤150px) — nesses a
+     sidebar fica estreita demais (79-109px) pro botão flutuante não
+     sobrepor a logo, que também encolhe junto nesse modo.
+  3. Drawer mobile (`.tp-mobile-drawer`) — antes um painel encostado em
+     3 bordas (top/left/bottom:0), sem `border-radius`, destoando do
+     resto do site. Agora com inset de 16px dos 3 lados + `border-
+     radius:20px` + a MESMA receita de fundo/borda/sombra já usada por
+     `.tp-sidebar`/`.titan-card-premium` (gradiente + `box-shadow: -15px
+     30px 50px...` + borda direita de destaque) — "flutua" como
+     qualquer outro card do site em vez de ser um painel à parte.
+     `transform` fechado ajustado de `translateX(-100%)` pra
+     `translateX(calc(-100% - 32px))` — com `left:16px` agora, só
+     -100% deixaria a borda direita do card ainda visível encostada no
+     canto ao fechar.
+- Mesma mudança do drawer (item 3) replicada em `partials/top-nav.ejs`
+  — CSS duplicado de propósito pras ~5 páginas sem sidebar (custo
+  conhecido da divisão em 2 arquivos, ver comentário já existente
+  nesse trecho).
+- Verificado: `ejs.compile()` nos dois arquivos (confirma sintaxe
+  válida — não dá pra rodar `node --check` direto em `.ejs`). Sem
+  confirmação visual no navegador — o dono pode conferir abrindo
+  qualquer página com sidebar (logo menor, botão no canto) e o menu
+  mobile numa tela estreita (cantos arredondados, flutuando com
+  margem das bordas).
+
+
 
 
 

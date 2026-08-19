@@ -469,6 +469,10 @@
            couber. */
         container-type: inline-size;
         container-name: tpsidebar;
+        /* Âncora pro botão de recolher/expandir flutuar no CANTO do card
+           (pedido do dono, 2026-08-19) — ver .tp-sidebar-top-actions
+           abaixo. */
+        position: relative;
     }
     .tp-sidebar * { box-sizing: border-box; }
     .tp-sidebar-inner {
@@ -488,21 +492,32 @@
         align-items: center;
         gap: 10px;
     }
-    .tp-sidebar-logo { display: flex; justify-content: center; padding: 9px 0; width: 100%; }
-    .tp-sidebar-logo img { width: 100%; max-width: 229px; height: auto; }
+    /* Reduzida de 229px pra 180px (pedido do dono, 2026-08-19: "diminua
+       um pouco a logo... para caber mais botões sem forçar rolagem") —
+       junto com o botão de recolher saindo da própria linha (ver
+       .tp-sidebar-top-actions abaixo), libera espaço vertical pra mais
+       itens de nav aparecerem sem precisar rolar. */
+    .tp-sidebar-logo { display: flex; justify-content: center; padding: 6px 0; width: 100%; }
+    .tp-sidebar-logo img { width: 100%; max-width: 180px; height: auto; }
 
-    /* Idioma + recolher/expandir lado a lado (pedido do dono, 2026-08-12
-       — ver comentário no HTML acima). Só no modo EXPANDIDO: os 3
-       gatilhos de "só ícone" (data-collapsed, tela estreita, container
-       estreito) revertem pra column mais abaixo, porque a largura
-       interna colapsada (~73px) não cabe os dois lado a lado
-       (52px + 41px + gap > 73px). */
+    /* Botão de recolher/expandir flutuando no canto superior direito do
+       CARD (pedido do dono, 2026-08-19: "verifique se o botão de fechar
+       e abrir sidebar pode ficar no canto do card") — antes ocupava a
+       própria linha abaixo da logo (idioma+recolher lado a lado,
+       histórico de 2026-08-12); com o idioma já removido daqui há tempo
+       (só sobrou este 1 botão), manter a linha inteira só pra ele
+       desperdiçava espaço vertical. Ancorado em .tp-sidebar (position:
+       relative), não em .tp-sidebar-top — assim fica exatamente no
+       canto do CARD (border-radius:20px), não do bloco interno com
+       padding. Revertido de volta pro fluxo normal (position:static)
+       nos 3 gatilhos de modo colapsado logo abaixo — nesse modo a
+       sidebar fica estreita demais (79-109px) pro botão flutuante não
+       sobrepor a logo, que também encolhe junto. */
     .tp-sidebar-top-actions {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        z-index: 2;
     }
 
     /* Tamanho fixo (pedido do dono, 2026-08-06: "botão de recolher e
@@ -715,10 +730,10 @@
     .tp-sidebar[data-collapsed="true"] { width: var(--tp-w-collapsed); }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
-    /* Idioma + recolher voltam a empilhar (column) quando colapsada — a
-       largura interna colapsada (~73px, ver --tp-collapsed-pad) não cabe
-       os 52px do lang-toggle + 41px do toggle + gap lado a lado. */
-    .tp-sidebar[data-collapsed="true"] .tp-sidebar-top-actions { flex-direction: column; }
+    /* Volta pro fluxo normal (não mais flutuando no canto) quando
+       colapsada — a sidebar fica estreita demais (109px) pro botão
+       flutuante não sobrepor a logo, que também encolhe junto. */
+    .tp-sidebar[data-collapsed="true"] .tp-sidebar-top-actions { position: static; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-expanded { display: none; }
     .tp-sidebar[data-collapsed="true"] .tp-icon-collapsed { display: block; }
     .tp-sidebar[data-collapsed="true"] .tp-sidebar-nav { gap: 10px; padding: 0; }
@@ -747,7 +762,7 @@
         .tp-sidebar:not([data-user-set]) { width: var(--tp-w-collapsed); }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
-        .tp-sidebar:not([data-user-set]) .tp-sidebar-top-actions { flex-direction: column; }
+        .tp-sidebar:not([data-user-set]) .tp-sidebar-top-actions { position: static; }
         .tp-sidebar:not([data-user-set]) .tp-icon-expanded { display: none; }
         .tp-sidebar:not([data-user-set]) .tp-icon-collapsed { display: block; }
         .tp-sidebar:not([data-user-set]) .tp-sidebar-nav { gap: 10px; padding: 0; }
@@ -815,7 +830,7 @@
     @container tpsidebar (max-width: 150px) {
         .tp-sidebar-inner { padding: var(--tp-collapsed-pad); gap: 30px; }
         .tp-sidebar-logo img { max-width: var(--tp-collapsed-logo); }
-        .tp-sidebar-top-actions { flex-direction: column; }
+        .tp-sidebar-top-actions { position: static; }
         .tp-icon-expanded { display: none; }
         .tp-icon-collapsed { display: block; }
         .tp-sidebar-nav { gap: 10px; padding: 0; }
@@ -844,13 +859,27 @@
         background: rgba(0, 0, 0, 0.6);
         z-index: 90;
     }
+    /* Cantos arredondados + flutuante (pedido do dono, 2026-08-19: "menu
+       de navegação de mobile pode ficar com cantos arredondados e
+       flutuante para acompanhar o design do site?") — antes era um
+       painel encostado nas 3 bordas (top/left/bottom = 0), sem
+       border-radius, destoando do resto do site (todo card, incluindo
+       .tp-sidebar que este drawer substitui no mobile, usa a MESMA
+       receita de fundo/sombra/borda "flutuando" com border-radius:20px).
+       Agora inset por 16px dos 3 lados (top/left/bottom) — right fica
+       livre de propósito, definido só pela largura, pra não conflitar
+       com a largura responsiva calc(100vw - 32px) em telas bem
+       estreitas. translateX fechado precisa ir além de -100% (soma o
+       inset de 16px) pra garantir que o card sai TOTALMENTE da tela —
+       com left:16px, um translateX(-100%) sozinho deixaria a borda
+       direita do card ainda visível encostada no canto esquerdo. */
     .tp-mobile-drawer {
         box-sizing: border-box;
         position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: min(320px, 85vw);
+        top: 16px;
+        left: 16px;
+        bottom: 16px;
+        width: min(320px, calc(100vw - 32px));
         z-index: 100;
         display: flex;
         flex-direction: column;
@@ -858,10 +887,12 @@
         padding: 20px 18px;
         overflow-y: auto;
         background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+        border: 1px solid rgba(0, 0, 0, 0.4);
         border-right: 1.5px solid rgba(248, 220, 192, 0.3);
-        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.8);
+        border-radius: 20px;
+        box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         font-family: 'Poppins', sans-serif;
-        transform: translateX(-100%);
+        transform: translateX(calc(-100% - 32px));
         transition: transform 0.25s ease;
     }
     @media (prefers-reduced-motion: reduce) {

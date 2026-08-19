@@ -377,13 +377,17 @@
         background: rgba(0, 0, 0, 0.6);
         z-index: 90;
     }
+    /* Cantos arredondados + flutuante (pedido do dono, 2026-08-19) —
+       mesma mudança de partials/sidebar-v2.ejs, ver comentário completo
+       lá (este arquivo duplica o CSS do drawer pras ~5 páginas sem
+       sidebar, custo conhecido da divisão em 2 arquivos). */
     .tp-mobile-drawer {
         box-sizing: border-box;
         position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: min(320px, 85vw);
+        top: 16px;
+        left: 16px;
+        bottom: 16px;
+        width: min(320px, calc(100vw - 32px));
         z-index: 100;
         display: flex;
         flex-direction: column;
@@ -391,10 +395,12 @@
         padding: 20px 18px;
         overflow-y: auto;
         background: linear-gradient(180deg, #252326 0%, #1F1D20 54.34%, #131314 98.29%);
+        border: 1px solid rgba(0, 0, 0, 0.4);
         border-right: 1.5px solid rgba(248, 220, 192, 0.3);
-        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.8);
+        border-radius: 20px;
+        box-shadow: -15px 30px 50px rgba(0, 0, 0, 0.8), inset 0.5px 0.5px 0px rgba(248, 220, 192, 0.12);
         font-family: 'Poppins', sans-serif;
-        transform: translateX(-100%);
+        transform: translateX(calc(-100% - 32px));
         transition: transform 0.25s ease;
     }
     @media (prefers-reduced-motion: reduce) {
