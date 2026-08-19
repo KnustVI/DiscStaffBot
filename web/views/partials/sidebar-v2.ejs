@@ -1122,7 +1122,25 @@
         }
 
         applyResponsiveState();
-        narrowQuery.addEventListener('change', applyResponsiveState);
+        // BUG REAL corrigido (pedido do dono, 2026-08-19: "quebrou o menu
+        // de navegação mobile") — MediaQueryList.addEventListener não
+        // existe em navegadores mais antigos (Safari <14, e sobretudo o
+        // WebView embutido do próprio app do Discord no Android, que
+        // costuma ficar atrás do Chrome "de verdade" do aparelho — bem
+        // relevante aqui, já que o público real clica nesse link DE
+        // DENTRO do Discord mobile). Sem addEventListener, essa linha
+        // lançava TypeError e travava o resto do <script> — incluindo o
+        // trecho MAIS ABAIXO no mesmo arquivo que redefine
+        // window.toggleMobileDrawer, deixando o botão hamburguer
+        // apertando e não fazendo NADA (o onclick já é defensivo, "if
+        // (window.toggleMobileDrawer)", mas a função nunca chegava a
+        // existir). Fallback pro método antigo (addListener) cobre esses
+        // navegadores sem lançar erro nenhum.
+        if (narrowQuery.addEventListener) {
+            narrowQuery.addEventListener('change', applyResponsiveState);
+        } else if (narrowQuery.addListener) {
+            narrowQuery.addListener(applyResponsiveState);
+        }
 
         // Clique no toggle continua sendo uma ação explícita do usuário —
         // funciona normalmente em qualquer largura, inclusive abaixo de
