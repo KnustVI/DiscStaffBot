@@ -11965,3 +11965,36 @@ frente, nao so este relatorio):
   qualquer página com sidebar (ex: `/moderacao/:guildID`) e o menu
   mobile de uma página pública (ex: `/` numa tela estreita) e
   confirmando que Premium só aparece na barra de topo.
+
+234) Novo subcomando /ingame-admin reloadbans
+------------------------------------------------------------------------------------------------------
+- Pedido do dono, 2026-08-19: "Verifique e se não houver faça um
+  comando ingame-reloadbans" — motivado pela correção manual da
+  banlist.txt feita mais cedo no mesmo dia (colar o bloco corrigido
+  direto no arquivo do servidor): sem `ReloadBans`, o servidor em
+  execução continua com a versão ANTIGA da lista em memória até o
+  próximo restart, mesmo com o arquivo em disco já corrigido.
+- Verificado antes de criar: `ReloadBans`/`ReloadMutes` NÃO existiam
+  em nenhum lugar do catálogo `/ingame-*` (só `reloadrules`/
+  `reloadwhitelist`/`reloadmotd`, ver rconCommandCatalog.js
+  ADMIN_COMMANDS) — a única forma de disparar `ReloadBans` hoje era
+  indiretamente, via `/strike`/`/unstrike` bem-sucedidos (ver
+  applyIngameAction/undoIngameAction em punishmentSystem.js), sem
+  jeito manual de rodar sozinho.
+- Adicionado `reloadbans` em `ADMIN_COMMANDS`, mesmo padrão exato de
+  `reloadrules`/`reloadwhitelist`/`reloadmotd` (sem opções, sem
+  `supervisorOnly`) — o catálogo é data-driven, então o subcomando já
+  nasce funcional em `/ingame-admin` E documentado em
+  `/ingame-comandos` (categoria Admin) sem precisar tocar nenhum dos
+  dois arquivos. Comentado explicitamente por quê isso NÃO viola a
+  exclusão de kick/ban/unban/ServerMute/ServerUnmute do topo do
+  catálogo (ReloadBans não bane/desbane ninguém sozinho, só manda o
+  servidor reler o arquivo já persistido).
+- Verificado: `node --check` na sintaxe do catálogo; execução real do
+  arquivo confirmando que `ADMIN_COMMANDS` carrega 14 subcomandos
+  (era 13), com `reloadbans` presente entre `reloadmotd` e
+  `alloweditabilities`. **Precisa de `node deploy.js`** pra Discord
+  aprender a nova assinatura de `/ingame-admin` — sem isso o
+  subcomando não aparece no autocomplete do Discord, mesmo já
+  funcionando no código.
+

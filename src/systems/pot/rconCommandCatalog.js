@@ -272,6 +272,17 @@ const ADMIN_COMMANDS = [
     },
     { name: 'reloadwhitelist', description: 'Recarrega a whitelist do servidor.', options: [], buildCommand: () => 'ReloadWhitelist' },
     { name: 'reloadmotd', description: 'Recarrega a mensagem do dia (MOTD).', options: [], buildCommand: () => 'ReloadMOTD' },
+    // ReloadBans NÃO cai na exclusão de kick/ban/unban/ServerMute/
+    // ServerUnmute do topo deste arquivo — ele mesmo não bane/desbane
+    // ninguém, só manda o servidor RELER a banlist.txt já persistida no
+    // disco (mesmo comando que /strike e /unstrike já disparam sozinhos
+    // depois de um Ban/unban bem-sucedido, ver applyIngameAction/
+    // undoIngameAction em punishmentSystem.js). Pedido do dono, 2026-08-19
+    // — precisa disso como comando manual pra quando a banlist.txt é
+    // editada por FORA do bot (ex: corrigindo uma linha corrompida direto
+    // no arquivo) e o servidor em execução precisa ser avisado pra reler
+    // sem esperar o próximo restart.
+    { name: 'reloadbans', description: 'Recarrega a lista de banimentos do servidor (banlist.txt).', options: [], buildCommand: () => 'ReloadBans' },
     {
         name: 'alloweditabilities',
         description: 'Permite que o jogador informado edite habilidades.',
